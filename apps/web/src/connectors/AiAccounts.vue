@@ -215,19 +215,21 @@ h3 {
 
 .card-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--vr-space-3);
+  gap: var(--vr-space-2) var(--vr-space-3);
 }
 
 .card-main {
-  flex: 1;
+  flex: 1 1 10rem;
   min-width: 0;
 }
 
 .card-title {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--vr-space-2);
+  gap: var(--vr-space-1) var(--vr-space-2);
 }
 
 .kind-icon {
@@ -255,6 +257,7 @@ h3 {
 
 .chip {
   padding: 1px var(--vr-space-2);
+  white-space: nowrap;
   color: var(--vr-color-text-muted);
   font-size: var(--vr-font-size-2xs);
   background: var(--vr-color-chip-bg);

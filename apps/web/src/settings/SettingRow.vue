@@ -51,7 +51,7 @@ function commit() {
 </script>
 
 <template>
-  <div class="row" :data-modified="modified" :data-testid="`setting-row-${settingKey}`">
+  <div class="row vr-field" :data-modified="modified" :data-testid="`setting-row-${settingKey}`">
     <div class="meta">
       <label class="label" :for="testId">{{ t(def.label) }}</label>
       <p class="description">{{ t(def.description) }}</p>
@@ -94,10 +94,6 @@ function commit() {
 
 <style scoped>
 .row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 18rem);
-  align-items: start;
-  gap: var(--vr-space-6);
   padding: var(--vr-space-4) 0;
   border-bottom: 1px solid var(--vr-color-border);
 }

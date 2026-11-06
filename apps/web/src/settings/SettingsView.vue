@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch, type Component } from 'vue';
-import { ExternalLink, FileJson, FileText, History, Keyboard, Palette, Plug, Search, SlidersHorizontal, Smartphone, SquareTerminal } from 'lucide-vue-next';
+import { ExternalLink, FileJson, FileText, History, Keyboard, Palette, Plug, RefreshCw, Search, SlidersHorizontal, Smartphone, SquareTerminal } from 'lucide-vue-next';
 import { VButton, VInputText, VMessage } from '@ui/kit';
 import ConnectorsPanel from '../connectors/ConnectorsPanel.vue';
+import BackBar from '../mobile/BackBar.vue';
 import { useI18n } from '../i18n';
 import { withViewTransition } from '../motion';
 import { requestedSettingsCategory } from '../nav';
@@ -21,10 +22,17 @@ const query = shallowRef('');
 type CategoryId = (typeof CATEGORIES)[number]['id'];
 const category = shallowRef<CategoryId>('appearance');
 const rawMode = shallowRef(false);
+const picked = shallowRef(false);
 
-const CATEGORY_ICONS: Record<CategoryId, Component> = { appearance: Palette, terminal: SquareTerminal, sessions: History, files: FileText, connectors: Plug, remote: Smartphone, keymap: Keyboard };
+const CATEGORY_ICONS: Record<CategoryId, Component> = { appearance: Palette, terminal: SquareTerminal, sessions: History, files: FileText, connectors: Plug, remote: Smartphone, app: RefreshCw, keymap: Keyboard };
 
 const normalizedQuery = computed(() => query.value.trim().toLowerCase());
+const showDetail = computed(() => picked.value || rawMode.value || Boolean(normalizedQuery.value));
+const detailTitle = computed(() => {
+  if (rawMode.value) return 'settings.json';
+  if (normalizedQuery.value) return t('settings.search');
+  return t(CATEGORIES.find((entry) => entry.id === category.value)?.label ?? 'settings.title');
+});
 watch(normalizedQuery, (value) => {
   if (value) rawMode.value = false;
 });
@@ -49,6 +57,13 @@ const groups = computed(() =>
 
 function applyCategory(id: CategoryId) {
   category.value = id;
+  query.value = '';
+  rawMode.value = false;
+  picked.value = true;
+}
+
+function backToCategories() {
+  picked.value = false;
   query.value = '';
   rawMode.value = false;
 }
@@ -81,7 +96,7 @@ function onSearchKey(event: KeyboardEvent) {
 
 <template>
   <section class="page" data-testid="settings-view" :aria-label="t('settings.title')">
-    <header class="header">
+    <header class="header vr-toolbar">
       <h1><SlidersHorizontal :size="18" />{{ t('settings.title') }}</h1>
       <label class="search">
         <Search :size="16" />
@@ -118,8 +133,8 @@ function onSearchKey(event: KeyboardEvent) {
       <VMessage v-if="ioError" severity="error" size="small" data-testid="settings-io-error">{{ ioError }}</VMessage>
     </div>
 
-    <div class="body">
-      <nav class="categories" :aria-label="t('settings.categoriesLabel')">
+    <div class="body vr-master-detail" :data-detail="showDetail">
+      <nav class="categories vr-master" :aria-label="t('settings.categoriesLabel')">
         <button
           v-for="entry in CATEGORIES"
           :key="entry.id"
@@ -133,7 +148,8 @@ function onSearchKey(event: KeyboardEvent) {
         </button>
       </nav>
 
-      <div class="content vt-detail">
+      <div class="content vr-detail vt-detail">
+        <BackBar class="vr-phone-only" :title="detailTitle" @back="backToCategories" />
         <SettingsJsonEditor v-if="rawMode" name="settings.json" :text="text" :save="saveText" />
         <KeymapPanel v-else-if="showKeymap" />
         <div v-else class="list" :class="{ locked: parseError }" data-testid="settings-list">
@@ -166,8 +182,7 @@ function onSearchKey(event: KeyboardEvent) {
 .header {
   display: flex;
   align-items: center;
-  gap: var(--vr-space-3);
-  padding: var(--vr-space-4) var(--vr-space-6);
+  padding: var(--vr-space-4) var(--vr-page-gutter);
   border-bottom: 1px solid var(--vr-color-border);
 }
 
@@ -183,7 +198,7 @@ h1 {
 .search {
   position: relative;
   display: flex;
-  flex: 1;
+  flex: 1 1 12rem;
   align-items: center;
   max-width: 28rem;
   color: var(--vr-color-text-muted);
@@ -207,7 +222,7 @@ h1 {
 }
 
 .notices:not(:empty) {
-  padding: var(--vr-space-3) var(--vr-space-6) 0;
+  padding: var(--vr-space-3) var(--vr-page-gutter) 0;
 }
 
 .body {
@@ -259,7 +274,7 @@ h1 {
 .list {
   flex: 1;
   min-height: 0;
-  padding: var(--vr-space-2) var(--vr-space-6) var(--vr-space-6);
+  padding: var(--vr-space-2) var(--vr-page-gutter) var(--vr-space-6);
   overflow-y: auto;
 }
 

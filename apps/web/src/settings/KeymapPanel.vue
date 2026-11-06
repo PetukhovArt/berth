@@ -117,7 +117,7 @@ onBeforeUnmount(cancel);
 
 <template>
   <div class="keymap" data-testid="keymap-panel">
-    <div class="toolbar">
+    <div class="toolbar vr-toolbar">
       <label class="search">
         <Search :size="16" />
         <VInputText v-model="query" size="small" :placeholder="t('settings.keymap.search')" :aria-label="t('settings.keymap.search')" data-testid="keymap-search" />
@@ -214,16 +214,13 @@ onBeforeUnmount(cancel);
 }
 
 .toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--vr-space-3);
-  padding: var(--vr-space-3) var(--vr-space-6) 0;
+  padding: var(--vr-space-3) var(--vr-page-gutter) 0;
 }
 
 .search {
   position: relative;
   display: flex;
-  flex: 1;
+  flex: 1 1 12rem;
   align-items: center;
   max-width: 28rem;
   color: var(--vr-color-text-muted);
@@ -247,14 +244,31 @@ onBeforeUnmount(cancel);
 }
 
 .notices:not(:empty) {
-  padding: var(--vr-space-3) var(--vr-space-6) 0;
+  padding: var(--vr-space-3) var(--vr-page-gutter) 0;
 }
 
 .list {
+  container: keymap-list / inline-size;
   flex: 1;
   min-height: 0;
-  padding: var(--vr-space-2) var(--vr-space-6) var(--vr-space-6);
+  padding: var(--vr-space-2) var(--vr-page-gutter) var(--vr-space-6);
   overflow-y: auto;
+}
+
+@container keymap-list (max-width: 34rem) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .keys {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+
+  .buttons {
+    grid-row: 1;
+    grid-column: 2;
+  }
 }
 
 .list.locked {
