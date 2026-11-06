@@ -10,6 +10,7 @@
 /.claude/*
 !/.claude/hooks/
 !/.claude/settings.json
+!/.claude/rules/
 
 # Personal, machine-local instructions — never committed
 CLAUDE.local.md
