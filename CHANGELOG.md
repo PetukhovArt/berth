@@ -14,6 +14,8 @@
 - Added `Prewarm agents` and `Prewarm sessions` settings under Sessions (`prewarm_agents`, `prewarm_sessions`) to stop berth starting idle processes ahead of time and save memory.
 - Added five color themes: `lavender`, `coral`, `slate`, `sand` and `mono`.
 - Added renaming a session's row when you `/rename` it inside Claude Code.
+- Fixed the selected session in the desktop app's tree drawing two highlights with dim text on top, so its name was hard to read.
+- Fixed `Continue in Berth` in the desktop app opening the terminal in a new tab beside the conversation; the terminal now takes the conversation's tab.
 - Fixed the `Shift+O` session list naming almost every row after its branch, so a session now carries the title Claude Code shows it under in `/resume`.
 - Windows: Fixed `Ctrl+Enter` inserting a newline in Claude Code instead of sending the message now (needs a sideloaded `conpty.dll`).
 - Fixed agents' `git add` and `git commit` failing with `index.lock: File exists` while berth polls the checkout.

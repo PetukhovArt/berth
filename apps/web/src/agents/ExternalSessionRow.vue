@@ -72,12 +72,13 @@ const menuItems = computed(() => [
   background: var(--vr-color-nav-hover);
 }
 
-.row[data-active='true'] {
-  background: var(--vr-color-nav-active);
-}
-
 .row[data-running='false'] .name {
   color: var(--vr-color-text-muted);
+}
+
+.row[data-active='true'],
+.row[data-active='true'] .name {
+  color: var(--vr-color-text);
 }
 
 .name {

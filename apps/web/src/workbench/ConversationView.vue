@@ -104,7 +104,7 @@ async function continueHere() {
   if (!current || !where || current.running) return;
   await action.run(async () => {
     const ref = await continueInBerth(current, where);
-    dock.openWhenListed(ref);
+    dock.openWhenListed(ref, externalKey(current), true);
   });
 }
 

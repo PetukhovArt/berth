@@ -32,6 +32,7 @@ function createDock() {
   const creatingIn = shallowRef<string | null>(null);
   const openingKey = shallowRef<string | null>(null);
   let openingBeside: string | undefined;
+  let openingReplace = false;
   const detail = shallowRef(false);
   const switching = shallowRef(false);
   const pending: ((api: DockviewApi) => void)[] = [];
@@ -81,8 +82,9 @@ function createDock() {
       const opening = openingKey.value ? sessions.get(openingKey.value) : undefined;
       if (!opening) return;
       openingKey.value = null;
-      openSession(opening, openingBeside);
+      openSession(opening, openingBeside, openingReplace);
       openingBeside = undefined;
+      openingReplace = false;
     },
   );
 
@@ -121,15 +123,14 @@ function createDock() {
     api.addPanel({ id: session.key, component: 'session', title: session.name, params: { session: session.ref }, renderer: 'always', ...(position ? { position } : {}) });
   }
 
-  function openSession(session: SessionNode, beside?: string) {
+  function openSession(session: SessionNode, beside?: string, replace = false) {
     withDock((api) => {
       const existing = api.getPanel(session.key);
-      if (existing) {
-        existing.api.setActive();
-        return;
-      }
-      if (beside && api.getPanel(beside)) api.addPanel({ id: session.key, component: 'session', title: session.name, params: { session: session.ref }, renderer: 'always', position: { referencePanel: beside, direction: 'within' } });
+      const anchor = beside ? api.getPanel(beside) : undefined;
+      if (existing) existing.api.setActive();
+      else if (anchor) api.addPanel({ id: session.key, component: 'session', title: session.name, params: { session: session.ref }, renderer: 'always', position: { referencePanel: anchor.id, direction: 'within' } });
       else addSessionPanel(session, api);
+      if (replace) anchor?.api.close();
     });
   }
 
@@ -195,12 +196,13 @@ function createDock() {
     openPanel({ id: METRICS_PANEL, component: 'metrics', title: t('agents.metrics.title') });
   }
 
-  function openWhenListed(session: SessionRef, beside?: string) {
+  function openWhenListed(session: SessionRef, beside?: string, replace = false) {
     const key = sessionKey(session);
     const node = berth?.sessions.value.get(key);
-    if (node) openSession(node, beside);
+    if (node) openSession(node, beside, replace);
     else {
       openingBeside = beside;
+      openingReplace = replace;
       openingKey.value = key;
     }
   }

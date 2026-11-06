@@ -159,7 +159,7 @@ async function confirmDelete() {
 }
 
 .row[data-active='true'] {
-  background: var(--vr-color-nav-active);
+  color: var(--vr-color-text);
 }
 
 .name {
