@@ -60,6 +60,24 @@ pub const PANE_COLORTERM: &str = "truecolor";
 /// The TUI still honours its own `NO_COLOR`.
 pub const PANE_COLOR_OVERRIDES: &[&str] = &["NO_COLOR", "FORCE_COLOR"];
 
+/// Vars Claude Code sets on its own subprocesses to tie them to the session
+/// that ran them. A daemon auto-started from an agent's Bash tool inherits
+/// them for life, and a `claude` that sees `CLAUDE_CODE_CHILD_SESSION`
+/// believes it is nested and stops saving its transcript. Scrubbed from the
+/// daemon's spawn and from every PTY child. User settings such as
+/// `CLAUDE_CODE_PLUGIN_DIRS` are not in the list.
+pub const HOST_AGENT_SESSION_VARS: &[&str] = &[
+    "CLAUDECODE",
+    "CLAUDE_CODE_CHILD_SESSION",
+    "CLAUDE_CODE_SESSION_ID",
+    "CLAUDE_CODE_BRIDGE_SESSION_ID",
+    "CLAUDE_CODE_SESSION_ATTENDED",
+    "CLAUDE_CODE_MESSAGING_SOCKET",
+    "CLAUDE_CODE_MESSAGING_TOKEN",
+    "CLAUDE_CODE_ENTRYPOINT",
+    "CLAUDE_CODE_EXECPATH",
+];
+
 /// The value of `var`, treating unset and empty the same way — an empty
 /// override is how a caller says "use the default".
 pub fn non_empty(var: &str) -> Option<String> {

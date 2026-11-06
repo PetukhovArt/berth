@@ -175,7 +175,10 @@ impl PtySession {
         // login shell's profile too (`login_shell_wrap`).
         cmd.env("TERM", berth_core::env::PANE_TERM);
         cmd.env("COLORTERM", berth_core::env::PANE_COLORTERM);
-        for name in berth_core::env::PANE_COLOR_OVERRIDES {
+        for name in berth_core::env::PANE_COLOR_OVERRIDES
+            .iter()
+            .chain(berth_core::env::HOST_AGENT_SESSION_VARS)
+        {
             cmd.env_remove(name);
         }
         for name in spec.scrub_env {

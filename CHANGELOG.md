@@ -18,6 +18,7 @@
 - Windows: Fixed `Ctrl+Enter` inserting a newline in Claude Code instead of sending the message now (needs a sideloaded `conpty.dll`).
 - Fixed agents' `git add` and `git commit` failing with `index.lock: File exists` while berth polls the checkout.
 - Fixed a session painting in no color at all when `NO_COLOR` or `FORCE_COLOR` was set in the daemon's environment or a login profile.
+- Fixed Claude Code sessions not saving their transcript (`Transcript saving is off`) when the daemon was started from inside another Claude Code session.
 - Fixed scrolling a pane up past its oldest line, which then took as many wheel notches to come back down.
 - Changed pacer is now berth: the command is `berth`, the npm package is `@petukhovart/berth`, and the first `berth` copies your pacer projects, workspaces and settings into its own directory while pacer's data and its running daemon stay as they are.
 - Changed the environment variables from `PACER_*` to `BERTH_*`; the old spelling still works, except that berth refuses to start on `PACER_RUNTIME_DIR` or `PACER_DATA_DIR` set without its `BERTH_*` counterpart.

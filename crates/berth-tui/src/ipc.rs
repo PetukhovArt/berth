@@ -64,6 +64,9 @@ fn spawn_daemon() -> Result<()> {
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null());
+    for name in berth_core::env::HOST_AGENT_SESSION_VARS {
+        cmd.env_remove(name);
+    }
     detach(&mut cmd);
     cmd.spawn().context("spawn berth daemon")?;
     Ok(())
