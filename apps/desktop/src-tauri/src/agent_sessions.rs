@@ -29,6 +29,7 @@ const SESSION_LIMIT: usize = 500;
 const FRESH_MS: u64 = 10_000;
 const IDLE_MS: u64 = 4 * 3_600_000;
 const START_SLACK_MS: u64 = 5_000;
+const LIVE_ID_SLACK_MS: u64 = 120_000;
 const TITLE_CHARS: usize = 120;
 const TEXT_CHARS: usize = 20_000;
 const TOOL_CHARS: usize = 240;
@@ -288,6 +289,16 @@ fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
 
 fn claude_root() -> Option<PathBuf> {
     claude_dir().map(|dir| dir.join("projects"))
+}
+
+fn claude_live_id(pid: Pid, started: u64) -> Option<String> {
+    let file = claude_dir()?.join("sessions").join(format!("{pid}.json"));
+    let value: Value = serde_json::from_slice(&fs::read(file).ok()?).ok()?;
+    let at = value["startedAt"].as_u64()?;
+    if at.abs_diff(started) > LIVE_ID_SLACK_MS {
+        return None;
+    }
+    owned(&value["sessionId"]).filter(|id| valid_id(id))
 }
 
 fn codex_root() -> Option<PathBuf> {
@@ -876,14 +887,19 @@ fn processes() -> Vec<Proc> {
                 return None;
             }
             let (host, berth, berth_pids) = host_of(&system, process);
+            let started = process.start_time().saturating_mul(1000);
+            let live = match harness {
+                Harness::Claude => claude_live_id(*pid, started),
+                Harness::Codex => None,
+            };
             Some(Proc {
                 harness: *harness,
                 cwd: process
                     .cwd()
                     .map(|cwd| normalize(&cwd.to_string_lossy()))
                     .filter(|cwd| !cwd.is_empty()),
-                resume: resume_id(*harness, args),
-                started: process.start_time().saturating_mul(1000),
+                resume: live.or_else(|| resume_id(*harness, args)),
+                started,
                 host,
                 berth,
                 berth_pids,
