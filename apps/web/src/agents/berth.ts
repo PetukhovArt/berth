@@ -252,16 +252,18 @@ type PrewarmInfo = { worktree: string; kind: AgentKind; model: string | null };
 type SessionMetrics = { session: SessionRef; pid: number; rss_bytes: number; procs: number; prewarm: PrewarmInfo | null };
 type MetricsSnapshot = { daemon_pid: number; daemon_rss_bytes: number; system_total_bytes: number; sessions: SessionMetrics[]; sampled_at_ms: number };
 type EnterOutcome = 'AlreadyThere' | 'Relocating' | 'NextLaunch';
+export type Branch = { name: string; worktree: string | null };
 
 export type BerthReply =
   | { Ack: { req_id: number; created: EntityId | null } }
   | { OrphanedSessions: { req_id: number; sessions: OrphanedSession[] } }
+  | { Branches: { req_id: number; branches: Branch[] } }
   | { WorktreeEntered: { req_id: number; worktree: Worktree; outcome: EnterOutcome } }
   | { Metrics: { req_id: number; snapshot: MetricsSnapshot } };
 
 export class BerthCallError extends Error {}
 
-const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'WorktreeEntered', 'Metrics']);
+const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics']);
 
 function isBerthReply(value: unknown): value is BerthReply {
   if (typeof value !== 'object' || value === null) return false;

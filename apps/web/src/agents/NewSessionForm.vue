@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { computed, shallowRef } from 'vue';
+import { computed, shallowRef, watch } from 'vue';
 import { VButton, VDialog, VInputText, VMessage, VSelect, VTextarea } from '@ui/kit';
 import { t } from '../i18n';
 import { useSettings } from '../settings/store';
-import { createAgent,createTerminal, entitySessionRef, type AgentKind, type SessionRef, type WorktreeNode } from './berth';
+import { createAgent, createTerminal, entitySessionRef, type AgentKind, type SessionRef } from './berth';
+import { useSessionTarget } from './manage/sessionTarget';
+import NewSessionTarget from './NewSessionTarget.vue';
 import { useAction } from './useAction';
 
-const props = defineProps<{ worktree: WorktreeNode }>();
+const props = defineProps<{ worktree: string | null }>();
 const emit = defineEmits<{ close: []; created: [session: SessionRef] }>();
+const location = useSessionTarget(props.worktree);
 
 type Kind = AgentKind | 'terminal';
 const KINDS = computed<{ label: string; value: Kind }[]>(() => [
@@ -18,7 +21,7 @@ const KINDS = computed<{ label: string; value: Kind }[]>(() => [
 ]);
 
 function generatedName(kind: Kind): string {
-  const taken = new Set(props.worktree.sessions.map((session) => session.name));
+  const taken = location.takenNames.value;
   let n = 1;
   while (taken.has(`${kind}-${n}`)) n++;
   return `${kind}-${n}`;
@@ -35,6 +38,10 @@ const action = useAction();
 
 const defaultName = computed(() => generatedName(kind.value));
 
+watch(defaultName, (next, previous) => {
+  if (name.value.trim() === previous || !name.value.trim()) name.value = next;
+});
+
 function pickKind(value: unknown) {
   const next = KINDS.value.find((option) => option.value === value);
   if (!next) return;
@@ -48,11 +55,12 @@ async function submit() {
   const chosen = kind.value;
   const finalName = name.value.trim() || defaultName.value;
   await action.run(async () => {
+    const worktree = await location.resolve();
     const id =
       chosen === 'terminal'
-        ? await createTerminal(props.worktree.id, finalName)
+        ? await createTerminal(worktree, finalName)
         : await createAgent({
-            worktree: props.worktree.id,
+            worktree,
             name: finalName,
             kind: chosen,
             model: optional(model.value),
@@ -72,8 +80,9 @@ function onVisible(visible: boolean) {
 </script>
 
 <template>
-  <VDialog :visible="true" modal :header="t('agents.newSession.title', { branch: worktree.branch })" :style="{ width: '420px' }" :draggable="false" @update:visible="onVisible">
+  <VDialog :visible="true" modal :header="t('agents.newSession.title')" :style="{ width: '460px' }" :draggable="false" @update:visible="onVisible">
     <form class="form" data-testid="new-session-form" @submit.prevent="submit">
+      <NewSessionTarget :state="location" />
       <label class="field">
         <span>{{ t('agents.newSession.type') }}</span>
         <VSelect :model-value="kind" :options="KINDS" option-label="label" option-value="value" size="small" :aria-label="t('agents.newSession.typeAria')" data-testid="new-session-kind" @update:model-value="pickKind" />
@@ -101,7 +110,7 @@ function onVisible(visible: boolean) {
       <VMessage v-if="action.error.value" severity="error" size="small" data-testid="new-session-error">{{ action.error.value }}</VMessage>
       <div class="actions">
         <VButton :label="t('common.cancel')" size="small" text data-testid="new-session-cancel" @click="emit('close')" />
-        <VButton type="submit" :label="t('common.create')" size="small" :loading="action.busy.value" data-testid="new-session-submit" />
+        <VButton type="submit" :label="t('common.create')" size="small" :loading="action.busy.value" :disabled="location.plan.value.kind === 'incomplete'" data-testid="new-session-submit" />
       </div>
     </form>
   </VDialog>

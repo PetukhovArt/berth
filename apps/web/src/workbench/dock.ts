@@ -1,7 +1,7 @@
 import { computed, onActivated, onBeforeUnmount, onDeactivated, shallowRef, watch } from 'vue';
 import type { DockviewApi, DockviewReadyEvent } from 'dockview-vue';
-import { externalKey, type ExternalSession } from '../agents/external';
-import { markSeen, sessionKey, useBerth, type SessionNode, type SessionRef, type WorktreeNode } from '../agents/berth';
+import { externalKey, externalTarget, isExternalPanel, useExternalSessions, type ExternalSession } from '../agents/external';
+import { markSeen, sessionKey, useBerth, worktreesOfProject, type SessionNode, type SessionRef, type WorktreeNode } from '../agents/berth';
 import { FILE_PANEL_PREFIX, fileNameOf, filePanelId, isFilePanel, normalizePath } from '../agents/proto/markdownFiles';
 import { sessionPaths } from '../agents/proto/nav';
 import type { ChangeRequestRef } from '../connectors/api';
@@ -29,7 +29,7 @@ function createDock() {
   const activeKey = shallowRef<string | null>(null);
   const activeTitle = shallowRef('');
   const visible = shallowRef(false);
-  const creatingIn = shallowRef<string | null>(null);
+  const creatingIn = shallowRef<{ worktree: string | null } | null>(null);
   const openingKey = shallowRef<string | null>(null);
   let openingBeside: string | undefined;
   let openingReplace = false;
@@ -48,7 +48,6 @@ function createDock() {
     return null;
   }
 
-  const creatingWorktree = computed(() => findWorktree(creatingIn.value));
   const activeWorktree = computed(() => {
     const byPath = findWorktree(activePath.value?.worktree.id);
     const key = activeKey.value;
@@ -62,6 +61,14 @@ function createDock() {
           if (file.startsWith(`${root}/`) && (!best || root.length > best.path.length)) best = worktree;
         }
     return best;
+  });
+
+  const activeWorktreeId = computed(() => {
+    const known = activeWorktree.value?.id;
+    const key = activeKey.value;
+    if (known || !key || !isExternalPanel(key)) return known ?? null;
+    const session = useExternalSessions()?.anyByKey.value.get(key);
+    return session ? (externalTarget(session, berth?.entities.value)?.worktreeId ?? null) : null;
   });
 
   const activeUnseenAgent = computed(() => {
@@ -226,22 +233,26 @@ function createDock() {
     openWhenListed(session, itemId(mr));
   }
 
-  function startCreate(worktreeId: string) {
+  function startCreate(worktreeId: string | null) {
     if (view.value.kind !== 'agents') void navigate({ kind: 'agents' });
-    creatingIn.value = worktreeId;
+    creatingIn.value = { worktree: worktreeId };
   }
 
   function startCreateInMain() {
-    const projects = (berth?.tree.value ?? []).flatMap((workspace) => workspace.projects);
-    const active = activeWorktree.value?.id;
-    const project = projects.find((candidate) => candidate.worktrees.some((worktree) => worktree.id === active)) ?? projects[0];
-    const target = project?.worktrees.find((worktree) => worktree.main) ?? project?.worktrees[0];
-    if (target) startCreate(target.id);
+    const entities = berth?.entities.value;
+    const active = activeWorktreeId.value;
+    const project = (active ? entities?.worktrees.get(active)?.project_id : undefined) ?? berth?.tree.value.flatMap((workspace) => workspace.projects)[0]?.id;
+    const target = entities && project ? (worktreesOfProject(entities, project).find((worktree) => worktree.is_main) ?? worktreesOfProject(entities, project)[0]) : undefined;
+    startCreate(target?.id ?? null);
   }
 
   function onCreated(session: SessionRef) {
     creatingIn.value = null;
     openWhenListed(session);
+  }
+
+  function cancelCreate() {
+    creatingIn.value = null;
   }
 
   function restore(api: DockviewApi) {
@@ -299,8 +310,8 @@ function createDock() {
     activeTitle,
     activeSession,
     activeWorktree,
+    activeWorktreeId,
     paths,
-    creatingWorktree,
     creatingIn,
     detail,
     switching,
@@ -319,6 +330,7 @@ function createDock() {
     startCreate,
     startCreateInMain,
     onCreated,
+    cancelCreate,
     useHost,
   };
 }
@@ -332,7 +344,7 @@ export function useDock() {
 
 export function startNewSession(): void {
   const dock = useDock();
-  const active = dock.activeWorktree.value?.id;
+  const active = dock.activeWorktreeId.value;
   if (active) dock.startCreate(active);
   else dock.startCreateInMain();
 }

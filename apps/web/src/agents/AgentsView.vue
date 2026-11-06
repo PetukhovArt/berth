@@ -14,7 +14,7 @@ localStorage.removeItem('berth.agents.explorer.expanded');
 const dock = useDock();
 const { onReady } = dock.useHost();
 const mobile = useIsMobile();
-const { activeKey, activeTitle, activeSession, paths, detail, creatingWorktree } = dock;
+const { activeKey, activeTitle, activeSession, paths, detail, creatingIn } = dock;
 </script>
 
 <template>
@@ -24,7 +24,7 @@ const { activeKey, activeTitle, activeSession, paths, detail, creatingWorktree }
     <BackBar v-if="mobile && detail" :title="activeSession?.name ?? activeTitle" @back="detail = false" />
     <DockArea class="dock-slot" :active-key="activeKey" :paths="paths" group-labels @ready="onReady" @open-file="(path, hash, from) => dock.openFile(path, { hash, from })" />
     <TerminalKeys v-if="mobile && detail && activeSession" :session="activeSession.ref" />
-    <NewSessionForm v-if="creatingWorktree" :key="creatingWorktree.id" :worktree="creatingWorktree" @close="dock.creatingIn.value = null" @created="dock.onCreated" />
+    <NewSessionForm v-if="creatingIn" :key="creatingIn.worktree ?? ''" :worktree="creatingIn.worktree" @close="dock.cancelCreate" @created="dock.onCreated" />
   </div>
 </template>
 
