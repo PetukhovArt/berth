@@ -1,145 +1,56 @@
-<div align="center">
-
 # berth
 
-**Where your coding agents live.**
-
-Run **Claude Code**, **Codex** and **Cursor** across every project and git worktree you own — from one
-terminal, one keyboard, one tree. They keep working when you close it.
+Run Claude Code, Codex and Cursor agents across your projects and git worktrees, and see at a glance which
+one needs you. A daemon owns the terminals, so the agents keep working after you close the window.
 
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey?style=flat-square)](#install)
-[![Built with Rust](https://img.shields.io/badge/built%20with-Rust-dea584?style=flat-square)](https://www.rust-lang.org)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey?style=flat-square)](docs/windows.md)
 
-<img src="assets/screenshot.png" alt="berth: projects, worktrees and sessions on the left, a live Claude Code session on the right" width="100%">
+berth has two interfaces over the same daemon:
 
-</div>
-
----
-
-## Why berth
-
-You start three agents in three terminal tabs. Five minutes later you have no idea which one is waiting
-on a permission prompt, which one finished, and which one is still thinking — so you tab through all
-three, every time, and read the screens.
-
-berth replaces that with a tree and a color. Every project, worktree and agent is a row; a dot on the row
-says what that agent is doing, and parents roll up their children, so a red dot on a collapsed project
-tells you where to look without opening anything. A daemon owns the PTYs, so quitting the UI doesn't stop
-the work.
-
-No Electron, no server, no MCP. One ~4 MB Rust binary and a local socket.
-
-| Dot | Meaning |
-|---|---|
-| ● gray | fresh — agent never run |
-| ● yellow | running — turn in progress |
-| ● violet | done, unread |
-| ● green | done, read |
-| ● red | needs feedback — permission prompt or question waiting on you |
-| ● magenta | terminated — process died mid-run |
-| ○ | disconnected — daemon restarted while the agent was live |
-
-## Key features
-
-- **One tree for everything.** Workspaces → projects → worktrees → sessions, up to four columns,
-  `h`/`j`/`k`/`l` to move, `Enter` to drill in.
-- **Agents that outlive the UI.** A detached daemon owns every PTY. Quit berth, close the laptop lid,
-  come back tomorrow — the sessions are where you left them, scrollback replayed.
-- **Real git worktrees, one keystroke.** Two agents in two directories don't collide. Or just tell a
-  session "do this in a worktree" and it moves itself into one.
-- **Claude, Codex and Cursor**, each with its model and reasoning effort — plus **agent presets** that
-  launch a session already working on a task, and **Claude Cloud** sessions mirrored into a local pane.
-- **Pull requests in the same tree.** GitHub (`gh`) and GitLab (`glab`, self-hosted included): open PRs
-  under each project with review and pipeline status, the whole conversation as a thread tree in the
-  preview pane, `g` for the diff, `n` for an agent scoped to that PR.
-- **Read the code without leaving.** Diff viewer with reviewed-file bookkeeping (`g`), fuzzy file find
-  (`f`), `git grep` (`F`), a file tree with preview (`b`) — and any of them opens the file in an editor.
-- **Lists that stay usable.** Pins (`p`), per-column sorting (`Shift+S`), an inline filter (`Ctrl+F`) and
-  a fuzzy jump (`/`) that reaches across every workspace.
-- **Runs where you do.** macOS, Linux and Windows natively; over ssh (`berth ssh`), or in a browser tab
-  through one tunnel (`berth tunnel`) — including from a phone.
+- a desktop app (`apps/desktop`) with a project tree, docked terminals, merge request reviews, Jira tasks
+  and worktree cleanup;
+- a terminal UI (`berth`) that also works over ssh and in a browser tab.
 
 ## Install
-
-**npm** — macOS, Linux and Windows alike. The package is a launcher; npm fetches the binary for your
-platform only:
 
 ```sh
 npm install -g @petukhovart/berth
 ```
 
-**macOS / Linux** — the same command installs and updates:
+Other routes (install script, `cargo install`) are in [getting started](docs/getting-started.md). You need
+at least one agent CLI on your `PATH`: `claude`, `codex` or `cursor-agent`. `gh` or `glab` turn on pull
+requests.
+
+The desktop app builds from this repository and needs Node 22, pnpm and a Rust toolchain:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/PetukhovArt/berth/main/install.sh | sh
+pnpm install
+pnpm build:desktop
 ```
 
-It downloads the prebuilt binary for your platform from the latest GitHub release into `~/.local/bin`
-(override with `BERTH_INSTALL_DIR`), falling back to `cargo install --git` when no release matches.
-Afterwards, `berth upgrade` runs that same script for you.
-
-**From source** — any platform, needs a Rust toolchain:
-
-```sh
-cargo install --git https://github.com/PetukhovArt/berth berth --locked
-```
-
-Either way the command is `berth`. On Windows, see [docs/windows.md](docs/windows.md) for what to install
-alongside it and what differs on the platform.
-
-berth was called pacer up to 0.20. Its first start copies your pacer data over and leaves pacer
-running; see [Moving from pacer](docs/configuration.md#moving-from-pacer).
-
-> **Prerequisite:** at least one agent CLI on your `PATH` — `claude`, `codex` or `cursor-agent`. berth
-> spawns them; it doesn't ship them. `gh` and/or `glab` unlock the pull-request views.
+It connects to a running daemon, so start `berth daemon` first. On Windows, `scripts\install-app.ps1`
+installs a copy that updates itself from your local `main` ([details](docs/windows.md#desktop-working-copy)).
 
 ## Quickstart
 
 ```sh
-berth add ~/code/my-app   # or `berth add .` from inside the repo
-berth                     # launch the TUI; the daemon auto-starts
+berth add ~/code/my-app
+berth
 ```
 
-Four columns, left to right: **Projects → Worktrees → Sessions → Terminal**. `h`/`j`/`k`/`l` or the arrows
-move, `Enter` drills in, and `n` creates whatever the focused column holds — a project, a worktree, a
-session. `Ctrl+q` leaves the terminal pane, `q` quits berth, `?` lists every key. The agents keep running
-either way.
+`?` lists every key in the terminal UI.
 
-Then read [docs/getting-started.md](docs/getting-started.md).
+## Docs
 
-## Desktop app
-
-`apps/desktop` is a Tauri window over the same daemon: a project tree of sessions, merge requests and
-Jira tasks, terminals in a dock, diffs and reviews, Markdown and Mermaid files, and remote access from a
-phone. It needs Node 22 and pnpm next to the Rust toolchain, and builds from the repository root:
-
-```sh
-pnpm install
-pnpm build:desktop        # installer and standalone exe under target/release
-```
-
-The app connects to the running `berth` daemon and never starts one, so run `berth` (or `berth daemon`)
-first. On Windows, `scripts\install-app.ps1` installs a working copy that updates itself from your local
-`main` ([docs/windows.md](docs/windows.md#desktop-working-copy)). `docker/` packs the same core without a window (`berth-server`) with the daemon for a remote machine.
-
-## Documentation
-
-| | |
-|---|---|
-| [Getting started](docs/getting-started.md) | the full walkthrough: worktrees, sessions, status dots, pull requests, views |
-| [Keymap](docs/keymap.md) | every default key, and where it applies |
-| [Commands](docs/cli.md) | the CLI: daemon, workspaces, ssh, browser, tunnel |
-| [Configuration](docs/configuration.md) | `config.json`, paths, environment variables |
-| [Windows](docs/windows.md) | install, requirements, platform differences |
-| [Remote access](docs/remote-access-tailscale.md) | reaching the TUI from a phone over Tailscale |
-| [Changelog](CHANGELOG.md) | what changed |
+- [Getting started](docs/getting-started.md)
+- [Keymap](docs/keymap.md)
+- [Commands](docs/cli.md)
+- [Configuration](docs/configuration.md)
+- [Windows](docs/windows.md)
+- [Remote access over Tailscale](docs/remote-access-tailscale.md)
+- [Changelog](CHANGELOG.md)
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
-
-<div align="center">
-<br>
-<sub>If berth saves you a tab, a ⭐ helps other people find it.</sub>
-</div>
+MIT

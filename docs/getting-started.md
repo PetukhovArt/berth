@@ -3,6 +3,31 @@
 A walkthrough of the TUI, from an empty list to a tree of running agents. Key defaults are in
 [keymap.md](keymap.md); every one of them is rebindable in Settings → Hotkeys (`s`).
 
+## Install
+
+npm works on macOS, Linux and Windows. The package is a launcher that fetches the binary for your platform:
+
+```sh
+npm install -g @petukhovart/berth
+```
+
+On macOS and Linux the install script installs and updates, and `berth upgrade` runs it again later:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/PetukhovArt/berth/main/install.sh | sh
+```
+
+It puts the prebuilt binary from the latest GitHub release into `~/.local/bin` (`BERTH_INSTALL_DIR`
+overrides it) and falls back to `cargo install --git` when no release matches. From source, with a Rust
+toolchain:
+
+```sh
+cargo install --git https://github.com/PetukhovArt/berth berth --locked
+```
+
+berth was called pacer up to 0.20. Its first start copies your pacer data over and leaves pacer running;
+see [Moving from pacer](configuration.md#moving-from-pacer).
+
 ## 1. Add a repo
 
 berth is project-first, and a project is just a git checkout:
