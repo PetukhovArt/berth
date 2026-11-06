@@ -15,7 +15,7 @@ import type { WorkNode } from './tree';
 
 export const METRICS_PANEL = 'metrics';
 
-type AddPanel = Parameters<DockviewApi['addPanel']>[0];
+type PanelSpec = { id: string; component: string; title: string; params?: Record<string, unknown>; renderer?: 'always' };
 type PanelPosition = { referencePanel: string; direction: 'within' | 'right' | 'below' | 'left' };
 type Carried = { id: string; component: string; title: string; params: Record<string, unknown> };
 
@@ -101,35 +101,49 @@ function createDock() {
     flush();
   }
 
-  function openPanel(panel: AddPanel) {
+  function splitPosition(api: DockviewApi): PanelPosition | undefined {
+    return api.activePanel ? { referencePanel: api.activePanel.id, direction: 'right' } : undefined;
+  }
+
+  function openPanel(panel: PanelSpec, split = false) {
     withDock((api) => {
       const existing = api.getPanel(panel.id);
+      const position = split ? splitPosition(api) : undefined;
       if (existing) existing.api.setActive();
-      else api.addPanel(panel);
+      else api.addPanel(position ? { ...panel, position } : panel);
     });
   }
 
-  function sessionPosition(session: SessionNode, api: DockviewApi): PanelPosition | undefined {
-    const worktree = paths.value.get(session.key)?.worktree.id;
-    const sibling = api.panels.find((panel) => panel.id !== session.key && paths.value.get(panel.id)?.worktree.id === worktree);
-    if (sibling) return { referencePanel: sibling.id, direction: 'within' };
-    const lastSession = api.panels.filter((panel) => paths.value.has(panel.id)).at(-1);
-    if (lastSession) return { referencePanel: lastSession.id, direction: 'right' };
-    return undefined;
+  function toggleMaximize(panelId?: string) {
+    const api = dock.value;
+    if (!api) return;
+    if (api.hasMaximizedGroup()) {
+      api.exitMaximizedGroup();
+      return;
+    }
+    const panel = panelId ? api.getPanel(panelId) : api.activePanel;
+    if (panel && api.groups.length > 1) panel.api.maximize();
   }
 
-  function addSessionPanel(session: SessionNode, api: DockviewApi) {
-    const position = sessionPosition(session, api);
+  function sessionPosition(session: SessionNode, api: DockviewApi, split: boolean): PanelPosition | undefined {
+    if (split) return splitPosition(api);
+    const worktree = paths.value.get(session.key)?.worktree.id;
+    const sibling = api.panels.find((panel) => panel.id !== session.key && paths.value.get(panel.id)?.worktree.id === worktree);
+    return sibling ? { referencePanel: sibling.id, direction: 'within' } : undefined;
+  }
+
+  function addSessionPanel(session: SessionNode, api: DockviewApi, split = false) {
+    const position = sessionPosition(session, api, split);
     api.addPanel({ id: session.key, component: 'session', title: session.name, params: { session: session.ref }, renderer: 'always', ...(position ? { position } : {}) });
   }
 
-  function openSession(session: SessionNode, beside?: string, replace = false) {
+  function openSession(session: SessionNode, beside?: string, replace = false, split = false) {
     withDock((api) => {
       const existing = api.getPanel(session.key);
       const anchor = beside ? api.getPanel(beside) : undefined;
       if (existing) existing.api.setActive();
       else if (anchor) api.addPanel({ id: session.key, component: 'session', title: session.name, params: { session: session.ref }, renderer: 'always', position: { referencePanel: anchor.id, direction: 'within' } });
-      else addSessionPanel(session, api);
+      else addSessionPanel(session, api, split);
       if (replace) anchor?.api.close();
     });
   }
@@ -168,28 +182,28 @@ function createDock() {
     });
   }
 
-  function openReview(ref: ChangeRequestRef, title?: string) {
-    openPanel({ id: itemId(ref), component: 'review', title: title ?? `${ref.project.split('/').pop() ?? ref.project} ${ref.number}`, params: { ...ref } });
+  function openReview(ref: ChangeRequestRef, title?: string, split = false) {
+    openPanel({ id: itemId(ref), component: 'review', title: title ?? `${ref.project.split('/').pop() ?? ref.project} ${ref.number}`, params: { ...ref } }, split);
   }
 
   function openArchitecture(params: ArchitectureParams, label: string) {
     openPanel({ id: architecturePanelId(params), component: 'architecture', title: t('forge.stratum.tab', { label }), renderer: 'always', params: { ...params } });
   }
 
-  function openIssue(connector: string, key: string) {
-    openPanel({ id: issuePanelId(connector, key), component: 'issue', title: key, params: { connector, key } });
+  function openIssue(connector: string, key: string, split = false) {
+    openPanel({ id: issuePanelId(connector, key), component: 'issue', title: key, params: { connector, key } }, split);
   }
 
-  function openExternal(session: ExternalSession) {
-    openPanel({ id: externalKey(session), component: 'conversation', title: session.title, params: { harness: session.harness, id: session.id } });
+  function openExternal(session: ExternalSession, split = false) {
+    openPanel({ id: externalKey(session), component: 'conversation', title: session.title, params: { harness: session.harness, id: session.id } }, split);
   }
 
-  function openLeaf(node: WorkNode) {
+  function openLeaf(node: WorkNode, split = false) {
     const data = node.data;
-    if (node.kind === 'session' && data?.session) openSession(data.session);
-    else if (data?.external) openExternal(data.external);
-    else if (data?.item) openReview(data.item, `${numberLabel(data.item)} ${data.item.title}`);
-    else if (data?.issue) openIssue(data.issue.connector, data.issue.key);
+    if (node.kind === 'session' && data?.session) openSession(data.session, undefined, false, split);
+    else if (data?.external) openExternal(data.external, split);
+    else if (data?.item) openReview(data.item, `${numberLabel(data.item)} ${data.item.title}`, split);
+    else if (data?.issue) openIssue(data.issue.connector, data.issue.key, split);
   }
 
   function openMetrics() {
@@ -299,6 +313,7 @@ function createDock() {
     openExternal,
     openLeaf,
     openMetrics,
+    toggleMaximize,
     openWhenListed,
     openMrSession,
     startCreate,
@@ -313,6 +328,10 @@ let store: ReturnType<typeof createDock> | null = null;
 export function useDock() {
   store ??= createDock();
   return store;
+}
+
+export function toggleMaximizedGroup(): void {
+  useDock().toggleMaximize();
 }
 
 export function toggleQuickOpen(): void {

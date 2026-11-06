@@ -20,6 +20,7 @@ export const commands = {
     terminalZoomOut: 'Decrease terminal font size',
     terminalZoomReset: 'Reset terminal font size',
     agentsQuickOpen: 'Quick switch to a session, request or task',
+    dockToggleMaximize: 'Maximize or restore the active panel group',
     keymapOpenSettings: 'Customize keyboard shortcuts',
     keymapOpenFile: 'Open keymap.json in the editor',
   },

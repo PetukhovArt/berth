@@ -15,7 +15,7 @@ const props = withDefaults(
   { selected: null, revealAll: false, testId: 'explorer-tree' },
 );
 
-const emit = defineEmits<{ open: [node: TreeNode<T>]; toggle: [id: string, expanded: boolean] }>();
+const emit = defineEmits<{ open: [node: TreeNode<T>, split: boolean]; toggle: [id: string, expanded: boolean] }>();
 
 defineSlots<{
   label?(props: { node: TreeNode<T>; expanded: boolean }): unknown;
@@ -139,10 +139,10 @@ function focusTree() {
   tree.value?.focus({ preventScroll: true });
 }
 
-function onRowClick(row: TreeRow<T>) {
+function onRowClick(row: TreeRow<T>, event: MouseEvent) {
   setCursor(row.id);
   if (row.group) setExpanded(row.id, !row.expanded);
-  else emit('open', row.node);
+  else emit('open', row.node, event.ctrlKey || event.metaKey);
   focusTree();
 }
 
@@ -208,7 +208,7 @@ function onKey(event: KeyboardEvent) {
     case ' ':
       if (!current) return;
       if (current.group) setExpanded(current.id, !current.expanded);
-      else emit('open', current.node);
+      else emit('open', current.node, event.ctrlKey || event.metaKey);
       break;
     default:
       if (event.key.length !== 1 || event.ctrlKey || event.metaKey || event.altKey || !typeAhead(event.key, index)) return;
@@ -248,7 +248,7 @@ function onKey(event: KeyboardEvent) {
     >
       <i v-for="level in row.depth" :key="level" class="guide" :style="{ '--level': level - 1 }" />
       <slot v-if="row.node.custom" name="row" :node="row.node" :row="row" />
-      <button v-else class="toggle" tabindex="-1" :title="row.node.title ?? row.node.label" :data-testid="`tree-${row.node.kind}`" @click="onRowClick(row)">
+      <button v-else class="toggle" tabindex="-1" :title="row.node.title ?? row.node.label" :data-testid="`tree-${row.node.kind}`" @click="onRowClick(row, $event)">
         <ChevronRight v-if="row.group" :size="14" class="chevron vr-chevron" :data-open="row.expanded" />
         <component :is="row.expanded && row.node.iconOpen ? row.node.iconOpen : row.node.icon" v-if="row.node.icon" :size="14" class="kind-icon" />
         <template v-if="row.group">

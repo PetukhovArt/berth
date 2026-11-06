@@ -154,10 +154,10 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
             :session="node.data.session"
             :linked="node.data.linked"
             :active="node.id === selected"
-            @open="dock.openSession(node.data.session)"
+            @open="(split) => node.data?.session && dock.openSession(node.data.session, undefined, false, split)"
             @open-conversation="node.data.linked && dock.openLinkedConversation(node.data.session, node.data.linked)"
           />
-          <ExternalSessionRow v-else-if="node.kind === 'external' && node.data?.external" :session="node.data.external" :active="node.id === dock.activeKey.value" @open="dock.openExternal(node.data.external)" />
+          <ExternalSessionRow v-else-if="node.kind === 'external' && node.data?.external" :session="node.data.external" :active="node.id === dock.activeKey.value" @open="(split) => node.data?.external && dock.openExternal(node.data.external, split)" />
           <ArchivedRow v-else-if="node.kind === 'archived' && node.data?.session" :session="node.data.session" />
           <div v-else-if="node.kind === 'review-state' && node.data?.reviewState" class="review-state" :data-error="!!node.data.reviewState.error" :title="node.data.reviewState.error ?? undefined" role="status" data-testid="review-state">
             <template v-if="node.data.reviewState.error"><TriangleAlert :size="12" /><span class="review-text">{{ node.data.reviewState.error }}</span></template>

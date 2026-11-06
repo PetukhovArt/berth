@@ -116,7 +116,7 @@ onBeforeUnmount(() => {
         <MarkdownFile v-if="typeof params.path === 'string'" class="vr-fade-in" :path="params.path" :hash="typeof params.hash === 'string' ? params.hash : ''" @open-file="(path, hash) => emit('open-file', path, hash, api.id)" />
       </template>
       <template #defaultTab="{ api }">
-        <span class="tab" :data-testid="`${kindOf(api.id)}-tab`" :data-panel-id="api.id" :data-session-id="berth?.sessions.value.get(api.id)?.id" :data-active="api.id === activeKey">
+        <span class="tab" @dblclick="dock.toggleMaximize(api.id)" :data-testid="`${kindOf(api.id)}-tab`" :data-panel-id="api.id" :data-session-id="berth?.sessions.value.get(api.id)?.id" :data-active="api.id === activeKey">
           <FileText v-if="kindOf(api.id) === 'file'" :size="12" />
           <GitPullRequest v-else-if="kindOf(api.id) === 'review'" :size="12" />
           <Network v-else-if="kindOf(api.id) === 'architecture'" :size="12" />

@@ -11,7 +11,7 @@ import MoveAgentDialog from './manage/MoveAgentDialog.vue';
 import StatusDot from './StatusDot.vue';
 
 const props = defineProps<{ session: SessionNode; active: boolean; linked?: ExternalSession }>();
-const emit = defineEmits<{ open: []; 'open-conversation': [] }>();
+const emit = defineEmits<{ open: [split: boolean]; 'open-conversation': [] }>();
 
 function statusLabel(status: SessionStatus): string {
   return t(`agents.status.${status}`);
@@ -104,7 +104,7 @@ async function confirmDelete() {
         :data-linked-session-id="linked?.id"
         :data-linked-status="linked?.status"
         :title="linked ? `${linked.title}\n${externalStatusLabel(linked)}\n${session.name}` : `${session.name} — ${statusLabel(session.status)}`"
-        @click="emit('open')"
+        @click="emit('open', $event.ctrlKey || $event.metaKey)"
         @contextmenu.prevent="showMenu"
       >
         <StatusDot :status="linked ? externalDot(linked) : session.status" :unseen="session.unseen" />

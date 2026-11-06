@@ -9,7 +9,7 @@ import HarnessIcon from './HarnessIcon.vue';
 import StatusDot from './StatusDot.vue';
 
 const props = defineProps<{ session: ExternalSession; active: boolean }>();
-const emit = defineEmits<{ open: [] }>();
+const emit = defineEmits<{ open: [split: boolean] }>();
 
 const { t, formatRelative, formatDate } = useI18n();
 const menu = useTemplateRef<InstanceType<typeof VContextMenu>>('menu');
@@ -19,7 +19,7 @@ const tooltip = computed(() =>
   [props.session.title, `${externalStatusLabel(props.session)} · ${formatDate(props.session.updated_at)}`, props.session.branch ? `${props.session.cwd} · ${props.session.branch}` : props.session.cwd, origin.value].join('\n'),
 );
 const menuItems = computed(() => [
-  { key: 'open', label: t('workbench.external.open'), command: () => emit('open') },
+  { key: 'open', label: t('workbench.external.open'), command: () => emit('open', false) },
   { key: 'copy', label: t('workbench.external.copyResume'), command: () => void copyText(resumeCommand(props.session)) },
 ]);
 </script>
@@ -35,7 +35,7 @@ const menuItems = computed(() => [
       :data-running="session.running"
       :data-active="active"
       :title="tooltip"
-      @click="emit('open')"
+      @click="emit('open', $event.ctrlKey || $event.metaKey)"
       @contextmenu.prevent="menu?.show($event)"
     >
       <StatusDot :status="externalDot(session)" :unseen="false" />
