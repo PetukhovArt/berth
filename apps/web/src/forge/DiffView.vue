@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch, type ShallowRef } from 'vue';
-import { ChevronDown, ChevronRight, ChevronUp, Columns2, Folder, FolderOpen, Rows2, Search, WrapText } from 'lucide-vue-next';
+import { ChevronDown, ChevronRight, ChevronUp, Columns2, Folder, FolderOpen, ListTree, Rows2, Search, WrapText, X } from 'lucide-vue-next';
 import { VInputText } from '@ui/kit';
 import type { DiffFile, Discussion } from '../connectors/api';
 import { t } from '../i18n';
@@ -43,6 +43,7 @@ function storedWrap(): boolean {
 const mode = shallowRef<Mode>(storedMode());
 const wrap = shallowRef(storedWrap());
 const filter = shallowRef('');
+const filesOpen = shallowRef(false);
 const pinned = shallowRef(-1);
 const collapsed: IndexSet = shallowRef(new Set<number>());
 const shown: IndexSet = shallowRef(new Set<number>());
@@ -262,6 +263,11 @@ function settle(index: number) {
   step();
 }
 
+function pickFile(index: number) {
+  filesOpen.value = false;
+  void scrollToFile(index);
+}
+
 async function scrollToFile(index: number) {
   if (index < 0 || index >= props.files.length) return;
   if (!visibleSet.value.has(index)) {
@@ -446,11 +452,12 @@ defineExpose({ focusThread, root });
 </script>
 
 <template>
-  <div ref="root" class="diff" tabindex="0" data-testid="diff-view" @keydown="onKey">
-    <aside class="tree" data-testid="diff-tree">
+  <div ref="root" class="diff vr-master-detail" :data-detail="!filesOpen" tabindex="0" data-testid="diff-view" @keydown="onKey">
+    <aside class="tree vr-master" data-testid="diff-tree">
       <div class="tree-filter">
         <Search :size="14" />
         <VInputText v-model="filter" class="tree-input" :placeholder="t('forge.diff.filter')" autocomplete="off" data-testid="diff-filter" />
+        <button class="icon vr-phone-only" :aria-label="t('mobile.back')" data-testid="diff-files-close" @click="filesOpen = false"><X :size="16" /></button>
       </div>
       <div v-auto-animate class="tree-list">
         <template v-for="row in treeRows" :key="row.key">
@@ -466,7 +473,7 @@ defineExpose({ focusThread, root });
             :style="{ paddingLeft: `${8 + row.depth * 12}px` }"
             :title="row.path"
             data-testid="diff-tree-file"
-            @click="scrollToFile(row.index)"
+            @click="pickFile(row.index)"
           >
             <span class="mark" :data-status="files[row.index]!.status" :title="t(STATUS_TITLE_KEY[files[row.index]!.status])">{{ STATUS_MARK[files[row.index]!.status] }}</span>
             <span class="tree-name">{{ row.name }}</span>
@@ -477,8 +484,9 @@ defineExpose({ focusThread, root });
       </div>
     </aside>
 
-    <div class="main">
+    <div class="main vr-detail">
       <header class="toolbar">
+        <button class="mode vr-phone-only" data-testid="diff-files-open" @click="filesOpen = true"><ListTree :size="14" />{{ t('forge.diff.files') }}</button>
         <span class="summary">{{ t('forge.diff.fileCount', { count: files.length }) }} <span class="add">+{{ totals.additions }}</span> <span class="del">−{{ totals.deletions }}</span></span>
         <span class="spacer" />
         <span v-if="unresolved.length" class="group">
@@ -590,7 +598,7 @@ defineExpose({ focusThread, root });
   align-items: center;
   gap: var(--vr-space-1);
   width: 100%;
-  min-height: 26px;
+  min-height: calc(var(--vr-size-row) - 6px);
   padding-right: var(--vr-space-2);
   color: inherit;
   font: inherit;
@@ -672,6 +680,7 @@ defineExpose({ focusThread, root });
 .toolbar {
   display: flex;
   flex: none;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--vr-space-3);
   padding: var(--vr-space-1) var(--vr-space-3);

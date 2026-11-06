@@ -147,7 +147,7 @@ onMounted(() => void load());
     <p v-else-if="!cr" class="loading">{{ t('common.loading') }}</p>
 
     <template v-if="cr">
-      <header class="head">
+      <header class="head" :data-compact="tab !== 'overview'">
         <div class="title-row">
           <component :is="cr.state === 'merged' ? GitMerge : cr.state === 'closed' ? GitPullRequestClosed : cr.draft ? GitPullRequestDraft : GitPullRequest" :size="20" class="state-icon" :data-state="cr.state" />
           <h2 class="title">{{ cr.title }} <span class="num">{{ numberLabel(cr) }}</span></h2>
@@ -212,7 +212,7 @@ onMounted(() => void load());
         <div class="threads">
           <ThreadView v-for="d in conversation" :key="d.id" :discussion="d" :connector="connector" show-position @goto="gotoThread" />
         </div>
-        <p v-if="anchored" class="hint muted">{{ t('forge.request.keysHint') }}</p>
+        <p v-if="anchored" class="hint muted vr-key-hint">{{ t('forge.request.keysHint') }}</p>
       </div>
 
       <div v-if="tab === 'diff' || diffLoaded" v-show="tab === 'diff'" class="pane" data-testid="cr-diff">
@@ -273,6 +273,17 @@ onMounted(() => void load());
   gap: var(--vr-space-2);
   padding: var(--vr-space-3) var(--vr-space-4) var(--vr-space-2);
   border-bottom: 1px solid var(--vr-color-border);
+}
+
+:root[data-vr-viewport='phone'] .head[data-compact='true'] :is(.meta, .actions) {
+  display: none;
+}
+
+:root[data-vr-viewport='phone'] .head[data-compact='true'] .title {
+  overflow: hidden;
+  font-size: var(--vr-font-size-base);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .title-row {

@@ -57,6 +57,7 @@ export const forge = {
     nextThread: 'Next thread',
     nextThreadTitle: 'Next thread (n)',
     wrap: 'Wrap lines',
+    files: 'Files',
     modeLabel: 'Diff mode',
     unified: 'Unified',
     split: 'Side by side',

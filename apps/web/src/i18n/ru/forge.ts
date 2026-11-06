@@ -60,6 +60,7 @@ export const forge: Translation<typeof en> = {
     nextThread: 'Следующее обсуждение',
     nextThreadTitle: 'Следующее обсуждение (n)',
     wrap: 'Переносить строки',
+    files: 'Файлы',
     modeLabel: 'Режим диффа',
     unified: 'Единый',
     split: 'Рядом',

@@ -29,7 +29,7 @@ const stages = computed(() => {
         <span class="name">{{ job.name }}</span>
         <span class="status">{{ job.status }}</span>
         <span class="duration">{{ formatDuration(job.duration_s) }}</span>
-        <ExternalLink :size="12" class="open" />
+        <ExternalLink :size="12" class="open vr-reveal" />
       </a>
     </section>
   </div>
