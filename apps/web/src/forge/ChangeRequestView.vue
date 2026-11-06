@@ -151,14 +151,16 @@ onMounted(() => void load());
         <div class="title-row">
           <component :is="cr.state === 'merged' ? GitMerge : cr.state === 'closed' ? GitPullRequestClosed : cr.draft ? GitPullRequestDraft : GitPullRequest" :size="20" class="state-icon" :data-state="cr.state" />
           <h2 class="title">{{ cr.title }} <span class="num">{{ numberLabel(cr) }}</span></h2>
-          <VButton size="small" severity="secondary" text :loading="loading" :aria-label="t('common.refresh')" :title="t('common.refresh')" data-testid="cr-refresh" @click="load">
-            <template #icon><RefreshCw :size="14" /></template>
-          </VButton>
-          <VButton size="small" severity="secondary" :label="t('common.openInBrowser')" data-testid="cr-open-browser" @click="openUrl(cr.url)">
-            <template #icon><ExternalLink :size="14" /></template>
-          </VButton>
-          <OpenInSessionAction :item="cr" />
-          <ArchitectureAction :item="cr" />
+          <div class="actions">
+            <VButton size="small" severity="secondary" text :loading="loading" :aria-label="t('common.refresh')" :title="t('common.refresh')" data-testid="cr-refresh" @click="load">
+              <template #icon><RefreshCw :size="14" /></template>
+            </VButton>
+            <VButton size="small" severity="secondary" :label="t('common.openInBrowser')" data-testid="cr-open-browser" @click="openUrl(cr.url)">
+              <template #icon><ExternalLink :size="14" /></template>
+            </VButton>
+            <OpenInSessionAction :item="cr" />
+            <ArchitectureAction :item="cr" />
+          </div>
         </div>
 
         <div class="meta">
@@ -275,16 +277,29 @@ onMounted(() => void load());
 
 .title-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--vr-space-2);
 }
 
 .title {
-  flex: 1;
+  flex: 1 1 16rem;
   min-width: 0;
   margin: 0;
+  overflow-wrap: anywhere;
   font-size: var(--vr-font-size-lg);
   font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vr-space-2);
+  margin-left: auto;
+}
+
+.actions :deep(button) {
+  white-space: nowrap;
 }
 
 .num {
