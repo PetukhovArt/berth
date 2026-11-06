@@ -24,6 +24,7 @@
 - Fixed Claude Code sessions not saving their transcript (`Transcript saving is off`) when the daemon was started from inside another Claude Code session.
 - Fixed scrolling a pane up past its oldest line, which then took as many wheel notches to come back down.
 - Changed pacer is now berth: the command is `berth`, the npm package is `@petukhovart/berth`, and the first `berth` copies your pacer projects, workspaces and settings into its own directory while pacer's data and its running daemon stay as they are.
+- Changed the desktop app's web UI to work on a phone opened through remote access, in portrait and landscape: dialogs, the command palette and quick switcher open full screen, menus slide up from the bottom, settings and diffs show a list first and the details after a tap, row actions stay visible without a mouse, a long press opens the context menu and a `Commands` tab opens the command palette.
 - Changed the environment variables from `PACER_*` to `BERTH_*`; the old spelling still works, except that berth refuses to start on `PACER_RUNTIME_DIR` or `PACER_DATA_DIR` set without its `BERTH_*` counterpart.
 
 ## 0.20.0 (2026-09-18)

@@ -29,8 +29,8 @@ watch(
 
 <template>
   <div class="overlay" data-testid="hot-switcher" @pointerdown.self="switcher = null">
-    <div class="panel" role="dialog" :aria-label="t('hot.switcher.dialog')">
-      <ul ref="list" class="results" role="listbox">
+    <div class="panel vr-sheet" role="dialog" :aria-label="t('hot.switcher.dialog')">
+      <ul ref="list" class="results vr-sheet-body" role="listbox">
         <li
           v-for="(item, position) in rows"
           :key="item.key"

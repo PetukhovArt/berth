@@ -114,6 +114,7 @@ async function resumeSession(session: string) {
 }
 
 .list {
+  container: orphan-list / inline-size;
   display: flex;
   flex-direction: column;
   gap: var(--vr-space-2);
@@ -130,6 +131,16 @@ async function resumeSession(session: string) {
   padding: var(--vr-space-2);
   border: 1px solid var(--vr-color-border);
   border-radius: var(--vr-radius-md);
+}
+
+@container orphan-list (max-width: 34rem) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .info {
+    grid-column: 1 / -1;
+  }
 }
 
 .info {

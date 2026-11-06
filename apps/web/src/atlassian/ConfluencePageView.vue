@@ -114,7 +114,7 @@ onBeforeUnmount(() => {
         <div ref="bodyEl" class="content">
           <RichContent :html="page.body_html" :connector="page.connector" />
         </div>
-        <nav v-if="headings.length" class="toc" :aria-label="t('confluence.page.contents')">
+        <nav v-if="headings.length" class="toc vr-wide-only" :aria-label="t('confluence.page.contents')">
           <div class="toc-title">{{ t('confluence.page.contents') }}</div>
           <button
             v-for="heading in headings"
@@ -209,7 +209,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: flex-start;
   gap: var(--vr-space-6);
-  padding: var(--vr-space-4) var(--vr-space-6);
+  padding: var(--vr-space-4) var(--vr-page-gutter);
 }
 
 .content {

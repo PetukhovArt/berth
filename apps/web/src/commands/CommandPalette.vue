@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, shallowRef, useTemplateRef } from 'vue';
 import { useI18n } from '../i18n';
+import BackBar from '../mobile/BackBar.vue';
 import { paletteOpen, readContext } from './context';
 import { fuzzyScore } from './fuzzy';
 import { shortcutLabel } from './keymap';
@@ -49,7 +50,8 @@ onMounted(() => input.value?.focus());
 
 <template>
   <div class="overlay" data-testid="command-palette" @pointerdown.self="close(true)">
-    <div class="panel" role="dialog" :aria-label="t('commands.palette.label')">
+    <div class="panel vr-sheet" role="dialog" :aria-label="t('commands.palette.label')">
+      <BackBar class="vr-phone-only" :title="t('commands.palette.label')" @back="close(true)" />
       <input
         ref="input"
         v-model="query"
@@ -60,7 +62,7 @@ onMounted(() => input.value?.focus());
         data-testid="command-palette-input"
         @keydown="onKey"
       />
-      <ul ref="list" v-auto-animate class="results" role="listbox">
+      <ul ref="list" v-auto-animate class="results vr-sheet-body" role="listbox">
         <li
           v-for="(action, position) in results"
           :key="action.id"
@@ -75,7 +77,7 @@ onMounted(() => input.value?.focus());
         >
           <span class="category">{{ t(action.category) }}</span>
           <span class="title">{{ t(action.title) }}</span>
-          <kbd v-if="shortcutLabel(action.id)" class="shortcut">{{ shortcutLabel(action.id) }}</kbd>
+          <kbd v-if="shortcutLabel(action.id)" class="shortcut vr-key-hint">{{ shortcutLabel(action.id) }}</kbd>
         </li>
         <li v-if="!results.length" class="none">{{ t('commands.palette.empty') }}</li>
       </ul>

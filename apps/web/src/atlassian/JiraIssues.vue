@@ -233,8 +233,8 @@ onMounted(() => void load(false));
 </script>
 
 <template>
-  <div ref="root" class="jira-issues" tabindex="0" data-testid="jira-issues" @keydown="onKey">
-    <aside class="filters" :aria-label="t('jira.list.filters')">
+  <div ref="root" class="jira-issues vr-split" tabindex="0" data-testid="jira-issues" @keydown="onKey">
+    <aside class="filters vr-split-aside" :aria-label="t('jira.list.filters')">
       <div class="group-title">{{ t('jira.list.filters') }}</div>
       <button v-for="filter in PRESETS" :key="filter.id" class="chip" :class="{ active: activeId === filter.id }" :title="filter.jql" @click="applyFilter(filter)">
         {{ presetName(filter.id) }}
@@ -256,8 +256,8 @@ onMounted(() => void load(false));
           <button class="chip" :class="{ active: activeId === filter.id }" :title="filter.jql" @click="applyFilter(filter)" @dblclick="startRename(filter)">
             {{ filter.name }}
           </button>
-          <button class="mini" :title="t('common.rename')" :aria-label="t('jira.list.renameFilter')" @click="startRename(filter)">✎</button>
-          <button class="mini" :title="t('common.delete')" :aria-label="t('jira.list.deleteFilter')" @click="removeFilter(filter)">×</button>
+          <button class="mini vr-reveal" :title="t('common.rename')" :aria-label="t('jira.list.renameFilter')" @click="startRename(filter)">✎</button>
+          <button class="mini vr-reveal" :title="t('common.delete')" :aria-label="t('jira.list.deleteFilter')" @click="removeFilter(filter)">×</button>
         </template>
       </div>
       <VInputText
@@ -276,7 +276,7 @@ onMounted(() => void load(false));
     </aside>
 
     <section class="main">
-      <div class="toolbar">
+      <div class="toolbar vr-toolbar">
         <div class="search">
           <VInputText
             ref="search"
@@ -360,7 +360,7 @@ onMounted(() => void load(false));
 
 <style scoped>
 .jira-issues {
-  display: flex;
+  --vr-split-aside-max: 30%;
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -461,17 +461,14 @@ onMounted(() => void load(false));
 }
 
 .toolbar {
-  display: flex;
   flex: none;
-  align-items: center;
-  gap: var(--vr-space-2);
   padding: var(--vr-space-3);
   border-bottom: 1px solid var(--vr-color-border);
 }
 
 .search {
   position: relative;
-  flex: 1;
+  flex: 1 1 14rem;
   min-width: 0;
 }
 
@@ -526,6 +523,7 @@ onMounted(() => void load(false));
 
 .table {
   width: 100%;
+  min-width: 40rem;
   border-collapse: collapse;
   table-layout: fixed;
 }

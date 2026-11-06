@@ -5,6 +5,7 @@ import { subsequenceScore } from '../../commands/fuzzy';
 import { usePickerList } from '../../commands/usePickerList';
 import PipelineIcon from '../../forge/PipelineIcon.vue';
 import { t } from '../../i18n';
+import BackBar from '../../mobile/BackBar.vue';
 import type { QuickItem, WorkNode } from '../../workbench/tree';
 import { externalDot } from '../external';
 import HarnessIcon from '../HarnessIcon.vue';
@@ -60,7 +61,8 @@ onMounted(() => input.value?.focus());
 
 <template>
   <div class="overlay" data-testid="quick-switcher" @pointerdown.self="emit('close')">
-    <div class="panel" role="dialog" :aria-label="t('files.switcher.dialog')">
+    <div class="panel vr-sheet" role="dialog" :aria-label="t('files.switcher.dialog')">
+      <BackBar class="vr-phone-only" :title="t('files.switcher.dialog')" @back="emit('close')" />
       <input
         ref="input"
         v-model="query"
@@ -71,7 +73,7 @@ onMounted(() => input.value?.focus());
         data-testid="quick-switcher-input"
         @keydown="onKey"
       />
-      <ul ref="list" v-auto-animate class="results" role="listbox">
+      <ul ref="list" v-auto-animate class="results vr-sheet-body" role="listbox">
         <li
           v-for="(item, position) in results"
           :key="item.key"

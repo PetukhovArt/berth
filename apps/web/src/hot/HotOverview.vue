@@ -131,13 +131,13 @@ function crumb(item: HotItem): string {
 <template>
   <Transition name="overview">
     <div v-if="hotOverviewOpen" class="overlay" data-testid="hot-overview" @pointerdown.self="close">
-      <div class="panel" role="dialog" :aria-label="t('hot.overview.title')">
+      <div class="panel vr-sheet" role="dialog" :aria-label="t('hot.overview.title')">
         <header class="bar">
           <h2 class="heading">{{ t('hot.overview.title') }}</h2>
-          <span class="hint">{{ t('hot.overview.hint') }}</span>
+          <span class="hint vr-key-hint">{{ t('hot.overview.hint') }}</span>
           <button class="close" :title="t('hot.overview.close')" :aria-label="t('hot.overview.close')" data-testid="hot-overview-close" @click="close"><X :size="14" /></button>
         </header>
-        <div v-if="tiles.length" ref="grid" class="grid" role="listbox" tabindex="-1" :aria-label="t('hot.overview.title')">
+        <div v-if="tiles.length" ref="grid" class="grid vr-sheet-body" role="listbox" tabindex="-1" :aria-label="t('hot.overview.title')">
           <button
             v-for="(tile, position) in tiles"
             :key="tile.item.key"
@@ -241,6 +241,7 @@ function crumb(item: HotItem): string {
 
 .close {
   display: inline-flex;
+  margin-left: auto;
   align-items: center;
   justify-content: center;
   width: 24px;

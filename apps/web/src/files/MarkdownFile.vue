@@ -350,7 +350,7 @@ onBeforeUnmount(() => {
 
     <CompareView v-if="comparing && conflict" class="compare" :disk="conflict.text" :mine="mineSnapshot" />
 
-    <div v-show="loaded && !comparing" class="panes" :data-mode="mode">
+    <div v-show="loaded && !comparing" class="panes vr-split" :data-mode="mode">
       <div v-show="showSource" ref="source" class="pane source" data-testid="markdown-source" />
       <div v-show="showPreview" ref="preview" class="pane preview" tabindex="0" data-testid="markdown-preview" @scroll.passive="onPreviewScroll">
         <RichContent v-if="renderedText !== null" :markdown="renderedText" :base-path="directory" variant="document" :breaks="false" @open-file="(p, h) => emit('open-file', p, h)" @rendered="onRendered" />
@@ -373,6 +373,7 @@ onBeforeUnmount(() => {
 .toolbar {
   display: flex;
   flex: none;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--vr-space-3);
   padding: var(--vr-space-1) var(--vr-space-3);

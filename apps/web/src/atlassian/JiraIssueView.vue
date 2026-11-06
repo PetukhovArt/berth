@@ -163,6 +163,7 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
 
 <style scoped>
 .issue {
+  container: jira-issue / inline-size;
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -180,6 +181,7 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
 
 .line {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--vr-space-2);
 }
@@ -211,6 +213,12 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
   grid-template-columns: max-content 1fr max-content 1fr;
   gap: var(--vr-space-2) var(--vr-space-4);
   margin: 0;
+}
+
+@container jira-issue (max-width: 34rem) {
+  .fields {
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
 }
 
 .fields dt {
