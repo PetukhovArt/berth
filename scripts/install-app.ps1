@@ -79,6 +79,9 @@ if ($UpdateDaemon) {
     & $installed --version
     & $installed kill
     Start-Process -FilePath $installed -ArgumentList 'daemon' -WindowStyle Hidden
+    $daemonDir = Join-Path $Root 'daemon'
+    New-Item -ItemType Directory -Force -Path $daemonDir | Out-Null
+    Copy-Item -LiteralPath (Join-Path $current 'build.json') -Destination (Join-Path $daemonDir 'build.json') -Force
     Write-Host "daemon restarted from $installed"
     exit 0
 }

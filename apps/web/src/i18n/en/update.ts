@@ -24,6 +24,8 @@ export const update = {
   rollbackHint: 'The previous build is {build}: {commit} {subject}',
   noPrevious: 'There is no previous build to roll back to.',
   daemonMismatch: 'The installed build speaks berth protocol v{build}, the running daemon speaks v{daemon}. The app cannot talk to this daemon until the daemon is updated.',
+  daemonBehind: 'The daemon runs build {daemon}, the installed build is {build}. Fixes in the daemon and in new sessions arrive once it is updated.',
+  daemonUnknown: 'The daemon was not started from a build of this app. Update it to run build {build}.',
   daemonUpdate: 'Update daemon',
   daemonConfirm: 'Updating the daemon ends every live terminal. Agent conversations resume when you reopen them. Update it now?',
   daemonDone: 'The daemon was updated and restarted.',

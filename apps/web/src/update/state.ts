@@ -24,6 +24,7 @@ type UpdateInfo = {
   head: { commit: string; subject: string } | null;
   headError: string | null;
   daemonProtocol: number | null;
+  daemonBuild: Build | null;
   job: Job | null;
 };
 type DialogMode = 'update' | 'rollback';

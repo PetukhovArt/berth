@@ -48,6 +48,14 @@ const daemonMismatch = computed(() => {
   return daemon && build && daemon !== build ? { daemon, build } : null;
 });
 
+const daemonNotice = computed(() => {
+  if (daemonMismatch.value) return t('update.daemonMismatch', daemonMismatch.value);
+  const build = current.value;
+  const daemon = info.value?.daemonBuild ?? null;
+  if (!build || daemon?.buildId === build.buildId) return null;
+  return daemon ? t('update.daemonBehind', { daemon: daemon.buildId, build: build.buildId }) : t('update.daemonUnknown', { build: build.buildId });
+});
+
 function onVisible(visible: boolean) {
   if (!visible) closeUpdate();
 }
@@ -97,8 +105,8 @@ function onVisible(visible: boolean) {
         <p v-else>{{ t('update.noPrevious') }}</p>
       </template>
 
-      <div v-if="daemonMismatch" class="daemon" data-testid="update-daemon">
-        <p>{{ t('update.daemonMismatch', daemonMismatch) }}</p>
+      <div v-if="daemonNotice" class="daemon" data-testid="update-daemon">
+        <p>{{ daemonNotice }}</p>
         <p v-if="confirmDaemon" class="danger">{{ t('update.daemonConfirm') }}</p>
       </div>
       <p v-if="daemonUpdated" data-testid="update-daemon-done">{{ t('update.daemonDone') }}</p>
@@ -107,7 +115,7 @@ function onVisible(visible: boolean) {
     </div>
 
     <div class="actions">
-      <template v-if="daemonMismatch && phase !== 'building'">
+      <template v-if="daemonNotice && phase !== 'building'">
         <VButton v-if="!confirmDaemon" :label="t('update.daemonUpdate')" size="small" severity="danger" text :disabled="busy" data-testid="update-daemon-start" @click="confirmDaemon = true" />
         <VButton v-else :label="t('update.daemonUpdate')" size="small" severity="danger" :disabled="busy" data-testid="update-daemon-confirm" @click="updateDaemon().then(() => (confirmDaemon = false))" />
       </template>

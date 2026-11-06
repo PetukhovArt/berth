@@ -62,6 +62,7 @@ pub struct Info {
     head: Option<Head>,
     head_error: Option<String>,
     daemon_protocol: Option<u32>,
+    daemon_build: Option<Build>,
     job: Option<Value>,
 }
 
@@ -305,6 +306,7 @@ pub async fn app_update_info() -> Result<Info, String> {
             head,
             head_error,
             daemon_protocol: crate::berth::daemon_protocol(),
+            daemon_build: root().and_then(|root| read_build(&root.join("daemon"))),
             job: job(),
         }
     })

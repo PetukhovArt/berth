@@ -137,10 +137,13 @@ build changes nothing and shows its log path. A finished one offers `Restart now
 in the daemon, so a restart keeps them. `Roll back to previous build` swaps `current` and `previous`.
 `app.sourceRepo` in settings points the update at another checkout.
 
-The update never touches the daemon. When the new build speaks a different protocol than the running
-daemon, the dialog says so and offers `Update daemon`: it installs that build's `berth.exe` into
-`~\.cargo\bin` the way `scripts\update.ps1` does and restarts the daemon, which ends every live terminal.
-`install-app.ps1 -UpdateDaemon` and `-Rollback` do the same from a terminal.
+The update never touches the daemon. When the daemon runs another build than the installed one, the
+dialog says so and offers `Update daemon`: it installs that build's `berth.exe` into `~\.cargo\bin` the
+way `scripts\update.ps1` does and restarts the daemon, which ends every live terminal. The daemon's build
+is recorded in `daemon\build.json` under the install root, so a daemon started any other way (from
+`scripts\update.ps1` or by a `berth` call) counts as not from this build. When the protocols differ, the
+app cannot talk to the daemon until it is updated. `install-app.ps1 -UpdateDaemon` and `-Rollback` do the
+same from a terminal.
 
 Every location can be moved for a test: `BERTH_APP_ROOT` (install root), `BERTH_START_MENU` (shortcut
 folder), `BERTH_BIN_DIR` (where `-UpdateDaemon` puts `berth.exe`), `BERTH_HOME`,
