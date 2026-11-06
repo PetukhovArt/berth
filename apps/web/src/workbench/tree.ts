@@ -327,6 +327,8 @@ function reviewKinds(sources: Sources): Map<string, ReviewKind> {
 
 const needsAttention = (item: InboxItem) => item.pipeline === 'failed' || (item.unresolved_threads ?? 0) > 0;
 
+const mrRank = (item: InboxItem) => (item.draft ? 3 : item.pipeline === 'failed' ? 0 : (item.unresolved_threads ?? 0) > 0 ? 1 : 2);
+
 export type TabCounts = { sessionsWaiting: number; sessionsRunning: number; mrs: number; mrsAttention: number; reviews: number; tasks: number };
 
 export function tabCounts(sources: Sources): TabCounts {
@@ -360,7 +362,10 @@ export function buildTree(sources: Sources, tab: TreeTab, query: string): WorkNo
   const projectRollup = (project: ProjectNode) => liveRollup(sessionsOf(project), placed.ofProject.get(project.id) ?? [], placed.linked);
   const kinds = reviewKinds(sources);
   const wanted = (item: InboxItem) => (tab === 'reviews' ? kinds.has(itemId(item)) : tab === 'mrs' ? !kinds.has(itemId(item)) : true);
-  const mrsOf = (key: string | null) => (links.mrs.get(key) ?? []).filter((item) => wanted(item) && match(mrText(item)));
+  const mrsOf = (key: string | null) =>
+    (links.mrs.get(key) ?? [])
+      .filter((item) => wanted(item) && match(mrText(item)))
+      .sort((a, b) => mrRank(a) - mrRank(b));
   const workOf = (key: string | null) => (links.work.get(key) ?? []).filter((work) => match(workText(work)));
   const projects = sources.workspaces.flatMap((workspace) => workspace.projects.map((project) => ({ workspace, project })));
   const projectLabel = (workspace: WorkspaceNode, project: ProjectNode) => (sources.workspaces.length > 1 ? `${workspace.name} / ${project.name}` : project.name);
@@ -376,6 +381,7 @@ export function buildTree(sources: Sources, tab: TreeTab, query: string): WorkNo
       });
       if (filtering && !children.length) return [];
       if (editable && !filtering) children.push({ id: `add-project:${workspace.id}`, kind: 'add-project', label: '', custom: true, inert: true, data: { workspaceId: workspace.id } });
+      if (sources.workspaces.length === 1) return children;
       const rollup = liveRollup(
         workspace.projects.flatMap(sessionsOf),
         workspace.projects.flatMap((project) => placed.ofProject.get(project.id) ?? []),
