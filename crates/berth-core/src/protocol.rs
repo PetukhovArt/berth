@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 38;
+pub const PROTOCOL_VERSION: u32 = 39;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -113,6 +113,16 @@ pub enum ClientRequest {
         req_id: u64,
         id: WorktreeId,
         force: bool,
+    },
+    /// The local branches of `project`, most recently committed first, each
+    /// with the worktree row that has it checked out. Answered by one
+    /// `Branches`, not by deltas: the list is read when a client opens a
+    /// branch picker. The daemon reconciles the project's worktree rows with
+    /// `git worktree list` first, so a named worktree is a row the client
+    /// already holds.
+    ListBranches {
+        req_id: u64,
+        project: ProjectId,
     },
     /// The resumable conversations of `project`: every ORPHANED SESSION,
     /// plus — when `include_live` — the conversations of its live worktrees,
@@ -514,6 +524,16 @@ impl MetricsSnapshot {
     }
 }
 
+/// One local branch of a project, as `ListBranches` reports it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Branch {
+    /// The name under `refs/heads/`, slashes kept (`feat/x`).
+    pub name: String,
+    /// The project's worktree row that has this branch checked out, the
+    /// main checkout included; None when no checkout holds it.
+    pub worktree: Option<WorktreeId>,
+}
+
 /// What `EnterWorktree` did to the agent's live session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EnterOutcome {
@@ -559,6 +579,11 @@ pub enum ServerEvent {
     OrphanedSessions {
         req_id: u64,
         sessions: Vec<OrphanedSession>,
+    },
+    /// Reply to `ListBranches`.
+    Branches {
+        req_id: u64,
+        branches: Vec<Branch>,
     },
     /// Reply to `EnterWorktree`: the worktree the agent now belongs to, and
     /// what that meant for its process.

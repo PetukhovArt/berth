@@ -594,6 +594,7 @@ fn reply_req_id(event: &ServerEvent) -> Option<u64> {
     match event {
         ServerEvent::Ack { req_id, .. }
         | ServerEvent::OrphanedSessions { req_id, .. }
+        | ServerEvent::Branches { req_id, .. }
         | ServerEvent::WorktreeEntered { req_id, .. }
         | ServerEvent::Metrics { req_id, .. } => Some(*req_id),
         ServerEvent::Error { req_id, .. } => *req_id,
@@ -612,6 +613,7 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::RenameProject { req_id, .. }
         | ClientRequest::CreateWorktree { req_id, .. }
         | ClientRequest::DeleteWorktree { req_id, .. }
+        | ClientRequest::ListBranches { req_id, .. }
         | ClientRequest::ListOrphanedSessions { req_id, .. }
         | ClientRequest::ResumeOrphanedSession { req_id, .. }
         | ClientRequest::CreateAgent { req_id, .. }

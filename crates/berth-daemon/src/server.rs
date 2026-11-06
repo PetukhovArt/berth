@@ -525,6 +525,22 @@ async fn handle_client(
                     };
                     let _ = out_tx.send(ev).await;
                 }
+                ClientRequest::ListBranches { req_id, project } => {
+                    // The reconcile behind it waits on `worktree_ops` and
+                    // shells out to git; keep the request loop free.
+                    let daemon = daemon.clone();
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let ev = match daemon.list_branches(&project).await {
+                            Ok(branches) => ServerEvent::Branches { req_id, branches },
+                            Err(e) => ServerEvent::Error {
+                                req_id: Some(req_id),
+                                message: format!("{e:#}"),
+                            },
+                        };
+                        let _ = out_tx.send(ev).await;
+                    });
+                }
                 ClientRequest::ListOrphanedSessions {
                     req_id,
                     project,

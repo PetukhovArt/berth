@@ -69,6 +69,28 @@ pub async fn current_branch(repo: &Path) -> Result<String> {
     Ok(branch.to_string())
 }
 
+/// Local branch names, most recently committed first. Full refnames are
+/// stripped by hand rather than asked for `:short`, which turns into
+/// `heads/<name>` whenever a tag or remote shares the branch's name.
+pub async fn list_branches(repo: &Path) -> Result<Vec<String>> {
+    let out = git(
+        repo,
+        &[
+            "for-each-ref",
+            "--sort=-committerdate",
+            "--format=%(refname)",
+            "refs/heads",
+        ],
+    )
+    .await?;
+    Ok(out
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("refs/heads/"))
+        .filter(|name| !name.is_empty())
+        .map(str::to_string)
+        .collect())
+}
+
 #[derive(Debug, Clone)]
 pub struct WorktreeEntry {
     pub path: PathBuf,
@@ -346,6 +368,39 @@ mod tests {
         // A real git that says "not a repository" must keep saying so.
         let err = repo_toplevel(tmp.path()).await.unwrap_err();
         assert!(!is_missing(&err), "{err:#}");
+    }
+
+    /// Every local branch comes back by its full name, the newest commit
+    /// first, whether or not a checkout holds it; a tag sharing a branch's
+    /// name must not turn it into `heads/<name>`, and remote refs stay out.
+    #[tokio::test]
+    async fn list_branches_names_every_local_branch_newest_first() {
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = tmp.path().join("repo");
+        std::fs::create_dir(&repo).unwrap();
+        init_repo(&repo).await;
+        git(&repo, &["branch", "feat/old"]).await.unwrap();
+        git(&repo, &["tag", "feat/old"]).await.unwrap();
+        git(&repo, &["update-ref", "refs/remotes/origin/far", "HEAD"])
+            .await
+            .unwrap();
+        let wt = add_worktree(&repo, "topic", None).await.unwrap();
+        // A future committer date, so "newest first" does not hinge on the
+        // test running slower than git's one-second timestamps.
+        let later = std::process::Command::new("git")
+            .arg("-C")
+            .arg(&wt)
+            .args(["commit", "--allow-empty", "-m", "later"])
+            .env("GIT_COMMITTER_DATE", "2037-01-01T00:00:00 +0000")
+            .output()
+            .unwrap();
+        assert!(later.status.success(), "{later:?}");
+
+        let branches = list_branches(&repo).await.unwrap();
+        assert_eq!(branches.first().map(String::as_str), Some("topic"));
+        let mut sorted = branches.clone();
+        sorted.sort();
+        assert_eq!(sorted, vec!["feat/old", "main", "topic"]);
     }
 
     /// A rebase parks HEAD on the commits it replays, so for as long as it
