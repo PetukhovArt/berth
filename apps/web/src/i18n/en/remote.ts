@@ -34,9 +34,11 @@ export const remote = {
     noClients: 'No devices connected',
     connectedAt: 'since {time}',
     qrLabel: 'QR code of the pairing link',
+    installTailscale: 'Install Tailscale',
+    useLan: 'Use LAN instead',
     desktopOnly: 'Remote access is managed in the Berth app on the computer. On a berth-server (Docker) host the pairing link and QR code are in the server log: docker compose -f docker/compose.yaml logs berth.',
     problem: {
-      tailscale_missing: 'Tailscale address (100.x) not found. Start Tailscale or choose another network.',
+      tailscale_missing: 'This computer has no Tailscale address (100.x). Install Tailscale and sign in to the same account on this computer and on the phone, or switch to the local network (LAN) if the phone is on the same Wi-Fi.',
       bind_failed: 'Could not listen on {message}',
       token_store: 'Could not read the pairing token from the system keychain: {message}',
     },

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, shallowRef } from 'vue';
-import { Copy, RefreshCw, ShieldAlert, Smartphone } from 'lucide-vue-next';
+import { Copy, Download, Network, RefreshCw, ShieldAlert, Smartphone } from 'lucide-vue-next';
 import { VButton, VMessage } from '@ui/kit';
-import { invoke, isDesktop } from '../bridge';
+import { invoke, isDesktop, openUrl } from '../bridge';
 import { describeError } from '../connectors/api';
 import { useI18n } from '../i18n';
+import { useSettings } from './store';
 
 type Problem = { kind: 'tailscale_missing' } | { kind: 'bind_failed'; message: string } | { kind: 'token_store'; message: string };
 type ClientInfo = { id: number; address: string; agent: string; connected_at: number };
@@ -20,8 +21,10 @@ type RemoteStatus = {
 
 const POLL_MS = 2000;
 const COPIED_MS = 1500;
+const TAILSCALE_DOWNLOAD_URL = 'https://tailscale.com/download';
 
 const { t } = useI18n();
+const settings = useSettings();
 const status = shallowRef<RemoteStatus | null>(null);
 const failure = shallowRef<string | null>(null);
 const busy = shallowRef(false);
@@ -80,6 +83,14 @@ onBeforeUnmount(() => clearInterval(timer));
     <p v-if="!isDesktop" class="muted">{{ t('remote.panel.desktopOnly') }}</p>
     <template v-else-if="status">
       <VMessage v-if="status.problem" severity="error" size="small" data-testid="remote-problem">{{ problemText(status.problem) }}</VMessage>
+      <div v-if="status.problem?.kind === 'tailscale_missing'" class="actions" data-testid="remote-tailscale-actions">
+        <VButton size="small" :label="t('remote.panel.installTailscale')" data-testid="remote-install-tailscale" @click="openUrl(TAILSCALE_DOWNLOAD_URL)">
+          <template #icon><Download :size="14" /></template>
+        </VButton>
+        <VButton size="small" severity="secondary" :label="t('remote.panel.useLan')" data-testid="remote-use-lan" @click="settings.set('remote.bind', 'lan')">
+          <template #icon><Network :size="14" /></template>
+        </VButton>
+      </div>
       <VMessage v-if="failure" severity="error" size="small">{{ failure }}</VMessage>
       <p v-if="!status.enabled" class="muted" data-testid="remote-off">{{ t('remote.panel.off') }}</p>
       <p v-else-if="!status.running && !status.problem" class="muted">{{ t('remote.panel.starting') }}</p>

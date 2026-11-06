@@ -37,9 +37,11 @@ export const remote: Translation<typeof en> = {
     noClients: 'Нет подключённых устройств',
     connectedAt: 'с {time}',
     qrLabel: 'QR-код ссылки подключения',
+    installTailscale: 'Установить Tailscale',
+    useLan: 'Использовать локальную сеть',
     desktopOnly: 'Удалённым доступом управляют в приложении Berth на компьютере. На хосте с berth-server (Docker) ссылка подключения и QR-код есть в логе сервера: docker compose -f docker/compose.yaml logs berth.',
     problem: {
-      tailscale_missing: 'Адрес Tailscale (100.x) не найден. Запустите Tailscale или выберите другую сеть.',
+      tailscale_missing: 'У этого компьютера нет адреса Tailscale (100.x). Установите Tailscale и войдите в один и тот же аккаунт на этом компьютере и на телефоне или переключитесь на локальную сеть (LAN), если телефон в той же Wi-Fi.',
       bind_failed: 'Не удалось слушать {message}',
       token_store: 'Не удалось прочитать токен подключения из системного хранилища ключей: {message}',
     },
