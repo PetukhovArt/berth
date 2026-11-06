@@ -1,0 +1,42 @@
+{
+  "$schema": "https://stratum.dev/schema/v1.json",
+  "version": 1,
+  "project": {
+    "entry_points": ["apps/web/src/main.ts", "apps/model-router/src/**/*.ts"]
+  },
+  "structure": {
+    "entries": ["index.ts", "index.tsx", "index.js", "index.jsx", "index.vue"],
+    "segments": [],
+    "private": ["_shared"]
+  },
+  "layers": [
+    { "id": "web", "path": "apps/web/src", "depends_on": ["ui-kit", "ui-tokens"] },
+    { "id": "model-router", "path": "apps/model-router/src", "depends_on": [] },
+    { "id": "ui-kit", "path": "packages/ui-kit/src", "depends_on": ["ui-tokens"] },
+    { "id": "ui-tokens", "path": "packages/ui-tokens/src", "depends_on": [] }
+  ],
+  "rules": {
+    "stratum/composer-scope": { "severity": "warning" },
+    "stratum/container-breadth": { "severity": "off" },
+    "stratum/depth-ratio": { "severity": "info" },
+    "stratum/miller-limit": { "severity": "off" },
+    "stratum/missing-entry": { "severity": "off" },
+    "stratum/module-docs": { "severity": "off" },
+    "stratum/naming": { "severity": "off" },
+    "stratum/no-barrel": { "severity": "warning" },
+    "stratum/no-circular-deps": { "severity": "error" },
+    "stratum/no-cross-layer-import": { "severity": "error" },
+    "stratum/public-api": { "severity": "off" },
+    "stratum/purity": { "severity": "warning" },
+    "stratum/restricted-calls": { "severity": "off" },
+    "stratum/sibling-isolation": { "severity": "off" },
+    "stratum/slice-fan-in": { "severity": "off" },
+    "stratum/stage-mixing": { "severity": "off" },
+    "stratum/suppression": { "severity": "error" },
+    "stratum/unreachable-modules": { "severity": "off" },
+    "stratum/unused-exports": { "severity": "off" },
+    "stratum/visibility-scope": { "severity": "error" },
+    "stratum/zone-breadth": { "severity": "off" }
+  },
+  "overrides": []
+}

@@ -1,0 +1,9 @@
+{"version":2,"violations":[
+"deep-module apps/web/src/agents/berth.ts 88bf7e9e",
+"deep-module apps/web/src/connectors/api.ts 88bf7e9e",
+"depth-ratio packages/ui-kit/src/index.ts 3b24a377",
+"depth-ratio packages/ui-kit/src/motion.ts 3b24a377",
+"no-circular-deps apps/web/src/connectors/ai.ts cd4fe527 927ff4cc a85baefc",
+"no-circular-deps apps/web/src/i18n/index.ts e9c600c9 1c1f03e5 47a955a2 4c11a416 86fcd8c8",
+"no-circular-deps apps/web/src/workbench/dock.ts f68f8fb4 d6f76edf"
+]}

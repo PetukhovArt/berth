@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/PetukhovArt/jig/main/schema/config.schema.json",
+  "oxlint": {},
+  "tsc": { "command": "vue-tsc" },
+  "stratum": {},
+  "agent-view": {},
+  "checks": [
+    {
+      "name": "rules",
+      "files": ["apps/**", "packages/**", "docker/**"],
+      "on": "edit",
+      "run": "node scripts/checks.mjs --rules {files}"
+    }
+  ]
+}

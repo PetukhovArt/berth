@@ -8,8 +8,11 @@ import ts from 'typescript';
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 1 << 26 });
 const lines = (text) => text.split(/\r?\n/).filter(Boolean);
 const root = git('rev-parse', '--show-toplevel').trim();
+const RULES_ONLY = '--rules';
+const rulesOnly = process.argv.includes(RULES_ONLY);
 const args = process.argv
   .slice(2)
+  .filter((arg) => arg !== RULES_ONLY)
   .map((file) => relative(root, resolve(file)).replaceAll('\\', '/'))
   .filter((file) => !file.startsWith('../') && !isAbsolute(file));
 process.chdir(root);
@@ -76,6 +79,14 @@ const rawColors = (file, text) => {
   return css.flatMap(([offset, body]) => [...body.matchAll(DECLARATION)].filter((m) => COLOR.test(m[1])).map((m) => [offset + m.index, m[0].trim()]));
 };
 
+const RUST_TEST = /#\[(?:cfg\(test\)|test|[\w:]*::test(?:\([^)\]]*\))?)\]/g;
+const SCRIPT_TEST = /\bfrom\s+['"](?:vitest|@playwright\/test|node:test|@vue\/test-utils)['"]/g;
+const testsOf = (file, text) => {
+  if (file.endsWith('.rs')) return [...text.matchAll(RUST_TEST)].map((m) => [m.index, m[0]]);
+  if (/\.(vue|[cm]?[jt]sx?)$/.test(file)) return [...text.matchAll(SCRIPT_TEST)].map((m) => [m.index, m[0]]);
+  return [];
+};
+
 const lineOf = (text, offset) => text.slice(0, offset).split('\n').length;
 const scan = (filter, find) =>
   files.filter(filter).flatMap((file) => {
@@ -102,6 +113,7 @@ const checks = [
   ['comments', 'удали комментарий: смысл выражай именем, типом или правилом линтера; разрешён только /// <reference>', async () => scan(() => true, (file, text) => commentsOf(file, text).filter(([, raw]) => !/^\/\/\/\s*<reference\s/.test(raw)))],
   ['raw-colors', 'цвет бери из токенов packages/ui-tokens через var(--…); сырые цвета живут только там', async () => scan((file) => /^(apps\/web|packages\/ui-kit)\//.test(file), rawColors)],
   ['new-files', 'не добавляй .md, *.test.*, *.spec.* и __tests__/: правда живёт в коде, тестов в проекте нет', async () => added.filter((file) => /\.md$|\.(test|spec)\.|(^|\/)__tests__\//i.test(file))],
+  ['tests', 'не пиши тесты в apps/, packages/ и docker/: тесты живут только в crates/', async () => scan(() => true, testsOf)],
   ['oxlint', 'исправь предупреждения oxlint, не отключай правило', async () => (lintable.length ? run(`oxlint --deny-warnings ${quoted(lintable)}`) : [])],
   ['knip', 'удали неиспользуемый export, файл или зависимость', () => run('knip')],
   ['types', 'исправь ошибки типов', async () => (existsSync(DIFF_VERIFY) ? run(`node "${DIFF_VERIFY}"`, { VERIFY_SKIP_LINT: '1', VERIFY_SKIP_TESTS: '1' }) : [...(await run('pnpm -r --filter "...[HEAD]" --filter "!berth-apps" --if-present typecheck')), ...(files.some((file) => file.startsWith('scripts/')) ? await run('tsc -p .') : [])])],
@@ -109,7 +121,8 @@ const checks = [
   ['clippy', 'исправь замечания clippy, не глуши их через allow', async () => (tauriTouched ? run('cargo clippy -p berth-desktop --all-targets -j 4 -- -D warnings') : [])],
 ];
 
-const results = await Promise.all(checks.map(async ([name, fix, check]) => [name, fix, await check()]));
+const RULES = new Set(['comments', 'raw-colors', 'new-files', 'tests']);
+const results = await Promise.all(checks.filter(([name]) => !rulesOnly || RULES.has(name)).map(async ([name, fix, check]) => [name, fix, await check()]));
 for (const [name, fix, found] of results) {
   console.log(found.length ? `✗ ${name}: ${found.length} — ${fix}` : `✓ ${name}`);
   for (const line of found) console.log(`    ${line}`);

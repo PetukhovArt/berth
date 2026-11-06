@@ -9,7 +9,6 @@
 # project's own prompt hook and the settings file that registers it.
 /.claude/*
 !/.claude/hooks/
-!/.claude/plans/
 !/.claude/settings.json
 
 # Personal, machine-local instructions — never committed
@@ -30,3 +29,5 @@ target/
 packages/ui-tokens/generated/
 apps/desktop/src-tauri/gen/
 *.log
+/.jig/*
+!/.jig/config.jsonc

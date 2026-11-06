@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@petukhovart/stratum-lint':
+        specifier: ^0.6.0
+        version: 0.6.0
       '@types/node':
         specifier: ^26.6.6
         version: 26.6.6
@@ -1031,6 +1034,43 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [win32]
+
+  '@petukhovart/stratum-lint-darwin-arm64@0.6.0':
+    resolution: {integrity: sha512-KTFRL9xFS/yroxmJEvMZqNMteXBxx0XFZLviHVIAdA6U/PArreva2MTmlbpA4hdUxMPBbkD7z6A31H7jZixn8g==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@petukhovart/stratum-lint-darwin-x64@0.6.0':
+    resolution: {integrity: sha512-PyjbOqB+qlzCWfbUQwi53LYVVITEiju3w9HrvjGFn4fAn7xzzl1zhrQGhF6CgB5jSxWwY5bMA04bHJTFarKk/Q==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@petukhovart/stratum-lint-linux-arm64@0.6.0':
+    resolution: {integrity: sha512-hifFwjQx3Pz6ljN7Yvh/pf8bWz9d6XF28ZwNt0Mlau2CoHUkP19E1F78PvxklEpBxsrhE8P+gtg/FL/2jdY7pw==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@petukhovart/stratum-lint-linux-x64@0.6.0':
+    resolution: {integrity: sha512-Not3+2lQ60dNpyK2z71Es+n+CQIEsKqa8wru/4E3lFiOei3kminw03U2/HwjotJ72YO8XsjEST9Ar+4ee7WsRA==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@petukhovart/stratum-lint-win32-arm64@0.6.0':
+    resolution: {integrity: sha512-moVcUZxe3qiSAB0CqDCifzdUs9191DF+KcuSMQO0fFQmD39jhQJ/q/TmPs2tA/XmXT4p1cdxrYD/me03BCGLpg==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@petukhovart/stratum-lint-win32-x64@0.6.0':
+    resolution: {integrity: sha512-UWosqfJYgRkvfmvkT4VBrsSxFG2aYkRBy+M0Zn8H5AuAlXrmKHvr8WbVIyrWkHn44pzzDcFmKWn/Bf6RRM8++g==}
+    cpu: [x64]
+    os: [win32]
+
+  '@petukhovart/stratum-lint@0.6.0':
+    resolution: {integrity: sha512-LKOvP/PvX+kw86ipoHHRQ9D7bkJXO027l8eT8e8O7xE9IybDbdTJ3b6pNNDCPImoUiWN0sv6vACYoMIzceE6GA==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   '@primeuix/styled@0.7.4':
     resolution: {integrity: sha512-QSO/NpOQg8e9BONWRBx9y8VGMCMYz0J/uKfNJEya/RGEu7ARx0oYW0ugI1N3/KB1AAvyGxzKBzGImbwg0KUiOQ==}
@@ -3209,6 +3249,33 @@ snapshots:
 
   '@oxlint/binding-win32-x64-msvc@1.90.0':
     optional: true
+
+  '@petukhovart/stratum-lint-darwin-arm64@0.6.0':
+    optional: true
+
+  '@petukhovart/stratum-lint-darwin-x64@0.6.0':
+    optional: true
+
+  '@petukhovart/stratum-lint-linux-arm64@0.6.0':
+    optional: true
+
+  '@petukhovart/stratum-lint-linux-x64@0.6.0':
+    optional: true
+
+  '@petukhovart/stratum-lint-win32-arm64@0.6.0':
+    optional: true
+
+  '@petukhovart/stratum-lint-win32-x64@0.6.0':
+    optional: true
+
+  '@petukhovart/stratum-lint@0.6.0':
+    optionalDependencies:
+      '@petukhovart/stratum-lint-darwin-arm64': 0.6.0
+      '@petukhovart/stratum-lint-darwin-x64': 0.6.0
+      '@petukhovart/stratum-lint-linux-arm64': 0.6.0
+      '@petukhovart/stratum-lint-linux-x64': 0.6.0
+      '@petukhovart/stratum-lint-win32-arm64': 0.6.0
+      '@petukhovart/stratum-lint-win32-x64': 0.6.0
 
   '@primeuix/styled@0.7.4':
     dependencies:

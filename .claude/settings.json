@@ -1,4 +1,19 @@
 {
+  "permissions": {
+    "deny": [
+      "Edit(.jig/config.jsonc)",
+      "Edit(eslint.config.*)",
+      "Edit(tsconfig*.json)",
+      "Edit(.oxlintrc.json)",
+      "Edit(stratum.config.jsonc)",
+      "Edit(stratum.baseline.json)",
+      "Edit(knip.json)",
+      "Edit(scripts/checks.mjs)",
+      "Edit(.github/workflows/**)",
+      "Edit(.gitlab-ci.yml)",
+      "Edit(.husky/**)"
+    ]
+  },
   "hooks": {
     "UserPromptSubmit": [
       {
