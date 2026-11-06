@@ -8,6 +8,7 @@ import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { attachSession, detachSession, resizeSession, sendInput, sessionId, type SessionEvent, type SessionRef } from './berth';
 import { t } from '../i18n';
+import { openUrl } from '../bridge';
 import { applyCtrl } from '../mobile/keys';
 import { useSettings } from '../settings/store';
 import { zoomTerminal } from './terminalFont';
@@ -59,6 +60,12 @@ function build(element: HTMLElement, session: SessionRef): LiveTerminal {
     cursorBlink: values.value['terminal.cursor_blink'],
     scrollback: values.value['terminal.scrollback'],
     theme: themeFromTokens(),
+    linkHandler: {
+      activate: (_event, uri) => {
+        if (/^(?:https?|mailto):/i.test(uri)) void openUrl(uri);
+      },
+      allowNonHttpProtocols: true,
+    },
   });
   const fit = new FitAddon();
   term.loadAddon(fit);
