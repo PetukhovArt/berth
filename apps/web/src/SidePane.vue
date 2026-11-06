@@ -54,7 +54,7 @@ function resizeByKey(event: KeyboardEvent) {
   <div ref="pane" class="pane" :style="{ width: `${width}px` }">
     <slot />
     <div
-      class="resize-handle"
+      class="resize-handle vr-wide-only"
       role="separator"
       aria-orientation="vertical"
       :aria-label="label"

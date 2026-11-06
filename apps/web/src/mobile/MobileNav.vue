@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { LayoutPanelLeft, Settings } from 'lucide-vue-next';
+import { Command, LayoutPanelLeft, Settings } from 'lucide-vue-next';
+import { paletteOpen } from '../commands/context';
 import { useI18n } from '../i18n';
 import { navigate, view, type View } from '../nav';
 import { useDock } from '../workbench/dock';
@@ -26,6 +27,10 @@ function go(kind: (typeof ITEMS)[number]['kind']) {
       <component :is="item.icon" :size="20" />
       <span>{{ t(item.label) }}</span>
     </button>
+    <button class="item" :data-active="paletteOpen" data-testid="mobile-nav-commands" @click="paletteOpen = !paletteOpen">
+      <Command :size="20" />
+      <span>{{ t('mobile.commands') }}</span>
+    </button>
   </nav>
 </template>
 
@@ -33,7 +38,7 @@ function go(kind: (typeof ITEMS)[number]['kind']) {
 .nav {
   display: flex;
   flex: none;
-  padding: var(--vr-space-1) var(--vr-space-1) calc(var(--vr-space-1) + env(safe-area-inset-bottom));
+  padding: var(--vr-space-1) var(--vr-space-1) calc(var(--vr-space-1) + var(--vr-safe-bottom));
   border-top: 1px solid var(--vr-color-border);
 }
 
@@ -50,6 +55,23 @@ function go(kind: (typeof ITEMS)[number]['kind']) {
   background: none;
   border: 0;
   border-radius: var(--vr-radius-md);
+}
+
+@media (orientation: landscape) {
+  .nav {
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: var(--vr-space-1);
+    width: 4.5rem;
+    padding: var(--vr-space-2) var(--vr-space-1) calc(var(--vr-space-1) + var(--vr-safe-bottom));
+    border-top: 0;
+    border-right: 1px solid var(--vr-color-border);
+  }
+
+  .item {
+    flex: none;
+    min-height: var(--vr-size-touch);
+  }
 }
 
 .item[data-active='true'] {

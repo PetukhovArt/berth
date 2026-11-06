@@ -9,7 +9,7 @@ import { numberLabel } from '../forge/format';
 import { itemId } from '../forge/inbox';
 import { architecturePanelId, type ArchitectureParams } from '../forge/stratum';
 import { t } from '../i18n';
-import { useIsMobile } from '../mobile/useIsMobile';
+import { useIsPhone } from '@ui/kit';
 import { navigate, view } from '../nav';
 import type { WorkNode } from './tree';
 
@@ -24,7 +24,7 @@ const isSessionPanel = (id: string) => id.startsWith('agent:') || id.startsWith(
 
 function createDock() {
   const berth = useBerth();
-  const mobile = useIsMobile();
+  const mobile = useIsPhone();
   const dock = shallowRef<DockviewApi | null>(null);
   const activeKey = shallowRef<string | null>(null);
   const activeTitle = shallowRef('');

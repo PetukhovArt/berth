@@ -1,6 +1,7 @@
 export const mobile = {
   back: 'Back',
   navLabel: 'Sections',
+  commands: 'Commands',
   keysLabel: 'Terminal keys',
   key: {
     esc: 'Esc',

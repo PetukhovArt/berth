@@ -4,6 +4,7 @@ import type { mobile as en } from '../en/mobile';
 export const mobile: Translation<typeof en> = {
   back: 'Назад',
   navLabel: 'Разделы',
+  commands: 'Команды',
   keysLabel: 'Клавиши терминала',
   key: {
     esc: 'Esc',

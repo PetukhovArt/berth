@@ -8,7 +8,7 @@ import { paletteOpen } from './commands/context';
 import UnsavedDialog from './files/UnsavedDialog.vue';
 import HotHost from './hot/HotHost.vue';
 import MobileNav from './mobile/MobileNav.vue';
-import { useIsMobile } from './mobile/useIsMobile';
+import { useIsPhone } from '@ui/kit';
 import Sidebar from './Sidebar.vue';
 import TitleBar from './TitleBar.vue';
 import { installTray } from './tray';
@@ -23,7 +23,7 @@ import { useDock } from './workbench/dock';
 import QuickOpen from './workbench/QuickOpen.vue';
 
 const inTauri = '__TAURI_INTERNALS__' in window;
-const mobile = useIsMobile();
+const mobile = useIsPhone();
 const viewKey = 'berth.view.v2';
 const dock = useDock();
 installTray();
@@ -62,8 +62,8 @@ watch(
           <SettingsView v-else />
         </KeepAlive>
       </main>
+      <MobileNav v-if="mobile" class="mobile-nav" />
     </div>
-    <MobileNav v-if="mobile" />
     <QuickOpen />
     <UnsavedDialog />
     <UpdateDialog v-if="inTauri" />
@@ -93,7 +93,19 @@ watch(
 }
 
 .body[data-mobile='true'] {
+  grid-template-rows: minmax(0, 1fr) auto;
   grid-template-columns: minmax(0, 1fr);
+}
+
+@media (orientation: landscape) {
+  .body[data-mobile='true'] {
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .body[data-mobile='true'] > .mobile-nav {
+    order: -1;
+  }
 }
 
 .body[data-mobile='true'] .card {

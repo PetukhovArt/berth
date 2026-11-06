@@ -30,4 +30,4 @@ export const ALERTS = {
   },
 } as const satisfies Record<AlertKind, { titleKey: string; icon: string }>;
 
-export const copyButton = () => `<button type="button" class="rc-copy" title="${t('content.copy')}" aria-label="${t('content.copyCode')}"><span class="rc-copy-idle">${svg('<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>', 14)}</span><span class="rc-copy-done">${svg('<path d="M20 6 9 17l-5-5"/>', 14)}</span></button>`;
+export const copyButton = () => `<button type="button" class="rc-copy vr-reveal" title="${t('content.copy')}" aria-label="${t('content.copyCode')}"><span class="rc-copy-idle">${svg('<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>', 14)}</span><span class="rc-copy-done">${svg('<path d="M20 6 9 17l-5-5"/>', 14)}</span></button>`;

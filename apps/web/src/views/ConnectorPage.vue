@@ -4,7 +4,6 @@ import { VButton, VSelect } from '@ui/kit';
 import { useConnectors, type ConnectorKind } from '../connectors/api';
 import { t } from '../i18n';
 import BackBar from '../mobile/BackBar.vue';
-import { useIsMobile } from '../mobile/useIsMobile';
 import { navigate, openSettings, view } from '../nav';
 import SidePane from '../SidePane.vue';
 
@@ -27,7 +26,6 @@ defineSlots<{
 }>();
 
 const { connectors, loading, list } = useConnectors();
-const mobile = useIsMobile();
 
 function back() {
   const kind = view.value.kind;
@@ -100,12 +98,12 @@ const selectedId = computed({
       <p>{{ emptyText }}</p>
       <VButton :label="t('reviews.connectorPage.connect')" size="small" data-testid="connector-required-connect" @click="openSettings('connectors')" />
     </div>
-    <div v-else class="split" :data-mobile="mobile" :data-detail="Boolean(selected)">
-      <SidePane :storage-key="`${storageKey}.width`" :default-width="380" :label="t('reviews.connectorPage.listWidth')" :handle-testid="`${testId}-resize-handle`">
+    <div v-else class="split vr-master-detail" :data-detail="Boolean(selected)">
+      <SidePane class="vr-master" :storage-key="`${storageKey}.width`" :default-width="380" :label="t('reviews.connectorPage.listWidth')" :handle-testid="`${testId}-resize-handle`">
         <slot name="list" :connector="current.id" />
       </SidePane>
-      <div class="detail vt-detail">
-        <BackBar v-if="mobile && selected" @back="back" />
+      <div class="detail vr-detail vt-detail">
+        <BackBar v-if="selected" class="vr-phone-only" @back="back" />
         <slot v-if="selected && (!picker || selected.connector === current.id)" name="detail" :connector="current.id" />
         <p v-else class="placeholder" data-testid="connector-page-placeholder">{{ placeholder }}</p>
       </div>
@@ -127,7 +125,7 @@ const selectedId = computed({
   flex: none;
   align-items: center;
   gap: var(--vr-space-3);
-  padding: var(--vr-space-3) var(--vr-space-6);
+  padding: var(--vr-space-3) var(--vr-page-gutter);
   border-bottom: 1px solid var(--vr-color-border);
 }
 
@@ -166,19 +164,6 @@ h1 {
   display: flex;
   flex: 1;
   min-height: 0;
-}
-
-.split[data-mobile='true'] > .pane {
-  flex: 1;
-  width: 100% !important;
-  max-width: none;
-  border-right: 0;
-}
-
-.split[data-mobile='true'] > .pane :deep(.resize-handle),
-.split[data-mobile='true'][data-detail='true'] > .pane,
-.split[data-mobile='true'][data-detail='false'] > .detail {
-  display: none;
 }
 
 .placeholder {

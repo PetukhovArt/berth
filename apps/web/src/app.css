@@ -1,11 +1,15 @@
 @import './motion/motion.css';
 
 html,
-body,
 #app {
   height: 100%;
-  margin: 0;
   overflow: hidden;
+}
+
+html,
+body,
+#app {
+  margin: 0;
 }
 
 body {
@@ -14,7 +18,7 @@ body {
   line-height: var(--vr-font-leading-message);
   color: var(--vr-color-text);
   background: linear-gradient(to bottom, var(--vr-color-canvas-top), var(--vr-color-canvas-bottom)) no-repeat;
-  background-size: 100vw 100vh;
+  background-size: 100% 100%;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   font-synthesis-weight: none;

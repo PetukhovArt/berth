@@ -272,7 +272,7 @@ function onKey(event: KeyboardEvent) {
       </button>
       <template v-if="!row.node.custom">
         <span v-if="$slots.badges" class="node-badges"><slot name="badges" :node="row.node" /></span>
-        <span v-if="$slots.actions" class="node-actions"><slot name="actions" :node="row.node" :row="row" /></span>
+        <span v-if="$slots.actions" class="node-actions vr-reveal"><slot name="actions" :node="row.node" :row="row" /></span>
       </template>
     </div>
     <slot v-if="!rows.length" name="empty" />

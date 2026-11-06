@@ -9,7 +9,9 @@ import '@ui/tokens/light.css';
 import '@ui/tokens/dark.css';
 import '@ui/tokens/motion.css';
 import './overlays.css';
+import './responsive.css';
 import { installMotion } from './motion';
+import { installViewport } from './viewport';
 
 export const DARK_CLASS = 'vr-dark';
 
@@ -54,9 +56,11 @@ const BerthPreset = definePreset(Aura, {
 export function installUiKit(app: App): void {
   app.use(PrimeVue, { theme: { preset: BerthPreset, options: { darkModeSelector: `.${DARK_CLASS}` } } });
   installMotion(app);
+  installViewport();
 }
 
 export { setMotionEnabled, isMotionEnabled } from './motion';
+export { useIsPhone } from './viewport';
 
 export { default as VButton } from 'primevue/button';
 export { default as VInputText } from 'primevue/inputtext';
