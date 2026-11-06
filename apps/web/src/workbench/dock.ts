@@ -330,6 +330,13 @@ export function useDock() {
   return store;
 }
 
+export function startNewSession(): void {
+  const dock = useDock();
+  const active = dock.activeWorktree.value?.id;
+  if (active) dock.startCreate(active);
+  else dock.startCreateInMain();
+}
+
 export function toggleMaximizedGroup(): void {
   useDock().toggleMaximize();
 }

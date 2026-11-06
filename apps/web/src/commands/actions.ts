@@ -5,7 +5,7 @@ import { navigate, openSettings } from '../nav';
 import { toggleTheme } from '../settings/appearance';
 import { requestSidebarSearch, toggleSidebar } from '../sidebarState';
 import { openUpdate } from '../update/state';
-import { toggleMaximizedGroup, toggleQuickOpen } from '../workbench/dock';
+import { startNewSession, toggleMaximizedGroup, toggleQuickOpen } from '../workbench/dock';
 import { paletteOpen } from './context';
 import { openKeymapExternal } from './keymap';
 import { defineAction } from './registry';
@@ -33,6 +33,7 @@ defineAction({ id: 'terminal.zoomOut', title: 'commands.action.terminalZoomOut',
 defineAction({ id: 'terminal.zoomReset', title: 'commands.action.terminalZoomReset', category: TERMINAL, run: () => zoomTerminal(0) });
 
 defineAction({ id: 'agents.quickOpen', title: 'commands.action.agentsQuickOpen', category: NAVIGATION, run: toggleQuickOpen });
+defineAction({ id: 'agents.newSession', title: 'commands.action.agentsNewSession', category: NAVIGATION, run: startNewSession });
 defineAction({ id: 'dock.toggleMaximize', title: 'commands.action.dockToggleMaximize', category: VIEW, run: toggleMaximizedGroup });
 
 defineAction({ id: 'keymap.openSettings', title: 'commands.action.keymapOpenSettings', category: KEYS, run: () => openSettings('keymap') });
