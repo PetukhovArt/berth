@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 39;
+pub const PROTOCOL_VERSION: u32 = 40;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -269,6 +269,22 @@ pub enum ClientRequest {
         req_id: u64,
         id: AgentId,
     },
+    /// Archive an EXTERNAL SESSION — a conversation berth did not start,
+    /// found on disk by a client. Only the mark is stored: the transcript
+    /// and any process running it are left alone. Re-archiving moves
+    /// `archived_at` forward. Broadcast as `ExternalSessionArchived`.
+    ArchiveExternalSession {
+        req_id: u64,
+        kind: AgentKind,
+        session_id: String,
+    },
+    /// Drop the mark again. Broadcast as `ExternalSessionUnarchived`, also
+    /// when there was none.
+    UnarchiveExternalSession {
+        req_id: u64,
+        kind: AgentKind,
+        session_id: String,
+    },
     DeleteAgent {
         req_id: u64,
         id: AgentId,
@@ -379,6 +395,17 @@ pub enum ClientRequest {
 pub struct PrSeen {
     pub url: String,
     pub marker: String,
+}
+
+/// The archive mark on an EXTERNAL SESSION, keyed by its agent CLI and that
+/// CLI's own session id. `archived_at` is the daemon's epoch ms at the
+/// moment of archiving: a client that sees the transcript written after it
+/// treats the conversation as active again.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArchivedExternalSession {
+    pub kind: AgentKind,
+    pub session_id: String,
+    pub archived_at: i64,
 }
 
 /// Memory usage of one live session: the PTY child plus every descendant
@@ -569,6 +596,8 @@ pub enum ServerEvent {
         /// How far the user has read into each pull request they've opened.
         pr_seen: Vec<PrSeen>,
         ui_state: Option<String>,
+        /// Every EXTERNAL SESSION the user archived.
+        archived_external_sessions: Vec<ArchivedExternalSession>,
     },
 
     Ack {
@@ -603,6 +632,13 @@ pub enum ServerEvent {
     },
     EntityRemoved {
         id: EntityId,
+    },
+    ExternalSessionArchived {
+        session: ArchivedExternalSession,
+    },
+    ExternalSessionUnarchived {
+        kind: AgentKind,
+        session_id: String,
     },
     StatusChanged {
         agent: AgentId,

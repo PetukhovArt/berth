@@ -1,5 +1,6 @@
 pub mod branches;
 pub mod config;
+pub mod external_archive;
 pub mod git;
 pub mod hooks;
 pub mod launch;

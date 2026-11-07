@@ -4,9 +4,9 @@
 
 use anyhow::{Context, Result};
 use berth_core::{
-    Agent, AgentId, AgentKind, AgentStatus, Link, LinkId, OrphanedSession, PrSeen, Project,
-    ProjectId, TerminalId, TerminalTab, Workspace, WorkspaceId, Worktree, WorktreeId,
-    DEFAULT_WORKSPACE_ID,
+    Agent, AgentId, AgentKind, AgentStatus, ArchivedExternalSession, Link, LinkId, OrphanedSession,
+    PrSeen, Project, ProjectId, TerminalId, TerminalTab, Workspace, WorkspaceId, Worktree,
+    WorktreeId, DEFAULT_WORKSPACE_ID,
 };
 use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
@@ -250,6 +250,17 @@ const MIGRATIONS: &[&str] = &[
       created_at    INTEGER NOT NULL,
       orphaned_at   INTEGER NOT NULL,
       resumed_at    INTEGER NOT NULL DEFAULT 0
+    );
+    ",
+    // 24: archive marks on EXTERNAL SESSIONS, the conversations berth did
+    // not start. Nothing else about them is stored: the transcript stays
+    // the agent CLI's, and the key is the CLI and its own session id.
+    "
+    CREATE TABLE archived_external_sessions (
+      kind        TEXT NOT NULL,
+      session_id  TEXT NOT NULL,
+      archived_at INTEGER NOT NULL,
+      PRIMARY KEY (kind, session_id)
     );
     ",
 ];
@@ -906,6 +917,62 @@ impl Store {
         Ok(seen)
     }
 
+    // ---- external session archive marks ----
+
+    pub fn archive_external_session(
+        &self,
+        kind: AgentKind,
+        session_id: &str,
+    ) -> Result<ArchivedExternalSession> {
+        let archived_at = now_ms();
+        self.conn.lock().unwrap().execute(
+            "INSERT INTO archived_external_sessions (kind, session_id, archived_at)
+             VALUES (?1, ?2, ?3)
+             ON CONFLICT(kind, session_id) DO UPDATE SET archived_at = excluded.archived_at",
+            params![kind.as_str(), session_id, archived_at],
+        )?;
+        Ok(ArchivedExternalSession {
+            kind,
+            session_id: session_id.to_string(),
+            archived_at,
+        })
+    }
+
+    pub fn unarchive_external_session(&self, kind: AgentKind, session_id: &str) -> Result<()> {
+        self.conn.lock().unwrap().execute(
+            "DELETE FROM archived_external_sessions WHERE kind = ?1 AND session_id = ?2",
+            params![kind.as_str(), session_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn load_archived_external_sessions(&self) -> Result<Vec<ArchivedExternalSession>> {
+        let conn = self.conn.lock().unwrap();
+        let rows = conn
+            .prepare(
+                "SELECT kind, session_id, archived_at FROM archived_external_sessions
+                 ORDER BY archived_at",
+            )?
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, i64>(2)?,
+                ))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows
+            .into_iter()
+            .filter_map(|(kind, session_id, archived_at)| {
+                Some(ArchivedExternalSession {
+                    kind: AgentKind::parse(&kind)?,
+                    session_id,
+                    archived_at,
+                })
+            })
+            .collect())
+    }
+
     // ---- point lookups ----
 
     pub fn get_project(&self, id: &ProjectId) -> Result<Option<Project>> {
@@ -1247,6 +1314,42 @@ mod tests {
         // An empty marker is a real answer: opened, nobody had posted yet.
         store.mark_pr_seen(url, "").unwrap();
         assert_eq!(store.load_pr_seen().unwrap()[0].marker, "");
+    }
+
+    #[test]
+    fn external_session_archive_marks_survive_reopen_and_are_keyed_by_kind() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("berth.db");
+        {
+            let store = Store::open(&path).unwrap();
+            let first = store
+                .archive_external_session(AgentKind::Claude, "abc")
+                .unwrap();
+            assert_eq!(first.session_id, "abc");
+            store
+                .archive_external_session(AgentKind::Codex, "abc")
+                .unwrap();
+            let again = store
+                .archive_external_session(AgentKind::Claude, "abc")
+                .unwrap();
+            assert!(again.archived_at >= first.archived_at);
+        }
+        let store = Store::open(&path).unwrap();
+        let marks = store.load_archived_external_sessions().unwrap();
+        assert_eq!(marks.len(), 2);
+        assert!(marks
+            .iter()
+            .any(|m| m.kind == AgentKind::Claude && m.session_id == "abc"));
+
+        store
+            .unarchive_external_session(AgentKind::Claude, "abc")
+            .unwrap();
+        store
+            .unarchive_external_session(AgentKind::Claude, "missing")
+            .unwrap();
+        let marks = store.load_archived_external_sessions().unwrap();
+        assert_eq!(marks.len(), 1);
+        assert_eq!(marks[0].kind, AgentKind::Codex);
     }
 
     #[test]

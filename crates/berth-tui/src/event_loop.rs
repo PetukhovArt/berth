@@ -6969,6 +6969,7 @@ fn handle_server_event(app: &mut App, event: ServerEvent, out: &mut Vec<ClientRe
             links,
             pr_seen,
             ui_state,
+            archived_external_sessions: _,
         } => {
             app.tree.workspaces = workspaces;
             app.tree.active_workspace = active_workspace;
@@ -10667,6 +10668,7 @@ diff --git a/src/b.rs b/src/b.rs
                 links: tree.links,
                 pr_seen: Vec::new(),
                 ui_state: None,
+                archived_external_sessions: Vec::new(),
             },
         );
         let (armed, _) = fresh.pending_prewarm.clone().expect("prewarm armed");
@@ -10692,6 +10694,7 @@ diff --git a/src/b.rs b/src/b.rs
             links: tree.links.clone(),
             pr_seen: Vec::new(),
             ui_state,
+            archived_external_sessions: Vec::new(),
         };
         let a1 = SessionRef::Agent(berth_core::AgentId("a1".into()));
 

@@ -587,6 +587,7 @@ impl Daemon {
             terminals,
             links: self.store.load_links()?,
             pr_seen: self.store.load_pr_seen()?,
+            archived_external_sessions: self.store.load_archived_external_sessions()?,
             ui_state: self.store.load_ui_state()?,
         })
     }

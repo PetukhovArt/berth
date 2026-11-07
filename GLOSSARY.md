@@ -71,6 +71,10 @@ _Avoid_: archived session, lost session, dead session
 **Project Sessions**
 The `Shift+O` picker: every conversation of a Project across all its Worktrees — the live checkouts' own plus every Orphaned Session. Enter resumes the selected one in the Worktree the cursor is on. Cross-worktree listing is Claude-only; codex and cursor-agent rows appear only as Orphaned Sessions.
 
+**External Session**
+A Claude Code or Codex conversation berth did not start, found on disk by the desktop app and shown in the tree beside the Sessions of the Worktree it ran in. Archiving one stores only a mark in the Daemon (`archived_external_sessions`, keyed by Agent Kind and the CLI's session id); the transcript is never touched, and a transcript written after the mark brings the row back out of the archive.
+_Avoid_: foreign session, outside session
+
 ## Processes
 
 **Daemon**

@@ -119,6 +119,7 @@ async fn handle_client(
                         terminals: vec![],
                         links: vec![],
                         pr_seen: vec![],
+                        archived_external_sessions: vec![],
                         ui_state: None,
                     });
                     // Scope this client to the workspace it is being shown.
@@ -577,6 +578,22 @@ async fn handle_client(
                 }
                 ClientRequest::UnarchiveAgent { req_id, id } => {
                     reply_done(&out_tx, req_id, daemon.unarchive_agent(&id)).await;
+                }
+                ClientRequest::ArchiveExternalSession {
+                    req_id,
+                    kind,
+                    session_id,
+                } => {
+                    let done = daemon.archive_external_session(kind, &session_id);
+                    reply_done(&out_tx, req_id, done).await;
+                }
+                ClientRequest::UnarchiveExternalSession {
+                    req_id,
+                    kind,
+                    session_id,
+                } => {
+                    let done = daemon.unarchive_external_session(kind, &session_id);
+                    reply_done(&out_tx, req_id, done).await;
                 }
                 ClientRequest::DeleteAgent { req_id, id } => {
                     reply_done(&out_tx, req_id, daemon.delete_agent(&id)).await;
