@@ -7,10 +7,12 @@ import HotChips from './hot/HotChips.vue';
 import { hotEnabled } from './hot/view';
 import { useI18n } from './i18n';
 import { view } from './nav';
+import { hostPlatform } from './platform';
 
 const { t } = useI18n();
 const win = getCurrentWindow();
 const maximized = ref(false);
+const nativeControls = computed(() => hostPlatform.value.windowChrome.nativeDecorations);
 let stopResize: (() => void) | undefined;
 
 const title = computed(() => {
@@ -45,14 +47,14 @@ onUnmounted(() => stopResize?.());
 </script>
 
 <template>
-  <header class="titlebar" data-tauri-drag-region data-testid="titlebar">
+  <header class="titlebar" data-tauri-drag-region data-testid="titlebar" :data-native-controls="nativeControls">
     <svg class="mark" data-tauri-drag-region viewBox="0 0 96 96" width="16" height="16" aria-hidden="true">
       <path class="stroke" d="M32 8 V60 C32 76 42 86 54 86 C68 86 80 76 80 62 C80 48 68 38 54 38 C44 38 34 44 18 60" />
       <circle class="node" cx="55" cy="62" r="6.5" />
     </svg>
     <span class="title" data-tauri-drag-region data-testid="titlebar-title">{{ title }}</span>
     <HotChips v-if="hotEnabled" />
-    <div class="controls">
+    <div v-if="!nativeControls" class="controls">
       <button type="button" class="ctl" data-testid="titlebar-minimize" :aria-label="t('shell.window.minimize')" :title="t('shell.window.minimize')" @click="win.minimize()">
         <Minus :size="16" :stroke-width="1.5" />
       </button>
@@ -85,6 +87,10 @@ onUnmounted(() => stopResize?.());
   padding-left: var(--vr-space-3);
   user-select: none;
   -webkit-user-select: none;
+}
+
+.titlebar[data-native-controls='true'] {
+  padding-left: 78px;
 }
 
 .mark {

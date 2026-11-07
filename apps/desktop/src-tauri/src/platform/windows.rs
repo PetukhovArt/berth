@@ -90,6 +90,20 @@ pub fn detach(command: &mut Command) -> io::Result<u32> {
     }
 }
 
+pub fn install_dir(exe_dir: &Path) -> PathBuf {
+    exe_dir.to_path_buf()
+}
+
+#[cfg(feature = "desktop")]
+pub fn tray_template_icon() -> Option<tauri::image::Image<'static>> {
+    None
+}
+
+#[cfg(feature = "desktop")]
+pub fn reopens_main_window(_event: &tauri::RunEvent) -> bool {
+    false
+}
+
 pub fn cli_search_dirs() -> Vec<PathBuf> {
     let mut dirs = Vec::new();
     if let Some(home) = berth_core::platform::profile_home() {

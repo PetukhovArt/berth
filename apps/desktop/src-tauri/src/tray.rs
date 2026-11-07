@@ -171,7 +171,7 @@ pub fn tray_cleanup(app: AppHandle, status: State<'_, TrayStatus>, count: u32) {
     sync_cleanup_entry(&app, lang);
 }
 
-fn show_main(app: &AppHandle) {
+pub fn show_main(app: &AppHandle) {
     if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
         let _ = window.unminimize();
         let _ = window.show();
@@ -278,7 +278,9 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
                 show_main(tray.app_handle());
             }
         });
-    if let Some(icon) = app.default_window_icon() {
+    if let Some(icon) = crate::platform::tray_template_icon() {
+        builder = builder.icon(icon).icon_as_template(true);
+    } else if let Some(icon) = app.default_window_icon() {
         builder = builder.icon(icon.clone());
     }
     builder.build(app)?;

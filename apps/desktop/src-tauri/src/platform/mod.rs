@@ -91,6 +91,20 @@ pub fn detach(command: &mut Command) -> io::Result<u32> {
     imp::detach(command)
 }
 
+pub fn install_dir(exe_dir: &Path) -> PathBuf {
+    imp::install_dir(exe_dir)
+}
+
+#[cfg(feature = "desktop")]
+pub fn tray_template_icon() -> Option<tauri::image::Image<'static>> {
+    imp::tray_template_icon()
+}
+
+#[cfg(feature = "desktop")]
+pub fn reopens_main_window(event: &tauri::RunEvent) -> bool {
+    imp::reopens_main_window(event)
+}
+
 pub fn cli_search_dirs() -> Vec<PathBuf> {
     imp::cli_search_dirs()
 }

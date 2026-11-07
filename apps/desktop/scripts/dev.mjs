@@ -17,7 +17,9 @@ const env = {
   WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: process.env.WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS ?? `--remote-debugging-port=${cdpPort}`,
 };
 
-const child = spawn('pnpm', ['tauri', 'dev', '--config', windows ? `"${devConfig}"` : devConfig, ...process.argv.slice(2)], {
+const macConfig = process.platform === 'darwin' ? ['--config', devConfig.replace(/\.conf\.json$/, '.macos.conf.json')] : [];
+
+const child = spawn('pnpm', ['tauri', 'dev', '--config', windows ? `"${devConfig}"` : devConfig, ...macConfig, ...process.argv.slice(2)], {
   env,
   stdio: 'inherit',
   shell: windows,

@@ -30,7 +30,8 @@ pnpm build:desktop
 ```
 
 It connects to a running daemon, so start `berth daemon` first. On Windows, `scripts\install-app.ps1`
-installs a copy that updates itself from your local `main` ([details](docs/windows.md#desktop-working-copy)).
+installs a copy that updates itself from your local `main` ([details](docs/windows.md#desktop-working-copy)),
+and on macOS `scripts/install-app.sh` does the same ([details](docs/macos.md)).
 
 ## Quickstart
 
@@ -48,6 +49,7 @@ berth
 - [Commands](docs/cli.md)
 - [Configuration](docs/configuration.md)
 - [Windows](docs/windows.md)
+- [macOS desktop app](docs/macos.md)
 - [Remote access over Tailscale](docs/remote-access-tailscale.md)
 - [Changelog](CHANGELOG.md)
 

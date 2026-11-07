@@ -24,7 +24,8 @@ identifier). Rules there differ from the Rust crates:
   same variables and run `berth daemon` and `pnpm dev:desktop` yourself. `apps/desktop/scripts/dev.mjs` runs
   `tauri dev` with `tauri.dev.conf.json` (identifier `dev.berth.desktop.dev`, title `Berth (dev)`) and
   defaults each of those variables to a dev location when it is unset.
-- The user's own desktop app is a working copy under `%LOCALAPPDATA%\Berth` (`scripts/install-app.ps1`,
-  `apps/desktop/src-tauri/src/working_copy.rs`), built from committed `main` and updated only from its
+- The user's own desktop app is a working copy under `%LOCALAPPDATA%\Berth` (`scripts/install-app.ps1`) or
+  `~/Library/Application Support/Berth` on macOS (`scripts/install-app.sh`, `docs/macos.md`), driven by
+  `apps/desktop/src-tauri/src/working_copy.rs`, built from committed `main` and updated only from its
   `Update Berth…` menu. Never launch, rebuild or kill it from a task; test the updater with `BERTH_APP_ROOT`
   and the other overrides listed in `docs/windows.md`.

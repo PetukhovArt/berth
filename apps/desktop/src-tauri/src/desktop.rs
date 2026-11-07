@@ -226,6 +226,7 @@ pub fn run() {
             tauri::async_runtime::spawn(async move { watcher.spawn_watch() });
             app.manage(remote);
             tray::install(app.handle())?;
+            crate::app_menu::install(app.handle())?;
             if crate::platform::WINDOW_CHROME.native_decorations {
                 if let Some(window) = app.get_webview_window("main") {
                     window.set_decorations(true)?;
@@ -316,9 +317,12 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("error while building berth desktop")
-        .run(|_app, event| {
+        .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
                 crate::stratum::shutdown();
+            }
+            if crate::platform::reopens_main_window(&event) {
+                tray::show_main(app);
             }
         });
 }

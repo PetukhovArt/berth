@@ -1,15 +1,11 @@
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use tokio::process::Command;
 
 use super::WindowChrome;
 
-pub use super::unix::{
-    bash_program, bind_to_parent, default_install_root, detach, installer_command,
-    relaunch_command, script_tools_path, APP_EXECUTABLE, INSTALLER_SCRIPT, INSTALL_ROOT_MISSING,
-    POWERSHELL, SELF_UPDATE,
-};
+pub use super::unix::{bash_program, bind_to_parent, script_tools_path, POWERSHELL};
 
 pub const WINDOW_CHROME: WindowChrome = WindowChrome {
     native_decorations: false,
@@ -17,6 +13,40 @@ pub const WINDOW_CHROME: WindowChrome = WindowChrome {
 };
 
 pub const SECRETS_DEFAULT_TO_FILE: bool = true;
+pub const SELF_UPDATE: bool = false;
+pub const INSTALL_ROOT_MISSING: &str = "self-update is not supported on this platform yet";
+pub const INSTALLER_SCRIPT: &str = "install-app.sh";
+pub const APP_EXECUTABLE: &str = "berth-desktop";
+
+pub fn default_install_root() -> Option<PathBuf> {
+    None
+}
+
+pub fn installer_command(_script: &Path) -> Result<std::process::Command, String> {
+    Err(INSTALL_ROOT_MISSING.into())
+}
+
+pub fn relaunch_command(_exe: &Path, _after_pid: u32) -> Result<std::process::Command, String> {
+    Err(INSTALL_ROOT_MISSING.into())
+}
+
+pub fn detach(_command: &mut std::process::Command) -> io::Result<u32> {
+    Err(io::Error::other(INSTALL_ROOT_MISSING))
+}
+
+pub fn install_dir(exe_dir: &Path) -> PathBuf {
+    exe_dir.to_path_buf()
+}
+
+#[cfg(feature = "desktop")]
+pub fn tray_template_icon() -> Option<tauri::image::Image<'static>> {
+    None
+}
+
+#[cfg(feature = "desktop")]
+pub fn reopens_main_window(_event: &tauri::RunEvent) -> bool {
+    false
+}
 
 pub fn tie_to_parent(command: &mut Command) {
     super::unix::tie_to_group(command);

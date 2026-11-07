@@ -1,0 +1,17 @@
+{
+  "app": {
+    "windows": [
+      {
+        "title": "Berth",
+        "width": 1400,
+        "height": 900,
+        "decorations": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "focus": true,
+        "visible": false,
+        "backgroundColor": "#2a2d1c"
+      }
+    ]
+  }
+}

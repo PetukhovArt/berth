@@ -70,8 +70,8 @@ What differs between Windows, macOS and Linux goes through one adapter per layer
 `berth-core/src/platform/` for what the crates and the desktop share (clipboard, sounds, openers,
 program lookup, process table and memory, killing a process tree, symlinks, path case rules,
 termination signals, owner-only files) and `apps/desktop/src-tauri/src/platform/` for the desktop's
-own (child lifetime, self-update, CLI search dirs, the login console, webview profile dirs, window
-chrome). Each has a facade `mod.rs` and one implementation file per OS (`windows.rs`, `macos.rs`,
+own (child lifetime, self-update and the install dir of a running build, CLI search dirs, the login
+console, webview profile dirs, window chrome, the tray icon, Dock reopen). Each has a facade `mod.rs` and one implementation file per OS (`windows.rs`, `macos.rs`,
 `linux.rs`, with `unix.rs` shared), picked by `cfg` in that `mod.rs` and nowhere else. Callers never
 write `cfg(target_os)`, `cfg(windows)` or `cfg!(…)`: they call the facade, or branch on a
 `platform::CAPABILITIES` field (or `SELF_UPDATE`, `WINDOW_CHROME`) named for the consequence. An

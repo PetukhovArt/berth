@@ -83,7 +83,7 @@ fn read_build(dir: &Path) -> Option<Build> {
 fn running_dir() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     let exe = fs::canonicalize(&exe).unwrap_or(exe);
-    exe.parent().map(|dir| plain(dir.to_path_buf()))
+    exe.parent().map(|dir| plain(platform::install_dir(dir)))
 }
 
 fn running_build() -> Option<Build> {

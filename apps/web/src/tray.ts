@@ -4,6 +4,7 @@ import { useExternalSessions } from './agents/external';
 import { useBerth } from './agents/berth';
 import { invoke, isDesktop } from './bridge';
 import { openCleanup } from './cleanup/state';
+import { runAction } from './commands/registry';
 import { openUpdate } from './update/state';
 import { useDock } from './workbench/dock';
 
@@ -11,6 +12,7 @@ const NEW_SESSION_EVENT = 'tray://new-session';
 const UPDATE_EVENT = 'tray://update';
 const ROLLBACK_EVENT = 'tray://rollback';
 const CLEANUP_EVENT = 'tray://cleanup';
+const MENU_ACTION_EVENT = 'menu://action';
 
 export function installTray(): void {
   if (!isDesktop) return;
@@ -44,4 +46,5 @@ export function installTray(): void {
   void listen(UPDATE_EVENT, () => openUpdate('update'));
   void listen(ROLLBACK_EVENT, () => openUpdate('rollback'));
   void listen(CLEANUP_EVENT, openCleanup);
+  void listen<string>(MENU_ACTION_EVENT, (event) => runAction(event.payload));
 }
