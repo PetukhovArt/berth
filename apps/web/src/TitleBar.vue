@@ -53,7 +53,7 @@ onUnmounted(() => stopResize?.());
       <circle class="node" cx="55" cy="62" r="6.5" />
     </svg>
     <span class="title" data-tauri-drag-region data-testid="titlebar-title">{{ title }}</span>
-    <HotChips v-if="hotEnabled" />
+    <HotChips v-if="hotEnabled" class="vr-wide-only" />
     <div v-if="!nativeControls" class="controls">
       <button type="button" class="ctl" data-testid="titlebar-minimize" :aria-label="t('shell.window.minimize')" :title="t('shell.window.minimize')" @click="win.minimize()">
         <Minus :size="16" :stroke-width="1.5" />
@@ -87,6 +87,12 @@ onUnmounted(() => stopResize?.());
   padding-left: var(--vr-space-3);
   user-select: none;
   -webkit-user-select: none;
+}
+
+@media (pointer: coarse) {
+  :root[data-vr-viewport='phone'] .titlebar {
+    display: none;
+  }
 }
 
 .titlebar[data-native-controls='true'] {

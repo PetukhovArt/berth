@@ -158,6 +158,10 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 
+:root[data-vr-viewport='phone'] .dock :deep(.dv-tabs-and-actions-container) {
+  display: none;
+}
+
 .dock :deep(.dockview-theme-light) {
   color-scheme: inherit;
   --dv-group-view-background-color: var(--vr-color-surface);

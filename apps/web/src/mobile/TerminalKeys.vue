@@ -53,7 +53,7 @@ function press(data: string) {
   align-items: center;
   justify-content: center;
   min-width: 2.75rem;
-  height: 2.25rem;
+  height: var(--vr-size-row-touch);
   padding: 0 var(--vr-space-2);
   font: inherit;
   font-size: var(--vr-font-size-sm);

@@ -8,6 +8,7 @@ export const DEFAULT_KEYMAP: readonly KeymapEntry[] = [
       'mod-alt-p': 'agents.quickOpen',
       'mod-shift-m': 'dock.toggleMaximize',
       'mod-shift-n': 'agents.newSession',
+      'mod-shift-o': 'hot.overview',
     },
   },
   {

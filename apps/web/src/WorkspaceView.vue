@@ -106,6 +106,10 @@ watch(
   .body[data-mobile='true'] > .mobile-nav {
     order: -1;
   }
+
+  .body[data-mobile='true'] > .card {
+    padding-bottom: var(--vr-safe-bottom);
+  }
 }
 
 .body[data-mobile='true'] .card {

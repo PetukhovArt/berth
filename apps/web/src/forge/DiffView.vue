@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch, type ShallowRef } from 'vue';
 import { ChevronDown, ChevronRight, ChevronUp, Columns2, Folder, FolderOpen, ListTree, Rows2, Search, WrapText, X } from 'lucide-vue-next';
-import { VInputText } from '@ui/kit';
+import { useIsPhone, VInputText } from '@ui/kit';
 import type { DiffFile, Discussion } from '../connectors/api';
 import { t } from '../i18n';
 import DiffFileBody from './DiffFileBody.vue';
@@ -41,6 +41,8 @@ function storedWrap(): boolean {
 }
 
 const mode = shallowRef<Mode>(storedMode());
+const phone = useIsPhone();
+const shownMode = computed<Mode>(() => (phone.value ? 'unified' : mode.value));
 const wrap = shallowRef(storedWrap());
 const filter = shallowRef('');
 const filesOpen = shallowRef(false);
@@ -495,7 +497,7 @@ defineExpose({ focusThread, root });
           <button class="icon" :title="t('forge.diff.nextThreadTitle')" :aria-label="t('forge.diff.nextThread')" data-testid="diff-next-thread" @click="stepThread(1)"><ChevronDown :size="14" /></button>
         </span>
         <button class="mode" :data-active="wrap" :aria-pressed="wrap" :title="t('forge.diff.wrap')" data-testid="diff-wrap" @click="toggleWrap"><WrapText :size="14" />{{ t('forge.diff.wrap') }}</button>
-        <span class="group" role="group" :aria-label="t('forge.diff.modeLabel')">
+        <span class="group vr-wide-only" role="group" :aria-label="t('forge.diff.modeLabel')">
           <button class="mode" :data-active="mode === 'unified'" :title="t('forge.diff.unified')" data-testid="diff-mode-unified" @click="setMode('unified')"><Rows2 :size="14" />{{ t('forge.diff.unified') }}</button>
           <button class="mode" :data-active="mode === 'split'" :title="t('forge.diff.split')" data-testid="diff-mode-split" @click="setMode('split')"><Columns2 :size="14" />{{ t('forge.diff.split') }}</button>
         </span>
@@ -532,7 +534,7 @@ defineExpose({ focusThread, root });
               v-else-if="shown.has(i)"
               :file="file"
               :discussions="fileDiscussions[i] ?? []"
-              :mode="mode"
+              :mode="shownMode"
               :expanded="expanded.has(i)"
               :wrap="wrap"
               :flash-id="flashId"
@@ -607,6 +609,10 @@ defineExpose({ focusThread, root });
   background: none;
   border: none;
   cursor: pointer;
+}
+
+:root[data-vr-viewport='phone'] .tree-row {
+  min-height: var(--vr-size-row);
 }
 
 .tree-row:hover {

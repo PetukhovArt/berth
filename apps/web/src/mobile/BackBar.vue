@@ -28,9 +28,10 @@ const { t } = useI18n();
 
 .back {
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: var(--vr-space-1);
-  height: 2.25rem;
+  height: var(--vr-size-row-touch);
   padding: 0 var(--vr-space-2);
   font: inherit;
   color: var(--vr-color-text);

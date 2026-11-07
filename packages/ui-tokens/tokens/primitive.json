@@ -36,7 +36,7 @@
   },
   "size": {
     "$type": "dimension",
-    "sidebar": { "$value": "300px" }, "meta": { "$value": "280px" }, "avatar": { "$value": "36px" }, "avatar-sm": { "$value": "24px" }, "row": { "$value": "32px" }, "touch": { "$value": "44px" }, "row-touch": { "$value": "40px" }, "icon-touch": { "$value": "36px" }
+    "sidebar": { "$value": "300px" }, "meta": { "$value": "280px" }, "avatar": { "$value": "36px" }, "avatar-sm": { "$value": "24px" }, "row": { "$value": "32px" }, "touch": { "$value": "44px" }, "row-touch": { "$value": "40px" }, "icon-touch": { "$value": "40px" }
   },
   "font": {
     "family": { "$type": "fontFamily", "$value": "'Wix Madefor Text Variable', 'Wix Madefor Text', 'Segoe UI', sans-serif" },

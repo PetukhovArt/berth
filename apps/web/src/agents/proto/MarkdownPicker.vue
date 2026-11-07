@@ -147,6 +147,7 @@ function onShow() {
   max-height: 320px;
   margin: 0;
   padding: var(--vr-space-1);
+  overflow-x: hidden;
   overflow-y: auto;
   list-style: none;
 }
@@ -166,7 +167,10 @@ function onShow() {
 }
 
 .name {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-weight: 600;
   color: var(--vr-color-text);
 }

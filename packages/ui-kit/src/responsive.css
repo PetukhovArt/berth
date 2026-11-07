@@ -246,6 +246,15 @@ body {
     min-height: var(--vr-size-icon-touch);
   }
 
+  :root[data-vr-viewport='phone'] :where(button, [role='button'], [role='tab'], select, .p-inputtext, .p-select, .p-multiselect, label:has(> input:is([type='checkbox'], [type='radio']))) {
+    min-height: var(--vr-size-row-touch);
+  }
+
+  :root[data-vr-viewport='phone'] :where(input:is([type='checkbox'], [type='radio'])) {
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+
   :root :is(input:not([type='checkbox'], [type='radio'], [type='range']), textarea, select, [contenteditable='true']) {
     font-size: max(16px, 1em) !important;
   }

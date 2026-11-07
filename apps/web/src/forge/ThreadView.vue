@@ -136,5 +136,6 @@ defineExpose({ expand });
   color: var(--vr-color-text-muted);
   font-size: var(--vr-font-size-xs);
   font-style: italic;
+  overflow-wrap: anywhere;
 }
 </style>
