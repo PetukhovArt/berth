@@ -59,18 +59,16 @@ struct Cursor {
     offset: u64,
     total: TokenUsage,
     /// The last `/rename` title seen. Claude re-appends the same line all
-    /// the time, and a new cursor (daemon restart, respawn, resume) re-reads
-    /// old ones, so only a change after the first read counts as a rename —
-    /// otherwise a name set in berth since would be overwritten.
+    /// the time and a new cursor re-reads old ones, so this is the name the
+    /// conversation holds, not news of a rename: the store tells the two
+    /// apart (`Store::adopt_cli_title`).
     title: Option<String>,
-    /// Whether the first read happened, which only sets the baseline title.
-    primed: bool,
 }
 
 #[derive(Default)]
 pub(crate) struct Sweep {
     pub tokens: HashMap<AgentId, TokenUsage>,
-    /// Conversations the user retitled with `/rename` since the last pass.
+    /// The `/rename` title each measured conversation holds, if any.
     pub titles: Vec<(AgentId, String)>,
 }
 
@@ -114,22 +112,17 @@ impl UsageTailer {
                         offset: 0,
                         total: TokenUsage::default(),
                         title: None,
-                        primed: false,
                     },
                 );
             }
             let cursor = self.by_agent.get_mut(&agent.agent).expect("just inserted");
-            let seen = cursor.title.clone();
             if !advance(cursor) {
                 continue;
             }
             out.tokens.insert(agent.agent.clone(), cursor.total.clone());
-            if cursor.primed && cursor.title != seen {
-                if let Some(title) = &cursor.title {
-                    out.titles.push((agent.agent.clone(), title.clone()));
-                }
+            if let Some(title) = &cursor.title {
+                out.titles.push((agent.agent.clone(), title.clone()));
             }
-            cursor.primed = true;
         }
         // Agents that went away take their cursors with them.
         self.by_agent
@@ -453,10 +446,11 @@ mod tests {
         assert!(tailer.sweep(&[codex]).tokens.is_empty());
     }
 
-    /// A title already in the transcript, or repeated by Claude, must not
-    /// undo a name given in berth since — only a new `/rename` counts.
+    /// Every sweep reports the name the conversation holds, the one already
+    /// in the transcript included: a rename made before the first read is
+    /// still a rename. Telling news from repeats is the store's job.
     #[test]
-    fn only_a_new_rename_is_reported_not_a_reread_or_repeated_one() {
+    fn reports_the_latest_title_the_transcript_holds() {
         let dir = tempfile::tempdir().unwrap();
         let sid = "44444444-4444-4444-4444-444444444444";
         let path = dir.path().join(format!("{sid}.jsonl"));
@@ -469,23 +463,24 @@ mod tests {
             write(&path, &log);
         };
 
-        // A daemon restart reads an old rename with a fresh tailer.
-        grow(titled("Old"));
         let mut tailer = UsageTailer::default();
+        grow(assistant("m", 1, 0, LEGACY));
         assert!(tailer.sweep(&[agent_at(&path, sid)]).titles.is_empty());
 
-        grow(assistant("m", 1, 0, LEGACY));
         grow(titled("Old"));
-        assert!(tailer.sweep(&[agent_at(&path, sid)]).titles.is_empty());
+        let old = [(a1.clone(), "Old".to_string())];
+        assert_eq!(tailer.sweep(&[agent_at(&path, sid)]).titles, old);
+        assert_eq!(tailer.sweep(&[agent_at(&path, sid)]).titles, old);
 
         grow(titled("Fix Login"));
+        grow(assistant("m", 1, 0, LEGACY));
         let renamed = tailer.sweep(&[agent_at(&path, sid)]);
-        assert_eq!(renamed.titles, [(a1, "Fix Login".to_string())]);
+        assert_eq!(renamed.titles, [(a1.clone(), "Fix Login".to_string())]);
 
-        // A resume starts a new transcript that repeats the title.
-        let sid2 = "55555555-5555-5555-5555-555555555555";
-        let path2 = dir.path().join(format!("{sid2}.jsonl"));
-        write(&path2, &format!("{}\n", titled("Fix Login")));
-        assert!(tailer.sweep(&[agent_at(&path2, sid2)]).titles.is_empty());
+        let mut fresh = UsageTailer::default();
+        assert_eq!(
+            fresh.sweep(&[agent_at(&path, sid)]).titles,
+            [(a1, "Fix Login".to_string())]
+        );
     }
 }

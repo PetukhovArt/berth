@@ -1,4 +1,5 @@
 pub mod branches;
+pub mod cli_title;
 pub mod config;
 pub mod external_archive;
 pub mod git;
@@ -105,6 +106,20 @@ async fn serve() -> Result<()> {
                     daemon.note_transcript_path(&agent_id, path);
                 }
                 daemon.apply_hook_event(&agent_id, event.clone(), session_id.clone());
+                // A `/rename` fires no hook, but the next prompt or turn end
+                // does: pick it up here rather than on the sampler's tick.
+                if matches!(
+                    event,
+                    status::HookEvent::UserPromptSubmit
+                        | status::HookEvent::Stop
+                        | status::HookEvent::SessionStart { .. }
+                ) {
+                    if let Some(title) =
+                        cli_title::lookup(transcript_path.as_deref(), session_id.as_deref())
+                    {
+                        let _ = daemon.adopt_cli_title(&agent_id, &title);
+                    }
+                }
                 if let Some(cwd) = &cwd {
                     daemon.reparent_agent_by_cwd(
                         &agent_id,

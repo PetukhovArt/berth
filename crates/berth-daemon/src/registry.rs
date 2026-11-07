@@ -602,7 +602,7 @@ impl Daemon {
     /// Push the agent's current row — liveness and mirror flags included —
     /// to every subscriber. The tail of every mutation that changes how
     /// the row renders; fails only when the row is gone.
-    fn broadcast_agent(&self, id: &AgentId) -> Result<()> {
+    pub(crate) fn broadcast_agent(&self, id: &AgentId) -> Result<()> {
         let agent = self.agent_entity(id)?;
         self.broadcast(ServerEvent::EntityUpserted {
             entity: Entity::Agent(agent),
@@ -3108,7 +3108,7 @@ fn claude_cloud_spawn_command(
 /// Normalize an agent-supplied title: control characters become spaces,
 /// whitespace collapses, and over-long titles are cut — models occasionally
 /// hand over a whole sentence no matter what the instruction says.
-fn sanitize_title(raw: &str) -> String {
+pub(crate) fn sanitize_title(raw: &str) -> String {
     const MAX_CHARS: usize = 60;
     let cleaned: String = raw
         .chars()

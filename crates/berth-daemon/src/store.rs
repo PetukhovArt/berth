@@ -263,6 +263,12 @@ const MIGRATIONS: &[&str] = &[
       PRIMARY KEY (kind, session_id)
     );
     ",
+    // 25: the last name the agent CLI itself gave the conversation (Claude
+    // and Codex `/rename`). Only a change of it is a rename, so a name set
+    // in berth afterwards survives the CLI repeating the old one.
+    "
+    ALTER TABLE agents ADD COLUMN cli_title TEXT;
+    ",
 ];
 
 pub struct Store {
@@ -604,6 +610,19 @@ impl Store {
         let changed = self.conn.lock().unwrap().execute(
             "UPDATE agents SET name = ?2, auto_title_pending = 0 WHERE id = ?1 AND auto_title_pending = 1",
             params![id.as_str(), name],
+        )?;
+        Ok(changed == 1)
+    }
+
+    /// A name the agent CLI reports for the conversation. Applies only when
+    /// it differs from the last one the CLI reported, so the newer side
+    /// wins: a berth rename stands until the CLI renames again. Retires a
+    /// pending auto-title like any user rename. Returns whether the row
+    /// changed.
+    pub fn adopt_cli_title(&self, id: &AgentId, title: &str) -> Result<bool> {
+        let changed = self.conn.lock().unwrap().execute(
+            "UPDATE agents SET name = ?2, cli_title = ?2, auto_title_pending = 0 WHERE id = ?1 AND cli_title IS NOT ?2",
+            params![id.as_str(), title],
         )?;
         Ok(changed == 1)
     }
@@ -1803,6 +1822,28 @@ mod tests {
         assert!(!store
             .agent_auto_title_pending(&AgentId("ghost".into()))
             .unwrap());
+
+        // The newer rename wins whichever side made it. A CLI rename made
+        // before the first prompt counts as titled, so the auto-title can't
+        // replace it; a berth rename then stands while the CLI keeps
+        // repeating its old name, until the CLI renames again.
+        store
+            .insert_agent_with_auto_title(&agent("a4"), true)
+            .unwrap();
+        let id = AgentId("a4".into());
+        let name = |store: &Store| store.get_agent(&id).unwrap().unwrap().name;
+        assert!(store.adopt_cli_title(&id, "review-angles").unwrap());
+        assert!(!store.agent_auto_title_pending(&id).unwrap());
+        assert!(!store
+            .rename_agent_if_auto_pending(&id, "Review Test")
+            .unwrap());
+        assert_eq!(name(&store), "review-angles");
+        assert!(!store.adopt_cli_title(&id, "review-angles").unwrap());
+        store.rename_agent(&id, "from berth").unwrap();
+        assert!(!store.adopt_cli_title(&id, "review-angles").unwrap());
+        assert_eq!(name(&store), "from berth");
+        assert!(store.adopt_cli_title(&id, "renamed again").unwrap());
+        assert_eq!(name(&store), "renamed again");
     }
 
     #[test]

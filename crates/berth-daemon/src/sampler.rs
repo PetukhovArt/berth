@@ -14,9 +14,11 @@
 //! sharing to get wrong, and the loop is the only writer of the published
 //! sample, so ordering is its own program order.
 //!
-//! The transcript pass also reports `/rename` titles, so this loop applies
-//! them to the agent rows as well.
+//! Each tick also reads the names the CLIs hold for their conversations
+//! (`crate::cli_title`), and the transcript pass reports Claude's `/rename`
+//! lines, so this loop applies them to the agent rows as well.
 
+use crate::cli_title;
 use crate::metrics::CpuTimes;
 use crate::registry::Daemon;
 use crate::usage::{AgentTranscript, UsageTailer};
@@ -40,6 +42,7 @@ pub async fn run(daemon: Arc<Daemon>) {
     let mut interval = crate::env_interval(env::METRICS_SAMPLE_MS, TICK.as_millis() as u64);
     let mut cpu: Option<CpuTimes> = None;
     let mut tailer = UsageTailer::default();
+    let mut codex_index = cli_title::CodexIndex::default();
     // The token sweep runs on its own slower cadence, so the ticks between
     // two of them re-publish the last tally rather than dropping the
     // column to "not measured" and back.
@@ -72,14 +75,18 @@ pub async fn run(daemon: Arc<Daemon>) {
         // One blocking hop for both: `ps` and the transcript reads are
         // filesystem work, and keeping them in one task keeps the row set
         // coherent inside the published snapshot.
+        let live: Vec<SessionRef> = pids.iter().map(|(sref, _, _)| sref.clone()).collect();
+        let probes = cli_title::probes(&daemon, &live);
         let prev = cpu.take();
         let mut lent = std::mem::take(&mut tailer);
+        let mut lent_index = std::mem::take(&mut codex_index);
         let handle = tokio::task::spawn_blocking(move || {
             let (snapshot, next) = crate::metrics::collect(pids, prev.as_ref());
             let tokens = transcripts.map(|t| lent.sweep(&t));
-            (snapshot, next, lent, tokens)
+            let names = cli_title::titles(&probes, &mut lent_index);
+            (snapshot, next, (lent, lent_index), tokens, names)
         });
-        let (mut snapshot, next, returned, swept) = match handle.await {
+        let (mut snapshot, next, (returned, returned_index), swept, names) = match handle.await {
             Ok(done) => done,
             Err(err) => {
                 // The tailer went into the task and died with it, so the
@@ -92,14 +99,24 @@ pub async fn run(daemon: Arc<Daemon>) {
         };
         cpu = Some(next);
         tailer = returned;
-        if let Some(swept) = swept {
-            // A `/rename` typed in Claude is a name a human chose, so it
-            // replaces the row's name the way `r` in berth does.
-            for (id, title) in &swept.titles {
-                if let Err(e) = daemon.rename_agent(id, title) {
-                    tracing::warn!(agent = %id, error = %e, "adopting /rename title failed");
-                }
+        codex_index = returned_index;
+        // A `/rename` typed in the CLI is a name a human chose, so it
+        // replaces the row's name the way `r` in berth does — once per new
+        // name, so a later berth rename is not undone on the next tick.
+        // The two Claude sources can disagree for a moment, and alternating
+        // between them would rename the row back and forth; the file wins.
+        let transcript_names = swept
+            .as_ref()
+            .map(|s| s.titles.as_slice())
+            .unwrap_or_default()
+            .iter()
+            .filter(|(id, _)| !names.iter().any(|(named, _)| named == id));
+        for (id, title) in names.iter().chain(transcript_names) {
+            if let Err(e) = daemon.adopt_cli_title(id, title) {
+                tracing::warn!(agent = %id, error = %e, "adopting /rename title failed");
             }
+        }
+        if let Some(swept) = swept {
             last_tokens = swept.tokens;
         }
         for session in &mut snapshot.sessions {

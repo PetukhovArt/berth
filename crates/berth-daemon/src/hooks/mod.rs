@@ -296,11 +296,18 @@ async fn receive_hook(
     if injectable {
         // Prompt submitted on a still-untitled session: hand the CLI the
         // titling instruction. Unknown ids (prewarm, stale env) and store
-        // errors degrade to no injection.
+        // errors degrade to no injection. A name the user already gave it
+        // in the CLI counts as a title: the drain adopts it, but may not
+        // have yet.
         let inject = state
             .store
             .agent_auto_title_pending(&agent_id)
-            .unwrap_or(false);
+            .unwrap_or(false)
+            && crate::cli_title::lookup(
+                payload.transcript_path.as_deref(),
+                payload.session_id().as_deref(),
+            )
+            .is_none();
         let body = if inject {
             auto_title_injection()
         } else {
