@@ -5,7 +5,7 @@
 //! switching files — and per-file diffs are fast.
 
 use crate::app::DiffView;
-use berth_core::spawn::NoWindow;
+use berth_core::platform::NoWindow;
 use std::path::Path;
 use std::process::{Command, Output};
 

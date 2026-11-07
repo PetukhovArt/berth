@@ -283,12 +283,12 @@ fn wait_until_serving(child: &mut Child, addr: SocketAddr) -> Result<()> {
 }
 
 /// Hand the URL to the desktop browser — the TUI's opener, shared as
-/// `berth_core::spawn::open_in_browser`.
+/// `berth_core::platform::open_url`.
 pub(crate) fn open_url(url: &str) -> bool {
     if cfg!(test) {
         return true;
     }
-    berth_core::spawn::open_in_browser(url)
+    berth_core::platform::open_url(url)
 }
 
 #[cfg(test)]

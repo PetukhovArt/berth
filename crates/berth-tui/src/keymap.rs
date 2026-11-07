@@ -910,7 +910,7 @@ const CTRL_COLLISIONS: &[(char, &str)] = &[
 /// — so the honest answer here is a probability, not a fact. Nothing is
 /// rejected on the strength of it; the settings overlay just says so.
 pub fn host_warning(chord: &KeyChord) -> (Reach, Option<&'static str>) {
-    if cfg!(windows) {
+    if berth_core::platform::CAPABILITIES.win32_console_keys {
         return host_warning_windows(chord);
     }
     let m = chord.mods;

@@ -389,11 +389,13 @@ name = "berth-core"
 version = "0.20.0"
 dependencies = [
  "directories",
+ "libc",
  "rand 0.10.2",
  "rmp-serde",
  "serde",
  "serde_bytes",
  "subtle",
+ "sysinfo",
  "tempfile",
  "tokio",
  "ulid",

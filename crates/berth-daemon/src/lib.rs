@@ -240,7 +240,7 @@ async fn serve() -> Result<()> {
     {
         let daemon = daemon.clone();
         tokio::spawn(async move {
-            wait_for_termination_signal().await;
+            berth_core::platform::termination_signal().await;
             tracing::info!("signal received; shutting down");
             daemon.shutdown.cancel();
         });
@@ -254,38 +254,6 @@ async fn serve() -> Result<()> {
     transport::unlink_stale();
     tracing::info!("daemon exited cleanly");
     Ok(())
-}
-
-/// Resolve when the OS asks this daemon to stop.
-#[cfg(unix)]
-async fn wait_for_termination_signal() {
-    let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-        .expect("install SIGTERM handler");
-    let mut int = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::interrupt())
-        .expect("install SIGINT handler");
-    tokio::select! {
-        _ = term.recv() => {}
-        _ = int.recv() => {}
-    }
-}
-
-/// Windows has no SIGTERM. The console control events are the equivalent,
-/// and the DETACHED_PROCESS launch (see `berth-tui`'s `spawn_daemon`) gives
-/// the daemon its own console, so neither reaches it from the TUI's terminal
-/// — they arrive only from a deliberate `taskkill` or a `berth kill`
-/// fallback. A pidfile-lock holder that ignored them would have to be killed
-/// hard, losing the PTY SESSION teardown.
-#[cfg(windows)]
-async fn wait_for_termination_signal() {
-    let mut brk = tokio::signal::windows::ctrl_break().expect("install Ctrl+Break handler");
-    let mut close = tokio::signal::windows::ctrl_close().expect("install console-close handler");
-    let mut shutdown = tokio::signal::windows::ctrl_shutdown().expect("install shutdown handler");
-    tokio::select! {
-        _ = tokio::signal::ctrl_c() => {}
-        _ = brk.recv() => {}
-        _ = close.recv() => {}
-        _ = shutdown.recv() => {}
-    }
 }
 
 /// Latest mtime across the git files a worktree change touches: the

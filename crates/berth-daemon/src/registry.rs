@@ -10,7 +10,7 @@ use crate::store::Store;
 use anyhow::{bail, Context, Result};
 use berth_core::env;
 use berth_core::paths;
-use berth_core::spawn::NoWindow;
+use berth_core::platform::NoWindow;
 use berth_core::{
     Agent, AgentId, AgentKind, AgentStatus, EnterOutcome, Entity, EntityId, Link, LinkId,
     MetricsSnapshot, OrphanedSession, PrewarmInfo, Project, ProjectId, ServerEvent, SessionRef,
@@ -3129,37 +3129,7 @@ fn shell_has_children(session: &PtySession) -> bool {
     let Some(pid) = session.child_pid else {
         return true;
     };
-    has_children(pid)
-}
-
-#[cfg(unix)]
-fn has_children(pid: u32) -> bool {
-    !matches!(
-        std::process::Command::new("pgrep")
-            .arg("-P")
-            .arg(pid.to_string())
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status(),
-        Ok(status) if !status.success()
-    )
-}
-
-/// Windows has no `pgrep`; sweep the process table for a child instead
-/// (`wmic` is gone on 24H2, and PowerShell costs a shell start per poll).
-/// The fail-busy rule survives: a stale table entry can only delay reaping,
-/// which is the safe direction.
-#[cfg(windows)]
-fn has_children(pid: u32) -> bool {
-    use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System};
-    let mut system = System::new_with_specifics(
-        RefreshKind::nothing().with_processes(ProcessRefreshKind::nothing()),
-    );
-    system.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing());
-    system
-        .processes()
-        .values()
-        .any(|p| p.parent().map(|pp| pp.as_u32()) == Some(pid))
+    berth_core::platform::has_child_processes(pid)
 }
 
 /// Canonical form of a user-typed link. Pasting a URL out of a browser is

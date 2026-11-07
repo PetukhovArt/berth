@@ -3,7 +3,7 @@
 //! and git's stderr is the best error message we could show.
 
 use anyhow::{anyhow, bail, Result};
-use berth_core::spawn::NoWindow;
+use berth_core::platform::NoWindow;
 use std::path::{Path, PathBuf};
 use tokio::process::Command;
 

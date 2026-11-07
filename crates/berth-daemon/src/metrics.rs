@@ -31,140 +31,19 @@ pub(crate) fn collect(
     prev: Option<&CpuTimes>,
 ) -> (MetricsSnapshot, CpuTimes) {
     snapshot_from_table(
-        &process_table(),
+        &berth_core::platform::process_table(),
         std::process::id(),
         &sessions,
-        berth_core::mem::system_total_bytes().unwrap_or(0),
+        berth_core::platform::system_total_bytes().unwrap_or(0),
         prev,
         Instant::now(),
     )
 }
 
-/// Every process on the machine as `pid ppid rss-in-KB cpu-ms`, one per
-/// line, where `cpu-ms` is that process's cumulative CPU time since it
-/// started.
+/// The process table is `berth_core::platform::process_table`'s text
+/// shape, `pid ppid rss-KB cpu-ms` per line: a platform only says how it
+/// enumerates, and this parser is the tested part.
 ///
-/// The text shape is the seam: [`snapshot_from_table`] is the tested part
-/// and takes nothing else, so a platform only has to say how it enumerates
-/// processes. A platform that cannot answer `cpu-ms` may leave the column
-/// off; the parser reads it as 0, which comes out as "not measured".
-#[cfg(target_os = "linux")]
-fn process_table() -> String {
-    use std::fmt::Write;
-
-    // `ps -o time=` quantizes to whole seconds, a 20% error at a 5s tick.
-    // /proc carries the real thing in clock ticks, costs no fork, and has
-    // ppid and rss in the same read.
-    let sysconf = |var| {
-        nix::unistd::sysconf(var)
-            .ok()
-            .flatten()
-            .filter(|v| *v > 0)
-            .unwrap_or(1) as u64
-    };
-    let ticks_per_sec = sysconf(nix::unistd::SysconfVar::CLK_TCK);
-    let page_kb = (sysconf(nix::unistd::SysconfVar::PAGE_SIZE) / 1024).max(1);
-    let Ok(entries) = std::fs::read_dir("/proc") else {
-        return String::new();
-    };
-    let mut table = String::new();
-    for entry in entries.flatten() {
-        let Ok(pid) = entry.file_name().to_string_lossy().parse::<u32>() else {
-            continue;
-        };
-        // A process can exit between the readdir and the read; skip it.
-        let Ok(stat) = std::fs::read_to_string(entry.path().join("stat")) else {
-            continue;
-        };
-        // Field 2 is the comm, parenthesised and free to contain both
-        // spaces and parens, so cut after its last ')' rather than
-        // tokenizing the whole line.
-        let Some((_, rest)) = stat.rsplit_once(')') else {
-            continue;
-        };
-        // `rest` starts at field 3 (state), so ppid is [1], utime [11],
-        // stime [12] and rss-in-pages [21].
-        let f: Vec<&str> = rest.split_whitespace().collect();
-        let field = |i: usize| f.get(i).and_then(|s| s.parse::<u64>().ok());
-        let (Some(ppid), Some(utime), Some(stime), Some(rss_pages)) =
-            (field(1), field(11), field(12), field(21))
-        else {
-            continue;
-        };
-        let cpu_ms = (utime + stime) * 1000 / ticks_per_sec;
-        let _ = writeln!(table, "{pid} {ppid} {} {cpu_ms}", rss_pages * page_kb);
-    }
-    table
-}
-
-#[cfg(all(unix, not(target_os = "linux")))]
-fn process_table() -> String {
-    use std::fmt::Write;
-
-    // macOS `time=` is `[dd-]hh:mm:ss.ff` — hundredths, so 10ms.
-    let out = std::process::Command::new("ps")
-        .args(["-axo", "pid=,ppid=,rss=,time="])
-        .output()
-        .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .unwrap_or_default();
-    let mut table = String::new();
-    for line in out.lines() {
-        let mut cols = line.split_whitespace();
-        let (Some(pid), Some(ppid), Some(kb), Some(time)) =
-            (cols.next(), cols.next(), cols.next(), cols.next())
-        else {
-            continue;
-        };
-        let _ = writeln!(table, "{pid} {ppid} {kb} {}", parse_ps_time_ms(time));
-    }
-    table
-}
-
-/// `[dd-]hh:mm:ss[.ff]` to milliseconds. An unparseable field reads 0,
-/// which the caller turns into "not measured" rather than "idle".
-#[cfg(all(unix, not(target_os = "linux")))]
-fn parse_ps_time_ms(time: &str) -> u64 {
-    let (days, rest) = match time.split_once('-') {
-        Some((d, rest)) => (d.parse::<u64>().unwrap_or(0), rest),
-        None => (0, time),
-    };
-    let (rest, hundredths) = match rest.split_once('.') {
-        Some((r, f)) => (r, f.parse::<u64>().unwrap_or(0)),
-        None => (rest, 0),
-    };
-    // Fields run least-significant last and the hours field is optional.
-    let secs = rest
-        .rsplit(':')
-        .enumerate()
-        .map(|(i, part)| part.parse::<u64>().unwrap_or(0) * 60u64.pow(i as u32))
-        .sum::<u64>();
-    (days * 86_400 + secs) * 1000 + hundredths * 10
-}
-
-/// Windows has no `ps`, and the two candidates that ship with it are both
-/// worse than a crate here: `wmic` is deprecated and absent on newer builds,
-/// and a PowerShell `Get-CimInstance` costs a second of shell start per poll.
-#[cfg(windows)]
-fn process_table() -> String {
-    use std::fmt::Write;
-    use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System};
-
-    let what = ProcessRefreshKind::nothing().with_memory().with_cpu();
-    let mut system = System::new_with_specifics(RefreshKind::nothing().with_processes(what));
-    system.refresh_processes_specifics(ProcessesToUpdate::All, true, what);
-    let mut table = String::new();
-    for (pid, process) in system.processes() {
-        let ppid = process.parent().map(|p| p.as_u32()).unwrap_or(0);
-        // `ps` reports KB and the parser multiplies back up, so match it
-        // rather than teach the parser a second unit.
-        let kb = process.memory() / 1024;
-        let cpu_ms = process.accumulated_cpu_time();
-        let _ = writeln!(table, "{} {ppid} {kb} {cpu_ms}", pid.as_u32());
-    }
-    table
-}
-
 /// Pure core, unit-testable: `table` is one process per line as
 /// `pid ppid rss-KB cpu-ms`, and `now` is passed in rather than read.
 fn snapshot_from_table(

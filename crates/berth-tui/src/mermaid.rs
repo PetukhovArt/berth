@@ -6,7 +6,7 @@
 //! call, the cache and the fallback all live here so the tree browser never
 //! learns what a fence is.
 
-use berth_core::spawn::NoWindow;
+use berth_core::platform::NoWindow;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::io::{Read, Write};
@@ -221,20 +221,8 @@ fn available(command: &str) -> Option<Vec<String>> {
     Some(argv)
 }
 
-#[cfg(windows)]
 fn resolve(program: &str) -> Option<String> {
-    berth_core::spawn::resolve_program(program).map(|p| p.to_string_lossy().into_owned())
-}
-
-#[cfg(unix)]
-fn resolve(program: &str) -> Option<String> {
-    let p = Path::new(program);
-    if p.components().count() > 1 {
-        return p.is_file().then(|| program.to_string());
-    }
-    std::env::split_paths(&std::env::var_os("PATH")?)
-        .any(|dir| dir.join(program).is_file())
-        .then(|| program.to_string())
+    berth_core::platform::resolve_program(program).map(|p| p.to_string_lossy().into_owned())
 }
 
 /// Feed `source` to the renderer's stdin and collect stdout. Output is

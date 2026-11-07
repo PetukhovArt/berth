@@ -98,7 +98,7 @@ pub(crate) async fn run(
     args: &[&str],
     timeout: std::time::Duration,
 ) -> Option<String> {
-    use berth_core::spawn::NoWindow;
+    use berth_core::platform::NoWindow;
     let mut cmd = tokio::process::Command::new(bin);
     cmd.args(args).stdin(std::process::Stdio::null());
     cmd.no_window();

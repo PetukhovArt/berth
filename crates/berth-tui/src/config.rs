@@ -58,9 +58,6 @@ pub const DONE_SOUNDS: &[&str] = &[
     "Basso",
 ];
 
-/// Where the macOS system sounds live; `<name>.aiff` inside it.
-const MACOS_SOUNDS_DIR: &str = "/System/Library/Sounds";
-
 /// The model/effort sentinel meaning "don't pass the flag — let the CLI
 /// pick"; it heads every choice list and is what the daemon sees as None.
 pub const DEFAULT_CHOICE: &str = "default";
@@ -1066,31 +1063,36 @@ pub enum DoneSound {
     /// The terminal BEL (`\x07`), written through the attached terminal,
     /// which decides whether that is a sound, a flash, or a dock bounce.
     Bell,
-    /// A sound file to hand to `afplay`.
+    /// A sound file to hand to `platform::play_sound_file`.
     File(PathBuf),
 }
 
 impl Config {
     /// The sound to play for a finish, or `None` for silence. A named
-    /// system sound only resolves to its file on macOS, on a local
-    /// terminal, and when the file exists — over ssh `afplay` would ring
-    /// the *remote* box, so the bell stands in there, as it does off
-    /// macOS and for a name the sound folder doesn't hold.
+    /// system sound only resolves to its file where the platform has
+    /// named sounds (macOS), on a local terminal, and when the file exists
+    /// — over ssh `afplay` would ring the *remote* box, so the bell stands
+    /// in there, as it does elsewhere and for a name the platform doesn't
+    /// hold.
     pub fn done_sound(&self) -> Option<DoneSound> {
         resolve_done_sound(
             &self.done_sound,
             berth_core::host::is_remote_session(),
-            cfg!(target_os = "macos"),
+            berth_core::platform::system_sound,
         )
     }
 }
 
-fn resolve_done_sound(configured: &str, remote: bool, macos: bool) -> Option<DoneSound> {
+fn resolve_done_sound(
+    configured: &str,
+    remote: bool,
+    system_sound: impl Fn(&str) -> Option<PathBuf>,
+) -> Option<DoneSound> {
     let name = configured.trim();
     if name.is_empty() || name.eq_ignore_ascii_case("off") {
         return None;
     }
-    if name.eq_ignore_ascii_case("bell") || remote || !macos {
+    if name.eq_ignore_ascii_case("bell") || remote {
         return Some(DoneSound::Bell);
     }
     // A sound name is a bare file stem; anything else (a path, a dot) is
@@ -1098,12 +1100,7 @@ fn resolve_done_sound(configured: &str, remote: bool, macos: bool) -> Option<Don
     if !name.chars().all(|c| c.is_ascii_alphanumeric()) {
         return Some(DoneSound::Bell);
     }
-    let path = Path::new(MACOS_SOUNDS_DIR).join(format!("{name}.aiff"));
-    if path.is_file() {
-        Some(DoneSound::File(path))
-    } else {
-        Some(DoneSound::Bell)
-    }
+    Some(system_sound(name).map_or(DoneSound::Bell, DoneSound::File))
 }
 
 /// First non-blank of env override → configured value → vim.
@@ -1318,37 +1315,40 @@ mod tests {
         assert_eq!(load_from(&path).done_sound, "Glass");
 
         // Silence, the bell, and every reason a name falls back to it.
-        assert_eq!(resolve_done_sound("off", false, true), None);
-        assert_eq!(resolve_done_sound("OFF", false, true), None);
-        assert_eq!(resolve_done_sound("", false, true), None);
+        let glass = PathBuf::from("/sounds/Glass.aiff");
+        let sounds = |name: &str| (name == "Glass").then(|| glass.clone());
+        let no_sounds = |_: &str| None;
+        assert_eq!(resolve_done_sound("off", false, sounds), None);
+        assert_eq!(resolve_done_sound("OFF", false, sounds), None);
+        assert_eq!(resolve_done_sound("", false, sounds), None);
         assert_eq!(
-            resolve_done_sound("bell", false, true),
+            resolve_done_sound("bell", false, sounds),
             Some(DoneSound::Bell)
         );
         assert_eq!(
-            resolve_done_sound("Glass", true, true),
+            resolve_done_sound("Glass", true, sounds),
             Some(DoneSound::Bell),
             "over ssh afplay would ring the remote box"
         );
         assert_eq!(
-            resolve_done_sound("Glass", false, false),
+            resolve_done_sound("Glass", false, no_sounds),
             Some(DoneSound::Bell),
-            "no system sounds off macOS"
+            "no system sounds on this platform"
         );
         assert_eq!(
-            resolve_done_sound("NoSuchSound", false, true),
+            resolve_done_sound("NoSuchSound", false, sounds),
             Some(DoneSound::Bell)
         );
         assert_eq!(
-            resolve_done_sound("../etc/passwd", false, true),
-            Some(DoneSound::Bell)
+            resolve_done_sound("../etc/passwd", false, |_: &str| Some(PathBuf::from(
+                "/etc/passwd"
+            ))),
+            Some(DoneSound::Bell),
+            "a path is never looked up"
         );
-        #[cfg(target_os = "macos")]
         assert_eq!(
-            resolve_done_sound("Glass", false, true),
-            Some(DoneSound::File(
-                Path::new(MACOS_SOUNDS_DIR).join("Glass.aiff")
-            ))
+            resolve_done_sound("Glass", false, sounds),
+            Some(DoneSound::File(glass.clone()))
         );
     }
 

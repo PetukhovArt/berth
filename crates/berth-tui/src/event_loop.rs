@@ -1006,7 +1006,7 @@ fn note_focus_change(app: &mut App) {
 /// RSS now (the daemon can't see us), ask the daemon for itself plus every
 /// session's process tree. The reply arrives as `ServerEvent::Metrics`.
 fn request_metrics(app: &mut App, out: &mut Vec<ClientRequest>) {
-    app.client_rss_bytes = berth_core::mem::process_rss_bytes(std::process::id()).unwrap_or(0);
+    app.client_rss_bytes = berth_core::platform::process_rss_bytes(std::process::id()).unwrap_or(0);
     if let Some(Overlay::Metrics(view)) = &mut app.overlay {
         view.client_rss_bytes = app.client_rss_bytes;
     }
@@ -1247,14 +1247,10 @@ fn close_vim(app: &mut App) {
 /// its batch, and a multi-line run folds back into the paste it was
 /// (`paste_burst::coalesce`). Elsewhere bracketed paste is real; nothing to
 /// rebuild.
-#[cfg(not(windows))]
-async fn gather_events(first: Event, _input: &mut crossterm::event::EventStream) -> Vec<Event> {
-    vec![first]
-}
-
-#[cfg(windows)]
 async fn gather_events(first: Event, input: &mut crossterm::event::EventStream) -> Vec<Event> {
-    if !crate::paste_burst::starts_burst(&first) {
+    if !berth_core::platform::CAPABILITIES.paste_arrives_as_keys
+        || !crate::paste_burst::starts_burst(&first)
+    {
         return vec![first];
     }
     // Injected batches sit in the queue already; the gap only covers the
@@ -1608,7 +1604,11 @@ fn handle_key(app: &mut App, key: KeyEvent, out: &mut Vec<ClientRequest>) {
                 // pass-through, but the Windows 10 inbox ConPTY drops CSI-u
                 // on input — Esc as `CSI 27 u` vanished. Keys stay on the
                 // legacy bytes there; Claude Code parses both.
-                let kitty_flags = if cfg!(windows) { 0 } else { term.kitty_flags };
+                let kitty_flags = if berth_core::platform::CAPABILITIES.console_drops_kitty_input {
+                    0
+                } else {
+                    term.kitty_flags
+                };
                 if let Some(data) =
                     keys::encode_key_for(&key, kitty_flags, term.win32_input, term.vt_child)
                 {
@@ -5876,26 +5876,15 @@ fn copy_and_flash(app: &mut App, text: &str, label: &str) {
     app.flash = Some(format!("{label} (via terminal)"));
 }
 
-/// Ring the DONE SOUND once: a named system sound goes to `afplay`
-/// (detached; a helper thread reaps it so no zombie lingers), anything
-/// else — and an `afplay` that won't start — is the terminal BEL written
-/// through `backend`. Reads CONFIG.JSON fresh, like every other setting.
+/// Ring the DONE SOUND once: a named system sound goes to
+/// `platform::play_sound_file`, anything else — and a player that won't
+/// start — is the terminal BEL written through `backend`. Reads CONFIG.JSON fresh, like every other setting.
 fn play_done_sound<W: std::io::Write>(backend: &mut W) {
     let Some(sound) = crate::config::Config::load().done_sound() else {
         return;
     };
     if let crate::config::DoneSound::File(path) = &sound {
-        use std::process::{Command, Stdio};
-        if let Ok(mut child) = Command::new("afplay")
-            .arg(path)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-        {
-            std::thread::spawn(move || {
-                let _ = child.wait();
-            });
+        if berth_core::platform::play_sound_file(path) {
             return;
         }
     }
@@ -5903,67 +5892,17 @@ fn play_done_sound<W: std::io::Write>(backend: &mut W) {
     let _ = backend.flush();
 }
 
-/// Copy to *this machine's* system clipboard.
-/// macOS: pbcopy. Windows: clip.exe. Linux: wl-copy on Wayland, xclip (or
-/// xsel) on X11.
+/// Copy to *this machine's* system clipboard (`platform::copy_to_clipboard`).
 fn copy_to_clipboard(text: &str) -> bool {
     // Unit tests exercise the selection flow; don't clobber the developer's
     // real clipboard from `cargo test`.
     if cfg!(test) {
         return true;
     }
-
-    use std::io::Write as _;
-    use std::process::{Command, Stdio};
-
-    let copy_via = |cmd: &str, args: &[&str], data: &[u8]| -> bool {
-        use berth_core::spawn::NoWindow as _;
-        let Ok(mut child) = Command::new(cmd)
-            .args(args)
-            .stdin(Stdio::piped())
-            .stderr(Stdio::null())
-            .no_window()
-            .spawn()
-        else {
-            return false;
-        };
-        let wrote = child
-            .stdin
-            .take()
-            .is_some_and(|mut stdin| stdin.write_all(data).is_ok());
-        wrote && child.wait().is_ok_and(|status| status.success())
-    };
-
-    #[cfg(target_os = "macos")]
-    {
-        copy_via("pbcopy", &[], text.as_bytes())
-    }
-
-    #[cfg(windows)]
-    {
-        // clip.exe assumes the console codepage unless the input carries a
-        // UTF-16LE BOM, so non-ASCII text must go over as UTF-16.
-        let mut utf16 = vec![0xFF, 0xFE];
-        for unit in text.encode_utf16() {
-            utf16.extend_from_slice(&unit.to_le_bytes());
-        }
-        copy_via("clip", &[], &utf16)
-    }
-
-    #[cfg(not(any(target_os = "macos", windows)))]
-    {
-        if std::env::var_os("WAYLAND_DISPLAY").is_some() {
-            return copy_via("wl-copy", &[], text.as_bytes());
-        }
-        // X11: prefer xclip, fall back to xsel
-        if copy_via("xclip", &["-selection", "clipboard"], text.as_bytes()) {
-            return true;
-        }
-        copy_via("xsel", &["--clipboard", "--input"], text.as_bytes())
-    }
+    berth_core::platform::copy_to_clipboard(text)
 }
 
-/// Open a URL in the default browser (`berth_core::spawn::open_in_browser`).
+/// Open a URL in the default browser (`berth_core::platform::open_url`).
 /// The scheme allowlist is defense in depth — the link scanner only ever
 /// produces http(s) URLs, but the text originates from untrusted PTY output.
 fn open_url(url: &str) -> bool {
@@ -5973,7 +5912,7 @@ fn open_url(url: &str) -> bool {
     if cfg!(test) {
         return true;
     }
-    berth_core::spawn::open_in_browser(url)
+    berth_core::platform::open_url(url)
 }
 
 /// Two clicks on the same cell within this window make a double-click.

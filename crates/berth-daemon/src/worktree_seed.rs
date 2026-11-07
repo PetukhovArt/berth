@@ -107,22 +107,10 @@ fn link_target(src: &Path, main: &Path, worktree: &Path) -> std::io::Result<Path
     }
 }
 
-#[cfg(unix)]
-fn link(_src: &Path, dst: &Path, target: &Path) -> std::io::Result<()> {
-    std::os::unix::fs::symlink(target, dst)
-}
-
-#[cfg(windows)]
+/// Windows settles a file or a directory symlink at creation time, so the
+/// source (followed) decides which; `platform::symlink` takes it for that.
 fn link(src: &Path, dst: &Path, target: &Path) -> std::io::Result<()> {
-    // Windows picks the symlink flavour at creation time, so which kind the
-    // target is has to be settled first — `src.metadata()` follows the link
-    // and answers for the target. A refusal here is almost always the
-    // platform's: creating a symlink needs Developer Mode or elevation.
-    if src.metadata()?.is_dir() {
-        std::os::windows::fs::symlink_dir(target, dst)
-    } else {
-        std::os::windows::fs::symlink_file(target, dst)
-    }
+    berth_core::platform::symlink(target, dst, src)
 }
 
 #[cfg(test)]
@@ -141,10 +129,7 @@ mod tests {
     }
 
     fn symlink_dir(target: &Path, link: &Path) -> std::io::Result<()> {
-        #[cfg(unix)]
-        return std::os::unix::fs::symlink(target, link);
-        #[cfg(windows)]
-        return std::os::windows::fs::symlink_dir(target, link);
+        berth_core::platform::symlink(target, link, target)
     }
 
     /// A directory ignored in full collapses to one `dir/` entry, so skipping

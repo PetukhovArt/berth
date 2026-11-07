@@ -196,7 +196,7 @@ mod platform {
     // The PATH × PATHEXT lookup lives in berth-core so the TUI's editor
     // spawn can share it; this module keeps the daemon-only policy (shell
     // choice, `.cmd` shim wrapping).
-    use berth_core::spawn::resolve_program;
+    use berth_core::platform::resolve_program;
 
     pub fn interactive_shell() -> (String, Vec<String>) {
         // `SHELL` wins when it names something this OS can actually start —

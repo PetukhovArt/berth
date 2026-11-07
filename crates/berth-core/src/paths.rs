@@ -125,70 +125,40 @@ pub fn log_dir() -> PathBuf {
 /// a path every consumer can take.
 pub fn canonical_or_raw(path: &Path) -> PathBuf {
     match std::fs::canonicalize(path) {
-        Ok(canonical) => strip_verbatim_prefix(canonical),
+        Ok(canonical) => crate::platform::strip_verbatim_prefix(canonical),
         Err(_) => path.to_path_buf(),
     }
-}
-
-#[cfg(unix)]
-fn strip_verbatim_prefix(path: PathBuf) -> PathBuf {
-    path
-}
-
-/// `\\?\C:\x` → `C:\x`, `\\?\UNC\srv\share\x` → `\\srv\share\x`. Anything
-/// else (a device path, a raw volume GUID) is left exactly as it came: those
-/// have no ordinary spelling, and inventing one would be worse than the
-/// verbatim form.
-#[cfg(windows)]
-fn strip_verbatim_prefix(path: PathBuf) -> PathBuf {
-    use std::path::{Component, Prefix};
-    let Some(Component::Prefix(prefix)) = path.components().next() else {
-        return path;
-    };
-    let text = path.to_string_lossy();
-    let stripped = match prefix.kind() {
-        Prefix::VerbatimDisk(_) => text.strip_prefix(r"\\?\").map(str::to_string),
-        Prefix::VerbatimUNC(..) => text
-            .strip_prefix(r"\\?\UNC\")
-            .map(|rest| format!(r"\\{rest}")),
-        _ => None,
-    };
-    stripped.map(PathBuf::from).unwrap_or(path)
 }
 
 /// Is `inner` the same path as `outer`, or inside it?
 ///
 /// Component-wise like `Path::starts_with`, so `/a/bc` is not inside `/a/b`,
-/// and case-insensitively on Windows, where `d:\repo` and `D:\Repo` are one
+/// and case-insensitively where the platform says so (Windows), where `d:\repo` and `D:\Repo` are one
 /// directory — an agent's reported cwd and a stored WORKTREE path come from
 /// different programs and need not agree on case.
 ///
 /// Both sides must have been through [`canonical_or_raw`], or neither: half a
 /// comparison is the failure this pair exists to prevent.
 pub fn contains(outer: &Path, inner: &Path) -> bool {
-    #[cfg(unix)]
-    {
-        inner.starts_with(outer)
+    if !crate::platform::CAPABILITIES.paths_case_insensitive {
+        return inner.starts_with(outer);
     }
-    #[cfg(windows)]
-    {
-        let mut outer = outer.components();
-        let mut inner = inner.components();
-        loop {
-            match (outer.next(), inner.next()) {
-                (None, _) => return true,
-                (Some(_), None) => return false,
-                (Some(a), Some(b)) => {
-                    // ASCII is the whole alphabet in play here: drive letters,
-                    // and path segments a full Unicode case fold would only
-                    // differ on for names no repo tool produces.
-                    if !a
-                        .as_os_str()
-                        .to_string_lossy()
-                        .eq_ignore_ascii_case(&b.as_os_str().to_string_lossy())
-                    {
-                        return false;
-                    }
+    let mut outer = outer.components();
+    let mut inner = inner.components();
+    loop {
+        match (outer.next(), inner.next()) {
+            (None, _) => return true,
+            (Some(_), None) => return false,
+            (Some(a), Some(b)) => {
+                // ASCII is the whole alphabet in play here: drive letters,
+                // and path segments a full Unicode case fold would only
+                // differ on for names no repo tool produces.
+                if !a
+                    .as_os_str()
+                    .to_string_lossy()
+                    .eq_ignore_ascii_case(&b.as_os_str().to_string_lossy())
+                {
+                    return false;
                 }
             }
         }
@@ -258,19 +228,19 @@ mod tests {
     #[test]
     fn only_the_spellings_with_an_ordinary_form_are_stripped() {
         assert_eq!(
-            strip_verbatim_prefix(PathBuf::from(r"\\?\C:\repo\x")),
+            crate::platform::strip_verbatim_prefix(PathBuf::from(r"\\?\C:\repo\x")),
             PathBuf::from(r"C:\repo\x")
         );
         assert_eq!(
-            strip_verbatim_prefix(PathBuf::from(r"\\?\UNC\srv\share\x")),
+            crate::platform::strip_verbatim_prefix(PathBuf::from(r"\\?\UNC\srv\share\x")),
             PathBuf::from(r"\\srv\share\x")
         );
         // A volume GUID path has no ordinary spelling; leave it alone.
         let guid = PathBuf::from(r"\\?\Volume{00000000-0000-0000-0000-000000000000}\x");
-        assert_eq!(strip_verbatim_prefix(guid.clone()), guid);
+        assert_eq!(crate::platform::strip_verbatim_prefix(guid.clone()), guid);
         // An ordinary path is not a verbatim one.
         assert_eq!(
-            strip_verbatim_prefix(PathBuf::from(r"C:\repo")),
+            crate::platform::strip_verbatim_prefix(PathBuf::from(r"C:\repo")),
             PathBuf::from(r"C:\repo")
         );
     }

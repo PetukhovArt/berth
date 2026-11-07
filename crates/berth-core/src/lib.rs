@@ -6,10 +6,9 @@ pub mod env;
 pub mod host;
 pub mod ids;
 pub mod legacy;
-pub mod mem;
 pub mod paths;
+pub mod platform;
 pub mod protocol;
-pub mod spawn;
 pub mod transport;
 
 pub use entities::*;

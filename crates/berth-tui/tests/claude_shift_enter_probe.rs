@@ -67,7 +67,7 @@ fn pump(
 #[test]
 #[ignore]
 fn claude_takes_the_kitty_newline_chords() {
-    let claude = berth_core::spawn::resolve_program("claude").expect("claude on PATH");
+    let claude = berth_core::platform::resolve_program("claude").expect("claude on PATH");
     let pty = native_pty_system()
         .openpty(PtySize {
             rows: ROWS,

@@ -115,13 +115,9 @@ impl VimTerm {
         // "vim" is rarely on a Windows PATH anyway — resolve it (with the
         // Git-for-Windows fallback) before spawning. Unresolved names go
         // through untouched so the OS's own error surfaces.
-        #[cfg(windows)]
         let resolved =
-            berth_core::spawn::resolve_editor_program(program).map(|p| p.display().to_string());
-        #[cfg(windows)]
+            berth_core::platform::resolve_editor_program(program).map(|p| p.display().to_string());
         let launch: &str = resolved.as_deref().unwrap_or(program);
-        #[cfg(unix)]
-        let launch: &str = program;
 
         let mut cmd = CommandBuilder::new(launch);
         cmd.args(args);
@@ -138,7 +134,6 @@ impl VimTerm {
 
         let mut child = pair.slave.spawn_command(cmd).map_err(|e| {
             let msg = format!("failed to launch {program}: {e}");
-            #[cfg(windows)]
             let msg = if resolved.is_none() {
                 format!("{msg} (not on PATH — set BERTH_EDITOR or pick another editor in Settings)")
             } else {
@@ -378,7 +373,7 @@ mod tests {
         if utf8_locale_fallback(berth_core::env::non_empty).is_none() {
             return; // A stated locale owns the answer; nothing of ours runs.
         }
-        let Some(_vim) = berth_core::spawn::resolve_editor_program("vim") else {
+        let Some(_vim) = berth_core::platform::resolve_editor_program("vim") else {
             return; // No vim on this box.
         };
         let dir = tempfile::tempdir().unwrap();

@@ -114,10 +114,10 @@ pub fn check_isolation_vars() -> Result<(), String> {
 /// launched from Explorer or PowerShell has no `HOME` at all, and without
 /// this every `~/` path would silently resolve relative to nothing.
 pub fn home_dir() -> Option<PathBuf> {
-    let home = std::env::var_os("HOME").filter(|v| !v.is_empty());
-    #[cfg(windows)]
-    let home = home.or_else(|| std::env::var_os("USERPROFILE").filter(|v| !v.is_empty()));
-    home.map(PathBuf::from)
+    std::env::var_os("HOME")
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from)
+        .or_else(|| crate::platform::profile_home().filter(|p| !p.as_os_str().is_empty()))
 }
 
 #[cfg(test)]
