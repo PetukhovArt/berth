@@ -140,7 +140,9 @@ fn install_secrets(options: &Options) -> String {
     let file = match options.secrets {
         Secrets::File => true,
         Secrets::Keyring => false,
-        Secrets::Auto => cfg!(target_os = "linux") || !secrets::keyring_available(),
+        Secrets::Auto => {
+            berth_desktop_lib::platform::SECRETS_DEFAULT_TO_FILE || !secrets::keyring_available()
+        }
     };
     if !file {
         return "OS keyring, service \"berth\", entry \"remote-pairing-token\"".to_owned();
@@ -209,18 +211,7 @@ fn qr(text: &str) -> Option<String> {
 }
 
 async fn stopped() {
-    #[cfg(unix)]
-    {
-        use tokio::signal::unix::{signal, SignalKind};
-        if let Ok(mut term) = signal(SignalKind::terminate()) {
-            tokio::select! {
-                _ = term.recv() => {}
-                _ = tokio::signal::ctrl_c() => {}
-            }
-            return;
-        }
-    }
-    let _ = tokio::signal::ctrl_c().await;
+    berth_core::platform::termination_signal().await;
 }
 
 async fn serve(options: Options, token_note: String) -> ExitCode {

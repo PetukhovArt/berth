@@ -232,6 +232,11 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
             &quit,
         ],
     )?;
+    if !crate::platform::SELF_UPDATE {
+        menu.remove(&update)?;
+        menu.remove(&rollback)?;
+        menu.remove(&tail)?;
+    }
 
     let toggled = remote.clone();
     let mut builder = TrayIconBuilder::<Wry>::with_id(TRAY_ID)

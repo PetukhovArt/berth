@@ -1,3 +1,5 @@
+import { modifierGlyphs } from '../platform';
+
 export type Chord = { readonly ctrl: boolean; readonly alt: boolean; readonly shift: boolean; readonly meta: boolean; readonly code: string };
 
 const NAMED: readonly (readonly [string, string])[] = [
@@ -87,7 +89,6 @@ const DISPLAY: Readonly<Record<string, string>> = {
 };
 
 const MODIFIER_ORDER = ['ctrl', 'alt', 'shift', 'meta'] as const;
-const MODIFIER_LABELS = { ctrl: 'Ctrl', alt: 'Alt', shift: 'Shift', meta: 'Meta' } as const;
 const MODIFIER_PREFIX = /^([a-z]+)-(?=.)/i;
 
 function normalizeCode(code: string): string {
@@ -142,7 +143,7 @@ export function sequenceKey(chords: readonly Chord[]): string {
 }
 
 function chordLabel(chord: Chord): string {
-  const mods = MODIFIER_ORDER.filter((name) => chord[name]).map((name) => MODIFIER_LABELS[name]);
+  const mods = MODIFIER_ORDER.filter((name) => chord[name]).map((name) => modifierGlyphs[name]);
   const token = CODE_TO_TOKEN.get(chord.code) ?? chord.code;
   const key = DISPLAY[chord.code] ?? (token.length === 1 ? token.toUpperCase() : token.charAt(0).toUpperCase() + token.slice(1));
   return [...mods, key].join('+');

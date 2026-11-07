@@ -136,43 +136,6 @@ fn resolve_adapter(repo: &Path, setting: &str) -> PathBuf {
     }
 }
 
-#[cfg(windows)]
-fn git_bash() -> Option<PathBuf> {
-    if let Some(custom) = std::env::var_os("JIG_BASH") {
-        return Some(PathBuf::from(custom));
-    }
-    let path = std::env::var_os("PATH")?;
-    for dir in std::env::split_paths(&path) {
-        if !dir.join("git.exe").is_file() {
-            continue;
-        }
-        let mut level = Some(dir.as_path());
-        for _ in 0..3 {
-            let Some(current) = level else { break };
-            for candidate in [
-                current.join("bin").join("bash.exe"),
-                current.join("usr").join("bin").join("bash.exe"),
-            ] {
-                if candidate.is_file() {
-                    return Some(candidate);
-                }
-            }
-            level = current.parent();
-        }
-    }
-    None
-}
-
-#[cfg(windows)]
-fn windows_path_with_bash(bash: &Path) -> Option<std::ffi::OsString> {
-    let dir = bash.parent()?.to_path_buf();
-    let mut entries = vec![dir];
-    if let Some(existing) = std::env::var_os("PATH") {
-        entries.extend(std::env::split_paths(&existing));
-    }
-    std::env::join_paths(entries).ok()
-}
-
 fn command_for(adapter: &Path, repo: &Path) -> Result<Command, String> {
     let extension = adapter
         .extension()
@@ -185,16 +148,13 @@ fn command_for(adapter: &Path, repo: &Path) -> Result<Command, String> {
             command
         }
         "sh" => {
-            #[cfg(windows)]
-            let program = git_bash().ok_or("Git Bash не найден: укажите JIG_BASH")?;
-            #[cfg(not(windows))]
-            let program = PathBuf::from("bash");
+            let program = crate::platform::bash_program()?;
             let mut command = Command::new(program);
             command.arg(adapter);
             command
         }
         "ps1" => {
-            let mut command = Command::new(if cfg!(windows) { "powershell" } else { "pwsh" });
+            let mut command = Command::new(crate::platform::POWERSHELL);
             command
                 .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"])
                 .arg(adapter);
@@ -202,11 +162,8 @@ fn command_for(adapter: &Path, repo: &Path) -> Result<Command, String> {
         }
         _ => Command::new(adapter),
     };
-    #[cfg(windows)]
-    if let Some(bash) = git_bash() {
-        if let Some(path) = windows_path_with_bash(&bash) {
-            command.env("PATH", path);
-        }
+    if let Some(path) = crate::platform::script_tools_path() {
+        command.env("PATH", path);
     }
     command
         .arg("queue")
@@ -302,7 +259,11 @@ pub async fn review_queue(repo: String) -> Result<ReviewQueue, String> {
         return Err(format!("адаптер не найден: {}", adapter.display()));
     }
     let mut command = command_for(&adapter, &repo)?;
-    let run = async { crate::child::spawn(&mut command)?.wait_with_output().await };
+    let run = async {
+        crate::platform::spawn_tied(&mut command)?
+            .wait_with_output()
+            .await
+    };
     let output = match tokio::time::timeout(QUEUE_TIMEOUT, run).await {
         Ok(Ok(output)) => output,
         Ok(Err(error)) if error.kind() == std::io::ErrorKind::NotFound => {

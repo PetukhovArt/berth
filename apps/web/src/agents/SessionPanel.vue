@@ -9,6 +9,7 @@ import { WebglAddon } from '@xterm/addon-webgl';
 import { attachSession, detachSession, resizeSession, sendInput, sessionId, type SessionEvent, type SessionRef } from './berth';
 import { t } from '../i18n';
 import { openUrl } from '../bridge';
+import { hostPlatform } from '../platform';
 import { applyCtrl } from '../mobile/keys';
 import { useSettings } from '../settings/store';
 import { zoomTerminal } from './terminalFont';
@@ -27,9 +28,7 @@ const REPORT_BODY = /^(?:\??\d+;\d+R|[?>][\d;]*c|\??[\d;]*n)$/;
 const RESIZE_DEBOUNCE_MS = 80;
 const MINUTE_MS = 60_000;
 
-const CONPTY_ANSWERS_QUERIES = navigator.userAgent.includes('Windows');
-
-const isTerminalReport = (data: string) => CONPTY_ANSWERS_QUERIES && data.startsWith(`${ESC}[`) && REPORT_BODY.test(data.slice(2));
+const isTerminalReport = (data: string) => hostPlatform.value.capabilities.ptyAnswersTerminalQueries && data.startsWith(`${ESC}[`) && REPORT_BODY.test(data.slice(2));
 
 function enterSequence(event: KeyboardEvent): string | null {
   if (event.key !== 'Enter' || event.altKey || event.metaKey || event.shiftKey === event.ctrlKey) return null;

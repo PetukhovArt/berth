@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::sync::{Mutex, Once, OnceLock};
 use std::time::{Duration, SystemTime};
 
@@ -78,10 +77,12 @@ pub fn set_berth_dir(dir: PathBuf) -> bool {
 }
 
 pub fn default_berth_dir() -> Result<PathBuf, String> {
-    let var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
-    let home = std::env::var_os(var)
-        .map(PathBuf::from)
-        .ok_or_else(|| format!("не задана переменная {var}"))?;
+    let home = berth_core::platform::profile_home().ok_or_else(|| {
+        format!(
+            "не задана переменная {}",
+            berth_core::platform::PROFILE_HOME_VAR
+        )
+    })?;
     let dir = home.join(DIR_NAME);
     ADOPTED.call_once(|| crate::legacy::adopt_dir(&home.join(crate::legacy::DIR_NAME), &dir));
     Ok(dir)
@@ -239,24 +240,6 @@ pub async fn settings_open_external(file: Option<ConfigFile>) -> Result<(), Stri
     open_in_default_app(&path).map_err(|e| format!("не удалось открыть редактор: {e}"))
 }
 
-#[cfg(windows)]
 fn open_in_default_app(path: &Path) -> io::Result<()> {
-    use std::os::windows::process::CommandExt;
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    Command::new("cmd")
-        .args(["/c", "start", ""])
-        .arg(path)
-        .creation_flags(CREATE_NO_WINDOW)
-        .spawn()
-        .map(drop)
-}
-
-#[cfg(target_os = "macos")]
-fn open_in_default_app(path: &Path) -> io::Result<()> {
-    Command::new("open").arg(path).spawn().map(drop)
-}
-
-#[cfg(all(unix, not(target_os = "macos")))]
-fn open_in_default_app(path: &Path) -> io::Result<()> {
-    Command::new("xdg-open").arg(path).spawn().map(drop)
+    berth_core::platform::open_path(path)
 }

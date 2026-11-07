@@ -53,24 +53,7 @@ pub fn adopt_webview_profile() {
 
 #[cfg(feature = "desktop")]
 fn webview_bases() -> Vec<PathBuf> {
-    let home =
-        std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from);
-    if cfg!(windows) {
-        std::env::var_os("LOCALAPPDATA")
-            .map(PathBuf::from)
-            .into_iter()
-            .collect()
-    } else if cfg!(target_os = "macos") {
-        home.map(|home| home.join("Library/WebKit"))
-            .into_iter()
-            .collect()
-    } else {
-        std::env::var_os("XDG_DATA_HOME")
-            .map(PathBuf::from)
-            .or_else(|| home.map(|home| home.join(".local/share")))
-            .into_iter()
-            .collect()
-    }
+    crate::platform::webview_profile_bases()
 }
 
 fn copy_tree(from: &Path, to: &Path, skip: &[&str]) -> io::Result<()> {

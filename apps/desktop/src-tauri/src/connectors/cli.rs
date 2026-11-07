@@ -21,7 +21,11 @@ pub async fn capture(program: &str, args: &[&str]) -> Result<Output, String> {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    let run = async { crate::child::spawn(&mut command)?.wait_with_output().await };
+    let run = async {
+        crate::platform::spawn_tied(&mut command)?
+            .wait_with_output()
+            .await
+    };
     match tokio::time::timeout(COMMAND_TIMEOUT, run).await {
         Ok(Ok(output)) => Ok(output),
         Ok(Err(error)) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -145,14 +149,8 @@ fn glab_config_path() -> Option<PathBuf> {
     if let Some(dir) = std::env::var_os("LOCALAPPDATA") {
         candidates.push(PathBuf::from(dir).join("glab-cli").join("config.yml"));
     }
-    let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" });
-    if let Some(home) = home {
-        candidates.push(
-            PathBuf::from(home)
-                .join(".config")
-                .join("glab-cli")
-                .join("config.yml"),
-        );
+    if let Some(home) = berth_core::platform::profile_home() {
+        candidates.push(home.join(".config").join("glab-cli").join("config.yml"));
     }
     candidates.into_iter().find(|path| path.is_file())
 }

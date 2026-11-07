@@ -198,6 +198,7 @@ pub fn web_source<R: Runtime>(app: &AppHandle<R>) -> WebSource {
 }
 
 pub fn run() {
+    crate::platform::adopt_login_shell_path();
     if !cfg!(debug_assertions) && std::env::var_os("WEBVIEW2_USER_DATA_FOLDER").is_none() {
         crate::legacy::adopt_webview_profile();
     }
@@ -225,6 +226,11 @@ pub fn run() {
             tauri::async_runtime::spawn(async move { watcher.spawn_watch() });
             app.manage(remote);
             tray::install(app.handle())?;
+            if crate::platform::WINDOW_CHROME.native_decorations {
+                if let Some(window) = app.get_webview_window("main") {
+                    window.set_decorations(true)?;
+                }
+            }
             Ok(())
         })
         .on_window_event(tray::on_window_event)
@@ -236,6 +242,7 @@ pub fn run() {
             berth_detach,
             berth_mark_seen,
             berth_call,
+            platform_info,
             settings_read,
             settings_write,
             berth_idle_timeout_read,

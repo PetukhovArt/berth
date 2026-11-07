@@ -1,5 +1,6 @@
 import { shallowRef } from 'vue';
 import { view } from '../nav';
+import { hostPlatform, isMac } from '../platform';
 import type { Context } from './when';
 
 export type KeyContext = {
@@ -8,6 +9,8 @@ export type KeyContext = {
   inputFocus: boolean;
   paletteOpen: boolean;
   view: string;
+  isMac: boolean;
+  selfUpdate: boolean;
 };
 
 export const paletteOpen = shallowRef(false);
@@ -19,5 +22,5 @@ export function readContext(target: EventTarget | null): KeyContext & Context {
   const terminalFocus = Boolean(element?.closest('.xterm'));
   const inputFocus = !terminalFocus && element instanceof HTMLElement && (INPUT_TAGS.has(element.tagName) || element.isContentEditable);
   const editorFocus = Boolean(element?.closest('.cm-editor'));
-  return { terminalFocus, editorFocus, inputFocus, paletteOpen: paletteOpen.value, view: view.value.kind };
+  return { terminalFocus, editorFocus, inputFocus, paletteOpen: paletteOpen.value, view: view.value.kind, isMac, selfUpdate: hostPlatform.value.selfUpdate };
 }

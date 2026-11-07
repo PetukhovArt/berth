@@ -139,7 +139,11 @@ async fn git_run(dir: &Path, args: &[&str], timeout: Duration) -> Option<(bool, 
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    let run = async { crate::child::spawn(&mut command)?.wait_with_output().await };
+    let run = async {
+        crate::platform::spawn_tied(&mut command)?
+            .wait_with_output()
+            .await
+    };
     match tokio::time::timeout(timeout, run).await {
         Ok(Ok(output)) => {
             let ok = output.status.success();
@@ -169,7 +173,7 @@ fn key(path: &Path) -> String {
     let text = resolved.to_string_lossy().replace('\\', "/");
     let text = text.strip_prefix("//?/").unwrap_or(&text);
     let text = text.trim_end_matches('/').to_owned();
-    if cfg!(windows) {
+    if berth_core::platform::CAPABILITIES.paths_case_insensitive {
         text.to_lowercase()
     } else {
         text
@@ -181,16 +185,7 @@ fn is_within(inner: &str, outer: &str) -> bool {
 }
 
 fn is_link(meta: &fs::Metadata) -> bool {
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        const REPARSE_POINT: u32 = 0x400;
-        meta.file_type().is_symlink() || meta.file_attributes() & REPARSE_POINT != 0
-    }
-    #[cfg(not(windows))]
-    {
-        meta.file_type().is_symlink()
-    }
+    berth_core::platform::is_link(meta)
 }
 
 async fn detect_base(repo: &Path) -> Option<String> {

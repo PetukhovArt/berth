@@ -49,6 +49,7 @@ macro_rules! plain_commands {
             local_state ai_login(kind: $crate::connectors::ai::AiKind) = $crate::connectors::ai::ai_login;
             local_state ai_logout(kind: $crate::connectors::ai::AiKind) = $crate::connectors::ai::ai_logout;
             local_state ai_env() = $crate::connectors::ai::ai_env;
+            free platform_info() = $crate::platform::platform_info;
             free settings_read(file: Option<$crate::settings::ConfigFile>) = $crate::settings::settings_read;
             free settings_write(text: String, file: Option<$crate::settings::ConfigFile>) = $crate::settings::settings_write;
             free berth_idle_timeout_read() = $crate::settings::berth_idle_timeout_read;

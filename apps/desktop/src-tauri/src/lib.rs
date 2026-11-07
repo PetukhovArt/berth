@@ -1,6 +1,5 @@
 pub mod agent_sessions;
 pub mod berth;
-mod child;
 mod cleanup;
 mod commands;
 pub mod connectors;
@@ -9,6 +8,7 @@ mod desktop;
 pub mod files;
 pub mod legacy;
 mod mr_checkout;
+pub mod platform;
 pub mod remote;
 mod review;
 pub mod rpc;

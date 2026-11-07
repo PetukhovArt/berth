@@ -5,6 +5,7 @@ import './app.css';
 import { installKeymap } from './commands/dispatcher';
 import { t } from './i18n';
 import { setMotionEnabled } from './motion';
+import { loadHostPlatform } from './platform';
 import { installAppearance } from './settings/appearance';
 import { installBerthIdleSync } from './settings/berthIdle';
 import { useSettings } from './settings/store';
@@ -12,6 +13,7 @@ import { setTranslator } from './settings/translate';
 import WorkspaceView from './WorkspaceView.vue';
 
 setTranslator(t);
+void loadHostPlatform();
 const app = createApp(WorkspaceView);
 installUiKit(app);
 installAppearance();

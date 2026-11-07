@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime};
@@ -327,24 +326,6 @@ pub async fn fs_open_external(path: String) -> Result<(), String> {
     open_in_default_app(&path).map_err(|e| format!("не удалось открыть {}: {e}", path.display()))
 }
 
-#[cfg(windows)]
 fn open_in_default_app(path: &Path) -> io::Result<()> {
-    use std::os::windows::process::CommandExt;
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    Command::new("cmd")
-        .args(["/c", "start", ""])
-        .arg(path)
-        .creation_flags(CREATE_NO_WINDOW)
-        .spawn()
-        .map(drop)
-}
-
-#[cfg(target_os = "macos")]
-fn open_in_default_app(path: &Path) -> io::Result<()> {
-    Command::new("open").arg(path).spawn().map(drop)
-}
-
-#[cfg(all(unix, not(target_os = "macos")))]
-fn open_in_default_app(path: &Path) -> io::Result<()> {
-    Command::new("xdg-open").arg(path).spawn().map(drop)
+    berth_core::platform::open_path(path)
 }

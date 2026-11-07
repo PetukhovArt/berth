@@ -175,12 +175,9 @@ impl FileStore {
         let temp = self.path.with_extension("tmp");
         let mut options = fs::OpenOptions::new();
         options.write(true).create(true).truncate(true);
-        #[cfg(unix)]
-        std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+        berth_core::platform::owner_only(&mut options);
         let mut file = options.open(&temp).map_err(fail)?;
-        #[cfg(unix)]
-        file.set_permissions(std::os::unix::fs::PermissionsExt::from_mode(0o600))
-            .map_err(fail)?;
+        berth_core::platform::restrict_to_owner(&file).map_err(fail)?;
         file.write_all(text.as_bytes()).map_err(fail)?;
         file.sync_all().map_err(fail)?;
         drop(file);

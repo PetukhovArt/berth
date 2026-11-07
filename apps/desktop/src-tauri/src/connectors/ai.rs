@@ -7,7 +7,6 @@ use base64::Engine;
 use futures_util::future::join_all;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::process::Command;
 
 use super::cli::capture;
 use super::http::{Api, ApiError, ApiResult};
@@ -222,34 +221,20 @@ impl AiState {
 }
 
 fn home() -> Option<PathBuf> {
-    std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from)
+    berth_core::platform::profile_home()
 }
 
 fn search_dirs() -> Vec<PathBuf> {
     let mut dirs: Vec<PathBuf> = std::env::var_os("PATH")
         .map(|path| std::env::split_paths(&path).collect())
         .unwrap_or_default();
-    if let Some(home) = home() {
-        for relative in [".local/bin", ".bun/bin", ".npm-global/bin", ".volta/bin"] {
-            dirs.push(home.join(relative));
-        }
-    }
-    if let Some(appdata) = std::env::var_os("APPDATA") {
-        dirs.push(PathBuf::from(appdata).join("npm"));
-    }
-    dirs.push(PathBuf::from("/usr/local/bin"));
-    dirs.push(PathBuf::from("/opt/homebrew/bin"));
+    dirs.extend(crate::platform::cli_search_dirs());
     dirs
 }
 
 fn find_program(name: &str) -> Option<PathBuf> {
-    let extensions: &[&str] = if cfg!(windows) {
-        &[".exe", ".cmd", ".bat"]
-    } else {
-        &[""]
-    };
     search_dirs().into_iter().find_map(|dir| {
-        extensions
+        berth_core::platform::EXECUTABLE_SUFFIXES
             .iter()
             .map(|ext| dir.join(format!("{name}{ext}")))
             .find(|candidate| candidate.is_file())
@@ -541,62 +526,8 @@ async fn check_kind(kind: AiKind) -> AiView {
     }
 }
 
-#[cfg(windows)]
 async fn open_console(command: &[&str]) -> Result<(), String> {
-    let status = Command::new("cmd")
-        .args(["/c", "start", "", "cmd", "/k"])
-        .args(command)
-        .creation_flags(0x0800_0000)
-        .status()
-        .await
-        .map_err(|error| format!("не удалось открыть консоль: {error}"))?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err("не удалось открыть консоль".into())
-    }
-}
-
-#[cfg(target_os = "macos")]
-async fn open_console(command: &[&str]) -> Result<(), String> {
-    let script = format!(
-        "tell application \"Terminal\"\nactivate\ndo script \"{}\"\nend tell",
-        command.join(" ")
-    );
-    let status = Command::new("osascript")
-        .args(["-e", &script])
-        .status()
-        .await
-        .map_err(|error| format!("не удалось открыть Terminal: {error}"))?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err("не удалось открыть Terminal".into())
-    }
-}
-
-#[cfg(all(unix, not(target_os = "macos")))]
-async fn open_console(command: &[&str]) -> Result<(), String> {
-    let script = format!(
-        "{}; echo; printf 'Нажмите Enter, чтобы закрыть: '; read -r _",
-        command.join(" ")
-    );
-    for terminal in ["x-terminal-emulator", "gnome-terminal", "konsole", "xterm"] {
-        let mut launcher = Command::new(terminal);
-        launcher.arg(if terminal == "gnome-terminal" {
-            "--"
-        } else {
-            "-e"
-        });
-        launcher.args(["sh", "-c", &script]);
-        if let Ok(mut child) = launcher.spawn() {
-            tokio::spawn(async move {
-                let _ = child.wait().await;
-            });
-            return Ok(());
-        }
-    }
-    Err("не найден терминал для запуска входа".into())
+    crate::platform::open_login_console(command).await
 }
 
 fn cli_spec(kind: AiKind) -> Result<CliSpec, String> {

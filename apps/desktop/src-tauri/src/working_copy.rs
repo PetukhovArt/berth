@@ -10,24 +10,18 @@ use serde_json::{Map, Value};
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 use tauri::AppHandle;
 
+use berth_core::platform::NoWindow;
+
+use crate::platform;
 use crate::settings;
 
 const ROOT_VAR: &str = "BERTH_APP_ROOT";
 const SOURCE_REPO_KEY: &str = "app.sourceRepo";
 const BRANCH: &str = "main";
 const BUILD_FILE: &str = "build.json";
-const SCRIPT: &str = "install-app.ps1";
-const EXE: &str = "berth-desktop.exe";
 const LOG_TAIL_LINES: usize = 14;
 const LOG_TAIL_BYTES: u64 = 64 * 1024;
 const EXIT_DELAY: Duration = Duration::from_millis(300);
-
-#[cfg(windows)]
-const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-#[cfg(windows)]
-const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
-#[cfg(windows)]
-const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x0100_0000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -70,7 +64,7 @@ fn root() -> Option<PathBuf> {
     if let Some(dir) = crate::legacy::env(ROOT_VAR) {
         return Some(PathBuf::from(dir));
     }
-    std::env::var_os("LOCALAPPDATA").map(|dir| PathBuf::from(dir).join("Berth"))
+    platform::default_install_root()
 }
 
 fn plain(path: PathBuf) -> PathBuf {
@@ -125,12 +119,8 @@ fn hidden(program: &str) -> Command {
     command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(CREATE_NO_WINDOW);
-    }
+        .stderr(Stdio::piped())
+        .no_window();
     command
 }
 
@@ -247,44 +237,22 @@ fn script() -> Result<PathBuf, String> {
     [running_dir(), link("current")]
         .into_iter()
         .flatten()
-        .map(|dir| dir.join(SCRIPT))
+        .map(|dir| dir.join(platform::INSTALLER_SCRIPT))
         .find(|path| path.is_file())
-        .ok_or_else(|| "this copy of Berth was not installed with scripts\\install-app.ps1".into())
+        .ok_or_else(|| {
+            format!(
+                "this copy of Berth was not installed with scripts/{}",
+                platform::INSTALLER_SCRIPT
+            )
+        })
 }
 
-fn powershell(script: &Path) -> Command {
-    let mut command = hidden("powershell.exe");
-    command
-        .args([
-            "-NoProfile",
-            "-NonInteractive",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-        ])
-        .arg(script);
-    command
-}
-
-#[cfg(windows)]
-fn detach(command: &mut Command) -> io::Result<u32> {
-    use std::os::windows::process::CommandExt;
-    command
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB);
-    match command.spawn() {
-        Ok(child) => Ok(child.id()),
-        Err(_) => {
-            command.creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP);
-            command.spawn().map(|child| child.id())
-        }
+fn require_self_update() -> Result<(), String> {
+    if platform::SELF_UPDATE {
+        Ok(())
+    } else {
+        Err(platform::UNSUPPORTED.into())
     }
-}
-
-#[cfg(not(windows))]
-fn detach(_command: &mut Command) -> io::Result<u32> {
-    Err(io::Error::other("updating the working copy needs Windows"))
 }
 
 pub async fn app_update_info() -> Result<Info, String> {
@@ -322,17 +290,18 @@ pub async fn app_update_status() -> Option<Value> {
 }
 
 pub fn app_update_start() -> Result<(), String> {
+    require_self_update()?;
     let script = script()?;
     let repo = source_repo().ok_or("no source repository: set app.sourceRepo in settings")?;
-    let root = root().ok_or("LOCALAPPDATA is not set")?;
+    let root = root().ok_or(platform::INSTALL_ROOT_MISSING)?;
     if let Some(pid) = read_status().as_ref().and_then(running_pid) {
         if alive(pid) {
             return Err("a build is already running".into());
         }
     }
-    let mut command = powershell(&script);
+    let mut command = platform::installer_command(&script)?;
     command.arg("-Repo").arg(&repo).arg("-Root").arg(&root);
-    let pid = detach(&mut command).map_err(|error| error.to_string())?;
+    let pid = platform::detach(&mut command).map_err(|error| error.to_string())?;
     let mut map = Map::new();
     map.insert("state".into(), "running".into());
     map.insert("step".into(), "start".into());
@@ -353,9 +322,7 @@ pub fn app_update_cancel() -> Result<(), String> {
     let pid = running_pid(&map).ok_or("no build is running")?;
     map.insert("state".into(), "cancelled".into());
     write_status(&map).map_err(|error| error.to_string())?;
-    let mut command = hidden("taskkill");
-    command.args(["/PID", &pid.to_string(), "/T", "/F"]);
-    let killed = output(command);
+    let killed = berth_core::platform::kill_process_tree(pid);
     if alive(pid) {
         map.insert("state".into(), "running".into());
         let _ = write_status(&map);
@@ -375,10 +342,11 @@ pub async fn app_daemon_update() -> Result<(), String> {
 }
 
 async fn run_script(flag: &'static str) -> Result<(), String> {
+    require_self_update()?;
     let script = script()?;
-    let root = root().ok_or("LOCALAPPDATA is not set")?;
+    let root = root().ok_or(platform::INSTALL_ROOT_MISSING)?;
     tauri::async_runtime::spawn_blocking(move || {
-        let mut command = powershell(&script);
+        let mut command = platform::installer_command(&script)?;
         command.arg(flag).arg("-Root").arg(root);
         output(command).map(drop)
     })
@@ -387,22 +355,17 @@ async fn run_script(flag: &'static str) -> Result<(), String> {
 }
 
 pub fn app_restart(app: &AppHandle) -> Result<(), String> {
+    require_self_update()?;
     let exe = root()
-        .ok_or("LOCALAPPDATA is not set")?
+        .ok_or(platform::INSTALL_ROOT_MISSING)?
         .join("app")
         .join("current")
-        .join(EXE);
+        .join(platform::APP_EXECUTABLE);
     if !exe.is_file() {
         return Err(format!("{} is missing", exe.display()));
     }
-    let quoted = exe.display().to_string().replace('\'', "''");
-    let line = format!(
-        "Wait-Process -Id {} -ErrorAction SilentlyContinue; Start-Process -FilePath '{quoted}'",
-        std::process::id()
-    );
-    let mut command = hidden("powershell.exe");
-    command.args(["-NoProfile", "-NonInteractive", "-Command", &line]);
-    detach(&mut command).map_err(|error| error.to_string())?;
+    let mut command = platform::relaunch_command(&exe, std::process::id())?;
+    platform::detach(&mut command).map_err(|error| error.to_string())?;
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(EXIT_DELAY).await;

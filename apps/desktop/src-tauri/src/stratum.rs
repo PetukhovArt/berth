@@ -10,10 +10,11 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::oneshot;
 
-use crate::child;
 use crate::connectors::types::Kind;
 use crate::connectors::Connectors;
+use crate::platform;
 use crate::settings::berth_dir;
+use berth_core::platform::NoWindow;
 
 const CONFIG: &str = "stratum.config.jsonc";
 const READY_MARK: &str = "stratum-visualizer ready at ";
@@ -23,7 +24,6 @@ const GIT_TIMEOUT: Duration = Duration::from_secs(180);
 const PROBE_TIMEOUT: Duration = Duration::from_secs(10);
 const RELEASE_GRACE: Duration = Duration::from_secs(20);
 const LOG_KEEP: usize = 80;
-const NO_WINDOW: u32 = 0x0800_0000;
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct Progress {
@@ -92,11 +92,10 @@ fn clean(path: &str) -> PathBuf {
 }
 
 fn resolve_linter(repo: &Path) -> Option<PathBuf> {
-    let names: &[&str] = if cfg!(windows) {
-        &["stratum-lint.cmd", "stratum-lint.exe"]
-    } else {
-        &["stratum-lint"]
-    };
+    let names: Vec<String> = berth_core::platform::EXECUTABLE_SUFFIXES
+        .iter()
+        .map(|suffix| format!("stratum-lint{suffix}"))
+        .collect();
     let pinned = repo.join("node_modules").join(".bin");
     let path = std::env::var_os("PATH").unwrap_or_default();
     std::iter::once(pinned)
@@ -129,7 +128,7 @@ fn git_command(repo: &Path, args: &[&str]) -> Command {
 
 async fn git(repo: &Path, args: &[&str], limit: Duration) -> Result<String, String> {
     let mut command = git_command(repo, args);
-    let run = async { child::spawn(&mut command)?.wait_with_output().await };
+    let run = async { platform::spawn_tied(&mut command)?.wait_with_output().await };
     let output = tokio::time::timeout(limit, run)
         .await
         .map_err(|_| format!("git {} не ответил за {} с", args.join(" "), limit.as_secs()))?
@@ -452,7 +451,7 @@ async fn launch(
             short(base)
         ),
     );
-    let mut child = child::spawn(&mut command)
+    let mut child = platform::spawn_tied(&mut command)
         .map_err(|error| format!("не удалось запустить {}: {error}", linter.display()))?;
     let stderr = child.stderr.take().ok_or("нет потока stderr")?;
     let (found, ready) = oneshot::channel::<String>();
@@ -551,26 +550,7 @@ fn kill_tree(pid: u32) {
     if pid == 0 {
         return;
     }
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        let _ = std::process::Command::new("taskkill")
-            .args(["/PID", &pid.to_string(), "/T", "/F"])
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .creation_flags(NO_WINDOW)
-            .status();
-    }
-    #[cfg(unix)]
-    {
-        let _ = std::process::Command::new("kill")
-            .args(["-KILL", "--", &format!("-{pid}")])
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
-    }
+    let _ = berth_core::platform::kill_process_tree(pid);
 }
 
 fn std_git(repo: &Path, args: &[&std::ffi::OsStr]) -> bool {
@@ -582,12 +562,8 @@ fn std_git(repo: &Path, args: &[&std::ffi::OsStr]) -> bool {
         .env("GIT_TERMINAL_PROMPT", "0")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::null());
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(NO_WINDOW);
-    }
+        .stderr(Stdio::null())
+        .no_window();
     command.status().is_ok_and(|status| status.success())
 }
 

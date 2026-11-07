@@ -45,7 +45,11 @@ async fn git(repo: &str, args: &[&str], timeout: Duration) -> Result<Run, String
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    let run = async { crate::child::spawn(&mut command)?.wait_with_output().await };
+    let run = async {
+        crate::platform::spawn_tied(&mut command)?
+            .wait_with_output()
+            .await
+    };
     match tokio::time::timeout(timeout, run).await {
         Ok(Ok(output)) => Ok(Run {
             ok: output.status.success(),
