@@ -42,6 +42,20 @@ function createDock() {
   const activePath = computed(() => (activeKey.value ? paths.value.get(activeKey.value) : undefined));
   const activeSession = computed(() => (activeKey.value ? berth?.sessions.value.get(activeKey.value) : undefined));
 
+  watch(
+    () => [...(berth?.sessions.value.values() ?? [])].map((session) => [session.key, session.name] as const),
+    (names) => {
+      const api = dock.value;
+      if (!api) return;
+      for (const [key, name] of names) {
+        const panel = api.getPanel(key);
+        if (!panel || panel.title === name) continue;
+        panel.api.setTitle(name);
+        if (key === activeKey.value) activeTitle.value = name;
+      }
+    },
+  );
+
   function findWorktree(id: string | null | undefined): WorktreeNode | null {
     if (!id) return null;
     for (const workspace of berth?.tree.value ?? []) for (const project of workspace.projects) for (const worktree of project.worktrees) if (worktree.id === id) return worktree;

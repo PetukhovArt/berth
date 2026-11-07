@@ -596,6 +596,9 @@ fn codex_tail(tail: &mut Tail, line: &Value) {
     match (line["type"].as_str(), payload["type"].as_str()) {
         (Some("event_msg"), Some("task_complete" | "turn_aborted")) => tail.last = Last::Waiting,
         (Some("event_msg"), Some("task_started")) => tail.last = Last::Working,
+        (Some("event_msg"), Some("thread_name_updated")) => {
+            tail.custom = owned(&payload["thread_name"]).or(tail.custom.take());
+        }
         (Some("event_msg"), Some("user_message")) => {
             tail.counted += 1;
             tail.last = Last::Working;
