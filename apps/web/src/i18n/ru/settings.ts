@@ -53,7 +53,7 @@ export const settings: Translation<typeof en> = {
     },
     terminalFontSize: {
       label: 'Размер шрифта терминала',
-      description: 'Размер текста в терминале в пикселях. Меняется также Ctrl+колесо и Ctrl+=/−/0.',
+      description: 'Размер текста в терминале в пикселях. Меняется также {key:ctrl}+колесо и {key:mod-=}, {key:mod--}, {key:mod-0}.',
     },
     terminalLineHeight: {
       label: 'Межстрочный интервал терминала',
@@ -70,6 +70,10 @@ export const settings: Translation<typeof en> = {
     terminalCursorBlink: {
       label: 'Мигающий курсор',
       description: 'Мигание курсора в терминале.',
+    },
+    terminalOptionAsMeta: {
+      label: 'Option как Meta',
+      description: 'macOS: Option+клавиша отправляет Esc+клавишу, поэтому Option+B, Option+F и Option+Backspace двигают и удаляют по словам. Выкл.: Option набирает символы с диакритикой.',
     },
     sessionsDefaultKind: {
       label: 'Тип новой сессии',

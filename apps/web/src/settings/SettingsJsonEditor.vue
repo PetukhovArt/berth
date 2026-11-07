@@ -2,6 +2,8 @@
 import { computed, shallowRef, watch } from 'vue';
 import { VButton, VMessage, VTextarea } from '@ui/kit';
 import { useI18n } from '../i18n';
+import { chordText } from '../commands/keys';
+import { primaryPressed } from '../platform';
 
 const { t } = useI18n();
 
@@ -34,7 +36,7 @@ function commit() {
 }
 
 function onKey(event: KeyboardEvent) {
-  if ((event.ctrlKey || event.metaKey) && event.code === 'KeyS') {
+  if (primaryPressed(event) && event.code === 'KeyS') {
     event.preventDefault();
     commit();
   }
@@ -47,7 +49,7 @@ function onKey(event: KeyboardEvent) {
       <span class="path">~/.berth/{{ name }}</span>
       <span v-if="dirty" class="status">{{ t('settings.json.unsaved') }}</span>
       <span v-else-if="saved" class="status" :data-testid="`${testPrefix}-json-saved`">{{ t('settings.json.saved') }}</span>
-      <VButton :label="t('common.save')" size="small" :disabled="!dirty" title="Ctrl+S" :data-testid="`${testPrefix}-json-save`" @click="commit" />
+      <VButton :label="t('common.save')" size="small" :disabled="!dirty" :title="chordText('mod-s')" :data-testid="`${testPrefix}-json-save`" @click="commit" />
     </div>
     <VMessage v-if="error" severity="error" size="small" :data-testid="`${testPrefix}-json-error`">{{ error }}</VMessage>
     <VTextarea :model-value="draft" class="area" spellcheck="false" wrap="off" :aria-label="name" :data-testid="`${testPrefix}-json-editor`" @update:model-value="onInput" />

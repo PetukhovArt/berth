@@ -7,6 +7,7 @@ import { describeError } from '../connectors/api';
 import RichContent from '../content/RichContent.vue';
 import { useDarkTheme } from '../content/theme';
 import { t, useI18n } from '../i18n';
+import { onlyPrimaryPressed } from '../platform';
 import { canOpenExternal, fsOpenExternal } from './api';
 import CompareView from './CompareView.vue';
 import { createExtensions, darkSlot, languageSlot, phrases, scrollTopOfLine, topLineOf } from './editor';
@@ -229,7 +230,7 @@ function onPointerDown(event: PointerEvent) {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey || event.code !== 'KeyS') return;
+  if (!onlyPrimaryPressed(event) || event.code !== 'KeyS') return;
   event.preventDefault();
   void doc.save();
 }

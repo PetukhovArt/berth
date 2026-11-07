@@ -121,7 +121,7 @@ export const agents = {
     archivedCount: 'archived',
     runningTotal: 'running / total',
     quickOpen: 'Go to',
-    quickOpenTitle: 'Quick Open (Ctrl+P)',
+    quickOpenTitle: 'Quick Open ({key:mod-p})',
   },
   notices: {
     connecting: 'connecting to berth…',

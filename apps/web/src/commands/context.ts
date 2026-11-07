@@ -11,6 +11,7 @@ export type KeyContext = {
   view: string;
   isMac: boolean;
   selfUpdate: boolean;
+  nativeMenu: boolean;
 };
 
 export const paletteOpen = shallowRef(false);
@@ -22,5 +23,5 @@ export function readContext(target: EventTarget | null): KeyContext & Context {
   const terminalFocus = Boolean(element?.closest('.xterm'));
   const inputFocus = !terminalFocus && element instanceof HTMLElement && (INPUT_TAGS.has(element.tagName) || element.isContentEditable);
   const editorFocus = Boolean(element?.closest('.cm-editor'));
-  return { terminalFocus, editorFocus, inputFocus, paletteOpen: paletteOpen.value, view: view.value.kind, isMac, selfUpdate: hostPlatform.value.selfUpdate };
+  return { terminalFocus, editorFocus, inputFocus, paletteOpen: paletteOpen.value, view: view.value.kind, isMac, selfUpdate: hostPlatform.value.selfUpdate, nativeMenu: hostPlatform.value.windowChrome.nativeMenu };
 }

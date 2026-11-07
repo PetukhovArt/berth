@@ -10,7 +10,7 @@ export const files = {
   },
   editor: {
     dirty: 'Unsaved changes',
-    saveTitle: 'Save (Ctrl+S)',
+    saveTitle: 'Save ({key:mod-s})',
     changed: {
       title: 'Changed on disk',
       hint: 'This file was modified outside Berth while you have unsaved edits.',
@@ -32,7 +32,7 @@ export const files = {
     category: 'Files',
     autoSave: {
       label: 'Auto-save Markdown files',
-      description: 'Off: save with Ctrl+S. On blur: save when the editor loses focus. After delay: save one second after the last edit.',
+      description: 'Off: save with {key:mod-s}. On blur: save when the editor loses focus. After delay: save one second after the last edit.',
       off: 'Off',
       onBlur: 'On blur',
       afterDelay: 'After delay',

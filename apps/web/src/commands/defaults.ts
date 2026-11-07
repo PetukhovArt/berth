@@ -3,35 +3,40 @@ export type KeymapEntry = { context?: string; bindings: Record<string, string | 
 export const DEFAULT_KEYMAP: readonly KeymapEntry[] = [
   {
     bindings: {
-      'ctrl-shift-p': 'palette.open',
+      'mod-shift-p': 'palette.open',
       f1: 'palette.open',
-      'ctrl-,': 'nav.settings',
-      'ctrl-alt-p': 'agents.quickOpen',
-      'ctrl-shift-m': 'dock.toggleMaximize',
-      'ctrl-shift-n': 'agents.newSession',
+      'mod-alt-p': 'agents.quickOpen',
+      'mod-shift-m': 'dock.toggleMaximize',
+      'mod-shift-n': 'agents.newSession',
+    },
+  },
+  {
+    context: '!nativeMenu',
+    bindings: {
+      'mod-,': 'nav.settings',
     },
   },
   {
     context: 'terminalFocus',
     bindings: {
-      'ctrl-=': 'terminal.zoomIn',
-      'ctrl--': 'terminal.zoomOut',
-      'ctrl-0': 'terminal.zoomReset',
+      'mod-=': 'terminal.zoomIn',
+      'mod--': 'terminal.zoomOut',
+      'mod-0': 'terminal.zoomReset',
     },
   },
   {
     context: '!terminalFocus && !editorFocus',
     bindings: {
-      'ctrl-b': 'sidebar.toggle',
-      'ctrl-k': 'sidebar.search',
+      'mod-b': 'sidebar.toggle',
+      'mod-k': 'sidebar.search',
     },
   },
   {
     context: '!terminalFocus',
     bindings: {
-      'ctrl-p': 'agents.quickOpen',
-      'ctrl-shift-r': 'nav.reviews',
-      'ctrl-shift-j': 'nav.jira',
+      'mod-p': 'agents.quickOpen',
+      'mod-shift-r': 'nav.reviews',
+      'mod-shift-j': 'nav.jira',
     },
   },
 ];

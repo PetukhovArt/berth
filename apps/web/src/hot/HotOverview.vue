@@ -4,6 +4,7 @@ import { SquareTerminal, X } from 'lucide-vue-next';
 import HarnessIcon from '../agents/HarnessIcon.vue';
 import StatusDot from '../agents/StatusDot.vue';
 import { t, useI18n } from '../i18n';
+import { onlyPrimaryPressed } from '../platform';
 import { useHot, type HotItem } from './hot';
 import { hotDot, hotOverviewOpen } from './view';
 
@@ -50,7 +51,7 @@ function swallow(event: KeyboardEvent) {
 
 function onKeyDown(event: KeyboardEvent) {
   if (event.isComposing) return;
-  if (event.code === 'KeyO' && event.ctrlKey && event.shiftKey && !event.altKey && !event.metaKey) {
+  if (event.code === 'KeyO' && onlyPrimaryPressed(event, true)) {
     swallow(event);
     hotOverviewOpen.value = !hotOverviewOpen.value;
     return;

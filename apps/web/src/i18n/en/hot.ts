@@ -20,7 +20,7 @@ export const hot = {
   overview: {
     title: 'Hot sessions overview',
     hint: 'Arrows to move, Enter to open, Esc to close',
-    open: 'Hot sessions overview (Ctrl+Shift+O)',
+    open: 'Hot sessions overview ({key:mod-shift-o})',
     close: 'Close overview',
     empty: 'No live sessions',
     noPreview: 'No activity yet',
@@ -35,6 +35,6 @@ export const hot = {
   },
   setting: {
     label: 'Hot sessions',
-    description: 'Keep live sessions at hand: chips in the title bar and the Ctrl+Shift+O overview. Alt+1..9 focuses the Nth one, Alt+J jumps to the next one waiting for you, Ctrl+Tab switches between recent ones.',
+    description: 'Keep live sessions at hand: chips in the title bar and the {key:mod-shift-o} overview. {key:alt-1}..9 focuses the Nth one, {key:alt-j} jumps to the next one waiting for you, {key:ctrl-tab} switches between recent ones.',
   },
 } as const;

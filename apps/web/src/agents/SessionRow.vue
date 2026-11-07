@@ -3,6 +3,7 @@ import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import { Ellipsis, MessageSquare } from 'lucide-vue-next';
 import { VButton, VContextMenu, VInputText } from '@ui/kit';
 import { t } from '../i18n';
+import { primaryPressed } from '../platform';
 import { externalDot, externalStatusLabel, type ExternalSession } from './external';
 import HarnessIcon from './HarnessIcon.vue';
 import { archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, type SessionNode, type SessionStatus } from './berth';
@@ -104,7 +105,7 @@ async function confirmDelete() {
         :data-linked-session-id="linked?.id"
         :data-linked-status="linked?.status"
         :title="linked ? `${linked.title}\n${externalStatusLabel(linked)}\n${session.name}` : `${session.name} — ${statusLabel(session.status)}`"
-        @click="emit('open', $event.ctrlKey || $event.metaKey)"
+        @click="emit('open', primaryPressed($event))"
         @contextmenu.prevent="showMenu"
       >
         <StatusDot :status="linked ? externalDot(linked) : session.status" :unseen="session.unseen" />

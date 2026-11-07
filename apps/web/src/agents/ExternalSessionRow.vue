@@ -4,6 +4,7 @@ import { SquareTerminal } from 'lucide-vue-next';
 import { VContextMenu } from '@ui/kit';
 import { copyText } from '../atlassian/util';
 import { useI18n } from '../i18n';
+import { primaryPressed } from '../platform';
 import { archiveExternal, externalDot, externalOrigin, externalStatusLabel, resumeCommand, type ExternalSession } from './external';
 import HarnessIcon from './HarnessIcon.vue';
 import StatusDot from './StatusDot.vue';
@@ -38,7 +39,7 @@ const menuItems = computed(() => [
       :data-running="session.running"
       :data-active="active"
       :title="tooltip"
-      @click="emit('open', $event.ctrlKey || $event.metaKey)"
+      @click="emit('open', primaryPressed($event))"
       @contextmenu.prevent="menu?.show($event)"
     >
       <StatusDot :status="externalDot(session)" :unseen="false" />

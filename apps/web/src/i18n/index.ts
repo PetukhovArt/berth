@@ -1,4 +1,5 @@
 import { computed, watch } from 'vue';
+import { chordText } from '../commands/keys';
 import { useSettings } from '../settings/store';
 import { en } from './en';
 import { ru } from './ru';
@@ -32,7 +33,8 @@ function lookup(catalog: unknown, key: string): Entry | undefined {
   return node as Entry | undefined;
 }
 
-function interpolate(template: string, params: Params | undefined): string {
+function interpolate(source: string, params: Params | undefined): string {
+  const template = source.replace(/\{key:([^}]+)\}/g, (_match, chord: string) => chordText(chord));
   if (!params) return template;
   return template.replace(/\{(\w+)\}/g, (match, name: string) => (name in params ? String(params[name]) : match));
 }

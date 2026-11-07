@@ -1,4 +1,4 @@
-import { modifierGlyphs } from '../platform';
+import { chordJoiner, modifierGlyphs, primaryModifier } from '../platform';
 
 export type Chord = { readonly ctrl: boolean; readonly alt: boolean; readonly shift: boolean; readonly meta: boolean; readonly code: string };
 
@@ -60,6 +60,7 @@ const MODIFIER_NAMES: Readonly<Record<string, 'ctrl' | 'alt' | 'shift' | 'meta'>
   cmd: 'meta',
   super: 'meta',
   win: 'meta',
+  mod: primaryModifier,
 };
 
 const MODIFIER_CODES = new Set(['ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'ShiftLeft', 'ShiftRight', 'MetaLeft', 'MetaRight', 'OS']);
@@ -146,11 +147,18 @@ function chordLabel(chord: Chord): string {
   const mods = MODIFIER_ORDER.filter((name) => chord[name]).map((name) => modifierGlyphs[name]);
   const token = CODE_TO_TOKEN.get(chord.code) ?? chord.code;
   const key = DISPLAY[chord.code] ?? (token.length === 1 ? token.toUpperCase() : token.charAt(0).toUpperCase() + token.slice(1));
-  return [...mods, key].join('+');
+  return [...mods, key].join(chordJoiner);
 }
 
 export function sequenceLabel(chords: readonly Chord[]): string {
   return chords.map(chordLabel).join(' ');
+}
+
+export function chordText(source: string): string {
+  const modifier = MODIFIER_NAMES[source.toLowerCase()];
+  if (modifier) return modifierGlyphs[modifier];
+  const chords = parseSequence(source);
+  return chords ? sequenceLabel(chords) : source;
 }
 
 export function isTypingChord(chord: Chord): boolean {

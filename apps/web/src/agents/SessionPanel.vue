@@ -12,6 +12,7 @@ import { openUrl } from '../bridge';
 import { hostPlatform } from '../platform';
 import { applyCtrl } from '../mobile/keys';
 import { useSettings } from '../settings/store';
+import { terminalClipboard } from './terminalClipboard';
 import { zoomTerminal } from './terminalFont';
 
 type LiveTerminal = { show: () => void; hide: () => void; dispose: () => void };
@@ -58,6 +59,7 @@ function build(element: HTMLElement, session: SessionRef): LiveTerminal {
     lineHeight: values.value['terminal.line_height'],
     cursorBlink: values.value['terminal.cursor_blink'],
     scrollback: values.value['terminal.scrollback'],
+    macOptionIsMeta: values.value['terminal.option_as_meta'],
     theme: themeFromTokens(),
     linkHandler: {
       activate: (_event, uri) => {
@@ -71,6 +73,7 @@ function build(element: HTMLElement, session: SessionRef): LiveTerminal {
   term.loadAddon(new Unicode11Addon());
   term.unicode.activeVersion = '11';
   term.open(element);
+  const clipboard = terminalClipboard(term, element);
 
   let webgl: WebglAddon | null = null;
   const loadWebgl = () => {
@@ -110,10 +113,7 @@ function build(element: HTMLElement, session: SessionRef): LiveTerminal {
       }
       return false;
     }
-    if (event.type !== 'keydown' || !event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return true;
-    if (event.code === 'KeyV') return false;
-    if (event.code === 'KeyC') return !term.hasSelection();
-    return true;
+    return clipboard.handleKey(event) ?? true;
   });
 
   term.onData((data) => {
@@ -146,10 +146,11 @@ function build(element: HTMLElement, session: SessionRef): LiveTerminal {
     },
   );
   const stopBehaviour = watch(
-    () => [values.value['terminal.cursor_blink'], values.value['terminal.scrollback']] as const,
-    ([cursorBlink, scrollback]) => {
+    () => [values.value['terminal.cursor_blink'], values.value['terminal.scrollback'], values.value['terminal.option_as_meta']] as const,
+    ([cursorBlink, scrollback, optionAsMeta]) => {
       term.options.cursorBlink = cursorBlink;
       term.options.scrollback = scrollback;
+      term.options.macOptionIsMeta = optionAsMeta;
     },
   );
   const onWheel = (event: WheelEvent) => {
@@ -197,6 +198,7 @@ function build(element: HTMLElement, session: SessionRef): LiveTerminal {
       themes.disconnect();
       stopLayout();
       stopBehaviour();
+      clipboard.dispose();
       element.removeEventListener('wheel', onWheel, { capture: true });
       detached = attached.then(() => detachSession(session)).catch(() => undefined);
       term.dispose();

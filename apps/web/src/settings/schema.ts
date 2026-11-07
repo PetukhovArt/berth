@@ -1,4 +1,5 @@
 import type { MessageKey } from '../i18n';
+import { isMac } from '../platform';
 import { tr } from './translate';
 
 type Category = 'appearance' | 'terminal' | 'sessions' | 'files' | 'connectors' | 'remote' | 'app' | 'keymap';
@@ -125,6 +126,13 @@ export const SETTINGS = {
     default: true,
     label: 'settings.def.terminalCursorBlink.label',
     description: 'settings.def.terminalCursorBlink.description',
+    category: 'terminal',
+  },
+  'terminal.option_as_meta': {
+    type: 'boolean',
+    default: isMac,
+    label: 'settings.def.terminalOptionAsMeta.label',
+    description: 'settings.def.terminalOptionAsMeta.description',
     category: 'terminal',
   },
   'sessions.default_kind': {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArchiveRestore } from 'lucide-vue-next';
 import { t } from '../i18n';
+import { primaryPressed } from '../platform';
 import { unarchiveExternal, type ExternalSession } from './external';
 import HarnessIcon from './HarnessIcon.vue';
 import { useAction } from './useAction';
@@ -18,7 +19,7 @@ function restore() {
 <template>
   <div class="archived" data-testid="archived-external-row" :data-session-id="session.id" :data-harness="session.harness" :data-busy="action.busy.value">
     <div class="line">
-      <button class="open" :title="session.cwd" data-testid="archived-external-open" @click="emit('open', $event.ctrlKey || $event.metaKey)">
+      <button class="open" :title="session.cwd" data-testid="archived-external-open" @click="emit('open', primaryPressed($event))">
         <HarnessIcon :harness="session.harness" />
         <span class="name">{{ session.title }}</span>
       </button>

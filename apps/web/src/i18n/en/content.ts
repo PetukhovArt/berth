@@ -17,7 +17,7 @@ export const content = {
     zoomOut: 'Zoom out',
     zoomIn: 'Zoom in',
     fit: 'Fit to width',
-    hint: 'Wheel to scroll, Ctrl + wheel to zoom, drag to pan',
+    hint: 'Wheel to scroll, {key:ctrl} + wheel to zoom, drag to pan',
     fullscreen: 'Full screen',
     close: 'Close (Esc)',
     source: 'Source',

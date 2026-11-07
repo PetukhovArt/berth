@@ -20,7 +20,7 @@ export const content: Translation<typeof en> = {
     zoomOut: 'Уменьшить',
     zoomIn: 'Увеличить',
     fit: 'Вписать в ширину',
-    hint: 'Колесо — прокрутка, Ctrl + колесо — масштаб, перетаскивание — сдвиг',
+    hint: 'Колесо — прокрутка, {key:ctrl} + колесо — масштаб, перетаскивание — сдвиг',
     fullscreen: 'На весь экран',
     close: 'Закрыть (Esc)',
     source: 'Исходник',

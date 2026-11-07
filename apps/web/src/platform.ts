@@ -33,6 +33,20 @@ export const modifierGlyphs = isMac
   ? ({ ctrl: '⌃', alt: '⌥', shift: '⇧', meta: '⌘' } as const)
   : ({ ctrl: 'Ctrl', alt: 'Alt', shift: 'Shift', meta: 'Meta' } as const);
 
+export const chordJoiner = isMac ? '' : '+';
+
+export const primaryModifier: 'ctrl' | 'meta' = isMac ? 'meta' : 'ctrl';
+
+type ModifierState = Pick<KeyboardEvent, 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey'>;
+
+export function primaryPressed(event: ModifierState): boolean {
+  return isMac ? event.metaKey : event.ctrlKey;
+}
+
+export function onlyPrimaryPressed(event: ModifierState, shift = false): boolean {
+  return primaryPressed(event) && !event.altKey && event.shiftKey === shift && (isMac ? !event.ctrlKey : !event.metaKey);
+}
+
 const windowsHost = clientOs === 'windows';
 
 export const hostPlatform = shallowRef<HostPlatform>({

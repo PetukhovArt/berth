@@ -124,7 +124,7 @@ export const agents: Translation<typeof en> = {
     archivedCount: 'в архиве',
     runningTotal: 'работает / всего',
     quickOpen: 'Перейти',
-    quickOpenTitle: 'Быстрый переход (Ctrl+P)',
+    quickOpenTitle: 'Быстрый переход ({key:mod-p})',
   },
   notices: {
     connecting: 'подключаюсь к berth…',

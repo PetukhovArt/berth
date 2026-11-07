@@ -50,7 +50,7 @@ export const settings = {
     },
     terminalFontSize: {
       label: 'Terminal font size',
-      description: 'Terminal text size in pixels. Also changed with Ctrl+wheel and Ctrl+=/-/0.',
+      description: 'Terminal text size in pixels. Also changed with {key:ctrl}+wheel and {key:mod-=}, {key:mod--}, {key:mod-0}.',
     },
     terminalLineHeight: {
       label: 'Terminal line height',
@@ -67,6 +67,10 @@ export const settings = {
     terminalCursorBlink: {
       label: 'Blinking cursor',
       description: 'Cursor blinking in the terminal.',
+    },
+    terminalOptionAsMeta: {
+      label: 'Option as Meta',
+      description: 'macOS: Option+key sends Esc+key, so Option+B, Option+F and Option+Backspace move and delete by word. Off: Option types accented characters.',
     },
     sessionsDefaultKind: {
       label: 'New session type',

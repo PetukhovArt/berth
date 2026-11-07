@@ -1,6 +1,7 @@
 <script setup lang="ts" generic="T">
 import { computed, nextTick, shallowRef, useId, useTemplateRef, watch } from 'vue';
 import { ChevronRight } from 'lucide-vue-next';
+import { primaryPressed } from '../platform';
 import type { TreeNode, TreeRow } from './types';
 
 const props = withDefaults(
@@ -142,7 +143,7 @@ function focusTree() {
 function onRowClick(row: TreeRow<T>, event: MouseEvent) {
   setCursor(row.id);
   if (row.group) setExpanded(row.id, !row.expanded);
-  else emit('open', row.node, event.ctrlKey || event.metaKey);
+  else emit('open', row.node, primaryPressed(event));
   focusTree();
 }
 
@@ -208,7 +209,7 @@ function onKey(event: KeyboardEvent) {
     case ' ':
       if (!current) return;
       if (current.group) setExpanded(current.id, !current.expanded);
-      else emit('open', current.node, event.ctrlKey || event.metaKey);
+      else emit('open', current.node, primaryPressed(event));
       break;
     default:
       if (event.key.length !== 1 || event.ctrlKey || event.metaKey || event.altKey || !typeAhead(event.key, index)) return;
