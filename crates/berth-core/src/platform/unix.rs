@@ -1,6 +1,7 @@
 //! What macOS and Linux share. `macos.rs` and `linux.rs` re-export from here
 //! and add their own differences.
 
+use std::ffi::{CStr, OsString};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -114,4 +115,52 @@ pub fn owner_only(options: &mut std::fs::OpenOptions) {
 
 pub fn restrict_to_owner(file: &std::fs::File) -> io::Result<()> {
     file.set_permissions(std::os::unix::fs::PermissionsExt::from_mode(0o600))
+}
+
+pub fn login_shell(default: &str) -> String {
+    std::env::var("SHELL")
+        .ok()
+        .filter(|shell| !shell.is_empty())
+        .or_else(account_shell)
+        .unwrap_or_else(|| default.to_owned())
+}
+
+fn account_shell() -> Option<String> {
+    let mut entry: libc::passwd = unsafe { std::mem::zeroed() };
+    let mut result: *mut libc::passwd = std::ptr::null_mut();
+    let mut buf = vec![0 as libc::c_char; 4096];
+    let status = unsafe {
+        libc::getpwuid_r(
+            libc::getuid(),
+            &mut entry,
+            buf.as_mut_ptr(),
+            buf.len(),
+            &mut result,
+        )
+    };
+    if status != 0 || result.is_null() || entry.pw_shell.is_null() {
+        return None;
+    }
+    let shell = unsafe { CStr::from_ptr(entry.pw_shell) }.to_str().ok()?;
+    (!shell.is_empty()).then(|| shell.to_owned())
+}
+
+/// Own session, as DAEMON SETSID: an interactive shell started from a
+/// process with a controlling terminal would otherwise take it over.
+pub fn login_shell_path(shell: &str) -> Option<OsString> {
+    use std::os::unix::process::CommandExt as _;
+    let mut probe = Command::new(shell);
+    probe
+        .args(super::LOGIN_SHELL_ARGS)
+        .arg(super::login_path::probe_script());
+    unsafe {
+        probe.pre_exec(|| {
+            if libc::setsid() == -1 {
+                return Err(io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+    let login = super::login_path::capture(probe, super::login_path::PROBE_TIMEOUT)?;
+    super::login_path::merge(login.as_ref(), std::env::var_os("PATH").as_deref())
 }

@@ -238,6 +238,10 @@ pub fn login_shell_path() -> Option<OsString> {
     None
 }
 
+pub fn login_shell() -> Option<String> {
+    None
+}
+
 /// Resolve bare program names the way a shell would, because
 /// `CreateProcess` will not.
 mod resolve {

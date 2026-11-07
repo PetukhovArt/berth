@@ -112,6 +112,12 @@ fn parse_ps_time_ms(time: &str) -> u64 {
     (days * 86_400 + secs) * 1000 + hundredths * 10
 }
 
+const DEFAULT_SHELL: &str = "/bin/zsh";
+
+pub fn login_shell() -> Option<String> {
+    Some(super::unix::login_shell(DEFAULT_SHELL))
+}
+
 pub fn login_shell_path() -> Option<OsString> {
-    None
+    super::unix::login_shell_path(&super::unix::login_shell(DEFAULT_SHELL))
 }

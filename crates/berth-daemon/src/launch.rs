@@ -44,12 +44,10 @@ pub async fn program_is_installed(program: &str, timeout: std::time::Duration) -
 // ---------------------------------------------------------------------------
 #[cfg(unix)]
 mod platform {
-    /// `-l` login, `-i` interactive, `-c` take the command line: between them
-    /// the child sees the profile and rc files a real terminal tab would.
-    const LOGIN_SHELL_ARGS: [&str; 3] = ["-l", "-i", "-c"];
+    use berth_core::platform::LOGIN_SHELL_ARGS;
 
     fn user_shell() -> String {
-        std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into())
+        berth_core::platform::login_shell().unwrap_or_else(|| "/bin/sh".into())
     }
 
     pub fn interactive_shell() -> (String, Vec<String>) {

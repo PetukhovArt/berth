@@ -46,6 +46,9 @@ mod imp;
 #[cfg(unix)]
 mod unix;
 
+#[cfg(any(unix, test))]
+mod login_path;
+
 /// The OS this binary was built for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -245,12 +248,28 @@ pub fn restrict_to_owner(file: &std::fs::File) -> io::Result<()> {
 
 /// The `PATH` a login shell would give a program, for a process that was
 /// not started from one (an app launched from the Dock or Finder inherits
-/// `launchd`'s minimal `PATH`). `None` means keep the inherited one —
-/// always the answer on Windows, where `PATH` lives in the registry and
-/// every process reads the same.
+/// `launchd`'s minimal `PATH`, one started from a `.desktop` file the
+/// session's). The login shell's directories come first, then the
+/// inherited ones it lacks. `None` means keep the inherited one: the shell
+/// did not answer within a few seconds, and always on Windows, where
+/// `PATH` lives in the registry and every process reads the same.
+///
+/// Costs one interactive login shell start, so call it once, before the
+/// process has threads that read the environment.
 pub fn login_shell_path() -> Option<OsString> {
     imp::login_shell_path()
 }
+
+/// The user's login shell: `$SHELL`, else the account's shell, else the
+/// OS default (`/bin/zsh` on macOS, `/bin/bash` on Linux). `None` on
+/// Windows, where nothing is launched through one.
+pub fn login_shell() -> Option<String> {
+    imp::login_shell()
+}
+
+/// `-l` login, `-i` interactive, `-c` take the command line: between them
+/// a command sees the profile and rc files a terminal tab would.
+pub const LOGIN_SHELL_ARGS: [&str; 3] = ["-l", "-i", "-c"];
 
 /// Run `program args…` with `data` on its stdin; whether it took it and
 /// exited cleanly. The clipboard helpers are all this shape.

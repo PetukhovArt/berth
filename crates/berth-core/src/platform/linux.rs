@@ -106,6 +106,12 @@ pub fn process_table() -> String {
     table
 }
 
+const DEFAULT_SHELL: &str = "/bin/bash";
+
+pub fn login_shell() -> Option<String> {
+    Some(super::unix::login_shell(DEFAULT_SHELL))
+}
+
 pub fn login_shell_path() -> Option<OsString> {
-    None
+    super::unix::login_shell_path(&super::unix::login_shell(DEFAULT_SHELL))
 }
