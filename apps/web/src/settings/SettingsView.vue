@@ -28,6 +28,7 @@ const CATEGORY_ICONS: Record<CategoryId, Component> = { appearance: Palette, ter
 
 const normalizedQuery = computed(() => query.value.trim().toLowerCase());
 const showDetail = computed(() => picked.value || rawMode.value || Boolean(normalizedQuery.value));
+const headerHidden = computed(() => showDetail.value && !normalizedQuery.value);
 const detailTitle = computed(() => {
   if (rawMode.value) return 'settings.json';
   if (normalizedQuery.value) return t('settings.search');
@@ -95,8 +96,8 @@ function onSearchKey(event: KeyboardEvent) {
 </script>
 
 <template>
-  <section class="page" data-testid="settings-view" :aria-label="t('settings.title')">
-    <header class="header vr-toolbar">
+  <section class="page" data-testid="settings-view" :data-detail="headerHidden" :aria-label="t('settings.title')">
+    <header class="header vr-toolbar vr-master-only">
       <h1><SlidersHorizontal :size="18" />{{ t('settings.title') }}</h1>
       <label class="search">
         <Search :size="16" />

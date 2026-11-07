@@ -133,6 +133,10 @@ body {
   display: none;
 }
 
+:root[data-vr-viewport='phone'] [data-detail='true'] > .vr-master-only {
+  display: none;
+}
+
 :root[data-vr-viewport='phone'] .vr-sheet {
   position: fixed;
   top: var(--vr-app-top, 0px);
