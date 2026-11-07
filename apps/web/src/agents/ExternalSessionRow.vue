@@ -4,15 +4,17 @@ import { SquareTerminal } from 'lucide-vue-next';
 import { VContextMenu } from '@ui/kit';
 import { copyText } from '../atlassian/util';
 import { useI18n } from '../i18n';
-import { externalDot, externalOrigin, externalStatusLabel, resumeCommand, type ExternalSession } from './external';
+import { archiveExternal, externalDot, externalOrigin, externalStatusLabel, resumeCommand, type ExternalSession } from './external';
 import HarnessIcon from './HarnessIcon.vue';
 import StatusDot from './StatusDot.vue';
+import { useAction } from './useAction';
 
 const props = defineProps<{ session: ExternalSession; active: boolean }>();
 const emit = defineEmits<{ open: [split: boolean] }>();
 
 const { t, formatRelative, formatDate } = useI18n();
 const menu = useTemplateRef<InstanceType<typeof VContextMenu>>('menu');
+const action = useAction();
 
 const origin = computed(() => externalOrigin(props.session));
 const tooltip = computed(() =>
@@ -21,6 +23,7 @@ const tooltip = computed(() =>
 const menuItems = computed(() => [
   { key: 'open', label: t('workbench.external.open'), command: () => emit('open', false) },
   { key: 'copy', label: t('workbench.external.copyResume'), command: () => void copyText(resumeCommand(props.session)) },
+  { key: 'archive', label: t('agents.session.archive'), command: () => void action.run(() => archiveExternal(props.session)) },
 ]);
 </script>
 
@@ -49,6 +52,7 @@ const menuItems = computed(() => [
         <a v-bind="itemProps.action" :data-testid="`external-menu-${item.key}`">{{ item.label }}</a>
       </template>
     </VContextMenu>
+    <p v-if="action.error.value" class="row-error" role="alert" data-testid="external-error">{{ action.error.value }}</p>
   </div>
 </template>
 
@@ -103,6 +107,13 @@ const menuItems = computed(() => [
 }
 
 .row[data-running='true'][data-status='waiting'] .label {
+  color: var(--vr-color-danger);
+}
+
+.row-error {
+  margin: 0;
+  padding: 0 var(--vr-space-2) var(--vr-space-1) var(--vr-space-5);
+  font-size: var(--vr-font-size-2xs);
   color: var(--vr-color-danger);
 }
 </style>

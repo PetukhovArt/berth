@@ -33,10 +33,14 @@ type Terminal = { id: string; worktree_id: string; name: string; sort_order: num
 type Entity = { Workspace: Workspace } | { Project: Project } | { Worktree: Worktree } | { Agent: Agent } | { Terminal: Terminal } | { Link: unknown };
 type EntityId = { Workspace: string } | { Project: string } | { Worktree: string } | { Agent: string } | { Terminal: string } | { Link: string };
 
+type ArchivedExternal = { kind: AgentKind; session_id: string; archived_at: number };
+
 type WatchEvent =
   | ({ type: 'connection' } & Connection)
-  | { type: 'snapshot'; workspaces: Workspace[]; projects: Project[]; worktrees: Worktree[]; agents: Agent[]; terminals: Terminal[] }
+  | { type: 'snapshot'; workspaces: Workspace[]; projects: Project[]; worktrees: Worktree[]; agents: Agent[]; terminals: Terminal[]; archived_external: ArchivedExternal[] }
   | { type: 'upserted'; entity: Entity }
+  | { type: 'external_archived'; session: ArchivedExternal }
+  | { type: 'external_unarchived'; kind: AgentKind; session_id: string }
   | { type: 'removed'; id: EntityId }
   | { type: 'status'; agent: string; status: AgentStatus; changed_at: number; unseen: boolean }
   | { type: 'error'; message: string };
@@ -55,6 +59,7 @@ type BerthStore = {
   error: ShallowRef<string | null>;
   tree: ComputedRef<WorkspaceNode[]>;
   sessions: ComputedRef<ReadonlyMap<string, SessionNode>>;
+  archivedExternal: ComputedRef<ReadonlyMap<string, number>>;
 };
 
 export type Entities = {
@@ -73,6 +78,8 @@ const drop = <T>(map: ReadonlyMap<string, T>, id: string): ReadonlyMap<string, T
   return next;
 };
 const bySortOrder = (a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order;
+
+export const externalArchiveKey = (kind: string, sessionId: string) => `${kind}:${sessionId}`;
 
 export function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -163,6 +170,7 @@ function createStore(): BerthStore {
   const entities = shallowRef<Entities>(EMPTY);
   const connection = shallowRef<Connection>({ state: 'connecting', message: null });
   const error = shallowRef<string | null>(null);
+  const archivedExternal = shallowRef<ReadonlyMap<string, number>>(new Map());
 
   function receive(event: WatchEvent): void {
     if (event.type !== 'error') error.value = null;
@@ -178,6 +186,13 @@ function createStore(): BerthStore {
           agents: byId(event.agents),
           terminals: byId(event.terminals),
         };
+        archivedExternal.value = new Map(event.archived_external.map((mark) => [externalArchiveKey(mark.kind, mark.session_id), mark.archived_at]));
+        return;
+      case 'external_archived':
+        archivedExternal.value = new Map(archivedExternal.value).set(externalArchiveKey(event.session.kind, event.session.session_id), event.session.archived_at);
+        return;
+      case 'external_unarchived':
+        archivedExternal.value = drop(archivedExternal.value, externalArchiveKey(event.kind, event.session_id));
         return;
       case 'upserted':
         entities.value = upsert(entities.value, event.entity);
@@ -204,7 +219,7 @@ function createStore(): BerthStore {
 
   const tree = computed(() => buildTree(entities.value));
   const sessions = computed(() => new Map(tree.value.flatMap((w) => w.projects.flatMap((p) => p.worktrees.flatMap((t) => t.sessions.map((s) => [s.key, s] as const))))));
-  return { entities: computed(() => entities.value), connection, error, tree, sessions };
+  return { entities: computed(() => entities.value), connection, error, tree, sessions, archivedExternal: computed(() => archivedExternal.value) };
 }
 
 export function useBerth(): BerthStore | null {
@@ -320,6 +335,14 @@ export async function archiveAgent(id: string): Promise<void> {
 
 export async function unarchiveAgent(id: string): Promise<void> {
   await acknowledged({ UnarchiveAgent: { id } });
+}
+
+export async function archiveExternalSession(kind: AgentKind, sessionId: string): Promise<void> {
+  await acknowledged({ ArchiveExternalSession: { kind, session_id: sessionId } });
+}
+
+export async function unarchiveExternalSession(kind: AgentKind, sessionId: string): Promise<void> {
+  await acknowledged({ UnarchiveExternalSession: { kind, session_id: sessionId } });
 }
 
 export async function deleteAgent(id: string): Promise<void> {

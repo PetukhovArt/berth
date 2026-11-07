@@ -8,8 +8,9 @@ use base64::Engine;
 use berth_core::codec::{read_frame, write_frame};
 use berth_core::transport::{self, Stream};
 use berth_core::{
-    Agent, AgentId, AgentStatus, ClientRequest, Entity, EntityId, Project, ServerEvent, SessionRef,
-    TerminalTab, Workspace, WorkspaceId, Worktree, PROTOCOL_VERSION,
+    Agent, AgentId, AgentKind, AgentStatus, ArchivedExternalSession, ClientRequest, Entity,
+    EntityId, Project, ServerEvent, SessionRef, TerminalTab, Workspace, WorkspaceId, Worktree,
+    PROTOCOL_VERSION,
 };
 use serde::Serialize;
 use tokio::io::{BufReader, BufWriter, ReadHalf, WriteHalf};
@@ -57,9 +58,17 @@ pub enum WatchEvent {
         worktrees: Vec<Worktree>,
         agents: Vec<Agent>,
         terminals: Vec<TerminalTab>,
+        archived_external: Vec<ArchivedExternalSession>,
     },
     Upserted {
         entity: Entity,
+    },
+    ExternalArchived {
+        session: ArchivedExternalSession,
+    },
+    ExternalUnarchived {
+        kind: AgentKind,
+        session_id: String,
     },
     Removed {
         id: EntityId,
@@ -504,6 +513,7 @@ impl Actor {
                 worktrees,
                 agents,
                 terminals,
+                archived_external_sessions,
                 ..
             } => WatchEvent::Snapshot {
                 workspaces,
@@ -512,7 +522,14 @@ impl Actor {
                 worktrees,
                 agents,
                 terminals,
+                archived_external: archived_external_sessions,
             },
+            ServerEvent::ExternalSessionArchived { session } => {
+                WatchEvent::ExternalArchived { session }
+            }
+            ServerEvent::ExternalSessionUnarchived { kind, session_id } => {
+                WatchEvent::ExternalUnarchived { kind, session_id }
+            }
             ServerEvent::EntityUpserted { entity } => WatchEvent::Upserted { entity },
             ServerEvent::EntityRemoved { id } => WatchEvent::Removed { id },
             ServerEvent::StatusChanged {
@@ -625,6 +642,8 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::SpawnSiblingAgent { req_id, .. }
         | ClientRequest::ArchiveAgent { req_id, .. }
         | ClientRequest::UnarchiveAgent { req_id, .. }
+        | ClientRequest::ArchiveExternalSession { req_id, .. }
+        | ClientRequest::UnarchiveExternalSession { req_id, .. }
         | ClientRequest::DeleteAgent { req_id, .. }
         | ClientRequest::RestartAgent { req_id, .. }
         | ClientRequest::AttachCloudAgent { req_id, .. }

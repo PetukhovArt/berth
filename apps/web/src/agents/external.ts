@@ -4,7 +4,7 @@ import { t } from '../i18n';
 import { useSettings } from '../settings/store';
 import { getMetrics } from './manage/metrics';
 import { listOrphans, resumeOrphan } from './manage/orphans';
-import { createTerminal, describeError, entitySessionRef, BerthCallError, sendInput, sessionKey, useBerth, worktreesOfProject, type Entities, type SessionRef, type SessionStatus } from './berth';
+import { archiveExternalSession, createTerminal, describeError, entitySessionRef, externalArchiveKey, BerthCallError, sendInput, sessionKey, unarchiveExternalSession, useBerth, worktreesOfProject, type Entities, type SessionRef, type SessionStatus } from './berth';
 
 export type Harness = 'claude' | 'codex';
 type ExternalStatus = 'working' | 'waiting' | 'idle';
@@ -28,6 +28,7 @@ export type Placement = { kind: 'worktree'; projectId: string; worktreeId: strin
 
 type Store = {
   sessions: ComputedRef<readonly ExternalSession[]>;
+  archived: ComputedRef<readonly ExternalSession[]>;
   linked: ComputedRef<ReadonlyMap<string, ExternalSession>>;
   terminalOf: ComputedRef<ReadonlyMap<string, string>>;
   byKey: ComputedRef<ReadonlyMap<string, ExternalSession>>;
@@ -119,6 +120,14 @@ export function externalTarget(session: ExternalSession, entities: Entities | un
   const worktree = placement.kind === 'worktree' ? entities.worktrees.get(placement.worktreeId) : (worktrees.find((candidate) => candidate.is_main) ?? worktrees[0]);
   if (!project || !worktree) return null;
   return { projectId: project.id, projectName: project.name, worktreeId: worktree.id, branch: worktree.branch, exact: placement.kind === 'worktree' };
+}
+
+export function archiveExternal(session: Pick<ExternalSession, 'harness' | 'id'>): Promise<void> {
+  return archiveExternalSession(session.harness, session.id);
+}
+
+export function unarchiveExternal(session: Pick<ExternalSession, 'harness' | 'id'>): Promise<void> {
+  return unarchiveExternalSession(session.harness, session.id);
 }
 
 export function readTranscript(session: Pick<ExternalSession, 'harness' | 'id'>, tail = 200): Promise<TranscriptMessage[]> {
@@ -244,7 +253,7 @@ function createStore(): Store {
     return map;
   });
   const terminalOf = computed(() => new Map([...linked.value].map(([terminal, session]) => [externalKey(session), terminal])));
-  const sessions = computed(() =>
+  const visible = computed(() =>
     raw.value.filter((session) => {
       if (berthIds.value.has(session.id)) return false;
       if (!session.in_berth) return true;
@@ -252,9 +261,15 @@ function createStore(): Store {
       return pidOwners.value !== null;
     }),
   );
+  const isArchived = (session: ExternalSession) => {
+    const archivedAt = berth?.archivedExternal.value.get(externalArchiveKey(session.harness, session.id));
+    return archivedAt !== undefined && session.updated_at <= archivedAt;
+  };
+  const sessions = computed(() => visible.value.filter((session) => !isArchived(session)));
+  const archived = computed(() => visible.value.filter(isArchived));
   const byKey = computed(() => new Map(sessions.value.map((session) => [externalKey(session), session])));
   const anyByKey = computed(() => new Map(raw.value.map((session) => [externalKey(session), session])));
-  return { sessions, linked, terminalOf, byKey, anyByKey, error };
+  return { sessions, archived, linked, terminalOf, byKey, anyByKey, error };
 }
 
 export function useExternalSessions(): Store | null {

@@ -158,6 +158,7 @@ export function useWorkTree() {
     workspaces: berth?.tree.value ?? [],
     entities: berth?.entities.value,
     external: external?.sessions.value ?? [],
+    archivedExternal: external?.archived.value ?? [],
     linked: external?.linked.value ?? new Map(),
     remotes: remotes.value,
     connectors: connectors.value,

@@ -2,6 +2,7 @@
 import { computed, shallowRef, useTemplateRef } from 'vue';
 import { Activity, Eye, GitPullRequest, ListTodo, MessageSquare, Plus, RefreshCw, Search, SquareTerminal, TriangleAlert, Trash2 } from 'lucide-vue-next';
 import { VContextMenu } from '@ui/kit';
+import ArchivedExternalRow from '../agents/ArchivedExternalRow.vue';
 import ArchivedRow from '../agents/ArchivedRow.vue';
 import { useExternalSessions } from '../agents/external';
 import ExternalSessionRow from '../agents/ExternalSessionRow.vue';
@@ -159,6 +160,7 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
           />
           <ExternalSessionRow v-else-if="node.kind === 'external' && node.data?.external" :session="node.data.external" :active="node.id === dock.activeKey.value" @open="(split) => node.data?.external && dock.openExternal(node.data.external, split)" />
           <ArchivedRow v-else-if="node.kind === 'archived' && node.data?.session" :session="node.data.session" />
+          <ArchivedExternalRow v-else-if="node.kind === 'archived-external' && node.data?.external" :session="node.data.external" @open="(split) => node.data?.external && dock.openExternal(node.data.external, split)" />
           <div v-else-if="node.kind === 'review-state' && node.data?.reviewState" class="review-state" :data-error="!!node.data.reviewState.error" :title="node.data.reviewState.error ?? undefined" role="status" data-testid="review-state">
             <template v-if="node.data.reviewState.error"><TriangleAlert :size="12" /><span class="review-text">{{ node.data.reviewState.error }}</span></template>
             <template v-else><RefreshCw :size="12" class="spin" /><span class="review-text">{{ node.label }}</span></template>
