@@ -16940,7 +16940,7 @@ diff --git a/src/b.rs b/src/b.rs
             cfg.save().unwrap();
             let mut root: serde_json::Value =
                 serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
-            root["prewarm_agents"] = serde_json::json!(false);
+            root["foreign_key"] = serde_json::json!(false);
             std::fs::write(&path, serde_json::to_vec_pretty(&root).unwrap()).unwrap();
 
             let mut app = App::new();
@@ -16970,7 +16970,7 @@ diff --git a/src/b.rs b/src/b.rs
             assert!(saved.show_workspaces);
             assert!(saved.keybindings.is_empty());
             let raw = std::fs::read_to_string(&path).unwrap();
-            assert!(!raw.contains("prewarm_agents"), "{raw}");
+            assert!(!raw.contains("foreign_key"), "{raw}");
         });
     }
 
