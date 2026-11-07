@@ -63,3 +63,22 @@ release workflow skip it, and CI excludes it because it needs a webview toolchai
 
 `vendor/vt100` is a patched fork (DECSTBM scrollback fix — see its Cargo.toml); don't swap it for
 crates.io vt100.
+
+## Platform adapters
+
+What differs between Windows, macOS and Linux goes through one adapter per layer:
+`berth-core/src/platform/` for what the crates and the desktop share (clipboard, sounds, openers,
+program lookup, process table and memory, killing a process tree, symlinks, path case rules,
+termination signals, owner-only files) and `apps/desktop/src-tauri/src/platform/` for the desktop's
+own (child lifetime, self-update, CLI search dirs, the login console, webview profile dirs, window
+chrome). Each has a facade `mod.rs` and one implementation file per OS (`windows.rs`, `macos.rs`,
+`linux.rs`, with `unix.rs` shared), picked by `cfg` in that `mod.rs` and nowhere else. Callers never
+write `cfg(target_os)`, `cfg(windows)` or `cfg!(…)`: they call the facade, or branch on a
+`platform::CAPABILITIES` field (or `SELF_UPDATE`, `WINDOW_CHROME`) named for the consequence. An
+OS without an implementation answers "unsupported" (`None`, `false`, `Err`) so the UI can hide the
+action. A new concern is a facade function plus one function per OS file; a new OS is one more file.
+The web UI reads the same facts from `apps/web/src/platform.ts` (the `platform_info` command, with a
+userAgent guess for the client). Concerns that own a whole module keep their split behind that
+module's API in the same way: `transport` and `paths` in core, the daemon's PTY layer, `launch` and
+`lifecycle`, the TUI's `ipc` (daemon auto-spawn) and `vim_term` (its own PTY), and the CLI's
+`ssh`, `tunnel` and `upgrade`. `node scripts/cross-clippy.mjs` lints the other OSes' halves from any host.
