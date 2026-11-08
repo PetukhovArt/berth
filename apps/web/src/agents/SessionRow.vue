@@ -4,7 +4,7 @@ import { Ellipsis, MessageSquare } from 'lucide-vue-next';
 import { VButton, VContextMenu, VInputText } from '@ui/kit';
 import { t } from '../i18n';
 import { primaryPressed } from '../platform';
-import { externalDot, externalStatusLabel, type ExternalSession } from './external';
+import { externalStatusLabel, sessionDot, type ExternalSession } from './external';
 import HarnessIcon from './HarnessIcon.vue';
 import { archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, type SessionNode, type SessionStatus } from './berth';
 import { useAction } from './useAction';
@@ -108,8 +108,8 @@ async function confirmDelete() {
         @click="emit('open', primaryPressed($event))"
         @contextmenu.prevent="showMenu"
       >
-        <StatusDot :status="linked ? externalDot(linked) : session.status" :unseen="session.unseen" />
-        <HarnessIcon v-if="linked" :harness="linked.harness" />
+        <StatusDot :status="sessionDot(session, linked)" :unseen="session.unseen" />
+        <HarnessIcon v-if="linked" :harness="linked.harness" :working="sessionDot(session, linked) === 'running'" />
         <span class="name">{{ linked ? linked.title : session.name }}</span>
         <span class="label">{{ linked ? externalStatusLabel(linked) : statusLabel(session.status) }}</span>
       </button>

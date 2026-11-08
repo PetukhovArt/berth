@@ -14,16 +14,14 @@ export type HotItem = {
   harness: HotHarness;
   status: HotStatus;
   unseen: boolean;
-  pinned: boolean;
   lastActivity: number | null;
   preview: string | null;
 };
 
 type Source = { harness: 'claude' | 'codex'; id: string };
-type Raw = Omit<HotItem, 'pinned' | 'preview' | 'lastActivity'> & { live: boolean; seed: number | null; stamp: number; source: Source | null };
+type Raw = Omit<HotItem, 'preview' | 'lastActivity'> & { live: boolean; seed: number | null; stamp: number; source: Source | null };
 type Tracked = { seq: number; since: number; sig: string };
 
-const PINS_KEY = 'berth.hot.pins';
 const MRU_LIMIT = 50;
 const PREVIEW_LIMIT = 12;
 const PREVIEW_CHARS = 140;
@@ -51,15 +49,6 @@ export function hotDotOf(item: Pick<HotItem, 'status' | 'harness'>): SessionStat
   return item.harness === 'shell' ? 'shell' : 'finished';
 }
 
-function readPins(): string[] {
-  try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(PINS_KEY) ?? '[]');
-    return Array.isArray(parsed) ? parsed.filter((entry): entry is string => typeof entry === 'string') : [];
-  } catch {
-    return [];
-  }
-}
-
 const toMillis = (value: number) => (value > 0 && value < SECONDS_LIMIT ? value * 1000 : value);
 
 function fromExternal(status: ExternalSession['status']): HotStatus {
@@ -81,7 +70,6 @@ function create() {
   const berth = useBerth();
   const external = useExternalSessions();
   const dock = useDock();
-  const pins = shallowRef<string[]>(readPins());
   const tracked = shallowRef<ReadonlyMap<string, Tracked>>(new Map());
   const previews = shallowRef<ReadonlyMap<string, string>>(new Map());
   const focused = shallowRef<string[]>([]);
@@ -172,11 +160,10 @@ function create() {
   );
 
   const items = computed<HotItem[]>(() => {
-    const pinned = pins.value;
     const meta = tracked.value;
     const rank = (item: Raw) => (needsYou(item) ? 0 : item.status === 'working' ? 1 : item.status === 'error' ? 2 : 3);
     const entries = raw.value
-      .filter((entry) => entry.live || pinned.includes(entry.key))
+      .filter((entry) => entry.live)
       .map((entry) => {
         const info = meta.get(entry.key);
         const lastActivity = Math.max(entry.seed ?? 0, info?.since ?? 0) || null;
@@ -188,15 +175,12 @@ function create() {
           harness: entry.harness,
           status: entry.status,
           unseen: entry.unseen,
-          pinned: pinned.includes(entry.key),
           lastActivity,
           preview: previews.value.get(entry.key) ?? null,
         };
-        return { item, rank: rank(entry), since: info?.since ?? 0, seq: info?.seq ?? 0, pin: pinned.indexOf(entry.key) };
+        return { item, rank: rank(entry), since: info?.since ?? 0, seq: info?.seq ?? 0 };
       });
     entries.sort((a, b) => {
-      if (a.item.pinned !== b.item.pinned) return a.item.pinned ? -1 : 1;
-      if (a.item.pinned) return a.pin - b.pin;
       if (a.rank !== b.rank) return a.rank - b.rank;
       if (a.rank === 0) return b.since - a.since;
       if (a.rank === 3) return (b.item.lastActivity ?? 0) - (a.item.lastActivity ?? 0) || a.seq - b.seq;
@@ -279,33 +263,12 @@ function create() {
     if (list.length > 1) showToast(t('hot.toast.waiting', { count: list.length }));
   }
 
-  function savePins(next: string[]) {
-    pins.value = next;
-    localStorage.setItem(PINS_KEY, JSON.stringify(next));
-  }
-
-  function pin(key: string, on: boolean) {
-    const has = pins.value.includes(key);
-    if (on && !has) savePins([...pins.value, key]);
-    else if (!on && has) savePins(pins.value.filter((entry) => entry !== key));
-  }
-
-  function move(key: string, toIndex: number) {
-    const visible = items.value.filter((item) => item.pinned).map((item) => item.key);
-    const hidden = pins.value.filter((entry) => !visible.includes(entry));
-    const order = visible.filter((entry) => entry !== key);
-    order.splice(Math.max(0, Math.min(toIndex, order.length)), 0, key);
-    savePins([...order, ...hidden]);
-  }
-
   return {
     items: items as ComputedRef<HotItem[]>,
     waiting: waiting as ComputedRef<HotItem[]>,
     mru: mru as ComputedRef<string[]>,
     open,
     next,
-    pin,
-    move,
   };
 }
 

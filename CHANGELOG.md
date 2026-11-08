@@ -26,11 +26,13 @@
 - Fixed a session painting in no color at all when `NO_COLOR` or `FORCE_COLOR` was set in the daemon's environment or a login profile.
 - Fixed Claude Code sessions not saving their transcript (`Transcript saving is off`) when the daemon was started from inside another Claude Code session.
 - Fixed scrolling a pane up past its oldest line, which then took as many wheel notches to come back down.
+- Fixed desktop app tabs showing a gray dot for a terminal running Claude Code or Codex while the tree showed it waiting or working; a tab now shows the tree's status dot, and the Claude or Codex icon pulses while the agent works.
 - macOS and Linux: Fixed the desktop app not finding `gh`, `glab`, `node`, `claude` and `stratum-lint` installed by Homebrew or nvm when it was started from the Dock, Finder or an app launcher; it now takes `PATH` from your login shell.
 - Changed pacer is now berth: the command is `berth`, the npm package is `@petukhovart/berth`, and the first `berth` copies your pacer projects, workspaces and settings into its own directory while pacer's data and its running daemon stay as they are.
 - Changed the desktop app's web UI to work on a phone opened through remote access, in portrait and landscape: dialogs, the command palette and quick switcher open full screen, menus slide up from the bottom, settings and diffs show a list first and the details after a tap, row actions stay visible without a mouse, a long press opens the context menu and a `Commands` tab opens the command palette.
 - Changed the environment variables from `PACER_*` to `BERTH_*`; the old spelling still works, except that berth refuses to start on `PACER_RUNTIME_DIR` or `PACER_DATA_DIR` set without its `BERTH_*` counterpart.
 - macOS: Changed the desktop app's shortcuts to use `Cmd` where Windows and Linux use `Ctrl` (`Cmd+Shift+P`, `Cmd+P`, `Cmd+,`, `Cmd+click` to open beside), with `Cmd+C` and `Cmd+V` copying and pasting in the terminal while `Ctrl+C` always reaches the agent, and Option acting as Meta there unless `terminal.option_as_meta` is turned off.
+- Removed the hot session chips from the desktop app's title bar; the `Ctrl+Shift+O` overview, `Alt+1`..`Alt+9`, `Alt+J` and `Ctrl+Tab` still switch between live sessions.
 
 ## 0.20.0 (2026-09-18)
 

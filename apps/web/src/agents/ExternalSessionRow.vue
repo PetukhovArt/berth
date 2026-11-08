@@ -43,7 +43,7 @@ const menuItems = computed(() => [
       @contextmenu.prevent="menu?.show($event)"
     >
       <StatusDot :status="externalDot(session)" :unseen="false" />
-      <HarnessIcon :harness="session.harness" />
+      <HarnessIcon :harness="session.harness" :working="externalDot(session) === 'running'" />
       <span class="name">{{ session.title }}</span>
       <span class="marker" :title="origin" :aria-label="origin" role="img" data-testid="external-marker"><SquareTerminal :size="11" /></span>
       <span class="label">{{ session.running ? externalStatusLabel(session) : formatRelative(session.updated_at) }}</span>

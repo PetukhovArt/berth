@@ -3,8 +3,6 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Copy, Minus, Square, X } from 'lucide-vue-next';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { settleAll } from './files/documents';
-import HotChips from './hot/HotChips.vue';
-import { hotEnabled } from './hot/view';
 import { useI18n } from './i18n';
 import { view } from './nav';
 import { hostPlatform } from './platform';
@@ -53,7 +51,6 @@ onUnmounted(() => stopResize?.());
       <circle class="node" cx="55" cy="62" r="6.5" />
     </svg>
     <span class="title" data-tauri-drag-region data-testid="titlebar-title">{{ title }}</span>
-    <HotChips v-if="hotEnabled" class="vr-wide-only" />
     <div v-if="!nativeControls" class="controls">
       <button type="button" class="ctl" data-testid="titlebar-minimize" :aria-label="t('shell.window.minimize')" :title="t('shell.window.minimize')" @click="win.minimize()">
         <Minus :size="16" :stroke-width="1.5" />

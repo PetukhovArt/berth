@@ -2,11 +2,11 @@
 import { t } from '../i18n';
 import type { Harness } from './external';
 
-withDefaults(defineProps<{ harness: Harness; size?: number }>(), { size: 12 });
+withDefaults(defineProps<{ harness: Harness; size?: number; working?: boolean }>(), { size: 12, working: false });
 </script>
 
 <template>
-  <svg class="harness" :data-harness="harness" :width="size" :height="size" viewBox="0 0 24 24" role="img" :aria-label="t(`workbench.external.harness.${harness}`)">
+  <svg class="harness" :data-harness="harness" :data-working="working" :width="size" :height="size" viewBox="0 0 24 24" role="img" :aria-label="t(`workbench.external.harness.${harness}`)">
     <title>{{ t(`workbench.external.harness.${harness}`) }}</title>
     <g v-if="harness === 'claude'" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
       <path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4" />
@@ -29,5 +29,21 @@ withDefaults(defineProps<{ harness: Harness; size?: number }>(), { size: 12 });
 
 .harness[data-harness='codex'] {
   color: var(--vr-color-text-muted);
+}
+
+.harness[data-working='true'] {
+  animation: harness-working 1.2s var(--vr-motion-ease-standard) infinite;
+}
+
+@keyframes harness-working {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .harness[data-working='true'] {
+    animation: none;
+  }
 }
 </style>

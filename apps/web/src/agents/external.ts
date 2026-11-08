@@ -4,7 +4,7 @@ import { t } from '../i18n';
 import { useSettings } from '../settings/store';
 import { getMetrics } from './manage/metrics';
 import { listOrphans, resumeOrphan } from './manage/orphans';
-import { archiveExternalSession, createTerminal, describeError, entitySessionRef, externalArchiveKey, BerthCallError, sendInput, sessionKey, unarchiveExternalSession, useBerth, worktreesOfProject, type Entities, type SessionRef, type SessionStatus } from './berth';
+import { archiveExternalSession, createTerminal, describeError, entitySessionRef, externalArchiveKey, BerthCallError, sendInput, sessionKey, unarchiveExternalSession, useBerth, worktreesOfProject, type Entities, type SessionNode, type SessionRef, type SessionStatus } from './berth';
 
 export type Harness = 'claude' | 'codex';
 type ExternalStatus = 'working' | 'waiting' | 'idle';
@@ -55,6 +55,10 @@ export function externalDot(session: ExternalSession): SessionStatus {
   if (session.status === 'working') return 'running';
   if (session.status === 'waiting') return 'needs_feedback';
   return 'finished';
+}
+
+export function sessionDot(session: Pick<SessionNode, 'status'>, linked: ExternalSession | undefined): SessionStatus {
+  return linked ? externalDot(linked) : session.status;
 }
 
 export function externalStatusLabel(session: ExternalSession): string {

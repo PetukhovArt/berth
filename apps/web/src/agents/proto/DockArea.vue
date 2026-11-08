@@ -10,7 +10,7 @@ import { t } from '../../i18n';
 import MarkdownFile from '../../files/MarkdownFile.vue';
 import ConversationView from '../../workbench/ConversationView.vue';
 import { METRICS_PANEL, useDock } from '../../workbench/dock';
-import { externalDot, isExternalPanel, useExternalSessions, type Harness } from '../external';
+import { externalDot, isExternalPanel, sessionDot, useExternalSessions, type Harness } from '../external';
 import HarnessIcon from '../HarnessIcon.vue';
 import { isSessionRef, useBerth } from '../berth';
 import SessionPanel from '../SessionPanel.vue';
@@ -33,6 +33,12 @@ const tabHarness = (id: string): Harness => (id.startsWith('ext:codex:') ? 'code
 const tabDot = (id: string) => {
   const session = external?.anyByKey.value.get(id);
   return session ? externalDot(session) : 'closed';
+};
+const tabSession = (id: string) => berth?.sessions.value.get(id);
+const tabLinked = (id: string) => external?.linked.value.get(id);
+const sessionTabDot = (id: string) => {
+  const session = tabSession(id);
+  return session ? sessionDot(session, tabLinked(id)) : undefined;
 };
 const hosts = shallowRef<Host[]>([]);
 const subscriptions: { dispose(): void }[] = [];
@@ -123,10 +129,13 @@ onBeforeUnmount(() => {
           <Ticket v-else-if="kindOf(api.id) === 'issue'" :size="12" />
           <template v-else-if="kindOf(api.id) === 'conversation'">
             <StatusDot :status="tabDot(api.id)" :unseen="false" />
-            <HarnessIcon :harness="tabHarness(api.id)" />
+            <HarnessIcon :harness="tabHarness(api.id)" :working="tabDot(api.id) === 'running'" />
           </template>
-          <StatusDot v-if="berth?.sessions.value.has(api.id)" :status="berth.sessions.value.get(api.id)?.status" :unseen="berth.sessions.value.get(api.id)?.unseen" />
-          <span class="name">{{ berth?.sessions.value.get(api.id)?.name ?? external?.anyByKey.value.get(api.id)?.title ?? api.title }}</span>
+          <template v-else-if="tabSession(api.id)">
+            <StatusDot :status="sessionTabDot(api.id)" :unseen="tabSession(api.id)?.unseen" data-testid="session-tab-status" />
+            <HarnessIcon v-if="tabLinked(api.id)" :harness="tabLinked(api.id)?.harness ?? 'claude'" :working="sessionTabDot(api.id) === 'running'" />
+          </template>
+          <span class="name">{{ tabSession(api.id)?.name ?? external?.anyByKey.value.get(api.id)?.title ?? api.title }}</span>
           <span v-if="isFilePanel(api.id) && isDirtyPath(api.id.slice(FILE_PANEL_PREFIX.length))" class="dirty" :title="t('files.editor.dirty')" data-testid="file-tab-dirty" />
           <button class="close" :title="t('common.close')" :aria-label="t('common.close')" data-testid="session-tab-close" @pointerdown.stop @click.stop="closeTab(api)"><X :size="12" /></button>
         </span>
