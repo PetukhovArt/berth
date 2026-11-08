@@ -7,7 +7,7 @@ import type { BranchMode, SessionTarget } from './manage/sessionTarget';
 
 const props = defineProps<{ state: SessionTarget }>();
 const berth = useBerth();
-const { project, target, mode, existing, fresh, branches, branchesError, loading, projects, targets, plan } = props.state;
+const { project, target, mode, existing, fresh, branches, branchesError, loading, projects, targets, creating, plan } = props.state;
 
 const MODES = computed<{ label: string; value: BranchMode; disabled?: boolean }[]>(() => [
   { label: t('agents.newSession.branchCurrent'), value: 'current' },
@@ -43,11 +43,11 @@ const summary = computed(() => {
         <VSelect v-model="target" :options="targets" option-label="label" option-value="id" size="small" :aria-label="t('agents.newSession.target')" data-testid="new-session-worktree" />
       </label>
     </div>
-    <label class="field">
+    <label v-if="!creating" class="field">
       <span>{{ t('agents.newSession.branch') }}</span>
       <VSelect v-model="mode" :options="MODES" option-label="label" option-value="value" option-disabled="disabled" size="small" :aria-label="t('agents.newSession.branch')" data-testid="new-session-branch-mode" />
     </label>
-    <label v-if="mode === 'existing'" class="field">
+    <label v-if="!creating && mode === 'existing'" class="field">
       <span>{{ t('agents.newSession.existingBranch') }}</span>
       <VSelect
         v-model="existing"
@@ -62,7 +62,7 @@ const summary = computed(() => {
         data-testid="new-session-existing-branch"
       />
     </label>
-    <label v-if="mode === 'new'" class="field">
+    <label v-if="creating || mode === 'new'" class="field">
       <span>{{ t('agents.newSession.newBranch') }}</span>
       <VInputText v-model="fresh" size="small" :placeholder="t('agents.newSession.typeBranch')" data-testid="new-session-new-branch" />
     </label>

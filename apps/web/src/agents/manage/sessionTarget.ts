@@ -17,6 +17,7 @@ export type SessionTarget = {
   loading: ShallowRef<boolean>;
   projects: ComputedRef<Option[]>;
   targets: ComputedRef<Option[]>;
+  creating: ComputedRef<boolean>;
   plan: ComputedRef<TargetPlan>;
   takenNames: ComputedRef<ReadonlySet<string>>;
   resolve: () => Promise<string>;
@@ -29,6 +30,8 @@ async function listBranches(project: string): Promise<Branch[]> {
 }
 
 const isDetached = (branch: string) => branch.startsWith('detached');
+
+const NEW_WORKTREE = ':new-worktree';
 
 export function useSessionTarget(initialWorktree: string | null): SessionTarget {
   const berth = useBerth();
@@ -53,11 +56,15 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
     return all && project.value ? worktreesOfProject(all, project.value) : [];
   });
 
-  const targets = computed<Option[]>(() =>
-    worktrees.value.map((worktree) => ({ id: worktree.id, label: worktree.is_main ? t('agents.worktree.main', { branch: worktree.branch }) : worktree.branch })),
-  );
+  const targets = computed<Option[]>(() => {
+    const listed = worktrees.value.map((worktree) => ({ id: worktree.id, label: worktree.is_main ? t('agents.worktree.main', { branch: worktree.branch }) : worktree.branch }));
+    return listed.length ? [...listed, { id: NEW_WORKTREE, label: t('agents.newSession.newWorktree') }] : listed;
+  });
 
-  const targetWorktree = computed(() => worktrees.value.find((worktree) => worktree.id === target.value));
+  const creating = computed(() => target.value === NEW_WORKTREE);
+  const branchMode = computed<BranchMode>(() => (creating.value ? 'new' : mode.value));
+  const mainWorktree = computed(() => worktrees.value.find((worktree) => worktree.is_main) ?? worktrees.value[0]);
+  const targetWorktree = computed(() => (creating.value ? mainWorktree.value : worktrees.value.find((worktree) => worktree.id === target.value)));
 
   let loadSeq = 0;
   async function load(id: string) {
@@ -91,7 +98,7 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
   if (!project.value) project.value = projects.value[0]?.id ?? null;
 
   watch(worktrees, (list) => {
-    if (!list.some((worktree) => worktree.id === target.value)) target.value = (list.find((worktree) => worktree.is_main) ?? list[0])?.id ?? null;
+    if (!(creating.value && list.length) && !list.some((worktree) => worktree.id === target.value)) target.value = (list.find((worktree) => worktree.is_main) ?? list[0])?.id ?? null;
   });
 
   function planFor(name: string): TargetPlan {
@@ -99,14 +106,14 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
     const known = branches.value?.find((branch) => branch.name === name);
     const holder = known?.worktree ? all?.worktrees.get(known.worktree) : worktrees.value.find((worktree) => worktree.branch === name);
     if (holder) return { kind: 'use', worktree: holder };
-    const base = mode.value === 'new' && !known && targetWorktree.value && !isDetached(targetWorktree.value.branch) ? targetWorktree.value.branch : null;
+    const base = branchMode.value === 'new' && !known && targetWorktree.value && !isDetached(targetWorktree.value.branch) ? targetWorktree.value.branch : null;
     return { kind: 'create', branch: name, base };
   }
 
   const plan = computed<TargetPlan>(() => {
     if (!targetWorktree.value) return { kind: 'incomplete', reason: t('agents.newSession.noTarget') };
-    if (mode.value === 'current') return { kind: 'use', worktree: targetWorktree.value };
-    if (mode.value === 'existing') return existing.value ? planFor(existing.value) : { kind: 'incomplete', reason: t('agents.newSession.pickBranch') };
+    if (branchMode.value === 'current') return { kind: 'use', worktree: targetWorktree.value };
+    if (branchMode.value === 'existing') return existing.value ? planFor(existing.value) : { kind: 'incomplete', reason: t('agents.newSession.pickBranch') };
     const name = fresh.value.trim();
     if (!name) return { kind: 'incomplete', reason: t('agents.newSession.typeBranch') };
     if (/\s/.test(name)) return { kind: 'incomplete', reason: t('agents.newSession.badBranch') };
@@ -134,5 +141,5 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
     return created.Worktree;
   }
 
-  return { project, target, mode, existing, fresh, branches, branchesError, loading, projects, targets, plan, takenNames, resolve };
+  return { project, target, mode, existing, fresh, branches, branchesError, loading, projects, targets, creating, plan, takenNames, resolve };
 }

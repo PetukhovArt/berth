@@ -34,6 +34,7 @@ export const agents = {
     branchCurrent: 'Keep its current branch',
     branchExisting: 'Another existing branch',
     branchNew: 'New branch',
+    newWorktree: 'New worktree…',
     existingBranch: 'Existing branch',
     newBranch: 'New branch name',
     pickBranch: 'Pick a branch',

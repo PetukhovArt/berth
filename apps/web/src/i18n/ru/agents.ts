@@ -37,6 +37,7 @@ export const agents: Translation<typeof en> = {
     branchCurrent: 'Оставить текущую ветку',
     branchExisting: 'Другая существующая ветка',
     branchNew: 'Новая ветка',
+    newWorktree: 'Новый worktree…',
     existingBranch: 'Существующая ветка',
     newBranch: 'Имя новой ветки',
     pickBranch: 'Выберите ветку',
