@@ -36,7 +36,7 @@ import { treeLiveOnly, treeQuery, treeTab, useWorkTree } from './useWorkTree';
 withDefaults(defineProps<{ withFilter?: boolean }>(), { withFilter: false });
 
 const dock = useDock();
-const { berth, nodes, tabs, activeTab, refresh, loading, errors } = useWorkTree();
+const { berth, nodes, tabs, activeTab, errors } = useWorkTree();
 const tabIcons = { sessions: SquareTerminal, mrs: GitPullRequest, reviews: Eye, tasks: ListTodo, all: SquareTerminal };
 
 const filtering = computed(() => treeQuery.value.trim().length > 0);
@@ -122,9 +122,7 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
           <Trash2 :size="14" />
           <span v-if="cleanupCount" class="count" data-testid="cleanup-count">{{ cleanupCount }}</span>
         </button>
-        <button v-if="berth" class="icon" :title="t('agents.metrics.open')" :aria-label="t('agents.metrics.title')" data-testid="open-metrics" @click="dock.openMetrics()"><Activity :size="14" /></button>
-        <button class="icon" :title="t('workbench.refresh')" :aria-label="t('workbench.refresh')" :data-loading="loading" data-testid="tree-refresh" @click="refresh"><RefreshCw :size="14" :class="{ spin: loading }" /></button>
-      </span>
+        <button v-if="berth" class="icon" :title="t('agents.metrics.open')" :aria-label="t('agents.metrics.title')" data-testid="open-metrics" @click="dock.openMetrics()"><Activity :size="14" /></button>      </span>
     </div>
     <div class="scroll">
       <NavNotices />

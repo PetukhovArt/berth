@@ -4,6 +4,7 @@ import { describeError, jiraSearch, onConnectorRecovered, useConnectors, type Ji
 const JIRA_JQL = 'assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC';
 const JIRA_LIMIT = 100;
 const JIRA_FRESH_MS = 60_000;
+const JIRA_POLL_MS = 2 * 60_000;
 
 type JiraResult = { issues: JiraIssueSummary[]; error: string | null; loading: boolean; loadedAt: number };
 
@@ -29,14 +30,18 @@ async function loadJira(connector: string, force: boolean) {
 let watching = false;
 
 export function useMyIssues() {
+  const { connectors } = useConnectors();
+  const jiraConnectors = computed(() => connectors.value.filter((c) => c.kind === 'jira'));
   if (!watching) {
     watching = true;
     onConnectorRecovered((id) => {
       if (jiraResults.value.get(id)?.error) void loadJira(id, true);
     });
+    setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      for (const connector of connectors.value) if (connector.kind === 'jira') void loadJira(connector.id, false);
+    }, JIRA_POLL_MS);
   }
-  const { connectors } = useConnectors();
-  const jiraConnectors = computed(() => connectors.value.filter((c) => c.kind === 'jira'));
   const issues = computed(() => jiraConnectors.value.flatMap((c) => jiraResults.value.get(c.id)?.issues ?? []));
   const errors = computed(() =>
     jiraConnectors.value.flatMap((c) => {
@@ -44,11 +49,9 @@ export function useMyIssues() {
       return error ? [{ connector: c.label, message: error }] : [];
     }),
   );
-  const loading = computed(() => jiraConnectors.value.some((c) => jiraResults.value.get(c.id)?.loading));
-
-  function refresh(force: boolean) {
-    for (const connector of jiraConnectors.value) void loadJira(connector.id, force);
+  function refresh() {
+    for (const connector of jiraConnectors.value) void loadJira(connector.id, false);
   }
 
-  return { jiraConnectors, issues, errors, loading, refresh };
+  return { jiraConnectors, issues, errors, refresh };
 }

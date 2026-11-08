@@ -17,7 +17,6 @@ export const workbench = {
   tabAttention: 'My MRs needing attention (failed pipeline or open threads): {count}',
   tabOpen: 'Open: {count}',
   tabReviewsPending: 'Waiting for your review: {count}',
-  refresh: 'Refresh requests and tasks',
   liveOnly: 'Only open sessions',
   empty: 'Nothing here yet: add a project or connect GitLab, GitHub or Jira',
   nothingFound: 'Nothing matches the filter',

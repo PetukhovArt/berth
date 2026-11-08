@@ -69,7 +69,7 @@ async function load(list: readonly string[]) {
   await Promise.all([...groups.values()].map((members) => runGroup(list.filter((repo) => members.includes(repo)))));
 }
 
-export function refreshReviews() {
+function refreshReviews() {
   void load(repos);
 }
 

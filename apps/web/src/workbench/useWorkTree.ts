@@ -6,7 +6,7 @@ import { useConnectors, type ChangeRequestRef, type InboxItem } from '../connect
 import { itemId, useForgeInbox } from '../forge/inbox';
 import { useSettings } from '../settings/store';
 import { lookupRemotes, remotes } from './remotes';
-import { fetchMissing, fetchedRows, parseMrUrl, refreshReviews, reviewEntries, syncReviewRepos } from './reviewQueue';
+import { fetchMissing, fetchedRows, parseMrUrl, reviewEntries, syncReviewRepos } from './reviewQueue';
 import { t } from '../i18n';
 import { buildTree, tabCounts, type ReviewMeta, type ReviewNoteView, type ReviewSource, type ReviewState, type Sources, type TreeTab } from './tree';
 
@@ -67,7 +67,7 @@ export function useWorkTree() {
     (repos) => lookupRemotes(repos),
     { immediate: true },
   );
-  watch(jira.jiraConnectors, () => jira.refresh(false), { immediate: true });
+  watch(jira.jiraConnectors, () => jira.refresh(), { immediate: true });
 
   const projectRepos = computed(() => [...(berth?.entities.value.projects.values() ?? [])].map((project) => ({ id: project.id, repo: project.repo_path })));
   watch(
@@ -192,11 +192,5 @@ export function useWorkTree() {
   const nodes = computed(() => buildTree(sources.value, activeTab.value, treeQuery.value, treeLiveOnly.value));
   const all = computed(() => buildTree(sources.value, 'all', ''));
 
-  function refresh() {
-    void inbox.load();
-    refreshReviews();
-    jira.refresh(true);
-  }
-
-  return { berth, nodes, all, tabs, activeTab, refresh, loading: computed(() => inbox.loading.value || jira.loading.value || [...reviewEntries.value.values()].some((entry) => entry.loading)), errors: computed(() => [...inbox.errors.value.map((e) => ({ connector: e.connector, message: e.message })), ...jira.errors.value]) };
+  return { berth, nodes, all, tabs, activeTab, errors: computed(() => [...inbox.errors.value.map((e) => ({ connector: e.connector, message: e.message })), ...jira.errors.value]) };
 }
