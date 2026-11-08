@@ -83,9 +83,6 @@ importers:
       '@ui/kit':
         specifier: workspace:*
         version: link:../../packages/ui-kit
-      '@xterm/addon-fit':
-        specifier: ^0.11.0
-        version: 0.11.0
       '@xterm/addon-unicode11':
         specifier: ^0.9.0
         version: 0.9.0
@@ -1443,9 +1440,6 @@ packages:
 
   '@vue/shared@3.5.44':
     resolution: {integrity: sha512-H82XLH0DjmSOdbEwO15x3QTo1f5PWEtv237eLpYKc0mqLu+B8hnq16lFWmuBmNurkeiG3wr+oM1FhOll/YVFRg==}
-
-  '@xterm/addon-fit@0.11.0':
-    resolution: {integrity: sha512-jYcgT6xtVYhnhgxh3QgYDnnNMYTcf8ElbxxFzX0IZo+vabQqSPAjC3c1wJrKB5E19VwQei89QCiZZP86DCPF7g==}
 
   '@xterm/addon-unicode11@0.9.0':
     resolution: {integrity: sha512-FxDnYcyuXhNl+XSqGZL/t0U9eiNb/q3EWT5rYkQT/zuig8Gz/VagnQANKHdDWFM2lTMk9ly0EFQxxxtZUoRetw==}
@@ -3649,8 +3643,6 @@ snapshots:
       '@vue/shared': 3.5.44
 
   '@vue/shared@3.5.44': {}
-
-  '@xterm/addon-fit@0.11.0': {}
 
   '@xterm/addon-unicode11@0.9.0': {}
 

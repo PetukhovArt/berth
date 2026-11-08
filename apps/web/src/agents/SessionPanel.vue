@@ -3,7 +3,6 @@ import '@xterm/xterm/css/xterm.css';
 import { onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { Terminal, type ITheme } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { attachSession, detachSession, resizeSession, sendInput, sessionId, type SessionEvent, type SessionRef } from './berth';
@@ -13,6 +12,7 @@ import { hostPlatform } from '../platform';
 import { applyCtrl } from '../mobile/keys';
 import { useSettings } from '../settings/store';
 import { terminalClipboard } from './terminalClipboard';
+import { fitTerminal } from './terminalFit';
 import { zoomTerminal } from './terminalFont';
 
 type LiveTerminal = { show: () => void; hide: () => void; dispose: () => void };
@@ -68,8 +68,6 @@ function build(element: HTMLElement, session: SessionRef): LiveTerminal {
       allowNonHttpProtocols: true,
     },
   });
-  const fit = new FitAddon();
-  term.loadAddon(fit);
   term.loadAddon(new Unicode11Addon());
   term.unicode.activeVersion = '11';
   term.open(element);
@@ -123,7 +121,7 @@ function build(element: HTMLElement, session: SessionRef): LiveTerminal {
   term.onResize(({ cols, rows }) => void resizeSession(session, cols, rows));
 
   const refit = () => {
-    if (element.clientWidth && element.clientHeight) fit.fit();
+    fitTerminal(term, element);
   };
   let timer: ReturnType<typeof setTimeout> | undefined;
   const resizes = new ResizeObserver(() => {
@@ -291,6 +289,9 @@ onBeforeUnmount(() => {
 }
 
 .terminal {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
   width: 100%;
   height: 100%;
   overflow: hidden;
