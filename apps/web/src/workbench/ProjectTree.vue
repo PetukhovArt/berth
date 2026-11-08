@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, useTemplateRef } from 'vue';
-import { Activity, Eye, GitPullRequest, ListTodo, MessageSquare, Plus, RefreshCw, Search, SquareTerminal, TriangleAlert, Trash2 } from 'lucide-vue-next';
+import { Activity, Eye, GitPullRequest, ListTodo, MessageSquare, Plus, Radio, RefreshCw, Search, SquareTerminal, TriangleAlert, Trash2 } from 'lucide-vue-next';
 import { VContextMenu } from '@ui/kit';
 import ArchivedExternalRow from '../agents/ArchivedExternalRow.vue';
 import ArchivedRow from '../agents/ArchivedRow.vue';
@@ -31,7 +31,7 @@ import ExplorerTree from '../tree/ExplorerTree.vue';
 import { useDock } from './dock';
 import RepoActions from './RepoActions.vue';
 import type { ReviewMeta } from './tree';
-import { treeQuery, treeTab, useWorkTree } from './useWorkTree';
+import { treeLiveOnly, treeQuery, treeTab, useWorkTree } from './useWorkTree';
 
 withDefaults(defineProps<{ withFilter?: boolean }>(), { withFilter: false });
 
@@ -40,6 +40,7 @@ const { berth, nodes, tabs, activeTab, refresh, loading, errors } = useWorkTree(
 const tabIcons = { sessions: SquareTerminal, mrs: GitPullRequest, reviews: Eye, tasks: ListTodo, all: SquareTerminal };
 
 const filtering = computed(() => treeQuery.value.trim().length > 0);
+const liveShown = computed(() => activeTab.value === 'sessions' && treeLiveOnly.value);
 const external = useExternalSessions();
 const selected = computed(() => {
   const key = dock.activeKey.value;
@@ -98,6 +99,17 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
         </div>
       </div>
       <span class="head-actions">
+        <button
+          v-if="activeTab === 'sessions'"
+          class="icon live"
+          :title="t('workbench.liveOnly')"
+          :aria-label="t('workbench.liveOnly')"
+          :aria-pressed="treeLiveOnly"
+          data-testid="tree-live-only"
+          @click="treeLiveOnly = !treeLiveOnly"
+        >
+          <Radio :size="14" />
+        </button>
         <button class="icon" :title="t('agents.layouts.quickOpenTitle')" :aria-label="t('agents.layouts.quickOpen')" data-testid="quick-switch-open" @click="dock.switching.value = true"><Search :size="14" /></button>
         <button
           v-if="berth && isDesktop"
@@ -123,7 +135,7 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
         :storage-key="`berth.tree.expanded.${activeTab}`"
         :label="t('workbench.tree')"
         :selected="selected"
-        :reveal-all="filtering"
+        :reveal-all="filtering || liveShown"
         test-id="explorer-tree"
         @open="dock.openLeaf"
       >
@@ -391,6 +403,11 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
 .icon:hover {
   color: var(--vr-color-text);
   background: var(--vr-color-nav-hover);
+}
+
+.icon.live[aria-pressed='true'] {
+  color: var(--vr-color-accent);
+  background: var(--vr-color-nav-active);
 }
 
 .spin {

@@ -9,6 +9,7 @@ import { t } from '../i18n';
 import type { TreeNode } from '../tree/types';
 import type { RepoRef } from './clones';
 import { issuePanelId } from './dock';
+import { liveSources } from './liveOnly';
 import { connectorBase, type Remote } from './remotes';
 
 export type TreeTab = 'sessions' | 'mrs' | 'reviews' | 'tasks' | 'all';
@@ -363,10 +364,12 @@ export function tabCounts(sources: Sources): TabCounts {
   };
 }
 
-export function buildTree(sources: Sources, tab: TreeTab, query: string): WorkNode[] {
+export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly = false): WorkNode[] {
+  const sources = liveOnly ? liveSources(given) : given;
   const links = link(sources);
   const match = matcher(query);
   const filtering = query.trim().length > 0;
+  const pruned = filtering || liveOnly;
   const placed = place(sources);
   const editable = tab === 'sessions';
   const projectRollup = (project: ProjectNode) => liveRollup(sessionsOf(project), placed.ofProject.get(project.id) ?? [], placed.linked);
@@ -384,13 +387,13 @@ export function buildTree(sources: Sources, tab: TreeTab, query: string): WorkNo
     if (!sources.berth && !sources.external.length && !sources.archivedExternal.length) return [];
     const workspaceNodes = sources.workspaces.flatMap((workspace): WorkNode[] => {
       const children = workspace.projects.flatMap((project): WorkNode[] => {
-        const worktrees = [...worktreeNodes('s|', project, links, placed, match, filtering), ...otherFolders('s|', project, placed, match)];
-        if (filtering && !worktrees.length) return [];
+        const worktrees = [...worktreeNodes('s|', project, links, placed, match, pruned), ...otherFolders('s|', project, placed, match)];
+        if (pruned && !worktrees.length) return [];
         const rollup = projectRollup(project);
         return [{ id: `s|pr:${project.id}`, kind: 'project', label: project.name, icon: Folder, iconOpen: FolderOpen, children: worktrees, ...sessionsCount(rollup), data: { projectId: project.id, rollup } }];
       });
-      if (filtering && !children.length) return [];
-      if (editable && !filtering) children.push({ id: `add-project:${workspace.id}`, kind: 'add-project', label: '', custom: true, inert: true, data: { workspaceId: workspace.id } });
+      if (pruned && !children.length) return [];
+      if (editable && !pruned) children.push({ id: `add-project:${workspace.id}`, kind: 'add-project', label: '', custom: true, inert: true, data: { workspaceId: workspace.id } });
       if (sources.workspaces.length === 1) return children;
       const rollup = liveRollup(
         workspace.projects.flatMap(sessionsOf),
@@ -448,7 +451,7 @@ export function buildTree(sources: Sources, tab: TreeTab, query: string): WorkNo
     ];
   };
 
-  if (tab === 'sessions') return [...sessionNodes(), ...(sources.berth && !filtering ? [{ id: 'add-workspace', kind: 'add-workspace', label: '', custom: true, inert: true }] : [])];
+  if (tab === 'sessions') return [...sessionNodes(), ...(sources.berth && !pruned ? [{ id: 'add-workspace', kind: 'add-workspace', label: '', custom: true, inert: true }] : [])];
   if (tab === 'tasks') return taskNodes();
   if (tab === 'all') return [...sessionNodes(), ...mrNodes(), ...taskNodes()];
   return mrNodes();

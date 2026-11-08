@@ -48,6 +48,10 @@ export const treeTab = shallowRef<TreeTab>(TABS.find((tab) => tab === localStora
 
 watch(treeTab, (tab) => localStorage.setItem(TAB_KEY, tab));
 
+const LIVE_KEY = 'berth.tree.liveOnly';
+export const treeLiveOnly = shallowRef(localStorage.getItem(LIVE_KEY) === '1');
+watch(treeLiveOnly, (on) => localStorage.setItem(LIVE_KEY, on ? '1' : '0'));
+
 export type TabInfo = { id: TreeTab; label: string; count: number | undefined; tone: 'alert' | 'accent' | 'muted'; title: string };
 
 export function useWorkTree() {
@@ -185,7 +189,7 @@ export function useWorkTree() {
   });
   const activeTab = computed<TreeTab>(() => (tabs.value.some((tab) => tab.id === treeTab.value) ? treeTab.value : 'sessions'));
 
-  const nodes = computed(() => buildTree(sources.value, activeTab.value, treeQuery.value));
+  const nodes = computed(() => buildTree(sources.value, activeTab.value, treeQuery.value, treeLiveOnly.value));
   const all = computed(() => buildTree(sources.value, 'all', ''));
 
   function refresh() {

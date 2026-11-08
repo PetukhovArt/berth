@@ -48,7 +48,7 @@ type WatchEvent =
 export type SessionEvent = { type: 'reset'; data: string } | { type: 'output'; data: string } | { type: 'exited'; exit_code: number | null };
 
 export type SessionStatus = AgentStatus | 'shell' | 'closed';
-export type SessionNode = { key: string; id: string; ref: SessionRef; name: string; status: SessionStatus; unseen: boolean };
+export type SessionNode = { key: string; id: string; ref: SessionRef; name: string; status: SessionStatus; unseen: boolean; alive: boolean };
 export type WorktreeNode = { id: string; path: string; branch: string; main: boolean; sessions: SessionNode[]; archived: SessionNode[] };
 type ProjectNode = { id: string; name: string; worktrees: WorktreeNode[] };
 type WorkspaceNode = { id: string; name: string; projects: ProjectNode[] };
@@ -131,12 +131,12 @@ export function isSessionRef(value: unknown): value is SessionRef {
 
 function agentNode(agent: Agent): SessionNode {
   const ref = { Agent: agent.id };
-  return { key: sessionKey(ref), id: agent.id, ref, name: agent.name, status: agent.status, unseen: agent.unseen };
+  return { key: sessionKey(ref), id: agent.id, ref, name: agent.name, status: agent.status, unseen: agent.unseen, alive: agent.alive };
 }
 
 function terminalNode(terminal: Terminal): SessionNode {
   const ref = { Terminal: terminal.id };
-  return { key: sessionKey(ref), id: terminal.id, ref, name: terminal.name, status: terminal.alive ? 'shell' : 'closed', unseen: false };
+  return { key: sessionKey(ref), id: terminal.id, ref, name: terminal.name, status: terminal.alive ? 'shell' : 'closed', unseen: false, alive: terminal.alive };
 }
 
 function buildTree(entities: Entities): WorkspaceNode[] {
