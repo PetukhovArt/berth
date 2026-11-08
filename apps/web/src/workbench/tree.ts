@@ -142,7 +142,7 @@ const sessionLeaf =
   (linked: ReadonlyMap<string, ExternalSession>) =>
   (session: SessionNode): WorkNode => {
     const link = linked.get(session.key);
-    return { id: session.key, kind: 'session', label: link?.title ?? session.name, custom: true, data: link ? { session, linked: link } : { session } };
+    return { id: session.key, kind: 'session', label: session.name, custom: true, data: link ? { session, linked: link } : { session } };
   };
 const archivedLeaf = (session: SessionNode): WorkNode => ({ id: `arch:${session.key}`, kind: 'archived', label: session.name, custom: true, data: { session } });
 const archivedExternalLeaf = (session: ExternalSession): WorkNode => ({ id: `arch:${externalKey(session)}`, kind: 'archived-external', label: session.title, title: session.cwd, custom: true, data: { external: session } });

@@ -104,13 +104,13 @@ async function confirmDelete() {
         :data-linked-harness="linked?.harness"
         :data-linked-session-id="linked?.id"
         :data-linked-status="linked?.status"
-        :title="linked ? `${linked.title}\n${externalStatusLabel(linked)}\n${session.name}` : `${session.name} — ${statusLabel(session.status)}`"
+        :title="linked ? `${session.name}\n${externalStatusLabel(linked)}` : `${session.name} — ${statusLabel(session.status)}`"
         @click="emit('open', primaryPressed($event))"
         @contextmenu.prevent="showMenu"
       >
         <StatusDot :status="sessionDot(session, linked)" :unseen="session.unseen" />
         <HarnessIcon v-if="linked" :harness="linked.harness" :working="sessionDot(session, linked) === 'running'" />
-        <span class="name">{{ linked ? linked.title : session.name }}</span>
+        <span class="name">{{ session.name }}</span>
         <span class="label">{{ linked ? externalStatusLabel(linked) : statusLabel(session.status) }}</span>
       </button>
       <button v-if="linked" class="more conversation" :title="t('workbench.external.open')" :aria-label="t('workbench.external.open')" data-testid="session-open-conversation" @click="emit('open-conversation')"><MessageSquare :size="14" /></button>

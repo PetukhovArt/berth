@@ -178,7 +178,7 @@ function createDock() {
         return;
       }
       if (!api.getPanel(session.key)) addSessionPanel(session, api);
-      api.addPanel({ id, component: 'conversation', title: linked.title, params: { harness: linked.harness, id: linked.id }, position: { referencePanel: session.key, direction: 'within' } });
+      api.addPanel({ id, component: 'conversation', title: session.name, params: { harness: linked.harness, id: linked.id }, position: { referencePanel: session.key, direction: 'within' } });
     });
   }
 

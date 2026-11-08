@@ -19,6 +19,7 @@
 - macOS: Added a desktop app working copy built from your local `main` by `scripts/install-app.sh`, so `Update Berth…`, `Roll back to previous build` and `Update daemon` work there too ([details](docs/macos.md)).
 - macOS: Added the traffic lights, a menu bar with `Berth`, `Edit` and `Window` menus (`Cmd+,` opens settings, `Cmd+C` and `Cmd+V` work in text fields), a monochrome menu bar icon and reopening a hidden window from the Dock to the desktop app.
 - Fixed the selected session in the desktop app's tree drawing two highlights with dim text on top, so its name was hard to read.
+- Fixed a terminal running Claude Code showing one name in the desktop app's tree and another in its tab and the TUI: a `/rename` in Claude Code now renames the terminal everywhere, and a rename in Berth shows in the tree too; whichever came last wins.
 - Fixed `Continue in Berth` in the desktop app opening the terminal in a new tab beside the conversation; the terminal now takes the conversation's tab.
 - Fixed the `Shift+O` session list naming almost every row after its branch, so a session now carries the title Claude Code shows it under in `/resume`.
 - Windows: Fixed `Ctrl+Enter` inserting a newline in Claude Code instead of sending the message now (needs a sideloaded `conpty.dll`).

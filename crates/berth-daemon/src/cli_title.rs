@@ -6,15 +6,18 @@
 //! and on the metrics sampler's tick — and [`Store::adopt_cli_title`]
 //! decides whether it is news. Only reads: the files are the CLI's.
 //!
+//! A terminal gets the same for a Claude Code the user started in it, so
+//! the session's stored name stays the one name every client shows.
+//!
 //! Cursor's CLI has no rename, so it has nothing here.
 //!
 //! [`Store::adopt_cli_title`]: crate::store::Store::adopt_cli_title
 
 use crate::registry::{sanitize_title, Daemon};
-use anyhow::Result;
-use berth_core::{AgentId, AgentKind, SessionRef};
+use anyhow::{Context, Result};
+use berth_core::{AgentId, AgentKind, Entity, ServerEvent, SessionRef, TerminalId};
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -139,7 +142,88 @@ pub fn titles(probes: &[Probe], codex: &mut CodexIndex) -> Vec<(AgentId, String)
         .collect()
 }
 
+/// Where a running Claude Code keeps `<pid>.json`, its live record.
+pub fn claude_sessions_dir() -> PathBuf {
+    berth_core::env::non_empty("CLAUDE_CONFIG_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            berth_core::env::home_dir()
+                .unwrap_or_default()
+                .join(".claude")
+        })
+        .join("sessions")
+}
+
+/// A `/rename` in a Claude Code process's live record: `name` with
+/// `nameSource: "user"`, and `nameSince`, when it was given. A name Claude
+/// derived itself is not one.
+fn claude_pid_title(dir: &Path, pid: u32) -> Option<(u64, String)> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct File {
+        name: Option<String>,
+        name_source: Option<String>,
+        name_since: Option<u64>,
+    }
+    let file: File =
+        serde_json::from_slice(&std::fs::read(dir.join(format!("{pid}.json"))).ok()?).ok()?;
+    if file.name_source.as_deref() != Some("user") {
+        return None;
+    }
+    let name = file.name.filter(|n| !n.trim().is_empty())?;
+    Some((file.name_since.unwrap_or(0), name))
+}
+
+/// Blocking. The `/rename` of a Claude Code a user started by hand inside a
+/// terminal, found through the terminal's process subtree in `table`; the
+/// newest one when several run there. Codex keeps no record by pid, so a
+/// Codex in a terminal is not found.
+pub fn terminal_titles(
+    table: &str,
+    terminals: &[(TerminalId, u32)],
+    dir: &Path,
+) -> Vec<(TerminalId, String)> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let recorded: HashSet<u32> = entries
+        .filter_map(|e| {
+            let name = e.ok()?.file_name();
+            name.to_str()?.strip_suffix(".json")?.parse().ok()
+        })
+        .collect();
+    if recorded.is_empty() {
+        return Vec::new();
+    }
+    terminals
+        .iter()
+        .filter_map(|(id, root)| {
+            let (_, title) = crate::metrics::subtree_pids(table, *root)
+                .into_iter()
+                .filter(|pid| recorded.contains(pid))
+                .filter_map(|pid| claude_pid_title(dir, pid))
+                .max_by_key(|(since, _)| *since)?;
+            Some((id.clone(), title))
+        })
+        .collect()
+}
+
 impl Daemon {
+    /// [`Self::adopt_cli_title`] for a terminal.
+    pub fn adopt_terminal_cli_title(self: &Arc<Self>, id: &TerminalId, raw: &str) -> Result<bool> {
+        let title = sanitize_title(raw);
+        if title.is_empty() || !self.store.adopt_terminal_cli_title(id, &title)? {
+            return Ok(false);
+        }
+        tracing::info!(terminal = %id, title = %title, "adopted the CLI's session name");
+        let mut term = self.store.get_terminal(id)?.context("terminal not found")?;
+        term.alive = self.is_alive(&SessionRef::Terminal(id.clone()));
+        self.broadcast(ServerEvent::EntityUpserted {
+            entity: Entity::Terminal(term),
+        });
+        Ok(true)
+    }
+
     /// Take a name the agent CLI reports, if it is a new one (see
     /// [`crate::store::Store::adopt_cli_title`]), and tell every client.
     pub fn adopt_cli_title(self: &Arc<Self>, id: &AgentId, raw: &str) -> Result<bool> {
@@ -173,6 +257,36 @@ mod tests {
         let names = parse_codex_index(text);
         assert_eq!(names.get("a").map(String::as_str), Some("second"));
         assert_eq!(names.get("b"), None);
+    }
+
+    #[test]
+    fn terminal_title_is_the_newest_user_name_in_its_subtree() {
+        let tmp = tempfile::tempdir().unwrap();
+        let record = |pid: u32, json: &str| {
+            std::fs::write(tmp.path().join(format!("{pid}.json")), json).unwrap()
+        };
+        record(
+            30,
+            r#"{"pid":30,"name":"libraries-2","nameSource":"user","nameSince":200,"formerNames":[{"name":"scada"}]}"#,
+        );
+        record(
+            31,
+            r#"{"pid":31,"name":"older","nameSource":"user","nameSince":100}"#,
+        );
+        record(
+            40,
+            r#"{"pid":40,"name":"frontend-c6","nameSource":"derived","nameSince":300}"#,
+        );
+        record(
+            50,
+            r#"{"pid":50,"name":"elsewhere","nameSource":"user","nameSince":900}"#,
+        );
+        let table = "10 1 0 0\n20 10 0 0\n30 20 0 0\n31 10 0 0\n11 1 0 0\n40 11 0 0\n50 1 0 0\n";
+        let terminals = [(TerminalId("a".into()), 10), (TerminalId("b".into()), 11)];
+        assert_eq!(
+            terminal_titles(table, &terminals, tmp.path()),
+            vec![(TerminalId("a".into()), "libraries-2".to_string())]
+        );
     }
 
     #[test]

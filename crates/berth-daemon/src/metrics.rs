@@ -25,13 +25,15 @@ pub(crate) struct CpuTimes {
 /// this the denominator has stopped meaning "the recent interval".
 pub(crate) const CPU_DELTA_MAX_AGE: Duration = Duration::from_secs(30);
 
-/// Take one reading. Blocking; call via spawn_blocking.
+/// Take one reading from `table`, `berth_core::platform::process_table`'s
+/// output. Blocking; call via spawn_blocking.
 pub(crate) fn collect(
+    table: &str,
     sessions: Vec<(SessionRef, u32, Option<PrewarmInfo>)>,
     prev: Option<&CpuTimes>,
 ) -> (MetricsSnapshot, CpuTimes) {
     snapshot_from_table(
-        &berth_core::platform::process_table(),
+        table,
         std::process::id(),
         &sessions,
         berth_core::platform::system_total_bytes().unwrap_or(0),
@@ -127,6 +129,33 @@ struct SubtreeTotals {
     procs: u32,
     cpu_ms: u64,
     cpu_ms_prev: u64,
+}
+
+/// `root` and every descendant of it in `table`, in [`collect`]'s shape.
+pub(crate) fn subtree_pids(table: &str, root: u32) -> Vec<u32> {
+    let mut children: HashMap<u32, Vec<u32>> = HashMap::new();
+    for line in table.lines() {
+        let mut cols = line.split_whitespace();
+        if let (Some(pid), Some(ppid)) = (
+            cols.next().and_then(|s| s.parse::<u32>().ok()),
+            cols.next().and_then(|s| s.parse::<u32>().ok()),
+        ) {
+            children.entry(ppid).or_default().push(pid);
+        }
+    }
+    let mut stack = vec![root];
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    while let Some(pid) = stack.pop() {
+        if !seen.insert(pid) {
+            continue;
+        }
+        out.push(pid);
+        if let Some(kids) = children.get(&pid) {
+            stack.extend(kids);
+        }
+    }
+    out
 }
 
 /// Sum RSS and CPU time over `root` and every descendant. The visited set

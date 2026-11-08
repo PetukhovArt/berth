@@ -269,6 +269,11 @@ const MIGRATIONS: &[&str] = &[
     "
     ALTER TABLE agents ADD COLUMN cli_title TEXT;
     ",
+    // 26: the same for a terminal, for the agent CLI a user started in it
+    // by hand.
+    "
+    ALTER TABLE terminals ADD COLUMN cli_title TEXT;
+    ",
 ];
 
 pub struct Store {
@@ -846,6 +851,15 @@ impl Store {
             params![id.as_str(), name],
         )?;
         Ok(())
+    }
+
+    /// [`Self::adopt_cli_title`] for a terminal running an agent CLI.
+    pub fn adopt_terminal_cli_title(&self, id: &TerminalId, title: &str) -> Result<bool> {
+        let changed = self.conn.lock().unwrap().execute(
+            "UPDATE terminals SET name = ?2, cli_title = ?2 WHERE id = ?1 AND cli_title IS NOT ?2",
+            params![id.as_str(), title],
+        )?;
+        Ok(changed == 1)
     }
 
     pub fn delete_terminal(&self, id: &TerminalId) -> Result<()> {

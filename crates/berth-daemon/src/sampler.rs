@@ -16,13 +16,13 @@
 //!
 //! Each tick also reads the names the CLIs hold for their conversations
 //! (`crate::cli_title`), and the transcript pass reports Claude's `/rename`
-//! lines, so this loop applies them to the agent rows as well.
+//! lines, so this loop applies them to the agent and terminal rows as well.
 
 use crate::cli_title;
 use crate::metrics::CpuTimes;
 use crate::registry::Daemon;
 use crate::usage::{AgentTranscript, UsageTailer};
-use berth_core::{env, AgentId, AgentKind, SessionRef, TokenUsage};
+use berth_core::{env, AgentId, AgentKind, SessionRef, TerminalId, TokenUsage};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -77,26 +77,43 @@ pub async fn run(daemon: Arc<Daemon>) {
         // coherent inside the published snapshot.
         let live: Vec<SessionRef> = pids.iter().map(|(sref, _, _)| sref.clone()).collect();
         let probes = cli_title::probes(&daemon, &live);
+        let terminals: Vec<(TerminalId, u32)> = pids
+            .iter()
+            .filter_map(|(sref, pid, _)| match sref {
+                SessionRef::Terminal(id) => Some((id.clone(), *pid)),
+                SessionRef::Agent(_) => None,
+            })
+            .collect();
         let prev = cpu.take();
         let mut lent = std::mem::take(&mut tailer);
         let mut lent_index = std::mem::take(&mut codex_index);
         let handle = tokio::task::spawn_blocking(move || {
-            let (snapshot, next) = crate::metrics::collect(pids, prev.as_ref());
+            let table = berth_core::platform::process_table();
+            let (snapshot, next) = crate::metrics::collect(&table, pids, prev.as_ref());
             let tokens = transcripts.map(|t| lent.sweep(&t));
             let names = cli_title::titles(&probes, &mut lent_index);
-            (snapshot, next, (lent, lent_index), tokens, names)
+            let terminal_names =
+                cli_title::terminal_titles(&table, &terminals, &cli_title::claude_sessions_dir());
+            (
+                snapshot,
+                next,
+                (lent, lent_index),
+                tokens,
+                (names, terminal_names),
+            )
         });
-        let (mut snapshot, next, (returned, returned_index), swept, names) = match handle.await {
-            Ok(done) => done,
-            Err(err) => {
-                // The tailer went into the task and died with it, so the
-                // next sweep starts every cursor over and re-reads each
-                // transcript whole. Correct, but expensive and otherwise
-                // invisible.
-                tracing::warn!(error = %err, "metrics sample failed; token cursors reset");
-                continue;
-            }
-        };
+        let (mut snapshot, next, (returned, returned_index), swept, (names, terminal_names)) =
+            match handle.await {
+                Ok(done) => done,
+                Err(err) => {
+                    // The tailer went into the task and died with it, so the
+                    // next sweep starts every cursor over and re-reads each
+                    // transcript whole. Correct, but expensive and otherwise
+                    // invisible.
+                    tracing::warn!(error = %err, "metrics sample failed; token cursors reset");
+                    continue;
+                }
+            };
         cpu = Some(next);
         tailer = returned;
         codex_index = returned_index;
@@ -114,6 +131,11 @@ pub async fn run(daemon: Arc<Daemon>) {
         for (id, title) in names.iter().chain(transcript_names) {
             if let Err(e) = daemon.adopt_cli_title(id, title) {
                 tracing::warn!(agent = %id, error = %e, "adopting /rename title failed");
+            }
+        }
+        for (id, title) in &terminal_names {
+            if let Err(e) = daemon.adopt_terminal_cli_title(id, title) {
+                tracing::warn!(terminal = %id, error = %e, "adopting /rename title failed");
             }
         }
         if let Some(swept) = swept {
