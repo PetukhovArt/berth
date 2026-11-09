@@ -5,7 +5,7 @@
 //! here touches the transcript or a process running it.
 
 use anyhow::{bail, Result};
-use berth_core::{AgentKind, ServerEvent};
+use berth_core::{AgentId, AgentKind, ServerEvent};
 
 use crate::registry::Daemon;
 
@@ -22,6 +22,19 @@ impl Daemon {
         let session = self.store.archive_external_session(kind, session_id)?;
         self.broadcast(ServerEvent::ExternalSessionArchived { session });
         Ok(())
+    }
+
+    /// `/clear` hands the agent a new CLI session id; the conversation it
+    /// left behind is now an EXTERNAL SESSION on disk, and it belongs in the
+    /// archive rather than beside the session that replaced it.
+    pub(crate) fn archive_cleared_session(&self, agent_id: &AgentId, session_id: &str) {
+        let kind = match self.store.get_agent(agent_id) {
+            Ok(Some(agent)) => agent.kind,
+            _ => return,
+        };
+        if let Err(e) = self.archive_external_session(kind, session_id) {
+            tracing::warn!(error = %e, "archive cleared session failed");
+        }
     }
 
     pub fn unarchive_external_session(&self, kind: AgentKind, session_id: &str) -> Result<()> {

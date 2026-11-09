@@ -111,6 +111,7 @@ impl HookEvent {
 pub enum Effect {
     SetStatus(AgentStatus),
     SaveSessionId(String),
+    ArchiveClearedSession(String),
 }
 
 #[derive(Default)]
@@ -224,6 +225,10 @@ impl AgentStatusMachine {
                 if self.session_id.as_deref() != Some(sid) {
                     // New claude process (restart / manual relaunch): adopt it
                     // and forget the old session's subagents.
+                    let cleared = matches!(&event, HookEvent::SessionStart { source } if source.as_deref() == Some("clear"));
+                    if let Some(old) = self.session_id.take().filter(|_| cleared) {
+                        effects.push(Effect::ArchiveClearedSession(old));
+                    }
                     self.session_id = Some(sid.to_string());
                     self.subagents.clear();
                     self.stop_held = false;
@@ -251,7 +256,7 @@ impl AgentStatusMachine {
             HookEvent::Stop => self.end_turn(now, &mut effects),
             HookEvent::SessionStart { source } => {
                 if source.as_deref() == Some("clear") {
-                    // Same session id, but /clear killed any live subagents.
+                    // /clear killed any live subagents.
                     self.subagents.clear();
                     self.stop_held = false;
                     self.drain_idle_since = None;

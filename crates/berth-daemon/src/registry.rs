@@ -367,6 +367,7 @@ impl Daemon {
                         tracing::warn!(error = %e, "persist session id failed");
                     }
                 }
+                Effect::ArchiveClearedSession(sid) => self.archive_cleared_session(agent_id, &sid),
             }
         }
     }
