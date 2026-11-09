@@ -27,6 +27,9 @@ export const update = {
   daemonUpdate: 'Update daemon',
   daemonConfirm: 'Updating the daemon ends every live terminal. Agent conversations resume when you reopen them. Update it now?',
   daemonDone: 'The daemon was updated and restarted.',
+  elapsed: '{time} elapsed',
+  left: 'About {time} left',
+  skipped: 'skipped',
   steps: {
     start: 'Preparing',
     export: 'Preparing',

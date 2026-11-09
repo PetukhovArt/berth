@@ -147,6 +147,7 @@ LOG="$BUILD_DIR/logs/$(date +%Y%m%d-%H%M%S).log"
 STATE=running
 STEP=start
 STARTED=$(now)
+STEPS_JSON="\"start\": $(json_str "$STARTED")"
 COMMIT=''
 SUBJECT=''
 BUILD_ID=''
@@ -163,6 +164,7 @@ save_status() {
         printf '  "pid": %s,\n' "$$"
         printf '  "repo": %s,\n' "$(json_str "$REPO")"
         printf '  "startedAt": %s,\n' "$(json_str "$STARTED")"
+        printf '  "steps": {%s},\n' "$STEPS_JSON"
         [ -n "$COMMIT" ] && printf '  "commit": %s,\n' "$(json_str "$COMMIT")"
         [ -n "$SUBJECT" ] && printf '  "subject": %s,\n' "$(json_str "$SUBJECT")"
         [ -n "$UP_TO_DATE" ] && printf '  "upToDate": true,\n'
@@ -189,6 +191,7 @@ fail() {
 
 set_step() {
     STEP=$1
+    STEPS_JSON="$STEPS_JSON, $(json_str "$1"): $(json_str "$(now)")"
     save_status
     add_log "== $1"
 }

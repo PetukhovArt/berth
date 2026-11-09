@@ -30,6 +30,9 @@ export const update: Translation<typeof en> = {
   daemonUpdate: 'Обновить демон',
   daemonConfirm: 'Обновление демона завершит все открытые терминалы. Разговоры с агентами продолжатся, когда вы их снова откроете. Обновить сейчас?',
   daemonDone: 'Демон обновлён и перезапущен.',
+  elapsed: 'Прошло {time}',
+  left: 'Осталось около {time}',
+  skipped: 'не нужно',
   steps: {
     start: 'Подготовка',
     export: 'Подготовка',

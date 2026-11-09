@@ -96,7 +96,8 @@ if (-not $Repo) {
 $Repo = (Resolve-Path -LiteralPath $Repo).Path
 
 New-Item -ItemType Directory -Force -Path $buildDir, $appDir, (Join-Path $buildDir 'logs') | Out-Null
-$status = [ordered]@{ state = 'running'; step = 'start'; pid = $PID; repo = $Repo; startedAt = (Get-Date).ToString('o') }
+$startedAt = (Get-Date).ToString('o')
+$status = [ordered]@{ state = 'running'; step = 'start'; pid = $PID; repo = $Repo; startedAt = $startedAt; steps = [ordered]@{ start = $startedAt } }
 
 function Save-Status {
     $temp = "$statusPath.tmp"
@@ -106,6 +107,7 @@ function Save-Status {
 
 function Set-Step([string]$step) {
     $status.step = $step
+    $status.steps[$step] = (Get-Date).ToString('o')
     Save-Status
     Add-Log "== $step"
 }

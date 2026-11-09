@@ -4,9 +4,12 @@ import { settleAll } from '../files/documents';
 
 type Build = { buildId: string; commit: string; subject: string; sourceRepo: string; builtAt: string; protocol: number };
 type JobState = 'running' | 'done' | 'failed' | 'cancelled';
-type Job = {
+export type Job = {
   state: JobState;
   step?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  steps?: Record<string, string>;
   commit?: string;
   subject?: string;
   buildId?: string;

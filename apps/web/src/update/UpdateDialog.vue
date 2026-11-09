@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import { VButton, VDialog } from '@ui/kit';
-import { t, type MessageKey } from '../i18n';
+import { t } from '../i18n';
 import { busy, cancelBuild, closeUpdate, daemonUpdated, dialogMode, failure, info, restart, rollBack, short, startBuild, updateDaemon } from './state';
+import { clock, now, rows, STAGE_LABELS, totals } from './stages';
 
 const INSTALL_COMMAND = 'powershell -ExecutionPolicy Bypass -File scripts\\install-app.ps1';
 
@@ -27,31 +28,19 @@ const phase = computed(() => {
   return head.value.commit === running.value.commit ? 'upToDate' : 'available';
 });
 
-const STEPS = {
-  start: { label: 'update.steps.start', weight: 2 },
-  export: { label: 'update.steps.export', weight: 3 },
-  deps: { label: 'update.steps.deps', weight: 10 },
-  tokens: { label: 'update.steps.tokens', weight: 3 },
-  app: { label: 'update.steps.app', weight: 45 },
-  daemon: { label: 'update.steps.daemon', weight: 32 },
-  install: { label: 'update.steps.install', weight: 5 },
-} as const satisfies Record<string, { label: MessageKey; weight: number }>;
+const ticker = setInterval(() => (now.value = Date.now()), 1000);
+onUnmounted(() => clearInterval(ticker));
 
-type Step = keyof typeof STEPS;
-const ORDER = Object.keys(STEPS) as Step[];
-const TOTAL = ORDER.reduce((sum, step) => sum + STEPS[step].weight, 0);
-
-const step = computed<Step>(() => {
-  const name = job.value?.step ?? 'start';
-  return name in STEPS ? (name as Step) : 'start';
+const runningLabel = computed(() => {
+  const row = rows.value.find((item) => item.state === 'running');
+  return row ? t(STAGE_LABELS[row.stage]) : '';
 });
 
-const stepLabel = computed(() => t(STEPS[step.value].label));
-
-const progress = computed(() => {
-  const done = ORDER.slice(0, ORDER.indexOf(step.value)).reduce((sum, name) => sum + STEPS[name].weight, 0);
-  return Math.max(3, Math.round((done / TOTAL) * 100));
-});
+function rowTime(state: string, ms: number): string {
+  if (state === 'skipped') return t('update.skipped');
+  if (state === 'pending') return `~${clock(ms)}`;
+  return clock(ms);
+}
 
 const daemonMismatch = computed(() => {
   const daemon = info.value?.daemonProtocol;
@@ -92,10 +81,20 @@ function onVisible(visible: boolean) {
       </template>
 
       <div v-else-if="phase === 'building'" class="progress" data-testid="update-building">
-        <div class="bar" role="progressbar" :aria-valuenow="progress" aria-valuemin="0" aria-valuemax="100" :aria-valuetext="stepLabel">
-          <div class="fill" :style="{ width: `${progress}%` }" />
+        <div class="bar" role="progressbar" :aria-valuenow="totals.progress" aria-valuemin="0" aria-valuemax="100" :aria-valuetext="runningLabel">
+          <div class="fill" :style="{ width: `${totals.progress}%` }" />
         </div>
-        <p class="muted" data-testid="update-step">{{ stepLabel }}</p>
+        <div class="summary muted">
+          <span>{{ t('update.elapsed', { time: clock(totals.elapsed) }) }}</span>
+          <span v-if="totals.left > 0">{{ t('update.left', { time: clock(totals.left) }) }}</span>
+        </div>
+        <ol class="stages" data-testid="update-stages">
+          <li v-for="row in rows" :key="row.stage" class="stage" :data-state="row.state" :data-testid="`update-stage-${row.stage}`">
+            <span class="mark" aria-hidden="true" />
+            <span class="label">{{ t(STAGE_LABELS[row.stage]) }}</span>
+            <span class="time">{{ rowTime(row.state, row.ms) }}</span>
+          </li>
+        </ol>
       </div>
 
       <template v-else-if="(phase === 'failed' || phase === 'cancelled') && job">
@@ -189,6 +188,77 @@ function onVisible(visible: boolean) {
   background: var(--vr-color-accent);
   border-radius: inherit;
   transition: width var(--vr-motion-slow) var(--vr-motion-ease-standard);
+}
+
+.summary {
+  display: flex;
+  justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+}
+
+.stages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vr-space-1);
+  margin: var(--vr-space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stage {
+  display: grid;
+  grid-template-columns: 8px 1fr auto;
+  align-items: center;
+  gap: var(--vr-space-3);
+  font-size: var(--vr-font-size-sm);
+  color: var(--vr-color-text-muted);
+}
+
+.stage[data-state='running'] {
+  color: var(--vr-color-text);
+  font-weight: 600;
+}
+
+.stage[data-state='done'] .label {
+  color: var(--vr-color-text);
+}
+
+.mark {
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--vr-color-border);
+  border-radius: 50%;
+}
+
+.stage[data-state='done'] .mark {
+  background: var(--vr-color-accent);
+  border-color: var(--vr-color-accent);
+}
+
+.stage[data-state='running'] .mark {
+  border-color: var(--vr-color-accent);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.stage[data-state='skipped'] .label {
+  text-decoration: line-through;
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes pulse {
+  50% {
+    background: var(--vr-color-accent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage[data-state='running'] .mark {
+    animation: none;
+    background: var(--vr-color-accent);
+  }
 }
 
 .command,
