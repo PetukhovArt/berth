@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { VButton, VDialog } from '@ui/kit';
-import { t } from '../i18n';
+import { t, useI18n } from '../i18n';
 import { changes, closeChanges, type ChangeKind } from './state';
 
 const KINDS: ChangeKind[] = ['feat', 'perf', 'fix'];
+const { locale } = useI18n();
 
 const groups = computed(() =>
-  KINDS.map((kind) => ({ kind, items: (changes.value ?? []).filter((change) => change.kind === kind).map((change) => change.text) })).filter((group) => group.items.length),
+  KINDS.map((kind) => ({
+    kind,
+    items: (changes.value ?? []).filter((change) => change.kind === kind).map((change) => change.translations[locale.value] ?? change.text),
+  })).filter((group) => group.items.length),
 );
 
 function onVisible(visible: boolean) {

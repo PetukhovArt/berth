@@ -15,6 +15,9 @@ identifier). Rules there differ from the Rust crates:
 - Check a change with `node scripts/checks.mjs <files>` (comments, raw colors, oxlint, knip, types, rustfmt,
   clippy for `berth-desktop`). Never run a full `vue-tsc` or `tsc` over the project. The husky pre-commit runs
   `checks.mjs` on staged files under `apps/`, `packages/` and `docker/` only.
+- The app's "What's new" dialog lists `feat`/`perf`/`fix` commit subjects since the previous build. Every such
+  commit carries a `Changes-ru: <the same change in Russian, for a user>` trailer; without it a Russian UI shows
+  the English subject.
 - Colors come from `packages/ui-tokens` through `var(--vr-…)`; the web side reaches Rust only through
   `apps/web/src/bridge.ts`.
 - Dev run on Windows, isolated from your real daemon and your real `~/.berth` and keychain:

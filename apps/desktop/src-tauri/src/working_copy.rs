@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -43,6 +44,13 @@ pub struct Build {
 pub struct Head {
     commit: String,
     subject: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommitChange {
+    subject: String,
+    translations: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -307,7 +315,27 @@ fn is_commit(text: &str) -> bool {
     (4..=64).contains(&text.len()) && text.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
-pub async fn app_update_changes(from: String) -> Result<Vec<String>, String> {
+const CHANGE_TRAILER: &str = "Changes-";
+
+fn commit_change(record: &str) -> Option<CommitChange> {
+    let (subject, trailers) = record.split_once('\x1f')?;
+    let translations = trailers
+        .lines()
+        .filter_map(|line| {
+            let (key, value) = line.split_once(':')?;
+            let locale = key.trim().strip_prefix(CHANGE_TRAILER)?;
+            let value = value.trim();
+            (!locale.is_empty() && !value.is_empty())
+                .then(|| (locale.to_ascii_lowercase(), value.to_owned()))
+        })
+        .collect();
+    Some(CommitChange {
+        subject: subject.trim().to_owned(),
+        translations,
+    })
+}
+
+pub async fn app_update_changes(from: String) -> Result<Vec<CommitChange>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let to = running_build().ok_or("this copy of Berth is not a working copy")?;
         if !is_commit(&from) || !is_commit(&to.commit) {
@@ -315,8 +343,16 @@ pub async fn app_update_changes(from: String) -> Result<Vec<String>, String> {
         }
         let repo = source_repo().ok_or("no source repository")?;
         let range = format!("{from}..{}", to.commit);
-        let log = git(&repo, &["log", "--no-merges", "--format=%s", &range])?;
-        Ok(log.lines().map(str::to_owned).collect())
+        let log = git(
+            &repo,
+            &[
+                "log",
+                "--no-merges",
+                "--format=%x1e%s%x1f%(trailers:only,unfold)",
+                &range,
+            ],
+        )?;
+        Ok(log.split('\x1e').filter_map(commit_change).collect())
     })
     .await
     .map_err(|error| error.to_string())?

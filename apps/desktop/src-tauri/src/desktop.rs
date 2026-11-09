@@ -157,7 +157,7 @@ pub async fn app_update_status() -> Option<Value> {
 }
 
 #[tauri::command]
-pub async fn app_update_changes(from: String) -> Result<Vec<String>, String> {
+pub async fn app_update_changes(from: String) -> Result<Vec<working_copy::CommitChange>, String> {
     working_copy::app_update_changes(from).await
 }
 
