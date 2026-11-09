@@ -13,7 +13,7 @@ berth
 ```
 
 This package is a thin launcher: the actual binary is a small Rust executable that npm installs for your
-platform only (macOS arm64/x64, Linux x64/arm64, Windows x64).
+platform only (macOS arm64/x64, Windows x64).
 
 **Prerequisite:** at least one agent CLI on your `PATH` — `claude`, `codex` or `cursor-agent`. berth
 spawns them; it doesn't ship them.

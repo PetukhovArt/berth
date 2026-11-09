@@ -22,7 +22,7 @@ The `Release` workflow does the rest in one run:
 
 1. `gate` reads the version and asks whether `v<version>` is already tagged. On every other push to
    `main` it is, and the run stops there — a push that changes no version costs one 30-second job.
-2. `build` compiles five targets — macOS arm64/x64, Linux x64/arm64 (static musl), Windows x64 — and
+2. `build` compiles three targets, macOS arm64/x64 and Windows x64, and
    uploads two artifacts each: the archive `install.sh` downloads, and the bare binary npm wraps.
 3. `release` tags the commit and attaches `berth-<target>.tar.gz` (and `.zip` for Windows) to a GitHub
    release with generated notes.
@@ -43,8 +43,8 @@ it is private, the script falls back to `cargo install --git`, which needs the u
 
 npm hosts the binaries itself, so this works whether or not the repository is public.
 
-The layout is the esbuild/biome one: five platform packages (`berth-darwin-arm64`, …), each carrying a
-single binary and declaring its `os`/`cpu`, plus a launcher package that lists all five as
+The layout is the esbuild/biome one: three platform packages (`berth-darwin-arm64`, …), each carrying a
+single binary and declaring its `os`/`cpu`, plus a launcher package that lists all three as
 `optionalDependencies` and execs whichever one npm installed. No postinstall, no download at install
 time.
 

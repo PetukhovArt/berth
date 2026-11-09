@@ -10,7 +10,6 @@
 //   node npm/build-packages.mjs --version 0.17.0 --bins <dir> [--scope @petukhovart]
 //
 // <dir> holds one subdirectory per rust target, each with the built binary:
-//   <dir>/x86_64-unknown-linux-musl/berth
 //   <dir>/x86_64-pc-windows-msvc/berth.exe
 //
 // Output lands in npm/dist/, ready for `npm publish` — platform packages
@@ -32,8 +31,6 @@ const REPO = 'https://github.com/PetukhovArt/berth';
 const TARGETS = [
   { target: 'aarch64-apple-darwin', os: 'darwin', cpu: 'arm64' },
   { target: 'x86_64-apple-darwin', os: 'darwin', cpu: 'x64' },
-  { target: 'x86_64-unknown-linux-musl', os: 'linux', cpu: 'x64' },
-  { target: 'aarch64-unknown-linux-musl', os: 'linux', cpu: 'arm64' },
   { target: 'x86_64-pc-windows-msvc', os: 'win32', cpu: 'x64' },
 ];
 

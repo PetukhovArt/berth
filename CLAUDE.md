@@ -76,7 +76,7 @@ step.
 ## Publishing
 
 Releasing is automatic and described in `docs/releasing.md`: a `version` bump in the root
-`Cargo.toml` landing on `main` builds the five targets, tags the commit, publishes the GitHub release
+`Cargo.toml` landing on `main` builds the three targets (macOS, Windows), tags the commit, publishes the GitHub release
 and publishes to npm — one workflow, no button. The deliberate act is therefore the version bump, so
 never bump `version` unless releasing is what was asked for; every other change leaves it alone.
 

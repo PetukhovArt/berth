@@ -34,8 +34,8 @@ the domain vocabulary. Read both before touching IPC, hooks or the daemon.
 
 ## Releases
 
-Bump `version` in the root `Cargo.toml` and land it on `main`. CI builds macOS (arm/intel), Linux
-(x64/arm64, static musl) and Windows (x64) binaries, tags the commit, attaches them to a GitHub release
+Bump `version` in the root `Cargo.toml` and land it on `main`. CI builds macOS (arm/intel) and Windows
+(x64) binaries, tags the commit, attaches them to a GitHub release
 — which is what `install.sh` downloads — and publishes the same binaries to npm. The version bump is
 the release, so leave `version` alone in every other change.
 

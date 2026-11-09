@@ -41,6 +41,7 @@
 - Changed the desktop app's update dialog to show a progress bar and the current stage instead of build ids, commits and the build log.
 - Removed the hot session chips from the desktop app's title bar; the `Ctrl+Shift+O` overview, `Alt+1`..`Alt+9`, `Alt+J` and `Ctrl+Tab` still switch between live sessions.
 - Removed the refresh button above the desktop app's tree; Jira issues now refresh on their own every two minutes, as pull requests and reviews already did.
+- Removed prebuilt Linux binaries from releases and npm; on Linux `install.sh` builds berth from source with `cargo install`.
 
 ## 0.20.0 (2026-09-18)
 

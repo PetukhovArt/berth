@@ -5,13 +5,14 @@ A walkthrough of the TUI, from an empty list to a tree of running agents. Key de
 
 ## Install
 
-npm works on macOS, Linux and Windows. The package is a launcher that fetches the binary for your platform:
+npm works on macOS and Windows. The package is a launcher that fetches the binary for your platform:
 
 ```sh
 npm install -g @petukhovart/berth
 ```
 
-On macOS and Linux the install script installs and updates, and `berth upgrade` runs it again later:
+On macOS and Linux the install script installs and updates, and `berth upgrade` runs it again later.
+Releases carry no Linux binaries, so on Linux it builds from source with `cargo install`:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/PetukhovArt/berth/main/install.sh | sh
