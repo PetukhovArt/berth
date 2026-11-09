@@ -154,11 +154,9 @@ function onShow() {
 
 .item {
   display: flex;
-  align-items: center;
-  gap: var(--vr-space-2);
-  height: var(--vr-size-row);
-  padding: 0 var(--vr-space-2);
-  white-space: nowrap;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--vr-space-1) var(--vr-space-2);
   border-radius: var(--vr-radius-md);
 }
 
@@ -167,20 +165,17 @@ function onShow() {
 }
 
 .name {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
   font-weight: 600;
   color: var(--vr-color-text);
+  overflow-wrap: anywhere;
 }
 
 .rel {
-  min-width: 0;
   overflow: hidden;
   font-family: var(--vr-font-mono);
   font-size: var(--vr-font-size-2xs);
   color: var(--vr-color-text-muted);
+  white-space: nowrap;
   text-overflow: ellipsis;
 }
 

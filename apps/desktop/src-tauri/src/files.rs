@@ -247,7 +247,7 @@ pub fn fs_unwatch(watches: &FileWatches, id: u32) {
 }
 
 fn collect_markdown(root: &Path) -> Vec<String> {
-    let mut found = Vec::new();
+    let mut found: Vec<(Option<SystemTime>, String)> = Vec::new();
     let mut pending = vec![root.to_path_buf()];
     'walk: while let Some(dir) = pending.pop() {
         let Ok(entries) = fs::read_dir(&dir) else {
@@ -264,15 +264,16 @@ fn collect_markdown(root: &Path) -> Vec<String> {
                     pending.push(path);
                 }
             } else if kind.is_file() && MARKDOWN_EXTENSIONS.contains(&extension(&path).as_str()) {
-                found.push(path.to_string_lossy().replace('\\', "/"));
+                let modified = entry.metadata().and_then(|meta| meta.modified()).ok();
+                found.push((modified, path.to_string_lossy().replace('\\', "/")));
                 if found.len() >= LIST_LIMIT {
                     break 'walk;
                 }
             }
         }
     }
-    found.sort();
-    found
+    found.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+    found.into_iter().map(|(_, path)| path).collect()
 }
 
 pub async fn fs_list_markdown(root: String) -> Result<Vec<String>, String> {
