@@ -9,7 +9,6 @@
       "Edit(stratum.baseline.json)",
       "Edit(knip.json)",
       "Edit(scripts/checks.mjs)",
-      "Edit(.github/workflows/**)",
       "Edit(.gitlab-ci.yml)",
       "Edit(.husky/**)"
     ]
