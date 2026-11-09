@@ -107,6 +107,12 @@ const navItems = computed<NavItem[]>(() => {
   return items;
 });
 
+const showNav = computed(() => collapsed.value || navItems.value.length > 1);
+
+function toggleSettings() {
+  void navigate({ kind: view.value.kind === 'settings' ? 'agents' : 'settings' });
+}
+
 let stopPolling: (() => void) | undefined;
 watch(hasForge, (on) => {
   stopPolling?.();
@@ -157,7 +163,7 @@ onUnmounted(() => {
       </button>
     </div>
 
-    <div class="primary">
+    <div v-if="showNav" class="primary">
       <button
         v-for="item in navItems"
         :key="item.kind"
@@ -171,7 +177,7 @@ onUnmounted(() => {
       >
         <component :is="item.icon" :size="16" />
         <span v-if="!collapsed">{{ item.label }}</span>
-        <span v-if="item.count" class="count" :title="item.countTitle" :data-testid="item.testId + '-count'">{{ item.count }}</span>
+        <span v-if="collapsed && item.count" class="count" :title="item.countTitle" :data-testid="item.testId + '-count'">{{ item.count }}</span>
       </button>
     </div>
 
@@ -186,7 +192,7 @@ onUnmounted(() => {
         :title="shortcutTitle(t('shell.settings'), 'nav.settings')"
         :aria-label="t('shell.settings')"
         data-testid="open-settings"
-        @click="navigate({ kind: 'settings' })"
+        @click="toggleSettings"
       >
         <Settings :size="16" />
       </button>
