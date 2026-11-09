@@ -46,6 +46,15 @@ export const update = {
     fix: 'Fixed',
     ok: 'Got it',
   },
+  chip: {
+    building: 'Updating',
+    buildingHint: 'Berth is building an update in the background. Click for details.',
+    restart: 'Restart to update',
+  },
+  autoSetting: {
+    label: 'Update automatically',
+    description: 'Every 10 minutes Berth checks main in the source repository and on GitHub, builds the newer one in the background and offers a restart when it is ready.',
+  },
   setting: {
     label: 'Source repository',
     description: 'The berth checkout whose committed main "Update Berth" builds from. Empty means the checkout this build came from.',

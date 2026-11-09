@@ -3,7 +3,7 @@
 # ref of a berth checkout into a working copy under the install root, keeps the
 # build before it for rollback, and records which build the daemon runs.
 #
-#   bash scripts/install-app.sh [-Launch] [-Force] [-Repo DIR] [-Root DIR] [-Ref BRANCH]
+#   bash scripts/install-app.sh [-Launch] [-Force] [-Repo DIR] [-Root DIR] [-Ref BRANCH|COMMIT]
 #   bash scripts/install-app.sh -Rollback [-Launch]
 #   bash scripts/install-app.sh -UpdateDaemon
 #
@@ -203,7 +203,7 @@ run() {
 
 save_status
 
-COMMIT=$(git -C "$REPO" rev-parse --verify "refs/heads/$REF^{commit}" 2>/dev/null) || fail "no branch $REF in $REPO"
+COMMIT=$(git -C "$REPO" rev-parse --verify "$REF^{commit}" 2>/dev/null) || fail "no commit $REF in $REPO"
 SUBJECT=$(git -C "$REPO" log -1 --format=%s "$COMMIT")
 save_status
 

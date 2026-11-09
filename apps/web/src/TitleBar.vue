@@ -5,6 +5,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { settleAll } from './files/documents';
 import { useI18n } from './i18n';
 import { hostPlatform } from './platform';
+import UpdateChip from './update/UpdateChip.vue';
 
 const { t } = useI18n();
 const win = getCurrentWindow();
@@ -34,6 +35,7 @@ onUnmounted(() => stopResize?.());
       <path class="stroke" d="M32 8 V60 C32 76 42 86 54 86 C68 86 80 76 80 62 C80 48 68 38 54 38 C44 38 34 44 18 60" />
       <circle class="node" cx="55" cy="62" r="6.5" />
     </svg>
+    <div class="update" data-tauri-drag-region><UpdateChip /></div>
     <div v-if="!nativeControls" class="controls">
       <button type="button" class="ctl" data-testid="titlebar-minimize" :aria-label="t('shell.window.minimize')" :title="t('shell.window.minimize')" @click="win.minimize()">
         <Minus :size="16" :stroke-width="1.5" />
@@ -95,10 +97,16 @@ onUnmounted(() => stopResize?.());
   fill: var(--vr-color-accent);
 }
 
+.update {
+  display: flex;
+  flex: 1;
+  justify-content: flex-end;
+  padding-right: var(--vr-space-2);
+}
+
 .controls {
   display: flex;
   height: 100%;
-  margin-left: auto;
 }
 
 .ctl {

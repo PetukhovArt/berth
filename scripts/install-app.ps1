@@ -131,8 +131,8 @@ $status.log = $log
 Save-Status
 
 try {
-    $commit = (git -C $Repo rev-parse --verify "refs/heads/$Ref^{commit}").Trim()
-    if ($LASTEXITCODE -ne 0 -or -not $commit) { throw "no branch $Ref in $Repo" }
+    $commit = (git -C $Repo rev-parse --verify "$Ref^{commit}").Trim()
+    if ($LASTEXITCODE -ne 0 -or -not $commit) { throw "no commit $Ref in $Repo" }
     $subject = (git -C $Repo log -1 --format=%s $commit) -join ' '
     $status.commit = $commit
     $status.subject = $subject

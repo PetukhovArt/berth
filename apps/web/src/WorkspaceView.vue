@@ -14,6 +14,7 @@ import TitleBar from './TitleBar.vue';
 import { installTray } from './tray';
 import ChangesDialog from './update/ChangesDialog.vue';
 import UpdateDialog from './update/UpdateDialog.vue';
+import { installAutoUpdate } from './update/auto';
 import { installUpdate } from './update/state';
 import { view, type View } from './nav';
 import { isDark, toggleTheme } from './settings/appearance';
@@ -30,6 +31,7 @@ const dock = useDock();
 installTray();
 installCleanup();
 installUpdate();
+installAutoUpdate();
 
 try {
   view.value = JSON.parse(localStorage.getItem(viewKey) ?? '') as View;

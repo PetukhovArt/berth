@@ -19,6 +19,7 @@
 - Added a button above the desktop app's session tree that shows only open sessions: running terminals and agents, and Claude Code or Codex conversations whose process is still running.
 - macOS: Added a desktop app working copy built from your local `main` by `scripts/install-app.sh`, so `Update Berth…`, `Roll back to previous build` and `Update daemon` work there too ([details](docs/macos.md)).
 - macOS: Added the traffic lights, a menu bar with `Berth`, `Edit` and `Window` menus (`Cmd+,` opens settings, `Cmd+C` and `Cmd+V` work in text fields), a monochrome menu bar icon and reopening a hidden window from the Dock to the desktop app.
+- Added automatic updates to the desktop app: every 10 minutes it builds the newer of the local `main` and GitHub's in the background and shows a restart button in the title bar when the build is ready; `app.autoUpdate` turns it off.
 - Added a `What is new in Berth` window to the desktop app: after an update and restart it lists once what the new build adds, improves and fixes.
 - Windows: Added WebView2 debugging on port 9335 to the installed desktop app, so `agent-view` can attach to it.
 - Fixed the selected session in the desktop app's tree drawing two highlights with dim text on top, so its name was hard to read.
@@ -38,7 +39,7 @@
 - Changed the environment variables from `PACER_*` to `BERTH_*`; the old spelling still works, except that berth refuses to start on `PACER_RUNTIME_DIR` or `PACER_DATA_DIR` set without its `BERTH_*` counterpart.
 - macOS: Changed the desktop app's shortcuts to use `Cmd` where Windows and Linux use `Ctrl` (`Cmd+Shift+P`, `Cmd+P`, `Cmd+,`, `Cmd+click` to open beside), with `Cmd+C` and `Cmd+V` copying and pasting in the terminal while `Ctrl+C` always reaches the agent, and Option acting as Meta there unless `terminal.option_as_meta` is turned off.
 - Changed scrollbars in the desktop app to be wider and easier to grab with the mouse, and to darken while hovered or dragged.
-- Changed the desktop app's update dialog to show a progress bar and the current stage instead of build ids, commits and the build log.
+- Changed the desktop app's update dialog to list every build stage with the time it took and an estimate of what is left, instead of build ids, commits and the build log.
 - Removed the hot session chips from the desktop app's title bar; the `Ctrl+Shift+O` overview, `Alt+1`..`Alt+9`, `Alt+J` and `Ctrl+Tab` still switch between live sessions.
 - Removed the refresh button above the desktop app's tree; Jira issues now refresh on their own every two minutes, as pull requests and reviews already did.
 - Removed prebuilt Linux binaries from releases and npm; on Linux `install.sh` builds berth from source with `cargo install`.

@@ -48,7 +48,9 @@ function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-async function refresh(): Promise<void> {
+export const quietBuild = ref(false);
+
+export async function refresh(): Promise<void> {
   if (!isDesktop) return;
   try {
     info.value = await invoke<UpdateInfo>('app_update_info');
@@ -70,7 +72,9 @@ async function poll(): Promise<void> {
   clearInterval(poller);
   poller = undefined;
   await refresh();
-  if (job?.state === 'done' && !job.upToDate) dialogMode.value ??= 'update';
+  const quiet = quietBuild.value;
+  quietBuild.value = false;
+  if (job?.state === 'done' && !job.upToDate && !quiet) dialogMode.value ??= 'update';
 }
 
 async function attempt(work: () => Promise<unknown>): Promise<void> {

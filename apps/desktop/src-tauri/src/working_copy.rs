@@ -142,7 +142,7 @@ fn git(repo: &str, args: &[&str]) -> Result<String, String> {
 }
 
 fn head(repo: &str) -> Result<Head, String> {
-    let commit = git(
+    let local = git(
         repo,
         &[
             "rev-parse",
@@ -150,6 +150,20 @@ fn head(repo: &str) -> Result<Head, String> {
             &format!("refs/heads/{BRANCH}^{{commit}}"),
         ],
     )?;
+    let remote = git(
+        repo,
+        &[
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            &format!("refs/remotes/origin/{BRANCH}^{{commit}}"),
+        ],
+    )
+    .ok()
+    .filter(|remote| {
+        *remote != local && git(repo, &["merge-base", "--is-ancestor", &local, remote]).is_ok()
+    });
+    let commit = remote.unwrap_or(local);
     let subject = git(repo, &["log", "-1", "--format=%s", &commit])?;
     Ok(Head { commit, subject })
 }
@@ -308,6 +322,22 @@ pub async fn app_update_changes(from: String) -> Result<Vec<String>, String> {
     .map_err(|error| error.to_string())?
 }
 
+pub async fn app_update_fetch() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let repo = source_repo().ok_or("no source repository")?;
+        let mut command = hidden("git");
+        command
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .env("GCM_INTERACTIVE", "never")
+            .arg("-C")
+            .arg(&repo)
+            .args(["fetch", "--quiet", "--no-tags", "origin", BRANCH]);
+        output(command).map(|_| ())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 pub fn app_update_start() -> Result<(), String> {
     require_self_update()?;
     let script = script()?;
@@ -318,16 +348,20 @@ pub fn app_update_start() -> Result<(), String> {
             return Err("a build is already running".into());
         }
     }
+    let target = head(&repo).ok();
     let mut command = platform::installer_command(&script)?;
     command.arg("-Repo").arg(&repo).arg("-Root").arg(&root);
+    if let Some(target) = &target {
+        command.arg("-Ref").arg(&target.commit);
+    }
     let pid = platform::detach(&mut command).map_err(|error| error.to_string())?;
     let mut map = Map::new();
     map.insert("state".into(), "running".into());
     map.insert("step".into(), "start".into());
     map.insert("pid".into(), pid.into());
-    if let Ok(head) = head(&repo) {
-        map.insert("commit".into(), head.commit.into());
-        map.insert("subject".into(), head.subject.into());
+    if let Some(target) = target {
+        map.insert("commit".into(), target.commit.into());
+        map.insert("subject".into(), target.subject.into());
     }
     map.insert("repo".into(), repo.into());
     if read_status().and_then(|map| running_pid(&map)) != Some(pid) {

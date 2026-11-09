@@ -162,6 +162,11 @@ pub async fn app_update_changes(from: String) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
+pub async fn app_update_fetch() -> Result<(), String> {
+    working_copy::app_update_fetch().await
+}
+
+#[tauri::command]
 pub fn app_update_start() -> Result<(), String> {
     working_copy::app_update_start()
 }
@@ -315,6 +320,7 @@ pub fn run() {
             app_update_info,
             app_update_status,
             app_update_changes,
+            app_update_fetch,
             app_update_start,
             app_update_cancel,
             app_rollback,

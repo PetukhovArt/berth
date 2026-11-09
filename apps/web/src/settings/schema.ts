@@ -272,6 +272,13 @@ export const SETTINGS = {
     category: 'app',
     placeholder: 'update.setting.placeholder',
   },
+  'app.autoUpdate': {
+    type: 'boolean',
+    default: true,
+    label: 'update.autoSetting.label',
+    description: 'update.autoSetting.description',
+    category: 'app',
+  },
   'remote.port': {
     type: 'number',
     default: 4477,
