@@ -13,6 +13,7 @@ export const update: Translation<typeof en> = {
   availableHint: 'Обновление устанавливается в фоне, окном можно пользоваться.',
   start: 'Обновить',
   cancel: 'Отменить',
+  minimize: 'Свернуть',
   cancelled: 'Обновление отменено. Ничего не изменилось.',
   failed: 'Не удалось обновить Berth. Ничего не изменилось.',
   log: 'Лог: {path}',

@@ -10,6 +10,7 @@ export const update = {
   availableHint: 'It installs in the background, and the window stays usable meanwhile.',
   start: 'Update',
   cancel: 'Cancel',
+  minimize: 'Hide',
   cancelled: 'The update was cancelled. Nothing changed.',
   failed: 'The update failed. Nothing changed.',
   log: 'Log: {path}',

@@ -56,6 +56,11 @@ const daemonNotice = computed(() => {
   return daemon ? t('update.daemonBehind') : t('update.daemonUnknown');
 });
 
+async function start() {
+  await startBuild();
+  if (info.value?.job?.state === 'running') closeUpdate();
+}
+
 function onVisible(visible: boolean) {
   if (!visible) closeUpdate();
 }
@@ -129,6 +134,7 @@ function onVisible(visible: boolean) {
       <span class="spacer" />
       <template v-if="phase === 'building'">
         <VButton :label="t('update.cancel')" size="small" severity="danger" text :disabled="busy" data-testid="update-cancel" @click="cancelBuild" />
+        <VButton :label="t('update.minimize')" size="small" data-testid="update-minimize" @click="closeUpdate" />
       </template>
       <template v-else-if="phase === 'pending'">
         <VButton :label="t('update.later')" size="small" text data-testid="update-later" @click="closeUpdate" />
@@ -140,7 +146,7 @@ function onVisible(visible: boolean) {
       </template>
       <template v-else-if="phase === 'available' || phase === 'failed' || phase === 'cancelled'">
         <VButton :label="t('common.close')" size="small" text @click="closeUpdate" />
-        <VButton :label="phase === 'available' ? t('update.start') : t('update.retry')" size="small" :disabled="busy" data-testid="update-start" @click="startBuild" />
+        <VButton :label="phase === 'available' ? t('update.start') : t('update.retry')" size="small" :disabled="busy" data-testid="update-start" @click="start" />
       </template>
       <VButton v-else :label="t('common.close')" size="small" text data-testid="update-close" @click="closeUpdate" />
     </div>
