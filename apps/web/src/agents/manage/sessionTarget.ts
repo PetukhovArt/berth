@@ -1,9 +1,11 @@
 import { computed, shallowRef, watch, type ComputedRef, type ShallowRef } from 'vue';
 import { t } from '../../i18n';
+import { mrFetchSource } from '../../connectors/api';
+import { useSettings } from '../../settings/store';
 import { acknowledged, call, describeError, BerthCallError, useBerth, worktreesOfProject, type Branch, type Worktree } from '../berth';
 
 export type BranchMode = 'current' | 'existing' | 'new';
-type TargetPlan = { kind: 'use'; worktree: Worktree } | { kind: 'create'; branch: string; base: string | null } | { kind: 'incomplete'; reason: string };
+type TargetPlan = { kind: 'use'; worktree: Worktree } | { kind: 'create'; branch: string; base: string | null; fetch: boolean } | { kind: 'incomplete'; reason: string };
 type Option = { id: string; label: string };
 
 export type SessionTarget = {
@@ -35,6 +37,7 @@ const NEW_WORKTREE = ':new-worktree';
 
 export function useSessionTarget(initialWorktree: string | null): SessionTarget {
   const berth = useBerth();
+  const { values } = useSettings();
   const entities = () => berth?.entities.value;
   const initial = initialWorktree ? entities()?.worktrees.get(initialWorktree) : undefined;
 
@@ -64,6 +67,13 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
   const creating = computed(() => target.value === NEW_WORKTREE);
   const branchMode = computed<BranchMode>(() => (creating.value ? 'new' : mode.value));
   const mainWorktree = computed(() => worktrees.value.find((worktree) => worktree.is_main) ?? worktrees.value[0]);
+  const configuredBase = computed(() => {
+    const row = project.value ? entities()?.projects.get(project.value) : undefined;
+    if (!row) return null;
+    const bases = values.value['sessions.worktreeBase'];
+    const folder = row.repo_path.split(/[\\/]/).filter(Boolean).at(-1) ?? '';
+    return (bases[row.name] ?? bases[folder] ?? '').trim() || null;
+  });
   const targetWorktree = computed(() => (creating.value ? mainWorktree.value : worktrees.value.find((worktree) => worktree.id === target.value)));
 
   let loadSeq = 0;
@@ -106,8 +116,9 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
     const known = branches.value?.find((branch) => branch.name === name);
     const holder = known?.worktree ? all?.worktrees.get(known.worktree) : worktrees.value.find((worktree) => worktree.branch === name);
     if (holder) return { kind: 'use', worktree: holder };
+    if (creating.value && !known && configuredBase.value) return { kind: 'create', branch: name, base: configuredBase.value, fetch: true };
     const base = branchMode.value === 'new' && !known && targetWorktree.value && !isDetached(targetWorktree.value.branch) ? targetWorktree.value.branch : null;
-    return { kind: 'create', branch: name, base };
+    return { kind: 'create', branch: name, base, fetch: false };
   }
 
   const plan = computed<TargetPlan>(() => {
@@ -131,12 +142,24 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
     ]);
   });
 
+  async function fetchBase(id: string, branch: string): Promise<string> {
+    const row = entities()?.projects.get(id);
+    if (!row) throw new BerthCallError(t('agents.newSession.noTarget'));
+    const fetched = await mrFetchSource(row.repo_path, branch, '', null);
+    if (fetched.problem || !fetched.base) {
+      const detail = (fetched.detail ?? fetched.problem ?? '').split(/\r?\n/).filter(Boolean).at(-1) ?? '';
+      throw new BerthCallError(t('agents.newSession.baseFetchFailed', { branch, detail }));
+    }
+    return `${fetched.base}^0`;
+  }
+
   async function resolve(): Promise<string> {
     const current = plan.value;
     if (current.kind === 'incomplete') throw new BerthCallError(current.reason);
     if (current.kind === 'use') return current.worktree.id;
     if (!project.value) throw new BerthCallError(t('agents.newSession.noTarget'));
-    const created = await acknowledged({ CreateWorktree: { project: project.value, branch: current.branch, base: current.base } });
+    const base = current.fetch && current.base ? await fetchBase(project.value, current.base) : current.base;
+    const created = await acknowledged({ CreateWorktree: { project: project.value, branch: current.branch, base } });
     if (!created || !('Worktree' in created)) throw new BerthCallError(t('agents.errors.noWorktreeCreated'));
     return created.Worktree;
   }

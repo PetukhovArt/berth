@@ -51,6 +51,8 @@ export const agents: Translation<typeof en> = {
     planUse: 'Запустится в worktree на {branch}',
     planCreate: 'Создаст worktree на {branch} и запустится там',
     planCreateFrom: 'Создаст worktree на новой ветке {branch} от {base} и запустится там',
+    planCreateFresh: 'Получит {base} из origin, создаст worktree на новой ветке {branch} от неё и запустится там',
+    baseFetchFailed: 'Не удалось получить {branch} из origin: {detail}',
     branchesFailed: 'Не удалось получить список веток: {error}',
     type: 'Тип',
     typeAria: 'Тип сессии',

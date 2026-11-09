@@ -48,6 +48,8 @@ export const agents = {
     planUse: 'Starts in the worktree on {branch}',
     planCreate: 'Creates a worktree on {branch}, then starts there',
     planCreateFrom: 'Creates a worktree on the new branch {branch} from {base}, then starts there',
+    planCreateFresh: 'Fetches {base} from origin, creates a worktree on the new branch {branch} from it, then starts there',
+    baseFetchFailed: 'Could not fetch {branch} from origin: {detail}',
     branchesFailed: 'Could not list branches: {error}',
     type: 'Type',
     typeAria: 'Session type',

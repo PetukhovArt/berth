@@ -172,6 +172,14 @@ export const SETTINGS = {
     category: 'sessions',
     placeholder: 'forge.openSession.prompt',
   },
+  'sessions.worktreeBase': {
+    type: 'map',
+    default: {},
+    label: 'settings.def.sessionsWorktreeBase.label',
+    description: 'settings.def.sessionsWorktreeBase.description',
+    category: 'sessions',
+    placeholder: 'settings.def.sessionsWorktreeBase.placeholder',
+  },
   'sessions.externalDays': {
     type: 'number',
     default: 14,

@@ -93,6 +93,11 @@ export const settings: Translation<typeof en> = {
       description: 'Подставляется в форму новой сессии. Пусто — значение выбирает сам агент.',
       placeholder: 'по умолчанию',
     },
+    sessionsWorktreeBase: {
+      label: 'Базовая ветка новых worktree',
+      description: 'Ветка, от которой создаётся New worktree…, предварительно полученная из origin. Пары имени проекта и ветки: web-client=develop. Проект, которого нет в списке, создаётся от ветки основной копии.',
+      placeholder: 'web-client=develop',
+    },
     sessionsMrPrompt: {
       label: 'Промпт сессии из merge request',
       description: 'Первый промпт сессии, открытой из merge request. Подстановки: {url} {title} {description} {branch} {target} {issue} {author}. Пусто — встроенный промпт на языке интерфейса.',

@@ -90,6 +90,11 @@ export const settings = {
       description: 'Prefilled in the new session form. Empty: the agent picks the value.',
       placeholder: 'default',
     },
+    sessionsWorktreeBase: {
+      label: 'Base branch for new worktrees',
+      description: 'The branch New worktree… starts from, fetched from origin first. Pairs of project name and branch: web-client=develop. A project not listed starts from its main checkout branch.',
+      placeholder: 'web-client=develop',
+    },
     sessionsMrPrompt: {
       label: 'Merge request session prompt',
       description: 'First prompt of a session opened from a merge request. Placeholders: {url} {title} {description} {branch} {target} {issue} {author}. Empty: the built-in prompt in the interface language.',
