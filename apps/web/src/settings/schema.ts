@@ -67,6 +67,17 @@ export const SETTINGS = {
     description: 'settings.def.animations.description',
     category: 'appearance',
   },
+  'workbench.tabs': {
+    type: 'enum',
+    default: 'scroll',
+    label: 'settings.def.tabs.label',
+    description: 'settings.def.tabs.description',
+    category: 'appearance',
+    options: [
+      { value: 'scroll', label: 'settings.def.tabs.scroll' },
+      { value: 'wrap', label: 'settings.def.tabs.wrap' },
+    ],
+  },
   'window.closeToTray': {
     type: 'boolean',
     default: false,

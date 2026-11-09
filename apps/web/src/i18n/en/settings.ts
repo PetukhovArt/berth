@@ -40,6 +40,12 @@ export const settings = {
       label: 'Animations',
       description: 'Smooth transitions between views and animated lists. Turn off to reduce motion.',
     },
+    tabs: {
+      label: 'Tabs that do not fit',
+      description: 'How a row of tabs wider than its panel is shown: one line that scrolls sideways with the mouse wheel, or several lines.',
+      scroll: 'Scroll',
+      wrap: 'Several lines',
+    },
     closeToTray: {
       label: 'Close to tray',
       description: 'Closing the window hides Berth to the tray instead of quitting. Quit from the tray menu. Desktop app only.',

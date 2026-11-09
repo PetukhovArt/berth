@@ -97,6 +97,7 @@
 - Windows: Added end-to-end session support: agent launch, output, scrollback and turn status.
 - Windows: Added whole-process-tree kill when a session closes, so nothing is left in the background.
 - Windows: Added session memory metrics, read through the Win32 APIs.
+- Added `workbench.tabs` setting in the desktop app: a row of tabs too wide for its panel either scrolls sideways with the mouse wheel and a visible scrollbar (`scroll`, the default) or wraps onto several lines (`wrap`).
 - Windows: Fixed agent CLIs installed through npm failing to launch.
 - Windows: Fixed `~/` not resolving when `HOME` is unset; it now resolves through `USERPROFILE`.
 - Windows: Fixed background `git` and `gh` calls flashing console windows.

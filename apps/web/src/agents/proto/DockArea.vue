@@ -18,6 +18,7 @@ import StatusDot from '../StatusDot.vue';
 import MetricsPanel from '../manage/MetricsPanel.vue';
 import { isDirtyPath, settleDirty } from '../../files/documents';
 import { isDesktop } from '../../bridge';
+import { useSettings } from '../../settings/store';
 import { FILE_PANEL_PREFIX, isFilePanel } from './markdownFiles';
 import type { SessionPath } from './nav';
 import { startTabDrag, trackTabOrder } from './tabOrder';
@@ -42,6 +43,7 @@ const sessionTabDot = (id: string) => {
   const session = tabSession(id);
   return session ? sessionDot(session, tabLinked(id)) : undefined;
 };
+const { values } = useSettings();
 const hosts = shallowRef<Host[]>([]);
 const subscriptions: { dispose(): void }[] = [];
 let dockApi: DockviewApi | null = null;
@@ -99,7 +101,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="dock">
+  <div class="dock" :data-tabs="values['workbench.tabs']">
     <DockviewVue class="dockview" :theme="themeLight" :disable-dnd="isDesktop" @ready="onReady">
       <template #panel-session="{ params, api }">
         <SessionPanel v-if="isSessionRef(params.session)" class="vr-fade-in" :session="params.session" :panel="api" />
@@ -200,6 +202,33 @@ onBeforeUnmount(() => {
   --dv-drag-over-background-color: var(--vr-color-nav-active);
   --dv-scrollbar-background-color: var(--vr-color-nav-active);
   --dv-tabs-container-scrollbar-color: var(--vr-color-nav-active);
+}
+
+.dock[data-tabs='scroll'] :deep(.dv-scrollable .dv-scrollbar-horizontal) {
+  height: 6px;
+  background-color: var(--dv-scrollbar-background-color);
+}
+
+.dock[data-tabs='wrap'] :deep(.dv-tabs-and-actions-container) {
+  height: auto;
+  min-height: var(--dv-tabs-and-actions-container-height);
+  align-items: flex-start;
+}
+
+.dock[data-tabs='wrap'] :deep(.dv-tabs-container) {
+  flex-wrap: wrap;
+  height: auto;
+  overflow: visible;
+  align-content: flex-start;
+}
+
+.dock[data-tabs='wrap'] :deep(.dv-tabs-container .dv-tab) {
+  height: var(--dv-tabs-and-actions-container-height);
+}
+
+.dock[data-tabs='wrap'] :deep(.dv-scrollbar),
+.dock[data-tabs='wrap'] :deep(.dv-tabs-overflow-dropdown-root) {
+  display: none;
 }
 
 .tab {
