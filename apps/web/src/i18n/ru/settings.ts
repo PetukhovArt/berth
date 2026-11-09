@@ -95,7 +95,7 @@ export const settings: Translation<typeof en> = {
     },
     sessionsWorktreeBase: {
       label: 'Базовая ветка новых worktree',
-      description: 'Ветка, от которой создаётся New worktree…, предварительно полученная из origin. Пары имени проекта и ветки: web-client=develop. Проект, которого нет в списке, создаётся от ветки основной копии.',
+      description: 'Ветка, от которой создаётся New worktree…, предварительно полученная из origin. Пары имени проекта и ветки: web-client=develop. Проект, которого нет в списке, создаётся от первой найденной из develop, main и master.',
       placeholder: 'web-client=develop',
     },
     sessionsMrPrompt: {

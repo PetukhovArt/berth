@@ -34,6 +34,7 @@ async function listBranches(project: string): Promise<Branch[]> {
 const isDetached = (branch: string) => branch.startsWith('detached');
 
 const NEW_WORKTREE = ':new-worktree';
+const DEFAULT_BASES = ['develop', 'main', 'master'];
 
 export function useSessionTarget(initialWorktree: string | null): SessionTarget {
   const berth = useBerth();
@@ -42,7 +43,7 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
   const initial = initialWorktree ? entities()?.worktrees.get(initialWorktree) : undefined;
 
   const project = shallowRef<string | null>(initial?.project_id ?? null);
-  const target = shallowRef<string | null>(initial?.id ?? null);
+  const target = shallowRef<string | null>(initial && !initial.is_main ? initial.id : NEW_WORKTREE);
   const mode = shallowRef<BranchMode>('current');
   const existing = shallowRef<string | null>(null);
   const fresh = shallowRef('');
@@ -72,7 +73,10 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
     if (!row) return null;
     const bases = values.value['sessions.worktreeBase'];
     const folder = row.repo_path.split(/[\\/]/).filter(Boolean).at(-1) ?? '';
-    return (bases[row.name] ?? bases[folder] ?? '').trim() || null;
+    const configured = (bases[row.name] ?? bases[folder] ?? '').trim();
+    if (configured) return configured;
+    const names = new Set(branches.value?.map((branch) => branch.name));
+    return DEFAULT_BASES.find((name) => names.has(name)) ?? null;
   });
   const targetWorktree = computed(() => (creating.value ? mainWorktree.value : worktrees.value.find((worktree) => worktree.id === target.value)));
 
@@ -96,8 +100,7 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
     project,
     (id, previous) => {
       if (previous !== undefined) {
-        const list = worktrees.value;
-        target.value = (list.find((worktree) => worktree.is_main) ?? list[0])?.id ?? null;
+        target.value = worktrees.value.length ? NEW_WORKTREE : null;
         existing.value = null;
       }
       if (id) void load(id);
@@ -108,8 +111,9 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
   if (!project.value) project.value = projects.value[0]?.id ?? null;
 
   watch(worktrees, (list) => {
-    if (!(creating.value && list.length) && !list.some((worktree) => worktree.id === target.value)) target.value = (list.find((worktree) => worktree.is_main) ?? list[0])?.id ?? null;
-  });
+    if (!list.length) target.value = null;
+    else if (!creating.value && !list.some((worktree) => worktree.id === target.value)) target.value = NEW_WORKTREE;
+  }, { immediate: true });
 
   function planFor(name: string): TargetPlan {
     const all = entities();
