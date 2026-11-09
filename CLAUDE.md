@@ -51,6 +51,9 @@ and its own database, or an unfinished binary is driving your live sessions.
 
 Work on `main` only: no feature branches, no worktrees, jig slots included.
 
+Commit every finished fix or feature on your own, without being asked, once its checks pass: stage only
+the files and hunks the task touched, since other sessions leave uncommitted work in the same checkout.
+
 The desktop app (`apps/`, `packages/`, `docker/`) has its own rules in `.claude/rules/desktop.md`.
 
 <important if="you are changing paths, environment variables or hook installation">
