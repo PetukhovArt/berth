@@ -110,5 +110,37 @@ export async function restart(): Promise<void> {
 }
 
 export function installUpdate(): void {
-  void refresh();
+  void refresh().then(announceChanges);
+}
+
+export type ChangeKind = 'feat' | 'perf' | 'fix';
+export type Change = { kind: ChangeKind; text: string };
+
+const SEEN_KEY = 'berth.update.seen';
+const CHANGE = /^(feat|perf|fix)(\([^)]*\))?!?:\s*(.+)$/i;
+
+export const changes = shallowRef<Change[] | null>(null);
+
+function toChange(subject: string): Change | null {
+  const match = CHANGE.exec(subject.trim());
+  if (!match) return null;
+  const [, kind = '', , rest = ''] = match;
+  const text = rest.trim();
+  return { kind: kind.toLowerCase() as ChangeKind, text: text.charAt(0).toUpperCase() + text.slice(1) };
+}
+
+async function announceChanges(): Promise<void> {
+  const running = info.value?.running;
+  if (!running) return;
+  const seen = localStorage.getItem(SEEN_KEY);
+  localStorage.setItem(SEEN_KEY, running.buildId);
+  const previous = info.value?.previous;
+  if (seen === running.buildId || !previous || previous.commit === running.commit) return;
+  const subjects = await invoke<string[]>('app_update_changes', { from: previous.commit }).catch(() => []);
+  const list = subjects.map(toChange).filter((change): change is Change => change !== null);
+  if (list.length) changes.value = list;
+}
+
+export function closeChanges(): void {
+  changes.value = null;
 }

@@ -289,6 +289,25 @@ pub async fn app_update_status() -> Option<Value> {
         .flatten()
 }
 
+fn is_commit(text: &str) -> bool {
+    (4..=64).contains(&text.len()) && text.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+pub async fn app_update_changes(from: String) -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let to = running_build().ok_or("this copy of Berth is not a working copy")?;
+        if !is_commit(&from) || !is_commit(&to.commit) {
+            return Err("not a commit id".into());
+        }
+        let repo = source_repo().ok_or("no source repository")?;
+        let range = format!("{from}..{}", to.commit);
+        let log = git(&repo, &["log", "--no-merges", "--format=%s", &range])?;
+        Ok(log.lines().map(str::to_owned).collect())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 pub fn app_update_start() -> Result<(), String> {
     require_self_update()?;
     let script = script()?;

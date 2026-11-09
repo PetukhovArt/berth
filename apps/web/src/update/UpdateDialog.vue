@@ -28,18 +28,29 @@ const phase = computed(() => {
 });
 
 const STEPS = {
-  start: 'update.steps.start',
-  export: 'update.steps.export',
-  deps: 'update.steps.deps',
-  tokens: 'update.steps.tokens',
-  app: 'update.steps.app',
-  daemon: 'update.steps.daemon',
-  install: 'update.steps.install',
-} as const satisfies Record<string, MessageKey>;
+  start: { label: 'update.steps.start', weight: 2 },
+  export: { label: 'update.steps.export', weight: 3 },
+  deps: { label: 'update.steps.deps', weight: 10 },
+  tokens: { label: 'update.steps.tokens', weight: 3 },
+  app: { label: 'update.steps.app', weight: 45 },
+  daemon: { label: 'update.steps.daemon', weight: 32 },
+  install: { label: 'update.steps.install', weight: 5 },
+} as const satisfies Record<string, { label: MessageKey; weight: number }>;
 
-const stepLabel = computed(() => {
-  const step = job.value?.step ?? 'start';
-  return t(step in STEPS ? STEPS[step as keyof typeof STEPS] : STEPS.start);
+type Step = keyof typeof STEPS;
+const ORDER = Object.keys(STEPS) as Step[];
+const TOTAL = ORDER.reduce((sum, step) => sum + STEPS[step].weight, 0);
+
+const step = computed<Step>(() => {
+  const name = job.value?.step ?? 'start';
+  return name in STEPS ? (name as Step) : 'start';
+});
+
+const stepLabel = computed(() => t(STEPS[step.value].label));
+
+const progress = computed(() => {
+  const done = ORDER.slice(0, ORDER.indexOf(step.value)).reduce((sum, name) => sum + STEPS[name].weight, 0);
+  return Math.max(3, Math.round((done / TOTAL) * 100));
 });
 
 const daemonMismatch = computed(() => {
@@ -49,11 +60,11 @@ const daemonMismatch = computed(() => {
 });
 
 const daemonNotice = computed(() => {
-  if (daemonMismatch.value) return t('update.daemonMismatch', daemonMismatch.value);
+  if (daemonMismatch.value) return t('update.daemonMismatch');
   const build = current.value;
   const daemon = info.value?.daemonBuild ?? null;
   if (!build || daemon?.buildId === build.buildId) return null;
-  return daemon ? t('update.daemonBehind', { daemon: daemon.buildId, build: build.buildId }) : t('update.daemonUnknown', { build: build.buildId });
+  return daemon ? t('update.daemonBehind') : t('update.daemonUnknown');
 });
 
 function onVisible(visible: boolean) {
@@ -64,8 +75,6 @@ function onVisible(visible: boolean) {
 <template>
   <VDialog :visible="dialogMode !== null" modal :header="dialogMode === 'rollback' ? t('update.rollbackTitle') : t('update.title')" :style="{ width: '560px' }" :draggable="false" data-testid="update-dialog" @update:visible="onVisible">
     <div class="body" :data-phase="phase" data-testid="update-body">
-      <p v-if="running" class="muted" data-testid="update-running">{{ t('update.running', { build: running.buildId, commit: short(running.commit) }) }}</p>
-
       <template v-if="phase === 'notInstalled'">
         <p>{{ t('update.notInstalled') }}</p>
         <code class="command">{{ INSTALL_COMMAND }}</code>
@@ -75,28 +84,27 @@ function onVisible(visible: boolean) {
 
       <p v-else-if="phase === 'headError'" class="danger">{{ t('update.headError', { repo: info?.sourceRepo ?? '', error: info?.headError ?? '' }) }}</p>
 
-      <p v-else-if="phase === 'upToDate' && head" data-testid="update-up-to-date">{{ t('update.upToDate', { commit: short(head.commit), subject: head.subject }) }}</p>
+      <p v-else-if="phase === 'upToDate'" data-testid="update-up-to-date">{{ t('update.upToDate') }}</p>
 
-      <template v-else-if="phase === 'available' && head">
-        <p data-testid="update-available">{{ t('update.available', { commit: short(head.commit), subject: head.subject }) }}</p>
-        <p class="muted">{{ t('update.availableHint', { repo: info?.sourceRepo ?? '' }) }}</p>
+      <template v-else-if="phase === 'available'">
+        <p data-testid="update-available">{{ t('update.available') }}</p>
+        <p class="muted">{{ t('update.availableHint') }}</p>
       </template>
 
-      <template v-else-if="phase === 'building' && job">
-        <p data-testid="update-building">{{ t('update.building', { commit: short(job.commit), subject: job.subject ?? '' }) }}</p>
-        <p class="step" data-testid="update-step">{{ stepLabel }}</p>
-        <pre class="tail" data-testid="update-tail">{{ (job.tail ?? []).join('\n') }}</pre>
-      </template>
+      <div v-else-if="phase === 'building'" class="progress" data-testid="update-building">
+        <div class="bar" role="progressbar" :aria-valuenow="progress" aria-valuemin="0" aria-valuemax="100" :aria-valuetext="stepLabel">
+          <div class="fill" :style="{ width: `${progress}%` }" />
+        </div>
+        <p class="muted" data-testid="update-step">{{ stepLabel }}</p>
+      </div>
 
       <template v-else-if="(phase === 'failed' || phase === 'cancelled') && job">
-        <p class="danger" data-testid="update-failed">{{ phase === 'failed' ? t('update.failed') : t('update.cancelled') }}</p>
-        <p v-if="job.error" class="error">{{ job.error }}</p>
-        <pre v-if="phase === 'failed' && job.tail?.length" class="tail">{{ job.tail.join('\n') }}</pre>
-        <p v-if="job.log" class="muted path">{{ t('update.log', { path: job.log }) }}</p>
+        <p :class="{ danger: phase === 'failed' }" data-testid="update-failed">{{ phase === 'failed' ? t('update.failed') : t('update.cancelled') }}</p>
+        <p v-if="phase === 'failed' && job.log" class="muted path">{{ t('update.log', { path: job.log }) }}</p>
       </template>
 
-      <template v-else-if="phase === 'pending' && current">
-        <p data-testid="update-installed">{{ t('update.installed', { build: current.buildId, commit: short(current.commit), subject: current.subject }) }}</p>
+      <template v-else-if="phase === 'pending'">
+        <p data-testid="update-installed">{{ t('update.installed') }}</p>
         <p class="muted">{{ t('update.restartHint') }}</p>
       </template>
 
@@ -163,12 +171,27 @@ function onVisible(visible: boolean) {
   color: var(--vr-color-danger);
 }
 
-.step {
-  font-weight: 600;
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vr-space-2);
+}
+
+.bar {
+  height: 6px;
+  overflow: hidden;
+  background: var(--vr-color-surface-muted);
+  border-radius: var(--vr-radius-md);
+}
+
+.fill {
+  height: 100%;
+  background: var(--vr-color-accent);
+  border-radius: inherit;
+  transition: width var(--vr-motion-slow) var(--vr-motion-ease-standard);
 }
 
 .command,
-.tail,
 .path {
   font-family: var(--vr-font-mono);
   font-size: var(--vr-font-size-xs);
@@ -179,17 +202,6 @@ function onVisible(visible: boolean) {
   background: var(--vr-color-surface-muted);
   border-radius: var(--vr-radius-md);
   user-select: all;
-}
-
-.tail {
-  max-height: 220px;
-  margin: 0;
-  padding: var(--vr-space-2);
-  overflow: auto;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  background: var(--vr-color-surface-muted);
-  border-radius: var(--vr-radius-md);
 }
 
 .daemon {

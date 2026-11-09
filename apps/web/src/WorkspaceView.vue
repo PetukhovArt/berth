@@ -12,6 +12,7 @@ import { useIsPhone } from '@ui/kit';
 import Sidebar from './Sidebar.vue';
 import TitleBar from './TitleBar.vue';
 import { installTray } from './tray';
+import ChangesDialog from './update/ChangesDialog.vue';
 import UpdateDialog from './update/UpdateDialog.vue';
 import { installUpdate } from './update/state';
 import { view, type View } from './nav';
@@ -67,6 +68,7 @@ watch(
     <QuickOpen />
     <UnsavedDialog />
     <UpdateDialog v-if="inTauri" />
+    <ChangesDialog v-if="inTauri" />
     <CleanupDialog v-if="inTauri" />
     <HotHost />
     <Transition name="palette">
