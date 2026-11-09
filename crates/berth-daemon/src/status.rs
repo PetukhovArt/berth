@@ -256,6 +256,16 @@ impl AgentStatusMachine {
                     self.stop_held = false;
                     self.drain_idle_since = None;
                     self.subagent_alive_at = None;
+                    // `/clear` itself fired `UserPromptSubmit` but runs no
+                    // turn, so no `Stop` or title edge follows: without this
+                    // the fresh conversation sits on running forever.
+                    self.finished_at = None;
+                    if matches!(
+                        self.status,
+                        AgentStatus::Running | AgentStatus::NeedsFeedback
+                    ) {
+                        self.set_status(AgentStatus::Fresh, &mut effects);
+                    }
                 }
             }
             HookEvent::PermissionRequest => {

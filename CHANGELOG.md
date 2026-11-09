@@ -23,6 +23,7 @@
 - Added automatic updates to the desktop app: every 10 minutes it builds the newer of the local `main` and GitHub's in the background and shows a restart button in the title bar when the build is ready; `app.autoUpdate` turns it off.
 - Added a `What is new in Berth` window to the desktop app: after an update and restart it lists once what the new build adds, improves and fixes.
 - Windows: Added WebView2 debugging on port 9335 to the installed desktop app, so `agent-view` can attach to it.
+- Fixed `/clear` in Claude Code leaving the session marked as working, with a blinking tab, until the next prompt.
 - Fixed the selected session in the desktop app's tree drawing two highlights with dim text on top, so its name was hard to read.
 - Fixed a terminal running Claude Code showing one name in the desktop app's tree and another in its tab and the TUI: a `/rename` in Claude Code now renames the terminal everywhere, and a rename in Berth shows in the tree too; whichever came last wins.
 - Fixed `Continue in Berth` in the desktop app opening the terminal in a new tab beside the conversation; the terminal now takes the conversation's tab.
