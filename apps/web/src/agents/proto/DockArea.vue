@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import 'dockview-vue/dist/styles/dockview.css';
 import { onBeforeUnmount, shallowRef } from 'vue';
-import { DockviewVue, themeLight, type DockviewApi, type DockviewReadyEvent } from 'dockview-vue';
+import { DockviewVue, themeLight, type DockviewApi, type DockviewPanelApi, type DockviewReadyEvent } from 'dockview-vue';
 import { ChevronRight, FileText, GitPullRequest, Network, Ticket, X } from 'lucide-vue-next';
 import JiraIssueView from '../../atlassian/JiraIssueView.vue';
 import ArchitectureView from '../../forge/ArchitectureView.vue';
@@ -17,8 +17,10 @@ import SessionPanel from '../SessionPanel.vue';
 import StatusDot from '../StatusDot.vue';
 import MetricsPanel from '../manage/MetricsPanel.vue';
 import { isDirtyPath, settleDirty } from '../../files/documents';
+import { isDesktop } from '../../bridge';
 import { FILE_PANEL_PREFIX, isFilePanel } from './markdownFiles';
 import type { SessionPath } from './nav';
+import { startTabDrag, trackTabOrder } from './tabOrder';
 
 const props = defineProps<{ activeKey: string | null; paths: ReadonlyMap<string, SessionPath>; groupLabels?: boolean }>();
 const emit = defineEmits<{ ready: [event: DockviewReadyEvent]; 'open-file': [path: string, hash: string, from: string] }>();
@@ -42,6 +44,7 @@ const sessionTabDot = (id: string) => {
 };
 const hosts = shallowRef<Host[]>([]);
 const subscriptions: { dispose(): void }[] = [];
+let dockApi: DockviewApi | null = null;
 
 function syncHosts(api: DockviewApi) {
   if (!props.groupLabels) return;
@@ -53,8 +56,9 @@ function syncHosts(api: DockviewApi) {
 
 function onReady(event: DockviewReadyEvent) {
   const api = event.api;
+  dockApi = api;
   const sync = () => syncHosts(api);
-  subscriptions.push(api.onDidAddGroup(sync), api.onDidRemoveGroup(sync), api.onDidAddPanel(sync), api.onDidRemovePanel(sync), api.onDidLayoutChange(sync));
+  subscriptions.push(api.onDidAddGroup(sync), api.onDidRemoveGroup(sync), api.onDidAddPanel(sync), api.onDidRemovePanel(sync), api.onDidLayoutChange(sync), ...trackTabOrder(api));
   emit('ready', event);
   sync();
 }
@@ -84,14 +88,19 @@ async function closeTab(api: { id: string; close: () => void }) {
 
 const str = (value: unknown) => (typeof value === 'string' ? value : '');
 
+function onTabPointerDown(event: PointerEvent, panel: DockviewPanelApi) {
+  if (isDesktop) startTabDrag(event, panel, dockApi);
+}
+
 onBeforeUnmount(() => {
   for (const subscription of subscriptions) subscription.dispose();
+  dockApi = null;
 });
 </script>
 
 <template>
   <div class="dock">
-    <DockviewVue class="dockview" :theme="themeLight" @ready="onReady">
+    <DockviewVue class="dockview" :theme="themeLight" :disable-dnd="isDesktop" @ready="onReady">
       <template #panel-session="{ params, api }">
         <SessionPanel v-if="isSessionRef(params.session)" class="vr-fade-in" :session="params.session" :panel="api" />
       </template>
@@ -122,7 +131,7 @@ onBeforeUnmount(() => {
         <MarkdownFile v-if="typeof params.path === 'string'" class="vr-fade-in" :path="params.path" :hash="typeof params.hash === 'string' ? params.hash : ''" @open-file="(path, hash) => emit('open-file', path, hash, api.id)" />
       </template>
       <template #defaultTab="{ api }">
-        <span class="tab" @dblclick="dock.toggleMaximize(api.id)" :data-testid="`${kindOf(api.id)}-tab`" :data-panel-id="api.id" :data-session-id="berth?.sessions.value.get(api.id)?.id" :data-active="api.id === activeKey">
+        <span class="tab" @dblclick="dock.toggleMaximize(api.id)" @pointerdown="onTabPointerDown($event, api)":data-testid="`${kindOf(api.id)}-tab`" :data-panel-id="api.id" :data-session-id="berth?.sessions.value.get(api.id)?.id" :data-active="api.id === activeKey">
           <FileText v-if="kindOf(api.id) === 'file'" :size="12" />
           <GitPullRequest v-else-if="kindOf(api.id) === 'review'" :size="12" />
           <Network v-else-if="kindOf(api.id) === 'architecture'" :size="12" />
@@ -199,6 +208,18 @@ onBeforeUnmount(() => {
   gap: var(--vr-space-2);
   height: 100%;
   padding: 0 var(--vr-space-1) 0 var(--vr-space-3);
+}
+
+.tab[data-dragging='true'] {
+  opacity: 0.6;
+}
+
+.tab[data-drop-side='before'] {
+  box-shadow: inset 2px 0 0 var(--vr-color-accent);
+}
+
+.tab[data-drop-side='after'] {
+  box-shadow: inset -2px 0 0 var(--vr-color-accent);
 }
 
 .name {

@@ -22,6 +22,7 @@
 - macOS: Added the traffic lights, a menu bar with `Berth`, `Edit` and `Window` menus (`Cmd+,` opens settings, `Cmd+C` and `Cmd+V` work in text fields), a monochrome menu bar icon and reopening a hidden window from the Dock to the desktop app.
 - Added automatic updates to the desktop app: every 10 minutes it builds the newer of the local `main` and GitHub's in the background and shows a restart button in the title bar when the build is ready; `app.autoUpdate` turns it off.
 - Added a `What is new in Berth` window to the desktop app: after an update and restart it lists once what the new build adds, improves and fixes.
+- Added drag and drop to reorder session tabs in the desktop app; the order is remembered across restarts.
 - Windows: Added WebView2 debugging on port 9335 to the installed desktop app, so `agent-view` can attach to it.
 - Fixed `/clear` in Claude Code leaving the session marked as working, with a blinking tab, until the next prompt.
 - Fixed the selected session in the desktop app's tree drawing two highlights with dim text on top, so its name was hard to read.
