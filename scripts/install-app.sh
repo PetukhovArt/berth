@@ -224,6 +224,17 @@ GIT_INDEX_FILE="$BUILD_DIR/src.index" git --git-dir="$GIT_DIR_ABS" --work-tree="
     || fail "git read-tree $COMMIT failed"
 
 export CARGO_TARGET_DIR="$BUILD_DIR/target"
+export CARGO_PROFILE_RELEASE_LTO=false
+export CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16
+export CARGO_PROFILE_RELEASE_INCREMENTAL=true
+export CARGO_PROFILE_RELEASE_OPT_LEVEL=2
+
+DAEMON_EXE="$CARGO_TARGET_DIR/release/berth"
+INSTALLED_COMMIT=$(build_field "$CURRENT" commit)
+if [ -n "$INSTALLED_COMMIT" ] && [ -x "$CURRENT/berth" ] \
+    && git -C "$REPO" diff --quiet "$INSTALLED_COMMIT" "$COMMIT" -- crates vendor Cargo.toml Cargo.lock rust-toolchain.toml .cargo 2>/dev/null; then
+    DAEMON_EXE="$CURRENT/berth"
+fi
 cd "$SRC" || fail "cannot enter $SRC"
 set_step deps
 run pnpm install --frozen-lockfile --config.confirmModulesPurge=false
@@ -231,8 +242,12 @@ set_step tokens
 run pnpm build:tokens
 set_step app
 run pnpm --filter @berth/desktop exec tauri build --bundles app
-set_step daemon
-run cargo build --release --locked -p berth
+if [ "$DAEMON_EXE" = "$CURRENT/berth" ]; then
+    add_log "daemon sources unchanged since $INSTALLED_COMMIT, reusing $DAEMON_EXE"
+else
+    set_step daemon
+    run cargo build --release --locked -p berth
+fi
 
 set_step install
 RELEASE="$CARGO_TARGET_DIR/release"
@@ -245,7 +260,7 @@ rm -rf "$STAGING"
 mkdir -p "$STAGING"
 run ditto "$RELEASE/bundle/macos/$BUNDLE" "$STAGING/$BUNDLE"
 run codesign --force --deep --sign "$SIGN_IDENTITY" "$STAGING/$BUNDLE"
-run cp "$RELEASE/berth" "$STAGING/berth"
+run cp "$DAEMON_EXE" "$STAGING/berth"
 run cp "$SRC/scripts/install-app.sh" "$STAGING/install-app.sh"
 {
     printf '{\n'

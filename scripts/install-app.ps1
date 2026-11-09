@@ -160,6 +160,21 @@ try {
     }
 
     $env:CARGO_TARGET_DIR = Join-Path $buildDir 'target'
+    $env:CARGO_PROFILE_RELEASE_LTO = 'false'
+    $env:CARGO_PROFILE_RELEASE_CODEGEN_UNITS = '16'
+    $env:CARGO_PROFILE_RELEASE_INCREMENTAL = 'true'
+    $env:CARGO_PROFILE_RELEASE_OPT_LEVEL = '2'
+
+    $daemonExe = Join-Path $env:CARGO_TARGET_DIR 'release\berth.exe'
+    $installedDaemon = Join-Path $current 'berth.exe'
+    if ($installedBuild -and (Test-Path -LiteralPath $installedDaemon)) {
+        $ErrorActionPreference = 'Continue'
+        git -C $Repo diff --quiet $installedBuild.commit $commit -- crates vendor Cargo.toml Cargo.lock rust-toolchain.toml .cargo 2>$null
+        $unchanged = $LASTEXITCODE -eq 0
+        $ErrorActionPreference = 'Stop'
+        if ($unchanged) { $daemonExe = $installedDaemon }
+    }
+
     Push-Location $src
     try {
         Set-Step 'deps'
@@ -168,8 +183,12 @@ try {
         Invoke-Logged 'pnpm' @('build:tokens')
         Set-Step 'app'
         Invoke-Logged 'pnpm' @('--filter', '@berth/desktop', 'exec', 'tauri', 'build', '--no-bundle')
-        Set-Step 'daemon'
-        Invoke-Logged 'cargo' @('build', '--release', '--locked', '-p', 'berth')
+        if ($daemonExe -eq $installedDaemon) {
+            Add-Log "daemon sources unchanged since $($installedBuild.commit), reusing $installedDaemon"
+        } else {
+            Set-Step 'daemon'
+            Invoke-Logged 'cargo' @('build', '--release', '--locked', '-p', 'berth')
+        }
     } finally {
         Pop-Location
     }
@@ -184,7 +203,7 @@ try {
     if (Test-Path -LiteralPath $staging) { Remove-Item -Recurse -Force -LiteralPath $staging }
     New-Item -ItemType Directory -Force -Path $staging | Out-Null
     Copy-Item -LiteralPath (Join-Path $release $exeName) -Destination $staging
-    Copy-Item -LiteralPath (Join-Path $release 'berth.exe') -Destination $staging
+    Copy-Item -LiteralPath $daemonExe -Destination $staging
     Copy-Item -LiteralPath (Join-Path $src 'scripts\install-app.ps1') -Destination $staging
     $build = [ordered]@{ buildId = $buildId; commit = $commit; subject = $subject; sourceRepo = $Repo; builtAt = (Get-Date).ToString('o'); protocol = $protocol }
     [IO.File]::WriteAllText((Join-Path $staging 'build.json'), ($build | ConvertTo-Json), $utf8)
