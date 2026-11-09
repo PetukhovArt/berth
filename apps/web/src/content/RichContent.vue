@@ -156,7 +156,6 @@ onBeforeUnmount(() => clearTimeout(copyTimer));
   --rc-h4: 1em;
   --rc-h5: 0.875em;
   --rc-h6: 0.85em;
-  max-width: 980px;
 }
 
 .body > :deep(:first-child) {
