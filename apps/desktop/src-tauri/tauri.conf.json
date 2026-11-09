@@ -18,7 +18,8 @@
         "decorations": false,
         "focus": false,
         "visible": false,
-        "backgroundColor": "#2a2d1c"
+        "backgroundColor": "#2a2d1c",
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --remote-debugging-port=9335"
       }
     ],
     "security": {

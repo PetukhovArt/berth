@@ -151,7 +151,8 @@ folder), `BERTH_BIN_DIR` (where `-UpdateDaemon` puts `berth.exe`), `BERTH_HOME`,
 
 The dev run (`scripts\dev.ps1 -Desktop` or `pnpm dev:desktop`) stays apart from it: the Tauri identifier
 `dev.berth.desktop.dev`, a window titled `Berth (dev)`, `BERTH_HOME` under `~\.berth-dev`, file secrets,
-a dev daemon and WebView2 debugging on port 9334.
+a dev daemon and WebView2 debugging on port 9334. The installed app keeps WebView2 debugging on port
+9335, so `agent-view` can attach to it as well; `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` overrides it.
 
 Two e2e suites (PTY and TUI) are marked as requiring a Unix host and are skipped on Windows; the rest of
 the suite, including the Windows transport, token and daemon-lock smoke tests, runs.

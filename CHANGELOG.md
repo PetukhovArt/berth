@@ -20,6 +20,7 @@
 - macOS: Added a desktop app working copy built from your local `main` by `scripts/install-app.sh`, so `Update Berth…`, `Roll back to previous build` and `Update daemon` work there too ([details](docs/macos.md)).
 - macOS: Added the traffic lights, a menu bar with `Berth`, `Edit` and `Window` menus (`Cmd+,` opens settings, `Cmd+C` and `Cmd+V` work in text fields), a monochrome menu bar icon and reopening a hidden window from the Dock to the desktop app.
 - Added a `What is new in Berth` window to the desktop app: after an update and restart it lists once what the new build adds, improves and fixes.
+- Windows: Added WebView2 debugging on port 9335 to the installed desktop app, so `agent-view` can attach to it.
 - Fixed the selected session in the desktop app's tree drawing two highlights with dim text on top, so its name was hard to read.
 - Fixed a terminal running Claude Code showing one name in the desktop app's tree and another in its tab and the TUI: a `/rename` in Claude Code now renames the terminal everywhere, and a rename in Berth shows in the tree too; whichever came last wins.
 - Fixed `Continue in Berth` in the desktop app opening the terminal in a new tab beside the conversation; the terminal now takes the conversation's tab.
