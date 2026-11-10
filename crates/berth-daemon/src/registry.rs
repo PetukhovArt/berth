@@ -2280,6 +2280,7 @@ impl Daemon {
             name,
             sort_order: 0,
             alive: false,
+            session_id: None,
         };
         self.store.insert_terminal(&terminal)?;
         self.spawn_terminal_session(&terminal, &worktree, DEFAULT_COLS, DEFAULT_ROWS)?;

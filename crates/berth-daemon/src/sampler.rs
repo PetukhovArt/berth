@@ -92,28 +92,34 @@ pub async fn run(daemon: Arc<Daemon>) {
             let (snapshot, next) = crate::metrics::collect(&table, pids, prev.as_ref());
             let tokens = transcripts.map(|t| lent.sweep(&t));
             let names = cli_title::titles(&probes, &mut lent_index);
-            let terminal_names =
-                cli_title::terminal_titles(&table, &terminals, &cli_title::claude_sessions_dir());
+            let claude_dir = cli_title::claude_sessions_dir();
+            let terminal_names = cli_title::terminal_titles(&table, &terminals, &claude_dir);
+            let terminal_sessions = cli_title::terminal_sessions(&table, &terminals, &claude_dir);
             (
                 snapshot,
                 next,
                 (lent, lent_index),
                 tokens,
-                (names, terminal_names),
+                (names, terminal_names, terminal_sessions),
             )
         });
-        let (mut snapshot, next, (returned, returned_index), swept, (names, terminal_names)) =
-            match handle.await {
-                Ok(done) => done,
-                Err(err) => {
-                    // The tailer went into the task and died with it, so the
-                    // next sweep starts every cursor over and re-reads each
-                    // transcript whole. Correct, but expensive and otherwise
-                    // invisible.
-                    tracing::warn!(error = %err, "metrics sample failed; token cursors reset");
-                    continue;
-                }
-            };
+        let (
+            mut snapshot,
+            next,
+            (returned, returned_index),
+            swept,
+            (names, terminal_names, terminal_sessions),
+        ) = match handle.await {
+            Ok(done) => done,
+            Err(err) => {
+                // The tailer went into the task and died with it, so the
+                // next sweep starts every cursor over and re-reads each
+                // transcript whole. Correct, but expensive and otherwise
+                // invisible.
+                tracing::warn!(error = %err, "metrics sample failed; token cursors reset");
+                continue;
+            }
+        };
         cpu = Some(next);
         tailer = returned;
         codex_index = returned_index;
@@ -136,6 +142,11 @@ pub async fn run(daemon: Arc<Daemon>) {
         for (id, title) in &terminal_names {
             if let Err(e) = daemon.adopt_terminal_cli_title(id, title) {
                 tracing::warn!(terminal = %id, error = %e, "adopting /rename title failed");
+            }
+        }
+        for (id, session_id) in &terminal_sessions {
+            if let Err(e) = daemon.record_terminal_session(id, session_id) {
+                tracing::warn!(terminal = %id, error = %e, "recording the terminal's conversation failed");
             }
         }
         if let Some(swept) = swept {

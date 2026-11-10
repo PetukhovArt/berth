@@ -42,7 +42,8 @@ if ($Reset) { Remove-Item -Recurse -Force $env:BERTH_DATA_DIR -ErrorAction Silen
 
 Write-Host "dev instance [$(Split-Path -Leaf $PWD)] -> runtime $env:BERTH_RUNTIME_DIR, data $env:BERTH_DATA_DIR"
 if ($Desktop) {
-    # The desktop app connects to a daemon but never starts one, and its own
+    # The desktop app starts `berth daemon` from PATH, the installed build,
+    # when nothing answers, so the dev build has to be up first. Its own
     # settings, connectors and secrets (a file, not the OS keychain) go to
     # BERTH_HOME instead of your real ~/.berth.
     $env:BERTH_HOME = Join-Path $env:BERTH_DATA_DIR 'home'

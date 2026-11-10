@@ -28,7 +28,7 @@ type Agent = {
   sort_order: number;
   alive: boolean;
 };
-type Terminal = { id: string; worktree_id: string; name: string; sort_order: number; alive: boolean };
+type Terminal = { id: string; worktree_id: string; name: string; sort_order: number; alive: boolean; session_id?: string | null };
 
 type Entity = { Workspace: Workspace } | { Project: Project } | { Worktree: Worktree } | { Agent: Agent } | { Terminal: Terminal } | { Link: unknown };
 type EntityId = { Workspace: string } | { Project: string } | { Worktree: string } | { Agent: string } | { Terminal: string } | { Link: string };

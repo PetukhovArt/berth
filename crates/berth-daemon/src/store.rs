@@ -274,6 +274,11 @@ const MIGRATIONS: &[&str] = &[
     "
     ALTER TABLE terminals ADD COLUMN cli_title TEXT;
     ",
+    // 27: the conversation of the last Claude Code started in a terminal,
+    // so a client can tie that conversation to the terminal after both exit.
+    "
+    ALTER TABLE terminals ADD COLUMN session_id TEXT;
+    ",
 ];
 
 pub struct Store {
@@ -862,6 +867,16 @@ impl Store {
         Ok(changed == 1)
     }
 
+    /// Record the conversation a terminal runs; false when it already was
+    /// the recorded one.
+    pub fn record_terminal_session(&self, id: &TerminalId, session_id: &str) -> Result<bool> {
+        let changed = self.conn.lock().unwrap().execute(
+            "UPDATE terminals SET session_id = ?2 WHERE id = ?1 AND session_id IS NOT ?2",
+            params![id.as_str(), session_id],
+        )?;
+        Ok(changed == 1)
+    }
+
     pub fn delete_terminal(&self, id: &TerminalId) -> Result<()> {
         self.delete_by_id("terminals", id.as_str())
     }
@@ -1122,7 +1137,7 @@ const WORKTREE_COLUMNS: &str = "id, project_id, path, branch, is_main, sort_orde
 const AGENT_COLUMNS: &str = "id, worktree_id, name, status, archived, kind, \
                              claude_session_id, sort_order, status_changed_at, model, effort, \
                              archived_at, unseen, cloud_session_id";
-const TERMINAL_COLUMNS: &str = "id, worktree_id, name, sort_order";
+const TERMINAL_COLUMNS: &str = "id, worktree_id, name, sort_order, session_id";
 const LINK_COLUMNS: &str = "id, worktree_id, url, sort_order";
 const ORPHAN_COLUMNS: &str =
     "session_id, project_id, kind, name, branch, worktree_path,      created_at, orphaned_at";
@@ -1189,6 +1204,7 @@ fn row_to_terminal(r: &rusqlite::Row) -> rusqlite::Result<TerminalTab> {
         name: r.get(2)?,
         sort_order: r.get(3)?,
         alive: false,
+        session_id: r.get(4)?,
     })
 }
 
@@ -1887,6 +1903,7 @@ mod tests {
                 name: "shell".into(),
                 sort_order: 0,
                 alive: false,
+                session_id: None,
             })
             .unwrap();
 

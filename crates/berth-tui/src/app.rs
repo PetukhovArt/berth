@@ -3616,6 +3616,7 @@ mod tests {
             name: "shell".into(),
             sort_order: 0,
             alive: true,
+            session_id: None,
         });
         app.tree
             .links

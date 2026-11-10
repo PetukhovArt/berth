@@ -4727,6 +4727,7 @@ mod tests {
                 name: (*name).into(),
                 sort_order: i as i64,
                 alive: false,
+                session_id: None,
             });
         }
         app

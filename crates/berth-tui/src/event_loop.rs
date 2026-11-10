@@ -12361,6 +12361,7 @@ diff --git a/src/b.rs b/src/b.rs
                     name: name.into(),
                     sort_order: 0,
                     alive: true,
+                    session_id: None,
                 }),
             },
         );

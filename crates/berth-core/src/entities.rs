@@ -199,6 +199,10 @@ pub struct TerminalTab {
     pub sort_order: i64,
     /// True when the daemon currently holds a live PTY for this terminal.
     pub alive: bool,
+    /// The conversation of the last Claude Code a user started in this
+    /// terminal by hand, kept after it exits (`claude --resume <id>`).
+    #[serde(default)]
+    pub session_id: Option<String>,
 }
 
 /// A URL pinned to a worktree — the pull request, the ticket, the design

@@ -183,6 +183,40 @@ pub fn terminal_titles(
     terminals: &[(TerminalId, u32)],
     dir: &Path,
 ) -> Vec<(TerminalId, String)> {
+    newest_per_terminal(table, terminals, dir, claude_pid_title)
+}
+
+/// The conversation of a Claude Code record: `sessionId`, ordered by
+/// `startedAt`.
+fn claude_pid_session(dir: &Path, pid: u32) -> Option<(u64, String)> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct File {
+        session_id: Option<String>,
+        started_at: Option<u64>,
+    }
+    let file: File =
+        serde_json::from_slice(&std::fs::read(dir.join(format!("{pid}.json"))).ok()?).ok()?;
+    let session_id = file.session_id.filter(|id| !id.trim().is_empty())?;
+    Some((file.started_at.unwrap_or(0), session_id))
+}
+
+/// Blocking. The conversation of the Claude Code a user started by hand
+/// inside a terminal, the newest one when several run there.
+pub fn terminal_sessions(
+    table: &str,
+    terminals: &[(TerminalId, u32)],
+    dir: &Path,
+) -> Vec<(TerminalId, String)> {
+    newest_per_terminal(table, terminals, dir, claude_pid_session)
+}
+
+fn newest_per_terminal(
+    table: &str,
+    terminals: &[(TerminalId, u32)],
+    dir: &Path,
+    read: fn(&Path, u32) -> Option<(u64, String)>,
+) -> Vec<(TerminalId, String)> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return Vec::new();
     };
@@ -198,12 +232,12 @@ pub fn terminal_titles(
     terminals
         .iter()
         .filter_map(|(id, root)| {
-            let (_, title) = crate::metrics::subtree_pids(table, *root)
+            let (_, value) = crate::metrics::subtree_pids(table, *root)
                 .into_iter()
                 .filter(|pid| recorded.contains(pid))
-                .filter_map(|pid| claude_pid_title(dir, pid))
-                .max_by_key(|(since, _)| *since)?;
-            Some((id.clone(), title))
+                .filter_map(|pid| read(dir, pid))
+                .max_by_key(|(order, _)| *order)?;
+            Some((id.clone(), value))
         })
         .collect()
 }
@@ -216,6 +250,23 @@ impl Daemon {
             return Ok(false);
         }
         tracing::info!(terminal = %id, title = %title, "adopted the CLI's session name");
+        let mut term = self.store.get_terminal(id)?.context("terminal not found")?;
+        term.alive = self.is_alive(&SessionRef::Terminal(id.clone()));
+        self.broadcast(ServerEvent::EntityUpserted {
+            entity: Entity::Terminal(term),
+        });
+        Ok(true)
+    }
+
+    /// Record the conversation a terminal runs and tell every client.
+    pub fn record_terminal_session(
+        self: &Arc<Self>,
+        id: &TerminalId,
+        session_id: &str,
+    ) -> Result<bool> {
+        if !self.store.record_terminal_session(id, session_id)? {
+            return Ok(false);
+        }
         let mut term = self.store.get_terminal(id)?.context("terminal not found")?;
         term.alive = self.is_alive(&SessionRef::Terminal(id.clone()));
         self.broadcast(ServerEvent::EntityUpserted {
@@ -286,6 +337,23 @@ mod tests {
         assert_eq!(
             terminal_titles(table, &terminals, tmp.path()),
             vec![(TerminalId("a".into()), "libraries-2".to_string())]
+        );
+    }
+
+    #[test]
+    fn terminal_session_is_the_newest_claude_in_its_subtree() {
+        let tmp = tempfile::tempdir().unwrap();
+        let record = |pid: u32, json: &str| {
+            std::fs::write(tmp.path().join(format!("{pid}.json")), json).unwrap()
+        };
+        record(20, r#"{"pid":20,"sessionId":"old","startedAt":100}"#);
+        record(30, r#"{"pid":30,"sessionId":"new","startedAt":200}"#);
+        record(50, r#"{"pid":50,"sessionId":"elsewhere","startedAt":900}"#);
+        let table = "10 1 0 0\n20 10 0 0\n30 20 0 0\n50 1 0 0\n";
+        let terminals = [(TerminalId("a".into()), 10)];
+        assert_eq!(
+            terminal_sessions(table, &terminals, tmp.path()),
+            vec![(TerminalId("a".into()), "new".to_string())]
         );
     }
 

@@ -143,22 +143,23 @@ export async function continueInBerth(session: ExternalSession, target: External
     const orphans = await listOrphans(target.projectId).catch(() => []);
     if (orphans.some((orphan) => orphan.session_id === session.id)) return { Agent: await resumeOrphan(session.id, target.worktreeId) };
   }
-  const name = session.title.slice(0, TERMINAL_NAME_CHARS);
-  const closed = closedTerminal(target.worktreeId, name);
-  if (closed) {
-    void whenAlive(closed.Terminal).then((alive) => (alive ? sendInput(closed, `${resumeCommand(session)}\r`) : undefined));
+  const host = closedHost(session, useBerth()?.entities.value);
+  if (host) {
+    const closed = { Terminal: host };
+    void whenAlive(host).then((alive) => (alive ? sendInput(closed, `${resumeCommand(session)}\r`) : undefined));
     return closed;
   }
-  const terminal = entitySessionRef(await createTerminal(target.worktreeId, name));
+  const terminal = entitySessionRef(await createTerminal(target.worktreeId, session.title.slice(0, TERMINAL_NAME_CHARS)));
   if (!terminal) throw new BerthCallError(t('workbench.external.noTerminal'));
   await whenListed(terminal);
   await sendInput(terminal, `${resumeCommand(session)}\r`);
   return terminal;
 }
 
-function closedTerminal(worktreeId: string, name: string): { Terminal: string } | null {
-  for (const terminal of useBerth()?.entities.value.terminals.values() ?? []) {
-    if (!terminal.alive && terminal.worktree_id === worktreeId && terminal.name === name) return { Terminal: terminal.id };
+function closedHost(session: ExternalSession, entities: Entities | undefined): string | null {
+  if (session.running || session.harness !== 'claude') return null;
+  for (const terminal of entities?.terminals.values() ?? []) {
+    if (!terminal.alive && terminal.session_id === session.id) return terminal.id;
   }
   return null;
 }
@@ -286,12 +287,18 @@ function createStore(): Store {
       const current = map.get(key);
       if (!current || current.updated_at < session.updated_at) map.set(key, session);
     }
+    const entities = berth?.entities.value;
+    for (const session of raw.value) {
+      const host = berthIds.value.has(session.id) ? null : closedHost(session, entities);
+      if (host) map.set(sessionKey({ Terminal: host }), session);
+    }
     return map;
   });
   const terminalOf = computed(() => new Map([...linked.value].map(([terminal, session]) => [externalKey(session), terminal])));
   const visible = computed(() =>
     raw.value.filter((session) => {
       if (berthIds.value.has(session.id)) return false;
+      if (terminalOf.value.has(externalKey(session))) return false;
       if (!session.in_berth) return true;
       if (hostKey.value.has(externalKey(session))) return false;
       return pidOwners.value !== null;

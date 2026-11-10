@@ -26,7 +26,7 @@
 - Added drag and drop to reorder session tabs in the desktop app; the order is remembered across restarts.
 - Windows: Added WebView2 debugging on port 9335 to the installed desktop app, so `agent-view` can attach to it.
 - Changed the desktop app's Markdown file picker to list the most recently edited files first, each with its full name and its path on a line below.
-- Fixed `Continue in Berth` on a conversation adding another terminal with the same name next to the closed one it ran in; it now reopens that terminal.
+- Fixed a Claude conversation started by hand in a terminal showing twice in the desktop app's tree once the terminal closed, as the terminal and on its own; `Continue in Berth` now reopens that terminal instead of adding another.
 - Fixed the Markdown preview in the desktop app stopping at a fixed width instead of filling its panel.
 - Fixed `/clear` in a Berth session leaving the old conversation beside it in the desktop app's tree; it now goes to the worktree's `Archive` group.
 - Fixed `/clear` in Claude Code leaving the session marked as working, with a blinking tab, until the next prompt.
