@@ -41,10 +41,11 @@ export const settings = {
       description: 'Smooth transitions between views and animated lists. Turn off to reduce motion.',
     },
     tabs: {
-      label: 'Tabs that do not fit',
-      description: 'How a row of tabs wider than its panel is shown: one line that scrolls sideways with the mouse wheel, or several lines.',
+      label: 'Tabs',
+      description: 'How tabs are shown: one line per panel that scrolls sideways with the mouse wheel, several lines per panel, or one compact line per project.',
       scroll: 'Scroll',
       wrap: 'Several lines',
+      projects: 'One line per project',
     },
     closeToTray: {
       label: 'Close to tray',

@@ -76,6 +76,7 @@ export const SETTINGS = {
     options: [
       { value: 'scroll', label: 'settings.def.tabs.scroll' },
       { value: 'wrap', label: 'settings.def.tabs.wrap' },
+      { value: 'projects', label: 'settings.def.tabs.projects' },
     ],
   },
   'window.closeToTray': {
