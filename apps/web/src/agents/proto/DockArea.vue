@@ -21,6 +21,7 @@ import { isDesktop } from '../../bridge';
 import { useSettings } from '../../settings/store';
 import { FILE_PANEL_PREFIX, isFilePanel } from './markdownFiles';
 import { startTabDrag, trackTabOrder } from './tabOrder';
+import TabMrBadge from './TabMrBadge.vue';
 
 defineProps<{ activeKey: string | null }>();
 const emit = defineEmits<{ ready: [event: DockviewReadyEvent]; 'open-file': [path: string, hash: string, from: string] }>();
@@ -125,6 +126,7 @@ onBeforeUnmount(() => {
             <HarnessIcon v-if="tabLinked(api.id)" :harness="tabLinked(api.id)?.harness ?? 'claude'" :working="sessionTabDot(api.id) === 'running'" />
           </template>
           <span class="name">{{ tabSession(api.id)?.name ?? external?.anyByKey.value.get(api.id)?.title ?? api.title }}</span>
+          <TabMrBadge v-if="kindOf(api.id) === 'session' || kindOf(api.id) === 'conversation'" :panel="api" />
           <span v-if="isFilePanel(api.id) && isDirtyPath(api.id.slice(FILE_PANEL_PREFIX.length))" class="dirty" :title="t('files.editor.dirty')" data-testid="file-tab-dirty" />
           <button class="close" :title="t('common.close')" :aria-label="t('common.close')" data-testid="session-tab-close" @pointerdown.stop @click.stop="closeTab(api)"><X :size="12" /></button>
         </span>
