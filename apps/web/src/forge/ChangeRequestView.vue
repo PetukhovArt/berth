@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 import { ArrowRight, ExternalLink, GitMerge, GitPullRequest, GitPullRequestClosed, GitPullRequestDraft, RefreshCw, Tag, TriangleAlert } from 'lucide-vue-next';
 import { VButton } from '@ui/kit';
 import {
@@ -138,7 +138,29 @@ reloadWhenRecovered(
   () => void load(),
 );
 
-onMounted(() => void load());
+const POLL_MS = 30_000;
+const fingerprint = (request: ChangeRequest) => [request.updated_at, request.head_sha, request.pipeline, request.unresolved_threads, request.state].join('|');
+let poller: ReturnType<typeof setInterval> | undefined;
+
+async function poll() {
+  if (document.visibilityState !== 'visible' || loading.value || !cr.value) return;
+  const ticket = generation;
+  const fresh = await forgeChangeRequest(target.value).catch(() => null);
+  if (fresh && ticket === generation && !loading.value && cr.value && fingerprint(fresh) !== fingerprint(cr.value)) void load();
+}
+
+const onVisible = () => void poll();
+
+onMounted(() => {
+  void load();
+  poller = setInterval(() => void poll(), POLL_MS);
+  document.addEventListener('visibilitychange', onVisible);
+});
+
+onBeforeUnmount(() => {
+  clearInterval(poller);
+  document.removeEventListener('visibilitychange', onVisible);
+});
 </script>
 
 <template>
