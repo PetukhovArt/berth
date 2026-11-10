@@ -141,6 +141,7 @@ onUnmounted(() => {
     data-testid="sidebar"
     :data-collapsed="collapsed"
   >
+    <slot name="head" />
     <div class="top">
       <label v-if="!collapsed" class="search">
         <Search :size="16" />

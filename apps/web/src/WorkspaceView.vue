@@ -54,9 +54,13 @@ watch(
 
 <template>
   <div class="shell">
-    <TitleBar v-if="inTauri" />
+    <TitleBar v-if="inTauri && mobile" />
     <div class="body" :data-mobile="mobile">
-      <Sidebar v-if="!mobile" :dark="isDark" @theme="toggleTheme" />
+      <Sidebar v-if="!mobile" :dark="isDark" @theme="toggleTheme">
+        <template v-if="inTauri" #head>
+          <TitleBar class="sidebar-titlebar" />
+        </template>
+      </Sidebar>
       <main class="card vt-main">
         <KeepAlive include="AgentsView">
           <AgentsView v-if="view.kind === 'agents'" />
@@ -120,6 +124,51 @@ watch(
   margin: 0;
   border-radius: 0;
   box-shadow: none;
+}
+
+.body .sidebar-titlebar {
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 32px;
+  margin: calc(-1 * var(--vr-space-2)) calc(-1 * var(--vr-space-2)) var(--vr-space-1);
+}
+
+.body .sidebar-titlebar :deep(.update) {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.body .sidebar-titlebar :deep(.ctl) {
+  width: 34px;
+  height: 32px;
+}
+
+.body .collapsed .sidebar-titlebar {
+  flex: none;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  padding-left: 0;
+}
+
+.body .collapsed .sidebar-titlebar :deep(.update) {
+  flex: none;
+  justify-content: center;
+  padding-right: 0;
+}
+
+.body .collapsed .sidebar-titlebar :deep(.mark) {
+  align-self: center;
+  margin-top: var(--vr-space-2);
+}
+
+.body .collapsed .sidebar-titlebar :deep(.controls) {
+  flex-direction: column;
+}
+
+.body .collapsed .sidebar-titlebar :deep(.ctl) {
+  width: 100%;
+  height: 28px;
 }
 
 .card {
