@@ -28,6 +28,7 @@
 - Added `T`, `M` and `D` buttons to a session tab in the desktop app, and `Ctrl+Space` then `t`, `m` or `d`: the tab shows its terminal, its branch's merge request, or the worktree's changes against the base branch with uncommitted and new files and a rendered Markdown preview.
 - Added replying to threads, `Resolve` and `Unresolve`, and new comments to the desktop app's merge request overview, for GitLab and GitHub; a token that can only read says which scope it needs.
 - Windows: Added WebView2 debugging on port 9335 to the installed desktop app, so `agent-view` can attach to it.
+- Changed the desktop app's tree to widen up to half the window instead of stopping at 400px.
 - Changed the desktop app's Markdown file picker to list the most recently edited files first, each with its full name and its path on a line below.
 - Fixed a Claude conversation started by hand in a terminal showing twice in the desktop app's tree once the terminal closed, as the terminal and on its own; `Continue in Berth` now reopens that terminal instead of adding another.
 - Fixed the Markdown preview in the desktop app stopping at a fixed width instead of filling its panel.

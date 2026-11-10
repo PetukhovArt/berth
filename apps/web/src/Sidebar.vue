@@ -18,15 +18,21 @@ const searchInput = ref<HTMLInputElement | null>(null);
 const sidebarEl = ref<HTMLElement | null>(null);
 
 const MIN_WIDTH = 180;
-const MAX_WIDTH = 400;
 const DEFAULT_WIDTH = 300;
 const RAIL_WIDTH = 56;
 const KEY_STEP = 16;
 const WIDTH_KEY = 'berth.sidebar.tree.width';
 const EXPLORER_WIDTH_KEY = 'berth.agents.a.width';
 
+const viewportWidth = ref(window.innerWidth);
+const maxWidth = computed(() => Math.max(MIN_WIDTH, Math.floor(viewportWidth.value / 2)));
+
+function onWindowResize() {
+  viewportWidth.value = window.innerWidth;
+}
+
 function clampWidth(value: number) {
-  return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(value)));
+  return Math.min(maxWidth.value, Math.max(MIN_WIDTH, Math.round(value)));
 }
 
 function readWidth() {
@@ -37,7 +43,7 @@ function readWidth() {
 const width = ref(readWidth());
 const collapsed = sidebarCollapsed;
 const dragging = ref(false);
-const currentWidth = computed(() => (collapsed.value ? RAIL_WIDTH : width.value));
+const currentWidth = computed(() => (collapsed.value ? RAIL_WIDTH : Math.min(width.value, maxWidth.value)));
 const collapseLabel = computed(() => (collapsed.value ? t('shell.expand') : t('shell.collapse')));
 const nextLocale = computed(() => (locale.value === 'en' ? 'ru' : 'en'));
 
@@ -82,7 +88,7 @@ function onHandleKey(event: KeyboardEvent) {
     collapsed.value = step < 0;
     return;
   }
-  const next = width.value + step;
+  const next = currentWidth.value + step;
   if (next < MIN_WIDTH) collapsed.value = true;
   else width.value = clampWidth(next);
 }
@@ -125,9 +131,11 @@ function onSearchKey(event: KeyboardEvent) {
 
 onMounted(() => {
   void listConnectors();
+  window.addEventListener('resize', onWindowResize);
 });
 onUnmounted(() => {
   stopPolling?.();
+  window.removeEventListener('resize', onWindowResize);
 });
 </script>
 
@@ -214,7 +222,7 @@ onUnmounted(() => {
       tabindex="0"
       :aria-valuenow="currentWidth"
       :aria-valuemin="RAIL_WIDTH"
-      :aria-valuemax="MAX_WIDTH"
+      :aria-valuemax="maxWidth"
       data-testid="sidebar-resize-handle"
       @pointerdown="startResize"
       @pointermove="moveResize"
