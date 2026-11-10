@@ -143,11 +143,43 @@ export async function continueInBerth(session: ExternalSession, target: External
     const orphans = await listOrphans(target.projectId).catch(() => []);
     if (orphans.some((orphan) => orphan.session_id === session.id)) return { Agent: await resumeOrphan(session.id, target.worktreeId) };
   }
-  const terminal = entitySessionRef(await createTerminal(target.worktreeId, session.title.slice(0, TERMINAL_NAME_CHARS)));
+  const name = session.title.slice(0, TERMINAL_NAME_CHARS);
+  const closed = closedTerminal(target.worktreeId, name);
+  if (closed) {
+    void whenAlive(closed.Terminal).then((alive) => (alive ? sendInput(closed, `${resumeCommand(session)}\r`) : undefined));
+    return closed;
+  }
+  const terminal = entitySessionRef(await createTerminal(target.worktreeId, name));
   if (!terminal) throw new BerthCallError(t('workbench.external.noTerminal'));
   await whenListed(terminal);
   await sendInput(terminal, `${resumeCommand(session)}\r`);
   return terminal;
+}
+
+function closedTerminal(worktreeId: string, name: string): { Terminal: string } | null {
+  for (const terminal of useBerth()?.entities.value.terminals.values() ?? []) {
+    if (!terminal.alive && terminal.worktree_id === worktreeId && terminal.name === name) return { Terminal: terminal.id };
+  }
+  return null;
+}
+
+function whenAlive(id: string): Promise<boolean> {
+  const berth = useBerth();
+  if (!berth) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const finish = (alive: boolean) => {
+      clearTimeout(timer);
+      stop();
+      resolve(alive);
+    };
+    const timer = setTimeout(() => finish(false), LISTED_TIMEOUT_MS);
+    const stop = watch(
+      () => berth.entities.value.terminals.get(id)?.alive === true,
+      (alive) => {
+        if (alive) finish(true);
+      },
+    );
+  });
 }
 
 function whenListed(session: SessionRef): Promise<void> {
