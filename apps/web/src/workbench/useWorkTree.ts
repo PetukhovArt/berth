@@ -25,6 +25,7 @@ function migrate() {
 migrate();
 
 const HOSTS_KEY = 'berth.review.hosts';
+const MR_URL = /https?:\/\/\S+/g;
 
 function storedHosts(): string[] {
   try {
@@ -79,6 +80,7 @@ export function useWorkTree() {
   const reviewRows = computed(() => {
     const rows = new Map<string, { ref: ChangeRequestRef; meta: ReviewMeta; url: string; projectId: string }>();
     const unresolved = new Map<string, ReviewNoteView[]>();
+    const linked = new Set<ReviewNoteView>();
     for (const { id, repo } of projectRepos.value) {
       const entry = reviewEntries.value.get(repo);
       if (!entry?.adapter) continue;
@@ -93,8 +95,20 @@ export function useWorkTree() {
         if (have) have.meta.refs = [...new Set([...have.meta.refs, ...row.refs])];
         else rows.set(key, { ref, meta: { refs: [...row.refs], approved: row.approved }, url: row.url, projectId: id });
       }
+      for (const note of entry.notes) {
+        const urls = note.text.match(MR_URL) ?? [];
+        const refs = urls.map((url) => parseMrUrl(url, connectors.value));
+        if (!urls.length || refs.some((ref) => !ref)) continue;
+        const text = note.text.replace(MR_URL, '').replace(/\s+/g, ' ').replace(/\s+,/g, ',').replace(/[\s:,]+$/, '').trim();
+        urls.forEach((url, index) => {
+          const ref = refs[index]!;
+          const key = itemId(ref);
+          if (!rows.has(key)) rows.set(key, { ref, meta: { refs: [...note.refs], approved: false, note: text }, url, projectId: id });
+        });
+        linked.add(note);
+      }
     }
-    return { rows, unresolved };
+    return { rows, unresolved, linked };
   });
 
   watch(
@@ -131,6 +145,7 @@ export function useWorkTree() {
       if (host) hosts.add(host);
       const notes: ReviewNoteView[] = [];
       for (const note of [...entry.notes, ...(reviewRows.value.unresolved.get(id) ?? [])]) {
+        if (reviewRows.value.linked.has(note)) continue;
         const key = `${note.refs.join(',')}|${note.text}`;
         if (seenNotes.has(key)) continue;
         seenNotes.add(key);

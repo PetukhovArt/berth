@@ -146,7 +146,8 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
             <span class="key">{{ numberLabel(data.item) }}</span>
             <span v-if="jiraRefs(data.review)" class="refs" data-testid="tree-mr-refs">{{ jiraRefs(data.review) }}</span>
             <span class="title"><span v-if="data.item.draft" class="draft">{{ t('forge.draft') }}</span>{{ shownTitle(data.item) }}</span>
-            <span v-if="data.review" class="verdict" :data-approved="data.review.approved" :title="data.review.approved ? t('workbench.review.approvedTitle') : t('workbench.review.pendingTitle')" data-testid="tree-mr-verdict">{{ data.review.approved ? t('workbench.review.approved') : t('workbench.review.pending') }}</span>
+            <span v-if="data.review?.note" class="verdict note" :title="data.review.note" data-testid="tree-mr-note">{{ data.review.note }}</span>
+            <span v-else-if="data.review" class="verdict" :data-approved="data.review.approved" :title="data.review.approved ? t('workbench.review.approvedTitle') : t('workbench.review.pendingTitle')" data-testid="tree-mr-verdict">{{ data.review.approved ? t('workbench.review.approved') : t('workbench.review.pending') }}</span>
             <span v-if="data.item.unresolved_threads" class="threads" :title="t('forge.unresolvedThreads', { count: data.item.unresolved_threads })"><MessageSquare :size="12" />{{ data.item.unresolved_threads }}</span>
             <PipelineIcon v-if="data.item.pipeline !== 'none'" :status="data.item.pipeline" :size="12" :title="pipelineLabel(data.item.pipeline)" />
           </span>
@@ -539,6 +540,15 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
 }
 
 .verdict[data-approved='true'] {
+.verdict.note {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
   color: var(--vr-color-success, var(--vr-color-accent));
 }
 

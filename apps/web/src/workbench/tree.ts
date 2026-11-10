@@ -34,7 +34,7 @@ type NodeData = {
 
 export type WorkNode = TreeNode<NodeData>;
 
-export type ReviewMeta = { refs: string[]; approved: boolean };
+export type ReviewMeta = { refs: string[]; approved: boolean; note?: string };
 export type ReviewNoteView = { refs: string[]; text: string };
 export type ReviewState = { loading: boolean; error: string | null };
 export type ReviewSource = {
