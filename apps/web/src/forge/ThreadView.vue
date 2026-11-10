@@ -1,18 +1,26 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue';
 import { Check, CheckCircle2, ChevronRight, Link, MessageSquare } from 'lucide-vue-next';
-import type { Discussion } from '../connectors/api';
+import { VButton } from '@ui/kit';
+import { describeError, forgeReply, forgeResolve, type ChangeRequestRef, type Discussion } from '../connectors/api';
 import { copyText } from '../atlassian/util';
 import PersonAvatar from '../connectors/PersonAvatar.vue';
 import RichContent from '../content/RichContent.vue';
 import { t } from '../i18n';
+import CommentComposer from './CommentComposer.vue';
 import { fullDate, relativeTime } from './format';
 
-const props = defineProps<{ discussion: Discussion; connector?: string; showPosition?: boolean }>();
-const emit = defineEmits<{ goto: [discussion: Discussion] }>();
+const props = defineProps<{ discussion: Discussion; connector?: string; showPosition?: boolean; target?: ChangeRequestRef }>();
+const emit = defineEmits<{ goto: [discussion: Discussion]; update: [discussion: Discussion] }>();
 
 const folded = shallowRef(props.discussion.resolved);
 const copied = shallowRef(false);
+const replying = shallowRef(false);
+const draft = shallowRef('');
+const sending = shallowRef(false);
+const resolving = shallowRef(false);
+const replyError = shallowRef<string | null>(null);
+const resolveError = shallowRef<string | null>(null);
 const notes = computed(() => props.discussion.notes);
 const first = computed(() => notes.value.find((n) => !n.system) ?? notes.value[0]);
 const preview = computed(() => (first.value?.body ?? '').replace(/\s+/g, ' ').slice(0, 120));
@@ -27,6 +35,40 @@ async function copyLink() {
   await copyText(props.discussion.url);
   copied.value = true;
   setTimeout(() => (copied.value = false), 1500);
+}
+
+async function sendReply() {
+  const target = props.target;
+  const body = draft.value.trim();
+  if (!target || !body || sending.value) return;
+  sending.value = true;
+  replyError.value = null;
+  try {
+    const updated = await forgeReply(target, props.discussion.id, body);
+    draft.value = '';
+    replying.value = false;
+    emit('update', updated);
+  } catch (e) {
+    replyError.value = describeError(e);
+  } finally {
+    sending.value = false;
+  }
+}
+
+async function toggleResolved() {
+  const target = props.target;
+  if (!target || resolving.value) return;
+  resolving.value = true;
+  resolveError.value = null;
+  try {
+    const updated = await forgeResolve(target, props.discussion.id, !props.discussion.resolved);
+    folded.value = updated.resolved;
+    emit('update', updated);
+  } catch (e) {
+    resolveError.value = describeError(e);
+  } finally {
+    resolving.value = false;
+  }
 }
 
 function expand() {
@@ -62,6 +104,26 @@ defineExpose({ expand });
           <RichContent v-else :markdown="note.body" :connector="connector" />
         </div>
       </div>
+      <template v-if="target">
+        <CommentComposer
+          v-if="replying"
+          v-model="draft"
+          testid="thread-reply"
+          :busy="sending"
+          :error="replyError"
+          :placeholder="t('forge.composer.replyPlaceholder')"
+          :label="t('forge.thread.send')"
+          cancellable
+          autofocus
+          @send="sendReply"
+          @cancel="replying = false"
+        />
+        <div v-if="!replying || discussion.resolvable" class="actions">
+          <VButton v-if="!replying" size="small" severity="secondary" text :label="draft.trim() ? `${t('forge.thread.reply')} …` : t('forge.thread.reply')" data-testid="thread-reply" @click="replying = true" />
+          <VButton v-if="discussion.resolvable" size="small" severity="secondary" text :label="discussion.resolved ? t('forge.thread.unresolve') : t('forge.thread.resolve')" :loading="resolving" data-testid="thread-resolve" @click="toggleResolved" />
+        </div>
+        <p v-if="resolveError" class="error" role="alert">{{ resolveError }}</p>
+      </template>
     </template>
   </article>
 </template>
@@ -166,6 +228,19 @@ defineExpose({ expand });
 
 .meta b {
   color: var(--vr-color-text);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vr-space-1);
+}
+
+.error {
+  margin: 0;
+  color: var(--vr-color-danger);
+  font-size: var(--vr-font-size-xs);
+  overflow-wrap: anywhere;
 }
 
 .system {

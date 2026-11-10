@@ -45,6 +45,16 @@ export const forge = {
     resolved: 'Resolved',
     copyLink: 'Copy link to thread',
     copied: 'Copied',
+    reply: 'Reply',
+    send: 'Send',
+    resolve: 'Resolve',
+    unresolve: 'Unresolve',
+  },
+  composer: {
+    hint: 'Ctrl/Cmd+Enter to send, Esc to close',
+    replyPlaceholder: 'Reply to the thread',
+    commentPlaceholder: 'Leave a comment',
+    comment: 'Comment',
   },
   preview: {
     loading: 'Loading file…',

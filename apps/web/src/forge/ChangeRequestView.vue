@@ -6,6 +6,7 @@ import {
   describeError,
   forgeChangeRequest,
   forgeDiff,
+  forgeComment,
   forgeDiscussions,
   forgePipeline,
   openUrl,
@@ -24,6 +25,7 @@ import MrSessionNotice from './MrSessionNotice.vue';
 import OpenInSessionAction from './OpenInSessionAction.vue';
 import { itemId } from './inbox';
 import { mrRuns } from './openInSession';
+import CommentComposer from './CommentComposer.vue';
 import DiffView from './DiffView.vue';
 import { fullDate, numberLabel, pipelineLabel, relativeTime } from './format';
 import PipelineIcon from './PipelineIcon.vue';
@@ -102,6 +104,34 @@ function selectTab(next: Tab) {
   if (next === 'diff' && !diffLoaded.value && !diffLoading.value) void loadDiff();
 }
 
+const commentDraft = shallowRef('');
+const commenting = shallowRef(false);
+const commentError = shallowRef<string | null>(null);
+
+function upsertDiscussion(updated: Discussion) {
+  const list = discussions.value;
+  const index = list.findIndex((d) => d.id === updated.id);
+  discussions.value = index < 0 ? [...list, updated] : list.map((d, i) => (i === index ? updated : d));
+}
+
+async function sendComment() {
+  const body = commentDraft.value.trim();
+  if (!body || commenting.value) return;
+  const key = itemId(target.value);
+  commenting.value = true;
+  commentError.value = null;
+  try {
+    const created = await forgeComment(target.value, body);
+    if (key !== itemId(target.value)) return;
+    upsertDiscussion(created);
+    commentDraft.value = '';
+  } catch (e) {
+    if (key === itemId(target.value)) commentError.value = describeError(e);
+  } finally {
+    commenting.value = false;
+  }
+}
+
 const pendingThread = shallowRef<string | null>(null);
 
 function gotoThread(discussion: Discussion) {
@@ -127,6 +157,8 @@ watch(
     diffLoaded.value = false;
     diffFailure.value = null;
     pipelineOpen.value = false;
+    commentDraft.value = '';
+    commentError.value = null;
     tab.value = 'overview';
     void load();
   },
@@ -232,8 +264,19 @@ onBeforeUnmount(() => {
 
         <h3 v-if="conversation.length" class="section">{{ t('forge.request.discussions') }} <span class="count">{{ conversation.length }}</span></h3>
         <div class="threads">
-          <ThreadView v-for="d in conversation" :key="d.id" :discussion="d" :connector="connector" show-position @goto="gotoThread" />
+          <ThreadView v-for="d in conversation" :key="d.id" :discussion="d" :connector="connector" :target="target" show-position @goto="gotoThread" @update="upsertDiscussion" />
         </div>
+        <CommentComposer
+          v-model="commentDraft"
+          class="new-comment"
+          testid="cr-comment"
+          :busy="commenting"
+          :error="commentError"
+          :placeholder="t('forge.composer.commentPlaceholder')"
+          :label="t('forge.composer.comment')"
+          @send="sendComment"
+          @cancel="commentError = null"
+        />
         <p v-if="anchored" class="hint muted vr-key-hint">{{ t('forge.request.keysHint') }}</p>
       </div>
 
@@ -503,6 +546,10 @@ code {
   display: flex;
   flex-direction: column;
   gap: var(--vr-space-2);
+}
+
+.new-comment {
+  margin-top: var(--vr-space-3);
 }
 
 .hint {

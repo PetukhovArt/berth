@@ -48,6 +48,16 @@ export const forge: Translation<typeof en> = {
     resolved: 'Решено',
     copyLink: 'Скопировать ссылку на тред',
     copied: 'Скопировано',
+    reply: 'Ответить',
+    send: 'Отправить',
+    resolve: 'Решить',
+    unresolve: 'Вернуть в работу',
+  },
+  composer: {
+    hint: 'Ctrl/Cmd+Enter отправляет, Esc закрывает',
+    replyPlaceholder: 'Ответить в обсуждении',
+    commentPlaceholder: 'Написать комментарий',
+    comment: 'Комментировать',
   },
   preview: {
     loading: 'Загрузка файла…',

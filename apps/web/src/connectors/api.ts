@@ -153,6 +153,9 @@ export const forgeForWorktree = (path: string, branch: string) => invoke<ChangeR
 export const forgeChangeRequest = (ref: ChangeRequestRef) => invoke<ChangeRequest>('forge_change_request', { ...ref });
 export const forgeDiff = (ref: ChangeRequestRef) => invoke<DiffFile[]>('forge_diff', { ...ref });
 export const forgeDiscussions = (ref: ChangeRequestRef) => invoke<Discussion[]>('forge_discussions', { ...ref });
+export const forgeReply = (ref: ChangeRequestRef, discussion: string, body: string) => invoke<Discussion>('forge_reply', { ...ref, discussion, body });
+export const forgeComment = (ref: ChangeRequestRef, body: string) => invoke<Discussion>('forge_comment', { ...ref, body });
+export const forgeResolve = (ref: ChangeRequestRef, discussion: string, resolved: boolean) => invoke<Discussion>('forge_resolve', { ...ref, discussion, resolved });
 export const forgePipeline = (ref: ChangeRequestRef) => invoke<Pipeline | null>('forge_pipeline', { ...ref });
 export const forgeFile = (connector: string, project: string, ref: string, path: string) => invoke<string>('forge_file', { connector, project, ref, path });
 
