@@ -43,6 +43,8 @@ export const forge = {
   },
   thread: {
     resolved: 'Resolved',
+    copyLink: 'Copy link to thread',
+    copied: 'Copied',
   },
   preview: {
     loading: 'Loading file…',

@@ -495,6 +495,11 @@ pub async fn discussions(ctx: &Ctx, project: &str, number: u64) -> ApiResult<Vec
             resolvable,
             resolved,
             position,
+            url: format!(
+                "{}/{project}/-/merge_requests/{number}#note_{}",
+                ctx.base_url.trim_end_matches('/'),
+                notes_raw[0]["id"]
+            ),
             notes: notes_raw
                 .iter()
                 .map(|note| Note {

@@ -185,6 +185,7 @@ pub struct Discussion {
     pub resolvable: bool,
     pub resolved: bool,
     pub position: Option<Position>,
+    pub url: String,
     pub notes: Vec<Note>,
 }
 

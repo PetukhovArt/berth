@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue';
-import { CheckCircle2, ChevronRight, MessageSquare } from 'lucide-vue-next';
+import { Check, CheckCircle2, ChevronRight, Link, MessageSquare } from 'lucide-vue-next';
 import type { Discussion } from '../connectors/api';
+import { copyText } from '../atlassian/util';
 import PersonAvatar from '../connectors/PersonAvatar.vue';
 import RichContent from '../content/RichContent.vue';
 import { t } from '../i18n';
@@ -11,6 +12,7 @@ const props = defineProps<{ discussion: Discussion; connector?: string; showPosi
 const emit = defineEmits<{ goto: [discussion: Discussion] }>();
 
 const folded = shallowRef(props.discussion.resolved);
+const copied = shallowRef(false);
 const notes = computed(() => props.discussion.notes);
 const first = computed(() => notes.value.find((n) => !n.system) ?? notes.value[0]);
 const preview = computed(() => (first.value?.body ?? '').replace(/\s+/g, ' ').slice(0, 120));
@@ -21,6 +23,12 @@ const position = computed(() => {
   return line == null ? p.path : `${p.path}:${line}`;
 });
 
+async function copyLink() {
+  await copyText(props.discussion.url);
+  copied.value = true;
+  setTimeout(() => (copied.value = false), 1500);
+}
+
 function expand() {
   folded.value = false;
 }
@@ -30,6 +38,10 @@ defineExpose({ expand });
 
 <template>
   <article class="thread" :data-resolved="discussion.resolved" :data-thread-id="discussion.id" :data-unresolved="discussion.resolvable && !discussion.resolved" data-testid="thread">
+    <button v-if="discussion.url" class="link" :title="copied ? t('forge.thread.copied') : t('forge.thread.copyLink')" :aria-label="t('forge.thread.copyLink')" data-testid="thread-copy-link" @click="copyLink">
+      <Check v-if="copied" :size="13" />
+      <Link v-else :size="13" />
+    </button>
     <button v-if="discussion.resolved" class="fold" :aria-expanded="!folded" data-testid="thread-fold" @click="folded = !folded">
       <ChevronRight :size="14" class="vr-chevron" :data-open="!folded" />
       <CheckCircle2 :size="14" class="resolved-icon" />
@@ -56,6 +68,7 @@ defineExpose({ expand });
 
 <style scoped>
 .thread {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--vr-space-2);
@@ -67,6 +80,30 @@ defineExpose({ expand });
   background: var(--vr-color-surface-muted);
   border: 1px solid var(--vr-color-border);
   border-radius: var(--vr-radius-md);
+}
+
+.link {
+  position: absolute;
+  top: var(--vr-space-2);
+  right: var(--vr-space-2);
+  display: inline-flex;
+  padding: var(--vr-space-1);
+  color: var(--vr-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--vr-radius-sm);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.thread:hover .link,
+.link:focus-visible {
+  opacity: 1;
+}
+
+.link:hover {
+  color: var(--vr-color-text);
+  background: var(--vr-color-surface);
 }
 
 .thread[data-unresolved='true'] {

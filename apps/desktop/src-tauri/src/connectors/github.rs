@@ -406,7 +406,7 @@ fn diff_file(entry: &Value) -> DiffFile {
 }
 
 pub async fn discussions(ctx: &Ctx, project: &str, number: u64) -> ApiResult<Vec<Discussion>> {
-    let comment = format!("id body createdAt {AUTHOR}");
+    let comment = format!("id url body createdAt {AUTHOR}");
     let fields = format!(
         "reviewThreads(first: 100) {{ nodes {{ id isResolved isOutdated path line originalLine diffSide \
          comments(first: 100) {{ nodes {{ {comment} }} }} }} }} \
@@ -450,6 +450,7 @@ pub async fn discussions(ctx: &Ctx, project: &str, number: u64) -> ApiResult<Vec
                 new_line: if left { None } else { line },
                 old_line: if left { line } else { None },
             }),
+            url: text(&thread["comments"]["nodes"][0]["url"]),
             notes,
         });
     }
@@ -465,6 +466,7 @@ pub async fn discussions(ctx: &Ctx, project: &str, number: u64) -> ApiResult<Vec
             resolvable: false,
             resolved: false,
             position: None,
+            url: text(&entry["url"]),
             notes: vec![note(entry)],
         });
     }

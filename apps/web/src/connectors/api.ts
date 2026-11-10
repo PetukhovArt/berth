@@ -72,6 +72,7 @@ export type Discussion = {
   resolvable: boolean;
   resolved: boolean;
   position: DiscussionPosition | null;
+  url: string;
   notes: DiscussionNote[];
 };
 

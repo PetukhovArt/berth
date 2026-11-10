@@ -46,6 +46,8 @@ export const forge: Translation<typeof en> = {
   },
   thread: {
     resolved: 'Решено',
+    copyLink: 'Скопировать ссылку на тред',
+    copied: 'Скопировано',
   },
   preview: {
     loading: 'Загрузка файла…',
