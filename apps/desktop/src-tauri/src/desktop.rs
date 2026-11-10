@@ -220,7 +220,7 @@ pub fn run() {
         }
     }
     let connectors = Arc::new(Connectors::load());
-    let berth = tauri::async_runtime::block_on(async { Berth::spawn() });
+    let berth = tauri::async_runtime::block_on(async { Berth::spawn_starting_daemon() });
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(connectors.clone())

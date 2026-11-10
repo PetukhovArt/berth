@@ -5,6 +5,7 @@ pub mod berth;
 mod cleanup;
 mod commands;
 pub mod connectors;
+mod daemon_start;
 #[cfg(feature = "desktop")]
 mod desktop;
 pub mod files;

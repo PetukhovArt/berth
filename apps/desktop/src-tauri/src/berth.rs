@@ -96,8 +96,16 @@ pub struct Berth(UnboundedSender<Msg>);
 
 impl Berth {
     pub fn spawn() -> Self {
+        Self::start(false)
+    }
+
+    pub fn spawn_starting_daemon() -> Self {
+        Self::start(true)
+    }
+
+    fn start(autostart: bool) -> Self {
         let (tx, rx) = unbounded_channel();
-        tokio::spawn(Actor::new(tx.clone()).run(rx));
+        tokio::spawn(Actor::new(tx.clone(), autostart).run(rx));
         Self(tx)
     }
 
@@ -213,28 +221,38 @@ enum LinkEvent {
 }
 
 enum Failure {
+    Absent(String),
     Offline(String),
     Incompatible(u32),
 }
 
 impl Failure {
+    fn unreachable(error: io::Error) -> Self {
+        match error.kind() {
+            io::ErrorKind::NotFound | io::ErrorKind::ConnectionRefused => {
+                Self::Absent(error.to_string())
+            }
+            _ => Self::Offline(error.to_string()),
+        }
+    }
+
     fn state(&self) -> ConnectionState {
         match self {
-            Self::Offline(_) => ConnectionState::Offline,
+            Self::Absent(_) | Self::Offline(_) => ConnectionState::Offline,
             Self::Incompatible(_) => ConnectionState::Incompatible,
         }
     }
 
     fn retry_after(&self) -> Duration {
         match self {
-            Self::Offline(_) => OFFLINE_RETRY,
+            Self::Absent(_) | Self::Offline(_) => OFFLINE_RETRY,
             Self::Incompatible(_) => INCOMPATIBLE_RETRY,
         }
     }
 
     fn message(self) -> String {
         match self {
-            Self::Offline(message) => message,
+            Self::Absent(message) | Self::Offline(message) => message,
             Self::Incompatible(daemon) => format!(
                 "berth daemon speaks protocol v{daemon}, Berth desktop speaks protocol v{PROTOCOL_VERSION}"
             ),
@@ -308,11 +326,15 @@ struct Actor {
     writer: Option<UnboundedSender<ClientRequest>>,
     next_req_id: u64,
     pending: HashMap<u64, oneshot::Sender<CallResult>>,
+    autostart: bool,
+    started_daemon: bool,
 }
 
 impl Actor {
-    fn new(inbox: UnboundedSender<Msg>) -> Self {
+    fn new(inbox: UnboundedSender<Msg>, autostart: bool) -> Self {
         Self {
+            autostart,
+            started_daemon: false,
             inbox,
             watcher: None,
             shown: None,
@@ -441,7 +463,13 @@ impl Actor {
             LinkEvent::Failed(failure) => {
                 self.tasks.clear();
                 let retry_after = failure.retry_after();
-                self.show(failure.state(), Some(failure.message()));
+                let state = failure.state();
+                let start_error = self.start_daemon(&failure);
+                let message = match start_error {
+                    Some(error) => format!("{}; berth daemon: {error}", failure.message()),
+                    None => failure.message(),
+                };
+                self.show(state, Some(message));
                 let inbox = self.inbox.clone();
                 let epoch = self.epoch;
                 self.spawn(async move {
@@ -498,6 +526,7 @@ impl Actor {
             let _ = writer_tx.send(attachment.attach_request(session.clone()));
         }
         self.writer = Some(writer_tx);
+        self.started_daemon = false;
         self.show(ConnectionState::Connected, None);
     }
 
@@ -575,6 +604,14 @@ impl Actor {
         if let Some(writer) = &self.writer {
             let _ = writer.send(request);
         }
+    }
+
+    fn start_daemon(&mut self, failure: &Failure) -> Option<io::Error> {
+        if !self.autostart || self.started_daemon || !matches!(failure, Failure::Absent(_)) {
+            return None;
+        }
+        self.started_daemon = true;
+        crate::daemon_start::start().err()
     }
 
     fn show(&mut self, state: ConnectionState, message: Option<String>) {
@@ -672,7 +709,7 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
 
 async fn handshake() -> Result<Stream, Failure> {
     DAEMON_PROTOCOL.store(0, Ordering::Relaxed);
-    let mut stream = transport::connect().await?;
+    let mut stream = transport::connect().await.map_err(Failure::unreachable)?;
     write_frame(
         &mut stream,
         &ClientRequest::Hello {
