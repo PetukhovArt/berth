@@ -204,7 +204,7 @@ function createDock() {
   }
 
   function openReview(ref: ChangeRequestRef, title?: string, split = false) {
-    openPanel({ id: itemId(ref), component: 'review', title: title ?? `${ref.project.split('/').pop() ?? ref.project} ${ref.number}`, params: { ...ref } }, split);
+    openPanel({ id: itemId(ref), component: 'review', title: title ?? `${ref.project.split('/').pop() ?? ref.project} ${ref.number}`, renderer: 'always', params: { ...ref } }, split);
   }
 
   function openArchitecture(params: ArchitectureParams, label: string) {
@@ -273,7 +273,7 @@ function createDock() {
     const sessions = berth?.sessions.value;
     for (const panel of carried.panels) {
       if (isSessionPanel(panel.id) && !sessions?.has(panel.id)) continue;
-      const always = panel.component === 'session' || panel.component === 'markdown' || panel.component === 'architecture';
+      const always = panel.component === 'session' || panel.component === 'markdown' || panel.component === 'review' || panel.component === 'architecture';
       api.addPanel({ id: panel.id, component: panel.component, title: panel.title, params: panel.params, ...(always ? { renderer: 'always' as const } : {}) });
     }
     if (carried.active) api.getPanel(carried.active)?.api.setActive();
