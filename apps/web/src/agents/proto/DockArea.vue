@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import 'dockview-vue/dist/styles/dockview.css';
-import { onBeforeUnmount, shallowRef } from 'vue';
+import { onBeforeUnmount } from 'vue';
 import { DockviewVue, themeLight, type DockviewApi, type DockviewPanelApi, type DockviewReadyEvent } from 'dockview-vue';
-import { ChevronRight, FileText, GitPullRequest, Network, Ticket, X } from 'lucide-vue-next';
+import { FileText, GitPullRequest, Network, Ticket, X } from 'lucide-vue-next';
 import JiraIssueView from '../../atlassian/JiraIssueView.vue';
 import ArchitectureView from '../../forge/ArchitectureView.vue';
 import ChangeRequestView from '../../forge/ChangeRequestView.vue';
@@ -20,13 +20,10 @@ import { isDirtyPath, settleDirty } from '../../files/documents';
 import { isDesktop } from '../../bridge';
 import { useSettings } from '../../settings/store';
 import { FILE_PANEL_PREFIX, isFilePanel } from './markdownFiles';
-import type { SessionPath } from './nav';
 import { startTabDrag, trackTabOrder } from './tabOrder';
 
-const props = defineProps<{ activeKey: string | null; paths: ReadonlyMap<string, SessionPath>; groupLabels?: boolean }>();
+defineProps<{ activeKey: string | null }>();
 const emit = defineEmits<{ ready: [event: DockviewReadyEvent]; 'open-file': [path: string, hash: string, from: string] }>();
-
-type Host = { id: string; el: HTMLElement; panels: string[] };
 
 const berth = useBerth();
 const external = useExternalSessions();
@@ -44,33 +41,14 @@ const sessionTabDot = (id: string) => {
   return session ? sessionDot(session, tabLinked(id)) : undefined;
 };
 const { values } = useSettings();
-const hosts = shallowRef<Host[]>([]);
 const subscriptions: { dispose(): void }[] = [];
 let dockApi: DockviewApi | null = null;
-
-function syncHosts(api: DockviewApi) {
-  if (!props.groupLabels) return;
-  hosts.value = api.groups.flatMap((group) => {
-    const el = group.element.querySelector('.dv-pre-actions-container');
-    return el instanceof HTMLElement ? [{ id: group.id, el, panels: group.panels.map((panel) => panel.id) }] : [];
-  });
-}
 
 function onReady(event: DockviewReadyEvent) {
   const api = event.api;
   dockApi = api;
-  const sync = () => syncHosts(api);
-  subscriptions.push(api.onDidAddGroup(sync), api.onDidRemoveGroup(sync), api.onDidAddPanel(sync), api.onDidRemovePanel(sync), api.onDidLayoutChange(sync), ...trackTabOrder(api));
+  subscriptions.push(...trackTabOrder(api));
   emit('ready', event);
-  sync();
-}
-
-function labelOf(host: Host): SessionPath | undefined {
-  for (const id of host.panels) {
-    const path = props.paths.get(id);
-    if (path) return path;
-  }
-  return undefined;
 }
 
 function kindOf(id: string): 'metrics' | 'file' | 'review' | 'architecture' | 'issue' | 'conversation' | 'session' {
@@ -155,15 +133,6 @@ onBeforeUnmount(() => {
         <p class="watermark">{{ t('workbench.pick') }}</p>
       </template>
     </DockviewVue>
-    <template v-for="host in hosts" :key="host.id">
-      <Teleport v-if="labelOf(host)" :to="host.el">
-        <span class="group-label" data-testid="group-label">
-          <span class="group-project">{{ labelOf(host)?.project.name }}</span>
-          <ChevronRight :size="11" />
-          <span class="group-branch">{{ labelOf(host)?.worktree.branch }}</span>
-        </span>
-      </Teleport>
-    </template>
   </div>
 </template>
 
@@ -296,23 +265,5 @@ onBeforeUnmount(() => {
   height: 100%;
   margin: 0;
   color: var(--vr-color-text-muted);
-}
-
-.group-label {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--vr-space-1);
-  height: 100%;
-  padding: 0 var(--vr-space-3);
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-text-muted);
-  white-space: nowrap;
-  border-right: 1px solid var(--vr-color-border);
-}
-
-.group-branch {
-  font-family: var(--vr-font-mono);
-  font-size: var(--vr-font-size-2xs);
-  color: var(--vr-color-text);
 }
 </style>
