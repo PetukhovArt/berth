@@ -138,6 +138,26 @@ export const agents: Translation<typeof en> = {
     offline: 'демон berth не запущен',
     incompatible: 'несовместимая версия berth',
   },
+  sessionView: {
+    switcher: 'Вид сессии',
+    terminal: 'Терминал',
+    mr: 'Merge request',
+    diff: 'Изменения',
+    withShortcut: '{name} ({shortcut})',
+    noMr: 'Для этой ветки нет merge request',
+    action: {
+      terminal: 'Сессия: показать терминал',
+      mr: 'Сессия: показать merge request',
+      diff: 'Сессия: показать изменения',
+    },
+  },
+  changes: {
+    refresh: 'Обновить',
+    loading: 'Читаю изменения…',
+    empty: 'В этом worktree нет изменений',
+    failed: 'Не удалось прочитать изменения worktree: {error}',
+    retry: 'Повторить',
+  },
   errors: {
     unexpectedReply: 'неожиданный ответ berth: {reply}',
     expectedAck: 'berth ответил {reply} вместо Ack',

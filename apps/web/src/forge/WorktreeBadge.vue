@@ -1,24 +1,13 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue';
-import { forgeForWorktree, type ChangeRequestRef, type ChangeRequestSummary } from '../connectors/api';
+import type { ChangeRequestRef, ChangeRequestSummary } from '../connectors/api';
 import { t } from '../i18n';
 import { numberLabel, pipelineLabel } from './format';
 import PipelineIcon from './PipelineIcon.vue';
+import { lookupMr } from './worktreeMr';
 
 const props = defineProps<{ path: string; branch: string; summary?: ChangeRequestSummary }>();
 const emit = defineEmits<{ open: [ref: ChangeRequestRef] }>();
-
-const TTL_MS = 60_000;
-const cache = new Map<string, { at: number; value: Promise<ChangeRequestSummary | null> }>();
-
-function lookup(path: string, branch: string): Promise<ChangeRequestSummary | null> {
-  const key = `${path}\0${branch}`;
-  const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < TTL_MS) return hit.value;
-  const value = forgeForWorktree(path, branch).catch(() => null);
-  cache.set(key, { at: Date.now(), value });
-  return value;
-}
 
 const looked = shallowRef<ChangeRequestSummary | null>(null);
 const summary = computed(() => props.summary ?? looked.value);
@@ -28,7 +17,7 @@ watch(
   async ([path, branch, known]) => {
     looked.value = null;
     if (known || !path || !branch) return;
-    const result = await lookup(path, branch);
+    const result = await lookupMr(path, branch);
     if (path === props.path && branch === props.branch) looked.value = result;
   },
   { immediate: true },

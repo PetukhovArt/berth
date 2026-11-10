@@ -1,7 +1,8 @@
+import { shallowRef } from 'vue';
 import './actions';
 import { readContext } from './context';
-import { chordFromEvent, isTypingChord, type Chord } from './keys';
-import { resolveSequence, startKeymap } from './keymap';
+import { chordFromEvent, isTypingChord, sequenceKey, type Chord } from './keys';
+import { resolveSequence, shortcutsOf, startKeymap } from './keymap';
 import { getAction, isAvailable, runAction } from './registry';
 
 const SEQUENCE_TIMEOUT_MS = 1500;
@@ -9,7 +10,7 @@ const SEQUENCE_TIMEOUT_MS = 1500;
 type Capture = (chord: Chord) => void;
 
 let capture: Capture | null = null;
-let pending: Chord[] = [];
+const pending = shallowRef<readonly Chord[]>([]);
 let timer: ReturnType<typeof setTimeout> | undefined;
 let installed = false;
 
@@ -20,13 +21,19 @@ export function captureChords(handler: Capture): () => void {
   };
 }
 
+export function pendingLeadsTo(actionId: string): boolean {
+  if (!pending.value.length) return false;
+  const prefix = `${sequenceKey(pending.value)} `;
+  return shortcutsOf(actionId).some((shortcut) => shortcut.key.startsWith(prefix));
+}
+
 function swallow(event: KeyboardEvent): void {
   event.preventDefault();
   event.stopPropagation();
 }
 
 function clearPending(): void {
-  pending = [];
+  pending.value = [];
   clearTimeout(timer);
 }
 
@@ -34,6 +41,12 @@ function exactAction(chords: readonly Chord[], context: ReturnType<typeof readCo
   const { exact } = resolveSequence(context, chords);
   const action = exact === null ? undefined : getAction(exact);
   return action && isAvailable(action, context) ? action.id : null;
+}
+
+function candidates(chord: Chord, typing: boolean): Chord[][] {
+  if (!pending.value.length) return [[chord]];
+  const continued = [...pending.value, chord];
+  return typing ? [continued] : [continued, [chord]];
 }
 
 function onKeyDown(event: KeyboardEvent): void {
@@ -46,24 +59,22 @@ function onKeyDown(event: KeyboardEvent): void {
     return;
   }
   const context = readContext(event.target);
-  if (isTypingChord(chord) && (context.inputFocus || context.terminalFocus)) {
-    clearPending();
-    return;
-  }
-  if (pending.length && chord.code === 'Escape' && !chord.ctrl && !chord.alt && !chord.shift && !chord.meta) {
+  const typing = isTypingChord(chord) && (context.inputFocus || context.terminalFocus);
+  if (typing && !pending.value.length) return;
+  if (pending.value.length && chord.code === 'Escape' && !chord.ctrl && !chord.alt && !chord.shift && !chord.meta) {
     clearPending();
     swallow(event);
     return;
   }
-  for (const sequence of pending.length ? [[...pending, chord], [chord]] : [[chord]]) {
+  for (const sequence of candidates(chord, typing)) {
     const { longer } = resolveSequence(context, sequence);
     const action = exactAction(sequence, context);
     if (longer) {
       swallow(event);
       clearTimeout(timer);
-      pending = sequence;
+      pending.value = sequence;
       timer = setTimeout(() => {
-        pending = [];
+        pending.value = [];
         if (action) runAction(action);
       }, SEQUENCE_TIMEOUT_MS);
       return;
@@ -75,7 +86,7 @@ function onKeyDown(event: KeyboardEvent): void {
       return;
     }
   }
-  if (pending.length) {
+  if (pending.value.length) {
     clearPending();
     swallow(event);
   }

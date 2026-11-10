@@ -2,6 +2,10 @@ const MARKDOWN_PATH = /\.(?:md|markdown)$/i;
 
 export const isMarkdownPath = (path: string) => MARKDOWN_PATH.test(path);
 
+export type PreviewSource = { kind: 'forge'; connector: string; project: string; sha: string; requestUrl: string } | { kind: 'local'; root: string };
+
+export const localFilePath = (root: string, path: string) => `${root.replace(/[\\/]+$/, '')}/${path}`;
+
 function encodePath(path: string): string {
   return path.split('/').map(encodeURIComponent).join('/');
 }

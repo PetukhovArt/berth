@@ -1,3 +1,4 @@
+import { showViewInActivePanel } from '../agents/proto/sessionView';
 import { zoomTerminal } from '../agents/terminalFont';
 import { isDesktop } from '../bridge';
 import { openCleanup } from '../cleanup/state';
@@ -36,6 +37,9 @@ defineAction({ id: 'terminal.zoomReset', title: 'commands.action.terminalZoomRes
 defineAction({ id: 'agents.quickOpen', title: 'commands.action.agentsQuickOpen', category: NAVIGATION, run: toggleQuickOpen });
 defineAction({ id: 'hot.overview', title: 'hot.overview.title', category: NAVIGATION, run: () => hotEnabled.value && toggleHotOverview() });
 defineAction({ id: 'agents.newSession', title: 'commands.action.agentsNewSession', category: NAVIGATION, run: startNewSession });
+defineAction({ id: 'session.view.terminal', title: 'agents.sessionView.action.terminal', category: VIEW, run: () => showViewInActivePanel('terminal') });
+defineAction({ id: 'session.view.mr', title: 'agents.sessionView.action.mr', category: VIEW, run: () => showViewInActivePanel('mr') });
+defineAction({ id: 'session.view.diff', title: 'agents.sessionView.action.diff', category: VIEW, run: () => showViewInActivePanel('diff') });
 defineAction({ id: 'dock.toggleMaximize', title: 'commands.action.dockToggleMaximize', category: VIEW, run: toggleMaximizedGroup });
 
 defineAction({ id: 'keymap.openSettings', title: 'commands.action.keymapOpenSettings', category: KEYS, run: () => openSettings('keymap') });

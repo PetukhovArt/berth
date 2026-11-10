@@ -33,6 +33,9 @@ macro_rules! plain_commands {
             state forge_change_request(connector: String, project: String, number: u64) = $crate::connectors::forge::forge_change_request;
             state forge_diff(connector: String, project: String, number: u64) = $crate::connectors::forge::forge_diff;
             state forge_discussions(connector: String, project: String, number: u64) = $crate::connectors::forge::forge_discussions;
+            state forge_reply(connector: String, project: String, number: u64, discussion: String, body: String) = $crate::connectors::forge::forge_reply;
+            state forge_comment(connector: String, project: String, number: u64, body: String) = $crate::connectors::forge::forge_comment;
+            state forge_resolve(connector: String, project: String, number: u64, discussion: String, resolved: bool) = $crate::connectors::forge::forge_resolve;
             state forge_pipeline(connector: String, project: String, number: u64) = $crate::connectors::forge::forge_pipeline;
             state forge_file(connector: String, project: String, r#ref: String, path: String) = $crate::connectors::forge::forge_file;
             state forge_source(connector: String, project: String, number: u64) = $crate::connectors::forge::forge_source;
@@ -64,6 +67,7 @@ macro_rules! plain_commands {
             free fs_read_binary(path: String) = $crate::files::fs_read_binary;
             free fs_list_markdown(root: String) = $crate::files::fs_list_markdown;
             free fs_list_dirs(root: String) = $crate::files::fs_list_dirs;
+            free worktree_changes(path: String) = $crate::changes::worktree_changes;
             local_free settings_open_external(file: Option<$crate::settings::ConfigFile>) = $crate::settings::settings_open_external;
             local_free fs_open_external(path: String) = $crate::files::fs_open_external;
             local_free stratum_probe(repo: String, target: String) = $crate::stratum::stratum_probe;

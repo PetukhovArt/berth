@@ -1,5 +1,5 @@
 use futures_util::stream::{self, StreamExt};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use super::http::{encode_segment, opt, text, ApiError, ApiResult};
 use super::types::{
@@ -462,57 +462,108 @@ pub async fn diff(ctx: &Ctx, project: &str, number: u64) -> ApiResult<Vec<DiffFi
     }
 }
 
+fn discussion(ctx: &Ctx, project: &str, number: u64, raw: &Value) -> Option<Discussion> {
+    let notes_raw = raw["notes"].as_array().filter(|notes| !notes.is_empty())?;
+    let resolvable = notes_raw
+        .iter()
+        .any(|note| note["resolvable"] == Value::Bool(true));
+    let resolved = resolvable
+        && notes_raw
+            .iter()
+            .filter(|note| note["resolvable"] == Value::Bool(true))
+            .all(|note| note["resolved"] == Value::Bool(true));
+    let position = notes_raw
+        .iter()
+        .map(|note| &note["position"])
+        .find(|position| position.is_object())
+        .map(|position| Position {
+            path: opt(&position["new_path"])
+                .or_else(|| opt(&position["old_path"]))
+                .unwrap_or_default(),
+            new_line: position["new_line"].as_u64().map(|n| n as u32),
+            old_line: position["old_line"].as_u64().map(|n| n as u32),
+        });
+    Some(Discussion {
+        id: text(&raw["id"]),
+        resolvable,
+        resolved,
+        position,
+        url: format!(
+            "{}/{project}/-/merge_requests/{number}#note_{}",
+            ctx.base_url.trim_end_matches('/'),
+            notes_raw[0]["id"]
+        ),
+        notes: notes_raw
+            .iter()
+            .map(|note| Note {
+                id: note["id"].to_string(),
+                author: person(ctx, &note["author"]),
+                body: absolutize(ctx, project, &text(&note["body"])),
+                created_at: text(&note["created_at"]),
+                system: note["system"] == Value::Bool(true),
+            })
+            .collect(),
+    })
+}
+
 pub async fn discussions(ctx: &Ctx, project: &str, number: u64) -> ApiResult<Vec<Discussion>> {
     let url = format!("{}/discussions", mr_url(ctx, project, number));
     let raw = all_pages(ctx, &url, &[]).await?;
-    let mut found = Vec::new();
-    for discussion in &raw {
-        let notes_raw = discussion["notes"].as_array().cloned().unwrap_or_default();
-        if notes_raw.is_empty() {
-            continue;
-        }
-        let resolvable = notes_raw
-            .iter()
-            .any(|note| note["resolvable"] == Value::Bool(true));
-        let resolved = resolvable
-            && notes_raw
-                .iter()
-                .filter(|note| note["resolvable"] == Value::Bool(true))
-                .all(|note| note["resolved"] == Value::Bool(true));
-        let position = notes_raw
-            .iter()
-            .map(|note| &note["position"])
-            .find(|position| position.is_object())
-            .map(|position| Position {
-                path: opt(&position["new_path"])
-                    .or_else(|| opt(&position["old_path"]))
-                    .unwrap_or_default(),
-                new_line: position["new_line"].as_u64().map(|n| n as u32),
-                old_line: position["old_line"].as_u64().map(|n| n as u32),
-            });
-        found.push(Discussion {
-            id: text(&discussion["id"]),
-            resolvable,
-            resolved,
-            position,
-            url: format!(
-                "{}/{project}/-/merge_requests/{number}#note_{}",
-                ctx.base_url.trim_end_matches('/'),
-                notes_raw[0]["id"]
-            ),
-            notes: notes_raw
-                .iter()
-                .map(|note| Note {
-                    id: note["id"].to_string(),
-                    author: person(ctx, &note["author"]),
-                    body: absolutize(ctx, project, &text(&note["body"])),
-                    created_at: text(&note["created_at"]),
-                    system: note["system"] == Value::Bool(true),
-                })
-                .collect(),
-        });
-    }
-    Ok(found)
+    Ok(raw
+        .iter()
+        .filter_map(|entry| discussion(ctx, project, number, entry))
+        .collect())
+}
+
+const WRITE_SCOPE: &str =
+    "у токена GitLab нет права на запись: нужен токен со scope api, read_api только читает";
+
+fn discussion_url(ctx: &Ctx, project: &str, number: u64, id: &str) -> String {
+    format!(
+        "{}/discussions/{}",
+        mr_url(ctx, project, number),
+        encode_segment(id)
+    )
+}
+
+fn written(ctx: &Ctx, project: &str, number: u64, raw: ApiResult<Value>) -> ApiResult<Discussion> {
+    let raw = raw.map_err(|error| error.write_denied(WRITE_SCOPE))?;
+    discussion(ctx, project, number, &raw)
+        .ok_or_else(|| ApiError::failed("неожиданный ответ GitLab: нет данных обсуждения"))
+}
+
+pub async fn reply(
+    ctx: &Ctx,
+    project: &str,
+    number: u64,
+    id: &str,
+    body: &str,
+) -> ApiResult<Discussion> {
+    let url = discussion_url(ctx, project, number, id);
+    ctx.api
+        .post_json(&format!("{url}/notes"), &json!({ "body": body }))
+        .await
+        .map_err(|error| error.write_denied(WRITE_SCOPE))?;
+    written(ctx, project, number, ctx.api.json(&url, &[]).await)
+}
+
+pub async fn comment(ctx: &Ctx, project: &str, number: u64, body: &str) -> ApiResult<Discussion> {
+    let url = format!("{}/discussions", mr_url(ctx, project, number));
+    let raw = ctx.api.post_json(&url, &json!({ "body": body })).await;
+    written(ctx, project, number, raw)
+}
+
+pub async fn resolve(
+    ctx: &Ctx,
+    project: &str,
+    number: u64,
+    id: &str,
+    resolved: bool,
+) -> ApiResult<Discussion> {
+    let url = discussion_url(ctx, project, number, id);
+    let flag = if resolved { "true" } else { "false" };
+    let raw = ctx.api.put_json(&url, &[("resolved", flag)]).await;
+    written(ctx, project, number, raw)
 }
 
 pub async fn pipeline(ctx: &Ctx, project: &str, number: u64) -> ApiResult<Option<Pipeline>> {

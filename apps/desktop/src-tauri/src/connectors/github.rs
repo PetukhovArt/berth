@@ -405,73 +405,200 @@ fn diff_file(entry: &Value) -> DiffFile {
     }
 }
 
-pub async fn discussions(ctx: &Ctx, project: &str, number: u64) -> ApiResult<Vec<Discussion>> {
-    let comment = format!("id url body createdAt {AUTHOR}");
-    let fields = format!(
-        "reviewThreads(first: 100) {{ nodes {{ id isResolved isOutdated path line originalLine diffSide \
-         comments(first: 100) {{ nodes {{ {comment} }} }} }} }} \
-         comments(first: 100) {{ nodes {{ {comment} }} }} \
-         reviews(first: 100) {{ nodes {{ {comment} }} }}"
-    );
-    let node = pull_request(ctx, project, number, &fields).await?;
-    let note = |entry: &Value| Note {
+fn comment_fields() -> String {
+    format!("id url body createdAt {AUTHOR}")
+}
+
+fn thread_fields() -> String {
+    format!(
+        "id isResolved isOutdated path line originalLine diffSide \
+         comments(first: 100) {{ nodes {{ {} }} }}",
+        comment_fields()
+    )
+}
+
+fn note(entry: &Value) -> Note {
+    Note {
         id: text(&entry["id"]),
         author: gql_person(&entry["author"]),
         body: text(&entry["body"]),
         created_at: text(&entry["createdAt"]),
         system: false,
-    };
-    let mut found: Vec<Discussion> = Vec::new();
-    for thread in node["reviewThreads"]["nodes"]
+    }
+}
+
+fn thread_discussion(thread: &Value) -> Option<Discussion> {
+    let notes: Vec<Note> = thread["comments"]["nodes"]
         .as_array()
         .into_iter()
         .flatten()
-    {
-        let notes: Vec<Note> = thread["comments"]["nodes"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .map(note)
-            .collect();
-        if notes.is_empty() {
-            continue;
-        }
-        let line = thread["line"]
-            .as_u64()
-            .or_else(|| thread["originalLine"].as_u64())
-            .map(|line| line as u32);
-        let left = thread["diffSide"].as_str() == Some("LEFT");
-        found.push(Discussion {
-            id: text(&thread["id"]),
-            resolvable: true,
-            resolved: thread["isResolved"].as_bool().unwrap_or(false),
-            position: Some(Position {
-                path: text(&thread["path"]),
-                new_line: if left { None } else { line },
-                old_line: if left { line } else { None },
-            }),
-            url: text(&thread["comments"]["nodes"][0]["url"]),
-            notes,
-        });
+        .map(note)
+        .collect();
+    if notes.is_empty() {
+        return None;
     }
+    let line = thread["line"]
+        .as_u64()
+        .or_else(|| thread["originalLine"].as_u64())
+        .map(|line| line as u32);
+    let left = thread["diffSide"].as_str() == Some("LEFT");
+    Some(Discussion {
+        id: text(&thread["id"]),
+        resolvable: true,
+        resolved: thread["isResolved"].as_bool().unwrap_or(false),
+        position: Some(Position {
+            path: text(&thread["path"]),
+            new_line: if left { None } else { line },
+            old_line: if left { line } else { None },
+        }),
+        url: text(&thread["comments"]["nodes"][0]["url"]),
+        notes,
+    })
+}
+
+fn plain_discussion(entry: &Value) -> Discussion {
+    Discussion {
+        id: text(&entry["id"]),
+        resolvable: false,
+        resolved: false,
+        position: None,
+        url: text(&entry["url"]),
+        notes: vec![note(entry)],
+    }
+}
+
+pub async fn discussions(ctx: &Ctx, project: &str, number: u64) -> ApiResult<Vec<Discussion>> {
+    let comment = comment_fields();
+    let fields = format!(
+        "reviewThreads(first: 100) {{ nodes {{ {} }} }} \
+         comments(first: 100) {{ nodes {{ {comment} }} }} \
+         reviews(first: 100) {{ nodes {{ {comment} }} }}",
+        thread_fields()
+    );
+    let node = pull_request(ctx, project, number, &fields).await?;
+    let mut found: Vec<Discussion> = node["reviewThreads"]["nodes"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(thread_discussion)
+        .collect();
     let plain = node["comments"]["nodes"]
         .as_array()
         .into_iter()
         .flatten()
         .chain(node["reviews"]["nodes"].as_array().into_iter().flatten())
         .filter(|entry| !text(&entry["body"]).trim().is_empty());
-    for entry in plain {
-        found.push(Discussion {
-            id: text(&entry["id"]),
-            resolvable: false,
-            resolved: false,
-            position: None,
-            url: text(&entry["url"]),
-            notes: vec![note(entry)],
-        });
-    }
+    found.extend(plain.map(plain_discussion));
     found.sort_by(|a, b| a.notes[0].created_at.cmp(&b.notes[0].created_at));
     Ok(found)
+}
+
+const WRITE_ACCESS: &str = "у токена GitHub нет права на запись: нужен доступ Pull requests: Read and write (fine-grained) или scope repo (classic)";
+
+async fn mutate(ctx: &Ctx, query: &str, variables: Value) -> ApiResult<Value> {
+    let body = json!({ "query": query, "variables": variables });
+    let response = ctx
+        .api
+        .post_json(&graphql_url(ctx), &body)
+        .await
+        .map_err(|error| error.write_denied(WRITE_ACCESS))?;
+    let Some(error) = response["errors"]
+        .as_array()
+        .and_then(|errors| errors.first())
+    else {
+        return Ok(response["data"].clone());
+    };
+    let message = error["message"].as_str().unwrap_or("ошибка GraphQL");
+    let denied = error["type"].as_str() == Some("FORBIDDEN")
+        || message.contains("not accessible")
+        || message.contains("permission");
+    Err(ApiError::failed(if denied {
+        format!("{WRITE_ACCESS} ({message})")
+    } else {
+        format!("GitHub GraphQL: {message}")
+    }))
+}
+
+async fn subject(ctx: &Ctx, id: &str) -> ApiResult<Value> {
+    let query = "query($id: ID!) { node(id: $id) { __typename \
+         ... on IssueComment { body author { login } } \
+         ... on PullRequestReview { body author { login } } } }";
+    let data = graphql(ctx, query, json!({ "id": id })).await?;
+    let node = data["node"].clone();
+    if node.is_null() {
+        return Err(ApiError::failed(format!(
+            "обсуждение {id} не найдено на GitHub"
+        )));
+    }
+    Ok(node)
+}
+
+fn quoted(original: &Value, body: &str) -> String {
+    let quote = text(&original["body"])
+        .lines()
+        .map(|line| format!("> {line}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    match opt(&original["author"]["login"]) {
+        Some(login) => format!("@{login}\n{quote}\n\n{body}"),
+        None => format!("{quote}\n\n{body}"),
+    }
+}
+
+pub async fn reply(
+    ctx: &Ctx,
+    project: &str,
+    number: u64,
+    id: &str,
+    body: &str,
+) -> ApiResult<Discussion> {
+    let original = subject(ctx, id).await?;
+    if original["__typename"].as_str() != Some("PullRequestReviewThread") {
+        return comment(ctx, project, number, &quoted(&original, body)).await;
+    }
+    let query = format!(
+        "mutation($id: ID!, $body: String!) {{ \
+         addPullRequestReviewThreadReply(input: {{pullRequestReviewThreadId: $id, body: $body}}) \
+         {{ comment {{ id pullRequestReviewThread {{ {} }} }} }} }}",
+        thread_fields()
+    );
+    let data = mutate(ctx, &query, json!({ "id": id, "body": body })).await?;
+    thread_discussion(
+        &data["addPullRequestReviewThreadReply"]["comment"]["pullRequestReviewThread"],
+    )
+    .ok_or_else(|| ApiError::failed("неожиданный ответ GitHub: нет данных обсуждения"))
+}
+
+pub async fn comment(ctx: &Ctx, project: &str, number: u64, body: &str) -> ApiResult<Discussion> {
+    let pull = pull_request(ctx, project, number, "id").await?;
+    let query = format!(
+        "mutation($id: ID!, $body: String!) {{ addComment(input: {{subjectId: $id, body: $body}}) \
+         {{ commentEdge {{ node {{ {} }} }} }} }}",
+        comment_fields()
+    );
+    let data = mutate(ctx, &query, json!({ "id": pull["id"], "body": body })).await?;
+    let created = &data["addComment"]["commentEdge"]["node"];
+    if created.is_null() {
+        return Err(ApiError::failed(
+            "неожиданный ответ GitHub: нет данных комментария",
+        ));
+    }
+    Ok(plain_discussion(created))
+}
+
+pub async fn resolve(ctx: &Ctx, id: &str, resolved: bool) -> ApiResult<Discussion> {
+    let action = if resolved {
+        "resolveReviewThread"
+    } else {
+        "unresolveReviewThread"
+    };
+    let query = format!(
+        "mutation($id: ID!) {{ {action}(input: {{threadId: $id}}) {{ thread {{ {} }} }} }}",
+        thread_fields()
+    );
+    let data = mutate(ctx, &query, json!({ "id": id })).await?;
+    thread_discussion(&data[action]["thread"])
+        .ok_or_else(|| ApiError::failed("неожиданный ответ GitHub: нет данных обсуждения"))
 }
 
 fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {

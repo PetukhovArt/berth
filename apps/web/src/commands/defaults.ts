@@ -9,6 +9,9 @@ export const DEFAULT_KEYMAP: readonly KeymapEntry[] = [
       'mod-shift-m': 'dock.toggleMaximize',
       'mod-shift-n': 'agents.newSession',
       'mod-shift-o': 'hot.overview',
+      'ctrl-space t': 'session.view.terminal',
+      'ctrl-space m': 'session.view.mr',
+      'ctrl-space d': 'session.view.diff',
     },
   },
   {

@@ -24,6 +24,17 @@ impl ApiError {
         ApiError::Failed(message.into())
     }
 
+    pub fn write_denied(self, hint: &str) -> Self {
+        match self {
+            ApiError::Failed(message)
+                if message.contains("(403)") || message.contains("not accessible") =>
+            {
+                ApiError::Failed(format!("{hint} ({message})"))
+            }
+            other => other,
+        }
+    }
+
     pub fn message(&self) -> &str {
         match self {
             ApiError::Unreachable(message)
@@ -313,9 +324,26 @@ impl Api {
     }
 
     pub async fn post_json(&self, raw: &str, body: &Value) -> ApiResult<Value> {
-        let url = Self::parse_url(raw, &[])?;
+        self.send_json(Method::POST, raw, &[], body).await
+    }
+
+    pub async fn put_json(&self, raw: &str, query: &[(&str, &str)]) -> ApiResult<Value> {
+        self.send_json(Method::PUT, raw, query, &Value::Null).await
+    }
+
+    async fn send_json(
+        &self,
+        method: Method,
+        raw: &str,
+        query: &[(&str, &str)],
+        body: &Value,
+    ) -> ApiResult<Value> {
+        let url = Self::parse_url(raw, query)?;
         let host = host_of(&url);
-        let request = self.builder(Method::POST, url, true, JSON).json(body);
+        let mut request = self.builder(method, url, true, JSON);
+        if !body.is_null() {
+            request = request.json(body);
+        }
         let response = self.send(request, &host).await?;
         response
             .json::<Value>()

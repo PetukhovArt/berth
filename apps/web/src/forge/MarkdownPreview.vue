@@ -2,14 +2,25 @@
 import { computed, shallowRef, watch } from 'vue';
 import { describeError, forgeFile, reloadWhenRecovered } from '../connectors/api';
 import RichContent from '../content/RichContent.vue';
+import { fsReadText } from '../files/api';
 import { t } from '../i18n';
-import { fileBaseUrl } from './fileBase';
+import { fileBaseUrl, localFilePath, type PreviewSource } from './fileBase';
 
-const props = defineProps<{ connector: string; project: string; sha: string; path: string; requestUrl: string }>();
+const props = defineProps<{ source: PreviewSource; path: string }>();
 
 const text = shallowRef<string | null>(null);
 const failure = shallowRef<string | null>(null);
-const baseUrl = computed(() => fileBaseUrl(props.requestUrl, props.sha, props.path));
+
+const localPath = computed(() => (props.source.kind === 'local' ? localFilePath(props.source.root, props.path) : null));
+const basePath = computed(() => localPath.value?.replace(/[\\/][^\\/]*$/, ''));
+const baseUrl = computed(() => (props.source.kind === 'forge' ? fileBaseUrl(props.source.requestUrl, props.source.sha, props.path) : undefined));
+const connector = computed(() => (props.source.kind === 'forge' ? props.source.connector : undefined));
+
+function read(): Promise<string> {
+  const source = props.source;
+  if (source.kind === 'local') return fsReadText(localFilePath(source.root, props.path));
+  return forgeFile(source.connector, source.project, source.sha, props.path);
+}
 
 let generation = 0;
 
@@ -18,7 +29,7 @@ async function load() {
   text.value = null;
   failure.value = null;
   try {
-    const content = await forgeFile(props.connector, props.project, props.sha, props.path);
+    const content = await read();
     if (ticket === generation) text.value = content;
   } catch (e) {
     if (ticket === generation) failure.value = describeError(e);
@@ -26,19 +37,19 @@ async function load() {
 }
 
 reloadWhenRecovered(
-  () => props.connector,
-  () => failure.value !== null,
+  () => connector.value ?? '',
+  () => failure.value !== null && connector.value !== undefined,
   () => void load(),
 );
 
-watch(() => [props.connector, props.project, props.sha, props.path], load, { immediate: true });
+watch(() => [props.source, props.path], load, { immediate: true });
 </script>
 
 <template>
   <div class="preview" data-testid="diff-md-preview">
     <p v-if="failure" class="note failure" role="alert">{{ failure }}</p>
     <p v-else-if="text === null" class="note">{{ t('forge.preview.loading') }}</p>
-    <RichContent v-else :markdown="text" :connector="connector" :base-url="baseUrl" variant="document" :breaks="false" />
+    <RichContent v-else :markdown="text" :connector="connector" :base-url="baseUrl" :base-path="basePath" variant="document" :breaks="false" />
   </div>
 </template>
 

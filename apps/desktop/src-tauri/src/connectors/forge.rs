@@ -170,6 +170,53 @@ pub async fn forge_discussions(
     .map_err(String::from)
 }
 
+pub async fn forge_reply(
+    state: &Connectors,
+    connector: String,
+    project: String,
+    number: u64,
+    discussion: String,
+    body: String,
+) -> Result<Discussion, String> {
+    let ctx = forge_ctx(state, &connector).await?;
+    match ctx.kind {
+        Kind::Github => github::reply(&ctx, &project, number, &discussion, &body).await,
+        _ => gitlab::reply(&ctx, &project, number, &discussion, &body).await,
+    }
+    .map_err(String::from)
+}
+
+pub async fn forge_comment(
+    state: &Connectors,
+    connector: String,
+    project: String,
+    number: u64,
+    body: String,
+) -> Result<Discussion, String> {
+    let ctx = forge_ctx(state, &connector).await?;
+    match ctx.kind {
+        Kind::Github => github::comment(&ctx, &project, number, &body).await,
+        _ => gitlab::comment(&ctx, &project, number, &body).await,
+    }
+    .map_err(String::from)
+}
+
+pub async fn forge_resolve(
+    state: &Connectors,
+    connector: String,
+    project: String,
+    number: u64,
+    discussion: String,
+    resolved: bool,
+) -> Result<Discussion, String> {
+    let ctx = forge_ctx(state, &connector).await?;
+    match ctx.kind {
+        Kind::Github => github::resolve(&ctx, &discussion, resolved).await,
+        _ => gitlab::resolve(&ctx, &project, number, &discussion, resolved).await,
+    }
+    .map_err(String::from)
+}
+
 pub async fn forge_pipeline(
     state: &Connectors,
     connector: String,

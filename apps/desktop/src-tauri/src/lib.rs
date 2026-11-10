@@ -2,6 +2,7 @@ pub mod agent_sessions;
 #[cfg(feature = "desktop")]
 mod app_menu;
 pub mod berth;
+mod changes;
 mod cleanup;
 mod commands;
 pub mod connectors;

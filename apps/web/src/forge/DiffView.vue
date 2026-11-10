@@ -5,10 +5,10 @@ import { useIsPhone, VInputText } from '@ui/kit';
 import type { DiffFile, Discussion } from '../connectors/api';
 import { t } from '../i18n';
 import DiffFileBody from './DiffFileBody.vue';
-import { isMarkdownPath } from './fileBase';
+import { isMarkdownPath, type PreviewSource } from './fileBase';
 import MarkdownPreview from './MarkdownPreview.vue';
 
-const props = defineProps<{ files: DiffFile[]; discussions: Discussion[]; connector?: string; project?: string; headSha?: string; requestUrl?: string }>();
+const props = defineProps<{ files: DiffFile[]; discussions: Discussion[]; connector?: string; project?: string; headSha?: string; requestUrl?: string; root?: string }>();
 
 type Mode = 'unified' | 'split';
 type IndexSet = ShallowRef<ReadonlySet<number>>;
@@ -103,8 +103,14 @@ function exclude(set: IndexSet, index: number) {
 const toggleCollapsed = (index: number) => toggle(collapsed, index);
 const expandFile = (index: number) => include(expanded, index);
 
+const previewSource = computed((): PreviewSource | null => {
+  if (props.root) return { kind: 'local', root: props.root };
+  const { connector, project, headSha, requestUrl } = props;
+  return connector && project && headSha && requestUrl ? { kind: 'forge', connector, project, sha: headSha, requestUrl } : null;
+});
+
 function canPreview(file: DiffFile): boolean {
-  return Boolean(props.connector && props.project && props.headSha && props.requestUrl) && file.status !== 'deleted' && isMarkdownPath(file.new_path);
+  return previewSource.value !== null && file.status !== 'deleted' && isMarkdownPath(file.new_path);
 }
 
 function setPreview(index: number, on: boolean) {
@@ -430,6 +436,7 @@ watch(
     shown.value = new Set();
     collapsed.value = new Set();
     expanded.value = new Set();
+    previewing.value = new Set();
     activeIndex.value = 0;
     threadCursor.value = -1;
     fileEls.length = props.files.length;
@@ -491,6 +498,7 @@ defineExpose({ focusThread, root });
         <button class="mode vr-phone-only" data-testid="diff-files-open" @click="filesOpen = true"><ListTree :size="14" />{{ t('forge.diff.files') }}</button>
         <span class="summary">{{ t('forge.diff.fileCount', { count: files.length }) }} <span class="add">+{{ totals.additions }}</span> <span class="del">−{{ totals.deletions }}</span></span>
         <span class="spacer" />
+        <slot name="actions" />
         <span v-if="unresolved.length" class="group">
           <button class="icon" :title="t('forge.diff.prevThreadTitle')" :aria-label="t('forge.diff.prevThread')" data-testid="diff-prev-thread" @click="stepThread(-1)"><ChevronUp :size="14" /></button>
           <span>{{ t('forge.diff.unresolvedCount', { count: unresolved.length }) }}</span>
@@ -521,14 +529,7 @@ defineExpose({ focusThread, root });
           </header>
 
           <template v-if="!collapsed.has(i)">
-            <MarkdownPreview
-              v-if="previewing.has(i) && canPreview(file)"
-              :connector="connector!"
-              :project="project!"
-              :sha="headSha!"
-              :path="file.new_path"
-              :request-url="requestUrl!"
-            />
+            <MarkdownPreview v-if="previewing.has(i) && previewSource && canPreview(file)" :source="previewSource" :path="file.new_path" />
             <p v-else-if="note(file)" class="file-note" data-testid="diff-note">{{ note(file) }}</p>
             <DiffFileBody
               v-else-if="shown.has(i)"

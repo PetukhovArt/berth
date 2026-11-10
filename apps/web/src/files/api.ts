@@ -1,4 +1,5 @@
 import { closeChannel, createChannel, invoke, isDesktop } from '../bridge';
+import type { DiffFile } from '../connectors/api';
 
 export type BinaryFile = { mime: string; base64: string };
 
@@ -12,6 +13,7 @@ export const fsWriteText = (path: string, text: string, expected: string) => inv
 export const fsReadBinary = (path: string) => invoke<BinaryFile>('fs_read_binary', { path });
 export const fsListMarkdown = (root: string) => invoke<string[]>('fs_list_markdown', { root });
 export const fsListDirs = (root: string) => invoke<string[]>('fs_list_dirs', { root });
+export const worktreeChanges = (path: string) => invoke<DiffFile[]>('worktree_changes', { path });
 export const canOpenExternal = isDesktop;
 export const fsOpenExternal = (path: string) => invoke<void>('fs_open_external', { path });
 

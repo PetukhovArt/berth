@@ -18,7 +18,7 @@ import { useSettings } from '../../settings/store';
 import { startTabDrag, trackTabOrder } from './tabOrder';
 import DockTab from './DockTab.vue';
 import ProjectTabRows from './ProjectTabRows.vue';
-import SessionOrMr from './SessionOrMr.vue';
+import SessionViews from './SessionViews.vue';
 
 defineProps<{ activeKey: string | null }>();
 const emit = defineEmits<{ ready: [event: DockviewReadyEvent]; 'open-file': [path: string, hash: string, from: string] }>();
@@ -56,7 +56,7 @@ onBeforeUnmount(() => {
     <ProjectTabRows v-if="values['workbench.tabs'] === 'projects'" :api="readyApi" />
     <DockviewVue class="dockview" :theme="themeLight" :disable-dnd="isDesktop" @ready="onReady">
       <template #panel-session="{ params, api }">
-        <SessionOrMr :panel-id="api.id"><SessionPanel v-if="isSessionRef(params.session)" class="vr-fade-in" :session="params.session" :panel="api" /></SessionOrMr>
+        <SessionViews :panel-id="api.id"><SessionPanel v-if="isSessionRef(params.session)" class="vr-fade-in" :session="params.session" :panel="api" /></SessionViews>
       </template>
       <template #panel-review="{ params }">
         <ChangeRequestView v-if="typeof params.connector === 'string' && typeof params.project === 'string' && typeof params.number === 'number'" class="vr-fade-in" :connector="params.connector" :project="params.project" :number="params.number" />
@@ -76,7 +76,7 @@ onBeforeUnmount(() => {
         <JiraIssueView v-if="typeof params.connector === 'string' && typeof params.key === 'string'" class="vr-fade-in" :connector="params.connector" :issue-key="params.key" @open="(ref) => dock.openIssue(ref.connector, ref.key)" />
       </template>
       <template #panel-conversation="{ params, api }">
-        <SessionOrMr :panel-id="api.id"><ConversationView v-if="isHarness(params.harness) && typeof params.id === 'string'" class="vr-fade-in" :harness="params.harness" :session-id="params.id" /></SessionOrMr>
+        <SessionViews :panel-id="api.id"><ConversationView v-if="isHarness(params.harness) && typeof params.id === 'string'" class="vr-fade-in" :harness="params.harness" :session-id="params.id" /></SessionViews>
       </template>
       <template #panel-metrics>
         <MetricsPanel class="vr-fade-in" />

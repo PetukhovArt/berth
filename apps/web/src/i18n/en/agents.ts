@@ -135,6 +135,26 @@ export const agents = {
     offline: 'berth daemon is not running',
     incompatible: 'incompatible berth version',
   },
+  sessionView: {
+    switcher: 'Session view',
+    terminal: 'Terminal',
+    mr: 'Merge request',
+    diff: 'Changes',
+    withShortcut: '{name} ({shortcut})',
+    noMr: 'No merge request for this branch',
+    action: {
+      terminal: 'Session: show terminal',
+      mr: 'Session: show merge request',
+      diff: 'Session: show changes',
+    },
+  },
+  changes: {
+    refresh: 'Refresh',
+    loading: 'Reading changes…',
+    empty: 'No changes in this worktree',
+    failed: 'Could not read the worktree changes: {error}',
+    retry: 'Try again',
+  },
   errors: {
     unexpectedReply: 'unexpected berth reply: {reply}',
     expectedAck: 'berth replied {reply} instead of Ack',
