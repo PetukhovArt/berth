@@ -4,6 +4,7 @@ import type { DockviewPanelApi } from 'dockview-vue';
 import type { ChangeRequestRef } from '../../connectors/api';
 import WorktreeBadge from '../../forge/WorktreeBadge.vue';
 import { useDock } from '../../workbench/dock';
+import { mrShownIn, toggleMr } from './tabMrView';
 import { useBerth } from '../berth';
 import { useExternalSessions } from '../external';
 
@@ -21,14 +22,16 @@ const target = computed(() => {
   return conversation?.branch ? { path: conversation.cwd, branch: conversation.branch } : null;
 });
 
+const showing = computed(() => Boolean(mrShownIn(props.panel.id)));
+
 function open(ref: ChangeRequestRef) {
   props.panel.setActive();
-  dock.openReview(ref);
+  toggleMr(props.panel.id, ref);
 }
 </script>
 
 <template>
-  <span v-if="target" class="tab-mr" @pointerdown.stop @dblclick.stop>
+  <span v-if="target" class="tab-mr" :data-showing="showing" data-testid="tab-mr" @pointerdown.stop @dblclick.stop>
     <WorktreeBadge :path="target.path" :branch="target.branch" @open="open" />
   </span>
 </template>
@@ -38,5 +41,10 @@ function open(ref: ChangeRequestRef) {
   display: inline-flex;
   flex: none;
   align-items: center;
+}
+
+.tab-mr[data-showing='true'] :deep(.badge) {
+  color: var(--vr-color-accent-contrast);
+  background: var(--vr-color-accent);
 }
 </style>
