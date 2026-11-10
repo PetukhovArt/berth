@@ -52,7 +52,7 @@ const diffRef = useTemplateRef<InstanceType<typeof DiffView>>('diff');
 
 const target = computed<ChangeRequestRef>(() => ({ connector: props.connector, project: props.project, number: props.number }));
 const unresolved = computed(() => discussions.value.filter((d) => d.resolvable && !d.resolved).length);
-const conversation = computed(() => discussions.value.filter((d) => d.notes.some((n) => !n.system) || !d.position));
+const conversation = computed(() => discussions.value.filter((d) => d.notes.some((n) => !n.system)));
 const anchored = computed(() => discussions.value.some((d) => d.position));
 const sessionRun = computed(() => mrRuns.value.get(itemId(target.value)));
 let generation = 0;
