@@ -5,6 +5,7 @@ import type { DockviewPanelApi } from 'dockview-vue';
 import { Terminal, type ITheme } from '@xterm/xterm';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
+import { WebLinksAddon } from '@xterm/addon-web-links';
 import { attachSession, detachSession, resizeSession, sendInput, sessionId, type SessionEvent, type SessionRef } from './berth';
 import { t } from '../i18n';
 import { openUrl } from '../bridge';
@@ -70,6 +71,7 @@ function build(element: HTMLElement, session: SessionRef): LiveTerminal {
   });
   term.loadAddon(new Unicode11Addon());
   term.unicode.activeVersion = '11';
+  term.loadAddon(new WebLinksAddon((_event, uri) => void openUrl(uri)));
   term.open(element);
   const clipboard = terminalClipboard(term, element);
 
