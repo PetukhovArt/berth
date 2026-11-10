@@ -3,10 +3,11 @@ import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import { VButton, VInputText } from '@ui/kit';
 import { t } from '../../i18n';
 import { useBerth, worktreesOfProject } from '../berth';
-import ActionMenu from './ActionMenu.vue';
+import ActionMenu, { type MenuItem } from './ActionMenu.vue';
 import OrphansDialog from './OrphansDialog.vue';
 import { useAction } from '../useAction';
-import { addProject, removeProject, renameProject } from './workspaces';
+import { canMove, moved, pinned, unpinned } from './projectPins';
+import { addProject, removeProject, renameProject, setProjectPins } from './workspaces';
 
 const MISSING_FOLDER = /не существует|не найден|not exist|no such|not found/i;
 
@@ -32,6 +33,34 @@ const mainWorktree = computed(() => {
   const worktrees = worktreesOfProject(entities, props.projectId);
   return worktrees.find((worktree) => worktree.is_main) ?? worktrees[0];
 });
+
+const pinItems = computed((): MenuItem[] => {
+  const projects = berth?.entities.value.projects;
+  const id = props.projectId;
+  if (!projects || !id || !current.value) return [];
+  if (current.value.pin_order === null) return [{ key: 'pin', label: t('agents.project.pin'), testid: 'project-pin' }];
+  return [
+    { key: 'unpin', label: t('agents.project.unpin'), testid: 'project-unpin' },
+    { key: 'up', label: t('agents.project.moveUp'), testid: 'project-move-up', disabled: !canMove(projects, id, -1) },
+    { key: 'down', label: t('agents.project.moveDown'), testid: 'project-move-down', disabled: !canMove(projects, id, 1) },
+  ];
+});
+
+function pinOrder(key: string): string[] | undefined {
+  const projects = berth?.entities.value.projects;
+  const id = props.projectId;
+  if (!projects || !id) return undefined;
+  if (key === 'pin') return pinned(projects, id);
+  if (key === 'unpin') return unpinned(projects, id);
+  if (key === 'up') return moved(projects, id, -1);
+  if (key === 'down') return moved(projects, id, 1);
+  return undefined;
+}
+
+async function choosePin(key: string) {
+  const order = pinOrder(key);
+  if (order) await run(() => setProjectPins(order));
+}
 
 function createInMain() {
   const worktree = mainWorktree.value;
@@ -105,7 +134,9 @@ async function confirmRemove() {
       :extra-label="t('agents.project.oldConversations')"
       extra-testid="project-menu-orphans"
       :create-label="mainWorktree ? t('agents.project.newSession') : undefined"
+      :items="pinItems"
       @create="createInMain"
+      @item="choosePin"
       @rename="openRename"
       @remove="openRemove"
       @extra="orphansOpen = true"

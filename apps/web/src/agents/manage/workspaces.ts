@@ -26,3 +26,7 @@ export async function removeProject(id: string): Promise<void> {
 export async function renameProject(id: string, name: string): Promise<void> {
   await acknowledged({ RenameProject: { id, name } });
 }
+
+export async function setProjectPins(order: string[]): Promise<void> {
+  await acknowledged({ SetProjectPins: { order } });
+}

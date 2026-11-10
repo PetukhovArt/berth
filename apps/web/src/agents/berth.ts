@@ -9,7 +9,7 @@ type ConnectionState = 'connecting' | 'connected' | 'offline' | 'incompatible';
 type Connection = { state: ConnectionState; message: string | null };
 
 type Workspace = { id: string; name: string };
-type Project = { id: string; name: string; workspace_id: string; repo_path: string; sort_order: number };
+type Project = { id: string; name: string; workspace_id: string; repo_path: string; sort_order: number; pin_order: number | null };
 export type Worktree = { id: string; project_id: string; path: string; branch: string; is_main: boolean; sort_order: number };
 type Agent = {
   id: string;

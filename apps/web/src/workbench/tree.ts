@@ -1,4 +1,5 @@
-import { Archive, Eye, EyeOff, Folder, FolderGit2, FolderOpen, FolderSearch, GitBranch, History, House, Inbox, Layers, UserRound } from 'lucide-vue-next';
+import { Archive, Eye, EyeOff, Folder, FolderGit2, FolderOpen, FolderSearch, GitBranch, History, House, Inbox, Layers, Pin, UserRound } from 'lucide-vue-next';
+import { pinnedFirst } from '../agents/manage/projectPins';
 import { externalDot, externalKey, placeExternal, splitEarlier, type ExternalSession } from '../agents/external';
 import { worktreesOfProject, type Entities, type SessionNode, type WorktreeNode } from '../agents/berth';
 import { rollupOf, type Rollup, type WorkspaceNode } from '../agents/proto/nav';
@@ -386,11 +387,12 @@ export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly 
   const sessionNodes = (): WorkNode[] => {
     if (!sources.berth && !sources.external.length && !sources.archivedExternal.length) return [];
     const workspaceNodes = sources.workspaces.flatMap((workspace): WorkNode[] => {
-      const children = workspace.projects.flatMap((project): WorkNode[] => {
+      const children = pinnedFirst(workspace.projects, sources.entities?.projects).flatMap((project): WorkNode[] => {
         const worktrees = [...worktreeNodes('s|', project, links, placed, match, pruned), ...otherFolders('s|', project, placed, match)];
         if (pruned && !worktrees.length) return [];
         const rollup = projectRollup(project);
-        return [{ id: `s|pr:${project.id}`, kind: 'project', label: project.name, icon: Folder, iconOpen: FolderOpen, children: worktrees, ...sessionsCount(rollup), data: { projectId: project.id, rollup } }];
+        const pin = (sources.entities?.projects.get(project.id)?.pin_order ?? null) !== null;
+        return [{ id: `s|pr:${project.id}`, kind: 'project', label: project.name, icon: pin ? Pin : Folder, iconOpen: pin ? Pin : FolderOpen, children: worktrees, ...sessionsCount(rollup), data: { projectId: project.id, rollup } }];
       });
       if (pruned && !children.length) return [];
       if (editable && !pruned) children.push({ id: `add-project:${workspace.id}`, kind: 'add-project', label: '', custom: true, inert: true, data: { workspaceId: workspace.id } });

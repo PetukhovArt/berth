@@ -109,6 +109,10 @@ export const agents: Translation<typeof en> = {
     renameHint: 'Пустое название вернёт имя папки',
     confirm: 'Подтверждение',
     removeQuestion: 'Убрать «{name}» из berth? Папка на диске не будет затронута.',
+    pin: 'Закрепить',
+    unpin: 'Открепить',
+    moveUp: 'Выше',
+    moveDown: 'Ниже',
   },
   workspace: {
     fallback: 'Workspace',

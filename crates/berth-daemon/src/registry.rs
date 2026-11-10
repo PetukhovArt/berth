@@ -789,6 +789,7 @@ impl Daemon {
             workspace_id,
             repo_path: repo_path.clone(),
             sort_order: self.store.next_project_sort_order()?,
+            pin_order: None,
         };
         self.store.insert_project(&project)?;
         self.broadcast(ServerEvent::EntityUpserted {
@@ -3744,6 +3745,7 @@ mod tests {
                     name: (*name).into(),
                     repo_path: format!("/tmp/{name}").into(),
                     sort_order: i as i64,
+                    pin_order: None,
                 })
                 .unwrap();
         }
@@ -3923,6 +3925,7 @@ mod tests {
                 name: "p".into(),
                 repo_path: repo.clone(),
                 sort_order: 0,
+                pin_order: None,
             })
             .unwrap();
         seed_worktree(&daemon, "p", "root", &repo.to_string_lossy(), true);
@@ -4107,6 +4110,7 @@ mod tests {
             name: "p".into(),
             repo_path: repo.clone(),
             sort_order: 0,
+            pin_order: None,
         };
         daemon.store.insert_project(&project).unwrap();
         seed_worktree(&daemon, "p", "root", &repo.to_string_lossy(), true);
@@ -4333,6 +4337,7 @@ mod tests {
             name: "p".into(),
             repo_path: repo.clone(),
             sort_order: 0,
+            pin_order: None,
         };
         daemon.store.insert_project(&project).unwrap();
         // The wrong way round: the linked checkout wears the root badge and
@@ -4369,6 +4374,7 @@ mod tests {
             name: "p".into(),
             repo_path: repo.clone(),
             sort_order: 0,
+            pin_order: None,
         };
         daemon.store.insert_project(&project).unwrap();
         seed_worktree(&daemon, "p", "rt", &repo.to_string_lossy(), true);

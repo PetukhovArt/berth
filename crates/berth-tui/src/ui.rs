@@ -4689,6 +4689,7 @@ mod tests {
             name: "demo".into(),
             repo_path: "/tmp/demo".into(),
             sort_order: 0,
+            pin_order: None,
         });
         for (i, branch) in branches.iter().enumerate() {
             app.tree.worktrees.push(Worktree {

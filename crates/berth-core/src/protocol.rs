@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 40;
+pub const PROTOCOL_VERSION: u32 = 41;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -102,6 +102,13 @@ pub enum ClientRequest {
         req_id: u64,
         id: ProjectId,
         name: String,
+    },
+    /// The full ordered list of pinned projects, highest priority first.
+    /// Every project not in `order` is unpinned, so one request pins,
+    /// unpins and reorders. Ids the daemon doesn't know are ignored.
+    SetProjectPins {
+        req_id: u64,
+        order: Vec<ProjectId>,
     },
     CreateWorktree {
         req_id: u64,

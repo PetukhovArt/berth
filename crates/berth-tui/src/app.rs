@@ -3495,6 +3495,7 @@ mod tests {
             name: "demo".into(),
             repo_path: "/tmp/demo".into(),
             sort_order: 0,
+            pin_order: None,
         });
         app.tree.worktrees.push(Worktree {
             id: worktree_id.clone(),

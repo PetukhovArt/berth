@@ -665,6 +665,7 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::AddProject { req_id, .. }
         | ClientRequest::RemoveProject { req_id, .. }
         | ClientRequest::RenameProject { req_id, .. }
+        | ClientRequest::SetProjectPins { req_id, .. }
         | ClientRequest::CreateWorktree { req_id, .. }
         | ClientRequest::DeleteWorktree { req_id, .. }
         | ClientRequest::ListBranches { req_id, .. }

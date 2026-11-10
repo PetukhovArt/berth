@@ -7781,6 +7781,7 @@ mod tests {
                     name: "demo".into(),
                     repo_path: "/tmp/demo".into(),
                     sort_order: 0,
+                    pin_order: None,
                 }),
             },
         );
@@ -14004,6 +14005,7 @@ diff --git a/src/b.rs b/src/b.rs
             name: name.into(),
             repo_path: format!("/tmp/{name}").into(),
             sort_order,
+            pin_order: None,
         })
     }
 
@@ -15048,6 +15050,7 @@ diff --git a/src/b.rs b/src/b.rs
                     name: "demo".into(),
                     repo_path: path.to_path_buf(),
                     sort_order: 0,
+                    pin_order: None,
                 }),
             },
         );
@@ -15785,6 +15788,7 @@ diff --git a/src/b.rs b/src/b.rs
                     name: "berth".into(),
                     repo_path: "/tmp/berth".into(),
                     sort_order: 1,
+                    pin_order: None,
                 }),
             },
         );
@@ -16130,6 +16134,7 @@ diff --git a/src/b.rs b/src/b.rs
                     name: "fresh".into(),
                     repo_path: "/tmp/fresh".into(),
                     sort_order: 9,
+                    pin_order: None,
                 }),
             },
         );
@@ -18511,6 +18516,7 @@ diff --git a/src/b.rs b/src/b.rs
                     name: "secret".into(),
                     repo_path: "/tmp/secret".into(),
                     sort_order: 9,
+                    pin_order: None,
                 }),
             },
         );
@@ -18834,6 +18840,7 @@ diff --git a/src/b.rs b/src/b.rs
                     name: "other".into(),
                     repo_path: "/tmp/other".into(),
                     sort_order: 1,
+                    pin_order: None,
                 }),
             },
         );
@@ -19042,6 +19049,7 @@ diff --git a/src/b.rs b/src/b.rs
                     name: "third-proj".into(),
                     repo_path: "/tmp/third".into(),
                     sort_order: 7,
+                    pin_order: None,
                 }),
             },
         );
@@ -19456,6 +19464,7 @@ diff --git a/src/b.rs b/src/b.rs
                         name: format!("proj-{i}"),
                         repo_path: format!("/tmp/proj-{i}").into(),
                         sort_order: i as i64,
+                        pin_order: None,
                     }),
                 },
             );

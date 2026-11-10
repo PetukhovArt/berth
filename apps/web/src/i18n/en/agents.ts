@@ -106,6 +106,10 @@ export const agents = {
     renameHint: 'An empty name resets to the folder name',
     confirm: 'Confirmation',
     removeQuestion: 'Remove "{name}" from berth? The folder on disk is not affected.',
+    pin: 'Pin',
+    unpin: 'Unpin',
+    moveUp: 'Move Up',
+    moveDown: 'Move Down',
   },
   workspace: {
     fallback: 'Workspace',

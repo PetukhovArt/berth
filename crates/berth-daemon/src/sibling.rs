@@ -116,6 +116,7 @@ mod tests {
                 name: "p".into(),
                 repo_path: "/berth-test/p".into(),
                 sort_order: 0,
+                pin_order: None,
             })
             .unwrap();
         for (id, is_main) in [("root", true), ("feat", false)] {

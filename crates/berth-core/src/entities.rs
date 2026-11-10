@@ -107,6 +107,10 @@ pub struct Project {
     pub workspace_id: WorkspaceId,
     pub repo_path: PathBuf,
     pub sort_order: i64,
+    /// The project's rank among pinned projects, lower first; None while it
+    /// is not pinned. Held by the daemon so every client shows one order.
+    #[serde(default)]
+    pub pin_order: Option<i64>,
 }
 
 impl Project {

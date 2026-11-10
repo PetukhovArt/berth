@@ -24,6 +24,7 @@
 - Added automatic updates to the desktop app: every 10 minutes it builds the newer of the local `main` and GitHub's in the background and shows a restart button in the title bar when the build is ready; `app.autoUpdate` turns it off.
 - Added a `What is new in Berth` window to the desktop app: after an update and restart it lists once what the new build adds, improves and fixes.
 - Added drag and drop to reorder session tabs in the desktop app; the order is remembered across restarts.
+- Added `Pin`, `Unpin`, `Move Up` and `Move Down` to a project's menu in the desktop app's tree: pinned projects sit at the top of their workspace in the order you set, kept by the daemon so every connected device shows the same order.
 - Windows: Added WebView2 debugging on port 9335 to the installed desktop app, so `agent-view` can attach to it.
 - Changed the desktop app's Markdown file picker to list the most recently edited files first, each with its full name and its path on a line below.
 - Fixed a Claude conversation started by hand in a terminal showing twice in the desktop app's tree once the terminal closed, as the terminal and on its own; `Continue in Berth` now reopens that terminal instead of adding another.

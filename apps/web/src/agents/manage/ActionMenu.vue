@@ -3,8 +3,10 @@ import { useTemplateRef } from 'vue';
 import { VButton, VPopover } from '@ui/kit';
 import { t } from '../../i18n';
 
-defineProps<{ testid: string; label: string; removeLabel: string; extraLabel?: string; extraTestid?: string; createLabel?: string }>();
-const emit = defineEmits<{ rename: []; remove: []; extra: []; create: [] }>();
+export type MenuItem = { key: string; label: string; testid: string; disabled?: boolean };
+
+defineProps<{ testid: string; label: string; removeLabel: string; extraLabel?: string; extraTestid?: string; createLabel?: string; items?: readonly MenuItem[] }>();
+const emit = defineEmits<{ rename: []; remove: []; extra: []; create: []; item: [key: string] }>();
 
 const popover = useTemplateRef<InstanceType<typeof VPopover>>('popover');
 
@@ -15,6 +17,11 @@ function choose(action: 'create' | 'rename' | 'remove' | 'extra') {
   else if (action === 'remove') emit('remove');
   else emit('extra');
 }
+
+function pick(key: string) {
+  popover.value?.hide();
+  emit('item', key);
+}
 </script>
 
 <template>
@@ -22,6 +29,7 @@ function choose(action: 'create' | 'rename' | 'remove' | 'extra') {
   <VPopover ref="popover">
     <div class="menu" role="menu">
       <button v-if="createLabel" class="item" type="button" role="menuitem" data-testid="new-session" @click="choose('create')">{{ createLabel }}</button>
+      <button v-for="item in items" :key="item.key" class="item" type="button" role="menuitem" :disabled="item.disabled" :data-testid="item.testid" @click="pick(item.key)">{{ item.label }}</button>
       <button class="item" type="button" role="menuitem" data-testid="rename" @click="choose('rename')">{{ t('common.rename') }}</button>
       <button v-if="extraLabel" class="item" type="button" role="menuitem" :data-testid="extraTestid" @click="choose('extra')">{{ extraLabel }}</button>
       <button class="item danger" type="button" role="menuitem" data-testid="remove" @click="choose('remove')">{{ removeLabel }}</button>
@@ -46,8 +54,12 @@ function choose(action: 'create' | 'rename' | 'remove' | 'extra') {
   border-radius: var(--vr-radius-sm);
 }
 
-.item:hover,
-.item:focus-visible {
+.item:disabled {
+  color: var(--vr-color-text-muted);
+}
+
+.item:not(:disabled):hover,
+.item:not(:disabled):focus-visible {
   background: var(--vr-color-nav-hover);
 }
 

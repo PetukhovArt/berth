@@ -314,6 +314,14 @@ async fn handle_client(
                     )
                     .await;
                 }
+                ClientRequest::SetProjectPins { req_id, order } => {
+                    reply(
+                        &out_tx,
+                        req_id,
+                        daemon.set_project_pins(&order).map(|_| None),
+                    )
+                    .await;
+                }
                 ClientRequest::CreateWorktree {
                     req_id,
                     project,

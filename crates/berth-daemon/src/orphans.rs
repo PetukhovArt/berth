@@ -505,6 +505,7 @@ mod tests {
             name: "demo".into(),
             repo_path: repo.to_path_buf(),
             sort_order: 0,
+            pin_order: None,
         }
     }
 

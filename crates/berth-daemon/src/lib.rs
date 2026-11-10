@@ -9,6 +9,7 @@ pub mod lifecycle;
 pub mod metrics;
 pub mod orphans;
 pub mod pacer_migration;
+pub mod project_pins;
 pub mod pty;
 pub mod registry;
 pub mod sampler;

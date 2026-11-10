@@ -357,6 +357,7 @@ mod tests {
                 name: "p".into(),
                 repo_path: "/tmp/p".into(),
                 sort_order: 0,
+                pin_order: None,
             })
             .unwrap();
         store

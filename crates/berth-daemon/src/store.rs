@@ -279,6 +279,10 @@ const MIGRATIONS: &[&str] = &[
     "
     ALTER TABLE terminals ADD COLUMN session_id TEXT;
     ",
+    // 28: a pinned project's rank, lower first; NULL while not pinned.
+    "
+    ALTER TABLE projects ADD COLUMN pin_order INTEGER;
+    ",
 ];
 
 pub struct Store {
@@ -450,8 +454,8 @@ impl Store {
 
     pub fn insert_project(&self, p: &Project) -> Result<()> {
         self.conn.lock().unwrap().execute(
-            "INSERT INTO projects (id, name, workspace_id, repo_path, sort_order, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![p.id.as_str(), p.name, p.workspace_id.as_str(), p.repo_path.to_string_lossy(), p.sort_order, now_ms()],
+            "INSERT INTO projects (id, name, workspace_id, repo_path, sort_order, created_at, pin_order) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![p.id.as_str(), p.name, p.workspace_id.as_str(), p.repo_path.to_string_lossy(), p.sort_order, now_ms(), p.pin_order],
         )?;
         Ok(())
     }
@@ -470,6 +474,22 @@ impl Store {
             "UPDATE projects SET name = ?2 WHERE id = ?1",
             params![id.as_str(), name],
         )?;
+        Ok(())
+    }
+
+    /// Rank the projects in `order` 0..n and unpin every other project, in
+    /// one transaction so no reader sees half a reorder.
+    pub fn set_project_pins(&self, order: &[ProjectId]) -> Result<()> {
+        let mut conn = self.conn.lock().unwrap();
+        let tx = conn.transaction()?;
+        tx.execute("UPDATE projects SET pin_order = NULL", [])?;
+        for (rank, id) in order.iter().enumerate() {
+            tx.execute(
+                "UPDATE projects SET pin_order = ?2 WHERE id = ?1",
+                params![id.as_str(), rank as i64],
+            )?;
+        }
+        tx.commit()?;
         Ok(())
     }
 
@@ -1132,7 +1152,7 @@ const WORKSPACE_COLUMNS: &str = "id, name";
 /// `workspace_id` is NULL on rows that predate workspaces; `row_to_project`
 /// fills in the default rather than a `COALESCE(.., ?1)` in the column list,
 /// which would hide a positional bind every query had to remember.
-const PROJECT_COLUMNS: &str = "id, name, repo_path, sort_order, workspace_id";
+const PROJECT_COLUMNS: &str = "id, name, repo_path, sort_order, workspace_id, pin_order";
 const WORKTREE_COLUMNS: &str = "id, project_id, path, branch, is_main, sort_order";
 const AGENT_COLUMNS: &str = "id, worktree_id, name, status, archived, kind, \
                              claude_session_id, sort_order, status_changed_at, model, effort, \
@@ -1159,6 +1179,7 @@ fn row_to_project(r: &rusqlite::Row) -> rusqlite::Result<Project> {
             r.get::<_, Option<String>>(4)?
                 .unwrap_or_else(|| DEFAULT_WORKSPACE_ID.to_string()),
         ),
+        pin_order: r.get(5)?,
     })
 }
 
@@ -1248,6 +1269,7 @@ mod tests {
             name: "demo".into(),
             repo_path: "/tmp/demo".into(),
             sort_order: 0,
+            pin_order: None,
         };
         store.insert_project(&project).unwrap();
         let worktree = Worktree {
@@ -1410,6 +1432,7 @@ mod tests {
             name: "demo".into(),
             repo_path: "/tmp/demo".into(),
             sort_order: 0,
+            pin_order: None,
         };
         store.insert_project(&project).unwrap();
         let worktree = Worktree {
@@ -1676,6 +1699,7 @@ mod tests {
             workspace_id: WorkspaceId(workspace.into()),
             repo_path: PathBuf::from("/tmp/p"),
             sort_order: 1,
+            pin_order: None,
         };
         store.insert_project(&dup("p2", "w2")).unwrap();
         // …but still refused twice in the same one.
@@ -1755,6 +1779,7 @@ mod tests {
             name: "demo".into(),
             repo_path: "/tmp/demo".into(),
             sort_order: 0,
+            pin_order: None,
         };
         store.insert_project(&project).unwrap();
         assert_eq!(store.count_workspace_projects(&client.id).unwrap(), 1);
@@ -1783,6 +1808,7 @@ mod tests {
             name: "p".into(),
             repo_path: "/tmp/p".into(),
             sort_order: 0,
+            pin_order: None,
         };
         store.insert_project(&project).unwrap();
         let wt = Worktree {
@@ -1885,6 +1911,7 @@ mod tests {
             name: "demo".into(),
             repo_path: "/tmp/demo".into(),
             sort_order: 0,
+            pin_order: None,
         };
         store.insert_project(&project).unwrap();
         let worktree = Worktree {
@@ -1923,6 +1950,7 @@ mod tests {
             name: "p".into(),
             repo_path: "/tmp/p".into(),
             sort_order: 0,
+            pin_order: None,
         };
         store.insert_project(&project).unwrap();
         let wt = Worktree {
@@ -1993,6 +2021,7 @@ mod tests {
             name: "demo".into(),
             repo_path: "/tmp/demo".into(),
             sort_order: 0,
+            pin_order: None,
         };
         store.insert_project(&project).unwrap();
         let worktree = Worktree {
@@ -2089,6 +2118,7 @@ mod tests {
             name: "demo".into(),
             repo_path: "/tmp/demo".into(),
             sort_order: 0,
+            pin_order: None,
         };
         store.insert_project(&project).unwrap();
         let worktree = Worktree {
