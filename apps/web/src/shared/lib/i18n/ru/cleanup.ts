@@ -1,4 +1,4 @@
-import type { Translation } from '../../shared/lib/i18n/types';
+import type { Translation } from '../types';
 import type { cleanup as en } from '../en/cleanup';
 
 export const cleanup: Translation<typeof en> = {

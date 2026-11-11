@@ -1,7 +1,7 @@
 import { showViewInActivePanel } from '../features/session-view-switch';
 import { zoomTerminal } from '../widgets/terminal';
 import { isDesktop } from '../bridge';
-import { openCleanup } from '../cleanup/state';
+import { openCleanup } from '../features/cleanup';
 import { navigate, openSettings } from '../shared/model/nav';
 import { hotEnabled, toggleHotOverview } from '../widgets/hot';
 import { toggleTheme } from '../shared/ui/appearance';

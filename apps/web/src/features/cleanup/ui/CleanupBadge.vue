@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { t } from '../shared/lib/i18n/i18n';
-import { badges, openCleanup } from './state';
+import { t } from '../../../shared/lib/i18n/i18n';
+import { badges, openCleanup } from '../model/state';
 
 const props = defineProps<{ worktreeId: string }>();
 

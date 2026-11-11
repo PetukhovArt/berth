@@ -6,7 +6,7 @@ import { useIsPhone } from '@ui/kit';
 import { useDock } from '../../../shared/model/dock';
 import { useSessionDock, isSessionRef, useBerth, type Harness } from '../../../entities/session';
 import { openIssue } from '../../../entities/jira-issue';
-import ProjectTree from '../../../workbench/ProjectTree.vue';
+import { ProjectTree } from '../../../widgets/project-tree';
 import { NewSessionForm, cancelCreate, creatingIn, onCreated } from '../../../features/new-session';
 import { ArchitectureView } from '../../../features/architecture';
 import { SessionViews } from '../../../features/session-view-switch';

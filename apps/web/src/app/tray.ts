@@ -1,7 +1,7 @@
 import { watch } from 'vue';
 import { useExternalSessions, useBerth } from '../entities/session';
 import { invoke, isDesktop, listen } from '../bridge';
-import { openCleanup } from '../cleanup/state';
+import { openCleanup } from '../features/cleanup';
 import { runAction } from '../shared/lib/commands/registry';
 import { openUpdate } from '../features/update';
 import { startCreateInMain } from '../features/new-session';

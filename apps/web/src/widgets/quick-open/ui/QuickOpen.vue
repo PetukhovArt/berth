@@ -3,7 +3,7 @@ import { computed, shallowRef, watch } from 'vue';
 import { listWorktreeMarkdown, type MarkdownEntry } from '../../../shared/lib/markdownFiles';
 import QuickSwitcher from './QuickSwitcher.vue';
 import { isDesktop } from '../../../bridge';
-import { openCleanup } from '../../../cleanup/state';
+import { openCleanup } from '../../../features/cleanup';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
 import { useSessionDock } from '../../../entities/session';

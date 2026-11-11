@@ -2,7 +2,7 @@ import type { Translation } from './types';
 import type { en } from './en';
 import { agents } from './ru/agents';
 import { atlassian } from './ru/atlassian';
-import { cleanup } from '../../../i18n/ru/cleanup';
+import { cleanup } from './ru/cleanup';
 import { commands } from './ru/commands';
 import { common } from './ru/common';
 import { confluence } from './ru/confluence';

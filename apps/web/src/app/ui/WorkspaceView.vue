@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { watch } from 'vue';
 import { AgentsView } from '../../pages/agents';
-import CleanupDialog from '../../cleanup/CleanupDialog.vue';
-import { installCleanup } from '../../cleanup/state';
+import { CleanupDialog, installCleanup } from '../../features/cleanup';
 import { CommandPalette } from '../../widgets/command-palette';
 import { paletteOpen } from '../../shared/lib/commands/context';
 import { UnsavedDialog } from '../../features/unsaved-changes';
