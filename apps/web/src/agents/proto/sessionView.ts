@@ -1,5 +1,6 @@
 import { shallowRef } from 'vue';
 import type { ChangeRequestRef } from '../../connectors/api';
+import { hasChanges } from '../../forge/worktreeChanged';
 import { knownMr } from '../../forge/worktreeMr';
 import { useDock } from '../../workbench/dock';
 import { useBerth } from '../berth';
@@ -25,14 +26,16 @@ export function mrOf(panelId: string): ChangeRequestRef | null {
   return summary ? { connector: summary.connector, project: summary.project, number: summary.number } : null;
 }
 
-function isAvailable(panelId: string, view: SessionView): boolean {
+export function isAvailable(panelId: string, view: SessionView): boolean {
   switch (view) {
     case 'terminal':
       return true;
     case 'mr':
       return mrOf(panelId) !== null;
-    case 'diff':
-      return worktreeOf(panelId) !== null;
+    case 'diff': {
+      const worktree = worktreeOf(panelId);
+      return worktree !== null && hasChanges(worktree.path);
+    }
     default: {
       const unknown: never = view;
       return unknown;

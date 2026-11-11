@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added animated session statuses in the desktop app, in step between the tree and the tabs: a working session breathes, a finished one you have not looked at sends out a green ripple, and one asking for an answer or a permission sends out fast red ripples. `ui.statusAnimation` picks between `ripple`, `blink` (a spinner and blinking dots) and `row` (the whole row and tab).
 - Added restoring sessions after a restart: the daemon starts the sessions that were running when it was stopped again (`restore_sessions` in the config, agents resume their conversation), and the desktop app reopens the session tabs that were open. `sessions.restoreOnRestart` in the desktop app's settings turns both off.
 - Added a desktop app (`apps/desktop`): a window over the berth daemon with a project tree, docked terminals, merge request reviews, Jira tasks and remote access from a phone, which carries over Veyra settings, keychain tokens and layout on first start.
 - Added daemon autostart to the desktop app: when no berth daemon is running, it starts `berth daemon` from `PATH` in the background instead of waiting with `berth daemon is not running`.
@@ -31,6 +32,7 @@
 - Windows: Added WebView2 debugging on port 9335 to the installed desktop app, so `agent-view` can attach to it.
 - Changed the desktop app's tree to widen up to half the window instead of stopping at 400px.
 - Changed the desktop app's Markdown file picker to list the most recently edited files first, each with its full name and its path on a line below.
+- Changed a session tab in the desktop app to show only the views it has: `M` when the branch has a merge request, `D` when the worktree has changes, and no buttons at all when it has neither. The merge request number chip is gone from the tab; the `M` button names the merge request in its tooltip.
 - Fixed `berth rename`, `berth worktree` and `berth spawn` failing inside a session with a protocol mismatch when the `berth` on `PATH` is older than the running daemon: a session now finds the daemon's own `berth` first.
 - Fixed a Claude conversation started by hand in a terminal showing twice in the desktop app's tree once the terminal closed, as the terminal and on its own; `Continue in Berth` now reopens that terminal instead of adding another.
 - Fixed the Markdown preview in the desktop app stopping at a fixed width instead of filling its panel.

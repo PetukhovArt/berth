@@ -141,7 +141,6 @@ export const agents = {
     mr: 'Merge request',
     diff: 'Changes',
     withShortcut: '{name} ({shortcut})',
-    noMr: 'No merge request for this branch',
     action: {
       terminal: 'Session: show terminal',
       mr: 'Session: show merge request',

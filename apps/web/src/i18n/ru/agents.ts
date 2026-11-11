@@ -144,7 +144,6 @@ export const agents: Translation<typeof en> = {
     mr: 'Merge request',
     diff: 'Изменения',
     withShortcut: '{name} ({shortcut})',
-    noMr: 'Для этой ветки нет merge request',
     action: {
       terminal: 'Сессия: показать терминал',
       mr: 'Сессия: показать merge request',

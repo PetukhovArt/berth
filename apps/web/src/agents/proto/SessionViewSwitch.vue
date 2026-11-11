@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { pendingLeadsTo } from '../../commands/dispatcher';
 import { shortcutLabel } from '../../commands/keymap';
-import WorktreeBadge from '../../forge/WorktreeBadge.vue';
+import { numberLabel } from '../../forge/format';
+import { lookupChanges } from '../../forge/worktreeChanged';
+import { knownMr, lookupMr } from '../../forge/worktreeMr';
 import { t } from '../../i18n';
-import { mrOf, showView, viewOf, worktreeOf, type SessionView } from './sessionView';
+import { useBerth } from '../berth';
+import { isAvailable, showView, viewOf, worktreeOf, type SessionView } from './sessionView';
 
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
 
@@ -17,16 +20,30 @@ const MODES: readonly Mode[] = [
   { view: 'diff', letter: 'D', action: 'session.view.diff' },
 ];
 
+const berth = useBerth();
 const worktree = computed(() => worktreeOf(props.panel.id));
-const hasMr = computed(() => mrOf(props.panel.id) !== null);
 const current = computed(() => viewOf(props.panel.id));
+const modes = computed(() => MODES.filter((mode) => isAvailable(props.panel.id, mode.view)));
 
-const unavailable = (mode: Mode) => mode.view === 'mr' && !hasMr.value;
+watch(
+  () => [worktree.value?.path, worktree.value?.branch, berth?.sessions.value.get(props.panel.id)?.status, props.active] as const,
+  ([path, branch]) => {
+    if (!path || !branch) return;
+    void lookupMr(path, branch);
+    lookupChanges(path);
+  },
+  { immediate: true },
+);
 
 function label(mode: Mode): string {
   const name = t(`agents.sessionView.${mode.view}`);
   const shortcut = shortcutLabel(mode.action);
   return shortcut ? t('agents.sessionView.withShortcut', { name, shortcut }) : name;
+}
+
+function title(mode: Mode): string {
+  const mr = mode.view === 'mr' && worktree.value ? knownMr(worktree.value.path, worktree.value.branch) : null;
+  return mr ? `${label(mode)}\n${numberLabel(mr)} ${mr.title}` : label(mode);
 }
 
 function show(view: SessionView) {
@@ -36,42 +53,27 @@ function show(view: SessionView) {
 </script>
 
 <template>
-  <span v-if="worktree" class="switch" :data-showing="current === 'mr'" data-testid="tab-mr" @pointerdown.stop @dblclick.stop>
-    <WorktreeBadge :path="worktree.path" :branch="worktree.branch" @open="show('mr')" />
-    <span class="modes" role="group" :aria-label="t('agents.sessionView.switcher')">
-      <button
-        v-for="mode in MODES"
-        :key="mode.view"
-        class="mode"
-        :aria-disabled="unavailable(mode)"
-        :aria-pressed="current === mode.view"
-        :aria-label="label(mode)"
-        :title="unavailable(mode) ? t('agents.sessionView.noMr') : label(mode)"
-        :data-pending="active && !unavailable(mode) && pendingLeadsTo(mode.action)"
-        :data-testid="`tab-view-${mode.view}`"
-        @click.stop="show(mode.view)"
-      >
-        {{ mode.letter }}
-      </button>
-    </span>
+  <span v-if="modes.length > 1" class="modes" role="group" :aria-label="t('agents.sessionView.switcher')" data-testid="tab-mr" @pointerdown.stop @dblclick.stop>
+    <button
+      v-for="mode in modes"
+      :key="mode.view"
+      class="mode"
+      :aria-pressed="current === mode.view"
+      :aria-label="label(mode)"
+      :title="title(mode)"
+      :data-pending="active && pendingLeadsTo(mode.action)"
+      :data-testid="`tab-view-${mode.view}`"
+      @click.stop="show(mode.view)"
+    >
+      {{ mode.letter }}
+    </button>
   </span>
 </template>
 
 <style scoped>
-.switch {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: var(--vr-space-1);
-}
-
-.switch[data-showing='true'] :deep(.badge) {
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-accent);
-}
-
 .modes {
   display: inline-flex;
+  flex: none;
   align-items: center;
   overflow: hidden;
   background: var(--vr-color-chip-bg);
@@ -91,14 +93,9 @@ function show(view: SessionView) {
   cursor: pointer;
 }
 
-.mode:hover:not([aria-disabled='true'], [aria-pressed='true']) {
+.mode:hover:not([aria-pressed='true']) {
   color: var(--vr-color-text);
   background: var(--vr-color-nav-hover);
-}
-
-.mode[aria-disabled='true'] {
-  opacity: 0.4;
-  cursor: default;
 }
 
 .mode[aria-pressed='true'] {
