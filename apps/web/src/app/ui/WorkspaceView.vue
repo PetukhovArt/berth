@@ -13,7 +13,8 @@ import { TitleBar } from '../../widgets/title-bar';
 import { ChangesDialog, UpdateDialog } from '../../features/update';
 import { view, type View } from '../../shared/model/nav';
 import { isDark, toggleTheme } from '../../shared/ui/appearance';
-import { openReview } from '../../entities/merge-request';
+import { openReview, reviveReview } from '../../entities/merge-request';
+import { useDock } from '../../shared/model/dock';
 import { QuickOpen } from '../../widgets/quick-open';
 
 const SettingsView = defineAsyncComponent(() => import('../../pages/settings').then((m) => m.SettingsView));
@@ -23,6 +24,8 @@ const JiraView = defineAsyncComponent(() => import('../../pages/jira').then((m) 
 const inTauri = '__TAURI_INTERNALS__' in window;
 const mobile = useIsPhone();
 const viewKey = 'berth.view.v2';
+
+useDock().revivable(reviveReview);
 
 try {
   view.value = JSON.parse(localStorage.getItem(viewKey) ?? '') as View;
