@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Ticket } from '../../../shared/ui/icons';
-import { JiraIssues, JiraIssueView } from '../../../widgets/jira';
+import { JiraIssues, JiraIssueView } from '../../../widgets/jira-browser';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { withViewTransition } from '../../../shared/ui/motion/motion';
 import { view } from '../../../shared/model/nav';

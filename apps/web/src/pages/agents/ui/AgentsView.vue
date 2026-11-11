@@ -13,7 +13,7 @@ import { SessionViews } from '../../../features/session-view-switch';
 import { DockArea } from '../../../widgets/dock';
 import { ChangeRequestView } from '../../../widgets/change-request';
 import { WorktreeChanges } from '../../../widgets/worktree-changes';
-import { JiraIssueView } from '../../../widgets/jira';
+import { JiraIssueView } from '../../../widgets/jira-browser';
 import { ConversationView } from '../../../widgets/conversation';
 import { MetricsPanel } from '../../../widgets/metrics';
 import { MarkdownFile } from '../../../widgets/markdown-file';
