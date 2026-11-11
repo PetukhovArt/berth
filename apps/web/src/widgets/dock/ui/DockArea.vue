@@ -1,30 +1,22 @@
 <script setup lang="ts">
 import 'dockview-vue/dist/styles/dockview.css';
-import { onBeforeUnmount, shallowRef } from 'vue';
+import { computed, onBeforeUnmount, shallowRef, useSlots } from 'vue';
 import { DockviewVue, themeLight, type DockviewApi, type DockviewPanelApi, type DockviewReadyEvent } from 'dockview-vue';
-import JiraIssueView from '../../jira/ui/JiraIssueView.vue';
-import ArchitectureView from '../../../features/architecture/ui/ArchitectureView.vue';
-import ChangeRequestView from '../../change-request/ui/ChangeRequestView.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
-import MarkdownFile from '../../markdown-file/ui/MarkdownFile.vue';
-import ConversationView from '../../conversation/ui/ConversationView.vue';
 import { useDock } from '../../../shared/model/dock';
-import type { Harness } from '../../../entities/session/model/external';
-import { isSessionRef } from '../../../entities/session/model/berth';
-import SessionPanel from '../../terminal/ui/SessionPanel.vue';
-import MetricsPanel from '../../metrics/ui/MetricsPanel.vue';
 import { isDesktop } from '../../../bridge';
 import { useSettings } from '../../../shared/config/settings/store';
 import { startTabDrag, trackTabOrder } from '../lib/tabOrder';
 import DockTab from './DockTab.vue';
 import ProjectTabRows from './ProjectTabRows.vue';
-import SessionViews from '../../../features/session-view-switch/ui/SessionViews.vue';
 
 defineProps<{ activeKey: string | null }>();
-const emit = defineEmits<{ ready: [event: DockviewReadyEvent]; 'open-file': [path: string, hash: string, from: string] }>();
+defineSlots<Record<`panel-${string}`, (props: { params: Record<string, unknown>; api: DockviewPanelApi }) => unknown>>();
+const emit = defineEmits<{ ready: [event: DockviewReadyEvent] }>();
 
 const dock = useDock();
-const isHarness = (value: unknown): value is Harness => value === 'claude' || value === 'codex';
+const slots = useSlots();
+const panelSlots = computed(() => Object.keys(slots).filter((name): name is `panel-${string}` => name.startsWith('panel-')));
 const { values } = useSettings();
 const subscriptions: { dispose(): void }[] = [];
 let dockApi: DockviewApi | null = null;
@@ -37,8 +29,6 @@ function onReady(event: DockviewReadyEvent) {
   subscriptions.push(...trackTabOrder(api));
   emit('ready', event);
 }
-
-const str = (value: unknown) => (typeof value === 'string' ? value : '');
 
 function onTabPointerDown(event: PointerEvent, panel: DockviewPanelApi) {
   if (isDesktop) startTabDrag(event, panel, dockApi);
@@ -55,34 +45,8 @@ onBeforeUnmount(() => {
   <div class="dock" :data-tabs="values['workbench.tabs']">
     <ProjectTabRows v-if="values['workbench.tabs'] === 'projects'" :api="readyApi" />
     <DockviewVue class="dockview" :theme="themeLight" :disable-dnd="isDesktop" @ready="onReady">
-      <template #panel-session="{ params, api }">
-        <SessionViews :panel-id="api.id"><SessionPanel v-if="isSessionRef(params.session)" class="vr-fade-in" :session="params.session" :panel="api" /></SessionViews>
-      </template>
-      <template #panel-review="{ params }">
-        <ChangeRequestView v-if="typeof params.connector === 'string' && typeof params.project === 'string' && typeof params.number === 'number'" class="vr-fade-in" :connector="params.connector" :project="params.project" :number="params.number" />
-      </template>
-      <template #panel-architecture="{ params }">
-        <ArchitectureView
-          v-if="str(params.connector) && str(params.project) && typeof params.number === 'number' && str(params.repo)"
-          class="vr-fade-in"
-          :connector="str(params.connector)"
-          :project="str(params.project)"
-          :number="params.number"
-          :repo="str(params.repo)"
-          :target="str(params.target)"
-        />
-      </template>
-      <template #panel-issue="{ params }">
-        <JiraIssueView v-if="typeof params.connector === 'string' && typeof params.key === 'string'" class="vr-fade-in" :connector="params.connector" :issue-key="params.key" @open="(ref) => dock.openIssue(ref.connector, ref.key)" />
-      </template>
-      <template #panel-conversation="{ params, api }">
-        <SessionViews :panel-id="api.id"><ConversationView v-if="isHarness(params.harness) && typeof params.id === 'string'" class="vr-fade-in" :harness="params.harness" :session-id="params.id" /></SessionViews>
-      </template>
-      <template #panel-metrics>
-        <MetricsPanel class="vr-fade-in" />
-      </template>
-      <template #panel-markdown="{ params, api }">
-        <MarkdownFile v-if="typeof params.path === 'string'" class="vr-fade-in" :path="params.path" :hash="typeof params.hash === 'string' ? params.hash : ''" @open-file="(path, hash) => emit('open-file', path, hash, api.id)" />
+      <template v-for="name in panelSlots" :key="name" #[name]="scope">
+        <slot :name="name" v-bind="scope" />
       </template>
       <template #defaultTab="{ api }">
         <DockTab :panel="api" :active="api.id === activeKey" @dblclick="dock.toggleMaximize(api.id)" @pointerdown="onTabPointerDown($event, api)" />

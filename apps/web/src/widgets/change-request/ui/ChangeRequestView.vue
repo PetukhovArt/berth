@@ -22,6 +22,7 @@ import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import ArchitectureAction from '../../../features/architecture/ui/ArchitectureAction.vue';
 import MrSessionNotice from '../../../features/open-in-session/ui/MrSessionNotice.vue';
+import RepoActions from '../../../features/manage-workspace/ui/RepoActions.vue';
 import OpenInSessionAction from '../../../features/open-in-session/ui/OpenInSessionAction.vue';
 import { itemId } from '../../../entities/merge-request/model/inbox';
 import { mrRuns } from '../../../features/open-in-session/model/openInSession';
@@ -245,7 +246,9 @@ onBeforeUnmount(() => {
           <PipelineJobs :pipeline="pipeline" />
         </div>
         <p v-if="sideFailure" class="side-failure" role="alert">{{ sideFailure }}</p>
-        <MrSessionNotice v-if="sessionRun" :run="sessionRun" />
+        <MrSessionNotice v-if="sessionRun" :run="sessionRun">
+          <template #project="{ repo }"><RepoActions :repo="repo" /></template>
+        </MrSessionNotice>
       </header>
 
       <nav class="tabs" role="tablist">

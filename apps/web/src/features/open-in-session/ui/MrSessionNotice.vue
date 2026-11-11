@@ -2,10 +2,11 @@
 import { LoaderCircle, TriangleAlert, X } from 'lucide-vue-next';
 import { VButton } from '@ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
-import RepoActions from '../../manage-workspace/ui/RepoActions.vue';
+import type { RepoRef } from '../../../entities/repo/model/clones';
 import { useOpenInSession, type MrRun } from '../model/openInSession';
 
 defineProps<{ run: MrRun }>();
+defineSlots<{ project(props: { repo: RepoRef }): unknown }>();
 
 const { open, dismiss } = useOpenInSession();
 </script>
@@ -22,7 +23,7 @@ const { open, dismiss } = useOpenInSession();
     <p v-if="run.error" class="text error" role="alert" data-testid="mr-session-error">{{ run.error }}</p>
     <p v-if="run.warning" class="text warning" data-testid="mr-session-warning">{{ run.warning }}</p>
     <div v-if="!run.busy && (run.error || run.needsProject)" class="actions">
-      <RepoActions v-if="run.needsProject" :repo="run.needsProject" />
+      <slot v-if="run.needsProject" name="project" :repo="run.needsProject" />
       <VButton :label="t('forge.openSession.retry')" size="small" text severity="secondary" data-testid="mr-session-retry" @click="open(run.item, run.refs)" />
     </div>
   </div>

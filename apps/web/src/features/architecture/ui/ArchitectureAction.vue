@@ -3,15 +3,13 @@ import { computed } from 'vue';
 import { Network } from 'lucide-vue-next';
 import { VButton } from '@ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { useDock } from '../../../shared/model/dock';
 import { numberLabel } from '../../../entities/merge-request/lib/format';
-import { useArchitecture } from '../model/stratum';
+import { openArchitecture, useArchitecture } from '../model/stratum';
 
 type Item = { connector: string; project: string; number: number; target_branch: string; url: string };
 
 const props = withDefaults(defineProps<{ item: Item; variant?: 'button' | 'icon' }>(), { variant: 'button' });
 
-const dock = useDock();
 const { availability } = useArchitecture(() => props.item);
 const shown = computed(() => (props.variant === 'icon' ? availability.value.status === 'ready' : availability.value.status !== 'hidden'));
 const reason = computed(() => {
@@ -23,7 +21,7 @@ const reason = computed(() => {
 
 function open() {
   const state = availability.value;
-  if (state.status === 'ready') dock.openArchitecture(state.params, numberLabel(props.item));
+  if (state.status === 'ready') openArchitecture(state.params, numberLabel(props.item));
 }
 </script>
 

@@ -8,22 +8,14 @@ import { lookupChanges } from '../model/worktreeChanged';
 import { knownMr, lookupMr } from '../../../entities/merge-request/model/worktreeMr';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useBerth } from '../../../entities/session/model/berth';
-import { isAvailable, showView, viewOf, worktreeOf, type SessionView } from '../model/sessionView';
+import { isAvailable, sessionViewModes, showView, viewOf, worktreeOf, type SessionView, type SessionViewMode } from '../model/sessionView';
 
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
-
-type Mode = { view: SessionView; letter: string; action: string };
-
-const MODES: readonly Mode[] = [
-  { view: 'terminal', letter: 'T', action: 'session.view.terminal' },
-  { view: 'mr', letter: 'M', action: 'session.view.mr' },
-  { view: 'diff', letter: 'D', action: 'session.view.diff' },
-];
 
 const berth = useBerth();
 const worktree = computed(() => worktreeOf(props.panel.id));
 const current = computed(() => viewOf(props.panel.id));
-const modes = computed(() => MODES.filter((mode) => isAvailable(props.panel.id, mode.view)));
+const modes = computed(() => sessionViewModes.filter((mode) => isAvailable(props.panel.id, mode.view)));
 
 watch(
   () => [worktree.value?.path, worktree.value?.branch, berth?.sessions.value.get(props.panel.id)?.status, props.active] as const,
@@ -35,13 +27,13 @@ watch(
   { immediate: true },
 );
 
-function label(mode: Mode): string {
+function label(mode: SessionViewMode): string {
   const name = t(`agents.sessionView.${mode.view}`);
   const shortcut = shortcutLabel(mode.action);
   return shortcut ? t('agents.sessionView.withShortcut', { name, shortcut }) : name;
 }
 
-function title(mode: Mode): string {
+function title(mode: SessionViewMode): string {
   const mr = mode.view === 'mr' && worktree.value ? knownMr(worktree.value.path, worktree.value.branch) : null;
   return mr ? `${label(mode)}\n${numberLabel(mr)} ${mr.title}` : label(mode);
 }

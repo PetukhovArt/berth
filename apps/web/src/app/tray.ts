@@ -1,12 +1,11 @@
 import { watch } from 'vue';
-import { listen } from '@tauri-apps/api/event';
 import { useExternalSessions } from '../entities/session/model/external';
 import { useBerth } from '../entities/session/model/berth';
-import { invoke, isDesktop } from '../bridge';
+import { invoke, isDesktop, listen } from '../bridge';
 import { openCleanup } from '../cleanup/state';
 import { runAction } from '../shared/lib/commands/registry';
 import { openUpdate } from '../features/update/model/state';
-import { useDock } from '../shared/model/dock';
+import { startCreateInMain } from '../features/new-session/model/newSession';
 
 const NEW_SESSION_EVENT = 'tray://new-session';
 const UPDATE_EVENT = 'tray://update';
@@ -18,7 +17,6 @@ export function installTray(): void {
   if (!isDesktop) return;
   const berth = useBerth();
   const external = useExternalSessions();
-  const dock = useDock();
   if (berth) {
     watch(
       () => {
@@ -42,7 +40,7 @@ export function installTray(): void {
       { immediate: true },
     );
   }
-  void listen(NEW_SESSION_EVENT, () => dock.startCreateInMain());
+  void listen(NEW_SESSION_EVENT, () => startCreateInMain());
   void listen(UPDATE_EVENT, () => openUpdate('update'));
   void listen(ROLLBACK_EVENT, () => openUpdate('rollback'));
   void listen(CLEANUP_EVENT, openCleanup);

@@ -6,12 +6,15 @@ import { isDesktop } from '../../../bridge';
 import { openCleanup } from '../../../cleanup/state';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
+import { useSessionDock } from '../../../entities/session/model/sessionDock';
+import { openLeaf } from '../../../features/work-tree/model/openLeaf';
 import { quickItems, type WorkNode } from '../../../features/work-tree/model/tree';
 import { useWorkTree } from '../../../features/work-tree/model/useWorkTree';
 
-const dock = useDock();
+const sessions = useSessionDock();
 const { all } = useWorkTree();
-const { switching, activeWorktree } = dock;
+const { switching } = useDock();
+const { activeWorktree } = sessions;
 const entries = computed(() => (switching.value ? quickItems(all.value) : []));
 const files = shallowRef<MarkdownEntry[]>([]);
 const actions = computed(() => (isDesktop ? [{ key: 'cleanup', label: t('cleanup.action') }] : []));
@@ -30,7 +33,7 @@ watch(switching, async (on) => {
 
 function pick(node: WorkNode) {
   switching.value = false;
-  dock.openLeaf(node);
+  openLeaf(node);
 }
 
 function pickAction(key: string) {
@@ -40,7 +43,7 @@ function pickAction(key: string) {
 
 function pickFile(path: string) {
   switching.value = false;
-  dock.openFile(path, { worktreeId: activeWorktree.value?.id });
+  sessions.openFile(path, { worktreeId: activeWorktree.value?.id });
 }
 </script>
 

@@ -3,7 +3,8 @@ import { computed, onBeforeUnmount, shallowRef, watch } from 'vue';
 import type { DockviewApi, IDockviewPanel } from 'dockview-vue';
 import { Plus } from 'lucide-vue-next';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { useDock } from '../../../shared/model/dock';
+import { useSessionDock } from '../../../entities/session/model/sessionDock';
+import { startCreate } from '../../../features/new-session/model/newSession';
 import { useBerth, worktreesOfProject } from '../../../entities/session/model/berth';
 import { placeExternal, useExternalSessions } from '../../../entities/session/model/external';
 import DockTab from './DockTab.vue';
@@ -13,7 +14,7 @@ const props = defineProps<{ api: DockviewApi | null }>();
 
 const berth = useBerth();
 const external = useExternalSessions();
-const dock = useDock();
+const dock = useSessionDock();
 const panels = shallowRef<IDockviewPanel[]>([]);
 const activeId = shallowRef<string | undefined>();
 let subscriptions: { dispose(): void }[] = [];
@@ -79,7 +80,7 @@ const rows = computed(() => {
 
 function create(projectId: string) {
   const entities = berth?.entities.value;
-  if (entities) dock.startCreate(worktreesOfProject(entities, projectId)[0]?.id ?? null);
+  if (entities) startCreate(worktreesOfProject(entities, projectId)[0]?.id ?? null);
 }
 </script>
 

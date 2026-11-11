@@ -6,9 +6,10 @@ import { forgeChangeRequest, forgeSource, mrFetchSource, useConnectors, type Cha
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
 import type { RepoRef } from '../../../entities/repo/model/clones';
-import { useDock } from '../../../shared/model/dock';
+import { useSessionDock } from '../../../entities/session/model/sessionDock';
+import { openReview } from '../../../entities/merge-request/model/reviewPanel';
 import { connectorBase, inspectClone, remotes, type Remote } from '../../../entities/repo/model/remotes';
-import { projectOfRepo, repoRefOf } from '../../work-tree/model/tree';
+import { projectOfRepo, repoRefOf } from '../../../entities/repo/model/repoRef';
 import { numberLabel } from '../../../entities/merge-request/lib/format';
 import { itemId } from '../../../entities/merge-request/model/inbox';
 
@@ -99,9 +100,13 @@ async function knownRemotes(repos: readonly string[]): Promise<ReadonlyMap<strin
   return known;
 }
 
+function openMrSession(session: SessionRef, mr: ChangeRequestRef, title: string): void {
+  openReview(mr, title);
+  useSessionDock().openWhenListed(session, itemId(mr));
+}
+
 export function useOpenInSession() {
   const berth = useBerth();
-  const dock = useDock();
   const { connectors } = useConnectors();
   const { values } = useSettings();
 
@@ -183,7 +188,7 @@ export function useOpenInSession() {
         session = created;
       }
 
-      dock.openMrSession(session, ref, run.label);
+      openMrSession(session, ref, run.label);
       if (run.warning) update({ busy: false, message: '' });
       else dismissMrRun(id);
     } catch (e) {

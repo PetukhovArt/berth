@@ -3,6 +3,7 @@ import { externalKey, externalTarget, readTranscript, useExternalSessions, type 
 import { useBerth, type SessionNode, type SessionStatus } from '../../../entities/session/model/berth';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
+import { useSessionDock } from '../../../entities/session/model/sessionDock';
 
 export type HotStatus = 'waiting' | 'working' | 'idle' | 'error';
 type HotHarness = 'claude' | 'codex' | 'shell';
@@ -70,6 +71,7 @@ function create() {
   const berth = useBerth();
   const external = useExternalSessions();
   const dock = useDock();
+  const sessions = useSessionDock();
   const tracked = shallowRef<ReadonlyMap<string, Tracked>>(new Map());
   const previews = shallowRef<ReadonlyMap<string, string>>(new Map());
   const focused = shallowRef<string[]>([]);
@@ -80,7 +82,7 @@ function create() {
     const entities = berth?.entities.value;
     const linked = external?.linked.value;
     for (const node of berth?.sessions.value.values() ?? []) {
-      const path = dock.paths.value.get(node.key);
+      const path = sessions.paths.value.get(node.key);
       const agent = 'Agent' in node.ref ? entities?.agents.get(node.id) : undefined;
       const link = agent ? undefined : linked?.get(node.key);
       let status: HotStatus = 'idle';
@@ -242,11 +244,11 @@ function create() {
   function open(key: string) {
     const node: SessionNode | undefined = berth?.sessions.value.get(key);
     if (node) {
-      dock.openSession(node);
+      sessions.openSession(node);
       return;
     }
     const session = external?.anyByKey.value.get(key);
-    if (session) dock.openExternal(session);
+    if (session) sessions.openExternal(session);
   }
 
   function next() {

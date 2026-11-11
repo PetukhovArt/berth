@@ -21,13 +21,12 @@ import { isDark, toggleTheme } from '../../shared/ui/appearance';
 import SettingsView from '../../pages/settings/ui/SettingsView.vue';
 import ConfluenceView from '../../pages/confluence/ui/ConfluenceView.vue';
 import JiraView from '../../pages/jira/ui/JiraView.vue';
-import { useDock } from '../../shared/model/dock';
+import { openReview } from '../../entities/merge-request/model/reviewPanel';
 import QuickOpen from '../../widgets/quick-open/ui/QuickOpen.vue';
 
 const inTauri = '__TAURI_INTERNALS__' in window;
 const mobile = useIsPhone();
 const viewKey = 'berth.view.v2';
-const dock = useDock();
 installTray();
 installCleanup();
 installUpdate();
@@ -43,7 +42,7 @@ watch(
   (value) => {
     if (value.kind === 'reviews') {
       view.value = { kind: 'agents' };
-      if (value.open) dock.openReview(value.open);
+      if (value.open) openReview(value.open);
       return;
     }
     localStorage.setItem(viewKey, JSON.stringify(value));

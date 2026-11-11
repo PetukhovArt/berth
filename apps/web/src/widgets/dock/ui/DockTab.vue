@@ -3,7 +3,7 @@ import type { DockviewPanelApi } from 'dockview-vue';
 import { FileText, GitPullRequest, Network, Ticket, X } from 'lucide-vue-next';
 import { isDirtyPath, settleDirty } from '../../../entities/document/model/documents';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { METRICS_PANEL } from '../../../shared/model/dock';
+import { METRICS_PANEL } from '../../../entities/session/model/sessionDock';
 import { useBerth } from '../../../entities/session/model/berth';
 import { externalDot, isExternalPanel, sessionDot, useExternalSessions, type Harness } from '../../../entities/session/model/external';
 import HarnessIcon from '../../../entities/session/ui/HarnessIcon.vue';

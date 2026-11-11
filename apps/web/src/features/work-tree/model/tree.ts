@@ -9,8 +9,8 @@ import { itemId, pipelineRollup } from '../../../entities/merge-request/model/in
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { TreeNode } from '../../../shared/ui/explorer-tree/types';
 import type { RepoRef } from '../../../entities/repo/model/clones';
-import { issuePanelId } from '../../../shared/model/dock';
-import { liveSources } from './liveOnly';
+import { issuePanelId } from '../../../entities/jira-issue/model/issuePanel';
+import { projectOfRepo, repoRefOf } from '../../../entities/repo/model/repoRef';
 import { connectorBase, type Remote } from '../../../entities/repo/model/remotes';
 
 export type TreeTab = 'sessions' | 'mrs' | 'reviews' | 'tasks' | 'all';
@@ -73,20 +73,6 @@ type Links = {
 const JIRA_KEY = /[A-Z][A-Z0-9]+-\d+/g;
 
 const push = <K, V>(map: Map<K, V[]>, key: K, value: V) => map.set(key, [...(map.get(key) ?? []), value]);
-
-export function repoRefOf(item: { connector: string; project: string }, base: Remote | null | undefined): RepoRef {
-  const path = [base?.path, item.project].filter(Boolean).join('/');
-  const host = base?.host ?? item.connector;
-  return { key: `${host}/${path.toLowerCase()}`, host, path };
-}
-
-export function projectOfRepo<P extends { repo_path: string }>(repo: RepoRef, projects: readonly P[], remotes: ReadonlyMap<string, Remote | null>): P | undefined {
-  const full = repo.path.toLowerCase();
-  return projects.find((candidate) => {
-    const remote = remotes.get(candidate.repo_path);
-    return remote?.host === repo.host && remote.path.toLowerCase() === full;
-  });
-}
 
 function link(sources: Sources): Links {
   const entities = sources.entities;
@@ -363,6 +349,21 @@ export function tabCounts(sources: Sources): TabCounts {
     mrsAttention: mine.filter(needsAttention).length,
     reviews: pending.length,
     tasks: sources.issues.length,
+  };
+}
+
+function liveSources(sources: Sources): Sources {
+  return {
+    ...sources,
+    workspaces: sources.workspaces.map((workspace) => ({
+      ...workspace,
+      projects: workspace.projects.map((project) => ({
+        ...project,
+        worktrees: project.worktrees.map((worktree) => ({ ...worktree, sessions: worktree.sessions.filter((session) => session.alive), archived: [] })),
+      })),
+    })),
+    external: sources.external.filter((session) => session.running),
+    archivedExternal: [],
   };
 }
 

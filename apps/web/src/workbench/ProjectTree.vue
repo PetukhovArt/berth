@@ -23,12 +23,16 @@ import OpenInSessionAction from '../features/open-in-session/ui/OpenInSessionAct
 import { useOpenInSession } from '../features/open-in-session/model/openInSession';
 import { numberLabel, pipelineLabel } from '../entities/merge-request/lib/format';
 import { itemId } from '../entities/merge-request/model/inbox';
-import { useArchitecture } from '../features/architecture/model/stratum';
+import { openArchitecture, useArchitecture } from '../features/architecture/model/stratum';
 import PipelineIcon from '../entities/merge-request/ui/PipelineIcon.vue';
 import WorktreeBadge from '../entities/merge-request/ui/WorktreeBadge.vue';
 import { t } from '../shared/lib/i18n/i18n';
 import ExplorerTree from '../shared/ui/explorer-tree/ExplorerTree.vue';
 import { useDock } from '../shared/model/dock';
+import { useSessionDock } from '../entities/session/model/sessionDock';
+import { openReview } from '../entities/merge-request/model/reviewPanel';
+import { startCreate } from '../features/new-session/model/newSession';
+import { openLeaf } from '../features/work-tree/model/openLeaf';
 import RepoActions from '../features/manage-workspace/ui/RepoActions.vue';
 import type { ReviewMeta } from '../features/work-tree/model/tree';
 import { treeLiveOnly, treeQuery, treeTab, useWorkTree } from '../features/work-tree/model/useWorkTree';
@@ -36,6 +40,7 @@ import { treeLiveOnly, treeQuery, treeTab, useWorkTree } from '../features/work-
 withDefaults(defineProps<{ withFilter?: boolean }>(), { withFilter: false });
 
 const dock = useDock();
+const sessions = useSessionDock();
 const { berth, nodes, tabs, activeTab, errors } = useWorkTree();
 const tabIcons = { sessions: SquareTerminal, mrs: GitPullRequest, reviews: Eye, tasks: ListTodo, all: SquareTerminal };
 
@@ -59,7 +64,7 @@ const archItems = computed(() => {
   const items = [{ key: 'open-session', label: t('forge.openSession.action'), title: t('forge.openSession.title'), disabled: !berth || (mrSession.runs.value.get(itemId(item))?.busy ?? false), command: () => void mrSession.open(item, review?.refs) }];
   if (state.status === 'hidden') return items;
   const reason = state.status === 'disabled' ? state.reason : state.status === 'checking' ? t('forge.stratum.checking') : t('forge.stratum.title');
-  return [...items, { key: 'architecture', label: t('forge.stratum.action'), title: reason, disabled: state.status !== 'ready', command: () => state.status === 'ready' && dock.openArchitecture(state.params, numberLabel(item)) }];
+  return [...items, { key: 'architecture', label: t('forge.stratum.action'), title: reason, disabled: state.status !== 'ready', command: () => state.status === 'ready' && openArchitecture(state.params, numberLabel(item)) }];
 });
 
 function showArchMenu(event: MouseEvent, item: InboxItem, review?: ReviewMeta) {
@@ -122,11 +127,13 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
           <Trash2 :size="14" />
           <span v-if="cleanupCount" class="count" data-testid="cleanup-count">{{ cleanupCount }}</span>
         </button>
-        <button v-if="berth" class="icon" :title="t('agents.metrics.open')" :aria-label="t('agents.metrics.title')" data-testid="open-metrics" @click="dock.openMetrics()"><Activity :size="14" /></button>      </span>
+        <button v-if="berth" class="icon" :title="t('agents.metrics.open')" :aria-label="t('agents.metrics.title')" data-testid="open-metrics" @click="sessions.openMetrics()"><Activity :size="14" /></button>      </span>
     </div>
     <div class="scroll">
       <NavNotices />
-      <MrSessionNotice v-for="run in mrSession.runs.value.values()" :key="run.id" :run="run" />
+      <MrSessionNotice v-for="run in mrSession.runs.value.values()" :key="run.id" :run="run">
+        <template #project="{ repo }"><RepoActions :repo="repo" /></template>
+      </MrSessionNotice>
       <p v-for="error in errors" :key="`${error.connector}:${error.message}`" class="strip" role="alert" data-testid="tree-error" :title="error.message">{{ error.connector }}: {{ error.message }}</p>
       <ExplorerTree
         :nodes="nodes"
@@ -135,7 +142,7 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
         :selected="selected"
         :reveal-all="filtering || liveShown"
         test-id="explorer-tree"
-        @open="dock.openLeaf"
+        @open="openLeaf"
       >
         <template #rollup="{ node }">
           <StatusDot v-if="node.data?.rollup?.total" :status="node.data.rollup.status" :unseen="node.data.rollup.unseen" />
@@ -166,12 +173,12 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
             :session="node.data.session"
             :linked="node.data.linked"
             :active="node.id === selected"
-            @open="(split) => node.data?.session && dock.openSession(node.data.session, undefined, false, split)"
-            @open-conversation="node.data.linked && dock.openLinkedConversation(node.data.session, node.data.linked)"
+            @open="(split) => node.data?.session && sessions.openSession(node.data.session, undefined, false, split)"
+            @open-conversation="node.data.linked && sessions.openLinkedConversation(node.data.session, node.data.linked)"
           />
-          <ExternalSessionRow v-else-if="node.kind === 'external' && node.data?.external" :session="node.data.external" :active="node.id === dock.activeKey.value" @open="(split) => node.data?.external && dock.openExternal(node.data.external, split)" />
+          <ExternalSessionRow v-else-if="node.kind === 'external' && node.data?.external" :session="node.data.external" :active="node.id === dock.activeKey.value" @open="(split) => node.data?.external && sessions.openExternal(node.data.external, split)" />
           <ArchivedRow v-else-if="node.kind === 'archived' && node.data?.session" :session="node.data.session" />
-          <ArchivedExternalRow v-else-if="node.kind === 'archived-external' && node.data?.external" :session="node.data.external" @open="(split) => node.data?.external && dock.openExternal(node.data.external, split)" />
+          <ArchivedExternalRow v-else-if="node.kind === 'archived-external' && node.data?.external" :session="node.data.external" @open="(split) => node.data?.external && sessions.openExternal(node.data.external, split)" />
           <div v-else-if="node.kind === 'review-state' && node.data?.reviewState" class="review-state" :data-error="!!node.data.reviewState.error" :title="node.data.reviewState.error ?? undefined" role="status" data-testid="review-state">
             <template v-if="node.data.reviewState.error"><TriangleAlert :size="12" /><span class="review-text">{{ node.data.reviewState.error }}</span></template>
             <template v-else><RefreshCw :size="12" class="spin" /><span class="review-text">{{ node.label }}</span></template>
@@ -184,12 +191,12 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
         </template>
         <template #badges="{ node }">
           <CleanupBadge v-if="node.kind === 'worktree' && node.data?.worktree && !node.data.worktree.main" :worktree-id="node.data.worktree.id" />
-          <WorktreeBadge v-if="node.kind === 'worktree' && node.data?.worktree" :path="node.data.worktree.path" :branch="node.data.worktree.branch" :summary="node.data.worktreeMr" @open="(ref) => dock.openReview(ref)" />
+          <WorktreeBadge v-if="node.kind === 'worktree' && node.data?.worktree" :path="node.data.worktree.path" :branch="node.data.worktree.branch" :summary="node.data.worktreeMr" @open="(ref) => openReview(ref)" />
         </template>
         <template #actions="{ node }">
           <template v-if="node.kind === 'worktree' && node.data?.worktree">
-            <MarkdownPicker :root="node.data.worktree.path" @open="dock.openFile($event, { worktreeId: node.data.worktree.id })" />
-            <button class="icon" :title="t('agents.newSession.action')" :aria-label="t('agents.newSession.action')" data-testid="worktree-new-session" @click="dock.startCreate(node.data.worktree.id)"><Plus :size="14" /></button>
+            <MarkdownPicker :root="node.data.worktree.path" @open="sessions.openFile($event, { worktreeId: node.data.worktree.id })" />
+            <button class="icon" :title="t('agents.newSession.action')" :aria-label="t('agents.newSession.action')" data-testid="worktree-new-session" @click="startCreate(node.data.worktree.id)"><Plus :size="14" /></button>
           </template>
           <WorkspaceActions v-else-if="node.kind === 'workspace' && node.data?.workspaceId" :workspace-id="node.data.workspaceId" />
           <RepoActions v-else-if="node.kind === 'repo' && node.data?.repo" :repo="node.data.repo" />
@@ -200,8 +207,8 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
           <ProjectActions
             v-else-if="node.kind === 'project' && node.data?.projectId"
             :project-id="node.data.projectId"
-            @resumed="dock.openWhenListed({ Agent: $event })"
-            @create="dock.startCreate($event)"
+            @resumed="sessions.openWhenListed({ Agent: $event })"
+            @create="startCreate($event)"
           />
         </template>
         <template #empty>

@@ -1,18 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, useTemplateRef, watch } from 'vue';
-import ChangeRequestView from '../../../widgets/change-request/ui/ChangeRequestView.vue';
-import WorktreeChanges from '../../../widgets/worktree-changes/ui/WorktreeChanges.vue';
-import { useBerth } from '../../../entities/session/model/berth';
-import { externalDot, sessionDot, useExternalSessions } from '../../../entities/session/model/external';
-import { mrOf, viewOf, worktreeOf } from '../model/sessionView';
+import { viewOf, viewProps, type SessionViewBinding, type SessionViewSlots } from '../model/sessionView';
 
 const props = defineProps<{ panelId: string }>();
-
-const berth = useBerth();
-const external = useExternalSessions();
+defineSlots<SessionViewSlots>();
 
 const view = computed(() => viewOf(props.panelId));
-const mr = computed(() => (view.value === 'mr' ? mrOf(props.panelId) : null));
+const shown = computed(() => (view.value === 'terminal' ? null : viewProps(props.panelId, view.value)));
 const terminalPane = useTemplateRef<HTMLElement>('terminalPane');
 
 watch(view, async (next, previous) => {
@@ -20,22 +14,12 @@ watch(view, async (next, previous) => {
   await nextTick();
   terminalPane.value?.querySelector<HTMLTextAreaElement>('.xterm-helper-textarea')?.focus();
 });
-
-const diffRoot = computed(() => (view.value === 'diff' ? worktreeOf(props.panelId)?.path : undefined));
-
-const status = computed(() => {
-  const node = berth?.sessions.value.get(props.panelId);
-  if (node) return sessionDot(node, external?.linked.value.get(props.panelId));
-  const conversation = external?.anyByKey.value.get(props.panelId);
-  return conversation ? externalDot(conversation) : undefined;
-});
 </script>
 
 <template>
   <div class="host" :data-view="view === 'terminal' ? 'session' : view">
-    <div v-show="view === 'terminal'" ref="terminalPane" class="pane"><slot /></div>
-    <ChangeRequestView v-if="mr" class="pane vr-fade-in" :connector="mr.connector" :project="mr.project" :number="mr.number" data-testid="session-mr-view" />
-    <WorktreeChanges v-if="diffRoot" class="pane" :path="diffRoot" :status="status" data-testid="session-diff-view" />
+    <div v-show="view === 'terminal'" ref="terminalPane" class="pane"><slot name="terminal" /></div>
+    <slot v-if="shown" :name="view" v-bind="shown as SessionViewBinding" />
   </div>
 </template>
 
@@ -46,7 +30,8 @@ const status = computed(() => {
   height: 100%;
 }
 
-.pane {
+.pane,
+:slotted(.pane) {
   flex: 1;
   min-height: 0;
 }

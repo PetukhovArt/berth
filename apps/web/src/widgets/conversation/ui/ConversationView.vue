@@ -10,7 +10,7 @@ import { describeError, useBerth } from '../../../entities/session/model/berth';
 import StatusDot from '../../../entities/session/ui/StatusDot.vue';
 import { useAction } from '../../../entities/session/model/useAction';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { useDock } from '../../../shared/model/dock';
+import { useSessionDock } from '../../../entities/session/model/sessionDock';
 
 const TAIL = 200;
 const PIN_PX = 48;
@@ -21,7 +21,7 @@ const props = defineProps<{ harness: Harness; sessionId: string }>();
 const { t, formatRelative, formatDate } = useI18n();
 const external = useExternalSessions();
 const berth = useBerth();
-const dock = useDock();
+const dock = useSessionDock();
 const action = useAction();
 const scroller = useTemplateRef<HTMLElement>('scroller');
 const messages = shallowRef<TranscriptMessage[]>([]);

@@ -4,6 +4,7 @@ import { hasBackend, invoke, isDesktop } from '../../../bridge';
 import { useConnectors } from '../../../shared/api/connectors/api';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { connectorBase, lookupRemotes, remotes } from '../../../entities/repo/model/remotes';
+import { useDock } from '../../../shared/model/dock';
 
 export type ArchitectureTarget = { connector: string; project: string; number: number; target_branch: string };
 export type ArchitectureParams = { connector: string; project: string; number: number; repo: string; target: string };
@@ -32,7 +33,11 @@ function ensureProbe(repo: string, target: string) {
     .catch(() => (probes.value = new Map([...probes.value, [key, 'failed']])));
 }
 
-export const architecturePanelId = (ref: { connector: string; project: string; number: number }) => `arch:${ref.connector}/${ref.project}/${ref.number}`;
+const architecturePanelId = (ref: { connector: string; project: string; number: number }) => `arch:${ref.connector}/${ref.project}/${ref.number}`;
+
+export function openArchitecture(params: ArchitectureParams, label: string): void {
+  useDock().openPanel({ id: architecturePanelId(params), component: 'architecture', title: t('forge.stratum.tab', { label }), renderer: 'always', params: { ...params } });
+}
 
 export function useArchitecture(target: () => ArchitectureTarget | undefined) {
   const berth = useBerth();

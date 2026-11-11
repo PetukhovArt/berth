@@ -4,27 +4,84 @@ import BackBar from '../../../shared/ui/BackBar.vue';
 import TerminalKeys from '../../../widgets/terminal/ui/TerminalKeys.vue';
 import { useIsPhone } from '@ui/kit';
 import { useDock } from '../../../shared/model/dock';
+import { useSessionDock } from '../../../entities/session/model/sessionDock';
+import { isSessionRef, useBerth } from '../../../entities/session/model/berth';
+import type { Harness } from '../../../entities/session/model/external';
+import { openIssue } from '../../../entities/jira-issue/model/issuePanel';
 import ProjectTree from '../../../workbench/ProjectTree.vue';
 import NewSessionForm from '../../../features/new-session/ui/NewSessionForm.vue';
+import { cancelCreate, creatingIn, onCreated } from '../../../features/new-session/model/newSession';
+import ArchitectureView from '../../../features/architecture/ui/ArchitectureView.vue';
+import SessionViews from '../../../features/session-view-switch/ui/SessionViews.vue';
 import DockArea from '../../../widgets/dock/ui/DockArea.vue';
+import SessionPanel from '../../../widgets/terminal/ui/SessionPanel.vue';
+import ChangeRequestView from '../../../widgets/change-request/ui/ChangeRequestView.vue';
+import WorktreeChanges from '../../../widgets/worktree-changes/ui/WorktreeChanges.vue';
+import JiraIssueView from '../../../widgets/jira/ui/JiraIssueView.vue';
+import ConversationView from '../../../widgets/conversation/ui/ConversationView.vue';
+import MetricsPanel from '../../../widgets/metrics/ui/MetricsPanel.vue';
+import MarkdownFile from '../../../widgets/markdown-file/ui/MarkdownFile.vue';
 
 localStorage.removeItem('berth.agents.layout');
 localStorage.removeItem('berth.agents.explorer.expanded');
 
+const berth = useBerth();
 const dock = useDock();
+const sessions = useSessionDock();
 const { onReady } = dock.useHost();
 const mobile = useIsPhone();
-const { activeKey, activeTitle, activeSession, detail, creatingIn } = dock;
+const { activeKey, activeTitle, detail } = dock;
+const { activeSession } = sessions;
+const isHarness = (value: unknown): value is Harness => value === 'claude' || value === 'codex';
+const str = (value: unknown) => (typeof value === 'string' ? value : '');
 </script>
 
 <template>
-  <div v-if="!dock.berth" class="unavailable" data-testid="berth-banner" data-state="unavailable">{{ t('agents.unavailable') }}</div>
+  <div v-if="!berth" class="unavailable" data-testid="berth-banner" data-state="unavailable">{{ t('agents.unavailable') }}</div>
   <div v-else class="workbench vr-master-detail" data-testid="workbench" :data-detail="detail">
     <ProjectTree v-if="mobile" class="vr-master" with-filter />
     <BackBar v-if="mobile && detail" :title="activeSession?.name ?? activeTitle" @back="detail = false" />
-    <DockArea class="vr-detail" :active-key="activeKey" @ready="onReady" @open-file="(path, hash, from) => dock.openFile(path, { hash, from })" />
+    <DockArea class="vr-detail" :active-key="activeKey" @ready="onReady">
+      <template #panel-session="{ params, api }">
+        <SessionViews :panel-id="api.id">
+          <template #terminal><SessionPanel v-if="isSessionRef(params.session)" class="vr-fade-in" :session="params.session" :panel="api" /></template>
+          <template #mr="{ mr }"><ChangeRequestView class="pane vr-fade-in" :connector="mr.connector" :project="mr.project" :number="mr.number" data-testid="session-mr-view" /></template>
+          <template #diff="{ path, status }"><WorktreeChanges class="pane" :path="path" :status="status" data-testid="session-diff-view" /></template>
+        </SessionViews>
+      </template>
+      <template #panel-review="{ params }">
+        <ChangeRequestView v-if="typeof params.connector === 'string' && typeof params.project === 'string' && typeof params.number === 'number'" class="vr-fade-in" :connector="params.connector" :project="params.project" :number="params.number" />
+      </template>
+      <template #panel-architecture="{ params }">
+        <ArchitectureView
+          v-if="str(params.connector) && str(params.project) && typeof params.number === 'number' && str(params.repo)"
+          class="vr-fade-in"
+          :connector="str(params.connector)"
+          :project="str(params.project)"
+          :number="params.number"
+          :repo="str(params.repo)"
+          :target="str(params.target)"
+        />
+      </template>
+      <template #panel-issue="{ params }">
+        <JiraIssueView v-if="typeof params.connector === 'string' && typeof params.key === 'string'" class="vr-fade-in" :connector="params.connector" :issue-key="params.key" @open="(ref) => openIssue(ref.connector, ref.key)" />
+      </template>
+      <template #panel-conversation="{ params, api }">
+        <SessionViews :panel-id="api.id">
+          <template #terminal><ConversationView v-if="isHarness(params.harness) && typeof params.id === 'string'" class="vr-fade-in" :harness="params.harness" :session-id="params.id" /></template>
+          <template #mr="{ mr }"><ChangeRequestView class="pane vr-fade-in" :connector="mr.connector" :project="mr.project" :number="mr.number" data-testid="session-mr-view" /></template>
+          <template #diff="{ path, status }"><WorktreeChanges class="pane" :path="path" :status="status" data-testid="session-diff-view" /></template>
+        </SessionViews>
+      </template>
+      <template #panel-metrics>
+        <MetricsPanel class="vr-fade-in" />
+      </template>
+      <template #panel-markdown="{ params, api }">
+        <MarkdownFile v-if="typeof params.path === 'string'" class="vr-fade-in" :path="params.path" :hash="typeof params.hash === 'string' ? params.hash : ''" @open-file="(path, hash) => sessions.openFile(path, { hash, from: api.id })" />
+      </template>
+    </DockArea>
     <TerminalKeys v-if="mobile && detail && activeSession" :session="activeSession.ref" />
-    <NewSessionForm v-if="creatingIn" :key="creatingIn.worktree ?? ''" :worktree="creatingIn.worktree" @close="dock.cancelCreate" @created="dock.onCreated" />
+    <NewSessionForm v-if="creatingIn" :key="creatingIn.worktree ?? ''" :worktree="creatingIn.worktree" @close="cancelCreate" @created="onCreated" />
   </div>
 </template>
 
