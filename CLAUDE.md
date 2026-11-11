@@ -6,7 +6,6 @@ loopback TCP listener plus a bearer token on Windows — one or the other, never
 behind one API in `crates/berth-core/src/transport.rs`. Code is the source of truth: read
 `ARCHITECTURE.md` for the map and `GLOSSARY.md` for the vocabulary before touching IPC, hooks or the
 daemon.
-
 `GOTCHAS.md` is the standing traps — the platform quirks, required orderings and settled decisions
 this project has already paid for, grouped by area. Read the sections your task touches before you
 start, add a line when a task turns up a trap that will outlive it, and fix or delete a line the code
@@ -14,13 +13,9 @@ has outgrown. `.claude/hooks/gotchas.mjs` injects some matching lines per prompt
 for reading the file.
 
 ## Invariants
-
 - `vendor/vt100` is a patched fork — don't bump or replace it.
 - `event_loop.rs`, `ui.rs` and `registry.rs` grew huge by accretion. Adding to one of the three: put
   the new code in a new module beside it and call it from there, rather than growing the file.
-
-<important if="you are writing text a user reads: the changelog, the README, docs, release notes or a PR body">
-
 - `CHANGELOG.md` is for users, not for us. A change gets an entry under `## Unreleased` only if
   someone who runs `berth` would notice it — a feature, a fix, a changed key, a new install route.
   Refactors, tests, CI, docs, tooling and anything under `scripts/` get no entry.
@@ -36,10 +31,7 @@ for reading the file.
   `releasing.md`, `remote-access-tailscale.md`). Put new user-facing writing in the right one instead
   of growing the README.
 
-</important>
-
 ## Dev workflow
-
 **Never run freshly built code against your real daemon.** A dev instance needs its own runtime dir
 and its own database, or an unfinished binary is driving your live sessions.
 
@@ -56,10 +48,7 @@ the files and hunks the task touched, since other sessions leave uncommitted wor
 
 The desktop app (`apps/`, `packages/`, `docker/`) has its own rules in `.claude/rules/desktop.md`.
 
-<important if="you are changing paths, environment variables or hook installation">
-
 ## On-disk names
-
 Paths, env vars and the hook tag are load-bearing on data that already exists on user machines:
 `crates/berth-core/src/paths.rs` (runtime dir, socket, pidfile, endpoint file, data dir, database),
 `crates/berth-core/src/env.rs` (env vars) and `crates/berth-daemon/src/hooks/installer.rs` (the hook
@@ -72,12 +61,7 @@ first start, never touching the old one. Keep it until nobody runs pacer 0.20 an
 Makefile's `dev-seed` target and `docs/configuration.md` quote the same paths, so keep the three in
 step.
 
-</important>
-
-<important if="you are cutting a release, publishing a package or changing repository settings">
-
 ## Publishing
-
 Releasing is automatic and described in `docs/releasing.md`: a `version` bump in the root
 `Cargo.toml` landing on `main` builds the three targets (macOS, Windows), tags the commit, publishes the GitHub release
 and publishes to npm — one workflow, no button. The deliberate act is therefore the version bump, so
@@ -85,4 +69,5 @@ never bump `version` unless releasing is what was asked for; every other change 
 
 Repository visibility stays a human decision: never change it on your own.
 
-</important>
+## Features backlog
+- 
