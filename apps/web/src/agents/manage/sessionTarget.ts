@@ -43,7 +43,7 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
   const initial = initialWorktree ? entities()?.worktrees.get(initialWorktree) : undefined;
 
   const project = shallowRef<string | null>(initial?.project_id ?? null);
-  const target = shallowRef<string | null>(initial && !initial.is_main ? initial.id : NEW_WORKTREE);
+  const target = shallowRef<string | null>(initial?.id ?? null);
   const mode = shallowRef<BranchMode>('current');
   const existing = shallowRef<string | null>(null);
   const fresh = shallowRef('');
@@ -100,7 +100,7 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
     project,
     (id, previous) => {
       if (previous !== undefined) {
-        target.value = worktrees.value.length ? NEW_WORKTREE : null;
+        target.value = mainWorktree.value?.id ?? null;
         existing.value = null;
       }
       if (id) void load(id);
@@ -112,7 +112,7 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
 
   watch(worktrees, (list) => {
     if (!list.length) target.value = null;
-    else if (!creating.value && !list.some((worktree) => worktree.id === target.value)) target.value = NEW_WORKTREE;
+    else if (!creating.value && !list.some((worktree) => worktree.id === target.value)) target.value = mainWorktree.value?.id ?? null;
   }, { immediate: true });
 
   function planFor(name: string): TargetPlan {
