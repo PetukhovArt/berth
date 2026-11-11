@@ -17,6 +17,7 @@ use crate::settings::berth_dir;
 use berth_core::platform::NoWindow;
 
 const CONFIG: &str = "stratum.config.jsonc";
+const PACKAGE: &str = "@petukhovart/stratum-lint";
 const READY_MARK: &str = "stratum-visualizer ready at ";
 const MAX_SERVERS: usize = 3;
 const READY_TIMEOUT: Duration = Duration::from_secs(120);
@@ -91,14 +92,14 @@ fn clean(path: &str) -> PathBuf {
     PathBuf::from(path.strip_prefix(r"\\?\").unwrap_or(path))
 }
 
-fn resolve_linter(repo: &Path) -> Option<PathBuf> {
+fn find_executable(name: &str, first: Option<PathBuf>) -> Option<PathBuf> {
     let names: Vec<String> = berth_core::platform::EXECUTABLE_SUFFIXES
         .iter()
-        .map(|suffix| format!("stratum-lint{suffix}"))
+        .map(|suffix| format!("{name}{suffix}"))
         .collect();
-    let pinned = repo.join("node_modules").join(".bin");
     let path = std::env::var_os("PATH").unwrap_or_default();
-    std::iter::once(pinned)
+    first
+        .into_iter()
         .chain(std::env::split_paths(&path))
         .find_map(|dir| {
             names
@@ -106,6 +107,69 @@ fn resolve_linter(repo: &Path) -> Option<PathBuf> {
                 .map(|name| dir.join(name))
                 .find(|candidate| candidate.is_file())
         })
+}
+
+fn resolve_linter(repo: &Path) -> Option<PathBuf> {
+    find_executable("stratum-lint", Some(repo.join("node_modules").join(".bin")))
+}
+
+struct Runner {
+    program: PathBuf,
+    prefix: Vec<String>,
+    label: String,
+}
+
+fn read_json(path: &Path) -> Option<serde_json::Value> {
+    serde_json::from_str(&std::fs::read_to_string(path).ok()?).ok()
+}
+
+fn wanted_version(dir: &Path) -> Option<String> {
+    let manifest = read_json(&dir.join("package.json"))?;
+    let spec = ["devDependencies", "dependencies"]
+        .iter()
+        .find_map(|section| manifest.get(section)?.get(PACKAGE)?.as_str())?;
+    let version = spec.trim().trim_start_matches(['^', '~', '=', 'v']);
+    let exact = version.split('.').count() >= 3
+        && version.starts_with(|c: char| c.is_ascii_digit())
+        && version
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '+'));
+    exact.then(|| version.to_owned())
+}
+
+fn installed_version(repo: &Path, linter: &Path) -> Option<String> {
+    if !linter.starts_with(repo) {
+        return None;
+    }
+    let mut dir = repo.join("node_modules");
+    PACKAGE.split('/').for_each(|part| dir.push(part));
+    read_json(&dir.join("package.json"))?
+        .get("version")?
+        .as_str()
+        .map(str::to_owned)
+}
+
+fn runner(repo: &Path, linter: &Path, dir: &Path) -> Runner {
+    let local = || Runner {
+        program: linter.to_owned(),
+        prefix: Vec::new(),
+        label: "stratum-lint".to_owned(),
+    };
+    let Some(wanted) = wanted_version(dir) else {
+        return local();
+    };
+    if installed_version(repo, linter).as_deref() == Some(wanted.as_str()) {
+        return local();
+    }
+    let Some(npx) = find_executable("npx", None) else {
+        return local();
+    };
+    let package = format!("{PACKAGE}@{wanted}");
+    Runner {
+        label: format!("npx {package}"),
+        prefix: vec!["--yes".to_owned(), package],
+        program: npx,
+    }
 }
 
 fn no_linter() -> String {
@@ -362,7 +426,7 @@ async fn start(
     }
 
     phase(&log, "start");
-    let spawned = launch(&linter, &dir, &base, &log).await;
+    let spawned = launch(&runner(&repo, &linter, &dir), &dir, &base, &log).await;
     let (child, url) = match spawned {
         Ok(found) => found,
         Err(error) => {
@@ -430,13 +494,17 @@ async fn evict_for_room() {
 }
 
 async fn launch(
-    linter: &Path,
+    runner: &Runner,
     dir: &Path,
     base: &str,
     log: &Log,
 ) -> Result<(Child, String), String> {
-    let mut command = Command::new(linter);
+    let mut command = Command::new(&runner.program);
+    if let Some(neutral) = dir.parent().filter(|_| !runner.prefix.is_empty()) {
+        command.current_dir(neutral);
+    }
     command
+        .args(&runner.prefix)
         .arg("visualize")
         .arg(dir)
         .args(["--base", base, "--no-open"])
@@ -447,12 +515,13 @@ async fn launch(
     push(
         log,
         format!(
-            "$ stratum-lint visualize <worktree> --base {} --no-open",
+            "$ {} visualize <worktree> --base {} --no-open",
+            runner.label,
             short(base)
         ),
     );
     let mut child = platform::spawn_tied(&mut command)
-        .map_err(|error| format!("не удалось запустить {}: {error}", linter.display()))?;
+        .map_err(|error| format!("не удалось запустить {}: {error}", runner.program.display()))?;
     let stderr = child.stderr.take().ok_or("нет потока stderr")?;
     let (found, ready) = oneshot::channel::<String>();
     let sink = log.clone();
