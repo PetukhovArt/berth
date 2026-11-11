@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { defineAsyncComponent, watch } from 'vue';
 import { AgentsView } from '../../pages/agents';
 import { CleanupDialog } from '../../features/cleanup';
 import { CommandPalette } from '../../widgets/command-palette';
@@ -13,11 +13,12 @@ import { TitleBar } from '../../widgets/title-bar';
 import { ChangesDialog, UpdateDialog } from '../../features/update';
 import { view, type View } from '../../shared/model/nav';
 import { isDark, toggleTheme } from '../../shared/ui/appearance';
-import { SettingsView } from '../../pages/settings';
-import { ConfluenceView } from '../../pages/confluence';
-import { JiraView } from '../../pages/jira';
 import { openReview } from '../../entities/merge-request';
 import { QuickOpen } from '../../widgets/quick-open';
+
+const SettingsView = defineAsyncComponent(() => import('../../pages/settings').then((m) => m.SettingsView));
+const ConfluenceView = defineAsyncComponent(() => import('../../pages/confluence').then((m) => m.ConfluenceView));
+const JiraView = defineAsyncComponent(() => import('../../pages/jira').then((m) => m.JiraView));
 
 const inTauri = '__TAURI_INTERNALS__' in window;
 const mobile = useIsPhone();

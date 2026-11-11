@@ -21,6 +21,9 @@ import typescript from 'highlight.js/lib/languages/typescript';
 import xml from 'highlight.js/lib/languages/xml';
 import yaml from 'highlight.js/lib/languages/yaml';
 import './highlight.css';
+import { escapeHtml } from './escape';
+
+export { escapeHtml };
 
 const GRAMMARS = { bash, cpp, csharp, css, diff, dockerfile, go, ini, java, javascript, json, kotlin, markdown, powershell, python, rust, scss, sql, typescript, xml, yaml };
 
@@ -51,10 +54,6 @@ const TOKENS: Record<string, keyof typeof GRAMMARS> = {
 
 const MAX_HIGHLIGHT_LENGTH = 300_000;
 const TAG = /<span[^>]*>|<\/span>|\n/g;
-
-export function escapeHtml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 export function languageOf(token: string): string | null {
   return TOKENS[token.trim().toLowerCase()] ?? null;

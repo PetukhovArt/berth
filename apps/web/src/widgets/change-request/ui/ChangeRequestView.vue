@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
+import type { DockviewPanelApi } from 'dockview-vue';
 import { ArrowRight, ExternalLink, GitMerge, GitPullRequest, GitPullRequestClosed, GitPullRequestDraft, RefreshCw, Tag, TriangleAlert } from '../../../shared/ui/icons';
 import { VButton } from '../../../shared/ui/kit';
 import { forgeChangeRequest, openUrl, type ChangeRequest, type Discussion } from '../../../shared/api/connectors/api';
 import PersonAvatar from '../../../shared/ui/PersonAvatar.vue';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { useScope } from '../../../shared/lib/scope';
+import { useScope, visibleInterval } from '../../../shared/lib/scope';
 import { ArchitectureAction } from '../../../features/architecture';
 import { MrSessionNotice, OpenInSessionAction, mrRuns } from '../../../features/open-in-session';
 import { RepoActions } from '../../../features/manage-workspace';
@@ -17,11 +18,12 @@ import { provideChangeRequest } from '../model/change-request-scope';
 import PipelineJobs from './PipelineJobs.vue';
 
 import { UiButton } from '../../../shared/ui/UiButton';
-const props = defineProps<{ connector: string; project: string; number: number }>();
+const props = defineProps<{ connector: string; project: string; number: number; panel?: DockviewPanelApi }>();
 
 const STATE_KEY = { open: 'forge.request.state.open', merged: 'forge.request.state.merged', closed: 'forge.request.state.closed' } as const;
 
-const store = createChangeRequest(() => ({ connector: props.connector, project: props.project, number: props.number }), useScope());
+const scope = useScope();
+const store = createChangeRequest(() => ({ connector: props.connector, project: props.project, number: props.number }), scope);
 provideChangeRequest(store);
 const { target, cr, discussions, pipeline, files, loading, failure, sideFailure, diffLoading, diffFailure, diffLoaded, tab, pipelineOpen, commentDraft, commenting, commentError, generation, load, selectTab, upsertDiscussion, sendComment } = store;
 const diffRef = useTemplateRef<InstanceType<typeof DiffView>>('diff');
@@ -48,7 +50,7 @@ watch([diffLoaded, tab, pendingThread, diffRef], async () => {
 
 const POLL_MS = 30_000;
 const fingerprint = (request: ChangeRequest) => [request.updated_at, request.head_sha, request.pipeline, request.unresolved_threads, request.state].join('|');
-let poller: ReturnType<typeof setInterval> | undefined;
+let missed = false;
 
 async function poll() {
   if (document.visibilityState !== 'visible' || loading.value || !cr.value) return;
@@ -57,17 +59,20 @@ async function poll() {
   if (fresh && ticket === generation() && !loading.value && cr.value && fingerprint(fresh) !== fingerprint(cr.value)) void load();
 }
 
-const onVisible = () => void poll();
+function tick() {
+  if (props.panel && !props.panel.isVisible) missed = true;
+  else void poll();
+}
 
 onMounted(() => {
   void load();
-  poller = setInterval(() => void poll(), POLL_MS);
-  document.addEventListener('visibilitychange', onVisible);
-});
-
-onBeforeUnmount(() => {
-  clearInterval(poller);
-  document.removeEventListener('visibilitychange', onVisible);
+  visibleInterval(scope, POLL_MS, tick);
+  const shown = props.panel?.onDidVisibilityChange((event) => {
+    if (!event.isVisible || !missed) return;
+    missed = false;
+    void poll();
+  });
+  if (shown) scope.add(() => shown.dispose());
 });
 </script>
 

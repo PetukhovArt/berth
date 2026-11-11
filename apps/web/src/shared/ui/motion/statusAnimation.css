@@ -81,6 +81,18 @@
   }
 
   :root[data-status-animation='row'] .status-host:has(> .status-dot[data-status='needs_feedback']) {
+    isolation: isolate;
+  }
+
+  :root[data-status-animation='row'] .status-host:has(> .status-dot[data-status='needs_feedback'])::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: color-mix(in srgb, var(--vr-color-danger) 22%, transparent);
+    border-radius: inherit;
+    opacity: 0;
+    pointer-events: none;
     animation: status-alarm 1s ease-in-out infinite;
   }
 
@@ -140,6 +152,6 @@
 
 @keyframes status-alarm {
   50% {
-    background-color: color-mix(in srgb, var(--vr-color-danger) 22%, transparent);
+    opacity: 1;
   }
 }

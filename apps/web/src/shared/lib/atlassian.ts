@@ -1,5 +1,5 @@
 import { connectorAsset } from '../api/connectors/api';
-import { escapeHtml } from './content/highlight';
+import { escapeHtml } from './content/escape';
 import { Lru } from './lru';
 
 export async function copyText(text: string): Promise<void> {

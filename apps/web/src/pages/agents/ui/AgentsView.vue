@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { defineAsyncComponent } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import BackBar from '../../../shared/ui/BackBar.vue';
 import { TerminalKeys, SessionPanel } from '../../../widgets/terminal';
@@ -11,12 +12,13 @@ import { NewSessionForm, cancelCreate, creatingIn, onCreated } from '../../../fe
 import { ArchitectureView } from '../../../features/architecture';
 import { SessionViews } from '../../../features/session-view-switch';
 import { DockArea } from '../../../widgets/dock';
-import { ChangeRequestView } from '../../../widgets/change-request';
-import { WorktreeChanges } from '../../../widgets/worktree-changes';
-import { JiraIssueView } from '../../../widgets/jira-browser';
-import { ConversationView } from '../../../widgets/conversation';
-import { MetricsPanel } from '../../../widgets/metrics';
-import { MarkdownFile } from '../../../widgets/markdown-file';
+
+const ChangeRequestView = defineAsyncComponent(() => import('../../../widgets/change-request').then((m) => m.ChangeRequestView));
+const WorktreeChanges = defineAsyncComponent(() => import('../../../widgets/worktree-changes').then((m) => m.WorktreeChanges));
+const JiraIssueView = defineAsyncComponent(() => import('../../../widgets/jira-browser').then((m) => m.JiraIssueView));
+const ConversationView = defineAsyncComponent(() => import('../../../widgets/conversation').then((m) => m.ConversationView));
+const MetricsPanel = defineAsyncComponent(() => import('../../../widgets/metrics').then((m) => m.MetricsPanel));
+const MarkdownFile = defineAsyncComponent(() => import('../../../widgets/markdown-file').then((m) => m.MarkdownFile));
 
 localStorage.removeItem('berth.agents.layout');
 localStorage.removeItem('berth.agents.explorer.expanded');
@@ -41,12 +43,12 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
       <template #panel-session="{ params, api }">
         <SessionViews :panel-id="api.id">
           <template #terminal><SessionPanel v-if="isSessionRef(params.session)" class="vr-fade-in" :session="params.session" :panel="api" /></template>
-          <template #mr="{ mr }"><ChangeRequestView class="pane vr-fade-in" :connector="mr.connector" :project="mr.project" :number="mr.number" data-testid="session-mr-view" /></template>
+          <template #mr="{ mr }"><ChangeRequestView class="pane vr-fade-in" :connector="mr.connector" :project="mr.project" :number="mr.number" :panel="api" data-testid="session-mr-view" /></template>
           <template #diff="{ path, status }"><WorktreeChanges class="pane" :path="path" :status="status" data-testid="session-diff-view" /></template>
         </SessionViews>
       </template>
-      <template #panel-review="{ params }">
-        <ChangeRequestView v-if="typeof params.connector === 'string' && typeof params.project === 'string' && typeof params.number === 'number'" class="vr-fade-in" :connector="params.connector" :project="params.project" :number="params.number" />
+      <template #panel-review="{ params, api }">
+        <ChangeRequestView v-if="typeof params.connector === 'string' && typeof params.project === 'string' && typeof params.number === 'number'" class="vr-fade-in" :connector="params.connector" :project="params.project" :number="params.number" :panel="api" />
       </template>
       <template #panel-architecture="{ params }">
         <ArchitectureView
@@ -65,7 +67,7 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
       <template #panel-conversation="{ params, api }">
         <SessionViews :panel-id="api.id">
           <template #terminal><ConversationView v-if="isHarness(params.harness) && typeof params.id === 'string'" class="vr-fade-in" :harness="params.harness" :session-id="params.id" /></template>
-          <template #mr="{ mr }"><ChangeRequestView class="pane vr-fade-in" :connector="mr.connector" :project="mr.project" :number="mr.number" data-testid="session-mr-view" /></template>
+          <template #mr="{ mr }"><ChangeRequestView class="pane vr-fade-in" :connector="mr.connector" :project="mr.project" :number="mr.number" :panel="api" data-testid="session-mr-view" /></template>
           <template #diff="{ path, status }"><WorktreeChanges class="pane" :path="path" :status="status" data-testid="session-diff-view" /></template>
         </SessionViews>
       </template>
