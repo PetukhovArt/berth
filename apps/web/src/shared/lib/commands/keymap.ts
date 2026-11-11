@@ -1,8 +1,8 @@
 import { computed, shallowRef } from 'vue';
-import { createBackend } from '../../config/settings/backend';
-import { createFileText } from '../../config/settings/fileText';
-import { describeFailure, parseJsonArray, type ParseFailure } from '../../config/settings/parse';
-import { tr } from '../../config/settings/translate';
+import { createBackend } from '../config-file/backend';
+import { createFileText } from '../config-file/fileText';
+import { describeFailure, parseJsonArray, type ParseFailure } from '../config-file/parse';
+import { tr } from '../i18n/translate';
 import { DEFAULT_KEYMAP, type KeymapEntry } from './defaults';
 import { parseSequence, sequenceKey, sequenceLabel, type Chord } from './keys';
 import { getAction } from './registry';

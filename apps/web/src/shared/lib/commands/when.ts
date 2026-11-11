@@ -1,4 +1,4 @@
-import { tr } from '../../config/settings/translate';
+import { tr } from '../i18n/translate';
 
 type ContextValue = boolean | string;
 export type Context = Readonly<Record<string, ContextValue>>;

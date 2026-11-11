@@ -1,4 +1,4 @@
-import { tr } from './translate';
+import { tr } from '../i18n/translate';
 
 export type ParseFailure = { message: string; line: number | null; column: number | null };
 type ParseResult = { ok: true; object: Record<string, unknown> } | { ok: false; error: ParseFailure };

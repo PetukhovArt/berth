@@ -20,10 +20,10 @@ import {
 } from '../../../shared/lib/commands/keymap';
 import { getAction, listActions } from '../../../shared/lib/commands/registry';
 import { fuzzyScore } from '../../../shared/lib/fuzzy';
-import type { PlainKey } from '../../../shared/config/settings/translate';
+import type { PlainKey } from '../../../shared/lib/i18n/translate';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { withViewTransition } from '../../../shared/ui/motion/motion';
-import { describeFailure } from '../../../shared/config/settings/parse';
+import { describeFailure } from '../../../shared/lib/config-file/parse';
 import SettingsJsonEditor from '../../../shared/ui/SettingsJsonEditor.vue';
 
 const RECORD_IDLE_MS = 700;

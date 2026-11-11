@@ -1,7 +1,7 @@
 import { shallowRef } from 'vue';
-import { createBackend } from './backend';
-import { createFileText } from './fileText';
-import { describeFailure, parseSettings, type ParseFailure } from './parse';
+import { createBackend } from '../../lib/config-file/backend';
+import { createFileText } from '../../lib/config-file/fileText';
+import { describeFailure, parseSettings, type ParseFailure } from '../../lib/config-file/parse';
 import { SETTINGS, checkValue, coerceValue, defaultValues, isSettingKey, type SettingKey, type SettingValues } from './schema';
 
 const LEGACY_THEME_KEY = 'berth.theme';

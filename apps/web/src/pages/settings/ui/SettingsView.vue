@@ -13,7 +13,7 @@ import { RemotePanel } from '../../../features/remote-access';
 import SettingsJsonEditor from '../../../shared/ui/SettingsJsonEditor.vue';
 import { CATEGORIES, SETTINGS, SETTING_KEYS } from '../../../shared/config/settings/schema';
 import { useSettings } from '../../../shared/config/settings/store';
-import { describeFailure } from '../../../shared/config/settings/parse';
+import { describeFailure } from '../../../shared/lib/config-file/parse';
 
 const { t } = useI18n();
 const { parseError, issues, ioError, text, saveText, openExternal, canOpenExternal } = useSettings();

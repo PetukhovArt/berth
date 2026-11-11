@@ -1,6 +1,6 @@
 import type { MessageKey } from '../../lib/i18n/i18n';
 import { isMac } from '../../lib/platform';
-import { tr } from './translate';
+import { tr } from '../../lib/i18n/translate';
 
 type Category = 'appearance' | 'terminal' | 'sessions' | 'files' | 'connectors' | 'remote' | 'app' | 'keymap';
 type Option = { readonly value: string; readonly label: MessageKey };

@@ -1,5 +1,5 @@
 import { shallowRef } from 'vue';
-import type { PlainKey } from '../../config/settings/translate';
+import type { PlainKey } from '../i18n/translate';
 import { readContext } from './context';
 import { parseCondition, type Condition, type Context } from './when';
 

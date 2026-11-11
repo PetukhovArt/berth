@@ -1,6 +1,6 @@
-import type { MessageKey } from '../../lib/i18n/i18n';
-import type { Params, PluralKeyPaths } from '../../lib/i18n/types';
-import type { en } from '../../lib/i18n/en';
+import type { MessageKey } from './i18n';
+import type { Params, PluralKeyPaths } from './types';
+import type { en } from './en';
 
 export type PlainKey = Exclude<MessageKey, PluralKeyPaths<typeof en>>;
 type Translate = (key: PlainKey, params?: Params) => string;

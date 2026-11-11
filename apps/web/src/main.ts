@@ -13,7 +13,7 @@ import { installAppearance } from './shared/ui/appearance';
 import { installBerthIdleSync } from './app/berthIdle';
 import { installLocale } from './app/locale';
 import { useSettings } from './shared/config/settings/store';
-import { setTranslator } from './shared/config/settings/translate';
+import { setTranslator } from './shared/lib/i18n/translate';
 import WorkspaceView from './app/ui/WorkspaceView.vue';
 
 installLocale();
