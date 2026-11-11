@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { VButton, VInputText } from '@ui/kit';
-import { describeError, jiraSearch, reloadWhenRecovered, type JiraIssueSummary } from '../connectors/api';
-import { t, useI18n } from '../i18n';
-import ErrorInline from './ErrorInline.vue';
+import { describeError, jiraSearch, reloadWhenRecovered, type JiraIssueSummary } from '../shared/api/connectors/api';
+import { t, useI18n } from '../shared/lib/i18n/i18n';
+import ErrorInline from '../shared/ui/ErrorInline.vue';
 import PersonAvatar from './PersonAvatar.vue';
 import PriorityMark from './PriorityMark.vue';
-import Skeleton from './Skeleton.vue';
+import Skeleton from '../shared/ui/Skeleton.vue';
 import StatusChip from './StatusChip.vue';
 import TypeIcon from './TypeIcon.vue';
-import { readStored, writeStored } from './util';
+import { readStored, writeStored } from '../shared/lib/atlassian';
 
 type Filter = { id: string; name: string; jql: string };
 

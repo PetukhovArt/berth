@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue';
-import type { ChangeRequestRef, ChangeRequestSummary } from '../connectors/api';
-import { t } from '../i18n';
+import type { ChangeRequestRef, ChangeRequestSummary } from '../shared/api/connectors/api';
+import { t } from '../shared/lib/i18n/i18n';
 import { numberLabel, pipelineLabel } from './format';
 import PipelineIcon from './PipelineIcon.vue';
 import { lookupMr } from './worktreeMr';

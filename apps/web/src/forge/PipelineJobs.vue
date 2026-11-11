@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { ExternalLink } from 'lucide-vue-next';
-import { openUrl, type Pipeline, type PipelineJob } from '../connectors/api';
-import { t } from '../i18n';
+import { openUrl, type Pipeline, type PipelineJob } from '../shared/api/connectors/api';
+import { t } from '../shared/lib/i18n/i18n';
 import { formatDuration, jobTone } from './format';
 import PipelineIcon from './PipelineIcon.vue';
 

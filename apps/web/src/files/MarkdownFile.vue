@@ -3,12 +3,12 @@ import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplate
 import { ChevronDown, Columns2, ExternalLink, FileCode, ListTree, Eye, Save } from 'lucide-vue-next';
 import { EditorState, type Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { describeError } from '../connectors/api';
-import RichContent from '../content/RichContent.vue';
-import { useDarkTheme } from '../content/theme';
-import { t, useI18n } from '../i18n';
-import { onlyPrimaryPressed } from '../platform';
-import { canOpenExternal, fsOpenExternal } from './api';
+import { describeError } from '../shared/api/connectors/api';
+import RichContent from '../shared/ui/rich-content/RichContent.vue';
+import { useDarkTheme } from '../shared/lib/content/theme';
+import { t, useI18n } from '../shared/lib/i18n/i18n';
+import { onlyPrimaryPressed } from '../shared/lib/platform';
+import { canOpenExternal, fsOpenExternal } from '../shared/api/fs';
 import CompareView from './CompareView.vue';
 import { createExtensions, darkSlot, languageSlot, phrases, scrollTopOfLine, topLineOf } from './editor';
 import { useEditableDoc } from './useEditableDoc';

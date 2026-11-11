@@ -2,8 +2,8 @@
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import { Ellipsis, MessageSquare } from 'lucide-vue-next';
 import { VButton, VContextMenu, VInputText } from '@ui/kit';
-import { t } from '../i18n';
-import { primaryPressed } from '../platform';
+import { t } from '../shared/lib/i18n/i18n';
+import { primaryPressed } from '../shared/lib/platform';
 import { externalStatusLabel, sessionDot, type ExternalSession } from './external';
 import HarnessIcon from './HarnessIcon.vue';
 import { archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, type SessionNode, type SessionStatus } from './berth';

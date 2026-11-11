@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef, useTemplateRef } from 'vue';
 import { ChevronRight, FileText, GitPullRequest, Ticket, Zap } from 'lucide-vue-next';
-import { subsequenceScore } from '../../commands/fuzzy';
-import { usePickerList } from '../../commands/usePickerList';
+import { subsequenceScore } from '../../shared/lib/fuzzy';
+import { usePickerList } from '../../shared/lib/usePickerList';
 import PipelineIcon from '../../forge/PipelineIcon.vue';
-import { t } from '../../i18n';
-import BackBar from '../../mobile/BackBar.vue';
+import { t } from '../../shared/lib/i18n/i18n';
+import BackBar from '../../shared/ui/BackBar.vue';
 import type { QuickItem, WorkNode } from '../../workbench/tree';
 import { externalDot } from '../external';
 import HarnessIcon from '../HarnessIcon.vue';
 import StatusDot from '../StatusDot.vue';
-import type { MarkdownEntry } from './markdownFiles';
+import type { MarkdownEntry } from '../../shared/lib/markdownFiles';
 
 type QuickAction = { key: string; label: string };
 type Item = { kind: 'leaf'; key: string; entry: QuickItem } | { kind: 'file'; key: string; file: MarkdownEntry } | { kind: 'action'; key: string; action: QuickAction };

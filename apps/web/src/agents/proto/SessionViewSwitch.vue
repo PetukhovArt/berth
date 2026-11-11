@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
-import { pendingLeadsTo } from '../../commands/dispatcher';
-import { shortcutLabel } from '../../commands/keymap';
+import { pendingLeadsTo } from '../../shared/lib/commands/dispatcher';
+import { shortcutLabel } from '../../shared/lib/commands/keymap';
 import { numberLabel } from '../../forge/format';
 import { lookupChanges } from '../../forge/worktreeChanged';
 import { knownMr, lookupMr } from '../../forge/worktreeMr';
-import { t } from '../../i18n';
+import { t } from '../../shared/lib/i18n/i18n';
 import { useBerth } from '../berth';
 import { isAvailable, showView, viewOf, worktreeOf, type SessionView } from './sessionView';
 

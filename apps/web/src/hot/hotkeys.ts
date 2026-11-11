@@ -1,5 +1,5 @@
 import { shallowRef } from 'vue';
-import { useDock } from '../workbench/dock';
+import { useDock } from '../shared/model/dock';
 import { useHot } from './hot';
 import { hotEnabled } from './view';
 

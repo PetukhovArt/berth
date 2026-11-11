@@ -1,4 +1,4 @@
-import { t } from '../../i18n';
+import { t } from '../../shared/lib/i18n/i18n';
 import { acknowledged, call, BerthCallError, type BerthReply } from '../berth';
 
 export type OrphanedSession = Extract<BerthReply, { OrphanedSessions: unknown }>['OrphanedSessions']['sessions'][number];

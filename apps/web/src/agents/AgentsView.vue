@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { t } from '../i18n';
-import BackBar from '../mobile/BackBar.vue';
+import { t } from '../shared/lib/i18n/i18n';
+import BackBar from '../shared/ui/BackBar.vue';
 import TerminalKeys from '../mobile/TerminalKeys.vue';
 import { useIsPhone } from '@ui/kit';
-import { useDock } from '../workbench/dock';
+import { useDock } from '../shared/model/dock';
 import ProjectTree from '../workbench/ProjectTree.vue';
 import NewSessionForm from './NewSessionForm.vue';
 import DockArea from './proto/DockArea.vue';

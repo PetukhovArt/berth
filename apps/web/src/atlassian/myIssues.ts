@@ -1,5 +1,5 @@
 import { computed, shallowRef } from 'vue';
-import { describeError, jiraSearch, onConnectorRecovered, useConnectors, type JiraIssueSummary } from '../connectors/api';
+import { describeError, jiraSearch, onConnectorRecovered, useConnectors, type JiraIssueSummary } from '../shared/api/connectors/api';
 
 const JIRA_JQL = 'assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC';
 const JIRA_LIMIT = 100;

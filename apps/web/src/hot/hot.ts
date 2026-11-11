@@ -1,8 +1,8 @@
 import { computed, shallowRef, watch, type ComputedRef } from 'vue';
 import { externalKey, externalTarget, readTranscript, useExternalSessions, type ExternalSession } from '../agents/external';
 import { useBerth, type SessionNode, type SessionStatus } from '../agents/berth';
-import { t } from '../i18n';
-import { useDock } from '../workbench/dock';
+import { t } from '../shared/lib/i18n/i18n';
+import { useDock } from '../shared/model/dock';
 
 export type HotStatus = 'waiting' | 'working' | 'idle' | 'error';
 type HotHarness = 'claude' | 'codex' | 'shell';

@@ -1,5 +1,5 @@
 import type { Terminal } from '@xterm/xterm';
-import { onlyPrimaryPressed } from '../platform';
+import { onlyPrimaryPressed } from '../shared/lib/platform';
 
 type Kind = 'copy' | 'paste';
 

@@ -2,10 +2,10 @@
 import { computed, onMounted, shallowRef, type Component } from 'vue';
 import { Bot, Brain, Cpu, ExternalLink, Gem, KeyRound, Sparkles, Waypoints, Zap } from 'lucide-vue-next';
 import { VButton, VInputText, VMessage } from '@ui/kit';
-import { useI18n } from '../i18n';
+import { useI18n } from '../shared/lib/i18n/i18n';
 import { isDesktop } from '../bridge';
-import { describeError, openUrl } from './api';
-import { useAiAccounts, type AiKind, type AiStatus, type AiView } from './ai';
+import { describeError, openUrl } from '../shared/api/connectors/api';
+import { useAiAccounts, type AiKind, type AiStatus, type AiView } from '../shared/api/connectors/ai';
 
 const { t, formatDate } = useI18n();
 const { accounts, pending, problems, refresh, recheck, login, logout, cancel, saveKey, removeKey } = useAiAccounts();

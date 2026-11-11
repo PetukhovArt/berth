@@ -1,5 +1,5 @@
 import { shallowRef } from 'vue';
-import { worktreeChanges } from '../files/api';
+import { worktreeChanges } from '../shared/api/fs';
 
 const TTL_MS = 5_000;
 const requests = new Map<string, number>();

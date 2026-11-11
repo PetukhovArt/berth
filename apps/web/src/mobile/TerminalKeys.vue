@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CornerDownLeft } from 'lucide-vue-next';
 import { sendInput, type SessionRef } from '../agents/berth';
-import { useI18n } from '../i18n';
+import { useI18n } from '../shared/lib/i18n/i18n';
 import { ctrlArmed } from './keys';
 
 const props = defineProps<{ session: SessionRef }>();

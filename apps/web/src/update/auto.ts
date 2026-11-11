@@ -1,5 +1,5 @@
 import { invoke, isDesktop } from '../bridge';
-import { useSettings } from '../settings/store';
+import { useSettings } from '../shared/config/settings/store';
 import { info, quietBuild, refresh } from './state';
 
 const FIRST_CHECK_MS = 60_000;

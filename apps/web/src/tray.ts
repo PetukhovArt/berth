@@ -4,9 +4,9 @@ import { useExternalSessions } from './agents/external';
 import { useBerth } from './agents/berth';
 import { invoke, isDesktop } from './bridge';
 import { openCleanup } from './cleanup/state';
-import { runAction } from './commands/registry';
+import { runAction } from './shared/lib/commands/registry';
 import { openUpdate } from './update/state';
-import { useDock } from './workbench/dock';
+import { useDock } from './shared/model/dock';
 
 const NEW_SESSION_EVENT = 'tray://new-session';
 const UPDATE_EVENT = 'tray://update';

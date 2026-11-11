@@ -1,4 +1,4 @@
-import { t } from '../../i18n';
+import { t } from '../../shared/lib/i18n/i18n';
 import { call, BerthCallError, type BerthReply } from '../berth';
 
 export type MetricsSnapshot = Extract<BerthReply, { Metrics: unknown }>['Metrics']['snapshot'];

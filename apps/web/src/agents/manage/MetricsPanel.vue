@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, shallowRef } from 'vue';
-import { useI18n } from '../../i18n';
+import { useI18n } from '../../shared/lib/i18n/i18n';
 import { describeError, sessionId, sessionKey, useBerth } from '../berth';
 import { getMetrics, type MetricsSnapshot, type SessionMetrics } from './metrics';
 

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import Avatar from '../Avatar.vue';
-import type { Person } from '../connectors/api';
-import { avatarSrc } from './util';
+import Avatar from '../shared/ui/Avatar.vue';
+import type { Person } from '../shared/api/connectors/api';
+import { avatarSrc } from '../shared/lib/atlassian';
 
 const props = defineProps<{ connector: string; person: Person; small?: boolean }>();
 const picture = ref<string | null>(null);

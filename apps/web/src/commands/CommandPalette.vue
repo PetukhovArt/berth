@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, shallowRef, useTemplateRef } from 'vue';
-import { useI18n } from '../i18n';
-import BackBar from '../mobile/BackBar.vue';
-import { paletteOpen, readContext } from './context';
-import { fuzzyScore } from './fuzzy';
-import { shortcutLabel } from './keymap';
-import { usePickerList } from './usePickerList';
-import { isAvailable, listActions, recentActionIds, runAction, type Action } from './registry';
+import { useI18n } from '../shared/lib/i18n/i18n';
+import BackBar from '../shared/ui/BackBar.vue';
+import { paletteOpen, readContext } from '../shared/lib/commands/context';
+import { fuzzyScore } from '../shared/lib/fuzzy';
+import { shortcutLabel } from '../shared/lib/commands/keymap';
+import { usePickerList } from '../shared/lib/usePickerList';
+import { isAvailable, listActions, recentActionIds, runAction, type Action } from '../shared/lib/commands/registry';
 
 const { t } = useI18n();
 const input = useTemplateRef<HTMLInputElement>('input');

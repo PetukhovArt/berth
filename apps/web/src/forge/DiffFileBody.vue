@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { DiffFile, Discussion } from '../connectors/api';
-import { escapeHtml, highlightLines } from '../content/highlight';
-import { t } from '../i18n';
+import type { DiffFile, Discussion } from '../shared/api/connectors/api';
+import { escapeHtml, highlightLines } from '../shared/lib/content/highlight';
+import { t } from '../shared/lib/i18n/i18n';
 import { parsePatch, sideTexts, splitRows, type PatchLine, type SplitRow } from './patch';
 import ThreadView from './ThreadView.vue';
 

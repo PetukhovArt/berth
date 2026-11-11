@@ -2,8 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch, type ShallowRef } from 'vue';
 import { ChevronDown, ChevronRight, ChevronUp, Columns2, Folder, FolderOpen, ListTree, Rows2, Search, WrapText, X } from 'lucide-vue-next';
 import { useIsPhone, VInputText } from '@ui/kit';
-import type { DiffFile, Discussion } from '../connectors/api';
-import { t } from '../i18n';
+import type { DiffFile, Discussion } from '../shared/api/connectors/api';
+import { t } from '../shared/lib/i18n/i18n';
 import DiffFileBody from './DiffFileBody.vue';
 import { isMarkdownPath, type PreviewSource } from './fileBase';
 import MarkdownPreview from './MarkdownPreview.vue';

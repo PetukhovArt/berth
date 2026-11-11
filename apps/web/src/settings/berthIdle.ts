@@ -1,7 +1,7 @@
 import { watch } from 'vue';
 import { hasBackend, invoke } from '../bridge';
-import { SETTINGS, type SettingKey } from './schema';
-import { useSettings } from './store';
+import { SETTINGS, type SettingKey } from '../shared/config/settings/schema';
+import { useSettings } from '../shared/config/settings/store';
 
 const IDLE_CHOICES = new Set<unknown>(SETTINGS['sessions.unloadIdleAfter'].options.map((option) => option.value));
 

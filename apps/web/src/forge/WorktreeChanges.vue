@@ -3,9 +3,9 @@ import { shallowRef, watch } from 'vue';
 import { RefreshCw } from 'lucide-vue-next';
 import { VButton } from '@ui/kit';
 import type { SessionStatus } from '../agents/berth';
-import { describeError, type DiffFile, type Discussion } from '../connectors/api';
-import { worktreeChanges } from '../files/api';
-import { t } from '../i18n';
+import { describeError, type DiffFile, type Discussion } from '../shared/api/connectors/api';
+import { worktreeChanges } from '../shared/api/fs';
+import { t } from '../shared/lib/i18n/i18n';
 import DiffView from './DiffView.vue';
 
 const props = defineProps<{ path: string; status?: SessionStatus }>();

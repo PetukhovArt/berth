@@ -1,0 +1,21 @@
+import { agents } from './en/agents';
+import { atlassian } from './en/atlassian';
+import { cleanup } from '../../../i18n/en/cleanup';
+import { commands } from './en/commands';
+import { common } from './en/common';
+import { confluence } from './en/confluence';
+import { connectors } from './en/connectors';
+import { content } from './en/content';
+import { files } from './en/files';
+import { forge } from './en/forge';
+import { hot } from './en/hot';
+import { jira } from './en/jira';
+import { reviews } from './en/reviews';
+import { settings } from './en/settings';
+import { shell } from './en/shell';
+import { mobile } from './en/mobile';
+import { workbench } from './en/workbench';
+import { remote } from './en/remote';
+import { update } from './en/update';
+
+export const en = { common, shell, settings, commands, agents, connectors, atlassian, jira, confluence, reviews, forge, content, files, remote, mobile, workbench, hot, update, cleanup } as const;

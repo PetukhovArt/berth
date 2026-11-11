@@ -1,5 +1,5 @@
 import { computed } from 'vue';
-import { useSettings } from '../settings/store';
+import { useSettings } from '../shared/config/settings/store';
 
 const { values, set, reset } = useSettings();
 

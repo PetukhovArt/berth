@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { VButton, VDialog } from '@ui/kit';
-import { t, useI18n } from '../i18n';
+import { t, useI18n } from '../shared/lib/i18n/i18n';
 import { changes, closeChanges, type ChangeKind } from './state';
 
 const KINDS: ChangeKind[] = ['feat', 'perf', 'fix'];

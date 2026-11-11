@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue';
-import { listWorktreeMarkdown, type MarkdownEntry } from '../agents/proto/markdownFiles';
+import { listWorktreeMarkdown, type MarkdownEntry } from '../shared/lib/markdownFiles';
 import QuickSwitcher from '../agents/proto/QuickSwitcher.vue';
 import { isDesktop } from '../bridge';
 import { openCleanup } from '../cleanup/state';
-import { t } from '../i18n';
-import { useDock } from './dock';
+import { t } from '../shared/lib/i18n/i18n';
+import { useDock } from '../shared/model/dock';
 import { quickItems, type WorkNode } from './tree';
 import { useWorkTree } from './useWorkTree';
 

@@ -3,7 +3,7 @@ import { onBeforeUnmount, onMounted, useTemplateRef } from 'vue';
 import { MergeView } from '@codemirror/merge';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { t } from '../i18n';
+import { t } from '../shared/lib/i18n/i18n';
 import { baseExtensions } from './editor';
 
 const props = defineProps<{ disk: string; mine: string }>();

@@ -2,15 +2,15 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 import { Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, TriangleAlert, Wrench } from 'lucide-vue-next';
 import { VButton, VMessage } from '@ui/kit';
-import { copyText } from '../atlassian/util';
-import RichContent from '../content/RichContent.vue';
+import { copyText } from '../shared/lib/atlassian';
+import RichContent from '../shared/ui/rich-content/RichContent.vue';
 import { continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, readTranscript, resumeCommand, useExternalSessions, type Harness, type TranscriptMessage } from '../agents/external';
 import HarnessIcon from '../agents/HarnessIcon.vue';
 import { describeError, useBerth } from '../agents/berth';
 import StatusDot from '../agents/StatusDot.vue';
 import { useAction } from '../agents/useAction';
-import { useI18n } from '../i18n';
-import { useDock } from './dock';
+import { useI18n } from '../shared/lib/i18n/i18n';
+import { useDock } from '../shared/model/dock';
 
 const TAIL = 200;
 const PIN_PX = 48;

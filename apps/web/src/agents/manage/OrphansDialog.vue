@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { shallowRef, watch } from 'vue';
 import { VButton, VDialog, VMessage, VSelect } from '@ui/kit';
-import { useI18n } from '../../i18n';
+import { useI18n } from '../../shared/lib/i18n/i18n';
 import { describeError, useBerth } from '../berth';
 import { useAction } from '../useAction';
 import { listOrphans, resumeOrphan, type OrphanedSession } from './orphans';

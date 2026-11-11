@@ -2,7 +2,7 @@
 import { computed, shallowRef, watch } from 'vue';
 import { RefreshCw } from 'lucide-vue-next';
 import { VButton, VDialog, VMessage } from '@ui/kit';
-import { useI18n } from '../i18n';
+import { useI18n } from '../shared/lib/i18n/i18n';
 import { candidates, cleanupDiff, cleanupOpen, measureSizes, removeCandidates, scanError, scanned, scanNow, scanning, sizes, type Candidate, type RemoveResult } from './state';
 
 const { t, formatRelative, formatBytes, formatNumber } = useI18n();

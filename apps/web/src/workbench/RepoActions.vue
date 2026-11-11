@@ -6,7 +6,7 @@ import ProjectActions from '../agents/manage/ProjectActions.vue';
 import { addProject } from '../agents/manage/workspaces';
 import { useBerth } from '../agents/berth';
 import { useAction } from '../agents/useAction';
-import { t } from '../i18n';
+import { t } from '../shared/lib/i18n/i18n';
 import { findClones, type Clone, type RepoRef } from './clones';
 
 const props = defineProps<{ repo: RepoRef }>();

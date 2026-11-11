@@ -1,4 +1,4 @@
-@import './motion/motion.css';
+@import './shared/ui/motion/motion.css';
 
 html,
 #app {

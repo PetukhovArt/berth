@@ -1,5 +1,5 @@
-import type { ChangeRequestSummary, PipelineStatus } from '../connectors/api';
-import { t, useI18n } from '../i18n';
+import type { ChangeRequestSummary, PipelineStatus } from '../shared/api/connectors/api';
+import { t, useI18n } from '../shared/lib/i18n/i18n';
 
 const PIPELINE_KEY = {
   success: 'forge.pipeline.success',

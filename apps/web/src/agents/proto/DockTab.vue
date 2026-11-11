@@ -2,13 +2,13 @@
 import type { DockviewPanelApi } from 'dockview-vue';
 import { FileText, GitPullRequest, Network, Ticket, X } from 'lucide-vue-next';
 import { isDirtyPath, settleDirty } from '../../files/documents';
-import { t } from '../../i18n';
-import { METRICS_PANEL } from '../../workbench/dock';
+import { t } from '../../shared/lib/i18n/i18n';
+import { METRICS_PANEL } from '../../shared/model/dock';
 import { useBerth } from '../berth';
 import { externalDot, isExternalPanel, sessionDot, useExternalSessions, type Harness } from '../external';
 import HarnessIcon from '../HarnessIcon.vue';
 import StatusDot from '../StatusDot.vue';
-import { FILE_PANEL_PREFIX, isFilePanel } from './markdownFiles';
+import { FILE_PANEL_PREFIX, isFilePanel } from '../../shared/lib/markdownFiles';
 import SessionViewSwitch from './SessionViewSwitch.vue';
 
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();

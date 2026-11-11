@@ -3,7 +3,7 @@ import { computed, nextTick, useTemplateRef, watch } from 'vue';
 import { ChevronRight, SquareTerminal } from 'lucide-vue-next';
 import HarnessIcon from '../agents/HarnessIcon.vue';
 import StatusDot from '../agents/StatusDot.vue';
-import { t } from '../i18n';
+import { t } from '../shared/lib/i18n/i18n';
 import { hotDotOf, useHot } from './hot';
 import { chooseSwitcher, switcher } from './hotkeys';
 

@@ -1,7 +1,7 @@
 import { computed, shallowRef, watch } from 'vue';
 import { archiveAgent, acknowledged, closeTerminal, describeError, useBerth, type Entities } from '../agents/berth';
 import { invoke, isDesktop } from '../bridge';
-import { useSettings } from '../settings/store';
+import { useSettings } from '../shared/config/settings/store';
 
 type Category = 'safe' | 'review' | 'changes' | 'keep';
 type Reason = 'request_merged' | 'request_closed' | 'merged' | 'branch_gone' | 'stale' | 'missing' | 'active';

@@ -1,5 +1,5 @@
 import { computed, ref, watch } from 'vue';
-import type { MessageKey } from '../i18n';
+import type { MessageKey } from '../shared/lib/i18n/i18n';
 import { info, type Job } from './state';
 
 const STAGES =['start', 'export', 'deps', 'tokens', 'app', 'daemon', 'install'] as const;

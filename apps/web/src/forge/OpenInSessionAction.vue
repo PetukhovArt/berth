@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { LoaderCircle, SquareTerminal } from 'lucide-vue-next';
 import { VButton } from '@ui/kit';
 import { useBerth } from '../agents/berth';
-import { t } from '../i18n';
+import { t } from '../shared/lib/i18n/i18n';
 import { itemId } from './inbox';
 import { useOpenInSession, type MrItem } from './openInSession';
 

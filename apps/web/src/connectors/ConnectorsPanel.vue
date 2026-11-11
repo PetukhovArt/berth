@@ -2,11 +2,11 @@
 import { computed, onMounted, reactive, ref, shallowRef, type Component } from 'vue';
 import { BookOpen, ExternalLink, Github, Gitlab, Plug, Plus, RefreshCw, Ticket } from 'lucide-vue-next';
 import { VButton, VInputText, VMessage, VSelect } from '@ui/kit';
-import { t } from '../i18n';
+import { t } from '../shared/lib/i18n/i18n';
 import AiAccounts from './AiAccounts.vue';
-import PersonAvatar from './PersonAvatar.vue';
-import { useAiAccounts } from './ai';
-import { describeError, openUrl, useConnectors, type ConnectorKind, type ConnectorStatus, type ConnectorView, type Detected } from './api';
+import PersonAvatar from '../shared/ui/PersonAvatar.vue';
+import { useAiAccounts } from '../shared/api/connectors/ai';
+import { describeError, openUrl, useConnectors, type ConnectorKind, type ConnectorStatus, type ConnectorView, type Detected } from '../shared/api/connectors/api';
 
 const { connectors, detected, loading, checking, error, check, add, update, remove, refresh } = useConnectors();
 const ai = useAiAccounts();

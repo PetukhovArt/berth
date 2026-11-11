@@ -2,12 +2,12 @@ import { computed, shallowRef, watch } from 'vue';
 import { useExternalSessions } from '../agents/external';
 import { useBerth } from '../agents/berth';
 import { useMyIssues } from '../atlassian/myIssues';
-import { useConnectors, type ChangeRequestRef, type InboxItem } from '../connectors/api';
+import { useConnectors, type ChangeRequestRef, type InboxItem } from '../shared/api/connectors/api';
 import { itemId, useForgeInbox } from '../forge/inbox';
-import { useSettings } from '../settings/store';
+import { useSettings } from '../shared/config/settings/store';
 import { lookupRemotes, remotes } from './remotes';
 import { fetchMissing, fetchedRows, parseMrUrl, reviewEntries, syncReviewRepos } from './reviewQueue';
-import { t } from '../i18n';
+import { t } from '../shared/lib/i18n/i18n';
 import { buildTree, tabCounts, type ReviewMeta, type ReviewNoteView, type ReviewSource, type ReviewState, type Sources, type TreeTab } from './tree';
 
 const TAB_KEY = 'berth.tree.tab';

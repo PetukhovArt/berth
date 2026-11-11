@@ -9,7 +9,7 @@ import {
   type InboxItem,
   type ReviewQueueNote,
   type ReviewQueueRow,
-} from '../connectors/api';
+} from '../shared/api/connectors/api';
 import { connectorBase } from './remotes';
 
 const REFRESH_MS = 5 * 60_000;

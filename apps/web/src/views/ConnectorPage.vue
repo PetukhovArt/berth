@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef, watch, type Component } from 'vue';
 import { VButton, VSelect } from '@ui/kit';
-import { useConnectors, type ConnectorKind } from '../connectors/api';
-import { t } from '../i18n';
-import BackBar from '../mobile/BackBar.vue';
-import { navigate, openSettings, view } from '../nav';
-import SidePane from '../SidePane.vue';
+import { useConnectors, type ConnectorKind } from '../shared/api/connectors/api';
+import { t } from '../shared/lib/i18n/i18n';
+import BackBar from '../shared/ui/BackBar.vue';
+import { navigate, openSettings, view } from '../shared/model/nav';
+import SidePane from '../shared/ui/SidePane.vue';
 
 const props = defineProps<{
   kinds: readonly ConnectorKind[];

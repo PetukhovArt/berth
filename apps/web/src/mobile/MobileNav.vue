@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { Command, LayoutPanelLeft, Settings } from 'lucide-vue-next';
-import { paletteOpen } from '../commands/context';
-import { useI18n } from '../i18n';
-import { navigate, view, type View } from '../nav';
-import { useDock } from '../workbench/dock';
+import { paletteOpen } from '../shared/lib/commands/context';
+import { useI18n } from '../shared/lib/i18n/i18n';
+import { navigate, view, type View } from '../shared/model/nav';
+import { useDock } from '../shared/model/dock';
 
 const { t } = useI18n();
 const { detail } = useDock();

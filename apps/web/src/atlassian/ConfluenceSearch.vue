@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { VInputText } from '@ui/kit';
-import { confluenceSearch, describeError, reloadWhenRecovered, type ConfluenceHit } from '../connectors/api';
-import { t, useI18n } from '../i18n';
-import ErrorInline from './ErrorInline.vue';
-import Skeleton from './Skeleton.vue';
-import { highlightHtml, recentPages, rememberPage, type RecentPage } from './util';
+import { confluenceSearch, describeError, reloadWhenRecovered, type ConfluenceHit } from '../shared/api/connectors/api';
+import { t, useI18n } from '../shared/lib/i18n/i18n';
+import ErrorInline from '../shared/ui/ErrorInline.vue';
+import Skeleton from '../shared/ui/Skeleton.vue';
+import { highlightHtml, recentPages, rememberPage, type RecentPage } from '../shared/lib/atlassian';
 
 const props = defineProps<{ connector: string }>();
 const emit = defineEmits<{ open: [payload: { connector: string; id: string }] }>();

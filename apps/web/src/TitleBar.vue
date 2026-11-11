@@ -3,8 +3,8 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Copy, Minus, Square, X } from 'lucide-vue-next';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { settleAll } from './files/documents';
-import { useI18n } from './i18n';
-import { hostPlatform } from './platform';
+import { useI18n } from './shared/lib/i18n/i18n';
+import { hostPlatform } from './shared/lib/platform';
 import UpdateChip from './update/UpdateChip.vue';
 
 const { t } = useI18n();

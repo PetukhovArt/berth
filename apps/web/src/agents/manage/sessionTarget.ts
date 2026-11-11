@@ -1,7 +1,7 @@
 import { computed, shallowRef, watch, type ComputedRef, type ShallowRef } from 'vue';
-import { t } from '../../i18n';
-import { mrFetchSource } from '../../connectors/api';
-import { useSettings } from '../../settings/store';
+import { t } from '../../shared/lib/i18n/i18n';
+import { mrFetchSource } from '../../shared/api/connectors/api';
+import { useSettings } from '../../shared/config/settings/store';
 import { acknowledged, call, describeError, BerthCallError, useBerth, worktreesOfProject, type Branch, type Worktree } from '../berth';
 
 export type BranchMode = 'current' | 'existing' | 'new';

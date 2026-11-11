@@ -2,10 +2,10 @@
 import { computed, shallowRef, watch } from 'vue';
 import { RotateCcw } from 'lucide-vue-next';
 import { VInputText, VSelect, VToggleSwitch } from '@ui/kit';
-import { useI18n } from '../i18n';
-import LanguageSwitch from '../i18n/LanguageSwitch.vue';
-import { SETTINGS, type SettingKey } from './schema';
-import { useSettings } from './store';
+import { useI18n } from '../shared/lib/i18n/i18n';
+import LanguageSwitch from '../shared/ui/LanguageSwitch.vue';
+import { SETTINGS, type SettingKey } from '../shared/config/settings/schema';
+import { useSettings } from '../shared/config/settings/store';
 
 const props = defineProps<{ settingKey: SettingKey }>();
 

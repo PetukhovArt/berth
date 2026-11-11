@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { VButton } from '@ui/kit';
-import RichContent from '../content/RichContent.vue';
-import { t, useI18n } from '../i18n';
-import { describeError, jiraIssue, openUrl, reloadWhenRecovered, type JiraIssue } from '../connectors/api';
-import ErrorInline from './ErrorInline.vue';
+import RichContent from '../shared/ui/rich-content/RichContent.vue';
+import { t, useI18n } from '../shared/lib/i18n/i18n';
+import { describeError, jiraIssue, openUrl, reloadWhenRecovered, type JiraIssue } from '../shared/api/connectors/api';
+import ErrorInline from '../shared/ui/ErrorInline.vue';
 import PersonAvatar from './PersonAvatar.vue';
 import PriorityMark from './PriorityMark.vue';
-import Skeleton from './Skeleton.vue';
+import Skeleton from '../shared/ui/Skeleton.vue';
 import StatusChip from './StatusChip.vue';
 import TypeIcon from './TypeIcon.vue';
-import { copyText } from './util';
+import { copyText } from '../shared/lib/atlassian';
 
 const { formatRelative, formatDate } = useI18n();
 

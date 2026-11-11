@@ -1,9 +1,9 @@
 import { shallowRef } from 'vue';
 import { Text } from '@codemirror/state';
 import type { EditorView, ViewUpdate } from '@codemirror/view';
-import { describeError } from '../connectors/api';
-import { useSettings } from '../settings/store';
-import { CHANGED_ON_DISK, fsReadDoc, fsWatch, fsWriteText, type FileDoc } from './api';
+import { describeError } from '../shared/api/connectors/api';
+import { useSettings } from '../shared/config/settings/store';
+import { CHANGED_ON_DISK, fsReadDoc, fsWatch, fsWriteText, type FileDoc } from '../shared/api/fs';
 import { registerDoc, setDirtyPath, stashDraft, takeDraft } from './documents';
 import { replaceDoc } from './editor';
 

@@ -2,8 +2,8 @@
 import { computed, onBeforeUnmount, shallowRef } from 'vue';
 import { ExternalLink, FileJson, Search } from 'lucide-vue-next';
 import { VButton, VInputText, VMessage } from '@ui/kit';
-import { captureChords } from '../commands/dispatcher';
-import { sequenceLabel, type Chord } from '../commands/keys';
+import { captureChords } from '../shared/lib/commands/dispatcher';
+import { sequenceLabel, type Chord } from '../shared/lib/commands/keys';
 import {
   canOpenKeymapExternal,
   conflictsFor,
@@ -17,14 +17,14 @@ import {
   resetAction,
   saveKeymapText,
   shortcutsOf,
-} from '../commands/keymap';
-import { getAction, listActions } from '../commands/registry';
-import { fuzzyScore } from '../commands/fuzzy';
-import type { PlainKey } from './translate';
-import { useI18n } from '../i18n';
-import { withViewTransition } from '../motion';
-import { describeFailure } from './parse';
-import SettingsJsonEditor from './SettingsJsonEditor.vue';
+} from '../shared/lib/commands/keymap';
+import { getAction, listActions } from '../shared/lib/commands/registry';
+import { fuzzyScore } from '../shared/lib/fuzzy';
+import type { PlainKey } from '../shared/config/settings/translate';
+import { useI18n } from '../shared/lib/i18n/i18n';
+import { withViewTransition } from '../shared/ui/motion/motion';
+import { describeFailure } from '../shared/config/settings/parse';
+import SettingsJsonEditor from '../shared/ui/SettingsJsonEditor.vue';
 
 const RECORD_IDLE_MS = 700;
 

@@ -3,9 +3,9 @@ import { computed } from 'vue';
 import { BookOpen } from 'lucide-vue-next';
 import ConfluencePageView from '../atlassian/ConfluencePageView.vue';
 import ConfluenceSearch from '../atlassian/ConfluenceSearch.vue';
-import { t } from '../i18n';
-import { withViewTransition } from '../motion';
-import { view } from '../nav';
+import { t } from '../shared/lib/i18n/i18n';
+import { withViewTransition } from '../shared/ui/motion/motion';
+import { view } from '../shared/model/nav';
 import ConnectorPage from './ConnectorPage.vue';
 
 const KINDS = ['confluence'] as const;

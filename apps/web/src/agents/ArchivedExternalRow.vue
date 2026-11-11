@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArchiveRestore } from 'lucide-vue-next';
-import { t } from '../i18n';
-import { primaryPressed } from '../platform';
+import { t } from '../shared/lib/i18n/i18n';
+import { primaryPressed } from '../shared/lib/platform';
 import { unarchiveExternal, type ExternalSession } from './external';
 import HarnessIcon from './HarnessIcon.vue';
 import { useAction } from './useAction';

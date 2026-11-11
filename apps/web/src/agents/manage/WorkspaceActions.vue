@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import { VButton, VInputText } from '@ui/kit';
-import { t } from '../../i18n';
+import { t } from '../../shared/lib/i18n/i18n';
 import { useBerth } from '../berth';
-import ActionMenu from './ActionMenu.vue';
+import ActionMenu from '../../shared/ui/ActionMenu.vue';
 import { useAction } from '../useAction';
 import { addWorkspace, removeWorkspace, renameWorkspace } from './workspaces';
 

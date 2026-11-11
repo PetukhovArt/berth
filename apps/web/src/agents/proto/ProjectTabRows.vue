@@ -2,12 +2,12 @@
 import { computed, onBeforeUnmount, shallowRef, watch } from 'vue';
 import type { DockviewApi, IDockviewPanel } from 'dockview-vue';
 import { Plus } from 'lucide-vue-next';
-import { t } from '../../i18n';
-import { useDock } from '../../workbench/dock';
+import { t } from '../../shared/lib/i18n/i18n';
+import { useDock } from '../../shared/model/dock';
 import { useBerth, worktreesOfProject } from '../berth';
 import { placeExternal, useExternalSessions } from '../external';
 import DockTab from './DockTab.vue';
-import { FILE_PANEL_PREFIX, isFilePanel } from './markdownFiles';
+import { FILE_PANEL_PREFIX, isFilePanel } from '../../shared/lib/markdownFiles';
 
 const props = defineProps<{ api: DockviewApi | null }>();
 

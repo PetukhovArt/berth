@@ -3,9 +3,9 @@ import { computed } from 'vue';
 import { Ticket } from 'lucide-vue-next';
 import JiraIssues from '../atlassian/JiraIssues.vue';
 import JiraIssueView from '../atlassian/JiraIssueView.vue';
-import { t } from '../i18n';
-import { withViewTransition } from '../motion';
-import { view } from '../nav';
+import { t } from '../shared/lib/i18n/i18n';
+import { withViewTransition } from '../shared/ui/motion/motion';
+import { view } from '../shared/model/nav';
 import ConnectorPage from './ConnectorPage.vue';
 
 const KINDS = ['jira'] as const;

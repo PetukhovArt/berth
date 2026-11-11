@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { t } from '../i18n';
+import { t } from '../shared/lib/i18n/i18n';
 import type { Harness } from './external';
 
 withDefaults(defineProps<{ harness: Harness; size?: number; working?: boolean }>(), { size: 12, working: false });

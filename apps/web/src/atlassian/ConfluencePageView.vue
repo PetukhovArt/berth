@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue';
 import { VButton } from '@ui/kit';
-import RichContent from '../content/RichContent.vue';
-import { t } from '../i18n';
-import { confluencePage, describeError, openUrl, reloadWhenRecovered, type ConfluencePage } from '../connectors/api';
-import ErrorInline from './ErrorInline.vue';
-import Skeleton from './Skeleton.vue';
-import { rememberPage } from './util';
+import RichContent from '../shared/ui/rich-content/RichContent.vue';
+import { t } from '../shared/lib/i18n/i18n';
+import { confluencePage, describeError, openUrl, reloadWhenRecovered, type ConfluencePage } from '../shared/api/connectors/api';
+import ErrorInline from '../shared/ui/ErrorInline.vue';
+import Skeleton from '../shared/ui/Skeleton.vue';
+import { rememberPage } from '../shared/lib/atlassian';
 
 type Heading = { index: number; text: string; level: number };
 

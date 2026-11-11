@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Ban, CircleCheck, CircleDashed, CircleX, Clock, LoaderCircle } from 'lucide-vue-next';
-import type { PipelineStatus } from '../connectors/api';
+import type { PipelineStatus } from '../shared/api/connectors/api';
 
 withDefaults(defineProps<{ status: PipelineStatus; size?: number }>(), { size: 14 });
 </script>

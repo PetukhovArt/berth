@@ -2,8 +2,8 @@
 import { computed } from 'vue';
 import { Network } from 'lucide-vue-next';
 import { VButton } from '@ui/kit';
-import { t } from '../i18n';
-import { useDock } from '../workbench/dock';
+import { t } from '../shared/lib/i18n/i18n';
+import { useDock } from '../shared/model/dock';
 import { numberLabel } from './format';
 import { useArchitecture } from './stratum';
 

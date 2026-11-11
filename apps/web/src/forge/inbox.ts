@@ -1,5 +1,5 @@
 import { shallowRef, type ShallowRef } from 'vue';
-import { describeError, forgeInbox, onConnectorRecovered, type ChangeRequestRef, type InboxError, type InboxItem, type PipelineStatus } from '../connectors/api';
+import { describeError, forgeInbox, onConnectorRecovered, type ChangeRequestRef, type InboxError, type InboxItem, type PipelineStatus } from '../shared/api/connectors/api';
 
 const REFRESH_MS = 2 * 60_000;
 const TICK_MS = 30_000;

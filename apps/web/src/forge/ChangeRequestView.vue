@@ -16,10 +16,10 @@ import {
   type DiffFile,
   type Discussion,
   type Pipeline,
-} from '../connectors/api';
-import PersonAvatar from '../connectors/PersonAvatar.vue';
-import RichContent from '../content/RichContent.vue';
-import { t } from '../i18n';
+} from '../shared/api/connectors/api';
+import PersonAvatar from '../shared/ui/PersonAvatar.vue';
+import RichContent from '../shared/ui/rich-content/RichContent.vue';
+import { t } from '../shared/lib/i18n/i18n';
 import ArchitectureAction from './ArchitectureAction.vue';
 import MrSessionNotice from './MrSessionNotice.vue';
 import OpenInSessionAction from './OpenInSessionAction.vue';

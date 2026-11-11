@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { VButton, VDialog } from '@ui/kit';
-import { t } from '../i18n';
+import { t } from '../shared/lib/i18n/i18n';
 import { busy, cancelBuild, closeUpdate, daemonUpdated, dialogMode, failure, info, restart, rollBack, short, startBuild, updateDaemon } from './state';
 import { clock, now, rows, STAGE_LABELS, totals } from './stages';
 

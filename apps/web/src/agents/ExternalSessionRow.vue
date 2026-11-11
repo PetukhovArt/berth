@@ -2,9 +2,9 @@
 import { computed, useTemplateRef } from 'vue';
 import { SquareTerminal } from 'lucide-vue-next';
 import { VContextMenu } from '@ui/kit';
-import { copyText } from '../atlassian/util';
-import { useI18n } from '../i18n';
-import { primaryPressed } from '../platform';
+import { copyText } from '../shared/lib/atlassian';
+import { useI18n } from '../shared/lib/i18n/i18n';
+import { primaryPressed } from '../shared/lib/platform';
 import { archiveExternal, externalDot, externalOrigin, externalStatusLabel, resumeCommand, type ExternalSession } from './external';
 import HarnessIcon from './HarnessIcon.vue';
 import StatusDot from './StatusDot.vue';

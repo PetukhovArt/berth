@@ -2,11 +2,11 @@
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import { VPopover } from '@ui/kit';
 import { FileText } from 'lucide-vue-next';
-import { describeError } from '../../connectors/api';
-import { subsequenceScore } from '../../commands/fuzzy';
-import { usePickerList } from '../../commands/usePickerList';
-import { t } from '../../i18n';
-import { listWorktreeMarkdown, type MarkdownEntry } from './markdownFiles';
+import { describeError } from '../../shared/api/connectors/api';
+import { subsequenceScore } from '../../shared/lib/fuzzy';
+import { usePickerList } from '../../shared/lib/usePickerList';
+import { t } from '../../shared/lib/i18n/i18n';
+import { listWorktreeMarkdown, type MarkdownEntry } from '../../shared/lib/markdownFiles';
 
 const props = defineProps<{ root: string }>();
 const emit = defineEmits<{ open: [path: string] }>();

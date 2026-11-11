@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { RotateCw } from 'lucide-vue-next';
-import { t } from '../i18n';
+import { t } from '../shared/lib/i18n/i18n';
 import { busy, info, openUpdate, restart } from './state';
 import { totals } from './stages';
 

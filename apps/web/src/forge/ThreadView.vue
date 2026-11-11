@@ -2,11 +2,11 @@
 import { computed, shallowRef } from 'vue';
 import { Check, CheckCircle2, ChevronRight, Link, MessageSquare } from 'lucide-vue-next';
 import { VButton } from '@ui/kit';
-import { describeError, forgeReply, forgeResolve, type ChangeRequestRef, type Discussion } from '../connectors/api';
-import { copyText } from '../atlassian/util';
-import PersonAvatar from '../connectors/PersonAvatar.vue';
-import RichContent from '../content/RichContent.vue';
-import { t } from '../i18n';
+import { describeError, forgeReply, forgeResolve, type ChangeRequestRef, type Discussion } from '../shared/api/connectors/api';
+import { copyText } from '../shared/lib/atlassian';
+import PersonAvatar from '../shared/ui/PersonAvatar.vue';
+import RichContent from '../shared/ui/rich-content/RichContent.vue';
+import { t } from '../shared/lib/i18n/i18n';
 import CommentComposer from './CommentComposer.vue';
 import { fullDate, relativeTime } from './format';
 

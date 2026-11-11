@@ -3,9 +3,9 @@ import { onBeforeUnmount, onMounted, shallowRef } from 'vue';
 import { Copy, Download, Network, RefreshCw, ShieldAlert, Smartphone } from 'lucide-vue-next';
 import { VButton, VMessage } from '@ui/kit';
 import { invoke, isDesktop, openUrl } from '../bridge';
-import { describeError } from '../connectors/api';
-import { useI18n } from '../i18n';
-import { useSettings } from './store';
+import { describeError } from '../shared/api/connectors/api';
+import { useI18n } from '../shared/lib/i18n/i18n';
+import { useSettings } from '../shared/config/settings/store';
 
 type Problem = { kind: 'tailscale_missing' } | { kind: 'bind_failed'; message: string } | { kind: 'token_store'; message: string };
 type ClientInfo = { id: number; address: string; agent: string; connected_at: number };

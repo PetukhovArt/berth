@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplate
 import { SquareTerminal, X } from 'lucide-vue-next';
 import HarnessIcon from '../agents/HarnessIcon.vue';
 import StatusDot from '../agents/StatusDot.vue';
-import { t, useI18n } from '../i18n';
+import { t, useI18n } from '../shared/lib/i18n/i18n';
 import { useHot, type HotItem } from './hot';
 import { hotDot, hotOverviewOpen } from './view';
 

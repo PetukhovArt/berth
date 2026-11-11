@@ -1,8 +1,8 @@
 import { shallowRef } from 'vue';
-import type { ChangeRequestRef } from '../../connectors/api';
+import type { ChangeRequestRef } from '../../shared/api/connectors/api';
 import { hasChanges } from '../../forge/worktreeChanged';
 import { knownMr } from '../../forge/worktreeMr';
-import { useDock } from '../../workbench/dock';
+import { useDock } from '../../shared/model/dock';
 import { useBerth } from '../berth';
 import { useExternalSessions } from '../external';
 

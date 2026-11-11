@@ -1,4 +1,4 @@
-import { fsListDirs } from '../files/api';
+import { fsListDirs } from '../shared/api/fs';
 import { inspectClone } from './remotes';
 
 export type RepoRef = { key: string; host: string; path: string };

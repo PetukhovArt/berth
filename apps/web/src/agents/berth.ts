@@ -1,6 +1,6 @@
 import { createChannel, hasBackend, invoke } from '../bridge';
 import { computed, shallowRef, type ComputedRef, type ShallowRef } from 'vue';
-import { t } from '../i18n';
+import { t } from '../shared/lib/i18n/i18n';
 
 export type AgentKind = 'claude' | 'codex' | 'cursor';
 type AgentStatus = 'fresh' | 'running' | 'finished' | 'needs_feedback' | 'terminated' | 'disconnected';

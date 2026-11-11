@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, useTemplateRef } from 'vue';
 import { VButton } from '@ui/kit';
-import { t } from '../i18n';
+import { t } from '../shared/lib/i18n/i18n';
 
 const props = defineProps<{ testid: string; busy: boolean; error: string | null; placeholder: string; label: string; cancellable?: boolean; autofocus?: boolean }>();
 const emit = defineEmits<{ send: []; cancel: [] }>();

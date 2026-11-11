@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue';
-import { describeError, forgeFile, reloadWhenRecovered } from '../connectors/api';
-import RichContent from '../content/RichContent.vue';
-import { fsReadText } from '../files/api';
-import { t } from '../i18n';
+import { describeError, forgeFile, reloadWhenRecovered } from '../shared/api/connectors/api';
+import RichContent from '../shared/ui/rich-content/RichContent.vue';
+import { fsReadText } from '../shared/api/fs';
+import { t } from '../shared/lib/i18n/i18n';
 import { fileBaseUrl, localFilePath, type PreviewSource } from './fileBase';
 
 const props = defineProps<{ source: PreviewSource; path: string }>();

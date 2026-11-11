@@ -3,13 +3,13 @@ import { pinnedFirst } from '../agents/manage/projectPins';
 import { externalDot, externalKey, placeExternal, splitEarlier, type ExternalSession } from '../agents/external';
 import { worktreesOfProject, type Entities, type SessionNode, type WorktreeNode } from '../agents/berth';
 import { rollupOf, type Rollup, type WorkspaceNode } from '../agents/proto/nav';
-import type { ConnectorView, InboxItem, JiraIssueSummary, PipelineStatus } from '../connectors/api';
+import type { ConnectorView, InboxItem, JiraIssueSummary, PipelineStatus } from '../shared/api/connectors/api';
 import { numberLabel } from '../forge/format';
 import { itemId, pipelineRollup } from '../forge/inbox';
-import { t } from '../i18n';
-import type { TreeNode } from '../tree/types';
+import { t } from '../shared/lib/i18n/i18n';
+import type { TreeNode } from '../shared/ui/explorer-tree/types';
 import type { RepoRef } from './clones';
-import { issuePanelId } from './dock';
+import { issuePanelId } from '../shared/model/dock';
 import { liveSources } from './liveOnly';
 import { connectorBase, type Remote } from './remotes';
 
