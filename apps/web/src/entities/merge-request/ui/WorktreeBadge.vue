@@ -4,7 +4,7 @@ import type { ChangeRequestRef, ChangeRequestSummary } from '../../../shared/api
 import { t } from '../../../shared/lib/i18n/i18n';
 import { numberLabel, pipelineLabel } from '../lib/format';
 import PipelineIcon from './PipelineIcon.vue';
-import { lookupMr } from '../model/worktreeMr';
+import { lookupMr, mrLookupFailed, MR_RETRY_MS } from '../model/worktreeMr';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ path: string; branch: string; summary?: ChangeRequestSummary }>();
@@ -15,11 +15,22 @@ const summary = computed(() => props.summary ?? looked.value);
 
 watch(
   () => [props.path, props.branch, props.summary] as const,
-  async ([path, branch, known]) => {
+  async ([path, branch, known], _, onCleanup) => {
     looked.value = null;
     if (known || !path || !branch) return;
-    const result = await lookupMr(path, branch);
-    if (path === props.path && branch === props.branch) looked.value = result;
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    onCleanup(() => {
+      alive = false;
+      clearTimeout(timer);
+    });
+    const run = async () => {
+      const result = await lookupMr(path, branch);
+      if (!alive) return;
+      looked.value = result;
+      if (mrLookupFailed(path, branch)) timer = setTimeout(() => void run(), MR_RETRY_MS);
+    };
+    await run();
   },
   { immediate: true },
 );
