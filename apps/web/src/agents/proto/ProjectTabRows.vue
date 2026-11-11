@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, shallowRef, watch } from 'vue';
 import type { DockviewApi, IDockviewPanel } from 'dockview-vue';
+import { Plus } from 'lucide-vue-next';
 import { t } from '../../i18n';
 import { useDock } from '../../workbench/dock';
-import { useBerth } from '../berth';
+import { useBerth, worktreesOfProject } from '../berth';
 import { placeExternal, useExternalSessions } from '../external';
 import DockTab from './DockTab.vue';
+import { FILE_PANEL_PREFIX, isFilePanel } from './markdownFiles';
 
 const props = defineProps<{ api: DockviewApi | null }>();
 
@@ -38,29 +40,47 @@ watch(
 
 onBeforeUnmount(release);
 
-function projectOf(panel: IDockviewPanel): string | null {
-  const path = dock.paths.value.get(panel.id);
-  if (path) return path.project.name;
+function projectIdOf(panel: IDockviewPanel): string | undefined {
   const entities = berth?.entities.value;
+  if (!entities) return undefined;
   const conversation = external?.anyByKey.value.get(panel.id);
-  if (conversation && entities) {
+  if (conversation) {
     const placement = placeExternal(conversation.cwd, entities);
-    if (placement.kind !== 'loose') return entities.projects.get(placement.projectId)?.name ?? null;
+    return placement.kind === 'loose' ? undefined : placement.projectId;
   }
+  if (isFilePanel(panel.id)) return entities.worktrees.get(dock.worktreeOfFile(panel.id.slice(FILE_PANEL_PREFIX.length))?.id ?? '')?.project_id;
+  return undefined;
+}
+
+function projectOf(panel: IDockviewPanel): { id?: string; name: string } | null {
+  const known = dock.paths.value.get(panel.id)?.project ?? berth?.entities.value.projects.get(projectIdOf(panel) ?? '');
+  if (known) return { id: known.id, name: known.name };
   const project = panel.params?.project;
-  return typeof project === 'string' ? (project.split('/').pop() ?? null) : null;
+  const name = typeof project === 'string' ? project.split('/').pop() : undefined;
+  return name ? { name } : null;
 }
 
 const rows = computed(() => {
-  const byProject = new Map<string | null, IDockviewPanel[]>();
+  const byProject = new Map<string | null, { id?: string; items: IDockviewPanel[] }>();
   for (const panel of panels.value) {
     const project = projectOf(panel);
-    byProject.set(project, [...(byProject.get(project) ?? []), panel]);
+    const name = project?.name ?? null;
+    const row = byProject.get(name) ?? { items: [] };
+    row.id ??= project?.id;
+    row.items.push(panel);
+    byProject.set(name, row);
   }
+  const projects = berth?.entities.value.projects;
+  const pin = (id?: string) => projects?.get(id ?? '')?.pin_order ?? Infinity;
   return [...byProject.entries()]
-    .sort(([a], [b]) => Number(a === null) - Number(b === null) || (a ?? '').localeCompare(b ?? ''))
-    .map(([project, items]) => ({ key: project ?? '', label: project ?? t('workbench.notInProject'), items, current: items.some((panel) => panel.id === activeId.value) }));
+    .sort(([a, rowA], [b, rowB]) => Number(a === null) - Number(b === null) || Math.sign(pin(rowA.id) - pin(rowB.id)) || (a ?? '').localeCompare(b ?? ''))
+    .map(([project, row]) => ({ key: project ?? '', label: project ?? t('workbench.notInProject'), projectId: row.id, items: row.items, current: row.items.some((panel) => panel.id === activeId.value) }));
 });
+
+function create(projectId: string) {
+  const entities = berth?.entities.value;
+  if (entities) dock.startCreate(worktreesOfProject(entities, projectId)[0]?.id ?? null);
+}
 </script>
 
 <template>
@@ -71,6 +91,9 @@ const rows = computed(() => {
         <div v-for="panel in row.items" :key="panel.id" class="item" :data-active="panel.id === activeId" @click="panel.api.setActive()">
           <DockTab :panel="panel.api" :active="panel.id === activeId" />
         </div>
+        <button v-if="row.projectId" class="add" :title="t('agents.project.newSession')" :aria-label="t('agents.project.newSession')" data-testid="project-row-new-session" @click="create(row.projectId)">
+          <Plus :size="12" />
+        </button>
       </div>
     </div>
   </div>
@@ -126,9 +149,21 @@ const rows = computed(() => {
   cursor: pointer;
 }
 
-.item:hover {
+.item:hover,
+.add:hover {
   color: var(--vr-color-text);
   background: var(--vr-color-nav-hover);
+}
+
+.add {
+  display: flex;
+  flex: none;
+  align-items: center;
+  padding: 0 var(--vr-space-3);
+  color: var(--vr-color-text-muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
 }
 
 .item[data-active='true'] {

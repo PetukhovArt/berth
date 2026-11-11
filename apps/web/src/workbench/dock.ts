@@ -62,11 +62,7 @@ function createDock() {
     return null;
   }
 
-  const activeWorktree = computed(() => {
-    const byPath = findWorktree(activePath.value?.worktree.id);
-    const key = activeKey.value;
-    if (byPath || !key || !isFilePanel(key)) return byPath;
-    const file = key.slice(FILE_PANEL_PREFIX.length);
+  function worktreeOfFile(file: string): WorktreeNode | null {
     let best: WorktreeNode | null = null;
     for (const workspace of berth?.tree.value ?? [])
       for (const project of workspace.projects)
@@ -75,6 +71,12 @@ function createDock() {
           if (file.startsWith(`${root}/`) && (!best || root.length > best.path.length)) best = worktree;
         }
     return best;
+  }
+
+  const activeWorktree = computed(() => {
+    const byPath = findWorktree(activePath.value?.worktree.id);
+    const key = activeKey.value;
+    return byPath || !key || !isFilePanel(key) ? byPath : worktreeOfFile(key.slice(FILE_PANEL_PREFIX.length));
   });
 
   const activeWorktreeId = computed(() => {
@@ -325,6 +327,7 @@ function createDock() {
     activeSession,
     activeWorktree,
     activeWorktreeId,
+    worktreeOfFile,
     paths,
     creatingIn,
     detail,
