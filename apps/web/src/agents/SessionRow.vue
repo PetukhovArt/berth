@@ -95,7 +95,7 @@ async function confirmDelete() {
     />
     <template v-else>
       <button
-        class="row"
+        class="row status-host"
         data-testid="session-row"
         :data-session-id="session.id"
         :data-status="session.status"

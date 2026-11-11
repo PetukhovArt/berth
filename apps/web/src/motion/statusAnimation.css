@@ -1,0 +1,145 @@
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-status-animation='blink'] .status-dot,
+  :root[data-status-animation='ripple'] .status-dot {
+    position: relative;
+  }
+
+  :root[data-status-animation='blink'] .status-dot[data-unseen='true'],
+  :root[data-status-animation='ripple'] .status-dot[data-unseen='true'] {
+    box-shadow: none;
+    outline: none;
+  }
+
+  :root[data-status-animation='blink'] .status-dot[data-status='running'] {
+    background: none;
+  }
+
+  :root[data-status-animation='blink'] .status-dot[data-status='running']::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border: 2px solid var(--vr-color-conflict);
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: status-spin 1s linear infinite;
+  }
+
+  :root[data-status-animation='blink'] .status-dot[data-unseen='true'] {
+    animation: status-blink 1.6s steps(1) infinite;
+  }
+
+  :root[data-status-animation='blink'] .status-dot[data-status='needs_feedback'] {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--vr-color-danger) 35%, transparent);
+    animation: status-blink 0.8s steps(1) infinite;
+  }
+
+  :root[data-status-animation='ripple'] .status-dot[data-status='running'] {
+    animation: status-breathe 1.6s ease-in-out infinite;
+  }
+
+  :root[data-status-animation='ripple'] .status-dot[data-unseen='true']::before,
+  :root[data-status-animation='ripple'] .status-dot[data-status='needs_feedback']::before,
+  :root[data-status-animation='ripple'] .status-dot[data-status='needs_feedback']::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 1.5px solid var(--vr-color-success);
+    border-radius: 50%;
+    animation: status-ripple 1.6s ease-out infinite;
+  }
+
+  :root[data-status-animation='ripple'] .status-dot[data-status='needs_feedback']::before,
+  :root[data-status-animation='ripple'] .status-dot[data-status='needs_feedback']::after {
+    border-color: var(--vr-color-danger);
+    animation-duration: 0.8s;
+  }
+
+  :root[data-status-animation='ripple'] .status-dot[data-status='needs_feedback']::after {
+    animation-delay: 0.4s;
+  }
+
+  :root[data-status-animation='row'] .status-host {
+    position: relative;
+  }
+
+  :root[data-status-animation='row'] .status-host > .status-dot[data-status='running'] ~ .name {
+    mask-image: linear-gradient(90deg, var(--vr-color-text) 35%, transparent 50%, var(--vr-color-text) 65%);
+    mask-size: 250% 100%;
+    animation: status-shimmer 2s linear infinite;
+  }
+
+  :root[data-status-animation='row'] .status-host:has(> .status-dot[data-unseen='true'])::before {
+    content: '';
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    left: 0;
+    width: 3px;
+    background: var(--vr-color-success);
+    border-radius: var(--vr-radius-sm);
+    animation: status-blink 1.6s steps(1) infinite;
+  }
+
+  :root[data-status-animation='row'] .status-host:has(> .status-dot[data-status='needs_feedback']) {
+    animation: status-alarm 1s ease-in-out infinite;
+  }
+
+  :root[data-status-animation='row'] .status-host:has(> .status-dot[data-status='needs_feedback']) > .name {
+    font-weight: 600;
+    color: var(--vr-color-danger);
+  }
+}
+
+@keyframes status-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes status-blink {
+  50%,
+  100% {
+    opacity: 0.15;
+  }
+}
+
+@keyframes status-breathe {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(0.65);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes status-ripple {
+  from {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(2.8);
+  }
+}
+
+@keyframes status-shimmer {
+  from {
+    mask-position: 125% 0;
+  }
+
+  to {
+    mask-position: -125% 0;
+  }
+}
+
+@keyframes status-alarm {
+  50% {
+    background-color: color-mix(in srgb, var(--vr-color-danger) 22%, transparent);
+  }
+}

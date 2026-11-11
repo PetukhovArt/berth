@@ -67,6 +67,18 @@ export const SETTINGS = {
     description: 'settings.def.animations.description',
     category: 'appearance',
   },
+  'ui.statusAnimation': {
+    type: 'enum',
+    default: 'ripple',
+    label: 'settings.def.statusAnimation.label',
+    description: 'settings.def.statusAnimation.description',
+    category: 'appearance',
+    options: [
+      { value: 'ripple', label: 'settings.def.statusAnimation.ripple' },
+      { value: 'blink', label: 'settings.def.statusAnimation.blink' },
+      { value: 'row', label: 'settings.def.statusAnimation.row' },
+    ],
+  },
   'workbench.tabs': {
     type: 'enum',
     default: 'scroll',

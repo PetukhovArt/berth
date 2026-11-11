@@ -40,6 +40,13 @@ export const settings = {
       label: 'Animations',
       description: 'Smooth transitions between views and animated lists. Turn off to reduce motion.',
     },
+    statusAnimation: {
+      label: 'Session status animation',
+      description: 'How a session shows its status in the tree and on its tab: working, finished and waiting for you to look, or asking you for an answer or a permission. Animations has to be on.',
+      ripple: 'Breathing and ripples',
+      blink: 'Spinner and blinking',
+      row: 'Whole row',
+    },
     tabs: {
       label: 'Tabs',
       description: 'How tabs are shown: one line per panel that scrolls sideways with the mouse wheel, several lines per panel, or one compact line per project.',

@@ -5,7 +5,7 @@ defineProps<{ status: SessionStatus | undefined; unseen: boolean | undefined }>(
 </script>
 
 <template>
-  <span class="dot" :data-status="status" :data-unseen="unseen" />
+  <span class="dot status-dot" :data-status="status" :data-unseen="unseen" />
 </template>
 
 <style scoped>

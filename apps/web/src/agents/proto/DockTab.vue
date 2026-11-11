@@ -45,7 +45,7 @@ async function close() {
 </script>
 
 <template>
-  <span class="tab" :data-testid="`${kindOf(panel.id)}-tab`" :data-panel-id="panel.id" :data-session-id="session(panel.id)?.id" :data-active="active" @auxclick.middle="close">
+  <span class="tab status-host" :data-testid="`${kindOf(panel.id)}-tab`" :data-panel-id="panel.id" :data-session-id="session(panel.id)?.id" :data-active="active" @auxclick.middle="close">
     <FileText v-if="kindOf(panel.id) === 'file'" :size="12" />
     <GitPullRequest v-else-if="kindOf(panel.id) === 'review'" :size="12" />
     <Network v-else-if="kindOf(panel.id) === 'architecture'" :size="12" />

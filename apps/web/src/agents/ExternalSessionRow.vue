@@ -31,7 +31,7 @@ const menuItems = computed(() => [
 <template>
   <div class="external">
     <button
-      class="row"
+      class="row status-host"
       data-testid="external-session-row"
       :data-session-id="session.id"
       :data-harness="session.harness"
