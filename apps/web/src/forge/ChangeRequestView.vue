@@ -20,17 +20,17 @@ import {
 import PersonAvatar from '../shared/ui/PersonAvatar.vue';
 import RichContent from '../shared/ui/rich-content/RichContent.vue';
 import { t } from '../shared/lib/i18n/i18n';
-import ArchitectureAction from './ArchitectureAction.vue';
-import MrSessionNotice from './MrSessionNotice.vue';
-import OpenInSessionAction from './OpenInSessionAction.vue';
+import ArchitectureAction from '../features/architecture/ui/ArchitectureAction.vue';
+import MrSessionNotice from '../features/open-in-session/ui/MrSessionNotice.vue';
+import OpenInSessionAction from '../features/open-in-session/ui/OpenInSessionAction.vue';
 import { itemId } from '../entities/merge-request/model/inbox';
-import { mrRuns } from './openInSession';
-import CommentComposer from './CommentComposer.vue';
-import DiffView from './DiffView.vue';
+import { mrRuns } from '../features/open-in-session/model/openInSession';
+import CommentComposer from '../features/diff-review/ui/CommentComposer.vue';
+import DiffView from '../features/diff-review/ui/DiffView.vue';
 import { fullDate, numberLabel, pipelineLabel, relativeTime } from '../entities/merge-request/lib/format';
 import PipelineIcon from '../entities/merge-request/ui/PipelineIcon.vue';
 import PipelineJobs from './PipelineJobs.vue';
-import ThreadView from './ThreadView.vue';
+import ThreadView from '../features/diff-review/ui/ThreadView.vue';
 
 const props = defineProps<{ connector: string; project: string; number: number }>();
 

@@ -5,7 +5,7 @@ import TerminalKeys from '../mobile/TerminalKeys.vue';
 import { useIsPhone } from '@ui/kit';
 import { useDock } from '../shared/model/dock';
 import ProjectTree from '../workbench/ProjectTree.vue';
-import NewSessionForm from './NewSessionForm.vue';
+import NewSessionForm from '../features/new-session/ui/NewSessionForm.vue';
 import DockArea from './proto/DockArea.vue';
 
 localStorage.removeItem('berth.agents.layout');

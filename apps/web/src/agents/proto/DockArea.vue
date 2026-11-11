@@ -3,7 +3,7 @@ import 'dockview-vue/dist/styles/dockview.css';
 import { onBeforeUnmount, shallowRef } from 'vue';
 import { DockviewVue, themeLight, type DockviewApi, type DockviewPanelApi, type DockviewReadyEvent } from 'dockview-vue';
 import JiraIssueView from '../../atlassian/JiraIssueView.vue';
-import ArchitectureView from '../../forge/ArchitectureView.vue';
+import ArchitectureView from '../../features/architecture/ui/ArchitectureView.vue';
 import ChangeRequestView from '../../forge/ChangeRequestView.vue';
 import { t } from '../../shared/lib/i18n/i18n';
 import MarkdownFile from '../../files/MarkdownFile.vue';
@@ -18,7 +18,7 @@ import { useSettings } from '../../shared/config/settings/store';
 import { startTabDrag, trackTabOrder } from './tabOrder';
 import DockTab from './DockTab.vue';
 import ProjectTabRows from './ProjectTabRows.vue';
-import SessionViews from './SessionViews.vue';
+import SessionViews from '../../features/session-view-switch/ui/SessionViews.vue';
 
 defineProps<{ activeKey: string | null }>();
 const emit = defineEmits<{ ready: [event: DockviewReadyEvent]; 'open-file': [path: string, hash: string, from: string] }>();

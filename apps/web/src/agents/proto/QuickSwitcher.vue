@@ -6,7 +6,7 @@ import { usePickerList } from '../../shared/lib/usePickerList';
 import PipelineIcon from '../../entities/merge-request/ui/PipelineIcon.vue';
 import { t } from '../../shared/lib/i18n/i18n';
 import BackBar from '../../shared/ui/BackBar.vue';
-import type { QuickItem, WorkNode } from '../../workbench/tree';
+import type { QuickItem, WorkNode } from '../../features/work-tree/model/tree';
 import { externalDot } from '../../entities/session/model/external';
 import HarnessIcon from '../../entities/session/ui/HarnessIcon.vue';
 import StatusDot from '../../entities/session/ui/StatusDot.vue';

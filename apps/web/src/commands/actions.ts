@@ -1,4 +1,4 @@
-import { showViewInActivePanel } from '../agents/proto/sessionView';
+import { showViewInActivePanel } from '../features/session-view-switch/model/sessionView';
 import { zoomTerminal } from '../agents/terminalFont';
 import { isDesktop } from '../bridge';
 import { openCleanup } from '../cleanup/state';
@@ -6,7 +6,7 @@ import { navigate, openSettings } from '../shared/model/nav';
 import { hotEnabled, toggleHotOverview } from '../hot/view';
 import { toggleTheme } from '../shared/ui/appearance';
 import { requestSidebarSearch, toggleSidebar } from '../shared/model/sidebar';
-import { openUpdate } from '../update/state';
+import { openUpdate } from '../features/update/model/state';
 import { startNewSession, toggleMaximizedGroup, toggleQuickOpen } from '../shared/model/dock';
 import { paletteOpen } from '../shared/lib/commands/context';
 import { openKeymapExternal } from '../shared/lib/commands/keymap';

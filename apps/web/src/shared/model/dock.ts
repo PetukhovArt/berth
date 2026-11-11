@@ -7,13 +7,13 @@ import { sessionPaths } from '../../entities/session/lib/sessionPaths';
 import type { ChangeRequestRef } from '../api/connectors/api';
 import { numberLabel } from '../../entities/merge-request/lib/format';
 import { itemId } from '../../entities/merge-request/model/inbox';
-import { architecturePanelId, type ArchitectureParams } from '../../forge/stratum';
+import { architecturePanelId, type ArchitectureParams } from '../../features/architecture/model/stratum';
 import { t } from '../lib/i18n/i18n';
 import { useIsPhone } from '@ui/kit';
 import { navigate, view } from './nav';
 import { useSettings } from '../config/settings/store';
 import { loadOpenTabs, saveOpenTabs } from '../../entities/session/model/openTabs';
-import type { WorkNode } from '../../workbench/tree';
+import type { WorkNode } from '../../features/work-tree/model/tree';
 
 export const METRICS_PANEL = 'metrics';
 

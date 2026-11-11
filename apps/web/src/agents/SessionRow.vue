@@ -8,7 +8,7 @@ import { externalStatusLabel, sessionDot, type ExternalSession } from '../entiti
 import HarnessIcon from '../entities/session/ui/HarnessIcon.vue';
 import { archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, type SessionNode, type SessionStatus } from '../entities/session/model/berth';
 import { useAction } from '../entities/session/model/useAction';
-import MoveAgentDialog from './manage/MoveAgentDialog.vue';
+import MoveAgentDialog from '../features/move-agent/ui/MoveAgentDialog.vue';
 import StatusDot from '../entities/session/ui/StatusDot.vue';
 
 const props = defineProps<{ session: SessionNode; active: boolean; linked?: ExternalSession }>();

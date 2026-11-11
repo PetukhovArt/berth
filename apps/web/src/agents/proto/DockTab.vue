@@ -9,7 +9,7 @@ import { externalDot, isExternalPanel, sessionDot, useExternalSessions, type Har
 import HarnessIcon from '../../entities/session/ui/HarnessIcon.vue';
 import StatusDot from '../../entities/session/ui/StatusDot.vue';
 import { FILE_PANEL_PREFIX, isFilePanel } from '../../shared/lib/markdownFiles';
-import SessionViewSwitch from './SessionViewSwitch.vue';
+import SessionViewSwitch from '../../features/session-view-switch/ui/SessionViewSwitch.vue';
 
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
 

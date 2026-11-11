@@ -6,8 +6,8 @@ import { isDesktop } from '../bridge';
 import { openCleanup } from '../cleanup/state';
 import { t } from '../shared/lib/i18n/i18n';
 import { useDock } from '../shared/model/dock';
-import { quickItems, type WorkNode } from './tree';
-import { useWorkTree } from './useWorkTree';
+import { quickItems, type WorkNode } from '../features/work-tree/model/tree';
+import { useWorkTree } from '../features/work-tree/model/useWorkTree';
 
 const dock = useDock();
 const { all } = useWorkTree();

@@ -5,7 +5,7 @@ import { useBerth } from './entities/session/model/berth';
 import { invoke, isDesktop } from './bridge';
 import { openCleanup } from './cleanup/state';
 import { runAction } from './shared/lib/commands/registry';
-import { openUpdate } from './update/state';
+import { openUpdate } from './features/update/model/state';
 import { useDock } from './shared/model/dock';
 
 const NEW_SESSION_EVENT = 'tray://new-session';
