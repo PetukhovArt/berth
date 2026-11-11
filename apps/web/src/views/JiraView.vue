@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Ticket } from 'lucide-vue-next';
-import JiraIssues from '../atlassian/JiraIssues.vue';
-import JiraIssueView from '../atlassian/JiraIssueView.vue';
+import JiraIssues from '../widgets/jira/ui/JiraIssues.vue';
+import JiraIssueView from '../widgets/jira/ui/JiraIssueView.vue';
 import { t } from '../shared/lib/i18n/i18n';
 import { withViewTransition } from '../shared/ui/motion/motion';
 import { view } from '../shared/model/nav';
-import ConnectorPage from './ConnectorPage.vue';
+import ConnectorPage from '../widgets/connector-page/ui/ConnectorPage.vue';
 
 const KINDS = ['jira'] as const;
 

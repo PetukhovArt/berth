@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, useTemplateRef, watch } from 'vue';
-import ChangeRequestView from '../../../forge/ChangeRequestView.vue';
-import WorktreeChanges from '../../../forge/WorktreeChanges.vue';
+import ChangeRequestView from '../../../widgets/change-request/ui/ChangeRequestView.vue';
+import WorktreeChanges from '../../../widgets/worktree-changes/ui/WorktreeChanges.vue';
 import { useBerth } from '../../../entities/session/model/berth';
 import { externalDot, sessionDot, useExternalSessions } from '../../../entities/session/model/external';
 import { mrOf, viewOf, worktreeOf } from '../model/sessionView';

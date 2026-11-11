@@ -1,9 +1,9 @@
 import { showViewInActivePanel } from '../features/session-view-switch/model/sessionView';
-import { zoomTerminal } from '../agents/terminalFont';
+import { zoomTerminal } from '../widgets/terminal/lib/terminalFont';
 import { isDesktop } from '../bridge';
 import { openCleanup } from '../cleanup/state';
 import { navigate, openSettings } from '../shared/model/nav';
-import { hotEnabled, toggleHotOverview } from '../hot/view';
+import { hotEnabled, toggleHotOverview } from '../widgets/hot/model/view';
 import { toggleTheme } from '../shared/ui/appearance';
 import { requestSidebarSearch, toggleSidebar } from '../shared/model/sidebar';
 import { openUpdate } from '../features/update/model/state';
