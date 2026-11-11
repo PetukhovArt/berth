@@ -1,11 +1,12 @@
-import { computed, shallowRef, watch } from 'vue';
+import { computed, effectScope, shallowRef, watch } from 'vue';
 import { useExternalSessions, useBerth } from '../../../entities/session';
-import { useMyIssues } from '../../../entities/jira-issue';
+import { createMyIssues } from '../../../entities/jira-issue';
 import { useConnectors, type ChangeRequestRef, type InboxItem } from '../../../shared/api/connectors/api';
 import { itemId, useForgeInbox } from '../../../entities/merge-request';
 import { useSettings } from '../../../shared/config/settings/store';
 import { lookupRemotes, remotes } from '../../../entities/repo';
-import { fetchMissing, fetchedRows, parseMrUrl, reviewEntries, syncReviewRepos } from './reviewQueue';
+import { fetchMissing, fetchedRows, parseMrUrl, pollReviews, reviewEntries, syncReviewRepos } from './reviewQueue';
+import { createScope, type Scope } from '../../../shared/lib/scope';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { buildTree, tabCounts, type ReviewMeta, type ReviewNoteView, type ReviewSource, type ReviewState, type Sources, type TreeTab } from './tree';
 
@@ -52,15 +53,16 @@ const LIVE_KEY = 'berth.tree.liveOnly';
 export const treeLiveOnly = shallowRef(localStorage.getItem(LIVE_KEY) === '1');
 watch(treeLiveOnly, (on) => localStorage.setItem(LIVE_KEY, on ? '1' : '0'));
 
-export type TabInfo = { id: TreeTab; label: string; count: number | undefined; tone: 'alert' | 'accent' | 'muted'; title: string };
+type TabInfo = { id: TreeTab; label: string; count: number | undefined; tone: 'alert' | 'accent' | 'muted'; title: string };
 
-export function useWorkTree() {
+function createWorkTree(scope: Scope) {
   const berth = useBerth();
   const external = useExternalSessions();
   const { connectors } = useConnectors();
   const inbox = useForgeInbox();
-  const jira = useMyIssues();
+  const jira = createMyIssues(scope);
   const { values } = useSettings();
+  pollReviews(scope);
 
   watch(
     () => [...(berth?.entities.value.projects.values() ?? [])].map((project) => project.repo_path),
@@ -207,4 +209,33 @@ export function useWorkTree() {
   const all = computed(() => buildTree(sources.value, 'all', ''));
 
   return { berth, nodes, all, tabs, activeTab, errors: computed(() => [...inbox.errors.value.map((e) => ({ connector: e.connector, message: e.message })), ...jira.errors.value]) };
+}
+
+type WorkTree = ReturnType<typeof createWorkTree>;
+
+let store: WorkTree | null = null;
+let disposeStore: (() => void) | null = null;
+
+function ensureWorkTree(): WorkTree {
+  if (store) return store;
+  const scope = createScope();
+  const effects = effectScope(true);
+  scope.add(() => effects.stop());
+  const created = effects.run(() => createWorkTree(scope)) as WorkTree;
+  disposeStore = () => scope.dispose();
+  store = created;
+  return created;
+}
+
+export function initWorkTree(): () => void {
+  ensureWorkTree();
+  return () => {
+    disposeStore?.();
+    disposeStore = null;
+    store = null;
+  };
+}
+
+export function useWorkTree(): WorkTree {
+  return ensureWorkTree();
 }

@@ -2,131 +2,34 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 import { ArrowRight, ExternalLink, GitMerge, GitPullRequest, GitPullRequestClosed, GitPullRequestDraft, RefreshCw, Tag, TriangleAlert } from '../../../shared/ui/icons';
 import { VButton } from '../../../shared/ui/kit';
-import {
-  describeError,
-  forgeChangeRequest,
-  forgeDiff,
-  forgeComment,
-  forgeDiscussions,
-  forgePipeline,
-  openUrl,
-  reloadWhenRecovered,
-  type ChangeRequest,
-  type ChangeRequestRef,
-  type DiffFile,
-  type Discussion,
-  type Pipeline,
-} from '../../../shared/api/connectors/api';
+import { forgeChangeRequest, openUrl, type ChangeRequest, type Discussion } from '../../../shared/api/connectors/api';
 import PersonAvatar from '../../../shared/ui/PersonAvatar.vue';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
+import { useScope } from '../../../shared/lib/scope';
 import { ArchitectureAction } from '../../../features/architecture';
 import { MrSessionNotice, OpenInSessionAction, mrRuns } from '../../../features/open-in-session';
 import { RepoActions } from '../../../features/manage-workspace';
 import { itemId, fullDate, numberLabel, pipelineLabel, relativeTime, PipelineIcon } from '../../../entities/merge-request';
 import { CommentComposer, DiffView, ThreadView } from '../../../features/diff-review';
+import { createChangeRequest } from '../model/changeRequest';
+import { provideChangeRequest } from '../model/change-request-scope';
 import PipelineJobs from './PipelineJobs.vue';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ connector: string; project: string; number: number }>();
 
-type Tab = 'overview' | 'diff' | 'pipeline';
-
 const STATE_KEY = { open: 'forge.request.state.open', merged: 'forge.request.state.merged', closed: 'forge.request.state.closed' } as const;
 
-const cr = shallowRef<ChangeRequest | null>(null);
-const discussions = shallowRef<Discussion[]>([]);
-const pipeline = shallowRef<Pipeline | null>(null);
-const files = shallowRef<DiffFile[]>([]);
-const loading = shallowRef(false);
-const failure = shallowRef<string | null>(null);
-const sideFailure = shallowRef<string | null>(null);
-const diffLoading = shallowRef(false);
-const diffFailure = shallowRef<string | null>(null);
-const diffLoaded = shallowRef(false);
-const tab = shallowRef<Tab>('overview');
-const pipelineOpen = shallowRef(false);
+const store = createChangeRequest(() => ({ connector: props.connector, project: props.project, number: props.number }), useScope());
+provideChangeRequest(store);
+const { target, cr, discussions, pipeline, files, loading, failure, sideFailure, diffLoading, diffFailure, diffLoaded, tab, pipelineOpen, commentDraft, commenting, commentError, generation, load, selectTab, upsertDiscussion, sendComment } = store;
 const diffRef = useTemplateRef<InstanceType<typeof DiffView>>('diff');
 
-const target = computed<ChangeRequestRef>(() => ({ connector: props.connector, project: props.project, number: props.number }));
 const unresolved = computed(() => discussions.value.filter((d) => d.resolvable && !d.resolved).length);
 const conversation = computed(() => discussions.value.filter((d) => d.notes.some((n) => !n.system)));
 const anchored = computed(() => discussions.value.some((d) => d.position));
 const sessionRun = computed(() => mrRuns.value.get(itemId(target.value)));
-let generation = 0;
-
-async function loadDiff() {
-  const ticket = generation;
-  diffLoading.value = true;
-  diffFailure.value = null;
-  try {
-    const result = await forgeDiff(target.value);
-    if (ticket === generation) {
-      files.value = result;
-      diffLoaded.value = true;
-    }
-  } catch (e) {
-    if (ticket === generation) diffFailure.value = describeError(e);
-  } finally {
-    if (ticket === generation) diffLoading.value = false;
-  }
-}
-
-async function load() {
-  const ticket = ++generation;
-  loading.value = true;
-  failure.value = null;
-  sideFailure.value = null;
-  try {
-    const [request, threads, run] = await Promise.allSettled([forgeChangeRequest(target.value), forgeDiscussions(target.value), forgePipeline(target.value)]);
-    if (ticket !== generation) return;
-    if (request.status === 'rejected') {
-      failure.value = describeError(request.reason);
-      return;
-    }
-    cr.value = request.value;
-    discussions.value = threads.status === 'fulfilled' ? threads.value : [];
-    pipeline.value = run.status === 'fulfilled' ? run.value : null;
-    const problems = [threads, run].filter((r): r is PromiseRejectedResult => r.status === 'rejected');
-    sideFailure.value = problems.length ? problems.map((p) => describeError(p.reason)).join('; ') : null;
-    if (tab.value === 'diff' || diffLoaded.value) await loadDiff();
-  } finally {
-    if (ticket === generation) loading.value = false;
-  }
-}
-
-function selectTab(next: Tab) {
-  tab.value = next;
-  if (next === 'diff' && !diffLoaded.value && !diffLoading.value) void loadDiff();
-}
-
-const commentDraft = shallowRef('');
-const commenting = shallowRef(false);
-const commentError = shallowRef<string | null>(null);
-
-function upsertDiscussion(updated: Discussion) {
-  const list = discussions.value;
-  const index = list.findIndex((d) => d.id === updated.id);
-  discussions.value = index < 0 ? [...list, updated] : list.map((d, i) => (i === index ? updated : d));
-}
-
-async function sendComment() {
-  const body = commentDraft.value.trim();
-  if (!body || commenting.value) return;
-  const key = itemId(target.value);
-  commenting.value = true;
-  commentError.value = null;
-  try {
-    const created = await forgeComment(target.value, body);
-    if (key !== itemId(target.value)) return;
-    upsertDiscussion(created);
-    commentDraft.value = '';
-  } catch (e) {
-    if (key === itemId(target.value)) commentError.value = describeError(e);
-  } finally {
-    commenting.value = false;
-  }
-}
 
 const pendingThread = shallowRef<string | null>(null);
 
@@ -143,38 +46,15 @@ watch([diffLoaded, tab, pendingThread, diffRef], async () => {
   diffRef.value?.focusThread(id);
 });
 
-watch(
-  () => [props.connector, props.project, props.number],
-  () => {
-    cr.value = null;
-    discussions.value = [];
-    pipeline.value = null;
-    files.value = [];
-    diffLoaded.value = false;
-    diffFailure.value = null;
-    pipelineOpen.value = false;
-    commentDraft.value = '';
-    commentError.value = null;
-    tab.value = 'overview';
-    void load();
-  },
-);
-
-reloadWhenRecovered(
-  () => props.connector,
-  () => failure.value !== null || sideFailure.value !== null,
-  () => void load(),
-);
-
 const POLL_MS = 30_000;
 const fingerprint = (request: ChangeRequest) => [request.updated_at, request.head_sha, request.pipeline, request.unresolved_threads, request.state].join('|');
 let poller: ReturnType<typeof setInterval> | undefined;
 
 async function poll() {
   if (document.visibilityState !== 'visible' || loading.value || !cr.value) return;
-  const ticket = generation;
+  const ticket = generation();
   const fresh = await forgeChangeRequest(target.value).catch(() => null);
-  if (fresh && ticket === generation && !loading.value && cr.value && fingerprint(fresh) !== fingerprint(cr.value)) void load();
+  if (fresh && ticket === generation() && !loading.value && cr.value && fingerprint(fresh) !== fingerprint(cr.value)) void load();
 }
 
 const onVisible = () => void poll();
@@ -238,7 +118,7 @@ onBeforeUnmount(() => {
 
         <div v-if="pipeline && pipelineOpen" class="pipeline-pop" data-testid="cr-pipeline-jobs">
           <a class="link" :href="pipeline.url" @click.prevent="openUrl(pipeline.url)">{{ t('forge.request.pipelineNumber', { id: pipeline.id }) }} <ExternalLink :size="12" /></a>
-          <PipelineJobs :pipeline="pipeline" />
+          <PipelineJobs />
         </div>
         <p v-if="sideFailure" class="side-failure" role="alert">{{ sideFailure }}</p>
         <MrSessionNotice v-if="sessionRun" :run="sessionRun">
@@ -290,7 +170,7 @@ onBeforeUnmount(() => {
             <PipelineIcon :status="pipeline.status" :size="16" />{{ pipelineLabel(pipeline.status) }}
             <a class="link" :href="pipeline.url" @click.prevent="openUrl(pipeline.url)">{{ t('common.open') }} <ExternalLink :size="12" /></a>
           </p>
-          <PipelineJobs :pipeline="pipeline" />
+          <PipelineJobs />
         </template>
         <p v-else class="muted">{{ t('forge.request.noPipeline') }}</p>
       </div>

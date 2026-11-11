@@ -19,13 +19,13 @@ export function toggleTheme(): void {
   set('theme', isDark.value ? 'light' : 'dark');
 }
 
-export function installAppearance(): void {
+export function initAppearance(): () => void {
   const root = document.documentElement;
   const computedStyle = getComputedStyle(root);
   const baseTokens = SCALED_TOKENS.map((name) => [`--vr-${name}`, parseFloat(computedStyle.getPropertyValue(`--vr-${name}`))] as const);
 
-  watchEffect(() => root.classList.toggle(DARK_CLASS, isDark.value));
-  watchEffect(() => {
+  const stopTheme = watchEffect(() => root.classList.toggle(DARK_CLASS, isDark.value));
+  const stopScale = watchEffect(() => {
     const scale = values.value['ui.font_size'] / SETTINGS['ui.font_size'].default;
     if (scale === 1) {
       root.style.removeProperty('font-size');
@@ -35,4 +35,8 @@ export function installAppearance(): void {
     root.style.fontSize = `${BASE_ROOT_PX * scale}px`;
     for (const [name, base] of baseTokens) root.style.setProperty(name, `${Math.round(base * scale * 10) / 10}px`);
   });
+  return () => {
+    stopTheme();
+    stopScale();
+  };
 }

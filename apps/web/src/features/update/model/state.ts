@@ -1,6 +1,7 @@
 import { ref, shallowRef } from 'vue';
 import { invoke, isDesktop } from '../../../bridge';
 import { settleAll } from '../../../entities/document';
+import { createScope } from '../../../shared/lib/scope';
 
 type Build = { buildId: string; commit: string; subject: string; sourceRepo: string; builtAt: string; protocol: number };
 type JobState = 'running' | 'done' | 'failed' | 'cancelled';
@@ -116,8 +117,14 @@ export async function restart(): Promise<void> {
   await attempt(() => invoke('app_restart'));
 }
 
-export function installUpdate(): void {
-  void refresh().then(announceChanges);
+export function initUpdate(): () => void {
+  const scope = createScope();
+  void scope.load(refresh()).then(announceChanges);
+  scope.add(() => {
+    clearInterval(poller);
+    poller = undefined;
+  });
+  return () => scope.dispose();
 }
 
 export type ChangeKind = 'feat' | 'perf' | 'fix';

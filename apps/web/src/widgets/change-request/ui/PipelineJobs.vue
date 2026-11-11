@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { ExternalLink } from '../../../shared/ui/icons';
-import { openUrl, type Pipeline, type PipelineJob } from '../../../shared/api/connectors/api';
+import { openUrl, type PipelineJob } from '../../../shared/api/connectors/api';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { formatDuration, jobTone, PipelineIcon } from '../../../entities/merge-request';
+import { useChangeRequest } from '../model/change-request-scope';
 
-const props = defineProps<{ pipeline: Pipeline }>();
+const { pipeline } = useChangeRequest();
+const pipelineJobs = computed(() => pipeline.value?.jobs ?? []);
 
 const stages = computed(() => {
   const groups = new Map<string, PipelineJob[]>();
-  for (const job of props.pipeline.jobs) {
+  for (const job of pipelineJobs.value) {
     const list = groups.get(job.stage);
     if (list) list.push(job);
     else groups.set(job.stage, [job]);
@@ -20,7 +22,7 @@ const stages = computed(() => {
 
 <template>
   <div class="jobs" data-testid="pipeline-jobs">
-    <p v-if="!pipeline.jobs.length" class="empty">{{ t('forge.pipelineJobs.empty') }}</p>
+    <p v-if="!pipelineJobs.length" class="empty">{{ t('forge.pipelineJobs.empty') }}</p>
     <section v-for="stage in stages" :key="stage.name" class="stage">
       <h4>{{ stage.name }}</h4>
       <a v-for="job in stage.jobs" :key="job.id" class="job" :href="job.url" :title="job.status" data-testid="pipeline-job" @click.prevent="openUrl(job.url)">

@@ -2,6 +2,7 @@ import { watch } from 'vue';
 import { hasBackend, invoke } from '../bridge';
 import { SETTINGS, type SettingKey } from '../shared/config/settings/schema';
 import { useSettings } from '../shared/config/settings/store';
+import { createScope } from '../shared/lib/scope';
 
 const IDLE_CHOICES = new Set<unknown>(SETTINGS['sessions.unloadIdleAfter'].options.map((option) => option.value));
 
@@ -10,29 +11,32 @@ const SYNCED: { key: SettingKey; command: string; accepts: (value: unknown) => b
   { key: 'sessions.restoreOnRestart', command: 'berth_restore_sessions', accepts: (value) => typeof value === 'boolean' },
 ];
 
-export function installBerthIdleSync(): void {
-  if (!hasBackend) return;
+export function initBerthIdleSync(): () => void {
+  const scope = createScope();
+  if (!hasBackend) return () => scope.dispose();
   const { loaded, values, set } = useSettings();
 
   const pulls = SYNCED.map(({ key, command, accepts }) => {
     let known: unknown = null;
 
-    watch(
-      () => values.value[key],
-      async (next) => {
-        if (known === null || next === known) return;
-        try {
-          await invoke<void>(`${command}_write`, { value: next });
-          known = next;
-        } catch {
-          return;
-        }
-      },
+    scope.add(
+      watch(
+        () => values.value[key],
+        async (next) => {
+          if (known === null || next === known) return;
+          try {
+            await scope.load(invoke<void>(`${command}_write`, { value: next }));
+            known = next;
+          } catch {
+            return;
+          }
+        },
+      ),
     );
 
     return async (): Promise<void> => {
       try {
-        const remote = await invoke<unknown>(`${command}_read`);
+        const remote = await scope.load(invoke<unknown>(`${command}_read`));
         if (!accepts(remote)) return;
         known = remote;
         if (values.value[key] !== remote) set(key, remote);
@@ -45,14 +49,18 @@ export function installBerthIdleSync(): void {
   const pull = () => pulls.forEach((run) => void run());
 
   let started = false;
-  watch(
-    loaded,
-    (ready) => {
-      if (!ready || started) return;
-      started = true;
-      pull();
-      window.addEventListener('focus', pull);
-    },
-    { immediate: true },
+  scope.add(
+    watch(
+      loaded,
+      (ready) => {
+        if (!ready || started) return;
+        started = true;
+        pull();
+        window.addEventListener('focus', pull);
+        scope.add(() => window.removeEventListener('focus', pull));
+      },
+      { immediate: true },
+    ),
   );
+  return () => scope.dispose();
 }

@@ -1,5 +1,6 @@
 import { computed, shallowRef } from 'vue';
 import { describeError, jiraSearch, onConnectorRecovered, useConnectors, type JiraIssueSummary } from '../../../shared/api/connectors/api';
+import { visibleInterval, type Scope } from '../../../shared/lib/scope';
 
 const JIRA_JQL = 'assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC';
 const JIRA_LIMIT = 100;
@@ -27,21 +28,22 @@ async function loadJira(connector: string, force: boolean) {
   }
 }
 
-let watching = false;
-
-export function useMyIssues() {
+export function createMyIssues(scope: Scope) {
   const { connectors } = useConnectors();
   const jiraConnectors = computed(() => connectors.value.filter((c) => c.kind === 'jira'));
-  if (!watching) {
-    watching = true;
+  scope.add(
     onConnectorRecovered((id) => {
       if (jiraResults.value.get(id)?.error) void loadJira(id, true);
-    });
-    setInterval(() => {
-      if (document.visibilityState !== 'visible') return;
+    }),
+  );
+  visibleInterval(
+    scope,
+    JIRA_POLL_MS,
+    () => {
       for (const connector of connectors.value) if (connector.kind === 'jira') void loadJira(connector.id, false);
-    }, JIRA_POLL_MS);
-  }
+    },
+    false,
+  );
   const issues = computed(() => jiraConnectors.value.flatMap((c) => jiraResults.value.get(c.id)?.issues ?? []));
   const errors = computed(() =>
     jiraConnectors.value.flatMap((c) => {

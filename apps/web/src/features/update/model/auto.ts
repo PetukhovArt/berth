@@ -1,6 +1,7 @@
 import { invoke, isDesktop } from '../../../bridge';
 import { useSettings } from '../../../shared/config/settings/store';
 import { info, quietBuild, refresh } from './state';
+import { createScope, visibleInterval } from '../../../shared/lib/scope';
 
 const FIRST_CHECK_MS = 60_000;
 const CHECK_MS = 10 * 60_000;
@@ -25,10 +26,14 @@ async function check(): Promise<void> {
   await refresh();
 }
 
-export function installAutoUpdate(): void {
-  if (!isDesktop) return;
-  setTimeout(() => {
-    void check();
-    setInterval(() => void check(), CHECK_MS);
+export function initAutoUpdate(): () => void {
+  const scope = createScope();
+  if (!isDesktop) return () => scope.dispose();
+  const run = () => void check();
+  const first = setTimeout(() => {
+    run();
+    visibleInterval(scope, CHECK_MS, run);
   }, FIRST_CHECK_MS);
+  scope.add(() => clearTimeout(first));
+  return () => scope.dispose();
 }

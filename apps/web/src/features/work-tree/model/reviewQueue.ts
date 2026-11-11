@@ -11,6 +11,7 @@ import {
   type ReviewQueueRow,
 } from '../../../shared/api/connectors/api';
 import { connectorBase } from '../../../entities/repo';
+import { visibleInterval, type Scope } from '../../../shared/lib/scope';
 
 const REFRESH_MS = 5 * 60_000;
 
@@ -29,7 +30,6 @@ export const reviewEntries = shallowRef<ReadonlyMap<string, ReviewEntry>>(new Ma
 export const fetchedRows = shallowRef<ReadonlyMap<string, Fetched>>(new Map());
 
 let repos: readonly string[] = [];
-let timer: ReturnType<typeof setInterval> | undefined;
 const inflight = new Set<string>();
 
 function patchEntry(repo: string, change: Partial<ReviewEntry>) {
@@ -77,10 +77,10 @@ export function syncReviewRepos(list: readonly string[]) {
   const added = list.filter((repo) => !repos.includes(repo));
   repos = list;
   if (added.length) void load(added);
-  if (timer === undefined && list.length)
-    timer = setInterval(() => {
-      if (document.visibilityState === 'visible') refreshReviews();
-    }, REFRESH_MS);
+}
+
+export function pollReviews(scope: Scope) {
+  visibleInterval(scope, REFRESH_MS, refreshReviews, false);
 }
 
 export function parseMrUrl(url: string, connectors: readonly ConnectorView[]): ChangeRequestRef | null {

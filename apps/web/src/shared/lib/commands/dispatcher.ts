@@ -91,9 +91,14 @@ function onKeyDown(event: KeyboardEvent): void {
   }
 }
 
-export function installKeymap(): void {
-  if (installed) return;
+export function initKeymap(): () => void {
+  if (installed) return () => undefined;
   installed = true;
   startKeymap();
   window.addEventListener('keydown', onKeyDown, true);
+  return () => {
+    window.removeEventListener('keydown', onKeyDown, true);
+    clearPending();
+    installed = false;
+  };
 }

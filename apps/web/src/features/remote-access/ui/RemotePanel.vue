@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, shallowRef } from 'vue';
+import { onMounted, shallowRef } from 'vue';
 import { Copy, Download, Network, RefreshCw, ShieldAlert, Smartphone } from '../../../shared/ui/icons';
 import { VButton, VMessage } from '../../../shared/ui/kit';
 import { invoke, isDesktop, openUrl } from '../../../bridge';
 import { describeError } from '../../../shared/api/connectors/api';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
+import { useScope, visibleInterval } from '../../../shared/lib/scope';
 
 type Problem = { kind: 'tailscale_missing' } | { kind: 'bind_failed'; message: string } | { kind: 'token_store'; message: string };
 type ClientInfo = { id: number; address: string; agent: string; connected_at: number };
@@ -29,11 +30,11 @@ const status = shallowRef<RemoteStatus | null>(null);
 const failure = shallowRef<string | null>(null);
 const busy = shallowRef(false);
 const copied = shallowRef(false);
-let timer: ReturnType<typeof setInterval> | undefined;
+const scope = useScope();
 
 async function load() {
   try {
-    status.value = await invoke<RemoteStatus>('remote_status');
+    status.value = await scope.load(invoke<RemoteStatus>('remote_status'));
     failure.value = null;
   } catch (e) {
     failure.value = describeError(e);
@@ -43,7 +44,7 @@ async function load() {
 async function regenerate() {
   busy.value = true;
   try {
-    status.value = await invoke<RemoteStatus>('remote_regenerate_token');
+    status.value = await scope.load(invoke<RemoteStatus>('remote_regenerate_token'));
     failure.value = null;
   } catch (e) {
     failure.value = describeError(e);
@@ -68,10 +69,8 @@ const since = (ms: number) => t('remote.panel.connectedAt', { time: new Date(ms)
 onMounted(() => {
   if (!isDesktop) return;
   void load();
-  timer = setInterval(() => void load(), POLL_MS);
+  visibleInterval(scope, POLL_MS, () => void load());
 });
-
-onBeforeUnmount(() => clearInterval(timer));
 </script>
 
 <template>

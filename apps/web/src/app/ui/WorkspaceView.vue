@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { watch } from 'vue';
 import { AgentsView } from '../../pages/agents';
-import { CleanupDialog, installCleanup } from '../../features/cleanup';
+import { CleanupDialog } from '../../features/cleanup';
 import { CommandPalette } from '../../widgets/command-palette';
 import { paletteOpen } from '../../shared/lib/commands/context';
 import { UnsavedDialog } from '../../features/unsaved-changes';
@@ -10,8 +10,7 @@ import { MobileNav } from '../../widgets/mobile-nav';
 import { useIsPhone } from '../../shared/ui/kit';
 import { Sidebar } from '../../widgets/project-tree';
 import { TitleBar } from '../../widgets/title-bar';
-import { installTray } from '../tray';
-import { ChangesDialog, UpdateDialog, installAutoUpdate, installUpdate } from '../../features/update';
+import { ChangesDialog, UpdateDialog } from '../../features/update';
 import { view, type View } from '../../shared/model/nav';
 import { isDark, toggleTheme } from '../../shared/ui/appearance';
 import { SettingsView } from '../../pages/settings';
@@ -23,10 +22,6 @@ import { QuickOpen } from '../../widgets/quick-open';
 const inTauri = '__TAURI_INTERNALS__' in window;
 const mobile = useIsPhone();
 const viewKey = 'berth.view.v2';
-installTray();
-installCleanup();
-installUpdate();
-installAutoUpdate();
 
 try {
   view.value = JSON.parse(localStorage.getItem(viewKey) ?? '') as View;

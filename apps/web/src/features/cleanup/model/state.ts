@@ -2,6 +2,7 @@ import { computed, shallowRef, watch } from 'vue';
 import { archiveAgent, acknowledged, closeTerminal, describeError, useBerth, type Entities } from '../../../entities/session';
 import { invoke, isDesktop } from '../../../bridge';
 import { useSettings } from '../../../shared/config/settings/store';
+import { createScope, visibleInterval } from '../../../shared/lib/scope';
 
 type Category = 'safe' | 'review' | 'changes' | 'keep';
 type Reason = 'request_merged' | 'request_closed' | 'merged' | 'branch_gone' | 'stale' | 'missing' | 'active';
@@ -248,22 +249,23 @@ export function cleanupDiff(path: string): Promise<string> {
   return invoke<string>('cleanup_diff', { path });
 }
 
-let installed = false;
-
-export function installCleanup(): void {
-  if (installed || !isDesktop || !berth) return;
-  installed = true;
+export function initCleanup(): () => void {
+  const scope = createScope();
+  if (!isDesktop || !berth) return () => scope.dispose();
   const due = () => !scanned.value || Date.now() - scanned.value.at >= DAY_MS;
   const check = () => {
     if (berth.connection.value.state === 'connected' && entities.value.projects.size > 0 && due()) void scanNow();
   };
-  watch(() => [berth.connection.value.state, entities.value.projects.size] as const, check, { immediate: true });
-  setInterval(check, CHECK_EVERY_MS);
-  watch(
-    cleanupCount,
-    (count) => {
-      void invoke('tray_cleanup', { count }).catch(() => undefined);
-    },
-    { immediate: true },
+  scope.add(watch(() => [berth.connection.value.state, entities.value.projects.size] as const, check, { immediate: true }));
+  visibleInterval(scope, CHECK_EVERY_MS, check);
+  scope.add(
+    watch(
+      cleanupCount,
+      (count) => {
+        void invoke('tray_cleanup', { count }).catch(() => undefined);
+      },
+      { immediate: true },
+    ),
   );
+  return () => scope.dispose();
 }
