@@ -48,7 +48,7 @@
       ]
     },
     "stratum/container-breadth": { "severity": "off" },
-    "stratum/depth-ratio": { "severity": "info" },
+    "stratum/depth-ratio": { "severity": "off" },
     "stratum/miller-limit": { "severity": "off" },
     "stratum/module-docs": { "severity": "off" },
     "stratum/purity": { "severity": "warning" },
