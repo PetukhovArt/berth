@@ -2,12 +2,12 @@
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import { VButton, VInputText } from '@ui/kit';
 import { t } from '../../shared/lib/i18n/i18n';
-import { useBerth, worktreesOfProject } from '../berth';
+import { useBerth, worktreesOfProject } from '../../entities/session/model/berth';
 import ActionMenu, { type MenuItem } from '../../shared/ui/ActionMenu.vue';
 import OrphansDialog from './OrphansDialog.vue';
-import { useAction } from '../useAction';
-import { canMove, moved, pinned, unpinned } from './projectPins';
-import { addProject, removeProject, renameProject, setProjectPins } from './workspaces';
+import { useAction } from '../../entities/session/model/useAction';
+import { canMove, moved, pinned, unpinned } from '../../entities/session/model/projectPins';
+import { addProject, removeProject, renameProject, setProjectPins } from '../../entities/session/model/workspaces';
 
 const MISSING_FOLDER = /не существует|не найден|not exist|no such|not found/i;
 

@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { VButton, VDialog } from '@ui/kit';
 import { t } from '../shared/lib/i18n/i18n';
 import { fileNameOf } from '../shared/lib/markdownFiles';
-import { unsavedPrompt } from './documents';
+import { unsavedPrompt } from '../entities/document/model/documents';
 
 const names = computed(() => (unsavedPrompt.value?.paths ?? []).map(fileNameOf).join(', '));
 

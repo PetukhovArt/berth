@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue';
-import type { ChangeRequestRef, ChangeRequestSummary } from '../shared/api/connectors/api';
-import { t } from '../shared/lib/i18n/i18n';
-import { numberLabel, pipelineLabel } from './format';
+import type { ChangeRequestRef, ChangeRequestSummary } from '../../../shared/api/connectors/api';
+import { t } from '../../../shared/lib/i18n/i18n';
+import { numberLabel, pipelineLabel } from '../lib/format';
 import PipelineIcon from './PipelineIcon.vue';
-import { lookupMr } from './worktreeMr';
+import { lookupMr } from '../model/worktreeMr';
 
 const props = defineProps<{ path: string; branch: string; summary?: ChangeRequestSummary }>();
 const emit = defineEmits<{ open: [ref: ChangeRequestRef] }>();

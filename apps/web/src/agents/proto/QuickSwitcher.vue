@@ -3,13 +3,13 @@ import { computed, onMounted, shallowRef, useTemplateRef } from 'vue';
 import { ChevronRight, FileText, GitPullRequest, Ticket, Zap } from 'lucide-vue-next';
 import { subsequenceScore } from '../../shared/lib/fuzzy';
 import { usePickerList } from '../../shared/lib/usePickerList';
-import PipelineIcon from '../../forge/PipelineIcon.vue';
+import PipelineIcon from '../../entities/merge-request/ui/PipelineIcon.vue';
 import { t } from '../../shared/lib/i18n/i18n';
 import BackBar from '../../shared/ui/BackBar.vue';
 import type { QuickItem, WorkNode } from '../../workbench/tree';
-import { externalDot } from '../external';
-import HarnessIcon from '../HarnessIcon.vue';
-import StatusDot from '../StatusDot.vue';
+import { externalDot } from '../../entities/session/model/external';
+import HarnessIcon from '../../entities/session/ui/HarnessIcon.vue';
+import StatusDot from '../../entities/session/ui/StatusDot.vue';
 import type { MarkdownEntry } from '../../shared/lib/markdownFiles';
 
 type QuickAction = { key: string; label: string };

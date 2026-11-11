@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SessionStatus } from './berth';
+import type { SessionStatus } from '../model/berth';
 
 defineProps<{ status: SessionStatus | undefined; unseen: boolean | undefined }>();
 </script>

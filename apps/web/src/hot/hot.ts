@@ -1,6 +1,6 @@
 import { computed, shallowRef, watch, type ComputedRef } from 'vue';
-import { externalKey, externalTarget, readTranscript, useExternalSessions, type ExternalSession } from '../agents/external';
-import { useBerth, type SessionNode, type SessionStatus } from '../agents/berth';
+import { externalKey, externalTarget, readTranscript, useExternalSessions, type ExternalSession } from '../entities/session/model/external';
+import { useBerth, type SessionNode, type SessionStatus } from '../entities/session/model/berth';
 import { t } from '../shared/lib/i18n/i18n';
 import { useDock } from '../shared/model/dock';
 

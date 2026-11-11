@@ -1,4 +1,4 @@
-import type { SessionNode, SessionStatus, useBerth } from '../berth';
+import type { SessionNode, SessionStatus, useBerth } from '../model/berth';
 
 type Store = NonNullable<ReturnType<typeof useBerth>>;
 export type WorkspaceNode = Store['tree']['value'][number];

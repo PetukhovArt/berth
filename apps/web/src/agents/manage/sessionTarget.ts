@@ -2,7 +2,7 @@ import { computed, shallowRef, watch, type ComputedRef, type ShallowRef } from '
 import { t } from '../../shared/lib/i18n/i18n';
 import { mrFetchSource } from '../../shared/api/connectors/api';
 import { useSettings } from '../../shared/config/settings/store';
-import { acknowledged, call, describeError, BerthCallError, useBerth, worktreesOfProject, type Branch, type Worktree } from '../berth';
+import { acknowledged, call, describeError, BerthCallError, useBerth, worktreesOfProject, type Branch, type Worktree } from '../../entities/session/model/berth';
 
 export type BranchMode = 'current' | 'existing' | 'new';
 type TargetPlan = { kind: 'use'; worktree: Worktree } | { kind: 'create'; branch: string; base: string | null; fetch: boolean } | { kind: 'incomplete'; reason: string };

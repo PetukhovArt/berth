@@ -23,12 +23,12 @@ import { t } from '../shared/lib/i18n/i18n';
 import ArchitectureAction from './ArchitectureAction.vue';
 import MrSessionNotice from './MrSessionNotice.vue';
 import OpenInSessionAction from './OpenInSessionAction.vue';
-import { itemId } from './inbox';
+import { itemId } from '../entities/merge-request/model/inbox';
 import { mrRuns } from './openInSession';
 import CommentComposer from './CommentComposer.vue';
 import DiffView from './DiffView.vue';
-import { fullDate, numberLabel, pipelineLabel, relativeTime } from './format';
-import PipelineIcon from './PipelineIcon.vue';
+import { fullDate, numberLabel, pipelineLabel, relativeTime } from '../entities/merge-request/lib/format';
+import PipelineIcon from '../entities/merge-request/ui/PipelineIcon.vue';
 import PipelineJobs from './PipelineJobs.vue';
 import ThreadView from './ThreadView.vue';
 

@@ -1,5 +1,5 @@
 import { shallowRef } from 'vue';
-import { forgeForWorktree, type ChangeRequestSummary } from '../shared/api/connectors/api';
+import { forgeForWorktree, type ChangeRequestSummary } from '../../../shared/api/connectors/api';
 
 const TTL_MS = 60_000;
 const requests = new Map<string, { at: number; value: Promise<ChangeRequestSummary | null> }>();

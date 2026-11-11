@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { VInputText, VMessage, VSelect } from '@ui/kit';
 import { t } from '../shared/lib/i18n/i18n';
-import { useBerth } from './berth';
+import { useBerth } from '../entities/session/model/berth';
 import type { BranchMode, SessionTarget } from './manage/sessionTarget';
 
 const props = defineProps<{ state: SessionTarget }>();

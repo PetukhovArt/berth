@@ -4,11 +4,11 @@ import { Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, TriangleAlert
 import { VButton, VMessage } from '@ui/kit';
 import { copyText } from '../shared/lib/atlassian';
 import RichContent from '../shared/ui/rich-content/RichContent.vue';
-import { continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, readTranscript, resumeCommand, useExternalSessions, type Harness, type TranscriptMessage } from '../agents/external';
-import HarnessIcon from '../agents/HarnessIcon.vue';
-import { describeError, useBerth } from '../agents/berth';
-import StatusDot from '../agents/StatusDot.vue';
-import { useAction } from '../agents/useAction';
+import { continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, readTranscript, resumeCommand, useExternalSessions, type Harness, type TranscriptMessage } from '../entities/session/model/external';
+import HarnessIcon from '../entities/session/ui/HarnessIcon.vue';
+import { describeError, useBerth } from '../entities/session/model/berth';
+import StatusDot from '../entities/session/ui/StatusDot.vue';
+import { useAction } from '../entities/session/model/useAction';
 import { useI18n } from '../shared/lib/i18n/i18n';
 import { useDock } from '../shared/model/dock';
 

@@ -1,9 +1,9 @@
 import { computed, shallowRef, watch } from 'vue';
-import { useBerth } from '../agents/berth';
+import { useBerth } from '../entities/session/model/berth';
 import { hasBackend, invoke, isDesktop } from '../bridge';
 import { useConnectors } from '../shared/api/connectors/api';
 import { t } from '../shared/lib/i18n/i18n';
-import { connectorBase, lookupRemotes, remotes } from '../workbench/remotes';
+import { connectorBase, lookupRemotes, remotes } from '../entities/repo/model/remotes';
 
 export type ArchitectureTarget = { connector: string; project: string; number: number; target_branch: string };
 export type ArchitectureParams = { connector: string; project: string; number: number; repo: string; target: string };

@@ -6,7 +6,7 @@ import { Terminal, type ITheme } from '@xterm/xterm';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import { attachSession, detachSession, resizeSession, sendInput, sessionId, type SessionEvent, type SessionRef } from './berth';
+import { attachSession, detachSession, resizeSession, sendInput, sessionId, type SessionEvent, type SessionRef } from '../entities/session/model/berth';
 import { t } from '../shared/lib/i18n/i18n';
 import { openUrl } from '../bridge';
 import { hostPlatform } from '../shared/lib/platform';

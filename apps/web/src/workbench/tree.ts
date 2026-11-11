@@ -1,17 +1,17 @@
 import { Archive, Eye, EyeOff, Folder, FolderGit2, FolderOpen, FolderSearch, GitBranch, History, House, Inbox, Layers, Pin, UserRound } from 'lucide-vue-next';
-import { pinnedFirst } from '../agents/manage/projectPins';
-import { externalDot, externalKey, placeExternal, splitEarlier, type ExternalSession } from '../agents/external';
-import { worktreesOfProject, type Entities, type SessionNode, type WorktreeNode } from '../agents/berth';
-import { rollupOf, type Rollup, type WorkspaceNode } from '../agents/proto/nav';
+import { pinnedFirst } from '../entities/session/model/projectPins';
+import { externalDot, externalKey, placeExternal, splitEarlier, type ExternalSession } from '../entities/session/model/external';
+import { worktreesOfProject, type Entities, type SessionNode, type WorktreeNode } from '../entities/session/model/berth';
+import { rollupOf, type Rollup, type WorkspaceNode } from '../entities/session/lib/sessionPaths';
 import type { ConnectorView, InboxItem, JiraIssueSummary, PipelineStatus } from '../shared/api/connectors/api';
-import { numberLabel } from '../forge/format';
-import { itemId, pipelineRollup } from '../forge/inbox';
+import { numberLabel } from '../entities/merge-request/lib/format';
+import { itemId, pipelineRollup } from '../entities/merge-request/model/inbox';
 import { t } from '../shared/lib/i18n/i18n';
 import type { TreeNode } from '../shared/ui/explorer-tree/types';
-import type { RepoRef } from './clones';
+import type { RepoRef } from '../entities/repo/model/clones';
 import { issuePanelId } from '../shared/model/dock';
 import { liveSources } from './liveOnly';
-import { connectorBase, type Remote } from './remotes';
+import { connectorBase, type Remote } from '../entities/repo/model/remotes';
 
 export type TreeTab = 'sessions' | 'mrs' | 'reviews' | 'tasks' | 'all';
 

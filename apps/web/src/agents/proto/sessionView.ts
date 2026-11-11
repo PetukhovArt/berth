@@ -1,10 +1,10 @@
 import { shallowRef } from 'vue';
 import type { ChangeRequestRef } from '../../shared/api/connectors/api';
 import { hasChanges } from '../../forge/worktreeChanged';
-import { knownMr } from '../../forge/worktreeMr';
+import { knownMr } from '../../entities/merge-request/model/worktreeMr';
 import { useDock } from '../../shared/model/dock';
-import { useBerth } from '../berth';
-import { useExternalSessions } from '../external';
+import { useBerth } from '../../entities/session/model/berth';
+import { useExternalSessions } from '../../entities/session/model/external';
 
 export type SessionView = 'terminal' | 'mr' | 'diff';
 

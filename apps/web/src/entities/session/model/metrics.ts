@@ -1,5 +1,5 @@
-import { t } from '../../shared/lib/i18n/i18n';
-import { call, BerthCallError, type BerthReply } from '../berth';
+import { t } from '../../../shared/lib/i18n/i18n';
+import { call, BerthCallError, type BerthReply } from './berth';
 
 export type MetricsSnapshot = Extract<BerthReply, { Metrics: unknown }>['Metrics']['snapshot'];
 export type SessionMetrics = MetricsSnapshot['sessions'][number];

@@ -1,16 +1,16 @@
 import { shallowRef } from 'vue';
-import { acknowledged, createAgent, describeError, entitySessionRef, useBerth, worktreesOfProject, type AgentKind, type SessionRef } from '../agents/berth';
+import { acknowledged, createAgent, describeError, entitySessionRef, useBerth, worktreesOfProject, type AgentKind, type SessionRef } from '../entities/session/model/berth';
 import { invoke } from '../bridge';
 import type { AiView } from '../shared/api/connectors/ai';
 import { forgeChangeRequest, forgeSource, mrFetchSource, useConnectors, type ChangeRequestRef, type ChangeRequestSummary, type FetchedSource } from '../shared/api/connectors/api';
 import { t } from '../shared/lib/i18n/i18n';
 import { useSettings } from '../shared/config/settings/store';
-import type { RepoRef } from '../workbench/clones';
+import type { RepoRef } from '../entities/repo/model/clones';
 import { useDock } from '../shared/model/dock';
-import { connectorBase, inspectClone, remotes, type Remote } from '../workbench/remotes';
+import { connectorBase, inspectClone, remotes, type Remote } from '../entities/repo/model/remotes';
 import { projectOfRepo, repoRefOf } from '../workbench/tree';
-import { numberLabel } from './format';
-import { itemId } from './inbox';
+import { numberLabel } from '../entities/merge-request/lib/format';
+import { itemId } from '../entities/merge-request/model/inbox';
 
 export type MrItem = Pick<ChangeRequestSummary, 'connector' | 'project' | 'number' | 'title' | 'url' | 'source_branch' | 'target_branch' | 'author'>;
 

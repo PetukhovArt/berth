@@ -8,7 +8,7 @@ import PersonAvatar from '../shared/ui/PersonAvatar.vue';
 import RichContent from '../shared/ui/rich-content/RichContent.vue';
 import { t } from '../shared/lib/i18n/i18n';
 import CommentComposer from './CommentComposer.vue';
-import { fullDate, relativeTime } from './format';
+import { fullDate, relativeTime } from '../entities/merge-request/lib/format';
 
 const props = defineProps<{ discussion: Discussion; connector?: string; showPosition?: boolean; target?: ChangeRequestRef }>();
 const emit = defineEmits<{ goto: [discussion: Discussion]; update: [discussion: Discussion] }>();

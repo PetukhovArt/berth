@@ -1,6 +1,6 @@
 import { computed, type ComputedRef } from 'vue';
-import { t } from '../../shared/lib/i18n/i18n';
-import { useBerth, worktreesOfProject } from '../berth';
+import { t } from '../../../shared/lib/i18n/i18n';
+import { useBerth, worktreesOfProject } from './berth';
 
 export type WorktreeOption = { id: string; label: string };
 

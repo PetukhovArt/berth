@@ -3,10 +3,10 @@ import { computed, shallowRef, watch } from 'vue';
 import { VButton, VDialog, VInputText, VMessage, VSelect, VTextarea } from '@ui/kit';
 import { t } from '../shared/lib/i18n/i18n';
 import { useSettings } from '../shared/config/settings/store';
-import { createAgent, createTerminal, entitySessionRef, type AgentKind, type SessionRef } from './berth';
+import { createAgent, createTerminal, entitySessionRef, type AgentKind, type SessionRef } from '../entities/session/model/berth';
 import { useSessionTarget } from './manage/sessionTarget';
 import NewSessionTarget from './NewSessionTarget.vue';
-import { useAction } from './useAction';
+import { useAction } from '../entities/session/model/useAction';
 
 const props = defineProps<{ worktree: string | null }>();
 const emit = defineEmits<{ close: []; created: [session: SessionRef] }>();

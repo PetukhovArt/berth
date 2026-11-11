@@ -1,11 +1,11 @@
 import { computed, shallowRef, watch } from 'vue';
-import { useExternalSessions } from '../agents/external';
-import { useBerth } from '../agents/berth';
-import { useMyIssues } from '../atlassian/myIssues';
+import { useExternalSessions } from '../entities/session/model/external';
+import { useBerth } from '../entities/session/model/berth';
+import { useMyIssues } from '../entities/jira-issue/model/myIssues';
 import { useConnectors, type ChangeRequestRef, type InboxItem } from '../shared/api/connectors/api';
-import { itemId, useForgeInbox } from '../forge/inbox';
+import { itemId, useForgeInbox } from '../entities/merge-request/model/inbox';
 import { useSettings } from '../shared/config/settings/store';
-import { lookupRemotes, remotes } from './remotes';
+import { lookupRemotes, remotes } from '../entities/repo/model/remotes';
 import { fetchMissing, fetchedRows, parseMrUrl, reviewEntries, syncReviewRepos } from './reviewQueue';
 import { t } from '../shared/lib/i18n/i18n';
 import { buildTree, tabCounts, type ReviewMeta, type ReviewNoteView, type ReviewSource, type ReviewState, type Sources, type TreeTab } from './tree';

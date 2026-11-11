@@ -2,10 +2,10 @@
 import { computed, shallowRef } from 'vue';
 import { VButton, VDialog, VMessage, VSelect } from '@ui/kit';
 import { t } from '../../shared/lib/i18n/i18n';
-import { useBerth } from '../berth';
-import { useAction } from '../useAction';
-import { moveAgent } from './orphans';
-import { useWorktreeOptions } from './worktrees';
+import { useBerth } from '../../entities/session/model/berth';
+import { useAction } from '../../entities/session/model/useAction';
+import { moveAgent } from '../../entities/session/model/orphans';
+import { useWorktreeOptions } from '../../entities/session/model/worktrees';
 
 const props = defineProps<{ agent: string }>();
 const emit = defineEmits<{ moved: []; close: [] }>();

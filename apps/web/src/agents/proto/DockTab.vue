@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type { DockviewPanelApi } from 'dockview-vue';
 import { FileText, GitPullRequest, Network, Ticket, X } from 'lucide-vue-next';
-import { isDirtyPath, settleDirty } from '../../files/documents';
+import { isDirtyPath, settleDirty } from '../../entities/document/model/documents';
 import { t } from '../../shared/lib/i18n/i18n';
 import { METRICS_PANEL } from '../../shared/model/dock';
-import { useBerth } from '../berth';
-import { externalDot, isExternalPanel, sessionDot, useExternalSessions, type Harness } from '../external';
-import HarnessIcon from '../HarnessIcon.vue';
-import StatusDot from '../StatusDot.vue';
+import { useBerth } from '../../entities/session/model/berth';
+import { externalDot, isExternalPanel, sessionDot, useExternalSessions, type Harness } from '../../entities/session/model/external';
+import HarnessIcon from '../../entities/session/ui/HarnessIcon.vue';
+import StatusDot from '../../entities/session/ui/StatusDot.vue';
 import { FILE_PANEL_PREFIX, isFilePanel } from '../../shared/lib/markdownFiles';
 import SessionViewSwitch from './SessionViewSwitch.vue';
 

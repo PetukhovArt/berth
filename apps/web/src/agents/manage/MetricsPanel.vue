@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, shallowRef } from 'vue';
 import { useI18n } from '../../shared/lib/i18n/i18n';
-import { describeError, sessionId, sessionKey, useBerth } from '../berth';
-import { getMetrics, type MetricsSnapshot, type SessionMetrics } from './metrics';
+import { describeError, sessionId, sessionKey, useBerth } from '../../entities/session/model/berth';
+import { getMetrics, type MetricsSnapshot, type SessionMetrics } from '../../entities/session/model/metrics';
 
 const POLL_INTERVAL_MS = 3000;
 

@@ -1,5 +1,5 @@
 import { shallowRef } from 'vue';
-import { fsReadText } from '../shared/api/fs';
+import { fsReadText } from '../../../shared/api/fs';
 
 export type Remote = { host: string; path: string };
 

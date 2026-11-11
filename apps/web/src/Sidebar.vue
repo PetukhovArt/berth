@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Component } from 'vue';
 import { BookOpen, LayoutPanelLeft, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, Sun, Ticket } from 'lucide-vue-next';
 import { useConnectors } from './shared/api/connectors/api';
-import { useForgeInbox } from './forge/inbox';
+import { useForgeInbox } from './entities/merge-request/model/inbox';
 import { shortcutLabel } from './shared/lib/commands/keymap';
 import { useI18n } from './shared/lib/i18n/i18n';
 import { navigate, view } from './shared/model/nav';

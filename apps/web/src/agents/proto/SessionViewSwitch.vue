@@ -3,11 +3,11 @@ import { computed, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { pendingLeadsTo } from '../../shared/lib/commands/dispatcher';
 import { shortcutLabel } from '../../shared/lib/commands/keymap';
-import { numberLabel } from '../../forge/format';
+import { numberLabel } from '../../entities/merge-request/lib/format';
 import { lookupChanges } from '../../forge/worktreeChanged';
-import { knownMr, lookupMr } from '../../forge/worktreeMr';
+import { knownMr, lookupMr } from '../../entities/merge-request/model/worktreeMr';
 import { t } from '../../shared/lib/i18n/i18n';
-import { useBerth } from '../berth';
+import { useBerth } from '../../entities/session/model/berth';
 import { isAvailable, showView, viewOf, worktreeOf, type SessionView } from './sessionView';
 
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();

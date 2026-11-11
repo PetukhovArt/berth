@@ -1,18 +1,18 @@
 import { computed, onActivated, onBeforeUnmount, onDeactivated, shallowRef, watch } from 'vue';
 import type { DockviewApi, DockviewReadyEvent } from 'dockview-vue';
-import { externalKey, externalTarget, isExternalPanel, useExternalSessions, type ExternalSession } from '../../agents/external';
-import { markSeen, sessionKey, useBerth, worktreesOfProject, type SessionNode, type SessionRef, type WorktreeNode } from '../../agents/berth';
+import { externalKey, externalTarget, isExternalPanel, useExternalSessions, type ExternalSession } from '../../entities/session/model/external';
+import { markSeen, sessionKey, useBerth, worktreesOfProject, type SessionNode, type SessionRef, type WorktreeNode } from '../../entities/session/model/berth';
 import { FILE_PANEL_PREFIX, fileNameOf, filePanelId, isFilePanel, normalizePath } from '../lib/markdownFiles';
-import { sessionPaths } from '../../agents/proto/nav';
+import { sessionPaths } from '../../entities/session/lib/sessionPaths';
 import type { ChangeRequestRef } from '../api/connectors/api';
-import { numberLabel } from '../../forge/format';
-import { itemId } from '../../forge/inbox';
+import { numberLabel } from '../../entities/merge-request/lib/format';
+import { itemId } from '../../entities/merge-request/model/inbox';
 import { architecturePanelId, type ArchitectureParams } from '../../forge/stratum';
 import { t } from '../lib/i18n/i18n';
 import { useIsPhone } from '@ui/kit';
 import { navigate, view } from './nav';
 import { useSettings } from '../config/settings/store';
-import { loadOpenTabs, saveOpenTabs } from '../../workbench/openTabs';
+import { loadOpenTabs, saveOpenTabs } from '../../entities/session/model/openTabs';
 import type { WorkNode } from '../../workbench/tree';
 
 export const METRICS_PANEL = 'metrics';

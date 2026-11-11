@@ -1,4 +1,4 @@
-import type { Entities } from '../berth';
+import type { Entities } from './berth';
 
 type Projects = Entities['projects'];
 

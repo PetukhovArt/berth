@@ -3,8 +3,8 @@ import { shallowRef } from 'vue';
 import { ArchiveRestore, Trash2 } from 'lucide-vue-next';
 import { VButton } from '@ui/kit';
 import { t } from '../shared/lib/i18n/i18n';
-import { deleteAgent, unarchiveAgent, type SessionNode } from './berth';
-import { useAction } from './useAction';
+import { deleteAgent, unarchiveAgent, type SessionNode } from '../entities/session/model/berth';
+import { useAction } from '../entities/session/model/useAction';
 
 const props = defineProps<{ session: SessionNode }>();
 

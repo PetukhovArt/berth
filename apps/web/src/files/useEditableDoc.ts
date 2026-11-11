@@ -4,7 +4,7 @@ import type { EditorView, ViewUpdate } from '@codemirror/view';
 import { describeError } from '../shared/api/connectors/api';
 import { useSettings } from '../shared/config/settings/store';
 import { CHANGED_ON_DISK, fsReadDoc, fsWatch, fsWriteText, type FileDoc } from '../shared/api/fs';
-import { registerDoc, setDirtyPath, stashDraft, takeDraft } from './documents';
+import { registerDoc, setDirtyPath, stashDraft, takeDraft } from '../entities/document/model/documents';
 import { replaceDoc } from './editor';
 
 const PREVIEW_DELAY = 150;

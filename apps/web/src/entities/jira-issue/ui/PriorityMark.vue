@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { priorityLevel } from '../priority';
+import { priorityLevel } from '../lib/priority';
 
 const props = defineProps<{ priority: string | null }>();
 const level = computed(() => priorityLevel(props.priority));

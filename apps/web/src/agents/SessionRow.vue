@@ -4,12 +4,12 @@ import { Ellipsis, MessageSquare } from 'lucide-vue-next';
 import { VButton, VContextMenu, VInputText } from '@ui/kit';
 import { t } from '../shared/lib/i18n/i18n';
 import { primaryPressed } from '../shared/lib/platform';
-import { externalStatusLabel, sessionDot, type ExternalSession } from './external';
-import HarnessIcon from './HarnessIcon.vue';
-import { archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, type SessionNode, type SessionStatus } from './berth';
-import { useAction } from './useAction';
+import { externalStatusLabel, sessionDot, type ExternalSession } from '../entities/session/model/external';
+import HarnessIcon from '../entities/session/ui/HarnessIcon.vue';
+import { archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, type SessionNode, type SessionStatus } from '../entities/session/model/berth';
+import { useAction } from '../entities/session/model/useAction';
 import MoveAgentDialog from './manage/MoveAgentDialog.vue';
-import StatusDot from './StatusDot.vue';
+import StatusDot from '../entities/session/ui/StatusDot.vue';
 
 const props = defineProps<{ session: SessionNode; active: boolean; linked?: ExternalSession }>();
 const emit = defineEmits<{ open: [split: boolean]; 'open-conversation': [] }>();

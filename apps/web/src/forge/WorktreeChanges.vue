@@ -2,7 +2,7 @@
 import { shallowRef, watch } from 'vue';
 import { RefreshCw } from 'lucide-vue-next';
 import { VButton } from '@ui/kit';
-import type { SessionStatus } from '../agents/berth';
+import type { SessionStatus } from '../entities/session/model/berth';
 import { describeError, type DiffFile, type Discussion } from '../shared/api/connectors/api';
 import { worktreeChanges } from '../shared/api/fs';
 import { t } from '../shared/lib/i18n/i18n';

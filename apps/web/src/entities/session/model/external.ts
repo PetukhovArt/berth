@@ -1,9 +1,9 @@
 import { computed, shallowRef, watch, type ComputedRef, type ShallowRef } from 'vue';
-import { createChannel, hasBackend, invoke } from '../bridge';
-import { t } from '../shared/lib/i18n/i18n';
-import { useSettings } from '../shared/config/settings/store';
-import { getMetrics } from './manage/metrics';
-import { listOrphans, resumeOrphan } from './manage/orphans';
+import { createChannel, hasBackend, invoke } from '../../../bridge';
+import { t } from '../../../shared/lib/i18n/i18n';
+import { useSettings } from '../../../shared/config/settings/store';
+import { getMetrics } from './metrics';
+import { listOrphans, resumeOrphan } from './orphans';
 import { archiveExternalSession, createTerminal, describeError, entitySessionRef, externalArchiveKey, BerthCallError, sendInput, sessionKey, unarchiveExternalSession, useBerth, worktreesOfProject, type Entities, type SessionNode, type SessionRef, type SessionStatus } from './berth';
 
 export type Harness = 'claude' | 'codex';

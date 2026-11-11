@@ -4,11 +4,11 @@ import { VButton, VInputText } from '@ui/kit';
 import { describeError, jiraSearch, reloadWhenRecovered, type JiraIssueSummary } from '../shared/api/connectors/api';
 import { t, useI18n } from '../shared/lib/i18n/i18n';
 import ErrorInline from '../shared/ui/ErrorInline.vue';
-import PersonAvatar from './PersonAvatar.vue';
-import PriorityMark from './PriorityMark.vue';
+import PersonAvatar from '../entities/jira-issue/ui/PersonAvatar.vue';
+import PriorityMark from '../entities/jira-issue/ui/PriorityMark.vue';
 import Skeleton from '../shared/ui/Skeleton.vue';
-import StatusChip from './StatusChip.vue';
-import TypeIcon from './TypeIcon.vue';
+import StatusChip from '../entities/jira-issue/ui/StatusChip.vue';
+import TypeIcon from '../entities/jira-issue/ui/TypeIcon.vue';
 import { readStored, writeStored } from '../shared/lib/atlassian';
 
 type Filter = { id: string; name: string; jql: string };

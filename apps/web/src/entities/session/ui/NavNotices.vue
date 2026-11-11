@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { t } from '../../shared/lib/i18n/i18n';
-import { useBerth } from '../berth';
+import { t } from '../../../shared/lib/i18n/i18n';
+import { useBerth } from '../model/berth';
 
 const berth = useBerth();
 

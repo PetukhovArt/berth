@@ -1,7 +1,7 @@
 import { watch } from 'vue';
 import { listen } from '@tauri-apps/api/event';
-import { useExternalSessions } from './agents/external';
-import { useBerth } from './agents/berth';
+import { useExternalSessions } from './entities/session/model/external';
+import { useBerth } from './entities/session/model/berth';
 import { invoke, isDesktop } from './bridge';
 import { openCleanup } from './cleanup/state';
 import { runAction } from './shared/lib/commands/registry';

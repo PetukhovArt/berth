@@ -2,10 +2,10 @@
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import { VButton, VInputText } from '@ui/kit';
 import { t } from '../../shared/lib/i18n/i18n';
-import { useBerth } from '../berth';
+import { useBerth } from '../../entities/session/model/berth';
 import ActionMenu from '../../shared/ui/ActionMenu.vue';
-import { useAction } from '../useAction';
-import { addWorkspace, removeWorkspace, renameWorkspace } from './workspaces';
+import { useAction } from '../../entities/session/model/useAction';
+import { addWorkspace, removeWorkspace, renameWorkspace } from '../../entities/session/model/workspaces';
 
 const props = defineProps<{ workspaceId?: string }>();
 

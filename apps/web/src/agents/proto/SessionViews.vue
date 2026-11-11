@@ -2,8 +2,8 @@
 import { computed, nextTick, useTemplateRef, watch } from 'vue';
 import ChangeRequestView from '../../forge/ChangeRequestView.vue';
 import WorktreeChanges from '../../forge/WorktreeChanges.vue';
-import { useBerth } from '../berth';
-import { externalDot, sessionDot, useExternalSessions } from '../external';
+import { useBerth } from '../../entities/session/model/berth';
+import { externalDot, sessionDot, useExternalSessions } from '../../entities/session/model/external';
 import { mrOf, viewOf, worktreeOf } from './sessionView';
 
 const props = defineProps<{ panelId: string }>();

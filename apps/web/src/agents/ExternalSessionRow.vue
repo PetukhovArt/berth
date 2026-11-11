@@ -5,10 +5,10 @@ import { VContextMenu } from '@ui/kit';
 import { copyText } from '../shared/lib/atlassian';
 import { useI18n } from '../shared/lib/i18n/i18n';
 import { primaryPressed } from '../shared/lib/platform';
-import { archiveExternal, externalDot, externalOrigin, externalStatusLabel, resumeCommand, type ExternalSession } from './external';
-import HarnessIcon from './HarnessIcon.vue';
-import StatusDot from './StatusDot.vue';
-import { useAction } from './useAction';
+import { archiveExternal, externalDot, externalOrigin, externalStatusLabel, resumeCommand, type ExternalSession } from '../entities/session/model/external';
+import HarnessIcon from '../entities/session/ui/HarnessIcon.vue';
+import StatusDot from '../entities/session/ui/StatusDot.vue';
+import { useAction } from '../entities/session/model/useAction';
 
 const props = defineProps<{ session: ExternalSession; active: boolean }>();
 const emit = defineEmits<{ open: [split: boolean] }>();
