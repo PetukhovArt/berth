@@ -216,6 +216,9 @@ function create() {
 
   async function refreshPreviews() {
     const run = ++previewRun;
+    const present = new Set(raw.value.map((entry) => entry.key));
+    for (const key of fetched.keys()) if (!present.has(key)) fetched.delete(key);
+    if ([...previews.value.keys()].some((key) => !present.has(key))) previews.value = new Map([...previews.value].filter(([key]) => present.has(key)));
     const wanted = raw.value.filter((entry) => entry.live && entry.source).slice(0, PREVIEW_LIMIT);
     for (const entry of wanted) {
       if (run !== previewRun) return;

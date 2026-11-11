@@ -1,5 +1,6 @@
 import { connectorAsset } from '../api/connectors/api';
 import { escapeHtml } from './content/highlight';
+import { Lru } from './lru';
 
 export async function copyText(text: string): Promise<void> {
   await navigator.clipboard.writeText(text);
@@ -55,16 +56,20 @@ export function highlightHtml(excerpt: string): string {
   return safeNodes(doc.body.childNodes);
 }
 
-const avatars = new Map<string, Promise<string | null>>();
+const avatars = new Lru<string, Promise<string | null>>(200);
 
 export function avatarSrc(connector: string, url: string): Promise<string | null> {
   const key = `${connector}\n${url}`;
   let cached = avatars.get(key);
   if (!cached) {
-    cached = connectorAsset(connector, url)
+    const pending: Promise<string | null> = connectorAsset(connector, url)
       .then((asset) => `data:${asset.mime};base64,${asset.base64}`)
-      .catch(() => null);
-    avatars.set(key, cached);
+      .catch(() => {
+        if (avatars.peek(key) === pending) avatars.delete(key);
+        return null;
+      });
+    avatars.set(key, pending);
+    cached = pending;
   }
   return cached;
 }

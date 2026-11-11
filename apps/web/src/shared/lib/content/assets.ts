@@ -1,12 +1,14 @@
 import { connectorAsset, connectorsList } from '../../api/connectors/api';
 import { fsReadBinary } from '../../api/fs';
+import { Lru } from '../lru';
 
 const POOL = 4;
+const CACHE_LIMIT = 64;
 const ABSOLUTE = /^(?:[a-z][a-z\d+.-]*:|\/\/)/i;
 
 let bases: Promise<Map<string, URL>> | null = null;
-const assets = new Map<string, Promise<string | null>>();
-const localAssets = new Map<string, Promise<string | null>>();
+const assets = new Lru<string, Promise<string | null>>(CACHE_LIMIT);
+const localAssets = new Lru<string, Promise<string | null>>(CACHE_LIMIT);
 
 function connectorBases(): Promise<Map<string, URL>> {
   bases ??= connectorsList()
@@ -85,7 +87,7 @@ async function fetchAsset(connector: string, url: string): Promise<string | null
     pending = connectorAsset(connector, url)
       .then((asset) => `data:${asset.mime};base64,${asset.base64}`)
       .catch(() => {
-        assets.delete(key);
+        if (assets.peek(key) === pending) assets.delete(key);
         return null;
       });
     assets.set(key, pending);
@@ -99,7 +101,7 @@ function fetchLocal(path: string): Promise<string | null> {
     pending = fsReadBinary(path)
       .then((file) => `data:${file.mime};base64,${file.base64}`)
       .catch(() => {
-        localAssets.delete(path);
+        if (localAssets.peek(path) === pending) localAssets.delete(path);
         return null;
       });
     localAssets.set(path, pending);

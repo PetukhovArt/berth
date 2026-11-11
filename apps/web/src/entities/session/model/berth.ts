@@ -70,8 +70,9 @@ export type Entities = {
   terminals: ReadonlyMap<string, Terminal>;
 };
 
-const byId = <T extends { id: string }>(items: T[]): ReadonlyMap<string, T> => new Map(items.map((item) => [item.id, item]));
-const put = <T extends { id: string }>(map: ReadonlyMap<string, T>, item: T): ReadonlyMap<string, T> => new Map(map).set(item.id, item);
+type MutableEntities = { [K in keyof Entities]: Entities[K] extends ReadonlyMap<string, infer T> ? Map<string, T> : never };
+
+const byId = <T extends { id: string }>(items: T[]): Map<string, T> => new Map(items.map((item) => [item.id, item]));
 const drop = <T>(map: ReadonlyMap<string, T>, id: string): ReadonlyMap<string, T> => {
   const next = new Map(map);
   next.delete(id);
@@ -91,28 +92,30 @@ export function worktreesOfProject(entities: Entities, project: string): Worktre
 
 const EMPTY: Entities = { workspaces: new Map(), projects: new Map(), worktrees: new Map(), agents: new Map(), terminals: new Map() };
 
-function upsert(entities: Entities, entity: Entity): Entities {
-  if ('Workspace' in entity) return { ...entities, workspaces: put(entities.workspaces, entity.Workspace) };
-  if ('Project' in entity) return { ...entities, projects: put(entities.projects, entity.Project) };
-  if ('Worktree' in entity) return { ...entities, worktrees: put(entities.worktrees, entity.Worktree) };
-  if ('Agent' in entity) return { ...entities, agents: put(entities.agents, entity.Agent) };
-  if ('Terminal' in entity) return { ...entities, terminals: put(entities.terminals, entity.Terminal) };
-  return entities;
+function upsert(entities: MutableEntities, entity: Entity): boolean {
+  if ('Workspace' in entity) entities.workspaces.set(entity.Workspace.id, entity.Workspace);
+  else if ('Project' in entity) entities.projects.set(entity.Project.id, entity.Project);
+  else if ('Worktree' in entity) entities.worktrees.set(entity.Worktree.id, entity.Worktree);
+  else if ('Agent' in entity) entities.agents.set(entity.Agent.id, entity.Agent);
+  else if ('Terminal' in entity) entities.terminals.set(entity.Terminal.id, entity.Terminal);
+  else return false;
+  return true;
 }
 
-function remove(entities: Entities, id: EntityId): Entities {
-  if ('Workspace' in id) return { ...entities, workspaces: drop(entities.workspaces, id.Workspace) };
-  if ('Project' in id) return { ...entities, projects: drop(entities.projects, id.Project) };
-  if ('Worktree' in id) return { ...entities, worktrees: drop(entities.worktrees, id.Worktree) };
-  if ('Agent' in id) return { ...entities, agents: drop(entities.agents, id.Agent) };
-  if ('Terminal' in id) return { ...entities, terminals: drop(entities.terminals, id.Terminal) };
-  return entities;
+function remove(entities: MutableEntities, id: EntityId): boolean {
+  if ('Workspace' in id) return entities.workspaces.delete(id.Workspace);
+  if ('Project' in id) return entities.projects.delete(id.Project);
+  if ('Worktree' in id) return entities.worktrees.delete(id.Worktree);
+  if ('Agent' in id) return entities.agents.delete(id.Agent);
+  if ('Terminal' in id) return entities.terminals.delete(id.Terminal);
+  return false;
 }
 
-function setStatus(entities: Entities, id: string, status: AgentStatus, unseen: boolean): Entities {
+function setStatus(entities: MutableEntities, id: string, status: AgentStatus, unseen: boolean): boolean {
   const agent = entities.agents.get(id);
-  if (!agent) return entities;
-  return { ...entities, agents: put(entities.agents, { ...agent, status, unseen }) };
+  if (!agent || (agent.status === status && agent.unseen === unseen)) return false;
+  entities.agents.set(id, { ...agent, status, unseen });
+  return true;
 }
 
 export function sessionKey(session: SessionRef): string {
@@ -167,7 +170,11 @@ let store: BerthStore | null = null;
 let watching: Promise<void> = Promise.resolve();
 
 function createStore(): BerthStore {
+  let state: MutableEntities = { workspaces: new Map(), projects: new Map(), worktrees: new Map(), agents: new Map(), terminals: new Map() };
   const entities = shallowRef<Entities>(EMPTY);
+  const publish = (changed: boolean) => {
+    if (changed) entities.value = { ...state };
+  };
   const connection = shallowRef<Connection>({ state: 'connecting', message: null });
   const error = shallowRef<string | null>(null);
   const archivedExternal = shallowRef<ReadonlyMap<string, number>>(new Map());
@@ -179,13 +186,14 @@ function createStore(): BerthStore {
         connection.value = { state: event.state, message: event.message };
         return;
       case 'snapshot':
-        entities.value = {
+        state = {
           workspaces: byId(event.workspaces),
           projects: byId(event.projects),
           worktrees: byId(event.worktrees),
           agents: byId(event.agents),
           terminals: byId(event.terminals),
         };
+        publish(true);
         archivedExternal.value = new Map(event.archived_external.map((mark) => [externalArchiveKey(mark.kind, mark.session_id), mark.archived_at]));
         return;
       case 'external_archived':
@@ -195,13 +203,13 @@ function createStore(): BerthStore {
         archivedExternal.value = drop(archivedExternal.value, externalArchiveKey(event.kind, event.session_id));
         return;
       case 'upserted':
-        entities.value = upsert(entities.value, event.entity);
+        publish(upsert(state, event.entity));
         return;
       case 'removed':
-        entities.value = remove(entities.value, event.id);
+        publish(remove(state, event.id));
         return;
       case 'status':
-        entities.value = setStatus(entities.value, event.agent, event.status, event.unseen);
+        publish(setStatus(state, event.agent, event.status, event.unseen));
         return;
       case 'error':
         error.value = event.message;

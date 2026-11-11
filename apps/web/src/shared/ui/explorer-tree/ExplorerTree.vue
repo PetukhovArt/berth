@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T">
-import { computed, nextTick, shallowRef, useId, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onMounted, shallowRef, useId, useTemplateRef, watch } from 'vue';
 import { ChevronRight } from '../icons';
 import { primaryPressed } from '../../lib/platform';
 import type { TreeNode, TreeRow } from './types';
@@ -33,6 +33,9 @@ const TYPEAHEAD_MS = 600;
 const uid = useId();
 const tree = useTemplateRef<HTMLElement>('tree');
 const cursor = shallowRef<string | null>(null);
+const animate = shallowRef(false);
+
+onMounted(() => void nextTick(() => (animate.value = true)));
 
 function readOverrides(key: string, store: Storage = localStorage): Record<string, boolean> {
   try {
@@ -234,8 +237,8 @@ function onKey(event: KeyboardEvent) {
 <template>
   <div
     ref="tree"
-    v-auto-animate
     class="tree"
+    :data-animate="animate || undefined"
     role="tree"
     tabindex="0"
     :aria-label="label"
@@ -307,6 +310,20 @@ function onKey(event: KeyboardEvent) {
   border-radius: var(--vr-radius-md);
   content-visibility: auto;
   contain-intrinsic-size: auto var(--vr-size-row);
+}
+
+.tree[data-animate] .node {
+  transition: opacity var(--vr-motion-base) var(--vr-motion-ease-standard);
+}
+
+@starting-style {
+  .tree[data-animate] .node {
+    opacity: 0;
+  }
+}
+
+:root.vr-reduce-motion .tree .node {
+  transition: none;
 }
 
 .node.custom {
