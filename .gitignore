@@ -32,3 +32,4 @@ apps/desktop/src-tauri/gen/
 *.log
 /.jig/*
 !/.jig/config.jsonc
+.agent-view/
