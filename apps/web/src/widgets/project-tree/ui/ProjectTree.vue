@@ -12,7 +12,7 @@ import { ProjectActions, WorkspaceActions, RepoActions } from '../../../features
 import { TypeIcon } from '../../../entities/jira-issue';
 import { isDesktop } from '../../../bridge';
 import { CleanupBadge, cleanupCount, openCleanup, removing as cleanupRemoving } from '../../../features/cleanup';
-import type { InboxItem } from '../../../shared/api/connectors/api';
+import { openUrl, type InboxItem } from '../../../shared/api/connectors/api';
 import { ArchitectureAction, openArchitecture, useArchitecture } from '../../../features/architecture';
 import { MrSessionNotice, OpenInSessionAction, useOpenInSession } from '../../../features/open-in-session';
 import { numberLabel, pipelineLabel, itemId, PipelineIcon, WorktreeBadge, openReview } from '../../../entities/merge-request';
@@ -48,7 +48,7 @@ const archItems = computed(() => {
   if (!target) return [];
   const { item, review } = target;
   const state = archState.value;
-  const items = [{ key: 'open-session', label: t('forge.openSession.action'), title: t('forge.openSession.title'), disabled: !berth || (mrSession.runs.value.get(itemId(item))?.busy ?? false), command: () => void mrSession.open(item, review?.refs) }];
+  const items = [{ key: 'open-session', label: t('forge.openSession.action'), title: t('forge.openSession.title'), disabled: !berth || (mrSession.runs.value.get(itemId(item))?.busy ?? false), command: () => void mrSession.open(item, review?.refs) }, { key: 'open-browser', label: t('common.openInBrowser'), title: item.url, disabled: false, command: () => void openUrl(item.url) }];
   if (state.status === 'hidden') return items;
   const reason = state.status === 'disabled' ? state.reason : state.status === 'checking' ? t('forge.stratum.checking') : t('forge.stratum.title');
   return [...items, { key: 'architecture', label: t('forge.stratum.action'), title: reason, disabled: state.status !== 'ready', command: () => state.status === 'ready' && openArchitecture(state.params, numberLabel(item)) }];

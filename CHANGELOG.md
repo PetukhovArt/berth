@@ -29,6 +29,7 @@
 - Added `Pin`, `Unpin`, `Move Up` and `Move Down` to a project's menu in the desktop app's tree: pinned projects sit at the top of their workspace in the order you set, kept by the daemon so every connected device shows the same order.
 - Added `T`, `M` and `D` buttons to a session tab in the desktop app, and `Ctrl+Space` then `t`, `m` or `d`: the tab shows its terminal, its branch's merge request, or the worktree's changes against the base branch with uncommitted and new files and a rendered Markdown preview.
 - Added replying to threads, `Resolve` and `Unresolve`, and new comments to the desktop app's merge request overview, for GitLab and GitHub; a token that can only read says which scope it needs.
+- Added `Open in Browser` to the right-click menu of a merge or pull request in the desktop app's tree.
 - Windows: Added WebView2 debugging on port 9335 to the installed desktop app, so `agent-view` can attach to it.
 - Changed the desktop app's tree to widen up to half the window instead of stopping at 400px.
 - Changed the desktop app's Markdown file picker to list the most recently edited files first, each with its full name and its path on a line below.
