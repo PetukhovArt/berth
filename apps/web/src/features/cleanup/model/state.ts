@@ -65,10 +65,16 @@ export const scanned = shallowRef<Stored | null>(loadStored());
 export const scanning = shallowRef(false);
 export const scanError = shallowRef<string | null>(null);
 export const sizes = shallowRef<ReadonlyMap<string, number>>(new Map());
+export const removing = shallowRef<{ name: string } | null>(null);
+export const removeResults = shallowRef<readonly RemoveResult[]>([]);
 
 export function openCleanup(): void {
   cleanupOpen.value = true;
 }
+
+watch(cleanupOpen, (open) => {
+  if (!open && !removing.value) removeResults.value = [];
+});
 
 function folderName(path: string): string {
   return path.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ?? path;
@@ -230,19 +236,25 @@ async function removeOne(candidate: Candidate, deleteBranch: boolean): Promise<L
   return unlinked.links;
 }
 
-export async function removeCandidates(list: readonly Candidate[], deleteBranch: boolean, progress: (name: string) => void): Promise<RemoveResult[]> {
+export async function removeCandidates(list: readonly Candidate[], deleteBranch: boolean): Promise<void> {
+  if (!list.length || removing.value) return;
+  removeResults.value = [];
   const results: RemoveResult[] = [];
-  for (const candidate of list) {
-    progress(candidate.name);
-    try {
-      const links = await removeOne(candidate, deleteBranch);
-      results.push({ key: candidate.key, name: candidate.name, error: null, links });
-    } catch (error) {
-      results.push({ key: candidate.key, name: candidate.name, error: describeError(error), links: [] });
+  try {
+    for (const candidate of list) {
+      removing.value = { name: candidate.name };
+      try {
+        const links = await removeOne(candidate, deleteBranch);
+        results.push({ key: candidate.key, name: candidate.name, error: null, links });
+      } catch (error) {
+        results.push({ key: candidate.key, name: candidate.name, error: describeError(error), links: [] });
+      }
     }
+    await scanNow();
+  } finally {
+    removing.value = null;
+    removeResults.value = results;
   }
-  await scanNow();
-  return results;
 }
 
 export function cleanupDiff(path: string): Promise<string> {

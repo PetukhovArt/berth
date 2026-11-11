@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, useTemplateRef } from 'vue';
-import { Activity, Eye, GitPullRequest, ListTodo, MessageSquare, Plus, Radio, RefreshCw, Search, SquareTerminal, TriangleAlert, Trash2 } from '../../../shared/ui/icons';
+import { Activity, Eye, GitPullRequest, ListTodo, MessageSquare, Plus, Radio, RefreshCw, Search, SquareTerminal, TriangleAlert, Trash2, LoaderCircle } from '../../../shared/ui/icons';
 import { VContextMenu } from '../../../shared/ui/kit';
 import ArchivedExternalRow from './ArchivedExternalRow.vue';
 import ArchivedRow from './ArchivedRow.vue';
@@ -11,7 +11,7 @@ import { useExternalSessions, NavNotices, StatusDot, useSessionDock } from '../.
 import { ProjectActions, WorkspaceActions, RepoActions } from '../../../features/manage-workspace';
 import { TypeIcon } from '../../../entities/jira-issue';
 import { isDesktop } from '../../../bridge';
-import { CleanupBadge, cleanupCount, openCleanup } from '../../../features/cleanup';
+import { CleanupBadge, cleanupCount, openCleanup, removing as cleanupRemoving } from '../../../features/cleanup';
 import type { InboxItem } from '../../../shared/api/connectors/api';
 import { ArchitectureAction, openArchitecture, useArchitecture } from '../../../features/architecture';
 import { MrSessionNotice, OpenInSessionAction, useOpenInSession } from '../../../features/open-in-session';
@@ -106,13 +106,14 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
         <UiButton
           v-if="berth && isDesktop"
           class="icon cleanup"
-          :title="cleanupCount ? t('cleanup.buttonCount', { count: cleanupCount }) : t('cleanup.button')"
+          :title="cleanupRemoving ? t('cleanup.removing', { name: cleanupRemoving.name }) : cleanupCount ? t('cleanup.buttonCount', { count: cleanupCount }) : t('cleanup.button')"
           :aria-label="t('cleanup.button')"
           data-testid="open-cleanup"
           @click="openCleanup"
         >
-          <Trash2 :size="14" />
-          <span v-if="cleanupCount" class="count" data-testid="cleanup-count">{{ cleanupCount }}</span>
+          <LoaderCircle v-if="cleanupRemoving" :size="14" class="spin" data-testid="cleanup-removing" />
+          <Trash2 v-else :size="14" />
+          <span v-if="cleanupCount && !cleanupRemoving" class="count" data-testid="cleanup-count">{{ cleanupCount }}</span>
         </UiButton>
         <UiButton v-if="berth" class="icon" :title="t('agents.metrics.open')" :aria-label="t('agents.metrics.title')" data-testid="open-metrics" @click="sessions.openMetrics()"><Activity :size="14" /></UiButton>      </span>
     </div>
@@ -533,7 +534,6 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
   border-radius: var(--vr-radius-full);
 }
 
-.verdict[data-approved='true'] {
 .verdict.note {
   flex: 0 1 auto;
   min-width: 0;
@@ -543,6 +543,7 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
   white-space: nowrap;
 }
 
+.verdict[data-approved='true'] {
   color: var(--vr-color-success, var(--vr-color-accent));
 }
 

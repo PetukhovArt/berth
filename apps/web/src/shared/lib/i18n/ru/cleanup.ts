@@ -41,6 +41,7 @@ export const cleanup: Translation<typeof en> = {
   removeSelected: 'Удалить выбранные',
   selected: { one: 'Выбран {count}', few: 'Выбрано {count}', many: 'Выбрано {count}', other: 'Выбрано {count}' },
   removing: 'Удаляю {name}…',
+  hide: 'Скрыть, удаление продолжится в фоне',
   removed: { one: 'Удалён {count} worktree', few: 'Удалено {count} worktree', many: 'Удалено {count} worktree', other: 'Удалено {count} worktree' },
   failed: '{name}: {message}',
   stopTimeout: 'сессии не остановились вовремя',

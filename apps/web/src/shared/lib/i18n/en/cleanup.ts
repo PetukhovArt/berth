@@ -38,6 +38,7 @@ export const cleanup = {
   removeSelected: 'Remove selected',
   selected: { one: '{count} selected', other: '{count} selected' },
   removing: 'Removing {name}…',
+  hide: 'Hide, removal continues in the background',
   removed: { one: 'Removed {count} worktree', other: 'Removed {count} worktrees' },
   failed: '{name}: {message}',
   stopTimeout: 'sessions did not stop in time',

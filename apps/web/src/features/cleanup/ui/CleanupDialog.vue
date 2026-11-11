@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue';
-import { RefreshCw } from '../../../shared/ui/icons';
+import { Minus, RefreshCw } from '../../../shared/ui/icons';
 import { VButton, VDialog, VMessage } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { candidates, cleanupDiff, cleanupOpen, measureSizes, removeCandidates, scanError, scanned, scanNow, scanning, sizes, type Candidate, type RemoveResult } from '../model/state';
+import { candidates, cleanupDiff, cleanupOpen, measureSizes, removeCandidates, removeResults as results, removing, scanError, scanned, scanNow, scanning, sizes, type Candidate } from '../model/state';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiInput from '../../../shared/ui/UiInput.vue';
@@ -12,9 +12,7 @@ const { t, formatRelative, formatBytes, formatNumber } = useI18n();
 const selected = shallowRef<ReadonlySet<string>>(new Set());
 const decided = new Set<string>();
 const deleteBranch = shallowRef(false);
-const busy = shallowRef(false);
-const progress = shallowRef<string | null>(null);
-const results = shallowRef<readonly RemoveResult[]>([]);
+const busy = computed(() => removing.value !== null);
 const diffs = shallowRef<ReadonlyMap<string, string>>(new Map());
 
 const groups = computed(() => {
@@ -60,7 +58,6 @@ watch(
   cleanupOpen,
   (open) => {
     if (!open) return;
-    results.value = [];
     if (!scanned.value) void scanNow();
     else measureSizes();
   },
@@ -138,17 +135,8 @@ function lineKind(line: string): string {
   return '';
 }
 
-async function removeSelected() {
-  const list = picked.value;
-  if (!list.length || busy.value) return;
-  busy.value = true;
-  results.value = [];
-  try {
-    results.value = await removeCandidates(list, deleteBranch.value, (name) => (progress.value = name));
-  } finally {
-    busy.value = false;
-    progress.value = null;
-  }
+function removeSelected() {
+  void removeCandidates(picked.value, deleteBranch.value);
 }
 </script>
 
@@ -157,11 +145,15 @@ async function removeSelected() {
     :visible="cleanupOpen"
     modal
     dismissable-mask
-    :header="t('cleanup.title')"
+    :aria-label="t('cleanup.title')"
     :style="{ width: '56rem', maxWidth: '95vw' }"
     data-testid="cleanup-dialog"
     @update:visible="cleanupOpen = $event"
   >
+    <template #header>
+      <span class="p-dialog-title">{{ t('cleanup.title') }}</span>
+      <UiButton v-if="busy" class="icon hide" :title="t('cleanup.hide')" :aria-label="t('cleanup.hide')" data-testid="cleanup-hide" @mousedown.stop @click="cleanupOpen = false"><Minus :size="18" /></UiButton>
+    </template>
     <div class="top">
       <p class="intro">{{ t('cleanup.intro') }}</p>
       <span class="when">
@@ -208,7 +200,7 @@ async function removeSelected() {
         <UiInput v-model="deleteBranch" type="checkbox" class="check" :disabled="busy" data-testid="cleanup-delete-branch" />
         {{ t('cleanup.deleteBranch') }}
       </label>
-      <span class="progress" role="status">{{ progress ? t('cleanup.removing', { name: progress }) : t('cleanup.selected', { count: picked.length }) }}</span>
+      <span class="progress" role="status">{{ removing ? t('cleanup.removing', { name: removing.name }) : t('cleanup.selected', { count: picked.length }) }}</span>
       <VButton :label="t('cleanup.removeSelected')" severity="danger" size="small" :loading="busy" :disabled="!picked.length || busy || scanning" data-testid="cleanup-remove" @click="removeSelected" />
     </template>
   </VDialog>
@@ -254,6 +246,14 @@ async function removeSelected() {
 .icon:hover:not(:disabled) {
   color: var(--vr-color-text);
   background: var(--vr-color-nav-hover);
+}
+
+.icon.hide {
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  border-radius: var(--vr-radius-full);
+  cursor: pointer;
 }
 
 .spin {
