@@ -212,6 +212,13 @@ export const SETTINGS = {
     max: 365,
     step: 1,
   },
+  'sessions.restoreOnRestart': {
+    type: 'boolean',
+    default: true,
+    label: 'settings.def.sessionsRestoreOnRestart.label',
+    description: 'settings.def.sessionsRestoreOnRestart.description',
+    category: 'sessions',
+  },
   'sessions.unloadIdleAfter': {
     type: 'enum',
     default: '1h',

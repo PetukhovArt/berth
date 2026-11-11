@@ -110,6 +110,10 @@ export const settings = {
       label: 'Sessions started outside Berth',
       description: 'How many days back the tree shows Claude Code and Codex sessions started in a terminal or an IDE. 0 hides them.',
     },
+    sessionsRestoreOnRestart: {
+      label: 'Restore sessions after a restart',
+      description: 'After Berth or its daemon restarts, for example after an update, the session tabs that were open are opened again and the sessions that were running are started again. Agents resume their conversation; a terminal starts a new shell. The daemon part is stored in the berth config, so it applies to every client.',
+    },
     sessionsUnloadIdleAfter: {
       label: 'Unload idle sessions after',
       description: 'Closes the processes of sessions nobody has open once they sit idle this long. Each Claude session holds roughly 0.7-0.9 GB of memory, and an unloaded one resumes its conversation when you open it. Sessions with a running agent, a waiting prompt or a running terminal command are kept. Stored in the berth config, so it applies to every client.',

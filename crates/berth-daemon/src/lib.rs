@@ -12,6 +12,7 @@ pub mod pacer_migration;
 pub mod project_pins;
 pub mod pty;
 pub mod registry;
+pub mod restore;
 pub mod sampler;
 pub mod server;
 pub mod sibling;
@@ -88,6 +89,7 @@ async fn serve() -> Result<()> {
     tracing::info!(port = hook_env.port, "hook receiver listening");
 
     let daemon = registry::Daemon::new(store, hook_env);
+    tokio::spawn(daemon.clone().restore_live_sessions());
 
     // Drain hook events into the status machines; a payload that reports a
     // cwd inside another worktree of the same project re-homes the agent row.
@@ -251,6 +253,7 @@ async fn serve() -> Result<()> {
 
     // Cleanup: kill PTYs, remove the socket. (Status persistence joins in
     // phase 4/5 when the store exists.)
+    daemon.record_live_sessions();
     daemon.kill_all();
     transport::unlink_stale();
     tracing::info!("daemon exited cleanly");

@@ -96,6 +96,12 @@ pub fn config_path() -> PathBuf {
     data_dir().join("config.json")
 }
 
+/// The sessions that were live when the daemon last stopped cleanly, for
+/// the next start to spawn again.
+pub fn live_sessions_path() -> PathBuf {
+    data_dir().join("live-sessions.json")
+}
+
 pub fn log_dir() -> PathBuf {
     // Tests and parallel instances override the data dir; keep their logs
     // beside their data instead of the real user's state dir.

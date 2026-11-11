@@ -27,6 +27,9 @@ pub struct Config {
     /// attach or prewarm (agents resume their conversation). Malformed
     /// values fall back to the 5m default.
     pub session_idle_timeout: String,
+    /// Spawn the sessions that were live when the daemon stopped again when
+    /// it starts, so a daemon restart brings them back without an attach.
+    pub restore_sessions: bool,
 }
 
 impl Default for Config {
@@ -36,6 +39,7 @@ impl Default for Config {
             prewarm_agents: true,
             prewarm_sessions: true,
             session_idle_timeout: DEFAULT_SESSION_IDLE_TIMEOUT.into(),
+            restore_sessions: true,
         }
     }
 }

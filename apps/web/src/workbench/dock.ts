@@ -11,6 +11,8 @@ import { architecturePanelId, type ArchitectureParams } from '../forge/stratum';
 import { t } from '../i18n';
 import { useIsPhone } from '@ui/kit';
 import { navigate, view } from '../nav';
+import { useSettings } from '../settings/store';
+import { loadOpenTabs, saveOpenTabs } from './openTabs';
 import type { WorkNode } from './tree';
 
 export const METRICS_PANEL = 'metrics';
@@ -37,6 +39,7 @@ function createDock() {
   const switching = shallowRef(false);
   const pending: ((api: DockviewApi) => void)[] = [];
   let carried: { panels: Carried[]; active: string | null } = { panels: [], active: null };
+  let reopening = loadOpenTabs();
 
   const paths = computed(() => sessionPaths(berth?.tree.value ?? []));
   const activePath = computed(() => (activeKey.value ? paths.value.get(activeKey.value) : undefined));
@@ -101,6 +104,7 @@ function createDock() {
     (sessions) => {
       if (!sessions || berth?.connection.value.state !== 'connected') return;
       const api = dock.value;
+      if (api) reopen(api);
       if (api) for (const panel of api.panels) if (isSessionPanel(panel.id) && !sessions.has(panel.id)) panel.api.close();
       const opening = openingKey.value ? sessions.get(openingKey.value) : undefined;
       if (!opening) return;
@@ -282,18 +286,43 @@ function createDock() {
     carried = { panels: [], active: null };
   }
 
+  function reopen(api: DockviewApi) {
+    const sessions = berth?.sessions.value;
+    if (!reopening || !sessions?.size || berth?.connection.value.state !== 'connected') return;
+    const { keys, active } = reopening;
+    reopening = null;
+    if (!useSettings().values.value['sessions.restoreOnRestart']) return;
+    for (const key of keys) {
+      const session = sessions.get(key);
+      if (session && !api.getPanel(key)) addSessionPanel(session, api);
+    }
+    if (active) api.getPanel(active)?.api.setActive();
+  }
+
+  function remember(api: DockviewApi) {
+    if (reopening) return;
+    const keep = useSettings().values.value['sessions.restoreOnRestart'];
+    saveOpenTabs(keep ? { keys: api.panels.map((panel) => panel.id).filter(isSessionPanel), active: api.activePanel?.id ?? null } : null);
+  }
+
   function useHost() {
-    let activeChange: { dispose(): void } | null = null;
+    let listeners: { dispose(): void }[] = [];
     visible.value = true;
 
     function onReady({ api }: DockviewReadyEvent) {
       dock.value = api;
-      activeChange = api.onDidActivePanelChange(({ panel }) => {
-        activeKey.value = panel?.id ?? null;
-        activeTitle.value = panel?.title ?? '';
-      });
+      listeners = [
+        api.onDidActivePanelChange(({ panel }) => {
+          activeKey.value = panel?.id ?? null;
+          activeTitle.value = panel?.title ?? '';
+          remember(api);
+        }),
+        api.onDidAddPanel(() => remember(api)),
+        api.onDidRemovePanel(() => remember(api)),
+      ];
       const queued = pending.splice(0);
       restore(api);
+      reopen(api);
       pending.push(...queued);
       flush();
     }
@@ -312,7 +341,7 @@ function createDock() {
           panels: api.panels.map((panel) => ({ id: panel.id, component: panel.view.contentComponent, title: panel.title ?? panel.id, params: { ...panel.params } })),
           active: activeKey.value,
         };
-      activeChange?.dispose();
+      for (const listener of listeners) listener.dispose();
       dock.value = null;
       visible.value = false;
     });

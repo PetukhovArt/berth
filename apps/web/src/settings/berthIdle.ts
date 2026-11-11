@@ -1,39 +1,48 @@
 import { watch } from 'vue';
 import { hasBackend, invoke } from '../bridge';
-import { SETTINGS } from './schema';
+import { SETTINGS, type SettingKey } from './schema';
 import { useSettings } from './store';
 
-const KEY = 'sessions.unloadIdleAfter';
-const CHOICES = new Set<string>(SETTINGS[KEY].options.map((option) => option.value));
+const IDLE_CHOICES = new Set<unknown>(SETTINGS['sessions.unloadIdleAfter'].options.map((option) => option.value));
+
+const SYNCED: { key: SettingKey; command: string; accepts: (value: unknown) => boolean }[] = [
+  { key: 'sessions.unloadIdleAfter', command: 'berth_idle_timeout', accepts: (value) => IDLE_CHOICES.has(value) },
+  { key: 'sessions.restoreOnRestart', command: 'berth_restore_sessions', accepts: (value) => typeof value === 'boolean' },
+];
 
 export function installBerthIdleSync(): void {
   if (!hasBackend) return;
   const { loaded, values, set } = useSettings();
-  let known: string | null = null;
 
-  async function pull(): Promise<void> {
-    try {
-      const remote = await invoke<string>('berth_idle_timeout_read');
-      if (!CHOICES.has(remote)) return;
-      known = remote;
-      if (values.value[KEY] !== remote) set(KEY, remote);
-    } catch {
-      return;
-    }
-  }
+  const pulls = SYNCED.map(({ key, command, accepts }) => {
+    let known: unknown = null;
 
-  watch(
-    () => values.value[KEY],
-    async (next) => {
-      if (known === null || next === known) return;
+    watch(
+      () => values.value[key],
+      async (next) => {
+        if (known === null || next === known) return;
+        try {
+          await invoke<void>(`${command}_write`, { value: next });
+          known = next;
+        } catch {
+          return;
+        }
+      },
+    );
+
+    return async (): Promise<void> => {
       try {
-        await invoke<void>('berth_idle_timeout_write', { value: next });
-        known = next;
+        const remote = await invoke<unknown>(`${command}_read`);
+        if (!accepts(remote)) return;
+        known = remote;
+        if (values.value[key] !== remote) set(key, remote);
       } catch {
         return;
       }
-    },
-  );
+    };
+  });
+
+  const pull = () => pulls.forEach((run) => void run());
 
   let started = false;
   watch(
@@ -41,8 +50,8 @@ export function installBerthIdleSync(): void {
     (ready) => {
       if (!ready || started) return;
       started = true;
-      void pull();
-      window.addEventListener('focus', () => void pull());
+      pull();
+      window.addEventListener('focus', pull);
     },
     { immediate: true },
   );

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added restoring sessions after a restart: the daemon starts the sessions that were running when it was stopped again (`restore_sessions` in the config, agents resume their conversation), and the desktop app reopens the session tabs that were open. `sessions.restoreOnRestart` in the desktop app's settings turns both off.
 - Added a desktop app (`apps/desktop`): a window over the berth daemon with a project tree, docked terminals, merge request reviews, Jira tasks and remote access from a phone, which carries over Veyra settings, keychain tokens and layout on first start.
 - Added daemon autostart to the desktop app: when no berth daemon is running, it starts `berth daemon` from `PATH` in the background instead of waiting with `berth daemon is not running`.
 - Added `Update Berth…` and `Roll back to previous build` to the desktop app's tray menu and command palette. Windows: they rebuild a working copy installed with `scripts\install-app.ps1` from the local `main` in the background and switch to it on restart. The dialog hides itself once the build starts and the title bar shows its progress; `Hide` does the same mid-build. The same dialog offers `Update daemon` whenever the daemon runs another build.

@@ -179,12 +179,30 @@ pub async fn berth_idle_timeout_write(value: String) -> Result<(), String> {
     if !IDLE_CHOICES.contains(&value.as_str()) {
         return Err(format!("недопустимое значение {value}"));
     }
+    berth_config_write(IDLE_KEY, serde_json::Value::String(value))
+}
+
+const RESTORE_KEY: &str = "restore_sessions";
+
+pub async fn berth_restore_sessions_read() -> Result<bool, String> {
+    let map = berth_config_object(&berth_core::paths::config_path())?;
+    Ok(map
+        .get(RESTORE_KEY)
+        .and_then(|value| value.as_bool())
+        .unwrap_or(true))
+}
+
+pub async fn berth_restore_sessions_write(value: bool) -> Result<(), String> {
+    berth_config_write(RESTORE_KEY, serde_json::Value::Bool(value))
+}
+
+fn berth_config_write(key: &str, value: serde_json::Value) -> Result<(), String> {
     let path = berth_core::paths::config_path();
     let mut map = berth_config_object(&path)?;
-    if map.get(IDLE_KEY).and_then(|v| v.as_str()) == Some(value.as_str()) {
+    if map.get(key) == Some(&value) {
         return Ok(());
     }
-    map.insert(IDLE_KEY.to_owned(), serde_json::Value::String(value));
+    map.insert(key.to_owned(), value);
     let mut text = serde_json::to_string_pretty(&map).map_err(|e| e.to_string())?;
     text.push('\n');
     let temp = path.with_extension("json.berth-tmp");
