@@ -33,6 +33,8 @@
 - Changed the desktop app's tree to widen up to half the window instead of stopping at 400px.
 - Changed the desktop app's Markdown file picker to list the most recently edited files first, each with its full name and its path on a line below.
 - Changed a session tab in the desktop app to show only the views it has: `M` when the branch has a merge request, `D` when the worktree has changes, and no buttons at all when it has neither. The merge request number chip is gone from the tab; the `M` button names the merge request in its tooltip.
+- Changed the `Earlier` and `Archive` groups in the desktop app's tree to start collapsed every time the app starts, even if you opened them last time.
+- Changed expanding and collapsing a group in a long desktop app tree to take about half the time it did.
 - Fixed `berth rename`, `berth worktree` and `berth spawn` failing inside a session with a protocol mismatch when the `berth` on `PATH` is older than the running daemon: a session now finds the daemon's own `berth` first.
 - Fixed a Claude conversation started by hand in a terminal showing twice in the desktop app's tree once the terminal closed, as the terminal and on its own; `Continue in Berth` now reopens that terminal instead of adding another.
 - Fixed the Markdown preview in the desktop app stopping at a fixed width instead of filling its panel.

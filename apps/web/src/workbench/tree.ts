@@ -149,7 +149,7 @@ const sessionLeaf =
 const archivedLeaf = (session: SessionNode): WorkNode => ({ id: `arch:${session.key}`, kind: 'archived', label: session.name, custom: true, data: { session } });
 const archivedExternalLeaf = (session: ExternalSession): WorkNode => ({ id: `arch:${externalKey(session)}`, kind: 'archived-external', label: session.title, title: session.cwd, custom: true, data: { external: session } });
 const archiveGroup = (id: string, children: WorkNode[]): WorkNode[] =>
-  children.length ? [{ id, kind: 'archive', label: t('agents.layouts.archive'), icon: Archive, children, count: children.length, countTitle: t('agents.layouts.archivedCount'), defaultExpanded: false }] : [];
+  children.length ? [{ id, kind: 'archive', label: t('agents.layouts.archive'), icon: Archive, children, count: children.length, countTitle: t('agents.layouts.archivedCount'), defaultExpanded: false, forgetExpanded: true }] : [];
 const mrLeaf = (item: InboxItem, review?: ReviewMeta): WorkNode => ({
   id: itemId(item),
   kind: 'mr',
@@ -218,6 +218,7 @@ function externalChildren(prefix: string, sessions: readonly ExternalSession[], 
       count: earlier.length,
       countTitle: t('workbench.countTitle', { count: earlier.length }),
       defaultExpanded: false,
+      forgetExpanded: true,
     });
   children.push(...archiveGroup(`${prefix}|archive`, archived.map(archivedExternalLeaf)));
   return children;

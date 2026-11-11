@@ -34,9 +34,9 @@ const uid = useId();
 const tree = useTemplateRef<HTMLElement>('tree');
 const cursor = shallowRef<string | null>(null);
 
-function readOverrides(key: string): Record<string, boolean> {
+function readOverrides(key: string, store: Storage = localStorage): Record<string, boolean> {
   try {
-    const raw: unknown = JSON.parse(localStorage.getItem(key) ?? 'null');
+    const raw: unknown = JSON.parse(store.getItem(key) ?? 'null');
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
     return Object.fromEntries(Object.entries(raw).filter((entry): entry is [string, boolean] => typeof entry[1] === 'boolean'));
   } catch {
@@ -45,11 +45,15 @@ function readOverrides(key: string): Record<string, boolean> {
 }
 
 const overrides = shallowRef<Readonly<Record<string, boolean>>>(readOverrides(props.storageKey));
+const runOverrides = shallowRef<Readonly<Record<string, boolean>>>(readOverrides(props.storageKey, sessionStorage));
 const revealCollapsed = shallowRef<ReadonlySet<string>>(new Set());
 
 watch(
   () => props.storageKey,
-  (key) => (overrides.value = readOverrides(key)),
+  (key) => {
+    overrides.value = readOverrides(key);
+    runOverrides.value = readOverrides(key, sessionStorage);
+  },
 );
 watch(
   () => props.revealAll,
@@ -58,7 +62,22 @@ watch(
 
 function isExpanded(node: TreeNode<T>): boolean {
   if (props.revealAll) return !revealCollapsed.value.has(node.id);
-  return overrides.value[node.id] ?? node.defaultExpanded ?? true;
+  return (node.forgetExpanded ? runOverrides : overrides).value[node.id] ?? node.defaultExpanded ?? true;
+}
+
+function storeExpanded(changes: Record<string, boolean>) {
+  const forget = (id: string) => index.value.get(id)?.node.forgetExpanded === true;
+  const entries = Object.entries(changes);
+  const run = entries.filter(([id]) => forget(id));
+  const kept = entries.filter(([id]) => !forget(id));
+  if (run.length) {
+    runOverrides.value = { ...runOverrides.value, ...Object.fromEntries(run) };
+    sessionStorage.setItem(props.storageKey, JSON.stringify(runOverrides.value));
+  }
+  if (kept.length) {
+    overrides.value = { ...overrides.value, ...Object.fromEntries(kept) };
+    localStorage.setItem(props.storageKey, JSON.stringify(overrides.value));
+  }
 }
 
 function setExpanded(id: string, want: boolean) {
@@ -67,10 +86,7 @@ function setExpanded(id: string, want: boolean) {
     if (want) next.delete(id);
     else next.add(id);
     revealCollapsed.value = next;
-  } else {
-    overrides.value = { ...overrides.value, [id]: want };
-    localStorage.setItem(props.storageKey, JSON.stringify(overrides.value));
-  }
+  } else storeExpanded({ [id]: want });
   emit('toggle', id, want);
 }
 
@@ -127,10 +143,7 @@ watch(
       const entry = index.value.get(parent);
       if (entry && !isExpanded(entry.node)) shut.push(parent);
     }
-    if (shut.length && !props.revealAll) {
-      overrides.value = { ...overrides.value, ...Object.fromEntries(shut.map((parent) => [parent, true])) };
-      localStorage.setItem(props.storageKey, JSON.stringify(overrides.value));
-    }
+    if (shut.length && !props.revealAll) storeExpanded(Object.fromEntries(shut.map((parent) => [parent, true])));
     setCursor(id);
   },
   { immediate: true },
@@ -292,6 +305,8 @@ function onKey(event: KeyboardEvent) {
   flex-wrap: wrap;
   align-items: center;
   border-radius: var(--vr-radius-md);
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--vr-size-row);
 }
 
 .node.custom {
