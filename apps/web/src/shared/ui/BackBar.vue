@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronLeft } from 'lucide-vue-next';
+import { ChevronLeft } from './icons';
 import { useI18n } from '../lib/i18n/i18n';
 
 defineProps<{ title?: string }>();

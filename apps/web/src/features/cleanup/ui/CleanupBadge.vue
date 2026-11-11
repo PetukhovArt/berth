@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { badges, openCleanup } from '../model/state';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ worktreeId: string }>();
 
 const kind = computed(() => badges.value.get(props.worktreeId) ?? null);
@@ -10,7 +11,7 @@ const label = computed(() => (kind.value ? t(`cleanup.badge.${kind.value}`) : ''
 </script>
 
 <template>
-  <button v-if="kind" class="badge" :data-kind="kind" :title="t('cleanup.badgeTitle', { reason: label })" :aria-label="t('cleanup.badgeTitle', { reason: label })" data-testid="worktree-cleanup-badge" @click.stop="openCleanup">{{ label }}</button>
+  <UiButton v-if="kind" class="badge" :data-kind="kind" :title="t('cleanup.badgeTitle', { reason: label })" :aria-label="t('cleanup.badgeTitle', { reason: label })" data-testid="worktree-cleanup-badge" @click.stop="openCleanup">{{ label }}</UiButton>
 </template>
 
 <style scoped>

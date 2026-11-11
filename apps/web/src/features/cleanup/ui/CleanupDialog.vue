@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue';
-import { RefreshCw } from 'lucide-vue-next';
-import { VButton, VDialog, VMessage } from '@ui/kit';
+import { RefreshCw } from '../../../shared/ui/icons';
+import { VButton, VDialog, VMessage } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { candidates, cleanupDiff, cleanupOpen, measureSizes, removeCandidates, scanError, scanned, scanNow, scanning, sizes, type Candidate, type RemoveResult } from '../model/state';
 
+import { UiButton } from '../../../shared/ui/UiButton';
+import UiInput from '../../../shared/ui/UiInput.vue';
 const { t, formatRelative, formatBytes, formatNumber } = useI18n();
 
 const selected = shallowRef<ReadonlySet<string>>(new Set());
@@ -164,7 +166,7 @@ async function removeSelected() {
       <p class="intro">{{ t('cleanup.intro') }}</p>
       <span class="when">
         <span v-if="scanned">{{ t('cleanup.scannedAt', { when: formatRelative(scanned.at) }) }}</span>
-        <button class="icon" :title="t('cleanup.rescan')" :aria-label="t('cleanup.rescan')" :disabled="scanning || busy" data-testid="cleanup-rescan" @click="scanNow"><RefreshCw :size="14" :class="{ spin: scanning }" /></button>
+        <UiButton class="icon" :title="t('cleanup.rescan')" :aria-label="t('cleanup.rescan')" :disabled="scanning || busy" data-testid="cleanup-rescan" @click="scanNow"><RefreshCw :size="14" :class="{ spin: scanning }" /></UiButton>
       </span>
     </div>
     <VMessage v-if="scanError" severity="error" size="small" data-testid="cleanup-error">{{ scanError }}</VMessage>
@@ -178,7 +180,7 @@ async function removeSelected() {
       <ul class="list">
         <li v-for="candidate in group.items" :key="candidate.key" class="row" data-testid="cleanup-row" :data-category="candidate.category" :data-path="candidate.path" :data-name="candidate.name">
           <label class="main">
-            <input
+            <UiInput
               type="checkbox"
               class="check"
               :checked="selected.has(candidate.key)"
@@ -193,7 +195,7 @@ async function removeSelected() {
             <span v-for="detail in detailsOf(candidate)" :key="detail" class="detail">{{ detail }}</span>
             <span class="size" data-testid="cleanup-size">{{ sizeOf(candidate) }}</span>
           </label>
-          <button v-if="candidate.category === 'changes'" class="link" data-testid="cleanup-diff" @click="toggleDiff(candidate)">{{ diffs.has(candidate.key) ? t('cleanup.hideDiff') : t('cleanup.showDiff') }}</button>
+          <UiButton v-if="candidate.category === 'changes'" class="link" data-testid="cleanup-diff" @click="toggleDiff(candidate)">{{ diffs.has(candidate.key) ? t('cleanup.hideDiff') : t('cleanup.showDiff') }}</UiButton>
           <pre v-if="diffs.has(candidate.key)" class="diff" data-testid="cleanup-diff-text"><span v-for="(line, index) in (diffs.get(candidate.key) ?? '').split('\n')" :key="index" :data-kind="lineKind(line)">{{ line }}
 </span></pre>
         </li>
@@ -203,7 +205,7 @@ async function removeSelected() {
     <VMessage v-for="failure in failures" :key="failure.key" severity="error" size="small" data-testid="cleanup-failure">{{ t('cleanup.failed', { name: failure.name, message: failure.error ?? '' }) }}</VMessage>
     <template #footer>
       <label class="branch">
-        <input v-model="deleteBranch" type="checkbox" class="check" :disabled="busy" data-testid="cleanup-delete-branch" />
+        <UiInput v-model="deleteBranch" type="checkbox" class="check" :disabled="busy" data-testid="cleanup-delete-branch" />
         {{ t('cleanup.deleteBranch') }}
       </label>
       <span class="progress" role="status">{{ progress ? t('cleanup.removing', { name: progress }) : t('cleanup.selected', { count: picked.length }) }}</span>

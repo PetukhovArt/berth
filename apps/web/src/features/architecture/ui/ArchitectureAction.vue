@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Network } from 'lucide-vue-next';
-import { VButton } from '@ui/kit';
+import { Network } from '../../../shared/ui/icons';
+import { VButton } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { numberLabel } from '../../../entities/merge-request';
 import { openArchitecture, useArchitecture } from '../model/stratum';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 type Item = { connector: string; project: string; number: number; target_branch: string; url: string };
 
 const props = withDefaults(defineProps<{ item: Item; variant?: 'button' | 'icon' }>(), { variant: 'button' });
@@ -32,7 +33,7 @@ function open() {
     </VButton>
     <span v-if="availability.status === 'disabled'" class="why" :title="reason" data-testid="cr-architecture-why">{{ reason }}</span>
   </template>
-  <button v-else-if="shown" class="icon" type="button" :title="t('forge.stratum.title')" :aria-label="t('forge.stratum.action')" data-testid="mr-architecture" @click.stop="open"><Network :size="14" /></button>
+  <UiButton v-else-if="shown" class="icon" type="button" :title="t('forge.stratum.title')" :aria-label="t('forge.stratum.action')" data-testid="mr-architecture" @click.stop="open"><Network :size="14" /></UiButton>
 </template>
 
 <style scoped>

@@ -9,6 +9,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { useBerth } from '../../../entities/session';
 import { isAvailable, sessionViewModes, showView, viewOf, worktreeOf, type SessionView, type SessionViewMode } from '../model/sessionView';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
 
 const berth = useBerth();
@@ -45,7 +46,7 @@ function show(view: SessionView) {
 
 <template>
   <span v-if="modes.length > 1" class="modes" role="group" :aria-label="t('agents.sessionView.switcher')" data-testid="tab-mr" @pointerdown.stop @dblclick.stop>
-    <button
+    <UiButton
       v-for="mode in modes"
       :key="mode.view"
       class="mode"
@@ -57,7 +58,7 @@ function show(view: SessionView) {
       @click.stop="show(mode.view)"
     >
       {{ mode.letter }}
-    </button>
+    </UiButton>
   </span>
 </template>
 

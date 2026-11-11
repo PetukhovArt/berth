@@ -1,6 +1,6 @@
 import { onActivated, onBeforeUnmount, onDeactivated, shallowRef } from 'vue';
 import type { DockviewApi, DockviewReadyEvent } from 'dockview-vue';
-import { useIsPhone } from '@ui/kit';
+import { useIsPhone } from '../ui/kit';
 import { navigate, view } from './nav';
 
 type PanelSpec = { id: string; component: string; title: string; params?: Record<string, unknown>; renderer?: 'always' };

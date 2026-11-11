@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { shallowRef, watch } from 'vue';
-import { RefreshCw } from 'lucide-vue-next';
-import { VButton } from '@ui/kit';
+import { RefreshCw } from '../../../shared/ui/icons';
+import { VButton } from '../../../shared/ui/kit';
 import type { SessionStatus } from '../../../entities/session';
 import { describeError, type DiffFile, type Discussion } from '../../../shared/api/connectors/api';
 import { worktreeChanges } from '../../../shared/api/fs';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { DiffView } from '../../../features/diff-review';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ path: string; status?: SessionStatus }>();
 
 type Changes = { kind: 'loading' } | { kind: 'failed'; message: string } | { kind: 'ready'; files: DiffFile[]; signature: string };
@@ -65,9 +66,9 @@ watch(
     </div>
     <DiffView v-else :files="changes.files" :discussions="NO_DISCUSSIONS" :root="path">
       <template #actions>
-        <button class="refresh" :disabled="refreshing" :aria-busy="refreshing" :title="t('agents.changes.refresh')" :aria-label="t('agents.changes.refresh')" data-testid="worktree-changes-refresh" @click="load">
+        <UiButton class="refresh" :disabled="refreshing" :aria-busy="refreshing" :title="t('agents.changes.refresh')" :aria-label="t('agents.changes.refresh')" data-testid="worktree-changes-refresh" @click="load">
           <RefreshCw :size="14" :class="{ spin: refreshing }" />
-        </button>
+        </UiButton>
       </template>
     </DiffView>
   </div>

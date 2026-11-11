@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue';
-import { Check, CheckCircle2, ChevronRight, Link, MessageSquare } from 'lucide-vue-next';
-import { VButton } from '@ui/kit';
+import { Check, CheckCircle2, ChevronRight, Link, MessageSquare } from '../../../shared/ui/icons';
+import { VButton } from '../../../shared/ui/kit';
 import { describeError, forgeReply, forgeResolve, type ChangeRequestRef, type Discussion } from '../../../shared/api/connectors/api';
 import { copyText } from '../../../shared/lib/atlassian';
 import PersonAvatar from '../../../shared/ui/PersonAvatar.vue';
@@ -10,6 +10,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import CommentComposer from './CommentComposer.vue';
 import { fullDate, relativeTime } from '../../../entities/merge-request';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ discussion: Discussion; connector?: string; showPosition?: boolean; target?: ChangeRequestRef }>();
 const emit = defineEmits<{ goto: [discussion: Discussion]; update: [discussion: Discussion] }>();
 
@@ -80,19 +81,19 @@ defineExpose({ expand });
 
 <template>
   <article class="thread" :data-resolved="discussion.resolved" :data-thread-id="discussion.id" :data-unresolved="discussion.resolvable && !discussion.resolved" data-testid="thread">
-    <button v-if="discussion.url" class="link" :title="copied ? t('forge.thread.copied') : t('forge.thread.copyLink')" :aria-label="t('forge.thread.copyLink')" data-testid="thread-copy-link" @click="copyLink">
+    <UiButton v-if="discussion.url" class="link" :title="copied ? t('forge.thread.copied') : t('forge.thread.copyLink')" :aria-label="t('forge.thread.copyLink')" data-testid="thread-copy-link" @click="copyLink">
       <Check v-if="copied" :size="13" />
       <Link v-else :size="13" />
-    </button>
-    <button v-if="discussion.resolved" class="fold" :aria-expanded="!folded" data-testid="thread-fold" @click="folded = !folded">
+    </UiButton>
+    <UiButton v-if="discussion.resolved" class="fold" :aria-expanded="!folded" data-testid="thread-fold" @click="folded = !folded">
       <ChevronRight :size="14" class="vr-chevron" :data-open="!folded" />
       <CheckCircle2 :size="14" class="resolved-icon" />
       <span class="fold-text">{{ t('forge.thread.resolved') }}<template v-if="first"> · {{ first.author.name || first.author.username }}: {{ preview }}</template></span>
-    </button>
+    </UiButton>
     <template v-if="!folded">
-      <button v-if="showPosition && position" class="position" :title="position" data-testid="thread-position" @click="emit('goto', discussion)">
+      <UiButton v-if="showPosition && position" class="position" :title="position" data-testid="thread-position" @click="emit('goto', discussion)">
         <MessageSquare :size="12" />{{ position }}
-      </button>
+      </UiButton>
       <div v-for="note in notes" :key="note.id" class="note" :data-system="note.system">
         <PersonAvatar v-if="!note.system" :person="note.author" small />
         <div class="body">

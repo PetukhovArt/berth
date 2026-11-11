@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ArchiveRestore } from 'lucide-vue-next';
+import { ArchiveRestore } from '../../../shared/ui/icons';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
 import { unarchiveExternal, type ExternalSession, HarnessIcon, useAction } from '../../../entities/session';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ session: ExternalSession }>();
 const emit = defineEmits<{ open: [split: boolean] }>();
 
@@ -17,11 +18,11 @@ function restore() {
 <template>
   <div class="archived" data-testid="archived-external-row" :data-session-id="session.id" :data-harness="session.harness" :data-busy="action.busy.value">
     <div class="line">
-      <button class="open" :title="session.cwd" data-testid="archived-external-open" @click="emit('open', primaryPressed($event))">
+      <UiButton class="open" :title="session.cwd" data-testid="archived-external-open" @click="emit('open', primaryPressed($event))">
         <HarnessIcon :harness="session.harness" />
         <span class="name">{{ session.title }}</span>
-      </button>
-      <button class="icon vr-reveal" :title="t('agents.session.restore')" :aria-label="t('agents.session.restore')" :disabled="action.busy.value" data-testid="archived-external-restore" @click="restore"><ArchiveRestore :size="14" /></button>
+      </UiButton>
+      <UiButton class="icon vr-reveal" :title="t('agents.session.restore')" :aria-label="t('agents.session.restore')" :disabled="action.busy.value" data-testid="archived-external-restore" @click="restore"><ArchiveRestore :size="14" /></UiButton>
     </div>
     <p v-if="action.error.value" class="row-error" role="alert" data-testid="archived-external-error">{{ action.error.value }}</p>
   </div>

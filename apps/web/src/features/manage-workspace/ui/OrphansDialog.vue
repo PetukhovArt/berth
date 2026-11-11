@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { shallowRef, watch } from 'vue';
-import { VButton, VDialog, VMessage, VSelect } from '@ui/kit';
+import { VButton, VDialog, VMessage, VSelect } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { describeError, useBerth, useAction, listOrphans, resumeOrphan, type OrphanedSession, useWorktreeOptions } from '../../../entities/session';
 

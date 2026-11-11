@@ -1,6 +1,6 @@
 import './app/legacyStorage';
 import { createApp, watchEffect } from 'vue';
-import { installUiKit } from '@ui/kit';
+import { installUiKit } from './shared/ui/kit';
 import './app/styles/app.css';
 import './shared/ui/motion/statusAnimation.css';
 import './app/actions';

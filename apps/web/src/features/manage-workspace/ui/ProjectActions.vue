@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
-import { VButton, VInputText } from '@ui/kit';
+import { VButton, VInputText } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useBerth, worktreesOfProject, useAction, canMove, moved, pinned, unpinned, addProject, removeProject, renameProject, setProjectPins } from '../../../entities/session';
 import ActionMenu, { type MenuItem } from '../../../shared/ui/ActionMenu.vue';

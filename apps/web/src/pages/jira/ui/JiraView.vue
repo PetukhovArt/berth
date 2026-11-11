@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Ticket } from 'lucide-vue-next';
+import { Ticket } from '../../../shared/ui/icons';
 import { JiraIssues, JiraIssueView } from '../../../widgets/jira';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { withViewTransition } from '../../../shared/ui/motion/motion';

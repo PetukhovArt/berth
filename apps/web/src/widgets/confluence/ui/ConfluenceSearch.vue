@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { VInputText } from '@ui/kit';
+import { VInputText } from '../../../shared/ui/kit';
 import { confluenceSearch, describeError, reloadWhenRecovered, type ConfluenceHit } from '../../../shared/api/connectors/api';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
 import ErrorInline from '../../../shared/ui/ErrorInline.vue';
 import Skeleton from '../../../shared/ui/Skeleton.vue';
 import { highlightHtml, recentPages, rememberPage, type RecentPage } from '../../../shared/lib/atlassian';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ connector: string }>();
 const emit = defineEmits<{ open: [payload: { connector: string; id: string }] }>();
 
@@ -101,14 +102,14 @@ onBeforeUnmount(() => clearTimeout(timer));
         <div v-if="!hits.length" class="empty">{{ t('confluence.search.noHits', { query: searched }) }}</div>
         <ul v-else v-auto-animate class="list">
           <li v-for="hit in hits" :key="hit.id">
-            <button class="hit" data-testid="confluence-hit" @click="openHit(hit)">
+            <UiButton class="hit" data-testid="confluence-hit" @click="openHit(hit)">
               <span class="title">{{ hit.title }}</span>
               <span class="meta">
                 <span class="space">{{ hit.space }}</span>
                 <span :title="formatDate(hit.updated)">{{ formatRelative(hit.updated) }}</span>
               </span>
               <span v-if="hit.excerpt" class="excerpt" v-html="highlightHtml(hit.excerpt)" />
-            </button>
+            </UiButton>
           </li>
         </ul>
       </template>
@@ -117,10 +118,10 @@ onBeforeUnmount(() => clearTimeout(timer));
         <div v-if="!recent.length" class="empty">{{ t('confluence.search.prompt') }}</div>
         <ul v-else v-auto-animate class="list">
           <li v-for="page in recent" :key="page.id">
-            <button class="hit" @click="openPage(page)">
+            <UiButton class="hit" @click="openPage(page)">
               <span class="title">{{ page.title }}</span>
               <span class="meta"><span class="space">{{ page.space }}</span></span>
-            </button>
+            </UiButton>
           </li>
         </ul>
       </template>

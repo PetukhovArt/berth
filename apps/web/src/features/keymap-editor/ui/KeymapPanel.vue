@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, shallowRef } from 'vue';
-import { ExternalLink, FileJson, Search } from 'lucide-vue-next';
-import { VButton, VInputText, VMessage } from '@ui/kit';
+import { ExternalLink, FileJson, Search } from '../../../shared/ui/icons';
+import { VButton, VInputText, VMessage } from '../../../shared/ui/kit';
 import { captureChords } from '../../../shared/lib/commands/dispatcher';
 import { sequenceLabel, type Chord } from '../../../shared/lib/commands/keys';
 import {

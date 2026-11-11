@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
-import { ArrowRight, ExternalLink, GitMerge, GitPullRequest, GitPullRequestClosed, GitPullRequestDraft, RefreshCw, Tag, TriangleAlert } from 'lucide-vue-next';
-import { VButton } from '@ui/kit';
+import { ArrowRight, ExternalLink, GitMerge, GitPullRequest, GitPullRequestClosed, GitPullRequestDraft, RefreshCw, Tag, TriangleAlert } from '../../../shared/ui/icons';
+import { VButton } from '../../../shared/ui/kit';
 import {
   describeError,
   forgeChangeRequest,
@@ -27,6 +27,7 @@ import { itemId, fullDate, numberLabel, pipelineLabel, relativeTime, PipelineIco
 import { CommentComposer, DiffView, ThreadView } from '../../../features/diff-review';
 import PipelineJobs from './PipelineJobs.vue';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ connector: string; project: string; number: number }>();
 
 type Tab = 'overview' | 'diff' | 'pipeline';
@@ -229,9 +230,9 @@ onBeforeUnmount(() => {
             <PersonAvatar v-for="r in cr.reviewers" :key="r.username" :person="r" small />
           </span>
           <span v-for="label in cr.labels" :key="label" class="chip label"><Tag :size="10" />{{ label }}</span>
-          <button v-if="pipeline" class="chip pipeline" :aria-expanded="pipelineOpen" data-testid="cr-pipeline-chip" @click="pipelineOpen = !pipelineOpen">
+          <UiButton v-if="pipeline" class="chip pipeline" :aria-expanded="pipelineOpen" data-testid="cr-pipeline-chip" @click="pipelineOpen = !pipelineOpen">
             <PipelineIcon :status="pipeline.status" />{{ pipelineLabel(pipeline.status) }}
-          </button>
+          </UiButton>
           <span v-else-if="cr.pipeline !== 'none'" class="chip pipeline"><PipelineIcon :status="cr.pipeline" />{{ pipelineLabel(cr.pipeline) }}</span>
         </div>
 
@@ -246,13 +247,13 @@ onBeforeUnmount(() => {
       </header>
 
       <nav class="tabs" role="tablist">
-        <button class="tab" role="tab" :aria-selected="tab === 'overview'" data-testid="cr-tab-overview" @click="selectTab('overview')">
+        <UiButton class="tab" role="tab" :aria-selected="tab === 'overview'" data-testid="cr-tab-overview" @click="selectTab('overview')">
           {{ t('forge.request.tabOverview') }}<span v-if="unresolved" class="badge" :title="t('forge.unresolvedThreads', { count: unresolved })">{{ unresolved }}</span>
-        </button>
-        <button class="tab" role="tab" :aria-selected="tab === 'diff'" data-testid="cr-tab-diff" @click="selectTab('diff')">
+        </UiButton>
+        <UiButton class="tab" role="tab" :aria-selected="tab === 'diff'" data-testid="cr-tab-diff" @click="selectTab('diff')">
           {{ t('forge.request.tabChanges') }}<span v-if="diffLoaded" class="badge muted-badge">{{ files.length }}</span>
-        </button>
-        <button class="tab" role="tab" :aria-selected="tab === 'pipeline'" data-testid="cr-tab-pipeline" @click="selectTab('pipeline')">{{ t('forge.request.tabPipeline') }}</button>
+        </UiButton>
+        <UiButton class="tab" role="tab" :aria-selected="tab === 'pipeline'" data-testid="cr-tab-pipeline" @click="selectTab('pipeline')">{{ t('forge.request.tabPipeline') }}</UiButton>
       </nav>
 
       <div v-show="tab === 'overview'" class="pane scroll" data-testid="cr-overview">

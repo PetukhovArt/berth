@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
-import { Ellipsis, MessageSquare } from 'lucide-vue-next';
-import { VButton, VContextMenu, VInputText } from '@ui/kit';
+import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
+import { VButton, VContextMenu, VInputText } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
 import { externalStatusLabel, sessionDot, type ExternalSession, HarnessIcon, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, type SessionNode, type SessionStatus, useAction, StatusDot } from '../../../entities/session';
 import { MoveAgentDialog } from '../../../features/move-agent';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ session: SessionNode; active: boolean; linked?: ExternalSession }>();
 const emit = defineEmits<{ open: [split: boolean]; 'open-conversation': [] }>();
 
@@ -90,7 +91,7 @@ async function confirmDelete() {
       @keydown.esc.prevent="cancel"
     />
     <template v-else>
-      <button
+      <UiButton
         class="row status-host"
         data-testid="session-row"
         :data-session-id="session.id"
@@ -108,9 +109,9 @@ async function confirmDelete() {
         <HarnessIcon v-if="linked" :harness="linked.harness" :working="sessionDot(session, linked) === 'running'" />
         <span class="name">{{ session.name }}</span>
         <span class="label">{{ linked ? externalStatusLabel(linked) : statusLabel(session.status) }}</span>
-      </button>
-      <button v-if="linked" class="more conversation" :title="t('workbench.external.open')" :aria-label="t('workbench.external.open')" data-testid="session-open-conversation" @click="emit('open-conversation')"><MessageSquare :size="14" /></button>
-      <button class="more" :title="t('agents.session.actions')" :aria-label="t('agents.session.actions')" aria-haspopup="menu" data-testid="session-menu" @click="showMenu"><Ellipsis :size="14" /></button>
+      </UiButton>
+      <UiButton v-if="linked" class="more conversation" :title="t('workbench.external.open')" :aria-label="t('workbench.external.open')" data-testid="session-open-conversation" @click="emit('open-conversation')"><MessageSquare :size="14" /></UiButton>
+      <UiButton class="more" :title="t('agents.session.actions')" :aria-label="t('agents.session.actions')" aria-haspopup="menu" data-testid="session-menu" @click="showMenu"><Ellipsis :size="14" /></UiButton>
     </template>
     <VContextMenu ref="menu" :model="menuItems">
       <template #item="{ item, props: itemProps }">

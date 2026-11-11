@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { RotateCw } from 'lucide-vue-next';
+import { RotateCw } from '../../../shared/ui/icons';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { busy, info, openUpdate, restart } from '../model/state';
 import { totals } from '../model/stages';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const mode = computed(() => {
   const state = info.value;
   if (!state?.running) return null;
@@ -15,14 +16,14 @@ const mode = computed(() => {
 </script>
 
 <template>
-  <button v-if="mode === 'building'" type="button" class="chip" data-testid="update-chip-building" :title="t('update.chip.buildingHint')" @click="openUpdate('update')">
+  <UiButton v-if="mode === 'building'" type="button" class="chip" data-testid="update-chip-building" :title="t('update.chip.buildingHint')" @click="openUpdate('update')">
     <span class="track" aria-hidden="true"><span class="fill" :style="{ width: `${totals.progress}%` }" /></span>
     {{ t('update.chip.building') }}
-  </button>
-  <button v-else-if="mode === 'ready'" type="button" class="chip ready" data-testid="update-chip-restart" :title="t('update.restartHint')" :disabled="busy" @click="restart">
+  </UiButton>
+  <UiButton v-else-if="mode === 'ready'" type="button" class="chip ready" data-testid="update-chip-restart" :title="t('update.restartHint')" :disabled="busy" @click="restart">
     <RotateCw :size="12" :stroke-width="2" aria-hidden="true" />
     {{ t('update.chip.restart') }}
-  </button>
+  </UiButton>
 </template>
 
 <style scoped>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ExternalLink } from 'lucide-vue-next';
+import { ExternalLink } from '../../../shared/ui/icons';
 import { openUrl, type Pipeline, type PipelineJob } from '../../../shared/api/connectors/api';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { formatDuration, jobTone, PipelineIcon } from '../../../entities/merge-request';

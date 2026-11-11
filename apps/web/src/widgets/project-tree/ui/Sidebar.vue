@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Component } from 'vue';
-import { BookOpen, LayoutPanelLeft, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, Sun, Ticket } from 'lucide-vue-next';
+import { BookOpen, LayoutPanelLeft, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, Sun, Ticket } from '../../../shared/ui/icons';
 import { useConnectors } from '../../../shared/api/connectors/api';
 import { useForgeInbox } from '../../../entities/merge-request';
 import { shortcutLabel } from '../../../shared/lib/commands/keymap';
@@ -10,6 +10,8 @@ import { sidebarCollapsed, sidebarSearchRequests, toggleSidebar } from '../../..
 import ProjectTree from './ProjectTree.vue';
 import { treeQuery, useWorkTree } from '../../../features/work-tree';
 
+import { UiButton } from '../../../shared/ui/UiButton';
+import UiInput from '../../../shared/ui/UiInput.vue';
 defineProps<{ dark: boolean }>();
 const emit = defineEmits<{ theme: [] }>();
 
@@ -153,13 +155,13 @@ onUnmounted(() => {
     <div class="top">
       <label v-if="!collapsed" class="search">
         <Search :size="16" />
-        <input ref="searchInput" v-model="treeQuery" :placeholder="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="sidebar-search" @keydown="onSearchKey" />
+        <UiInput ref="searchInput" v-model="treeQuery" :placeholder="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="sidebar-search" @keydown="onSearchKey" />
         <kbd v-if="shortcutLabel('sidebar.search')">{{ shortcutLabel('sidebar.search') }}</kbd>
       </label>
-      <button v-else class="item rail-item" :title="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="sidebar-search-open" @click="openSearch">
+      <UiButton v-else class="item rail-item" :title="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="sidebar-search-open" @click="openSearch">
         <Search :size="16" />
-      </button>
-      <button
+      </UiButton>
+      <UiButton
         class="icon toggle"
         :title="shortcutTitle(collapseLabel, 'sidebar.toggle')"
         :aria-label="collapseLabel"
@@ -169,11 +171,11 @@ onUnmounted(() => {
       >
         <PanelLeftOpen v-if="collapsed" :size="16" />
         <PanelLeftClose v-else :size="16" />
-      </button>
+      </UiButton>
     </div>
 
     <div v-if="showNav" class="primary">
-      <button
+      <UiButton
         v-for="item in navItems"
         :key="item.kind"
         class="item vt-nav"
@@ -187,7 +189,7 @@ onUnmounted(() => {
         <component :is="item.icon" :size="16" />
         <span v-if="!collapsed">{{ item.label }}</span>
         <span v-if="collapsed && item.count" class="count" :title="item.countTitle" :data-testid="item.testId + '-count'">{{ item.count }}</span>
-      </button>
+      </UiButton>
     </div>
 
     <div v-if="!collapsed" class="sections">
@@ -195,7 +197,7 @@ onUnmounted(() => {
     </div>
 
     <footer>
-      <button
+      <UiButton
         class="icon"
         :data-active="view.kind === 'settings'"
         :title="shortcutTitle(t('shell.settings'), 'nav.settings')"
@@ -204,14 +206,14 @@ onUnmounted(() => {
         @click="toggleSettings"
       >
         <Settings :size="16" />
-      </button>
-      <button v-if="!collapsed" class="icon lang" :title="t(`common.language.${nextLocale}`)" :aria-label="t('common.language.label')" data-testid="toggle-language" @click="setLocale(nextLocale)">
+      </UiButton>
+      <UiButton v-if="!collapsed" class="icon lang" :title="t(`common.language.${nextLocale}`)" :aria-label="t('common.language.label')" data-testid="toggle-language" @click="setLocale(nextLocale)">
         {{ locale.toUpperCase() }}
-      </button>
-      <button class="icon" :title="dark ? t('shell.themeLight') : t('shell.themeDark')" :aria-label="dark ? t('shell.themeLight') : t('shell.themeDark')" data-testid="toggle-theme" @click="emit('theme')">
+      </UiButton>
+      <UiButton class="icon" :title="dark ? t('shell.themeLight') : t('shell.themeDark')" :aria-label="dark ? t('shell.themeLight') : t('shell.themeDark')" data-testid="toggle-theme" @click="emit('theme')">
         <Sun v-if="dark" :size="16" />
         <Moon v-else :size="16" />
-      </button>
+      </UiButton>
     </footer>
 
     <div

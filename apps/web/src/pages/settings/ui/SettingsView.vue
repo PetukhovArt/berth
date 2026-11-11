@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch, type Component } from 'vue';
-import { ExternalLink, FileJson, FileText, History, Keyboard, Palette, Plug, RefreshCw, Search, SlidersHorizontal, Smartphone, SquareTerminal } from 'lucide-vue-next';
-import { VButton, VInputText, VMessage } from '@ui/kit';
+import { ExternalLink, FileJson, FileText, History, Keyboard, Palette, Plug, RefreshCw, Search, SlidersHorizontal, Smartphone, SquareTerminal } from '../../../shared/ui/icons';
+import { VButton, VInputText, VMessage } from '../../../shared/ui/kit';
 import { ConnectorsPanel } from '../../../features/manage-connectors';
 import BackBar from '../../../shared/ui/BackBar.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
@@ -15,6 +15,7 @@ import { CATEGORIES, SETTINGS, SETTING_KEYS } from '../../../shared/config/setti
 import { useSettings } from '../../../shared/config/settings/store';
 import { describeFailure } from '../../../shared/lib/config-file/parse';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const { t } = useI18n();
 const { parseError, issues, ioError, text, saveText, openExternal, canOpenExternal } = useSettings();
 
@@ -136,7 +137,7 @@ function onSearchKey(event: KeyboardEvent) {
 
     <div class="body vr-master-detail" :data-detail="showDetail">
       <nav class="categories vr-master" :aria-label="t('settings.categoriesLabel')">
-        <button
+        <UiButton
           v-for="entry in CATEGORIES"
           :key="entry.id"
           class="category"
@@ -146,7 +147,7 @@ function onSearchKey(event: KeyboardEvent) {
         >
           <component :is="CATEGORY_ICONS[entry.id]" :size="14" />
           {{ t(entry.label) }}
-        </button>
+        </UiButton>
       </nav>
 
       <div class="content vr-detail vt-detail">

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
-import { Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, TriangleAlert, Wrench } from 'lucide-vue-next';
-import { VButton, VMessage } from '@ui/kit';
+import { Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, TriangleAlert, Wrench } from '../../../shared/ui/icons';
+import { VButton, VMessage } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, readTranscript, resumeCommand, useExternalSessions, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusDot, useAction, useSessionDock } from '../../../entities/session';

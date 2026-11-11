@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, shallowRef, watch } from 'vue';
 import type { DockviewApi, IDockviewPanel } from 'dockview-vue';
-import { Plus } from 'lucide-vue-next';
+import { Plus } from '../../../shared/ui/icons';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSessionDock, useBerth, worktreesOfProject, placeExternal, useExternalSessions } from '../../../entities/session';
 import { startCreate } from '../../../features/new-session';
 import DockTab from './DockTab.vue';
 import { FILE_PANEL_PREFIX, isFilePanel } from '../../../shared/lib/markdownFiles';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ api: DockviewApi | null }>();
 
 const berth = useBerth();
@@ -90,9 +91,9 @@ function create(projectId: string) {
         <div v-for="panel in row.items" :key="panel.id" class="item" :data-active="panel.id === activeId" @click="panel.api.setActive()">
           <DockTab :panel="panel.api" :active="panel.id === activeId" />
         </div>
-        <button v-if="row.projectId" class="add" :title="t('agents.project.newSession')" :aria-label="t('agents.project.newSession')" data-testid="project-row-new-session" @click="create(row.projectId)">
+        <UiButton v-if="row.projectId" class="add" :title="t('agents.project.newSession')" :aria-label="t('agents.project.newSession')" data-testid="project-row-new-session" @click="create(row.projectId)">
           <Plus :size="12" />
-        </button>
+        </UiButton>
       </div>
     </div>
   </div>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { VInputText, VMessage, VSelect } from '@ui/kit';
+import { VInputText, VMessage, VSelect } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useBerth } from '../../../entities/session';
 import type { BranchMode, SessionTarget } from '../model/sessionTarget';

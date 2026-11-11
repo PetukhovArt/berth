@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { shallowRef } from 'vue';
-import { ArchiveRestore, Trash2 } from 'lucide-vue-next';
-import { VButton } from '@ui/kit';
+import { ArchiveRestore, Trash2 } from '../../../shared/ui/icons';
+import { VButton } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { deleteAgent, unarchiveAgent, type SessionNode, useAction } from '../../../entities/session';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ session: SessionNode }>();
 
 const confirming = shallowRef(false);
@@ -24,8 +25,8 @@ async function confirmDelete() {
     <div class="line">
       <span class="name" :title="session.name">{{ session.name }}</span>
       <template v-if="!confirming">
-        <button class="icon vr-reveal" :title="t('agents.session.restore')" :aria-label="t('agents.session.restore')" :disabled="action.busy.value" data-testid="archived-restore" @click="restore"><ArchiveRestore :size="14" /></button>
-        <button class="icon danger vr-reveal" :title="t('common.delete')" :aria-label="t('common.delete')" :disabled="action.busy.value" data-testid="archived-delete" @click="confirming = true"><Trash2 :size="14" /></button>
+        <UiButton class="icon vr-reveal" :title="t('agents.session.restore')" :aria-label="t('agents.session.restore')" :disabled="action.busy.value" data-testid="archived-restore" @click="restore"><ArchiveRestore :size="14" /></UiButton>
+        <UiButton class="icon danger vr-reveal" :title="t('common.delete')" :aria-label="t('common.delete')" :disabled="action.busy.value" data-testid="archived-delete" @click="confirming = true"><Trash2 :size="14" /></UiButton>
       </template>
     </div>
     <div v-if="confirming" class="confirm" role="group" :aria-label="t('agents.session.confirmDeleteLabel')" data-testid="session-delete-confirm">

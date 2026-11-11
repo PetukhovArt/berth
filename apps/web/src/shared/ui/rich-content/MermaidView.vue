@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
-import { Check, Code, Copy, Maximize2, MoveHorizontal, X, ZoomIn, ZoomOut } from 'lucide-vue-next';
+import { Check, Code, Copy, Maximize2, MoveHorizontal, X, ZoomIn, ZoomOut } from '../icons';
 import { t } from '../../lib/i18n/i18n';
 import { renderDiagram } from '../../lib/content/mermaid';
 import { useDarkTheme } from '../../lib/content/theme';

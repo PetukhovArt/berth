@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
-import { SquareTerminal, X } from 'lucide-vue-next';
+import { SquareTerminal, X } from '../../../shared/ui/icons';
 import { HarnessIcon, StatusDot } from '../../../entities/session';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
 import { useHot, type HotItem } from '../model/hot';
 import { hotDot, hotOverviewOpen } from '../model/view';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const hot = useHot();
 const { formatRelative } = useI18n();
 
@@ -129,10 +130,10 @@ function crumb(item: HotItem): string {
         <header class="bar">
           <h2 class="heading">{{ t('hot.overview.title') }}</h2>
           <span class="hint vr-key-hint">{{ t('hot.overview.hint') }}</span>
-          <button class="close" :title="t('hot.overview.close')" :aria-label="t('hot.overview.close')" data-testid="hot-overview-close" @click="close"><X :size="14" /></button>
+          <UiButton class="close" :title="t('hot.overview.close')" :aria-label="t('hot.overview.close')" data-testid="hot-overview-close" @click="close"><X :size="14" /></UiButton>
         </header>
         <div v-if="tiles.length" ref="grid" class="grid vr-sheet-body" role="listbox" tabindex="-1" :aria-label="t('hot.overview.title')">
-          <button
+          <UiButton
             v-for="(tile, position) in tiles"
             :key="tile.item.key"
             class="tile"
@@ -160,7 +161,7 @@ function crumb(item: HotItem): string {
               <span class="state">{{ t(`hot.status.${tile.item.status}`) }}</span>
               <span class="ago">{{ ago(tile.item) }}</span>
             </span>
-          </button>
+          </UiButton>
         </div>
         <p v-else class="empty" data-testid="hot-overview-empty">{{ t('hot.overview.empty') }}</p>
       </div>

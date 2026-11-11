@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { LoaderCircle, TriangleAlert, X } from 'lucide-vue-next';
-import { VButton } from '@ui/kit';
+import { LoaderCircle, TriangleAlert, X } from '../../../shared/ui/icons';
+import { VButton } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { RepoRef } from '../../../entities/repo';
 import { useOpenInSession, type MrRun } from '../model/openInSession';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 defineProps<{ run: MrRun }>();
 defineSlots<{ project(props: { repo: RepoRef }): unknown }>();
 
@@ -17,7 +18,7 @@ const { open, dismiss } = useOpenInSession();
       <LoaderCircle v-if="run.busy" :size="12" class="spin" />
       <TriangleAlert v-else :size="12" />
       <span class="label" :title="run.label">{{ run.label }}</span>
-      <button v-if="!run.busy" class="close" type="button" :title="t('forge.openSession.dismiss')" :aria-label="t('forge.openSession.dismiss')" data-testid="mr-session-dismiss" @click="dismiss(run.id)"><X :size="12" /></button>
+      <UiButton v-if="!run.busy" class="close" type="button" :title="t('forge.openSession.dismiss')" :aria-label="t('forge.openSession.dismiss')" data-testid="mr-session-dismiss" @click="dismiss(run.id)"><X :size="12" /></UiButton>
     </div>
     <p v-if="run.message" class="text" data-testid="mr-session-message">{{ run.message }}</p>
     <p v-if="run.error" class="text error" role="alert" data-testid="mr-session-error">{{ run.error }}</p>

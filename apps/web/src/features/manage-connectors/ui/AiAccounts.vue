@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef, type Component } from 'vue';
-import { Bot, Brain, Cpu, ExternalLink, Gem, KeyRound, Sparkles, Waypoints, Zap } from 'lucide-vue-next';
-import { VButton, VInputText, VMessage } from '@ui/kit';
+import { Bot, Brain, Cpu, ExternalLink, Gem, KeyRound, Sparkles, Waypoints, Zap } from '../../../shared/ui/icons';
+import { VButton, VInputText, VMessage } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { isDesktop } from '../../../bridge';
 import { describeError, openUrl } from '../../../shared/api/connectors/api';

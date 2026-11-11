@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { VButton, VDialog } from '@ui/kit';
+import { VButton, VDialog } from '../../../shared/ui/kit';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
 import { changes, closeChanges, type ChangeKind } from '../model/state';
 

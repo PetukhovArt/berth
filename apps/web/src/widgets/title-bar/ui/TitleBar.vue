@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { Copy, Minus, Square, X } from 'lucide-vue-next';
+import { Copy, Minus, Square, X } from '../../../shared/ui/icons';
 import { hostWindow as win } from '../../../bridge';
 import { settleAll } from '../../../entities/document';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { hostPlatform } from '../../../shared/lib/platform';
 import { UpdateChip } from '../../../features/update';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const { t } = useI18n();
 const maximized = ref(false);
 const nativeControls = computed(() => hostPlatform.value.windowChrome.nativeDecorations);
@@ -36,10 +37,10 @@ onUnmounted(() => stopResize?.());
     </svg>
     <div class="update" data-tauri-drag-region><UpdateChip /></div>
     <div v-if="!nativeControls" class="controls">
-      <button type="button" class="ctl" data-testid="titlebar-minimize" :aria-label="t('shell.window.minimize')" :title="t('shell.window.minimize')" @click="win.minimize()">
+      <UiButton type="button" class="ctl" data-testid="titlebar-minimize" :aria-label="t('shell.window.minimize')" :title="t('shell.window.minimize')" @click="win.minimize()">
         <Minus :size="16" :stroke-width="1.5" />
-      </button>
-      <button
+      </UiButton>
+      <UiButton
         type="button"
         class="ctl"
         data-testid="titlebar-maximize"
@@ -50,10 +51,10 @@ onUnmounted(() => stopResize?.());
       >
         <Copy v-if="maximized" :size="13" :stroke-width="1.5" />
         <Square v-else :size="12" :stroke-width="1.5" />
-      </button>
-      <button type="button" class="ctl close" data-testid="titlebar-close" :aria-label="t('shell.window.close')" :title="t('shell.window.close')" @click="closeWindow">
+      </UiButton>
+      <UiButton type="button" class="ctl close" data-testid="titlebar-close" :aria-label="t('shell.window.close')" :title="t('shell.window.close')" @click="closeWindow">
         <X :size="16" :stroke-width="1.5" />
-      </button>
+      </UiButton>
     </div>
   </header>
 </template>

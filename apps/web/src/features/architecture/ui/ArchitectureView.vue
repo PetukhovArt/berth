@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue';
-import { ExternalLink, LoaderCircle, RefreshCw, TriangleAlert } from 'lucide-vue-next';
-import { VButton } from '@ui/kit';
+import { ExternalLink, LoaderCircle, RefreshCw, TriangleAlert } from '../../../shared/ui/icons';
+import { VButton } from '../../../shared/ui/kit';
 import { describeError, openUrl } from '../../../shared/api/connectors/api';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { architectureProgress, architectureRelease, architectureStart, type ArchitectureParams, type Progress, type Visualizer } from '../model/stratum';

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, useTemplateRef } from 'vue';
-import { VButton } from '@ui/kit';
+import { VButton } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 
+import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 const props = defineProps<{ testid: string; busy: boolean; error: string | null; placeholder: string; label: string; cancellable?: boolean; autofocus?: boolean }>();
 const emit = defineEmits<{ send: []; cancel: [] }>();
 const draft = defineModel<string>({ required: true });
@@ -29,7 +30,7 @@ onMounted(() => {
 
 <template>
   <form class="composer" @submit.prevent="canSend && emit('send')">
-    <textarea
+    <UiTextarea
       ref="input"
       v-model="draft"
       class="input"

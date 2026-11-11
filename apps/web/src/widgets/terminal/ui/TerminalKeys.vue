@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CornerDownLeft } from 'lucide-vue-next';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CornerDownLeft } from '../../../shared/ui/icons';
 import { sendInput, type SessionRef } from '../../../entities/session';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { ctrlArmed } from '../lib/mobileKeys';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ session: SessionRef }>();
 
 const { t } = useI18n();
@@ -28,11 +29,11 @@ function press(data: string) {
 
 <template>
   <div class="keys" role="toolbar" :aria-label="t('mobile.keysLabel')" data-testid="mobile-terminal-keys" @pointerdown.prevent>
-    <button class="key" :data-armed="ctrlArmed" :aria-pressed="ctrlArmed" data-testid="mobile-key-ctrl" @click="ctrlArmed = !ctrlArmed">{{ t('mobile.key.ctrl') }}</button>
-    <button v-for="key in KEYS" :key="key.id" class="key" :aria-label="t(key.label)" :data-testid="`mobile-key-${key.id}`" @click="press(key.data)">
+    <UiButton class="key" :data-armed="ctrlArmed" :aria-pressed="ctrlArmed" data-testid="mobile-key-ctrl" @click="ctrlArmed = !ctrlArmed">{{ t('mobile.key.ctrl') }}</UiButton>
+    <UiButton v-for="key in KEYS" :key="key.id" class="key" :aria-label="t(key.label)" :data-testid="`mobile-key-${key.id}`" @click="press(key.data)">
       <component :is="key.icon" v-if="key.icon" :size="16" />
       <template v-else>{{ t(key.label) }}</template>
-    </button>
+    </UiButton>
   </div>
 </template>
 

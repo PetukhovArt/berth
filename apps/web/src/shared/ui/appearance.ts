@@ -1,5 +1,5 @@
 import { computed, shallowRef, watchEffect } from 'vue';
-import { DARK_CLASS } from '@ui/kit';
+import { DARK_CLASS } from './kit';
 import { SETTINGS } from '../config/settings/schema';
 import { useSettings } from '../config/settings/store';
 

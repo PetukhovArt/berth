@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
-import { VButton, VInputText } from '@ui/kit';
+import { VButton, VInputText } from '../../../shared/ui/kit';
 import { describeError, jiraSearch, reloadWhenRecovered, type JiraIssueSummary } from '../../../shared/api/connectors/api';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
 import ErrorInline from '../../../shared/ui/ErrorInline.vue';
@@ -8,6 +8,7 @@ import { PersonAvatar, PriorityMark, StatusChip, TypeIcon } from '../../../entit
 import Skeleton from '../../../shared/ui/Skeleton.vue';
 import { readStored, writeStored } from '../../../shared/lib/atlassian';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 type Filter = { id: string; name: string; jql: string };
 
 const props = defineProps<{ connector: string }>();
@@ -233,9 +234,9 @@ onMounted(() => void load(false));
   <div ref="root" class="jira-issues vr-split" tabindex="0" data-testid="jira-issues" @keydown="onKey">
     <aside class="filters vr-split-aside" :aria-label="t('jira.list.filters')">
       <div class="group-title">{{ t('jira.list.filters') }}</div>
-      <button v-for="filter in PRESETS" :key="filter.id" class="chip" :class="{ active: activeId === filter.id }" :title="filter.jql" @click="applyFilter(filter)">
+      <UiButton v-for="filter in PRESETS" :key="filter.id" class="chip" :class="{ active: activeId === filter.id }" :title="filter.jql" @click="applyFilter(filter)">
         {{ presetName(filter.id) }}
-      </button>
+      </UiButton>
       <div class="group-title">{{ t('jira.list.myFilters') }}</div>
       <div v-for="filter in custom" :key="filter.id" class="chip-row">
         <VInputText
@@ -250,11 +251,11 @@ onMounted(() => void load(false));
           @blur="commitEdit"
         />
         <template v-else>
-          <button class="chip" :class="{ active: activeId === filter.id }" :title="filter.jql" @click="applyFilter(filter)" @dblclick="startRename(filter)">
+          <UiButton class="chip" :class="{ active: activeId === filter.id }" :title="filter.jql" @click="applyFilter(filter)" @dblclick="startRename(filter)">
             {{ filter.name }}
-          </button>
-          <button class="mini vr-reveal" :title="t('common.rename')" :aria-label="t('jira.list.renameFilter')" @click="startRename(filter)">✎</button>
-          <button class="mini vr-reveal" :title="t('common.delete')" :aria-label="t('jira.list.deleteFilter')" @click="removeFilter(filter)">×</button>
+          </UiButton>
+          <UiButton class="mini vr-reveal" :title="t('common.rename')" :aria-label="t('jira.list.renameFilter')" @click="startRename(filter)">✎</UiButton>
+          <UiButton class="mini vr-reveal" :title="t('common.delete')" :aria-label="t('jira.list.deleteFilter')" @click="removeFilter(filter)">×</UiButton>
         </template>
       </div>
       <VInputText

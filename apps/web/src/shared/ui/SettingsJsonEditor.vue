@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue';
-import { VButton, VMessage, VTextarea } from '@ui/kit';
+import { VButton, VMessage, VTextarea } from './kit';
 import { useI18n } from '../lib/i18n/i18n';
 import { chordText } from '../lib/commands/keys';
 import { primaryPressed } from '../lib/platform';

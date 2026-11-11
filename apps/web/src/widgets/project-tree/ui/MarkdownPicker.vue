@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
-import { VPopover } from '@ui/kit';
-import { FileText } from 'lucide-vue-next';
+import { VPopover } from '../../../shared/ui/kit';
+import { FileText } from '../../../shared/ui/icons';
 import { describeError } from '../../../shared/api/connectors/api';
 import { subsequenceScore } from '../../../shared/lib/fuzzy';
 import { usePickerList } from '../../../shared/lib/usePickerList';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { listWorktreeMarkdown, type MarkdownEntry } from '../../../shared/lib/markdownFiles';
 
+import { UiButton } from '../../../shared/ui/UiButton';
+import UiInput from '../../../shared/ui/UiInput.vue';
 const props = defineProps<{ root: string }>();
 const emit = defineEmits<{ open: [path: string] }>();
 
@@ -75,12 +77,12 @@ function onShow() {
 </script>
 
 <template>
-  <button class="trigger" type="button" :title="t('files.picker.open')" :aria-label="t('files.picker.open')" aria-haspopup="dialog" data-testid="worktree-markdown" @click="toggle">
+  <UiButton class="trigger" type="button" :title="t('files.picker.open')" :aria-label="t('files.picker.open')" aria-haspopup="dialog" data-testid="worktree-markdown" @click="toggle">
     <FileText :size="14" />
-  </button>
+  </UiButton>
   <VPopover ref="popover" @show="onShow">
     <div class="picker" role="dialog" :aria-label="t('files.picker.open')" data-testid="markdown-picker">
-      <input ref="input" v-model="query" class="query" type="text" :placeholder="t('files.picker.filter')" :aria-label="t('files.picker.filter')" autocomplete="off" data-testid="markdown-picker-input" @keydown="onKey" />
+      <UiInput ref="input" v-model="query" class="query" type="text" :placeholder="t('files.picker.filter')" :aria-label="t('files.picker.filter')" autocomplete="off" data-testid="markdown-picker-input" @keydown="onKey" />
       <p v-if="failure" class="note failure" role="alert">{{ failure }}</p>
       <ul ref="list" class="results" role="listbox">
         <li

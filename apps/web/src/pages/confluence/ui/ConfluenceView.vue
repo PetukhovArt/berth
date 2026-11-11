@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { BookOpen } from 'lucide-vue-next';
+import { BookOpen } from '../../../shared/ui/icons';
 import { ConfluencePageView, ConfluenceSearch } from '../../../widgets/confluence';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { withViewTransition } from '../../../shared/ui/motion/motion';

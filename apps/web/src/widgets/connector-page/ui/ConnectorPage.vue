@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef, watch, type Component } from 'vue';
-import { VButton, VSelect } from '@ui/kit';
+import { VButton, VSelect } from '../../../shared/ui/kit';
 import { useConnectors, type ConnectorKind } from '../../../shared/api/connectors/api';
 import { t } from '../../../shared/lib/i18n/i18n';
 import BackBar from '../../../shared/ui/BackBar.vue';

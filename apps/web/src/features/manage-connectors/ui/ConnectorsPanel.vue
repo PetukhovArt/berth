@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, shallowRef, type Component } from 'vue';
-import { BookOpen, ExternalLink, Github, Gitlab, Plug, Plus, RefreshCw, Ticket } from 'lucide-vue-next';
-import { VButton, VInputText, VMessage, VSelect } from '@ui/kit';
+import { BookOpen, ExternalLink, Github, Gitlab, Plug, Plus, RefreshCw, Ticket } from '../../../shared/ui/icons';
+import { VButton, VInputText, VMessage, VSelect } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import AiAccounts from './AiAccounts.vue';
 import PersonAvatar from '../../../shared/ui/PersonAvatar.vue';
 import { useAiAccounts } from '../../../shared/api/connectors/ai';
 import { describeError, openUrl, useConnectors, type ConnectorKind, type ConnectorStatus, type ConnectorView, type Detected } from '../../../shared/api/connectors/api';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const { connectors, detected, loading, checking, error, check, add, update, remove, refresh } = useConnectors();
 const ai = useAiAccounts();
 const checkingAll = computed(() => checking.value || ai.checking.value);
@@ -197,7 +198,7 @@ onMounted(() => void refresh());
     <form v-if="adding" class="block form" data-testid="connector-form" @submit.prevent="submit">
       <h3>{{ t('connectors.panel.newTitle') }}</h3>
       <div class="kinds" role="radiogroup" :aria-label="t('connectors.panel.typeLabel')">
-        <button
+        <UiButton
           v-for="k in KINDS"
           :key="k.value"
           type="button"
@@ -209,7 +210,7 @@ onMounted(() => void refresh());
           @click="pickKind(k.value)"
         >
           <component :is="k.icon" :size="14" />{{ k.label }}
-        </button>
+        </UiButton>
       </div>
 
       <label class="field">

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { VButton } from '@ui/kit';
+import { VButton } from './kit';
 import { t } from '../lib/i18n/i18n';
 
 defineProps<{ message: string }>();

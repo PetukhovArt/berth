@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
-import { FolderPlus, LoaderCircle } from 'lucide-vue-next';
-import { VButton, VPopover } from '@ui/kit';
+import { FolderPlus, LoaderCircle } from '../../../shared/ui/icons';
+import { VButton, VPopover } from '../../../shared/ui/kit';
 import ProjectActions from './ProjectActions.vue';
 import { addProject, useBerth, useAction } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { findClones, type Clone, type RepoRef } from '../../../entities/repo';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ repo: RepoRef }>();
 
 type Mode = 'idle' | 'searching' | 'picking' | 'manual';
@@ -57,23 +58,23 @@ const folder = (path: string) => path.slice(0, path.lastIndexOf('/'));
 
 <template>
   <div v-if="berth" class="repo-actions">
-    <button class="icon" type="button" :title="t('workbench.addToBerth')" :aria-label="t('workbench.addToBerth')" :disabled="searching" data-testid="repo-add" @click="start">
+    <UiButton class="icon" type="button" :title="t('workbench.addToBerth')" :aria-label="t('workbench.addToBerth')" :disabled="searching" data-testid="repo-add" @click="start">
       <LoaderCircle v-if="searching" :size="14" class="spin" />
       <FolderPlus v-else :size="14" />
-    </button>
+    </UiButton>
     <VButton label="⋯" size="small" text severity="secondary" :aria-label="t('workbench.repoActions')" aria-haspopup="menu" data-testid="repo-menu" @click="popover?.toggle($event)" />
     <VPopover ref="popover">
       <div class="menu" role="menu">
-        <button class="item" type="button" role="menuitem" data-testid="repo-menu-add" @click="start">{{ t('workbench.addToBerth') }}</button>
+        <UiButton class="item" type="button" role="menuitem" data-testid="repo-menu-add" @click="start">{{ t('workbench.addToBerth') }}</UiButton>
       </div>
     </VPopover>
     <div v-if="mode === 'picking'" class="inline" role="group" :aria-label="t('workbench.pickClone')" data-testid="repo-clones">
       <span class="hint">{{ t('workbench.pickClone') }}</span>
-      <button v-for="clone in clones" :key="clone.path" class="pick" type="button" :disabled="busy" :title="clone.path" data-testid="repo-clone" @click="add(clone)">
+      <UiButton v-for="clone in clones" :key="clone.path" class="pick" type="button" :disabled="busy" :title="clone.path" data-testid="repo-clone" @click="add(clone)">
         <b>{{ clone.name }}</b>
         <span class="muted">{{ folder(clone.path) }}</span>
         <span v-if="clone.main" class="chip">{{ t('workbench.mainCheckout') }}</span>
-      </button>
+      </UiButton>
       <VButton :label="t('common.cancel')" size="small" text severity="secondary" @click="cancel" />
     </div>
     <p v-if="error" class="error" role="alert" data-testid="repo-error">{{ error }}</p>

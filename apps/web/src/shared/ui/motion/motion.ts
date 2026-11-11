@@ -1,5 +1,5 @@
 import { nextTick } from 'vue';
-import { isMotionEnabled, setMotionEnabled } from '@ui/kit';
+import { isMotionEnabled, setMotionEnabled } from '../kit';
 
 export { setMotionEnabled };
 

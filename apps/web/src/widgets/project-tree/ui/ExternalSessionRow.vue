@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, useTemplateRef } from 'vue';
-import { SquareTerminal } from 'lucide-vue-next';
-import { VContextMenu } from '@ui/kit';
+import { SquareTerminal } from '../../../shared/ui/icons';
+import { VContextMenu } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
 import { archiveExternal, externalDot, externalOrigin, externalStatusLabel, resumeCommand, type ExternalSession, HarnessIcon, StatusDot, useAction } from '../../../entities/session';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ session: ExternalSession; active: boolean }>();
 const emit = defineEmits<{ open: [split: boolean] }>();
 
@@ -27,7 +28,7 @@ const menuItems = computed(() => [
 
 <template>
   <div class="external">
-    <button
+    <UiButton
       class="row status-host"
       data-testid="external-session-row"
       :data-session-id="session.id"
@@ -44,7 +45,7 @@ const menuItems = computed(() => [
       <span class="name">{{ session.title }}</span>
       <span class="marker" :title="origin" :aria-label="origin" role="img" data-testid="external-marker"><SquareTerminal :size="11" /></span>
       <span class="label">{{ session.running ? externalStatusLabel(session) : formatRelative(session.updated_at) }}</span>
-    </button>
+    </UiButton>
     <VContextMenu ref="menu" :model="menuItems">
       <template #item="{ item, props: itemProps }">
         <a v-bind="itemProps.action" :data-testid="`external-menu-${item.key}`">{{ item.label }}</a>

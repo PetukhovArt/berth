@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef, useTemplateRef } from 'vue';
-import { Activity, Eye, GitPullRequest, ListTodo, MessageSquare, Plus, Radio, RefreshCw, Search, SquareTerminal, TriangleAlert, Trash2 } from 'lucide-vue-next';
-import { VContextMenu } from '@ui/kit';
+import { Activity, Eye, GitPullRequest, ListTodo, MessageSquare, Plus, Radio, RefreshCw, Search, SquareTerminal, TriangleAlert, Trash2 } from '../../../shared/ui/icons';
+import { VContextMenu } from '../../../shared/ui/kit';
 import ArchivedExternalRow from './ArchivedExternalRow.vue';
 import ArchivedRow from './ArchivedRow.vue';
 import ExternalSessionRow from './ExternalSessionRow.vue';
@@ -22,6 +22,8 @@ import { useDock } from '../../../shared/model/dock';
 import { startCreate } from '../../../features/new-session';
 import { openLeaf, type ReviewMeta, treeLiveOnly, treeQuery, treeTab, useWorkTree } from '../../../features/work-tree';
 
+import { UiButton } from '../../../shared/ui/UiButton';
+import UiInput from '../../../shared/ui/UiInput.vue';
 withDefaults(defineProps<{ withFilter?: boolean }>(), { withFilter: false });
 
 const dock = useDock();
@@ -66,12 +68,12 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
   <section class="project-tree" data-testid="project-tree">
     <label v-if="withFilter" class="filter">
       <Search :size="14" />
-      <input v-model="treeQuery" :placeholder="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="tree-filter" @keydown.esc="treeQuery = ''" />
+      <UiInput v-model="treeQuery" :placeholder="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="tree-filter" @keydown.esc="treeQuery = ''" />
     </label>
     <div class="head">
       <div class="tabs-box">
         <div class="tabs" role="tablist" :aria-label="t('workbench.tabs')" :data-n="tabs.length">
-          <button
+          <UiButton
             v-for="tab in tabs"
             :key="tab.id"
             class="tab"
@@ -85,11 +87,11 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
             <component :is="tabIcons[tab.id]" :size="13" class="tab-icon" />
             <span class="tab-label">{{ tab.label }}</span>
             <span v-if="tab.count" class="badge" :data-tone="tab.tone" :data-testid="`tree-tab-count-${tab.id}`">{{ tab.count }}</span>
-          </button>
+          </UiButton>
         </div>
       </div>
       <span class="head-actions">
-        <button
+        <UiButton
           v-if="activeTab === 'sessions'"
           class="icon live"
           :title="t('workbench.liveOnly')"
@@ -99,9 +101,9 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
           @click="treeLiveOnly = !treeLiveOnly"
         >
           <Radio :size="14" />
-        </button>
-        <button class="icon" :title="t('agents.layouts.quickOpenTitle')" :aria-label="t('agents.layouts.quickOpen')" data-testid="quick-switch-open" @click="dock.switching.value = true"><Search :size="14" /></button>
-        <button
+        </UiButton>
+        <UiButton class="icon" :title="t('agents.layouts.quickOpenTitle')" :aria-label="t('agents.layouts.quickOpen')" data-testid="quick-switch-open" @click="dock.switching.value = true"><Search :size="14" /></UiButton>
+        <UiButton
           v-if="berth && isDesktop"
           class="icon cleanup"
           :title="cleanupCount ? t('cleanup.buttonCount', { count: cleanupCount }) : t('cleanup.button')"
@@ -111,8 +113,8 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
         >
           <Trash2 :size="14" />
           <span v-if="cleanupCount" class="count" data-testid="cleanup-count">{{ cleanupCount }}</span>
-        </button>
-        <button v-if="berth" class="icon" :title="t('agents.metrics.open')" :aria-label="t('agents.metrics.title')" data-testid="open-metrics" @click="sessions.openMetrics()"><Activity :size="14" /></button>      </span>
+        </UiButton>
+        <UiButton v-if="berth" class="icon" :title="t('agents.metrics.open')" :aria-label="t('agents.metrics.title')" data-testid="open-metrics" @click="sessions.openMetrics()"><Activity :size="14" /></UiButton>      </span>
     </div>
     <div class="scroll">
       <NavNotices />
@@ -181,7 +183,7 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
         <template #actions="{ node }">
           <template v-if="node.kind === 'worktree' && node.data?.worktree">
             <MarkdownPicker :root="node.data.worktree.path" @open="sessions.openFile($event, { worktreeId: node.data.worktree.id })" />
-            <button class="icon" :title="t('agents.newSession.action')" :aria-label="t('agents.newSession.action')" data-testid="worktree-new-session" @click="startCreate(node.data.worktree.id)"><Plus :size="14" /></button>
+            <UiButton class="icon" :title="t('agents.newSession.action')" :aria-label="t('agents.newSession.action')" data-testid="worktree-new-session" @click="startCreate(node.data.worktree.id)"><Plus :size="14" /></UiButton>
           </template>
           <WorkspaceActions v-else-if="node.kind === 'workspace' && node.data?.workspaceId" :workspace-id="node.data.workspaceId" />
           <RepoActions v-else-if="node.kind === 'repo' && node.data?.repo" :repo="node.data.repo" />

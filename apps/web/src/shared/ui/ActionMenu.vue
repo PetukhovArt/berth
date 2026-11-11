@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useTemplateRef } from 'vue';
-import { VButton, VPopover } from '@ui/kit';
+import { VButton, VPopover } from './kit';
 import { t } from '../lib/i18n/i18n';
 
 export type MenuItem = { key: string; label: string; testid: string; disabled?: boolean };

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue';
-import { VButton } from '@ui/kit';
+import { VButton } from '../../../shared/ui/kit';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { confluencePage, describeError, openUrl, reloadWhenRecovered, type ConfluencePage } from '../../../shared/api/connectors/api';
@@ -8,6 +8,7 @@ import ErrorInline from '../../../shared/ui/ErrorInline.vue';
 import Skeleton from '../../../shared/ui/Skeleton.vue';
 import { rememberPage } from '../../../shared/lib/atlassian';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 type Heading = { index: number; text: string; level: number };
 
 const props = defineProps<{ connector: string; id: string }>();
@@ -98,7 +99,7 @@ onBeforeUnmount(() => {
       <header class="head">
         <nav v-if="page.ancestors.length" class="crumbs" :aria-label="t('confluence.page.path')">
           <template v-for="ancestor in page.ancestors" :key="ancestor.id">
-            <button class="crumb" @click="emit('open', { connector: connector, id: ancestor.id })">{{ ancestor.title }}</button>
+            <UiButton class="crumb" @click="emit('open', { connector: connector, id: ancestor.id })">{{ ancestor.title }}</UiButton>
             <span class="sep">/</span>
           </template>
         </nav>
@@ -116,7 +117,7 @@ onBeforeUnmount(() => {
         </div>
         <nav v-if="headings.length" class="toc vr-wide-only" :aria-label="t('confluence.page.contents')">
           <div class="toc-title">{{ t('confluence.page.contents') }}</div>
-          <button
+          <UiButton
             v-for="heading in headings"
             :key="heading.index"
             class="toc-item"
@@ -126,7 +127,7 @@ onBeforeUnmount(() => {
             @click="jump(heading.index)"
           >
             {{ heading.text }}
-          </button>
+          </UiButton>
         </nav>
       </div>
     </template>

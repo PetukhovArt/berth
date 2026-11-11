@@ -1,6 +1,6 @@
 <script setup lang="ts" generic="T">
 import { computed, nextTick, shallowRef, useId, useTemplateRef, watch } from 'vue';
-import { ChevronRight } from 'lucide-vue-next';
+import { ChevronRight } from '../icons';
 import { primaryPressed } from '../../lib/platform';
 import type { TreeNode, TreeRow } from './types';
 

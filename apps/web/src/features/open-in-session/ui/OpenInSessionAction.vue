@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { LoaderCircle, SquareTerminal } from 'lucide-vue-next';
-import { VButton } from '@ui/kit';
+import { LoaderCircle, SquareTerminal } from '../../../shared/ui/icons';
+import { VButton } from '../../../shared/ui/kit';
 import { useBerth } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { itemId } from '../../../entities/merge-request';
 import { useOpenInSession, type MrItem } from '../model/openInSession';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const props = withDefaults(defineProps<{ item: MrItem; refs?: readonly string[]; variant?: 'button' | 'icon' }>(), { refs: () => [], variant: 'button' });
 
 const berth = useBerth();
@@ -19,10 +20,10 @@ const busy = computed(() => runs.value.get(itemId(props.item))?.busy ?? false);
     <VButton v-if="variant === 'button'" size="small" severity="secondary" :label="t('forge.openSession.action')" :title="t('forge.openSession.title')" :loading="busy" data-testid="cr-open-session" @click="open(item, refs)">
       <template #icon><SquareTerminal :size="14" /></template>
     </VButton>
-    <button v-else class="icon" type="button" :title="t('forge.openSession.title')" :aria-label="t('forge.openSession.action')" :disabled="busy" data-testid="mr-open-session" @click.stop="open(item, refs)">
+    <UiButton v-else class="icon" type="button" :title="t('forge.openSession.title')" :aria-label="t('forge.openSession.action')" :disabled="busy" data-testid="mr-open-session" @click.stop="open(item, refs)">
       <LoaderCircle v-if="busy" :size="14" class="spin" />
       <SquareTerminal v-else :size="14" />
-    </button>
+    </UiButton>
   </template>
 </template>
 

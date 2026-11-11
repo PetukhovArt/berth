@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
-import { ChevronDown, Columns2, ExternalLink, FileCode, ListTree, Eye, Save } from 'lucide-vue-next';
+import { ChevronDown, Columns2, ExternalLink, FileCode, ListTree, Eye, Save } from '../../../shared/ui/icons';
 import { EditorState, type Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { describeError } from '../../../shared/api/connectors/api';
@@ -13,6 +13,7 @@ import CompareView from './CompareView.vue';
 import { createExtensions, darkSlot, languageSlot, phrases, scrollTopOfLine, topLineOf } from '../lib/editor';
 import { useEditableDoc } from '../model/useEditableDoc';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 type Mode = 'code' | 'split' | 'preview';
 type Heading = { id: string; level: number; text: string; line: number };
 type Anchor = { line: number; top: number };
@@ -317,32 +318,32 @@ onBeforeUnmount(() => {
       <span class="name" :title="path" data-testid="markdown-name">{{ fileName }}</span>
       <span v-if="dirty" class="dirty" :title="t('files.editor.dirty')" :aria-label="t('files.editor.dirty')" data-testid="markdown-dirty" />
       <span class="group" role="group" :aria-label="t('files.markdown.viewMode')">
-        <button class="mode" :data-active="mode === 'code'" :aria-pressed="mode === 'code'" data-testid="markdown-mode-code" @click="setMode('code')"><FileCode :size="14" />{{ t('files.markdown.code') }}</button>
-        <button class="mode" :data-active="mode === 'split'" :aria-pressed="mode === 'split'" data-testid="markdown-mode-split" @click="setMode('split')"><Columns2 :size="14" />{{ t('files.markdown.split') }}</button>
-        <button class="mode" :data-active="mode === 'preview'" :aria-pressed="mode === 'preview'" data-testid="markdown-mode-preview" @click="setMode('preview')"><Eye :size="14" />{{ t('files.markdown.preview') }}</button>
+        <UiButton class="mode" :data-active="mode === 'code'" :aria-pressed="mode === 'code'" data-testid="markdown-mode-code" @click="setMode('code')"><FileCode :size="14" />{{ t('files.markdown.code') }}</UiButton>
+        <UiButton class="mode" :data-active="mode === 'split'" :aria-pressed="mode === 'split'" data-testid="markdown-mode-split" @click="setMode('split')"><Columns2 :size="14" />{{ t('files.markdown.split') }}</UiButton>
+        <UiButton class="mode" :data-active="mode === 'preview'" :aria-pressed="mode === 'preview'" data-testid="markdown-mode-preview" @click="setMode('preview')"><Eye :size="14" />{{ t('files.markdown.preview') }}</UiButton>
       </span>
-      <button class="mode" :disabled="!dirty || saving" :title="t('files.editor.saveTitle')" data-testid="markdown-save" @click="doc.save()"><Save :size="14" />{{ t('common.save') }}</button>
+      <UiButton class="mode" :disabled="!dirty || saving" :title="t('files.editor.saveTitle')" data-testid="markdown-save" @click="doc.save()"><Save :size="14" />{{ t('common.save') }}</UiButton>
       <span class="spacer" />
       <span ref="toc" class="toc-wrap">
-        <button class="mode" :data-active="tocOpen" :disabled="!headings.length" aria-haspopup="menu" :aria-expanded="tocOpen" data-testid="markdown-toc" @click="tocOpen = !tocOpen">
+        <UiButton class="mode" :data-active="tocOpen" :disabled="!headings.length" aria-haspopup="menu" :aria-expanded="tocOpen" data-testid="markdown-toc" @click="tocOpen = !tocOpen">
           <ListTree :size="14" />{{ t('files.markdown.toc') }}<ChevronDown :size="12" />
-        </button>
+        </UiButton>
         <div v-if="tocOpen" class="toc" role="menu" data-testid="markdown-toc-list">
-          <button v-for="heading in headings" :key="heading.id" class="toc-item" role="menuitem" :style="{ paddingLeft: `${8 + (heading.level - 1) * 12}px` }" :title="heading.text" @click="gotoHeading(heading)">
+          <UiButton v-for="heading in headings" :key="heading.id" class="toc-item" role="menuitem" :style="{ paddingLeft: `${8 + (heading.level - 1) * 12}px` }" :title="heading.text" @click="gotoHeading(heading)">
             {{ heading.text }}
-          </button>
+          </UiButton>
         </div>
       </span>
-      <button v-if="canOpenExternal" class="mode" :title="t('files.markdown.openExternalTitle')" data-testid="markdown-open-external" @click="openExternal"><ExternalLink :size="14" />{{ t('files.markdown.openExternal') }}</button>
+      <UiButton v-if="canOpenExternal" class="mode" :title="t('files.markdown.openExternalTitle')" data-testid="markdown-open-external" @click="openExternal"><ExternalLink :size="14" />{{ t('files.markdown.openExternal') }}</UiButton>
     </header>
 
     <div v-if="conflict" class="bar" role="alert" data-testid="markdown-conflict">
       <strong>{{ t('files.editor.changed.title') }}</strong>
       <span class="hint">{{ t('files.editor.changed.hint') }}</span>
       <span class="spacer" />
-      <button class="mode" data-testid="markdown-conflict-reload" @click="onReload">{{ t('files.editor.changed.reload') }}</button>
-      <button class="mode" data-testid="markdown-conflict-keep" @click="onKeepMine">{{ t('files.editor.changed.keep') }}</button>
-      <button class="mode" :data-active="comparing" :aria-pressed="comparing" data-testid="markdown-conflict-compare" @click="toggleCompare">{{ t('files.editor.changed.compare') }}</button>
+      <UiButton class="mode" data-testid="markdown-conflict-reload" @click="onReload">{{ t('files.editor.changed.reload') }}</UiButton>
+      <UiButton class="mode" data-testid="markdown-conflict-keep" @click="onKeepMine">{{ t('files.editor.changed.keep') }}</UiButton>
+      <UiButton class="mode" :data-active="comparing" :aria-pressed="comparing" data-testid="markdown-conflict-compare" @click="toggleCompare">{{ t('files.editor.changed.compare') }}</UiButton>
     </div>
 
     <p v-if="failure" class="status failure" role="alert" data-testid="markdown-failure">{{ failure }}</p>

@@ -6,6 +6,7 @@ import { numberLabel, pipelineLabel } from '../lib/format';
 import PipelineIcon from './PipelineIcon.vue';
 import { lookupMr } from '../model/worktreeMr';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ path: string; branch: string; summary?: ChangeRequestSummary }>();
 const emit = defineEmits<{ open: [ref: ChangeRequestRef] }>();
 
@@ -38,10 +39,10 @@ function open() {
 </script>
 
 <template>
-  <button v-if="summary" class="badge" :title="title" :aria-label="title" data-testid="worktree-badge" @click.stop="open">
+  <UiButton v-if="summary" class="badge" :title="title" :aria-label="title" data-testid="worktree-badge" @click.stop="open">
     <span class="num">{{ numberLabel(summary) }}</span>
     <PipelineIcon v-if="summary.pipeline !== 'none'" :status="summary.pipeline" :size="12" />
-  </button>
+  </UiButton>
 </template>
 
 <style scoped>

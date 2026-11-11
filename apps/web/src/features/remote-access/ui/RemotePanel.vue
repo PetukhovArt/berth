@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, shallowRef } from 'vue';
-import { Copy, Download, Network, RefreshCw, ShieldAlert, Smartphone } from 'lucide-vue-next';
-import { VButton, VMessage } from '@ui/kit';
+import { Copy, Download, Network, RefreshCw, ShieldAlert, Smartphone } from '../../../shared/ui/icons';
+import { VButton, VMessage } from '../../../shared/ui/kit';
 import { invoke, isDesktop, openUrl } from '../../../bridge';
 import { describeError } from '../../../shared/api/connectors/api';
 import { useI18n } from '../../../shared/lib/i18n/i18n';

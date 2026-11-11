@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue';
-import { VButton, VDialog, VMessage, VSelect } from '@ui/kit';
+import { VButton, VDialog, VMessage, VSelect } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useBerth, useAction, moveAgent, useWorktreeOptions } from '../../../entities/session';
 

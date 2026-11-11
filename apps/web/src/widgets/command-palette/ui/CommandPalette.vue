@@ -8,6 +8,7 @@ import { shortcutLabel } from '../../../shared/lib/commands/keymap';
 import { usePickerList } from '../../../shared/lib/usePickerList';
 import { isAvailable, listActions, recentActionIds, runAction, type Action } from '../../../shared/lib/commands/registry';
 
+import UiInput from '../../../shared/ui/UiInput.vue';
 const { t } = useI18n();
 const input = useTemplateRef<HTMLInputElement>('input');
 const list = useTemplateRef<HTMLElement>('list');
@@ -52,7 +53,7 @@ onMounted(() => input.value?.focus());
   <div class="overlay" data-testid="command-palette" @pointerdown.self="close(true)">
     <div class="panel vr-sheet" role="dialog" :aria-label="t('commands.palette.label')">
       <BackBar class="vr-phone-only" :title="t('commands.palette.label')" @back="close(true)" />
-      <input
+      <UiInput
         ref="input"
         v-model="query"
         class="query"

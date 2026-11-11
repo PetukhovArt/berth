@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { VButton } from '@ui/kit';
+import { VButton } from '../../../shared/ui/kit';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
 import { describeError, jiraIssue, openUrl, reloadWhenRecovered, type JiraIssue } from '../../../shared/api/connectors/api';
@@ -9,6 +9,7 @@ import { PersonAvatar, PriorityMark, StatusChip, TypeIcon } from '../../../entit
 import Skeleton from '../../../shared/ui/Skeleton.vue';
 import { copyText } from '../../../shared/lib/atlassian';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const { formatRelative, formatDate } = useI18n();
 
 const props = defineProps<{ connector: string; issueKey: string }>();
@@ -115,22 +116,22 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
 
       <section v-if="issue.subtasks.length" class="section">
         <h2>{{ t('jira.issue.subtasks') }} <span class="count">{{ issue.subtasks.length }}</span></h2>
-        <button v-for="sub in issue.subtasks" :key="sub.key" class="row" @click="openKey(sub.key)">
+        <UiButton v-for="sub in issue.subtasks" :key="sub.key" class="row" @click="openKey(sub.key)">
           <TypeIcon :type="sub.issue_type" />
           <span class="row-key">{{ sub.key }}</span>
           <span class="row-text">{{ sub.summary }}</span>
           <StatusChip :status="sub.status" :category="sub.status_category" />
-        </button>
+        </UiButton>
       </section>
 
       <section v-if="issue.links.length" class="section">
         <h2>{{ t('jira.issue.links') }} <span class="count">{{ issue.links.length }}</span></h2>
-        <button v-for="link in issue.links" :key="`${link.relation}-${link.key}`" class="row" @click="openKey(link.key)">
+        <UiButton v-for="link in issue.links" :key="`${link.relation}-${link.key}`" class="row" @click="openKey(link.key)">
           <span class="relation">{{ link.relation }}</span>
           <span class="row-key">{{ link.key }}</span>
           <span class="row-text">{{ link.summary }}</span>
           <StatusChip :status="link.status" />
-        </button>
+        </UiButton>
       </section>
 
       <section class="section">

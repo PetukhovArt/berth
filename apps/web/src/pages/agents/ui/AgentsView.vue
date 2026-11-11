@@ -2,7 +2,7 @@
 import { t } from '../../../shared/lib/i18n/i18n';
 import BackBar from '../../../shared/ui/BackBar.vue';
 import { TerminalKeys, SessionPanel } from '../../../widgets/terminal';
-import { useIsPhone } from '@ui/kit';
+import { useIsPhone } from '../../../shared/ui/kit';
 import { useDock } from '../../../shared/model/dock';
 import { useSessionDock, isSessionRef, useBerth, type Harness } from '../../../entities/session';
 import { openIssue } from '../../../entities/jira-issue';

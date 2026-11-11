@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef, useTemplateRef } from 'vue';
-import { ChevronRight, FileText, GitPullRequest, Ticket, Zap } from 'lucide-vue-next';
+import { ChevronRight, FileText, GitPullRequest, Ticket, Zap } from '../../../shared/ui/icons';
 import { subsequenceScore } from '../../../shared/lib/fuzzy';
 import { usePickerList } from '../../../shared/lib/usePickerList';
 import { PipelineIcon } from '../../../entities/merge-request';
@@ -10,6 +10,7 @@ import type { QuickItem, WorkNode } from '../../../features/work-tree';
 import { externalDot, HarnessIcon, StatusDot } from '../../../entities/session';
 import type { MarkdownEntry } from '../../../shared/lib/markdownFiles';
 
+import UiInput from '../../../shared/ui/UiInput.vue';
 type QuickAction = { key: string; label: string };
 type Item = { kind: 'leaf'; key: string; entry: QuickItem } | { kind: 'file'; key: string; file: MarkdownEntry } | { kind: 'action'; key: string; action: QuickAction };
 
@@ -61,7 +62,7 @@ onMounted(() => input.value?.focus());
   <div class="overlay" data-testid="quick-switcher" @pointerdown.self="emit('close')">
     <div class="panel vr-sheet" role="dialog" :aria-label="t('files.switcher.dialog')">
       <BackBar class="vr-phone-only" :title="t('files.switcher.dialog')" @back="emit('close')" />
-      <input
+      <UiInput
         ref="input"
         v-model="query"
         class="query"

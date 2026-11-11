@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch, type ShallowRef } from 'vue';
-import { ChevronDown, ChevronRight, ChevronUp, Columns2, Folder, FolderOpen, ListTree, Rows2, Search, WrapText, X } from 'lucide-vue-next';
-import { useIsPhone, VInputText } from '@ui/kit';
+import { ChevronDown, ChevronRight, ChevronUp, Columns2, Folder, FolderOpen, ListTree, Rows2, Search, WrapText, X } from '../../../shared/ui/icons';
+import { useIsPhone, VInputText } from '../../../shared/ui/kit';
 import type { DiffFile, Discussion } from '../../../shared/api/connectors/api';
 import { t } from '../../../shared/lib/i18n/i18n';
 import DiffFileBody from './DiffFileBody.vue';
 import { isMarkdownPath, type PreviewSource } from '../lib/fileBase';
 import MarkdownPreview from './MarkdownPreview.vue';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ files: DiffFile[]; discussions: Discussion[]; connector?: string; project?: string; headSha?: string; requestUrl?: string; root?: string }>();
 
 type Mode = 'unified' | 'split';
@@ -466,16 +467,16 @@ defineExpose({ focusThread, root });
       <div class="tree-filter">
         <Search :size="14" />
         <VInputText v-model="filter" class="tree-input" :placeholder="t('forge.diff.filter')" autocomplete="off" data-testid="diff-filter" />
-        <button class="icon vr-phone-only" :aria-label="t('mobile.back')" data-testid="diff-files-close" @click="filesOpen = false"><X :size="16" /></button>
+        <UiButton class="icon vr-phone-only" :aria-label="t('mobile.back')" data-testid="diff-files-close" @click="filesOpen = false"><X :size="16" /></UiButton>
       </div>
       <div v-auto-animate class="tree-list">
         <template v-for="row in treeRows" :key="row.key">
-          <button v-if="row.kind === 'dir'" class="tree-row dir" :style="{ paddingLeft: `${8 + row.depth * 12}px` }" @click="toggleDir(row)">
+          <UiButton v-if="row.kind === 'dir'" class="tree-row dir" :style="{ paddingLeft: `${8 + row.depth * 12}px` }" @click="toggleDir(row)">
             <component :is="row.open ? FolderOpen : Folder" :size="14" />
             <span class="tree-name">{{ row.name }}</span>
             <span class="counts"><span class="add">+{{ row.additions }}</span> <span class="del">−{{ row.deletions }}</span></span>
-          </button>
-          <button
+          </UiButton>
+          <UiButton
             v-else
             class="tree-row"
             :data-active="activeIndex === row.index"
@@ -487,7 +488,7 @@ defineExpose({ focusThread, root });
             <span class="mark" :data-status="files[row.index]!.status" :title="t(STATUS_TITLE_KEY[files[row.index]!.status])">{{ STATUS_MARK[files[row.index]!.status] }}</span>
             <span class="tree-name">{{ row.name }}</span>
             <span class="counts"><span class="add">+{{ row.additions }}</span> <span class="del">−{{ row.deletions }}</span></span>
-          </button>
+          </UiButton>
         </template>
         <p v-if="!treeRows.length" class="tree-empty">{{ t('common.noResults') }}</p>
       </div>
@@ -495,19 +496,19 @@ defineExpose({ focusThread, root });
 
     <div class="main vr-detail">
       <header class="toolbar">
-        <button class="mode vr-phone-only" data-testid="diff-files-open" @click="filesOpen = true"><ListTree :size="14" />{{ t('forge.diff.files') }}</button>
+        <UiButton class="mode vr-phone-only" data-testid="diff-files-open" @click="filesOpen = true"><ListTree :size="14" />{{ t('forge.diff.files') }}</UiButton>
         <span class="summary">{{ t('forge.diff.fileCount', { count: files.length }) }} <span class="add">+{{ totals.additions }}</span> <span class="del">−{{ totals.deletions }}</span></span>
         <span class="spacer" />
         <slot name="actions" />
         <span v-if="unresolved.length" class="group">
-          <button class="icon" :title="t('forge.diff.prevThreadTitle')" :aria-label="t('forge.diff.prevThread')" data-testid="diff-prev-thread" @click="stepThread(-1)"><ChevronUp :size="14" /></button>
+          <UiButton class="icon" :title="t('forge.diff.prevThreadTitle')" :aria-label="t('forge.diff.prevThread')" data-testid="diff-prev-thread" @click="stepThread(-1)"><ChevronUp :size="14" /></UiButton>
           <span>{{ t('forge.diff.unresolvedCount', { count: unresolved.length }) }}</span>
-          <button class="icon" :title="t('forge.diff.nextThreadTitle')" :aria-label="t('forge.diff.nextThread')" data-testid="diff-next-thread" @click="stepThread(1)"><ChevronDown :size="14" /></button>
+          <UiButton class="icon" :title="t('forge.diff.nextThreadTitle')" :aria-label="t('forge.diff.nextThread')" data-testid="diff-next-thread" @click="stepThread(1)"><ChevronDown :size="14" /></UiButton>
         </span>
-        <button class="mode" :data-active="wrap" :aria-pressed="wrap" :title="t('forge.diff.wrap')" data-testid="diff-wrap" @click="toggleWrap"><WrapText :size="14" />{{ t('forge.diff.wrap') }}</button>
+        <UiButton class="mode" :data-active="wrap" :aria-pressed="wrap" :title="t('forge.diff.wrap')" data-testid="diff-wrap" @click="toggleWrap"><WrapText :size="14" />{{ t('forge.diff.wrap') }}</UiButton>
         <span class="group vr-wide-only" role="group" :aria-label="t('forge.diff.modeLabel')">
-          <button class="mode" :data-active="mode === 'unified'" :title="t('forge.diff.unified')" data-testid="diff-mode-unified" @click="setMode('unified')"><Rows2 :size="14" />{{ t('forge.diff.unified') }}</button>
-          <button class="mode" :data-active="mode === 'split'" :title="t('forge.diff.split')" data-testid="diff-mode-split" @click="setMode('split')"><Columns2 :size="14" />{{ t('forge.diff.split') }}</button>
+          <UiButton class="mode" :data-active="mode === 'unified'" :title="t('forge.diff.unified')" data-testid="diff-mode-unified" @click="setMode('unified')"><Rows2 :size="14" />{{ t('forge.diff.unified') }}</UiButton>
+          <UiButton class="mode" :data-active="mode === 'split'" :title="t('forge.diff.split')" data-testid="diff-mode-split" @click="setMode('split')"><Columns2 :size="14" />{{ t('forge.diff.split') }}</UiButton>
         </span>
       </header>
 
@@ -522,8 +523,8 @@ defineExpose({ focusThread, root });
               <template v-if="file.status === 'renamed' && file.old_path !== file.new_path">{{ file.old_path }} → </template>{{ file.new_path }}
             </span>
             <span v-if="canPreview(file)" class="group" role="group" :aria-label="t('forge.diff.fileView')" @click.stop>
-              <button class="mode" :data-active="!previewing.has(i)" data-testid="diff-file-code" @click="setPreview(i, false)">{{ t('forge.diff.code') }}</button>
-              <button class="mode" :data-active="previewing.has(i)" data-testid="diff-file-preview" @click="setPreview(i, true)">{{ t('forge.diff.preview') }}</button>
+              <UiButton class="mode" :data-active="!previewing.has(i)" data-testid="diff-file-code" @click="setPreview(i, false)">{{ t('forge.diff.code') }}</UiButton>
+              <UiButton class="mode" :data-active="previewing.has(i)" data-testid="diff-file-preview" @click="setPreview(i, true)">{{ t('forge.diff.preview') }}</UiButton>
             </span>
             <span class="counts"><span class="add">+{{ file.additions }}</span> <span class="del">−{{ file.deletions }}</span></span>
           </header>

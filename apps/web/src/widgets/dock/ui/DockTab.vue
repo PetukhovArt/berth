@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { DockviewPanelApi } from 'dockview-vue';
-import { FileText, GitPullRequest, Network, Ticket, X } from 'lucide-vue-next';
+import { FileText, GitPullRequest, Network, Ticket, X } from '../../../shared/ui/icons';
 import { isDirtyPath, settleDirty } from '../../../entities/document';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { METRICS_PANEL, useBerth, externalDot, isExternalPanel, sessionDot, useExternalSessions, type Harness, HarnessIcon, StatusDot } from '../../../entities/session';
 import { FILE_PANEL_PREFIX, isFilePanel } from '../../../shared/lib/markdownFiles';
 import { SessionViewSwitch } from '../../../features/session-view-switch';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
 
 const berth = useBerth();
@@ -57,7 +58,7 @@ async function close() {
     <span class="name">{{ session(panel.id)?.name ?? external?.anyByKey.value.get(panel.id)?.title ?? panel.title }}</span>
     <SessionViewSwitch v-if="kindOf(panel.id) === 'session' || kindOf(panel.id) === 'conversation'" :panel="panel" :active="active" />
     <span v-if="isFilePanel(panel.id) && isDirtyPath(panel.id.slice(FILE_PANEL_PREFIX.length))" class="dirty" :title="t('files.editor.dirty')" data-testid="file-tab-dirty" />
-    <button class="close" :title="t('common.close')" :aria-label="t('common.close')" data-testid="session-tab-close" @pointerdown.stop @click.stop="close"><X :size="12" /></button>
+    <UiButton class="close" :title="t('common.close')" :aria-label="t('common.close')" data-testid="session-tab-close" @pointerdown.stop @click.stop="close"><X :size="12" /></UiButton>
   </span>
 </template>
 

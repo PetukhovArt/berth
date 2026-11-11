@@ -6,6 +6,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { parsePatch, sideTexts, splitRows, type PatchLine, type SplitRow } from '../lib/patch';
 import ThreadView from './ThreadView.vue';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{
   file: DiffFile;
   discussions: Discussion[];
@@ -117,7 +118,7 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
       </template>
     </div>
 
-    <button v-if="truncated" class="more" data-testid="diff-show-all" @click="emit('expand')">{{ t('forge.diff.showAll') }}</button>
+    <UiButton v-if="truncated" class="more" data-testid="diff-show-all" @click="emit('expand')">{{ t('forge.diff.showAll') }}</UiButton>
   </div>
 </template>
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, useTemplateRef, watch } from 'vue';
-import { ChevronRight, SquareTerminal } from 'lucide-vue-next';
+import { ChevronRight, SquareTerminal } from '../../../shared/ui/icons';
 import { HarnessIcon, StatusDot } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { hotDotOf, useHot } from '../model/hot';

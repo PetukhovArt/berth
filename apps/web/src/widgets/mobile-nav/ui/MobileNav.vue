@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { Command, LayoutPanelLeft, Settings } from 'lucide-vue-next';
+import { Command, LayoutPanelLeft, Settings } from '../../../shared/ui/icons';
 import { paletteOpen } from '../../../shared/lib/commands/context';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { navigate, view, type View } from '../../../shared/model/nav';
 import { useDock } from '../../../shared/model/dock';
 
+import { UiButton } from '../../../shared/ui/UiButton';
 const { t } = useI18n();
 const { detail } = useDock();
 
@@ -23,14 +24,14 @@ function go(kind: (typeof ITEMS)[number]['kind']) {
 
 <template>
   <nav class="nav" :aria-label="t('mobile.navLabel')" data-testid="mobile-nav">
-    <button v-for="item in ITEMS" :key="item.kind" class="item" :data-active="isActive(item.kind)" :data-testid="`mobile-nav-${item.kind}`" @click="go(item.kind)">
+    <UiButton v-for="item in ITEMS" :key="item.kind" class="item" :data-active="isActive(item.kind)" :data-testid="`mobile-nav-${item.kind}`" @click="go(item.kind)">
       <component :is="item.icon" :size="20" />
       <span>{{ t(item.label) }}</span>
-    </button>
-    <button class="item" :data-active="paletteOpen" data-testid="mobile-nav-commands" @click="paletteOpen = !paletteOpen">
+    </UiButton>
+    <UiButton class="item" :data-active="paletteOpen" data-testid="mobile-nav-commands" @click="paletteOpen = !paletteOpen">
       <Command :size="20" />
       <span>{{ t('mobile.commands') }}</span>
-    </button>
+    </UiButton>
   </nav>
 </template>
 

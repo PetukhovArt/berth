@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { VButton, VDialog } from '@ui/kit';
+import { VButton, VDialog } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { fileNameOf } from '../../../shared/lib/markdownFiles';
 import { unsavedPrompt } from '../../../entities/document';

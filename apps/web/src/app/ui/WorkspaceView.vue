@@ -7,7 +7,7 @@ import { paletteOpen } from '../../shared/lib/commands/context';
 import { UnsavedDialog } from '../../features/unsaved-changes';
 import { HotHost } from '../../widgets/hot';
 import { MobileNav } from '../../widgets/mobile-nav';
-import { useIsPhone } from '@ui/kit';
+import { useIsPhone } from '../../shared/ui/kit';
 import { Sidebar } from '../../widgets/project-tree';
 import { TitleBar } from '../../widgets/title-bar';
 import { installTray } from '../tray';
