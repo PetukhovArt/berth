@@ -54,7 +54,7 @@ and the metrics sampler behind the memory modal and the diagnostics card.
 | Path | Role |
 |---|---|
 | `apps/desktop/src-tauri` | `berth-desktop` crate: the Tauri shell, a daemon client on `berth-core` (`berth.rs`), connectors, remote access, and the headless `berth-server` binary |
-| `apps/web` | Vue UI the desktop window and `berth-server` both serve; talks to Rust through `bridge.ts` only |
+| `apps/web` | Vue UI the desktop window and `berth-server` both serve; Feature-Sliced layers under `src/` (`app` > `pages` > `widgets` > `features` > `entities` > `shared`, enforced by stratum), UI kit and icons only through `shared/ui`, Rust only through `bridge.ts` |
 | `packages/ui-kit`, `packages/ui-tokens` | components and design tokens for `apps/web` |
 | `docker` | image with `berth` and `berth-server` for a remote machine |
 
@@ -77,7 +77,7 @@ write `cfg(target_os)`, `cfg(windows)` or `cfg!(…)`: they call the facade, or 
 `platform::CAPABILITIES` field (or `SELF_UPDATE`, `WINDOW_CHROME`) named for the consequence. An
 OS without an implementation answers "unsupported" (`None`, `false`, `Err`) so the UI can hide the
 action. A new concern is a facade function plus one function per OS file; a new OS is one more file.
-The web UI reads the same facts from `apps/web/src/platform.ts` (the `platform_info` command, with a
+The web UI reads the same facts from `apps/web/src/shared/lib/platform.ts` (the `platform_info` command, with a
 userAgent guess for the client). Concerns that own a whole module keep their split behind that
 module's API in the same way: `transport` and `paths` in core, the daemon's PTY layer, `launch` and
 `lifecycle`, the TUI's `ipc` (daemon auto-spawn) and `vim_term` (its own PTY), and the CLI's
