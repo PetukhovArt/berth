@@ -1,8 +1,5 @@
 import { createChannel, hasBackend, invoke } from '../../../bridge';
-import type { AiView } from './ai';
-import type { ConnectorView } from './api';
-
-export type ConnectorsChanged = { connectors: ConnectorView[]; ai: AiView[] };
+import type { ConnectorsChanged } from './types';
 
 const listeners = new Set<(event: ConnectorsChanged) => void>();
 let started = false;

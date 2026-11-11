@@ -2,23 +2,9 @@ import { invoke } from '../../../bridge';
 export { openUrl } from '../../../bridge';
 import { onScopeDispose, shallowRef, watch, type ShallowRef } from 'vue';
 import { onConnectorsChanged } from './live';
+import type { ConnectorAuth, ConnectorKind, ConnectorView, Person } from './types';
 
-export type ConnectorKind = 'github' | 'gitlab' | 'jira' | 'confluence';
-type ConnectorAuth = 'cli' | 'token';
-export type ConnectorStatus = 'ok' | 'error' | 'unreachable' | 'unchecked';
-
-export type Person = { name: string; username: string; avatar_url: string | null };
-
-export type ConnectorView = {
-  id: string;
-  kind: ConnectorKind;
-  label: string;
-  base_url: string;
-  auth: ConnectorAuth;
-  account: Person | null;
-  status: ConnectorStatus;
-  error: string | null;
-};
+export type { ConnectorKind, ConnectorStatus, ConnectorView, Person } from './types';
 
 export type Detected = { kind: ConnectorKind; base_url: string; account: string | null };
 

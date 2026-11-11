@@ -1,4 +1,6 @@
 import { Channel as TauriChannel, invoke as tauriInvoke } from '@tauri-apps/api/core';
+import { listen as tauriListen } from '@tauri-apps/api/event';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 export const isDesktop = '__TAURI_INTERNALS__' in window;
 const isRemote = !isDesktop && document.querySelector('meta[name="berth-remote"]') !== null;
@@ -101,3 +103,24 @@ export async function openUrl(url: string): Promise<void> {
   }
   window.open(url, '_blank', 'noopener');
 }
+
+export type HostEvent<T> = { payload: T };
+
+export async function listen<T>(event: string, handler: (event: HostEvent<T>) => void): Promise<() => void> {
+  if (!isDesktop) return () => undefined;
+  return tauriListen<T>(event, handler);
+}
+
+export const hostWindow = {
+  minimize: async (): Promise<void> => {
+    if (isDesktop) await getCurrentWindow().minimize();
+  },
+  toggleMaximize: async (): Promise<void> => {
+    if (isDesktop) await getCurrentWindow().toggleMaximize();
+  },
+  close: async (): Promise<void> => {
+    if (isDesktop) await getCurrentWindow().close();
+  },
+  isMaximized: async (): Promise<boolean> => (isDesktop ? getCurrentWindow().isMaximized() : false),
+  onResized: async (handler: () => void): Promise<() => void> => (isDesktop ? getCurrentWindow().onResized(handler) : () => undefined),
+};

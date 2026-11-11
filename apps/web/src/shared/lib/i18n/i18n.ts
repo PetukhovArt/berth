@@ -1,6 +1,5 @@
-import { computed, watch } from 'vue';
+import { computed, shallowRef, watch } from 'vue';
 import { chordText } from '../commands/keys';
-import { useSettings } from '../../config/settings/store';
 import { en } from './en';
 import { ru } from './ru';
 import type { KeyPaths, Params, PluralEn, PluralKeyPaths, PluralRu } from './types';
@@ -13,9 +12,17 @@ type Entry = string | PluralEn | PluralRu;
 const CATALOGS: Record<Locale, unknown> = { en, ru };
 const INTL_TAG: Record<Locale, string> = { en: 'en-US', ru: 'ru-RU' };
 
-const settings = useSettings();
+type LocaleSource = { read: () => Locale; write: (next: Locale) => void };
 
-const locale = computed<Locale>(() => ((settings.values.value as Record<string, unknown>)['ui.language'] === 'ru' ? 'ru' : 'en'));
+const fallback = shallowRef<Locale>('en');
+const source = shallowRef<LocaleSource>({ read: () => fallback.value, write: (next) => (fallback.value = next) });
+
+const locale = computed<Locale>(() => source.value.read());
+
+export function bindLocale(next: LocaleSource): void {
+  source.value = next;
+  applyLang(locale.value);
+}
 
 function applyLang(value: Locale): void {
   if (typeof document !== 'undefined') document.documentElement.lang = value;
@@ -65,7 +72,7 @@ function toTime(value: Date | string | number): number {
 }
 
 function setLocale(next: Locale): void {
-  settings.set('ui.language', next);
+  source.value.write(next);
 }
 
 function formatRelative(value: Date | string | number): string {

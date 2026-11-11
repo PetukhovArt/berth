@@ -2,23 +2,11 @@ import { invoke } from '../../../bridge';
 import { shallowRef, type ShallowRef } from 'vue';
 import { describeError } from './api';
 import { onConnectorsChanged } from './live';
+import type { AiKind, AiStatus, AiView } from './types';
 
-export type AiKind = 'claude' | 'codex' | 'gemini' | 'anthropic_api' | 'openai_api' | 'openrouter' | 'grok';
-export type AiStatus = 'signed_in' | 'signed_out' | 'not_installed' | 'rejected' | 'unreachable' | 'error' | 'unchecked';
+export type { AiKind, AiStatus, AiView } from './types';
+
 type AiPending = 'login' | 'logout';
-
-export type AiView = {
-  kind: AiKind;
-  label: string;
-  method: 'cli' | 'key';
-  status: AiStatus;
-  account: string | null;
-  plan: string | null;
-  detail: string | null;
-  version: string | null;
-  expires_at: string | null;
-  command: string | null;
-};
 
 const POLL_INTERVAL_MS = 3000;
 const POLL_LIMIT_MS = 120_000;

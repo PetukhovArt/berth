@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Copy, Minus, Square, X } from 'lucide-vue-next';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { hostWindow as win } from '../../../bridge';
 import { settleAll } from '../../../entities/document/model/documents';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { hostPlatform } from '../../../shared/lib/platform';
 import UpdateChip from '../../../features/update/ui/UpdateChip.vue';
 
 const { t } = useI18n();
-const win = getCurrentWindow();
 const maximized = ref(false);
 const nativeControls = computed(() => hostPlatform.value.windowChrome.nativeDecorations);
 let stopResize: (() => void) | undefined;

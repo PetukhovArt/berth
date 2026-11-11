@@ -1,5 +1,4 @@
 import { shallowRef } from 'vue';
-import '../../../app/actions';
 import { readContext } from './context';
 import { chordFromEvent, isTypingChord, sequenceKey, type Chord } from './keys';
 import { resolveSequence, shortcutsOf, startKeymap } from './keymap';
