@@ -87,6 +87,12 @@ const testsOf = (file, text) => {
   return [];
 };
 
+const RAW_ELEMENT = /<(?:button|input|textarea)(?=[\s/>])/g;
+const rawElements = (file, text) =>
+  file.startsWith('apps/web/src/') && !file.startsWith('apps/web/src/shared/ui/') && file.endsWith('.vue')
+    ? [...text.replace(BLOCK, (block) => ' '.repeat(block.length)).replace(HTML_COMMENT, (c) => ' '.repeat(c.length)).matchAll(RAW_ELEMENT)].map((m) => [m.index, m[0]])
+    : [];
+
 const lineOf = (text, offset) => text.slice(0, offset).split('\n').length;
 const scan = (filter, find) =>
   files.filter(filter).flatMap((file) => {
@@ -114,6 +120,8 @@ const checks = [
   ['raw-colors', 'цвет бери из токенов packages/ui-tokens через var(--…); сырые цвета живут только там', async () => scan((file) => /^(apps\/web|packages\/ui-kit)\//.test(file), rawColors)],
   ['new-files', 'не добавляй .md, *.test.*, *.spec.* и __tests__/: правда живёт в коде, тестов в проекте нет', async () => added.filter((file) => /\.md$|\.(test|spec)\.|(^|\/)__tests__\//i.test(file))],
   ['tests', 'не пиши тесты в apps/, packages/ и docker/: тесты живут только в crates/', async () => scan(() => true, testsOf)],
+  ['raw-elements', 'бери кнопки и поля из apps/web/src/shared/ui (UiButton, UiInput, UiTextarea): сырые button, input и textarea живут только там', async () => scan(() => true, rawElements)],
+  ['stratum', 'исправь нарушение слоёв: stratum-lint explain <rule> подскажет как, правило не глуши', async () => (lintable.some((file) => file.startsWith('apps/web/')) ? run(`stratum-lint lint --format agent --files ${quoted(lintable)}`) : [])],
   ['oxlint', 'исправь предупреждения oxlint, не отключай правило', async () => (lintable.length ? run(`oxlint --deny-warnings ${quoted(lintable)}`) : [])],
   ['knip', 'удали неиспользуемый export, файл или зависимость', () => run('knip')],
   ['types', 'исправь ошибки типов', async () => (existsSync(DIFF_VERIFY) ? run(`node "${DIFF_VERIFY}"`, { VERIFY_SKIP_LINT: '1', VERIFY_SKIP_TESTS: '1' }) : [...(await run('pnpm -r --filter "...[HEAD]" --filter "!berth-apps" --if-present typecheck')), ...(files.some((file) => file.startsWith('scripts/')) ? await run('tsc -p .') : [])])],
@@ -121,7 +129,7 @@ const checks = [
   ['clippy', 'исправь замечания clippy, не глуши их через allow', async () => (tauriTouched ? run('cargo clippy -p berth-desktop --all-targets -j 4 -- -D warnings') : [])],
 ];
 
-const RULES = new Set(['comments', 'raw-colors', 'new-files', 'tests']);
+const RULES = new Set(['comments', 'raw-colors', 'new-files', 'tests', 'raw-elements']);
 const results = await Promise.all(checks.filter(([name]) => !rulesOnly || RULES.has(name)).map(async ([name, fix, check]) => [name, fix, await check()]));
 for (const [name, fix, found] of results) {
   console.log(found.length ? `✗ ${name}: ${found.length} — ${fix}` : `✓ ${name}`);

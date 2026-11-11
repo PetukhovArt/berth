@@ -11,13 +11,30 @@
           "error",
           { "name": "fetch", "message": "Сеть только через bridge.ts." },
           { "name": "WebSocket", "message": "Сеть только через bridge.ts." }
+        ],
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              { "name": "@ui/kit", "message": "UI-библиотека только через apps/web/src/shared/ui/kit.ts." },
+              { "name": "lucide-vue-next", "message": "Иконки только через apps/web/src/shared/ui/icons.ts." }
+            ],
+            "patterns": [{ "group": ["@tauri-apps/*"], "message": "Tauri только в адаптере apps/web/src/bridge.ts." }]
+          }
         ]
+      }
+    },
+    {
+      "files": ["apps/web/src/shared/ui/**"],
+      "rules": {
+        "no-restricted-imports": ["error", { "patterns": [{ "group": ["@tauri-apps/*"], "message": "Tauri только в адаптере apps/web/src/bridge.ts." }] }]
       }
     },
     {
       "files": ["apps/web/src/bridge.ts"],
       "rules": {
-        "no-restricted-globals": "off"
+        "no-restricted-globals": "off",
+        "no-restricted-imports": "off"
       }
     }
   ]

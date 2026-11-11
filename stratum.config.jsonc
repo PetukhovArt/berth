@@ -2,41 +2,58 @@
   "$schema": "https://stratum.dev/schema/v1.json",
   "version": 1,
   "project": {
+    "extends": "stratum:fsd",
     "entry_points": ["apps/web/src/main.ts", "apps/model-router/src/**/*.ts"]
   },
   "structure": {
     "entries": ["index.ts", "index.tsx", "index.js", "index.jsx", "index.vue"],
-    "segments": [],
+    "segments": ["model", "ui", "api", "lib", "config"],
     "private": ["_shared"]
   },
   "layers": [
-    { "id": "web", "path": "apps/web/src", "depends_on": ["ui-kit", "ui-tokens"] },
+    { "id": "bridge", "path": "apps/web/src/bridge.ts", "depends_on": [] },
+    { "id": "web", "path": "apps/web/src", "depends_on": ["app", "shared", "bridge"] },
+    { "id": "app", "path": "apps/web/src/app", "depends_on": ["pages", "widgets", "features", "entities", "shared", "bridge"] },
+    { "id": "pages", "path": "apps/web/src/pages", "depends_on": ["widgets", "features", "entities", "shared", "bridge"], "slices": true },
+    { "id": "widgets", "path": "apps/web/src/widgets", "depends_on": ["features", "entities", "shared", "bridge"], "slices": true },
+    { "id": "features", "path": "apps/web/src/features", "depends_on": ["entities", "shared", "bridge"], "slices": true },
+    { "id": "entities", "path": "apps/web/src/entities", "depends_on": ["shared", "bridge"], "slices": true },
+    { "id": "shared", "path": "apps/web/src/shared", "depends_on": ["bridge", "ui-kit", "ui-tokens"] },
     { "id": "model-router", "path": "apps/model-router/src", "depends_on": [] },
     { "id": "ui-kit", "path": "packages/ui-kit/src", "depends_on": ["ui-tokens"] },
     { "id": "ui-tokens", "path": "packages/ui-tokens/src", "depends_on": [] }
   ],
   "rules": {
-    "stratum/composer-scope": { "severity": "warning" },
+    "stratum/import-policy": {
+      "severity": "error",
+      "options": [
+        {
+          "from": ["apps/web/src/**"],
+          "except_from": ["apps/web/src/shared/ui/**"],
+          "deny": ["packages/ui-kit/src/**"],
+          "message": "UI library is reached only through shared/ui",
+          "fix": "Import the wrapper from apps/web/src/shared/ui"
+        }
+      ]
+    },
+    "stratum/restricted-calls": {
+      "severity": "error",
+      "options": [
+        {
+          "calls": ["provide", "inject"],
+          "allow": ["apps/web/src/**/*-scope.ts", "packages/**"],
+          "message": "provide/inject only in a *-scope.ts file",
+          "fix": "Use the provideX()/useX() pair from the slice's *-scope.ts"
+        }
+      ]
+    },
     "stratum/container-breadth": { "severity": "off" },
     "stratum/depth-ratio": { "severity": "info" },
     "stratum/miller-limit": { "severity": "off" },
-    "stratum/missing-entry": { "severity": "off" },
     "stratum/module-docs": { "severity": "off" },
-    "stratum/naming": { "severity": "off" },
-    "stratum/no-barrel": { "severity": "warning" },
-    "stratum/no-circular-deps": { "severity": "error" },
-    "stratum/no-cross-layer-import": { "severity": "error" },
-    "stratum/public-api": { "severity": "off" },
     "stratum/purity": { "severity": "warning" },
-    "stratum/restricted-calls": { "severity": "off" },
-    "stratum/sibling-isolation": { "severity": "off" },
-    "stratum/slice-fan-in": { "severity": "off" },
-    "stratum/stage-mixing": { "severity": "off" },
-    "stratum/suppression": { "severity": "error" },
     "stratum/unreachable-modules": { "severity": "off" },
-    "stratum/unused-exports": { "severity": "off" },
-    "stratum/visibility-scope": { "severity": "error" },
-    "stratum/zone-breadth": { "severity": "off" }
+    "stratum/unused-exports": { "severity": "off" }
   },
   "overrides": []
 }
