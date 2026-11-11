@@ -1,7 +1,6 @@
-import { useSessionDock } from '../../../entities/session/model/sessionDock';
-import { openReview } from '../../../entities/merge-request/model/reviewPanel';
-import { openIssue } from '../../../entities/jira-issue/model/issuePanel';
-import { numberLabel } from '../../../entities/merge-request/lib/format';
+import { useSessionDock } from '../../../entities/session';
+import { openReview, numberLabel } from '../../../entities/merge-request';
+import { openIssue } from '../../../entities/jira-issue';
 import type { WorkNode } from './tree';
 
 export function openLeaf(node: WorkNode, split = false): void {

@@ -3,10 +3,8 @@ import { computed, onBeforeUnmount, shallowRef, watch } from 'vue';
 import type { DockviewApi, IDockviewPanel } from 'dockview-vue';
 import { Plus } from 'lucide-vue-next';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { useSessionDock } from '../../../entities/session/model/sessionDock';
-import { startCreate } from '../../../features/new-session/model/newSession';
-import { useBerth, worktreesOfProject } from '../../../entities/session/model/berth';
-import { placeExternal, useExternalSessions } from '../../../entities/session/model/external';
+import { useSessionDock, useBerth, worktreesOfProject, placeExternal, useExternalSessions } from '../../../entities/session';
+import { startCreate } from '../../../features/new-session';
 import DockTab from './DockTab.vue';
 import { FILE_PANEL_PREFIX, isFilePanel } from '../../../shared/lib/markdownFiles';
 

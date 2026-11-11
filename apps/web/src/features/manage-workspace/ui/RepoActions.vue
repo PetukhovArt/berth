@@ -3,11 +3,9 @@ import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import { FolderPlus, LoaderCircle } from 'lucide-vue-next';
 import { VButton, VPopover } from '@ui/kit';
 import ProjectActions from './ProjectActions.vue';
-import { addProject } from '../../../entities/session/model/workspaces';
-import { useBerth } from '../../../entities/session/model/berth';
-import { useAction } from '../../../entities/session/model/useAction';
+import { addProject, useBerth, useAction } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { findClones, type Clone, type RepoRef } from '../../../entities/repo/model/clones';
+import { findClones, type Clone, type RepoRef } from '../../../entities/repo';
 
 const props = defineProps<{ repo: RepoRef }>();
 

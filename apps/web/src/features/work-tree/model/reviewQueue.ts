@@ -10,7 +10,7 @@ import {
   type ReviewQueueNote,
   type ReviewQueueRow,
 } from '../../../shared/api/connectors/api';
-import { connectorBase } from '../../../entities/repo/model/remotes';
+import { connectorBase } from '../../../entities/repo';
 
 const REFRESH_MS = 5 * 60_000;
 

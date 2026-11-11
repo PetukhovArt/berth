@@ -6,10 +6,8 @@ import { isDesktop } from '../../../bridge';
 import { openCleanup } from '../../../cleanup/state';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
-import { useSessionDock } from '../../../entities/session/model/sessionDock';
-import { openLeaf } from '../../../features/work-tree/model/openLeaf';
-import { quickItems, type WorkNode } from '../../../features/work-tree/model/tree';
-import { useWorkTree } from '../../../features/work-tree/model/useWorkTree';
+import { useSessionDock } from '../../../entities/session';
+import { openLeaf, quickItems, type WorkNode, useWorkTree } from '../../../features/work-tree';
 
 const sessions = useSessionDock();
 const { all } = useWorkTree();

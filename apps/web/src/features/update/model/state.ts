@@ -1,6 +1,6 @@
 import { ref, shallowRef } from 'vue';
 import { invoke, isDesktop } from '../../../bridge';
-import { settleAll } from '../../../entities/document/model/documents';
+import { settleAll } from '../../../entities/document';
 
 type Build = { buildId: string; commit: string; subject: string; sourceRepo: string; builtAt: string; protocol: number };
 type JobState = 'running' | 'done' | 'failed' | 'cancelled';

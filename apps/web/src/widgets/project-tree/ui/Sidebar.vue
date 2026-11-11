@@ -2,13 +2,13 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Component } from 'vue';
 import { BookOpen, LayoutPanelLeft, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, Sun, Ticket } from 'lucide-vue-next';
 import { useConnectors } from '../../../shared/api/connectors/api';
-import { useForgeInbox } from '../../../entities/merge-request/model/inbox';
+import { useForgeInbox } from '../../../entities/merge-request';
 import { shortcutLabel } from '../../../shared/lib/commands/keymap';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { navigate, view } from '../../../shared/model/nav';
 import { sidebarCollapsed, sidebarSearchRequests, toggleSidebar } from '../../../shared/model/sidebar';
 import ProjectTree from '../../../workbench/ProjectTree.vue';
-import { treeQuery, useWorkTree } from '../../../features/work-tree/model/useWorkTree';
+import { treeQuery, useWorkTree } from '../../../features/work-tree';
 
 defineProps<{ dark: boolean }>();
 const emit = defineEmits<{ theme: [] }>();

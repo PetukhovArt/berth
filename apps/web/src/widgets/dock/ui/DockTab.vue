@@ -1,15 +1,11 @@
 <script setup lang="ts">
 import type { DockviewPanelApi } from 'dockview-vue';
 import { FileText, GitPullRequest, Network, Ticket, X } from 'lucide-vue-next';
-import { isDirtyPath, settleDirty } from '../../../entities/document/model/documents';
+import { isDirtyPath, settleDirty } from '../../../entities/document';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { METRICS_PANEL } from '../../../entities/session/model/sessionDock';
-import { useBerth } from '../../../entities/session/model/berth';
-import { externalDot, isExternalPanel, sessionDot, useExternalSessions, type Harness } from '../../../entities/session/model/external';
-import HarnessIcon from '../../../entities/session/ui/HarnessIcon.vue';
-import StatusDot from '../../../entities/session/ui/StatusDot.vue';
+import { METRICS_PANEL, useBerth, externalDot, isExternalPanel, sessionDot, useExternalSessions, type Harness, HarnessIcon, StatusDot } from '../../../entities/session';
 import { FILE_PANEL_PREFIX, isFilePanel } from '../../../shared/lib/markdownFiles';
-import SessionViewSwitch from '../../../features/session-view-switch/ui/SessionViewSwitch.vue';
+import { SessionViewSwitch } from '../../../features/session-view-switch';
 
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
 

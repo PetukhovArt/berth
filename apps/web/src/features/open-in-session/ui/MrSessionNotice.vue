@@ -2,7 +2,7 @@
 import { LoaderCircle, TriangleAlert, X } from 'lucide-vue-next';
 import { VButton } from '@ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
-import type { RepoRef } from '../../../entities/repo/model/clones';
+import type { RepoRef } from '../../../entities/repo';
 import { useOpenInSession, type MrRun } from '../model/openInSession';
 
 defineProps<{ run: MrRun }>();

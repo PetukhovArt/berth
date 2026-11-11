@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, useTemplateRef, watch } from 'vue';
 import { ChevronRight, SquareTerminal } from 'lucide-vue-next';
-import HarnessIcon from '../../../entities/session/ui/HarnessIcon.vue';
-import StatusDot from '../../../entities/session/ui/StatusDot.vue';
+import { HarnessIcon, StatusDot } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { hotDotOf, useHot } from '../model/hot';
 import { chooseSwitcher, switcher } from '../model/hotkeys';

@@ -2,14 +2,14 @@
 import { computed, shallowRef, watch, type Component } from 'vue';
 import { ExternalLink, FileJson, FileText, History, Keyboard, Palette, Plug, RefreshCw, Search, SlidersHorizontal, Smartphone, SquareTerminal } from 'lucide-vue-next';
 import { VButton, VInputText, VMessage } from '@ui/kit';
-import ConnectorsPanel from '../../../features/manage-connectors/ui/ConnectorsPanel.vue';
+import { ConnectorsPanel } from '../../../features/manage-connectors';
 import BackBar from '../../../shared/ui/BackBar.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { withViewTransition } from '../../../shared/ui/motion/motion';
 import { requestedSettingsCategory } from '../../../shared/model/nav';
 import SettingRow from './SettingRow.vue';
-import KeymapPanel from '../../../features/keymap-editor/ui/KeymapPanel.vue';
-import RemotePanel from '../../../features/remote-access/ui/RemotePanel.vue';
+import { KeymapPanel } from '../../../features/keymap-editor';
+import { RemotePanel } from '../../../features/remote-access';
 import SettingsJsonEditor from '../../../shared/ui/SettingsJsonEditor.vue';
 import { CATEGORIES, SETTINGS, SETTING_KEYS } from '../../../shared/config/settings/schema';
 import { useSettings } from '../../../shared/config/settings/store';

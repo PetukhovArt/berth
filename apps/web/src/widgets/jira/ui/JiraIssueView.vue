@@ -5,11 +5,8 @@ import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
 import { describeError, jiraIssue, openUrl, reloadWhenRecovered, type JiraIssue } from '../../../shared/api/connectors/api';
 import ErrorInline from '../../../shared/ui/ErrorInline.vue';
-import PersonAvatar from '../../../entities/jira-issue/ui/PersonAvatar.vue';
-import PriorityMark from '../../../entities/jira-issue/ui/PriorityMark.vue';
+import { PersonAvatar, PriorityMark, StatusChip, TypeIcon } from '../../../entities/jira-issue';
 import Skeleton from '../../../shared/ui/Skeleton.vue';
-import StatusChip from '../../../entities/jira-issue/ui/StatusChip.vue';
-import TypeIcon from '../../../entities/jira-issue/ui/TypeIcon.vue';
 import { copyText } from '../../../shared/lib/atlassian';
 
 const { formatRelative, formatDate } = useI18n();

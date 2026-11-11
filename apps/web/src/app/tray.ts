@@ -1,11 +1,10 @@
 import { watch } from 'vue';
-import { useExternalSessions } from '../entities/session/model/external';
-import { useBerth } from '../entities/session/model/berth';
+import { useExternalSessions, useBerth } from '../entities/session';
 import { invoke, isDesktop, listen } from '../bridge';
 import { openCleanup } from '../cleanup/state';
 import { runAction } from '../shared/lib/commands/registry';
-import { openUpdate } from '../features/update/model/state';
-import { startCreateInMain } from '../features/new-session/model/newSession';
+import { openUpdate } from '../features/update';
+import { startCreateInMain } from '../features/new-session';
 
 const NEW_SESSION_EVENT = 'tray://new-session';
 const UPDATE_EVENT = 'tray://update';

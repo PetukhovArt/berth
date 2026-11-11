@@ -1,11 +1,9 @@
 import { shallowRef } from 'vue';
 import type { ChangeRequestRef } from '../../../shared/api/connectors/api';
 import { hasChanges } from './worktreeChanged';
-import { knownMr } from '../../../entities/merge-request/model/worktreeMr';
+import { knownMr } from '../../../entities/merge-request';
 import { useDock } from '../../../shared/model/dock';
-import { useSessionDock } from '../../../entities/session/model/sessionDock';
-import { useBerth } from '../../../entities/session/model/berth';
-import { externalDot, sessionDot, useExternalSessions } from '../../../entities/session/model/external';
+import { useSessionDock, useBerth, externalDot, sessionDot, useExternalSessions } from '../../../entities/session';
 
 export type SessionWorktree = { path: string; branch: string };
 

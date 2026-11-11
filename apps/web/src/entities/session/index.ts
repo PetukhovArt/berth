@@ -1,0 +1,18 @@
+export { rollupOf } from './lib/sessionPaths';
+export type { Rollup, WorkspaceNode } from './lib/sessionPaths';
+export { acknowledged, archiveAgent, attachSession, BerthCallError, call, closeTerminal, createAgent, createTerminal, deleteAgent, describeError, detachSession, entitySessionRef, isSessionRef, renameSession, resizeSession, restartAgent, sendInput, sessionId, sessionKey, unarchiveAgent, useBerth, worktreesOfProject } from './model/berth';
+export type { AgentKind, Branch, Entities, SessionEvent, SessionNode, SessionRef, SessionStatus, Worktree, WorktreeNode } from './model/berth';
+export { archiveExternal, continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, isExternalPanel, placeExternal, readTranscript, resumeCommand, sessionDot, splitEarlier, unarchiveExternal, useExternalSessions } from './model/external';
+export type { ExternalSession, Harness, TranscriptMessage } from './model/external';
+export { getMetrics } from './model/metrics';
+export type { MetricsSnapshot, SessionMetrics } from './model/metrics';
+export { listOrphans, moveAgent, resumeOrphan } from './model/orphans';
+export type { OrphanedSession } from './model/orphans';
+export { canMove, moved, pinned, pinnedFirst, unpinned } from './model/projectPins';
+export { METRICS_PANEL, useSessionDock } from './model/sessionDock';
+export { useAction } from './model/useAction';
+export { addProject, addWorkspace, removeProject, removeWorkspace, renameProject, renameWorkspace, setProjectPins } from './model/workspaces';
+export { useWorktreeOptions } from './model/worktrees';
+export { default as HarnessIcon } from './ui/HarnessIcon.vue';
+export { default as NavNotices } from './ui/NavNotices.vue';
+export { default as StatusDot } from './ui/StatusDot.vue';

@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { Network } from 'lucide-vue-next';
 import { VButton } from '@ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { numberLabel } from '../../../entities/merge-request/lib/format';
+import { numberLabel } from '../../../entities/merge-request';
 import { openArchitecture, useArchitecture } from '../model/stratum';
 
 type Item = { connector: string; project: string; number: number; target_branch: string; url: string };

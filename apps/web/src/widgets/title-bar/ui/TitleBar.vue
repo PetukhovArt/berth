@@ -2,10 +2,10 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Copy, Minus, Square, X } from 'lucide-vue-next';
 import { hostWindow as win } from '../../../bridge';
-import { settleAll } from '../../../entities/document/model/documents';
+import { settleAll } from '../../../entities/document';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { hostPlatform } from '../../../shared/lib/platform';
-import UpdateChip from '../../../features/update/ui/UpdateChip.vue';
+import { UpdateChip } from '../../../features/update';
 
 const { t } = useI18n();
 const maximized = ref(false);

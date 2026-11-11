@@ -2,10 +2,7 @@
 import { shallowRef, watch } from 'vue';
 import { VButton, VDialog, VMessage, VSelect } from '@ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { describeError, useBerth } from '../../../entities/session/model/berth';
-import { useAction } from '../../../entities/session/model/useAction';
-import { listOrphans, resumeOrphan, type OrphanedSession } from '../../../entities/session/model/orphans';
-import { useWorktreeOptions } from '../../../entities/session/model/worktrees';
+import { describeError, useBerth, useAction, listOrphans, resumeOrphan, type OrphanedSession, useWorktreeOptions } from '../../../entities/session';
 
 const props = defineProps<{ project: string }>();
 const emit = defineEmits<{ resumed: [agent: string]; close: [] }>();

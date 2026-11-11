@@ -1,5 +1,5 @@
 import { computed, shallowRef, watch } from 'vue';
-import { archiveAgent, acknowledged, closeTerminal, describeError, useBerth, type Entities } from '../entities/session/model/berth';
+import { archiveAgent, acknowledged, closeTerminal, describeError, useBerth, type Entities } from '../entities/session';
 import { invoke, isDesktop } from '../bridge';
 import { useSettings } from '../shared/config/settings/store';
 

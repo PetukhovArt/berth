@@ -1,7 +1,6 @@
 import { shallowRef } from 'vue';
 import { navigate, view } from '../../../shared/model/nav';
-import { useBerth, worktreesOfProject, type SessionRef } from '../../../entities/session/model/berth';
-import { useSessionDock } from '../../../entities/session/model/sessionDock';
+import { useBerth, worktreesOfProject, type SessionRef, useSessionDock } from '../../../entities/session';
 
 export const creatingIn = shallowRef<{ worktree: string | null } | null>(null);
 

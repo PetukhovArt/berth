@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CornerDownLeft } from 'lucide-vue-next';
-import { sendInput, type SessionRef } from '../../../entities/session/model/berth';
+import { sendInput, type SessionRef } from '../../../entities/session';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { ctrlArmed } from '../lib/mobileKeys';
 

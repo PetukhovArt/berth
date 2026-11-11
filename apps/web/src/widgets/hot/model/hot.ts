@@ -1,9 +1,7 @@
 import { computed, shallowRef, watch, type ComputedRef } from 'vue';
-import { externalKey, externalTarget, readTranscript, useExternalSessions, type ExternalSession } from '../../../entities/session/model/external';
-import { useBerth, type SessionNode, type SessionStatus } from '../../../entities/session/model/berth';
+import { externalKey, externalTarget, readTranscript, useExternalSessions, type ExternalSession, useBerth, type SessionNode, type SessionStatus, useSessionDock } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
-import { useSessionDock } from '../../../entities/session/model/sessionDock';
 
 export type HotStatus = 'waiting' | 'working' | 'idle' | 'error';
 type HotHarness = 'claude' | 'codex' | 'shell';

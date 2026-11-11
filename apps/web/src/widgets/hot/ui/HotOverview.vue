@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 import { SquareTerminal, X } from 'lucide-vue-next';
-import HarnessIcon from '../../../entities/session/ui/HarnessIcon.vue';
-import StatusDot from '../../../entities/session/ui/StatusDot.vue';
+import { HarnessIcon, StatusDot } from '../../../entities/session';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
 import { useHot, type HotItem } from '../model/hot';
 import { hotDot, hotOverviewOpen } from '../model/view';

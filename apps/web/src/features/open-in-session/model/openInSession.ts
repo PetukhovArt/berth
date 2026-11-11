@@ -1,17 +1,12 @@
 import { shallowRef } from 'vue';
-import { acknowledged, createAgent, describeError, entitySessionRef, useBerth, worktreesOfProject, type AgentKind, type SessionRef } from '../../../entities/session/model/berth';
+import { acknowledged, createAgent, describeError, entitySessionRef, useBerth, worktreesOfProject, type AgentKind, type SessionRef, useSessionDock } from '../../../entities/session';
 import { invoke } from '../../../bridge';
 import type { AiView } from '../../../shared/api/connectors/ai';
 import { forgeChangeRequest, forgeSource, mrFetchSource, useConnectors, type ChangeRequestRef, type ChangeRequestSummary, type FetchedSource } from '../../../shared/api/connectors/api';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
-import type { RepoRef } from '../../../entities/repo/model/clones';
-import { useSessionDock } from '../../../entities/session/model/sessionDock';
-import { openReview } from '../../../entities/merge-request/model/reviewPanel';
-import { connectorBase, inspectClone, remotes, type Remote } from '../../../entities/repo/model/remotes';
-import { projectOfRepo, repoRefOf } from '../../../entities/repo/model/repoRef';
-import { numberLabel } from '../../../entities/merge-request/lib/format';
-import { itemId } from '../../../entities/merge-request/model/inbox';
+import { type RepoRef, connectorBase, inspectClone, remotes, type Remote, projectOfRepo, repoRefOf } from '../../../entities/repo';
+import { openReview, numberLabel, itemId } from '../../../entities/merge-request';
 
 export type MrItem = Pick<ChangeRequestSummary, 'connector' | 'project' | 'number' | 'title' | 'url' | 'source_branch' | 'target_branch' | 'author'>;
 
