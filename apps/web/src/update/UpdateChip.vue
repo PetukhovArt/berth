@@ -28,9 +28,11 @@ const mode = computed(() => {
 <style scoped>
 .chip {
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: var(--vr-space-2);
   height: 22px;
+  white-space: nowrap;
   padding: 0 var(--vr-space-2);
   font: inherit;
   font-size: var(--vr-font-size-xs);

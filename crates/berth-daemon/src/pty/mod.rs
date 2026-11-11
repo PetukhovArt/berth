@@ -2,6 +2,7 @@ pub mod capture;
 pub mod cloud;
 pub mod kill;
 pub mod kitty;
+mod own_dir;
 pub mod progress;
 pub mod ring;
 pub mod title;
@@ -186,6 +187,9 @@ impl PtySession {
         }
         for (k, v) in &spec.env {
             cmd.env(k, v);
+        }
+        if let Some(path) = own_dir::path() {
+            cmd.env("PATH", path);
         }
 
         let child = pair
