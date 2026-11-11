@@ -1,12 +1,12 @@
 import { watch } from 'vue';
 import { listen } from '@tauri-apps/api/event';
-import { useExternalSessions } from './entities/session/model/external';
-import { useBerth } from './entities/session/model/berth';
-import { invoke, isDesktop } from './bridge';
-import { openCleanup } from './cleanup/state';
-import { runAction } from './shared/lib/commands/registry';
-import { openUpdate } from './features/update/model/state';
-import { useDock } from './shared/model/dock';
+import { useExternalSessions } from '../entities/session/model/external';
+import { useBerth } from '../entities/session/model/berth';
+import { invoke, isDesktop } from '../bridge';
+import { openCleanup } from '../cleanup/state';
+import { runAction } from '../shared/lib/commands/registry';
+import { openUpdate } from '../features/update/model/state';
+import { useDock } from '../shared/model/dock';
 
 const NEW_SESSION_EVENT = 'tray://new-session';
 const UPDATE_EVENT = 'tray://update';

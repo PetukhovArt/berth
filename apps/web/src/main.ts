@@ -1,7 +1,7 @@
-import './legacyStorage';
+import './app/legacyStorage';
 import { createApp, watchEffect } from 'vue';
 import { installUiKit } from '@ui/kit';
-import './app.css';
+import './app/styles/app.css';
 import './shared/ui/motion/statusAnimation.css';
 import { installKeymap } from './shared/lib/commands/dispatcher';
 import { t } from './shared/lib/i18n/i18n';
@@ -9,10 +9,10 @@ import { setMotionEnabled } from './shared/ui/motion/motion';
 import { installStatusAnimation } from './shared/ui/motion/statusAnimation';
 import { loadHostPlatform } from './shared/lib/platform';
 import { installAppearance } from './shared/ui/appearance';
-import { installBerthIdleSync } from './settings/berthIdle';
+import { installBerthIdleSync } from './app/berthIdle';
 import { useSettings } from './shared/config/settings/store';
 import { setTranslator } from './shared/config/settings/translate';
-import WorkspaceView from './WorkspaceView.vue';
+import WorkspaceView from './app/ui/WorkspaceView.vue';
 
 setTranslator(t);
 void loadHostPlatform();

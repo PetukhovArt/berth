@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { t } from '../shared/lib/i18n/i18n';
-import BackBar from '../shared/ui/BackBar.vue';
-import TerminalKeys from '../widgets/terminal/ui/TerminalKeys.vue';
+import { t } from '../../../shared/lib/i18n/i18n';
+import BackBar from '../../../shared/ui/BackBar.vue';
+import TerminalKeys from '../../../widgets/terminal/ui/TerminalKeys.vue';
 import { useIsPhone } from '@ui/kit';
-import { useDock } from '../shared/model/dock';
-import ProjectTree from '../workbench/ProjectTree.vue';
-import NewSessionForm from '../features/new-session/ui/NewSessionForm.vue';
-import DockArea from '../widgets/dock/ui/DockArea.vue';
+import { useDock } from '../../../shared/model/dock';
+import ProjectTree from '../../../workbench/ProjectTree.vue';
+import NewSessionForm from '../../../features/new-session/ui/NewSessionForm.vue';
+import DockArea from '../../../widgets/dock/ui/DockArea.vue';
 
 localStorage.removeItem('berth.agents.layout');
 localStorage.removeItem('berth.agents.explorer.expanded');

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { BookOpen } from 'lucide-vue-next';
-import ConfluencePageView from '../widgets/confluence/ui/ConfluencePageView.vue';
-import ConfluenceSearch from '../widgets/confluence/ui/ConfluenceSearch.vue';
-import { t } from '../shared/lib/i18n/i18n';
-import { withViewTransition } from '../shared/ui/motion/motion';
-import { view } from '../shared/model/nav';
-import ConnectorPage from '../widgets/connector-page/ui/ConnectorPage.vue';
+import ConfluencePageView from '../../../widgets/confluence/ui/ConfluencePageView.vue';
+import ConfluenceSearch from '../../../widgets/confluence/ui/ConfluenceSearch.vue';
+import { t } from '../../../shared/lib/i18n/i18n';
+import { withViewTransition } from '../../../shared/ui/motion/motion';
+import { view } from '../../../shared/model/nav';
+import ConnectorPage from '../../../widgets/connector-page/ui/ConnectorPage.vue';
 
 const KINDS = ['confluence'] as const;
 
