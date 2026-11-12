@@ -2,7 +2,7 @@ name: Release
 
 on:
   # A version bump landing on main *is* the release: this workflow builds it,
-  # tags it, publishes the GitHub release and then npm. The tag is the record
+  # tags it and publishes the GitHub release. The tag is the record
   # of what shipped, not the trigger — a tag pushed with GITHUB_TOKEN starts no
   # workflow, so hanging the release off one would tag and publish nothing.
   # A tag pushed by hand still works: it re-releases that exact commit.
@@ -93,9 +93,7 @@ jobs:
       - name: Build
         run: cargo build --release --locked --target ${{ matrix.target }}
 
-      # Two artifacts per target from one build: the archive `install.sh`
-      # downloads, and the bare binary the npm packages wrap. Artifact
-      # download drops the executable bit — the npm build script re-chmods.
+      # The archive `install.sh` downloads.
       - name: Package (unix)
         if: matrix.runner != 'windows-latest'
         run: tar -czf berth-${{ matrix.target }}.tar.gz -C target/${{ matrix.target }}/release berth
@@ -110,10 +108,6 @@ jobs:
           name: archive-${{ matrix.target }}
           path: berth-${{ matrix.target }}.*
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: bin-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/berth${{ matrix.runner == 'windows-latest' && '.exe' || '' }}
 
   release:
     needs: [gate, build]
@@ -161,14 +155,3 @@ jobs:
             berth-*.zip
           body_path: RELEASE_NOTES.md
 
-  # npm carries the binaries itself, so it is the install route that works
-  # everywhere. Same binaries the release job just attached, never a rebuild.
-  npm:
-    needs: [gate, release]
-    if: needs.gate.outputs.release == 'true'
-    uses: ./.github/workflows/npm.yml
-    with:
-      tag: v${{ needs.gate.outputs.version }}
-      scope: "@petukhovart"
-      dry_run: false
-    secrets: inherit

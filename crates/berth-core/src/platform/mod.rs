@@ -108,9 +108,8 @@ pub const PROFILE_HOME_VAR: &str = imp::PROFILE_HOME_VAR;
 ///
 /// Not for every spawn: `creation_flags` *replaces* the flag word, so a site
 /// that needs other creation flags (the daemon auto-spawn's
-/// `DETACHED_PROCESS`, see `berth-tui`'s `ipc::detach`) must keep setting
-/// its own, and interactive handoffs (`berth ssh`, ttyd) must keep the
-/// console they inherit.
+/// `DETACHED_PROCESS`, see `detach` in `crates/berth/src/client.rs`) must
+/// keep setting its own.
 pub trait NoWindow {
     fn no_window(&mut self) -> &mut Self;
 }

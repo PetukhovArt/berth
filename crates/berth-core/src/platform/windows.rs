@@ -208,8 +208,9 @@ pub fn strip_verbatim_prefix(path: PathBuf) -> PathBuf {
 }
 
 /// Windows has no SIGTERM. The console control events are the equivalent,
-/// and the DETACHED_PROCESS launch (see `berth-tui`'s `spawn_daemon`) gives
-/// the daemon its own console, so neither reaches it from the TUI's terminal
+/// and the DETACHED_PROCESS launch (see `spawn_daemon` in
+/// `crates/berth/src/client.rs`) gives the daemon its own console, so neither
+/// reaches it from the terminal that ran the client
 /// — they arrive only from a deliberate `taskkill` or a `berth kill`
 /// fallback. A handler that fails to install leaves Ctrl+C alone standing.
 pub async fn termination_signal() {

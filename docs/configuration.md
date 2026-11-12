@@ -1,7 +1,7 @@
 # Configuration
 
-Settings live in `config.json`, beside the database. It is read fresh on each use, so hand edits apply
-without a restart — and `s` in the TUI is an overlay over the same file.
+berth keeps two kinds of settings: the daemon's, in `config.json` beside the database, and the desktop
+app's own, in `~/.berth`.
 
 ## Where things live
 
@@ -11,8 +11,7 @@ without a restart — and `s` in the TUI is an overlay over the same file.
 | Linux | `~/.local/share/berth/` (data), `~/.local/state/berth/` (logs) |
 | Windows | `%APPDATA%\berth\data\` |
 
-That directory holds `config.json`, `agent_presets.json`, `berth.db`, and a `state/` subdirectory with
-`daemon.log` and `tui.log`.
+That directory holds `config.json`, `berth.db`, and a `state/` subdirectory with `daemon.log`.
 
 ## Moving from pacer
 
@@ -25,100 +24,58 @@ it copies pacer's over:
 | Linux | `~/.local/share/pacer/` | `~/.local/share/berth/` |
 | Windows | `%APPDATA%\pacer\data\` | `%APPDATA%\berth\data\` |
 
-Your projects, workspaces, pins, settings, presets and ssh hosts come along, and `pacer.db` becomes
-`berth.db`. Logs, database backups and the runtime directory stay behind. The copy happens once: when
-berth's directory exists, pacer's is never read again. pacer's directory is never changed or deleted,
-so pacer keeps working, and you remove it yourself when you no longer need it.
+Your projects, workspaces, pins and settings come along, and `pacer.db` becomes `berth.db`. Logs,
+database backups and the runtime directory stay behind. The copy happens once: when berth's directory
+exists, pacer's is never read again. pacer's directory is never changed or deleted, so pacer keeps
+working, and you remove it yourself when you no longer need it.
 
 The copy is a snapshot of the moment berth first starts. Anything you do in pacer after that stays in
-pacer, so stop pacer's daemon with `pacer kill` before the first `berth` to carry everything over.
+pacer, so stop pacer's daemon with `pacer kill` before berth's first start to carry everything over.
 
 berth runs its own daemon (`%TEMP%\berth` on Windows, `/tmp/berth-<uid>` or `$XDG_RUNTIME_DIR/berth`
 elsewhere), so a running pacer daemon and its sessions are left alone. When berth starts a session in
 a checkout, it replaces the hooks pacer installed there with its own.
 
 Environment variables are spelled `BERTH_*` now. berth still reads the old `PACER_*` spelling of
-`AGENT_CMD`, `LOG`, `EDITOR`, `INSTALL_URL` and the test timing knobs when the new one is unset.
+`AGENT_CMD`, `LOG`, `INSTALL_URL` and the test timing knobs when the new one is unset.
 `PACER_RUNTIME_DIR` and `PACER_DATA_DIR` are different: berth refuses to start while one is set
 without its `BERTH_*` counterpart, because following it would put berth on pacer's daemon or
 database. With both data variables set, berth copies from `PACER_DATA_DIR` into a `BERTH_DATA_DIR`
 that does not exist yet.
 
-## Settings
+## Daemon settings
 
-Everything below is both a key in `config.json` and a row in the `s` overlay.
+The daemon reads `config.json` fresh on each use, so hand edits apply without a restart. A missing
+file or a missing key means the default.
 
 | Key | Default | What it does |
 |---|---|---|
-| `theme` | `default` | color theme |
-| `animations` | `true` | status-text sweep and splash motion |
-| `focus_tint` | `false` | tint the focused panel |
-| `mermaid_renderer` | `mermaid-ascii -f -` | command the `b` preview renders mermaid diagrams with (`.mmd` files and fenced `mermaid` blocks in markdown); the block goes to its stdin, the text art comes back on stdout; empty turns it off |
-| `editor` | `vim` | what the `f` / `F` / `b` modals launch (`vim`, `nvim`, `nano`, `emacs`, `hx`, or any command line — it is called as `<editor> +<line> <file>`) |
-| `done_sound` | `Glass` | what rings when a turn finishes: `off`, `bell`, or a macOS system sound |
-| `session_idle_timeout` | `5m` | how long an unwatched idle session keeps its PTY before it is reaped (`off` never reaps) |
-| `prewarm_agents` | `true` | start an agent CLI ahead of time so a new session opens instantly; each idle one costs a few hundred MB |
-| `prewarm_sessions` | `true` | boot a worktree's closed sessions when the cursor rests on it |
-| `restore_sessions` | `true` | start the sessions that were running when the daemon stopped again when it starts (agents resume their conversation) |
-| `skip_session_naming` | `false` | skip the name prompt when creating a session |
-| `palette_enter_attaches` | `true` | whether `Enter` in the fuzzy jump attaches or only selects |
-| `git_init_on_create` | — | `git init` a non-repo directory when it is added |
-| `pr_list_filter` | `all` | which open pull requests the group lists: `all`, `mine`, `involved` |
-| `hide_draft_prs` | `false` | leave draft pull requests (and GitLab draft merge requests) out of the PRs panel and `/` |
-| `sort_projects` / `sort_worktrees` / `sort_sessions` | `created` | per-column order: `created`, `recent` or `name` (pins float first) |
-| `show_ago` | `true` | show the dim `2h ago` label on project, worktree and session rows |
-| `bold_names` | `true` | bold the panel headers and project names |
-| `show_key_combos` | `false` | experimental: show each key pressed in the panels bottom-left with the action it ran, for screen shares. Keys typed into a locked pane or a text field never show |
-| `show_workspaces` | | show the Workspaces bar |
-| `show_diagnostics` | `false` | show the diagnostics card (`Shift+C`) |
-| `hide_projects` / `hide_worktrees` / `hide_prs` | `false` | start with that sidebar hidden; the Sessions panel always stays visible |
-| `claude_enabled` / `codex_enabled` / `cursor_enabled` | `true` | which harnesses the new-session menu offers |
-| `claude_model` / `claude_effort` / `codex_model` / `codex_effort` | | defaults the picker takes on `Enter` |
-| `keybindings` | | overrides for any action in [keymap.md](keymap.md), written by Settings → Hotkeys |
+| `session_idle_timeout` | `5m` | how long an unwatched idle session keeps its terminal before it is released (`off` never releases). The desktop app sets it in its settings |
+| `restore_sessions` | `true` | start the sessions that were running when the daemon stopped again when it starts (agents resume their conversation). The desktop app's `sessions.restoreOnRestart` sets it |
+| `prewarm_agents` | `true` | let a client have an agent CLI started ahead of time so a new session opens instantly; each idle one costs a few hundred MB |
+| `prewarm_sessions` | `true` | let a client have a worktree's closed sessions booted ahead of time so they open on a booted screen |
+| `git_init_on_create` | `true` | `git init` a directory that `Add Project` creates because it did not exist |
 
-### Token prices
+## Desktop app settings
 
-The diagnostics card counts Claude tokens exactly, because every turn's numbers are in the
-transcript. It shows no dollar figure until you supply the rates, because berth has none: a
-transcript line carries no cost, Claude Code's own stats cache records zero for every model on a
-subscription plan, and the model catalog it downloads has no price fields. Rather than guess, the
-card leaves the column off.
-
-Fill in `model_prices` by hand in `config.json` and the column appears. Rates are US dollars per
-million tokens, taken from Anthropic's pricing page:
-
-```json
-"model_prices": {
-  "claude-sonnet-4-5": { "input": 3.0, "output": 15.0 },
-  "claude-opus-4-1":   { "input": 15.0, "output": 75.0, "cache_read": 1.5 }
-}
-```
-
-A key matches any model id starting with it, and the longest match wins, so `claude-sonnet-4-5`
-prices `claude-sonnet-4-5-20250929` and you only add a dated id to price one snapshot differently.
-The three cache rates default to Anthropic's published multiples of `input` (a 5 minute write at
-1.25x, a 1 hour write at 2x, a read at 0.1x); `cache_write_5m`, `cache_write_1h` and `cache_read`
-override them. A session running a model you have not priced shows `—` rather than a partial total.
-
-On a subscription plan the true per-token bill is zero, so treat the figure as what the same
-conversation would have cost through the API.
-
-The settings overlay never writes `model_prices`, so what you type here survives every save. A
-reset to defaults does erase it.
+The desktop app keeps its own settings in `~/.berth/settings.json` and its key bindings in
+`~/.berth/keymap.json`. Both are edited from the app's Settings, which can also open either file in
+your editor; hand edits apply while the app runs. `BERTH_HOME` moves the directory.
 
 ## Environment
 
 | Variable | Effect |
 |---|---|
-| `BERTH_EDITOR` | editor command, ahead of the `editor` setting |
-| `BERTH_LOG` | `RUST_LOG`-style filter for both daemon and TUI (`BERTH_LOG=debug`) |
+| `BERTH_LOG` | `RUST_LOG`-style filter for the daemon log (`BERTH_LOG=debug`) |
 | `BERTH_CLOUD_MIRROR_SECS` | cloud-mirror refresh cadence in seconds; `0` turns the follow off |
-| `BERTH_DATA_DIR` | data dir (database, config, logs) — how tests and parallel instances isolate themselves |
+| `BERTH_DATA_DIR` | data dir (database, config, logs), which is how tests and parallel instances isolate themselves |
 | `BERTH_RUNTIME_DIR` | runtime dir holding the socket / endpoint file and pidfile |
 | `BERTH_METRICS_SAMPLE_MS` | how often the daemon samples CPU, memory and token use; tests shorten it |
 | `BERTH_AGENT_CMD` | replace every agent CLI with one command line, taken verbatim (`make dev AGENT=/bin/cat`) |
-| `BERTH_INSTALL_URL` | install-script URL used by `berth upgrade` and `berth ssh` |
+| `BERTH_INSTALL_URL` | install-script URL used by `berth upgrade` |
 | `BERTH_INSTALL_DIR` | install destination for `install.sh` (default `~/.local/bin`) |
+| `BERTH_HOME` | the desktop app's settings directory (default `~/.berth`) |
 
 Agent PTYs additionally carry `BERTH_AGENT_ID`, `BERTH_API_URL` and `BERTH_API_TOKEN` so hooks and
-`berth rename` / `worktree` / `spawn` can find their own session. They are scrubbed from plain terminals.
+`berth rename` / `worktree` / `enter` / `spawn` can find their own session. They are scrubbed from plain
+terminals.

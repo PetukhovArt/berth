@@ -1,7 +1,7 @@
 {
   "runtime": "tauri",
   "port": 9334,
-  "launch": "powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 -Desktop",
+  "launch": "powershell -ExecutionPolicy Bypass -File scripts/dev.ps1",
   "allowEval": true,
   "testIdAttribute": "data-testid"
 }

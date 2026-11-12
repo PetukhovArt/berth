@@ -6,15 +6,16 @@ in `GLOSSARY.md`. Details live in the code — this file is the map, not the spe
 
 ## Process model
 
-Two processes, same binary:
-
-1. **Daemon** (`berth daemon`) — owns every PTY, SQLite, git worktrees, agent status. Spawned by the
-   TUI in its own session (`setsid`) when nothing is listening, so it outlives clients and holds no
-   controlling terminal.
-2. **TUI** (`berth`) — a ratatui client on the daemon socket: an `AF_UNIX` socket in the `0700` runtime
-   dir on unix, or — Windows has none — a loopback TCP listener plus a bearer token there instead.
-   One or the other, never both; `berth-core/src/transport.rs` hides the difference behind one API.
-   Quit the TUI and nothing dies; relaunch and scrollback is replayed.
+1. **Daemon** (`berth daemon`) — owns every PTY, SQLite, git worktrees, agent status. Started when
+   nothing is listening: a `berth` command that needs one spawns its own binary (`current_exe`) in a
+   new session (`setsid`), and the desktop app starts `berth daemon` from `PATH` detached from itself.
+   Either way it outlives its clients and holds no controlling terminal.
+2. **Clients** on the daemon socket: an `AF_UNIX` socket in the `0700` runtime dir on unix, or —
+   Windows has none — a loopback TCP listener plus a bearer token there instead. One or the other,
+   never both; `berth-core/src/transport.rs` hides the difference behind one API. The clients are the
+   desktop app (`apps/desktop`), which also serves its web UI to a phone over remote access, and the
+   one-shot `berth` commands (`add`, `rename`, `worktree`, `enter`, `spawn`, `workspace`, `kill`).
+   Close the app and nothing dies; reopen it and scrollback is replayed.
 
 IPC is length-prefixed MessagePack: `ClientRequest` in (CRUD, attach, keystrokes, resize),
 `ServerEvent` out (entity deltas, status, PTY output). Attach replays the per-PTY ring buffer, then
@@ -23,7 +24,7 @@ streams live output.
 ## Domain tree
 
 **Workspace → Project → Worktree → Session** (an agent or a plain terminal). Exactly one workspace is
-open per TUI instance. Worktrees are real `git worktree`s under `<repo>/../<repo-name>-worktrees/`.
+open per client connection. Worktrees are real `git worktree`s under `<repo>/../<repo-name>-worktrees/`.
 Everything persists in SQLite under the data dir.
 
 ## Agent status (not MCP)
@@ -35,19 +36,19 @@ one hooks dialect; Cursor speaks its own. The same hook channel powers auto-titl
 
 ## Side paths
 
-Each has a subcommand and a module named after it — start from the CLI entry in `crates/berth`:
-`berth ssh` (remote hosts), `berth tunnel` / `berth browser` (the TUI in a browser tab via ttyd),
-cloud sessions (`claude --cloud` / `--teleport`), agent presets, the prewarm pool, the idle reaper,
-and the metrics sampler behind the memory modal and the diagnostics card.
+In the daemon (`crates/berth-daemon/src`): cloud sessions (`claude --cloud` / `--teleport`), the
+prewarm pool, the idle reaper, restoring live sessions after a restart (`restore.rs`), and the metrics
+sampler (`sampler.rs`) behind the desktop app's metrics panel. In the desktop app
+(`apps/desktop/src-tauri/src`): remote access (`remote.rs`), connectors, worktree cleanup
+(`cleanup.rs`) and the working-copy updater (`working_copy.rs`).
 
 ## Crate layout
 
 | Crate | Role |
 |---|---|
-| `berth` | Thin CLI: no args → TUI; `daemon`, `kill`, `rename`, `upgrade`, `ssh`, `browser`, … |
+| `berth` | Thin CLI: `daemon`, `kill`, `add`, `rename`, `worktree`, `enter`, `spawn`, `workspace`, `upgrade`; no args prints help. `client.rs` holds the daemon client: auto-spawn, handshake, kill |
 | `berth-core` | Shared protocol, entities, IDs, paths, codec |
 | `berth-daemon` | PTYs, SQLite, git, hook receiver, status engine |
-| `berth-tui` | ratatui UI, keyboard/mouse, attach/scrollback |
 
 ## Apps
 
@@ -80,5 +81,5 @@ action. A new concern is a facade function plus one function per OS file; a new 
 The web UI reads the same facts from `apps/web/src/shared/lib/platform.ts` (the `platform_info` command, with a
 userAgent guess for the client). Concerns that own a whole module keep their split behind that
 module's API in the same way: `transport` and `paths` in core, the daemon's PTY layer, `launch` and
-`lifecycle`, the TUI's `ipc` (daemon auto-spawn) and `vim_term` (its own PTY), and the CLI's
-`ssh`, `tunnel` and `upgrade`. `node scripts/cross-clippy.mjs` lints the other OSes' halves from any host.
+`lifecycle`, and the CLI's `client` (daemon auto-spawn) and `upgrade`. `node scripts/cross-clippy.mjs`
+lints the other OSes' halves from any host.

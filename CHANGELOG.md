@@ -8,19 +8,13 @@
 - Added daemon autostart to the desktop app: when no berth daemon is running, it starts `berth daemon` from `PATH` in the background instead of waiting with `berth daemon is not running`.
 - Added `Update Berth…` and `Roll back to previous build` to the desktop app's tray menu and command palette. Windows: they rebuild a working copy installed with `scripts\install-app.ps1` from the local `main` in the background and switch to it on restart. The dialog hides itself once the build starts and the title bar shows its progress; `Hide` does the same mid-build. The same dialog offers `Update daemon` whenever the daemon runs another build.
 - Added `Open in session` to merge and pull requests in the desktop app: it checks the source branch out in a worktree (adding a remote for a fork), starts an agent there with a first prompt from the `sessions.mrPrompt` setting and opens it beside the request, or focuses the session already there.
-- Added `berth enter <dir>`: asked to go to another repo, an agent session moves there, adding the repo as a project when berth does not have it, and resumes its conversation in that checkout once the turn ends; the TUI follows the session to the new project.
+- Added `berth enter <dir>`: asked to go to another repo, an agent session moves there, adding the repo as a project when berth does not have it, and resumes its conversation in that checkout once the turn ends.
 - Added `Clean up worktrees` to the desktop app (tree header, command palette, `Ctrl+P`): it lists worktrees whose merge or pull request was merged or closed, whose branch is gone on the remote, that went stale (`cleanup.staleDays`, 30 by default) or that git no longer knows, and removes the ones you tick after stopping their sessions and unlinking `node_modules` junctions. A daily check puts the count on the button and in the tray.
 - Added `Ctrl+Shift+N` in the desktop app to start a new session: pick the project, the worktree or main checkout or `New worktree…` with a new branch off the main checkout's, and keep its branch, pick another local branch or type a new one, which gets a worktree of its own so a checkout with running sessions never switches branches. It opens on the project of the focused tab, a conversation started outside Berth included.
 - Added `sessions.worktreeBase` setting in the desktop app: per project, the branch `New worktree…` starts from, fetched from origin first (`web-client=develop`); a project not listed starts from `develop`, `main` or `master`, whichever it has first, instead of the main checkout's current branch.
 - Added `Archive` to the context menu of a conversation started outside Berth in the desktop app's tree: it moves into the worktree's or folder's `Archive` group, out of `Earlier` and `Ctrl+P`, stays there across restarts and on every connected device, and comes back by itself when the conversation gets new messages or with `Restore`. The transcript file is never touched.
-- Added `shift+c` diagnostics card: a floating panel with per-session CPU, RAM and Claude token use, moved by dragging its title row or with `shift+v`, and remembered across restarts.
-- Added `model_prices` setting: fill in per-model rates and the diagnostics card shows a cost column.
-- Added `]` and `[` to jump to the next and previous session waiting on you, in any workspace.
-- Added an experimental `Key combo display` setting (`show_key_combos`) that shows each key you press bottom-left with the action it ran.
-- Added a `Draft pull requests` setting under Appearance (`hide_draft_prs`) that hides draft pull requests and GitLab draft merge requests from the PRs panel and `/`.
 - Added `Prewarm agents` and `Prewarm sessions` settings under Sessions (`prewarm_agents`, `prewarm_sessions`) to stop berth starting idle processes ahead of time and save memory.
-- Added five color themes: `lavender`, `coral`, `slate`, `sand` and `mono`.
-- Added renaming a session when you `/rename` it inside Claude Code or Codex, before its first prompt too, in the TUI and every desktop view; whichever rename came last, there or in Berth, wins.
+- Added renaming a session when you `/rename` it inside Claude Code or Codex, before its first prompt too, in every desktop view; whichever rename came last, there or in Berth, wins.
 - Added a button above the desktop app's session tree that shows only open sessions: running terminals and agents, and Claude Code or Codex conversations whose process is still running.
 - macOS: Added a desktop app working copy built from your local `main` by `scripts/install-app.sh`, so `Update Berth…`, `Roll back to previous build` and `Update daemon` work there too ([details](docs/macos.md)).
 - macOS: Added the traffic lights, a menu bar with `Berth`, `Edit` and `Window` menus (`Cmd+,` opens settings, `Cmd+C` and `Cmd+V` work in text fields), a monochrome menu bar icon and reopening a hidden window from the Dock to the desktop app.
@@ -45,9 +39,8 @@
 - Fixed `/clear` in a Berth session leaving the old conversation beside it in the desktop app's tree; it now goes to the worktree's `Archive` group.
 - Fixed `/clear` in Claude Code leaving the session marked as working, with a blinking tab, until the next prompt.
 - Fixed the selected session in the desktop app's tree drawing two highlights with dim text on top, so its name was hard to read.
-- Fixed a terminal running Claude Code showing one name in the desktop app's tree and another in its tab and the TUI: a `/rename` in Claude Code now renames the terminal everywhere, and a rename in Berth shows in the tree too; whichever came last wins.
+- Fixed a terminal running Claude Code showing one name in the desktop app's tree and another in its tab: a `/rename` in Claude Code now renames the terminal everywhere, and a rename in Berth shows in the tree too; whichever came last wins.
 - Fixed `Continue in Berth` in the desktop app opening the terminal in a new tab beside the conversation; the terminal now takes the conversation's tab.
-- Fixed the `Shift+O` session list naming almost every row after its branch, so a session now carries the title Claude Code shows it under in `/resume`.
 - Windows: Fixed `Ctrl+Enter` inserting a newline in Claude Code instead of sending the message now (needs a sideloaded `conpty.dll`).
 - Fixed agents' `git add` and `git commit` failing with `index.lock: File exists` while berth polls the checkout.
 - Fixed a session painting in no color at all when `NO_COLOR` or `FORCE_COLOR` was set in the daemon's environment or a login profile.
@@ -59,15 +52,19 @@
 - Fixed merge request and Markdown file tabs in the desktop app not coming back after a restart; they reopen beside the session tabs while `sessions.restoreOnRestart` is on.
 - Fixed the architecture map of a merge request failing with a config error when the request needs another `stratum-lint` version than the one installed in the clone: the desktop app now runs the version the request pins through `npx`.
 - macOS and Linux: Fixed the desktop app not finding `gh`, `glab`, `node`, `claude` and `stratum-lint` installed by Homebrew or nvm when it was started from the Dock, Finder or an app launcher; it now takes `PATH` from your login shell.
-- Changed pacer is now berth: the command is `berth`, the npm package is `@petukhovart/berth`, and the first `berth` copies your pacer projects, workspaces and settings into its own directory while pacer's data and its running daemon stay as they are.
+- Changed pacer is now berth: the command is `berth`, and the first `berth` copies your pacer projects, workspaces and settings into its own directory while pacer's data and its running daemon stay as they are.
 - Changed the desktop app's web UI to work on a phone opened through remote access, in portrait and landscape: dialogs, the command palette and quick switcher open full screen, menus slide up from the bottom, settings and diffs show a list first and the details after a tap, row actions stay visible without a mouse, a long press opens the context menu and a `Commands` tab opens the command palette.
 - Changed the environment variables from `PACER_*` to `BERTH_*`; the old spelling still works, except that berth refuses to start on `PACER_RUNTIME_DIR` or `PACER_DATA_DIR` set without its `BERTH_*` counterpart.
 - macOS: Changed the desktop app's shortcuts to use `Cmd` where Windows and Linux use `Ctrl` (`Cmd+Shift+P`, `Cmd+P`, `Cmd+,`, `Cmd+click` to open beside), with `Cmd+C` and `Cmd+V` copying and pasting in the terminal while `Ctrl+C` always reaches the agent, and Option acting as Meta there unless `terminal.option_as_meta` is turned off.
 - Changed scrollbars in the desktop app to be wider and easier to grab with the mouse, and to darken while hovered or dragged.
 - Changed the desktop app's update dialog to list every build stage with the time it took and an estimate of what is left, instead of build ids, commits and the build log.
+- Changed bare `berth` to print help instead of opening the terminal UI.
 - Removed the hot session chips from the desktop app's title bar; the `Ctrl+Shift+O` overview, `Alt+1`..`Alt+9`, `Alt+J` and `Ctrl+Tab` still switch between live sessions.
 - Removed the refresh button above the desktop app's tree; Jira issues now refresh on their own every two minutes, as pull requests and reviews already did.
-- Removed prebuilt Linux binaries from releases and npm; on Linux `install.sh` builds berth from source with `cargo install`.
+- Removed prebuilt Linux binaries from releases; on Linux `install.sh` builds berth from source with `cargo install`.
+- Removed the terminal UI: berth is the desktop app and its phone client, and the `berth` command runs the daemon and the commands agents use.
+- Removed `berth browser`, `berth ssh` and `berth tunnel`.
+- Removed the npm package; install the `berth` command with `install.sh` or `cargo`.
 
 ## 0.20.0 (2026-09-18)
 

@@ -1,21 +1,18 @@
-# Isolated dev instance for Windows: its own runtime dir, database and
-# daemon, so a half-finished build never drives your real sessions. This is
-# the Windows counterpart of `make dev` (the Makefile is unix-only: shasum,
-# /tmp, ps, kill, no .exe suffix).
+# Isolated dev instance for Windows: the desktop app on its own runtime dir,
+# database, app dir and daemon, so a half-finished build never drives your
+# real sessions. This is the Windows counterpart of `make dev` (the Makefile
+# is unix-only: shasum, /tmp, ps, kill, no .exe suffix).
 #
 #   powershell -ExecutionPolicy Bypass -File scripts\dev.ps1
 #
-# Run it from a terminal OUTSIDE berth, in its own window. Quit the TUI with
-# `q` and run it again to pick up a rebuild.
+# Run it from a terminal OUTSIDE berth, in its own window. Close the app and
+# run it again to pick up a daemon-side rebuild.
 #
 #   -Agent cmd.exe   stub agents out, so nothing spawns a real claude
 #   -Reset           wipe this checkout's dev database first
-#   -Desktop         run the desktop app (`pnpm tauri dev`) instead of the TUI,
-#                    against a dev daemon this script starts and stops; the
-#                    app's own dir (BERTH_HOME) lives in the dev data dir too
 #   -CdpPort 9334    WebView2 remote-debugging port for the desktop app
 
-param([string]$Agent, [switch]$Reset, [switch]$Desktop, [int]$CdpPort = 9334)
+param([string]$Agent, [switch]$Reset, [int]$CdpPort = 9334)
 
 $ErrorActionPreference = 'Stop'
 Set-Location (Join-Path $PSScriptRoot '..')
@@ -35,24 +32,20 @@ cargo build
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 # Load-bearing: the daemon detaches, so a dev daemon from the previous run
-# outlived its TUI and is still executing the OLD code. Connecting to it is
+# outlived its app and is still executing the OLD code. Connecting to it is
 # precisely how "I rebuilt and my change isn't there" happens.
 & $bin kill | Out-Null
 if ($Reset) { Remove-Item -Recurse -Force $env:BERTH_DATA_DIR -ErrorAction SilentlyContinue }
 
 Write-Host "dev instance [$(Split-Path -Leaf $PWD)] -> runtime $env:BERTH_RUNTIME_DIR, data $env:BERTH_DATA_DIR"
-if ($Desktop) {
-    # The desktop app starts `berth daemon` from PATH, the installed build,
-    # when nothing answers, so the dev build has to be up first. Its own
-    # settings, connectors and secrets (a file, not the OS keychain) go to
-    # BERTH_HOME instead of your real ~/.berth.
-    $env:BERTH_HOME = Join-Path $env:BERTH_DATA_DIR 'home'
-    $env:BERTH_SECRETS = 'file'
-    $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=$CdpPort"
-    Start-Process -FilePath $bin -ArgumentList 'daemon' -WindowStyle Hidden
-    $env:BERTH_CDP_PORT = "$CdpPort"
-    pnpm --filter @berth/desktop dev
-} else {
-    & $bin
-}
+# The desktop app starts `berth daemon` from PATH, the installed build, when
+# nothing answers, so the dev build has to be up first. Its own settings,
+# connectors and secrets (a file, not the OS keychain) go to BERTH_HOME
+# instead of your real ~/.berth.
+$env:BERTH_HOME = Join-Path $env:BERTH_DATA_DIR 'home'
+$env:BERTH_SECRETS = 'file'
+$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=$CdpPort"
+Start-Process -FilePath $bin -ArgumentList 'daemon' -WindowStyle Hidden
+$env:BERTH_CDP_PORT = "$CdpPort"
+pnpm --filter @berth/desktop dev
 & $bin kill | Out-Null

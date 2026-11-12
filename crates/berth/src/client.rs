@@ -1,5 +1,6 @@
-//! Client-side IPC: connect to the daemon (auto-spawning it when absent) and
-//! perform the version handshake.
+//! The one-shot CLI clients: connect to the daemon (auto-spawning it when
+//! absent), perform the version handshake, send one request and print the
+//! answer.
 
 use anyhow::{bail, Context, Result};
 use berth_core::codec::{read_frame, write_frame};
@@ -17,13 +18,12 @@ const CLOSED_BEFORE_REPLY: &str = "daemon closed the connection before replying"
 /// How often the connect and shutdown waits re-check the daemon.
 const POLL_STEP: Duration = Duration::from_millis(50);
 
-pub struct Connection {
-    pub stream: Stream,
-    pub daemon_pid: u32,
+struct Connection {
+    stream: Stream,
 }
 
 /// Connect, auto-spawning `current_exe() daemon` when nothing is listening.
-pub async fn connect_or_spawn() -> Result<Connection> {
+async fn connect_or_spawn() -> Result<Connection> {
     if let Ok(conn) = try_connect().await {
         return handshake(conn).await;
     }
@@ -77,8 +77,8 @@ fn spawn_daemon() -> Result<()> {
 /// (Ctrl+C etc.), the daemon must hold no controlling terminal. It shells out
 /// to the user's interactive shell (CLI probes, login-shell agent wrap), and
 /// an interactive zsh that can reach a tty via /dev/tty grabs its foreground
-/// process group — SIGTTIN-stopping the TUI running on this terminal
-/// mid-frame.
+/// process group — SIGTTIN-stopping whatever runs in the foreground of
+/// this terminal.
 #[cfg(unix)]
 fn detach(cmd: &mut std::process::Command) {
     use std::os::unix::process::CommandExt;
@@ -105,9 +105,8 @@ fn libc_setsid() -> i32 {
 ///
 /// `DETACHED_PROCESS` is the part that matters and the reason this is not
 /// `CREATE_NO_WINDOW`: it gives the daemon *no console at all*, which is
-/// what "no controlling terminal" means here. A daemon sharing this TUI's
-/// console would let every child it starts write over the rendered frame and
-/// would route the console's Ctrl+C to it as well. `CREATE_NEW_PROCESS_GROUP`
+/// what "no controlling terminal" means here. A daemon sharing this client's
+/// console would let every child it starts write into it and would route the console's Ctrl+C to it as well. `CREATE_NEW_PROCESS_GROUP`
 /// adds what `setsid` also gives: console control events aimed at this
 /// client's group stop at the boundary.
 #[cfg(windows)]
@@ -127,7 +126,7 @@ async fn handshake(mut stream: Stream) -> Result<Connection> {
     )
     .await?;
     match read_frame::<ServerEvent, _>(&mut stream).await? {
-        Some(ServerEvent::HelloOk { daemon_pid, .. }) => Ok(Connection { stream, daemon_pid }),
+        Some(ServerEvent::HelloOk { .. }) => Ok(Connection { stream }),
         Some(ServerEvent::Incompatible {
             daemon_protocol_version,
         }) => bail!(version_skew_message(daemon_protocol_version)),
@@ -224,43 +223,6 @@ fn exe_path_of_pid(pid: &str) -> Option<String> {
     }
 }
 
-/// Channel-based IPC handle for the TUI event loop: outbound requests go
-/// through `tx`; inbound events arrive on `rx`. Reader/writer tasks own the
-/// socket halves.
-pub struct IpcChannels {
-    pub tx: tokio::sync::mpsc::Sender<ClientRequest>,
-    pub rx: tokio::sync::mpsc::Receiver<ServerEvent>,
-}
-
-pub fn split_connection(conn: Connection) -> IpcChannels {
-    let (read_half, mut write_half) = conn.stream.into_split();
-    let (event_tx, event_rx) = tokio::sync::mpsc::channel::<ServerEvent>(1024);
-    let (req_tx, mut req_rx) = tokio::sync::mpsc::channel::<ClientRequest>(256);
-
-    tokio::spawn(async move {
-        let mut reader = tokio::io::BufReader::new(read_half);
-        while let Ok(Some(ev)) = read_frame::<ServerEvent, _>(&mut reader).await {
-            if event_tx.send(ev).await.is_err() {
-                break;
-            }
-        }
-        // Dropping event_tx closes the channel, signalling disconnect.
-    });
-
-    tokio::spawn(async move {
-        while let Some(req) = req_rx.recv().await {
-            if write_frame(&mut write_half, &req).await.is_err() {
-                break;
-            }
-        }
-    });
-
-    IpcChannels {
-        tx: req_tx,
-        rx: event_rx,
-    }
-}
-
 /// The agent id a one-shot CLI runs as, from the raw `BERTH_AGENT_ID`
 /// value. Unset and empty are the same miss, and the error names the
 /// `berth <verb>` that needs it. Pure so the message is testable.
@@ -329,7 +291,7 @@ pub enum RenameMode {
 /// Daemon-reported outcomes (renamed, or "already titled" on the non-force
 /// path) both print and exit 0: for the model running this, a declined
 /// auto-title is a settled answer, not a failure to retry.
-pub async fn rename_current_agent(title: &str, mode: RenameMode) -> Result<()> {
+async fn rename_current_agent(title: &str, mode: RenameMode) -> Result<()> {
     let agent_id = current_agent_id("rename")?;
     let Ok(stream) = try_connect().await else {
         bail!("no berth daemon is running — title unchanged");
@@ -359,7 +321,7 @@ pub async fn rename_current_agent(title: &str, mode: RenameMode) -> Result<()> {
 /// What this prints is read by the model that ran it, so it says what
 /// happened and that this session carries on. A daemon-side refusal (a
 /// blank task, a missing CLI) is a nonzero exit the model reports.
-pub async fn spawn_sibling_for_current_agent(task: &str, kind: Option<AgentKind>) -> Result<()> {
+async fn spawn_sibling_for_current_agent(task: &str, kind: Option<AgentKind>) -> Result<()> {
     let agent_id = current_agent_id("spawn")?;
     let task = task.trim();
     if task.is_empty() {
@@ -394,7 +356,7 @@ pub async fn spawn_sibling_for_current_agent(task: &str, kind: Option<AgentKind>
 /// CLI: `berth worktree [name] [--base <ref>]` from inside an agent
 /// session — take (or create) the named worktree of this session's project
 /// and have the daemon move the session into it. A blank name is invented
-/// the way the TUI's new-worktree prompt invents one, and spaces slugify to
+/// as a random `<adj>-<noun>-<verb>`, and spaces slugify to
 /// hyphens the same way. Never spawns a daemon: no daemon means no session
 /// to move.
 ///
@@ -403,7 +365,7 @@ pub async fn spawn_sibling_for_current_agent(task: &str, kind: Option<AgentKind>
 /// very process once the turn ends, and the answer has to be finished by
 /// then. A daemon-side failure is a nonzero exit — the model reports it and
 /// stays put.
-pub async fn enter_worktree_for_current_agent(name: &str, base: Option<String>) -> Result<()> {
+async fn enter_worktree_for_current_agent(name: &str, base: Option<String>) -> Result<()> {
     let agent_id = current_agent_id("worktree")?;
     let branch = match crate::branch_name::slugify(name) {
         slug if slug.is_empty() => crate::branch_name::random_name(&[]),
@@ -439,7 +401,7 @@ pub async fn enter_worktree_for_current_agent(name: &str, base: Option<String>) 
 /// daemon adds the repo to this session's workspace when none does. The
 /// path is resolved here, since the daemon's cwd is not ours. Never spawns
 /// a daemon: no daemon means no session to move.
-pub async fn enter_project_for_current_agent(path: &str) -> Result<()> {
+async fn enter_project_for_current_agent(path: &str) -> Result<()> {
     let agent_id = current_agent_id("enter")?;
     let dir = local_dir(path)?;
     let Ok(stream) = try_connect().await else {
@@ -534,8 +496,8 @@ fn local_dir(path: &str) -> Result<std::path::PathBuf> {
 /// absolutized here — and ask the daemon to register it as a project. The
 /// daemon owns the rest: normalizing to the repo toplevel, naming the project
 /// after the directory, rejecting non-repos and duplicates. Spawns a daemon
-/// when none is running, same as launching the TUI would.
-pub async fn add_project(path: &str) -> Result<()> {
+/// when none is running.
+async fn add_project(path: &str) -> Result<()> {
     let dir = local_dir(path)?;
     let mut conn = connect_or_spawn().await?;
     let req_id = ONE_SHOT_REQ_ID;
@@ -567,8 +529,8 @@ pub enum WorkspaceOp {
 
 /// One-shot client for `berth workspace …`. Name→id resolution runs off a
 /// snapshot (Subscribe's first reply), so the daemon's RPC surface stays
-/// id-based for the TUI's picker.
-pub async fn run_workspace_op(op: WorkspaceOp) -> Result<()> {
+/// id-based for the apps.
+async fn run_workspace_op(op: WorkspaceOp) -> Result<()> {
     use berth_core::{Workspace, WorkspaceId};
     let mut conn = connect_or_spawn().await?;
     write_frame(&mut conn.stream, &ClientRequest::Subscribe).await?;
@@ -623,10 +585,9 @@ pub async fn run_workspace_op(op: WorkspaceOp) -> Result<()> {
                 req_id,
                 id: resolve(&name)?,
             },
-            // Running instances keep the workspace their user put them on;
-            // this sets where the next one starts. `berth --workspace
-            // <name>` is the way to aim one instance without moving this.
-            format!("workspace '{name}' will open in new berth instances"),
+            // Running clients keep the workspace their user put them on;
+            // this sets the remembered default (see BERTH WORKSPACE).
+            format!("workspace '{name}' is now the default for new connections"),
         ),
         WorkspaceOp::Delete { name } => (
             ClientRequest::RemoveWorkspace {
@@ -656,7 +617,7 @@ pub async fn run_workspace_op(op: WorkspaceOp) -> Result<()> {
 /// the handshake, so `Shutdown` can never reach it — exactly the situation
 /// `berth kill` exists to fix. Fall back to terminating the pid in the
 /// pidfile, guarded by the daemon's own lock so a stale pid is never hit.
-pub async fn kill_daemon() -> Result<bool> {
+async fn kill_daemon() -> Result<bool> {
     if let Ok(stream) = try_connect().await {
         if let Ok(mut conn) = handshake(stream).await {
             write_frame(&mut conn.stream, &ClientRequest::Shutdown).await?;
@@ -671,6 +632,7 @@ pub async fn kill_daemon() -> Result<bool> {
 }
 
 /// Outcome of `shutdown_if_idle`.
+#[cfg(unix)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IdleShutdown {
     /// Nothing listening on the socket.
@@ -688,7 +650,8 @@ pub enum IdleShutdown {
 /// handoff. An idle daemon can die safely (the next client launch spawns one
 /// from the new binary on disk); live sessions would be killed with it, so
 /// their daemon is left alone and the restart stays the user's call.
-pub async fn shutdown_if_idle() -> Result<IdleShutdown> {
+#[cfg(unix)]
+async fn shutdown_if_idle() -> Result<IdleShutdown> {
     let Ok(stream) = try_connect().await else {
         return Ok(IdleShutdown::NoDaemon);
     };
@@ -772,12 +735,8 @@ fn try_lock_exclusive(file: &std::fs::File) -> bool {
     unsafe { flock(file.as_raw_fd(), LOCK_EX | LOCK_NB) == 0 }
 }
 
-/// The byte the PIDFILE LOCK is taken on. Must equal
-/// `berth_daemon::lifecycle::LOCK_OFFSET`; `berth-tui` does not depend on
-/// `berth-daemon`, so the agreement is asserted by the Windows smoke grid
-/// rather than by the compiler.
 #[cfg(windows)]
-const PIDFILE_LOCK_OFFSET: u32 = 0x4000_0000;
+const PIDFILE_LOCK_OFFSET: u32 = berth_daemon::lifecycle::LOCK_OFFSET;
 
 /// See `berth_daemon::lifecycle`: one byte at the same far offset it uses,
 /// non-blocking. The offset has to match or the two never contend — and it
@@ -859,6 +818,65 @@ fn request_termination(pid: i32) -> bool {
     }
 }
 
+fn runtime() -> Result<tokio::runtime::Runtime> {
+    Ok(tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()?)
+}
+
+/// Post-upgrade daemon handoff: shut the daemon down only when it holds no
+/// live sessions (see `shutdown_if_idle`).
+#[cfg(unix)]
+pub fn run_shutdown_if_idle() -> Result<IdleShutdown> {
+    runtime()?.block_on(shutdown_if_idle())
+}
+
+/// `berth rename` (see `rename_current_agent`). `mode` is the CLI's
+/// `--force`, decided where the flag is parsed.
+pub fn run_rename(title: String, mode: RenameMode) -> Result<()> {
+    runtime()?.block_on(rename_current_agent(&title, mode))
+}
+
+/// `berth worktree [name] [--base <ref>]` (see
+/// `enter_worktree_for_current_agent`).
+pub fn run_worktree(name: String, base: Option<String>) -> Result<()> {
+    runtime()?.block_on(enter_worktree_for_current_agent(&name, base))
+}
+
+/// `berth enter <dir>` (see `enter_project_for_current_agent`).
+pub fn run_enter(path: String) -> Result<()> {
+    runtime()?.block_on(enter_project_for_current_agent(&path))
+}
+
+/// `berth spawn "<task>" [--kind <kind>]` (see
+/// `spawn_sibling_for_current_agent`).
+pub fn run_spawn(task: String, kind: Option<AgentKind>) -> Result<()> {
+    runtime()?.block_on(spawn_sibling_for_current_agent(&task, kind))
+}
+
+/// `berth add <dir>` and bare `berth <dir>` (see `add_project`).
+pub fn run_add_project(path: String) -> Result<()> {
+    runtime()?.block_on(add_project(&path))
+}
+
+/// `berth workspace <add|open|list|delete|rename>` (see `run_workspace_op`).
+pub fn run_workspace(op: WorkspaceOp) -> Result<()> {
+    runtime()?.block_on(run_workspace_op(op))
+}
+
+/// `berth kill`.
+pub fn run_kill() -> Result<()> {
+    runtime()?.block_on(async {
+        if kill_daemon().await? {
+            println!("berth daemon shut down");
+        } else {
+            println!("no berth daemon running");
+        }
+        Ok(())
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -879,7 +897,7 @@ mod tests {
 
     // The whole point of the message: `berth kill` is the fix for exactly
     // one of the two skews, and recommending it for the other sends the user
-    // in a circle (kill the daemon, the live TUI respawns the same one).
+    // in a circle (kill the daemon, the live client respawns the same one).
     #[test]
     fn skew_message_blames_the_older_side() {
         let daemon_ahead = version_skew_message(PROTOCOL_VERSION + 2);

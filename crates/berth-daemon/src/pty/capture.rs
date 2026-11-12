@@ -3,8 +3,8 @@
 //! `BERTH_PTY_CAPTURE=<dir>` makes every PTY SESSION append the exact bytes
 //! its child wrote to `<dir>/<id>.raw`, plus a `<id>.meta` jsonl of the
 //! resizes interleaved by byte offset. That pair is enough to replay a
-//! session offline (`cargo run -p berth-tui --example replay_capture`) and
-//! settle whether a mangled screen came in mangled or was mangled here.
+//! session offline into a terminal emulator and settle whether a mangled
+//! screen came in mangled or was mangled here.
 //!
 //! Off unless the env var is set: `open` returns `None` and every call is a
 //! no-op, so a normal run pays one `env::var` per session.

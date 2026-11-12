@@ -1,10 +1,10 @@
 # Dev helpers for working from a checkout. (End users install via install.sh.)
 #
 # Ways to run code you just wrote:
-#   make dev      isolated instance — own daemon, own data; your real sessions untouched
-#                 (first run copies your real projects, worktrees, workspaces and
-#                 settings in, so it looks like yours — `make dev-reset` re-copies)
-#   make browser  the same isolated instance, served into a browser tab via ttyd
+#   make dev      the desktop app on an isolated instance — own daemon, own data, own
+#                 app settings; your real sessions untouched (first run copies your
+#                 real projects, worktrees, workspaces and settings in, so it looks
+#                 like yours — `make dev-reset` re-copies)
 #
 # Each checkout gets its own instance, keyed to its path, so the main clone and
 # every worktree can run at once without sharing a daemon, a DB, or a port.
@@ -19,7 +19,7 @@ DEBUG_BIN   := target/debug/berth
 # The dev instance is a second, complete berth: its own socket, DB, and
 # settings — and one *per checkout*, so the main clone and every worktree can
 # run at the same time. Sharing them is worse than a port clash: two checkouts
-# on one runtime dir means the second TUI silently attaches to the first's
+# on one runtime dir means the second app silently attaches to the first's
 # daemon and you drive the other checkout's binary, while `dev-prep` below
 # SIGTERMs whichever daemon got there first.
 #
@@ -36,11 +36,6 @@ SEED ?= 1
 # including the warm-slot prewarm, which launches one before you create any
 # agent at all. Unset (the default) means real agents, exactly like production.
 AGENT ?=
-# Left empty on purpose: `berth browser` then takes 7681 when it is free and
-# a free port otherwise, printing which — so a `make browser` per checkout all
-# serve at once. `make browser PORT=8080` pins it (and fails if 8080 is taken,
-# which is what you want when you have an ssh tunnel pointed at it).
-PORT ?=
 
 # Every dev-instance run goes through this: its own socket dir and its own DB,
 # so nothing here can touch the real daemon's state.
@@ -48,7 +43,7 @@ DEV_ENV = BERTH_RUNTIME_DIR=$(DEV_RUNTIME) BERTH_DATA_DIR=$(DEV_DATA) \
 	$(if $(AGENT),BERTH_AGENT_CMD=$(AGENT))
 
 .DEFAULT_GOAL := help
-.PHONY: help dev browser dev-prep dev-seed dev-reset dev-ls dev-stop build install kill cycle check fmt lint test ci clean
+.PHONY: help dev dev-prep dev-seed dev-reset dev-ls dev-stop build install kill cycle check fmt lint test ci clean
 
 help: ## Show this help
 	@grep -hE '^[a-z][a-z-]*:.*?## ' $(MAKEFILE_LIST) \
@@ -56,35 +51,30 @@ help: ## Show this help
 
 # --- running your changes ----------------------------------------------------
 
-dev: dev-prep ## Run the latest code in an isolated instance (own daemon + data)
+# The desktop app starts `berth daemon` from PATH, the installed build, when
+# nothing answers, so the dev daemon has to be up first: `workspace list`
+# auto-spawns it from this binary (`current_exe`). The app's own settings,
+# connectors and secrets (a file, not the keychain) go to BERTH_HOME inside the
+# dev data dir instead of your real ~/.berth.
+dev: dev-prep ## Run the desktop app on the latest code in an isolated instance
 	@echo "dev instance [$(notdir $(CURDIR))] → runtime $(DEV_RUNTIME), data $(DEV_DATA)"
-	-@$(DEV_ENV) $(DEBUG_BIN)
+	@$(DEV_ENV) $(DEBUG_BIN) workspace list >/dev/null
+	-@$(DEV_ENV) BERTH_HOME=$(DEV_DATA)/home BERTH_SECRETS=file pnpm --filter @berth/desktop dev
 	@$(MAKE) --no-print-directory dev-stop
 
-# `berth browser` shells out to ttyd and serves *this* binary
-# (`current_exe`, not whatever `berth` is on PATH), so the tab gets the build
-# below rather than the installed release. ttyd hands its environment to the
-# command it runs, so $(DEV_ENV) reaches the TUI in the tab and the browser
-# instance stays as isolated as `make dev`. Needs ttyd on PATH — the binary
-# says how to install it if it is missing. Ctrl+C here stops ttyd.
-browser: dev-prep ## Serve the latest code into a browser tab via ttyd (PORT= to pin)
-	@echo "dev instance → runtime $(DEV_RUNTIME), data $(DEV_DATA)"
-	-@$(DEV_ENV) $(DEBUG_BIN) browser $(if $(PORT),--port $(PORT))
-	@$(MAKE) --no-print-directory dev-stop
-
-# Build, clear the way, and seed — everything `dev` and `browser` both need
-# before they can hand the terminal over.
+# Build, clear the way, and seed — everything `dev` needs before it starts the
+# app.
 dev-prep:
 	cargo build
 	@# Load-bearing: a dev daemon from a previous run detached and outlived
-	@# its TUI, and it is still executing the OLD code. Connecting to it is
+	@# its app, and it is still executing the OLD code. Connecting to it is
 	@# precisely how "I rebuilt and my change isn't there" happens — so stop
 	@# it, and let this run spawn a fresh daemon from the binary above.
 	@$(MAKE) --no-print-directory dev-stop
 	@# Also load-bearing: on macOS the first exec of a freshly relinked binary
 	@# pays for signature validation and can stall for seconds. Paying it here
-	@# keeps the daemon spawn inside the TUI's 3s connect deadline
-	@# (berth-tui/src/ipc.rs) instead of failing with "daemon did not come up".
+	@# keeps the daemon spawn inside the client's 3s connect deadline
+	@# (crates/berth/src/client.rs) instead of failing with "daemon did not come up".
 	@$(DEBUG_BIN) --version >/dev/null
 	@$(if $(filter 0,$(SEED)),true,$(MAKE) --no-print-directory dev-seed)
 
@@ -111,7 +101,7 @@ dev-seed: ## Copy real projects/workspaces/settings into the dev instance (only 
 	mkdir -p $(DEV_DATA); \
 	sqlite3 "$$db" ".backup '$(DEV_DATA)/berth.db'"; \
 	sqlite3 $(DEV_DATA)/berth.db "DELETE FROM agents; DELETE FROM terminals;"; \
-	for f in config.json reviewed.json; do \
+	for f in config.json; do \
 		if [ -f "$$real/$$f" ]; then cp "$$real/$$f" $(DEV_DATA)/; fi; \
 	done; \
 	echo "seeded dev instance from $$real (projects, worktrees, workspaces, settings — no sessions)"
@@ -137,7 +127,7 @@ dev-ls: ## List every checkout's dev instance and whether its daemon is up
 # berth daemon before signalling it — otherwise a recycled pid means killing
 # some unrelated process of the user's. SIGTERM (not KILL) so the daemon runs
 # its normal shutdown and takes its PTY children with it.
-dev-stop: ## Stop the dev daemon (it detaches, so quitting the TUI leaves it running)
+dev-stop: ## Stop the dev daemon (it detaches, so quitting the app leaves it running)
 	@pidfile=$(DEV_RUNTIME)/daemon.pid; \
 	[ -f $$pidfile ] || exit 0; \
 	pid=$$(cat $$pidfile 2>/dev/null); \
@@ -168,7 +158,7 @@ kill: ## Stop every session and the daemon — the cutover step after `make inst
 # install first, so a build that fails stops here with every session still
 # alive; then kill the real daemon (it is now running the old binary — the
 # STALE DAEMON NOTE `install` just printed says as much); then `dev`, which
-# builds the debug binary and hands the terminal to the isolated dev instance.
+# builds the debug binary and runs the desktop app on the isolated instance.
 # `berth kill` exits 0 and says "no berth daemon running" when there is
 # nothing to stop, so the first run on a cold machine goes through too. The
 # kill stops every real session — run this from a terminal outside berth,

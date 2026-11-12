@@ -1,7 +1,7 @@
 # macOS
 
-The terminal UI and the daemon install on macOS the usual ways (npm, `install.sh`, `cargo install`),
-see [getting started](getting-started.md). This page covers the desktop app.
+The `berth` command, which runs the daemon, installs on macOS with `install.sh` or `cargo install`, see
+[getting started](getting-started.md). This page covers the desktop app.
 
 ## Desktop working copy
 
@@ -23,8 +23,8 @@ puts it with the matching `berth` binary in `app/<build-id>`. `app/current` poin
 the build before, and `~/Applications/Berth.app` is a link to `app/current/Berth.app`, so opening it from
 Finder starts the current build. The working copy uses `~/.berth`, the macOS keychain and your real daemon.
 
-The app connects to a running daemon and does not start one. Run `berth` once (it starts the daemon in
-the background), or `berth daemon` in a terminal you keep open.
+The app needs `berth` on your `PATH`: when no daemon is running, it starts `berth daemon` from there in
+the background.
 
 ## Window
 
@@ -79,4 +79,4 @@ updates later. If the icon stops opening Berth, pin it again.
 
 The dev app (`pnpm dev:desktop`) runs apart from the working copy: the Tauri identifier
 `dev.berth.desktop.dev`, a window titled `Berth (dev)`, `BERTH_HOME` under `~/.berth-dev`, file secrets
-and a dev daemon. `make dev` gives the TUI its own instance the same way.
+and a dev daemon. `make dev` runs it that way on an instance of its own, one per checkout.

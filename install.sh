@@ -37,8 +37,9 @@ detect_target() {
         esac
         ;;
     # This script is the unix path. berth itself runs on Windows too — it is
-    # installed there through npm or cargo, neither of which needs a shell.
-    *) err "this installer is for macOS and Linux. On Windows: npm install -g @petukhovart/berth (see docs/windows.md)" ;;
+    # installed there from the release zip or with cargo, neither of which
+    # needs a shell.
+    *) err "this installer is for macOS and Linux. On Windows: cargo install --git https://github.com/$REPO berth --locked (see docs/windows.md)" ;;
     esac
 }
 

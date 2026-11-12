@@ -14,8 +14,8 @@
 //!
 //! PTY SESSIONS themselves are covered where they live: the ConPTY child's
 //! launch is gated on berth answering the host's `ESC[6n` (see
-//! `berth_core::dsr`), and `berth-daemon`'s and `berth-tui`'s own PTY
-//! tests run the full child lifecycle on Windows.
+//! `berth_core::dsr`), and `berth-daemon`'s own PTY tests run the full
+//! child lifecycle on Windows.
 
 #![cfg(windows)]
 
@@ -258,21 +258,6 @@ async fn a_second_daemon_is_refused_while_the_first_holds_the_pidfile_lock() {
         .await
         .unwrap();
     let _ = first.0.wait();
-}
-
-/// `berth-tui` cannot depend on `berth-daemon`, so each spells the PIDFILE
-/// LOCK's byte offset for itself. They have to be the same byte or the client
-/// would never see the daemon's lock — it would report "no daemon running"
-/// and `berth kill` would silently do nothing.
-#[test]
-fn both_sides_lock_the_same_pidfile_byte() {
-    // The daemon's constant is public; the client's is private, so this
-    // asserts against the value the client's source pins.
-    assert_eq!(
-        berth_daemon::lifecycle::LOCK_OFFSET,
-        0x4000_0000,
-        "if this moved, move berth-tui's PIDFILE_LOCK_OFFSET with it"
-    );
 }
 
 /// DAEMON SETSID, in its Windows spelling: a daemon auto-spawned by a client

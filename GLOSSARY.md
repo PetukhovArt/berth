@@ -1,15 +1,15 @@
 # Berth
 
-Terminal multiplexer for AI coding agents: a daemon owns the PTY sessions; a TUI client attaches and detaches without losing work.
+Terminal multiplexer for AI coding agents: a daemon owns the PTY sessions; the desktop app and its phone client attach and detach without losing work.
 
 ## The tree
 
 **Workspace**
-A named group of Projects. Exactly one Workspace is open per TUI window; the others keep running in the background.
+A named group of Projects. Exactly one Workspace is open per client connection; the others keep running in the background.
 _Avoid_: project group
 
 **Open Workspace**
-The Workspace a given TUI window is scoped to. Two windows can have different Open Workspaces.
+The Workspace a client connection is scoped to (`OpenWorkspace`). Two connections can have different Open Workspaces.
 _Avoid_: selected workspace, current workspace
 
 **Default Workspace**
@@ -48,28 +48,21 @@ A Session that is a plain shell in the Worktree's directory — no agent.
 _Avoid_: shell tab
 
 **PR Session**
-A Claude Agent created from an open-PR row and constrained to work only on that PR. Starts in the Root Worktree.
-
-**PR Row**
-The open pull request on a Worktree's branch. Stores nothing — it comes back from the git poll each time.
-_Avoid_: pull request link
+A Claude Agent created with a pull request URL (`pr_url`) and constrained to work only on that PR. Starts in the Root Worktree.
 
 **Link**
 A URL previously pinned to a Worktree. A legacy of older versions: existing rows stay visible and editable; new ones are not created.
 
 **Pin**
-A row (Workspace, Project, Worktree, Agent, terminal tab) the user marked with `p`. Pinned rows wear a ★ and float to the top of their list, whatever the sort mode; any number can be pinned at once. Persisted client-side in the daemon's `ui_state` blob. A pinned Project in the desktop app is different: its rank among pinned projects is held by the daemon (`Project.pin_order`, set as one ordered list by `SetProjectPins`), so every client shows the same order. Distinct from a Link ("a URL pinned to a Worktree"), which is legacy vocabulary.
+A Project the user pinned in the desktop app's tree. Pinned Projects sit at the top of their Workspace; their rank among pinned Projects is held by the Daemon (`Project.pin_order`, set as one ordered list by `SetProjectPins`), so every client shows the same order. Distinct from a Link ("a URL pinned to a Worktree"), which is legacy vocabulary.
 
 **Archive**
 The state of an Agent whose PTY is released and whose row is moved to the ARCHIVED group. Coming back resumes the conversation.
 _Avoid_: deletion (Archive is reversible)
 
 **Orphaned Session**
-A Session whose Worktree was deleted. The row is gone from the tree, but its CLI session id is kept, so the conversation can be Resumed in a Worktree that still exists. Different from Archive (the Worktree is still there, and the row comes back where it was) and from Disconnected (the PTY died, the row did not). The `OrphanedSession` type also carries the Project Sessions picker's live rows — conversations whose checkout still exists, marked `live`, resumable in any other Worktree the same way.
+A Session whose Worktree was deleted. The row is gone from the tree, but its CLI session id is kept, so the conversation can be Resumed in a Worktree that still exists. Different from Archive (the Worktree is still there, and the row comes back where it was) and from Disconnected (the PTY died, the row did not). The `OrphanedSession` type also carries live rows — conversations whose checkout still exists, marked `live`, resumable in any other Worktree the same way.
 _Avoid_: archived session, lost session, dead session
-
-**Project Sessions**
-The `Shift+O` picker: every conversation of a Project across all its Worktrees — the live checkouts' own plus every Orphaned Session. Enter resumes the selected one in the Worktree the cursor is on. Cross-worktree listing is Claude-only; codex and cursor-agent rows appear only as Orphaned Sessions.
 
 **External Session**
 A Claude Code or Codex conversation berth did not start, found on disk by the desktop app and shown in the tree beside the Sessions of the Worktree it ran in. Archiving one stores only a mark in the Daemon (`archived_external_sessions`, keyed by Agent Kind and the CLI's session id); the transcript is never touched, and a transcript written after the mark brings the row back out of the archive.
@@ -78,36 +71,28 @@ _Avoid_: foreign session, outside session
 ## Processes
 
 **Daemon**
-The background process that owns every PTY Session, the store, git operations, and agent statuses. Survives the TUI closing.
+The background process that owns every PTY Session, the store, git operations, and agent statuses. Survives every client closing, the desktop app included.
 _Avoid_: server
-
-**TUI**
-The client (`berth` with no arguments) that attaches to the Daemon. Closing it kills nothing.
-_Avoid_: the app, window
 
 **PTY Session**
 The Daemon-owned pseudo-terminal of one Session, together with its child process.
 
 **Attach**
-Connecting a TUI pane to a Session: the Daemon replays scrollback, then streams live output. Detaching does not kill the process.
+Connecting a client's terminal view to a Session: the Daemon replays scrollback, then streams live output. Detaching does not kill the process.
 _Avoid_: drill in
 
 **Resume**
 Restoring an Agent from its stored CLI session id; a fresh session when the id is gone.
 _Avoid_: restore, restart (a restart is a new process; Resume continues the conversation)
 
-**Diagnostics Card**
-A non-modal floating panel listing every live Session's CPU, RAM and Claude token spend. Unlike every Overlay it does not take focus or swallow keys, and the user moves it.
-_Avoid_: HUD, widget, panel (a Panel here is a mosaic tile, `layout::Leaf::Panel`)
-
 **Sampler**
-The Daemon task that takes the one periodic reading the Diagnostics Card and the metrics modal both read. It is the only owner of the CPU delta and the transcript byte offsets, so `GetMetrics` answers from its last sample rather than sweeping.
+The Daemon task that takes the one periodic reading every `GetMetrics` caller reads, the desktop app's metrics panel among them. It is the only owner of the CPU delta and the transcript byte offsets, so `GetMetrics` answers from its last sample rather than sweeping.
 _Avoid_: poller, metrics collector
 
 ## Transport and runtime files
 
 **Daemon Socket**
-The channel a TUI attaches to the Daemon over. On unix an `AF_UNIX` socket in the Runtime Dir; on Windows, which has none, a loopback TCP listener plus a bearer token. One or the other, never both — callers above the transport see a single API.
+The channel a client (the desktop app or a `berth` command) talks to the Daemon over. On unix an `AF_UNIX` socket in the Runtime Dir; on Windows, which has none, a loopback TCP listener plus a bearer token. One or the other, never both — callers above the transport see a single API.
 _Avoid_: the IPC port, the server, the API (the Hook Receiver is the HTTP one, not this)
 
 **Runtime Dir**
@@ -122,10 +107,10 @@ The exclusive lock a Daemon holds on its pidfile (`flock` on unix, `LockFileEx` 
 _Avoid_: pid check
 
 **Daemon Setsid**
-The unix step that puts a spawned Daemon in its own session with no controlling terminal, so it outlives the TUI that started it and no keystroke reaches it. Windows has no sessions to detach from; the equivalent is spawning the Daemon detached and windowless.
+The unix step that puts a spawned Daemon in its own session with no controlling terminal, so it outlives the client that started it and no keystroke reaches it. Windows has no sessions to detach from; the equivalent is spawning the Daemon detached and windowless.
 
 **Version Skew**
-A TUI and a Daemon built from different code, so their protocol versions disagree — the ordinary state of a checkout where a live Daemon predates the build you just made. The TUI names which side is older instead of failing opaquely, and the Daemon keeps it distinguishable from a rejected token.
+A client and a Daemon built from different code, so their protocol versions disagree — the ordinary state of a checkout where a live Daemon predates the build you just made. The client names which side is older instead of failing opaquely, and the Daemon keeps it distinguishable from a rejected token.
 _Avoid_: version mismatch, stale daemon (a stale Daemon is merely older, and may still speak the same protocol)
 
 ## Statuses
@@ -191,10 +176,6 @@ _Avoid_: move into a worktree
 **Starting Prompt**
 The first prompt passed to the CLI as an argument on a cold spawn. Never persisted — Resume does not replay it.
 _Avoid_: first prompt
-
-**Agent Preset**
-A saved launch definition: name, Agent Kind, model and effort, prefix and postfix around the task.
-_Avoid_: agent modal
 
 ## Daemon mechanisms
 

@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const TARGETS = {
-  macos: { triple: 'aarch64-apple-darwin', packages: ['berth-core', 'berth-daemon', 'berth-tui', 'berth', 'berth-desktop'] },
-  linux: { triple: 'x86_64-unknown-linux-gnu', packages: ['berth-core', 'berth-daemon', 'berth-tui', 'berth'] },
+  macos: { triple: 'aarch64-apple-darwin', packages: ['berth-core', 'berth-daemon', 'berth', 'berth-desktop'] },
+  linux: { triple: 'x86_64-unknown-linux-gnu', packages: ['berth-core', 'berth-daemon', 'berth'] },
 };
 
 const wanted = process.argv.slice(2);

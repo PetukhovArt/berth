@@ -1,7 +1,8 @@
 # Berth
 
-Terminal multiplexer for AI coding agents: a daemon owns the PTYs and outlives the TUI that started
-it; a ratatui TUI attaches over the daemon socket. That socket is an `AF_UNIX` socket on unix and a
+A desktop app for running AI coding agents: a daemon owns the PTYs and outlives the app; the desktop
+app (`apps/desktop`, UI in `apps/web`) and the one-shot `berth` commands agents run
+(`crates/berth/src/client.rs`) talk to it over the daemon socket. That socket is an `AF_UNIX` socket on unix and a
 loopback TCP listener plus a bearer token on Windows — one or the other, never layered, and hidden
 behind one API in `crates/berth-core/src/transport.rs`. Code is the source of truth: read
 `ARCHITECTURE.md` for the map and `GLOSSARY.md` for the vocabulary before touching IPC, hooks or the
@@ -14,8 +15,8 @@ for reading the file.
 
 ## Invariants
 - `vendor/vt100` is a patched fork — don't bump or replace it.
-- `event_loop.rs`, `ui.rs` and `registry.rs` grew huge by accretion. Adding to one of the three: put
-  the new code in a new module beside it and call it from there, rather than growing the file.
+- `registry.rs` grew huge by accretion. Adding to it: put the new code in a new module beside it and
+  call it from there, rather than growing the file.
 - `CHANGELOG.md` is for users, not for us. A change gets an entry under `## Unreleased` only if
   someone who runs `berth` would notice it — a feature, a fix, a changed key, a new install route.
   Refactors, tests, CI, docs, tooling and anything under `scripts/` get no entry.
@@ -27,7 +28,7 @@ for reading the file.
   written without em dashes, bold lead-ins, forced groups of three, or sales language. The
   `humanizer` skill applies these rules when it is installed; the rules hold either way.
 - `README.md` is the pitch: why, install, quickstart, key features. Detail lives in `docs/`
-  (`getting-started.md`, `keymap.md`, `cli.md`, `configuration.md`, `windows.md`, `development.md`,
+  (`getting-started.md`, `cli.md`, `configuration.md`, `windows.md`, `development.md`,
   `releasing.md`, `remote-access-tailscale.md`). Put new user-facing writing in the right one instead
   of growing the README.
 
@@ -64,10 +65,11 @@ step.
 ## Publishing
 Releasing is automatic and described in `docs/releasing.md`: a `version` bump in the root
 `Cargo.toml` landing on `main` builds the three targets (macOS, Windows), tags the commit, publishes the GitHub release
-and publishes to npm — one workflow, no button. The deliberate act is therefore the version bump, so
+— one workflow, no button. The deliberate act is therefore the version bump, so
 never bump `version` unless releasing is what was asked for; every other change leaves it alone.
 
 Repository visibility stays a human decision: never change it on your own.
 
 ## Features backlog
-- 
+
+`BACKLOG.md` lists ideas not yet built and where they come from. Add new ones there.

@@ -20,7 +20,7 @@ identifier). Rules there differ from the Rust crates:
 - Colors come from `packages/ui-tokens` through `var(--vr-…)`; the web side reaches Rust only through
   `apps/web/src/bridge.ts`.
 - Dev run on Windows, isolated from your real daemon and your real `~/.berth` and keychain:
-  `powershell -ExecutionPolicy Bypass -File scripts\dev.ps1 -Desktop` (builds berth, starts a dev daemon on
+  `powershell -ExecutionPolicy Bypass -File scripts\dev.ps1` (builds berth, starts a dev daemon on
   this checkout's `BERTH_RUNTIME_DIR`/`BERTH_DATA_DIR`, sets `BERTH_HOME` and `BERTH_SECRETS=file`, runs
   `pnpm dev:desktop` with WebView2 debugging on port 9334, stops the daemon after). Without the script, set the
   same variables and run `berth daemon` and `pnpm dev:desktop` yourself. `apps/desktop/scripts/dev.mjs` runs

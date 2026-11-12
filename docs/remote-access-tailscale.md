@@ -1,78 +1,54 @@
 # Remote access from a phone via Tailscale
 
-How to open the berth TUI on a phone from any network, using `berth browser`
-over a Tailscale tailnet. The daemon and its sessions stay on the PC; the phone
-gets the TUI in a browser tab through ttyd (HTTP/WebSocket + xterm.js).
+The desktop app can serve its web UI to a phone over the network. The daemon and its sessions stay on
+the PC; the phone gets the same tree and terminals in a browser tab, laid out for a small screen.
 
-Why Tailscale and not a raw `--public` bind: what ttyd serves is a live,
-writable terminal, ttyd ships no TLS, and basic auth over plain HTTP sends the
-password in the clear. Inside a tailnet the transport is WireGuard-encrypted
-and the port is invisible to anyone outside your devices, so none of that is
-exposed.
+A paired device can type into every session, run commands and read files in your worktrees, and the
+traffic is plain HTTP. Inside a Tailscale tailnet the transport is WireGuard-encrypted and the port is
+invisible to anyone outside your devices, which is why this page uses Tailscale. Never expose the port
+to the internet.
 
 ## One-time setup
 
-### On the PC (the machine running the berth daemon)
+### On the PC (the machine running the desktop app)
 
-1. Install ttyd — `berth browser` needs it on PATH:
-   - Windows: `winget install tsl0922.ttyd`
-   - macOS: `brew install ttyd`
-   - Debian/Ubuntu: `sudo apt install ttyd`
-2. Install Tailscale and log in:
+1. Install Tailscale and log in:
    - Windows: `winget install tailscale.tailscale`, then `tailscale login`
      (opens a browser page to authenticate).
    - Other platforms: see https://tailscale.com/download
-3. Note the machine's tailnet address:
-
-   ```
-   tailscale ip -4
-   ```
-
-   It's a stable `100.x.y.z` address — it survives reboots and network changes.
 
 ### On the phone
 
 1. Install the Tailscale app (App Store / Google Play).
-2. Log in with the same account and flip the VPN toggle on.
+2. Log in with the same account and turn the VPN on.
 
 ## Connecting
 
-On the PC, in its own terminal (the command blocks while serving; Ctrl+C stops
-it):
+In the desktop app, open Settings > Remote access:
 
-```
-berth browser --bind <tailscale-ip> --credential USER:PASSWORD --no-open
-```
+1. Turn `Remote access` on.
+2. Set `Listen on` to `Tailscale`. The server then listens only on this machine's `100.x` tailnet
+   address. `Local network (LAN)` listens on every interface instead, for a phone on the same Wi-Fi;
+   `This machine only (localhost)` is the default.
+3. `Port` is 4477 unless you change it.
 
-- `--bind <tailscale-ip>` listens only on the tailnet interface — nothing is
-  reachable from the LAN or the internet.
-- `--credential` adds HTTP basic auth on top; keep it even inside the tailnet.
-- `--no-open` skips launching a local browser tab.
-
-On the phone, with Tailscale connected, open:
-
-```
-http://<tailscale-ip>:7681
-```
-
-and enter the credentials. Sessions live in the daemon, so the phone sees the
-same session list as the desktop TUI.
+The panel shows the addresses the server answers on, a pairing link and its QR code. Scan the QR code
+with the phone's camera or open the link in the phone's browser. The phone stays paired until you press
+`Regenerate token`, which creates a new link and disconnects every paired device. The panel lists the
+devices connected right now.
 
 ## Troubleshooting
 
-- **Page doesn't load on the phone** — check the Tailscale toggle is on on the
-  phone, and that `tailscale status` on the PC shows both devices. On Windows,
-  allow ttyd through the firewall if a prompt appears on first run.
-- **`berth browser` says ttyd is missing** — it's not on PATH; open a fresh
-  terminal after installing, or reinstall (see setup above).
-- **Port 7681 is busy** — `berth browser` steps to a free port on its own and
-  prints which one; use that in the phone URL, or pin one with `--port N`.
+- The panel says this computer has no Tailscale address: Tailscale is not running or not logged in on
+  the PC. Install it and sign in, or switch to `Local network (LAN)` if the phone is on the same Wi-Fi.
+- The page doesn't load on the phone: check that the VPN is on on the phone and that `tailscale status`
+  on the PC shows both devices. On Windows, allow the app through the firewall if a prompt appears.
+- The phone shows a page asking for the pairing link: open the link or scan the QR code again; a device
+  that tries a wrong token five times in a minute is blocked for up to a minute.
 
 ## Limits
 
-- The PC must be awake: sessions live in the daemon's PTYs, so sleep or
-  shutdown kills them — and there is nothing to attach to until it's back up.
-  Disable sleep in the power settings if you rely on this.
-- `berth browser` must be running on the PC for the phone to connect. For
-  reaching a machine you can SSH into instead, `berth tunnel HOST` does this
-  whole dance over a single SSH port-forward — see README.
+- The PC must be awake and the desktop app running: the app serves the phone, and the sessions live in
+  the daemon's PTYs on the PC. Disable sleep in the power settings if you rely on this.
+- For a machine without a desktop session, the `docker` image runs `berth-server`, the same web UI
+  without a window; its pairing link and QR code are in the server log.

@@ -10,10 +10,6 @@
 //! `sh` script, which this platform cannot run. A `#[cfg(windows)]` branch
 //! here would be a branch that could only ever fail, so the subcommand
 //! refuses with the reason instead.
-//!
-//! `install_url` and `KILL_HINT` stay on both platforms: `berth ssh` and
-//! `berth tunnel` install berth on the *remote*, which is POSIX whatever
-//! this machine is.
 
 use anyhow::Result;
 #[cfg(unix)]
@@ -23,11 +19,13 @@ use std::path::{Path, PathBuf};
 #[cfg(unix)]
 use std::process::Command;
 
+#[cfg(unix)]
 const INSTALL_URL: &str = "https://raw.githubusercontent.com/PetukhovArt/berth/main/install.sh";
 
 /// The published install script, with `BERTH_INSTALL_URL` as the override
-/// hook (tests point it at a file:// URL). Shared with `berth ssh`.
-pub(crate) fn install_url() -> String {
+/// hook (tests point it at a file:// URL).
+#[cfg(unix)]
+fn install_url() -> String {
     berth_core::env::non_empty(berth_core::env::INSTALL_URL)
         .unwrap_or_else(|| INSTALL_URL.to_string())
 }
@@ -38,14 +36,14 @@ pub(crate) const KILL_HINT: &str =
     "      run 'berth kill' to restart onto the new binary (stops all sessions).";
 
 /// Refused on Windows — see the module docs. The message names the reason
-/// and both ways out rather than a bare "unsupported": a user who typed this
-/// wants a newer berth, and npm or cargo is how they get one.
+/// and the way out rather than a bare "unsupported": a user who typed this
+/// wants a newer berth, and cargo is how they get one.
 #[cfg(windows)]
 pub fn run_upgrade(_force: bool) -> Result<()> {
     anyhow::bail!(
         "berth upgrade is not available on Windows: it runs install.sh, a POSIX \
-         script. Update with `npm update -g @petukhovart/berth`, or from a \
-         checkout with `git pull && cargo install --path crates/berth`."
+         script. Update from a checkout with `git pull && cargo install --path \
+         crates/berth`, or from the desktop app's `Update daemon`."
     )
 }
 
@@ -67,8 +65,8 @@ pub fn run_upgrade(force: bool) -> Result<()> {
 /// the install already succeeded.
 #[cfg(unix)]
 fn finish_daemon_handoff() {
-    use berth_tui::ipc::IdleShutdown;
-    match berth_tui::shutdown_daemon_if_idle() {
+    use crate::client::IdleShutdown;
+    match crate::client::run_shutdown_if_idle() {
         Ok(IdleShutdown::NoDaemon) => {}
         Ok(IdleShutdown::ShutDown) => {
             println!(
