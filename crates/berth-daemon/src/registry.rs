@@ -1611,6 +1611,18 @@ impl Daemon {
         if target.id == current.id {
             return Ok((target, EnterOutcome::AlreadyThere));
         }
+        let outcome = self.relocate_agent(id, &target)?;
+        Ok((target, outcome))
+    }
+
+    /// Re-home the row under `target` now and leave a live PTY to follow at
+    /// its turn end (`complete_pending_move`) — the shared half of
+    /// `berth worktree` and `berth enter`.
+    pub(crate) fn relocate_agent(
+        self: &Arc<Self>,
+        id: &AgentId,
+        target: &Worktree,
+    ) -> Result<EnterOutcome> {
         let alive = self.session(&SessionRef::Agent(id.clone())).is_some();
         // Same invalidation as `move_agent`: every cwd this process reports
         // until it respawns is the old checkout's.
@@ -1623,12 +1635,11 @@ impl Daemon {
         }
         self.store.set_agent_worktree(id, &target.id)?;
         self.broadcast_agent(id)?;
-        let outcome = if alive {
+        Ok(if alive {
             EnterOutcome::Relocating
         } else {
             EnterOutcome::NextLaunch
-        };
-        Ok((target, outcome))
+        })
     }
 
     /// The turn an agent ran `berth worktree` in has ended: make the
@@ -1667,6 +1678,7 @@ impl Daemon {
         tracing::info!(agent = %id, to = %target.branch, "relocating session into its worktree");
         self.kill_session(&sref);
         self.last_cwd.lock().unwrap().remove(id);
+        self.carry_claude_transcript(&agent, &target);
         // Claude only: its `--resume <sid> "<prompt>"` is verified; whether
         // `codex resume` / `cursor-agent --resume` take a trailing prompt is
         // not, so their relocated sessions keep waiting for the user.
@@ -2879,7 +2891,7 @@ command fails, report the error and carry on in the current checkout.";
 /// there, so the user never has to type "continue".
 fn relocation_prompt(worktree: &Worktree) -> String {
     format!(
-        "[berth] This session now runs inside the worktree `{}` at {} — your working \
+        "[berth] This session now runs inside the checkout `{}` at {} — your working \
          directory is that checkout. Continue the user's most recent request there.",
         worktree.branch,
         worktree.path.display()
@@ -2947,6 +2959,7 @@ fn agent_spawn_command_with(
             if guidance {
                 system_prompt.push(CLAUDE_WORKTREE_GUIDANCE);
                 system_prompt.push(crate::sibling::CLAUDE_SPAWN_GUIDANCE);
+                system_prompt.push(crate::enter_project::CLAUDE_ENTER_GUIDANCE);
             }
             if let Some(prompt) = additional_system_prompt {
                 system_prompt.push(prompt);
@@ -3196,6 +3209,7 @@ mod tests {
                 [
                     CLAUDE_WORKTREE_GUIDANCE,
                     crate::sibling::CLAUDE_SPAWN_GUIDANCE,
+                    crate::enter_project::CLAUDE_ENTER_GUIDANCE,
                 ]
                 .join("\n\n"),
             ])

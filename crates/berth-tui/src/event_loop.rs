@@ -4968,7 +4968,7 @@ fn restore_session(app: &mut App, out: &mut Vec<ClientRequest>) {
 }
 
 /// Land the selection on `select_when_seen` — a session just created, or
-/// moved into another worktree of this project: directly when its row is
+/// moved into another worktree or project: directly when its row is
 /// visible under the selected worktree, else by switching to the worktree it
 /// landed under first. Clears the pending follow once it lands; a no-op
 /// until the session's upsert has arrived.
@@ -5003,6 +5003,19 @@ fn land_pending_selection(app: &mut App, out: &mut Vec<ClientRequest>) {
             .map(|t| t.worktree_id.clone()),
     };
     if let Some(wt_id) = landed_worktree {
+        // `berth enter` re-homes a session into another project: follow it
+        // there once its worktree row is known.
+        let landed_project = app
+            .tree
+            .worktrees
+            .iter()
+            .find(|w| w.id == wt_id)
+            .map(|w| w.project_id.clone());
+        if let Some(pid) = landed_project {
+            if app.selected_project().is_some_and(|p| p.id != pid) {
+                select_project_row_by_id(app, &pid);
+            }
+        }
         if select_worktree_by_id(app, &wt_id, out) {
             if let Some(index) = app
                 .visible_session_rows()

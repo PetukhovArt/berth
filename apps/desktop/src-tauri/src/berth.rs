@@ -677,6 +677,7 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::AutoRenameAgent { req_id, .. }
         | ClientRequest::MoveAgent { req_id, .. }
         | ClientRequest::EnterWorktree { req_id, .. }
+        | ClientRequest::EnterProject { req_id, .. }
         | ClientRequest::SpawnSiblingAgent { req_id, .. }
         | ClientRequest::ArchiveAgent { req_id, .. }
         | ClientRequest::UnarchiveAgent { req_id, .. }

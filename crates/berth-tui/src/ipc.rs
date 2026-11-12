@@ -424,42 +424,60 @@ pub async fn enter_worktree_for_current_agent(name: &str, base: Option<String>) 
         },
     )
     .await?;
+    let (worktree, outcome) = await_entered(&mut conn, req_id).await?;
+    println!(
+        "worktree \"{}\" is ready at {}",
+        worktree.branch,
+        worktree.path.display()
+    );
+    print_enter_outcome(outcome, "the worktree");
+    Ok(())
+}
+
+/// CLI: `berth enter <dir>` from inside an agent session — move the
+/// session into the checkout at `dir`, in whatever project holds it; the
+/// daemon adds the repo to this session's workspace when none does. The
+/// path is resolved here, since the daemon's cwd is not ours. Never spawns
+/// a daemon: no daemon means no session to move.
+pub async fn enter_project_for_current_agent(path: &str) -> Result<()> {
+    let agent_id = current_agent_id("enter")?;
+    let dir = local_dir(path)?;
+    let Ok(stream) = try_connect().await else {
+        bail!("no berth daemon is running — nothing to move");
+    };
+    let mut conn = handshake(stream).await?;
+    let req_id = ONE_SHOT_REQ_ID;
+    write_frame(
+        &mut conn.stream,
+        &ClientRequest::EnterProject {
+            req_id,
+            id: AgentId(agent_id),
+            path: dir,
+        },
+    )
+    .await?;
+    let (worktree, outcome) = await_entered(&mut conn, req_id).await?;
+    println!(
+        "checkout \"{}\" at {}",
+        worktree.branch,
+        worktree.path.display()
+    );
+    print_enter_outcome(outcome, "that project");
+    Ok(())
+}
+
+/// Read events until the daemon answers `req_id` with `WorktreeEntered`.
+async fn await_entered(
+    conn: &mut Connection,
+    req_id: u64,
+) -> Result<(berth_core::Worktree, EnterOutcome)> {
     loop {
         match read_frame::<ServerEvent, _>(&mut conn.stream).await? {
             Some(ServerEvent::WorktreeEntered {
                 req_id: r,
                 worktree,
                 outcome,
-            }) if r == req_id => {
-                println!(
-                    "worktree \"{}\" is ready at {}",
-                    worktree.branch,
-                    worktree.path.display()
-                );
-                match outcome {
-                    EnterOutcome::AlreadyThere => {
-                        println!("this session already runs inside it — nothing to move.");
-                    }
-                    EnterOutcome::Relocating => {
-                        println!(
-                            "this session is now associated with it; berth will relocate the \
-                             session into it the moment this turn ends."
-                        );
-                        println!(
-                            "Finish now: tell the user in one line that the session is moving \
-                             into the worktree, and make no further tool calls or edits — you \
-                             will be resumed inside the worktree with a prompt to continue."
-                        );
-                    }
-                    EnterOutcome::NextLaunch => {
-                        println!(
-                            "this session is now associated with it and runs there from its \
-                             next launch."
-                        );
-                    }
-                }
-                return Ok(());
-            }
+            }) if r == req_id => return Ok((worktree, outcome)),
             Some(ServerEvent::Error {
                 req_id: Some(r),
                 message,
@@ -470,6 +488,47 @@ pub async fn enter_worktree_for_current_agent(name: &str, base: Option<String>) 
     }
 }
 
+/// What this prints is read by the model that ran the command, so the
+/// relocating case spells out how to end the turn.
+fn print_enter_outcome(outcome: EnterOutcome, place: &str) {
+    match outcome {
+        EnterOutcome::AlreadyThere => {
+            println!("this session already runs inside it — nothing to move.");
+        }
+        EnterOutcome::Relocating => {
+            println!(
+                "this session is now associated with it; berth will relocate the session into \
+                 it the moment this turn ends."
+            );
+            println!(
+                "Finish now: tell the user in one line that the session is moving into {place}, \
+                 and make no further tool calls or edits — you will be resumed there with a \
+                 prompt to continue."
+            );
+        }
+        EnterOutcome::NextLaunch => {
+            println!("this session is now associated with it and runs there from its next launch.");
+        }
+    }
+}
+
+/// `path` as the daemon must receive it: `~/` expanded, absolute, and in
+/// a spelling git accepts — a verbatim `\\?\D:\…` would be a directory
+/// berth could never run git in.
+fn local_dir(path: &str) -> Result<std::path::PathBuf> {
+    let expanded = match (path.strip_prefix("~/"), env::home_dir()) {
+        (Some(rest), Some(home)) => home.join(rest),
+        _ => std::path::PathBuf::from(path),
+    };
+    std::fs::canonicalize(&expanded)
+        .with_context(|| format!("{} does not exist", expanded.display()))?;
+    let dir = paths::canonical_or_raw(&expanded);
+    if !dir.is_dir() {
+        bail!("{} is not a directory", dir.display());
+    }
+    Ok(dir)
+}
+
 /// One-shot client for `berth add <dir>` (and bare `berth <dir>`): resolve
 /// the path locally — the daemon's cwd is not ours, so relative paths must be
 /// absolutized here — and ask the daemon to register it as a project. The
@@ -477,19 +536,7 @@ pub async fn enter_worktree_for_current_agent(name: &str, base: Option<String>) 
 /// after the directory, rejecting non-repos and duplicates. Spawns a daemon
 /// when none is running, same as launching the TUI would.
 pub async fn add_project(path: &str) -> Result<()> {
-    let expanded = match (path.strip_prefix("~/"), env::home_dir()) {
-        (Some(rest), Some(home)) => home.join(rest),
-        _ => std::path::PathBuf::from(path),
-    };
-    // Canonicalizing is the existence check, but the *stored* path has to be
-    // one every consumer can take: this one is handed back to git, so a
-    // verbatim `\\?\D:\…` would be a project berth could never run git in.
-    std::fs::canonicalize(&expanded)
-        .with_context(|| format!("{} does not exist", expanded.display()))?;
-    let dir = paths::canonical_or_raw(&expanded);
-    if !dir.is_dir() {
-        bail!("{} is not a directory", dir.display());
-    }
+    let dir = local_dir(path)?;
     let mut conn = connect_or_spawn().await?;
     let req_id = ONE_SHOT_REQ_ID;
     write_frame(

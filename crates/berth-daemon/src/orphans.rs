@@ -188,6 +188,42 @@ pub(crate) fn find_transcript(session_id: &str) -> Option<PathBuf> {
         .find(|path| path.is_file())
 }
 
+/// Move `session_id`'s transcript, and the `<session_id>/` directory Claude
+/// keeps beside it, into `target`'s directory — unless it already sits in
+/// the directory of one of `checkouts`. `claude --resume` finds a session
+/// in its own cwd's directory and in those of the same repo's worktrees,
+/// never in another repo's, so a session relocated across projects has to
+/// bring its conversation along. Only call this with the CLI stopped.
+pub(crate) fn carry_transcript(
+    session_id: &str,
+    checkouts: &[PathBuf],
+    target: &Path,
+) -> std::io::Result<()> {
+    let Some(source) = find_transcript(session_id) else {
+        return Ok(());
+    };
+    let Some(source_dir) = source.parent() else {
+        return Ok(());
+    };
+    let reachable = checkouts.iter().any(|checkout| {
+        source_dir.file_name() == Some(slug(&paths::canonical_or_raw(checkout)).as_ref())
+    });
+    if reachable {
+        return Ok(());
+    }
+    let Some(root) = claude_projects_dir() else {
+        return Ok(());
+    };
+    let target_dir = root.join(slug(&paths::canonical_or_raw(target)));
+    std::fs::create_dir_all(&target_dir)?;
+    std::fs::rename(&source, target_dir.join(format!("{session_id}.jsonl")))?;
+    let extras = source_dir.join(session_id);
+    if extras.is_dir() {
+        std::fs::rename(&extras, target_dir.join(session_id))?;
+    }
+    Ok(())
+}
+
 /// Whether a session id can be interpolated into a path at all.
 ///
 /// A CLI session id is a UUID and names one file inside one directory, but

@@ -81,6 +81,15 @@ enum Command {
         #[arg(long, value_name = "REF")]
         base: Option<String>,
     },
+    /// Move this session into another project (run from inside a berth
+    /// agent session; agents run it when you ask them to go to another
+    /// repo). Adds the repo as a project when berth does not have it yet,
+    /// re-homes the session at once, and restarts it resumed there as soon
+    /// as the current turn ends.
+    Enter {
+        /// The repo's directory, or one of its worktrees.
+        dir: String,
+    },
     /// Start a new agent session beside this one — same worktree, same
     /// harness unless --kind names another — opening on the given task as
     /// its first prompt (run from inside a berth agent session; agents run
@@ -226,6 +235,7 @@ fn main() -> Result<()> {
             berth_tui::run_rename(title.join(" "), mode)
         }
         Some(Command::Worktree { name, base }) => berth_tui::run_worktree(name.join(" "), base),
+        Some(Command::Enter { dir }) => berth_tui::run_enter(dir),
         Some(Command::Spawn { task, kind }) => berth_tui::run_spawn(task.join(" "), kind),
         Some(Command::Browser {
             port,

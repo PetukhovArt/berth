@@ -185,7 +185,7 @@ A session left on its default name gets a 3–4 word title from the agent after 
 _Avoid_: auto name, self-rename
 
 **Worktree Relocation**
-Moving a Session to another Worktree via `berth worktree`: the row moves at once; the CLI restarts inside the Worktree with the conversation resumed.
+Moving a Session to another Worktree via `berth worktree`, or to another Project's checkout via `berth enter`: the row moves at once; the CLI restarts inside the Worktree with the conversation resumed. A move across Projects also moves the Claude transcript into the new checkout's directory under `~/.claude/projects`.
 _Avoid_: move into a worktree
 
 **Starting Prompt**

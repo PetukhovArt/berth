@@ -1,6 +1,7 @@
 pub mod branches;
 pub mod cli_title;
 pub mod config;
+pub mod enter_project;
 pub mod external_archive;
 pub mod git;
 pub mod hooks;

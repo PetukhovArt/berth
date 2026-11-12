@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 41;
+pub const PROTOCOL_VERSION: u32 = 42;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -253,6 +253,15 @@ pub enum ClientRequest {
         id: AgentId,
         branch: String,
         base: Option<String>,
+    },
+    /// `berth enter <dir>`, run by the agent from inside its own session:
+    /// the same relocation as `EnterWorktree`, into the checkout at `path`
+    /// of any project — added to the agent's workspace first when it is not
+    /// there yet. Replies with `WorktreeEntered`.
+    EnterProject {
+        req_id: u64,
+        id: AgentId,
+        path: PathBuf,
     },
     /// `berth spawn "<task>"`, run by the agent from inside its own
     /// session: start a new AGENT beside it — same WORKTREE, and the same
@@ -568,7 +577,7 @@ pub struct Branch {
     pub worktree: Option<WorktreeId>,
 }
 
-/// What `EnterWorktree` did to the agent's live session.
+/// What `EnterWorktree` / `EnterProject` did to the agent's live session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EnterOutcome {
     /// The agent already lived in that worktree; nothing changed.

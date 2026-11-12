@@ -534,6 +534,20 @@ async fn handle_client(
                     };
                     let _ = out_tx.send(ev).await;
                 }
+                ClientRequest::EnterProject { req_id, id, path } => {
+                    let ev = match daemon.enter_project(&id, &path).await {
+                        Ok((worktree, outcome)) => ServerEvent::WorktreeEntered {
+                            req_id,
+                            worktree,
+                            outcome,
+                        },
+                        Err(e) => ServerEvent::Error {
+                            req_id: Some(req_id),
+                            message: format!("{e:#}"),
+                        },
+                    };
+                    let _ = out_tx.send(ev).await;
+                }
                 ClientRequest::ListBranches { req_id, project } => {
                     // The reconcile behind it waits on `worktree_ops` and
                     // shells out to git; keep the request loop free.

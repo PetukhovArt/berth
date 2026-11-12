@@ -81,6 +81,12 @@ pub fn run_worktree(name: String, base: Option<String>) -> Result<()> {
     runtime()?.block_on(ipc::enter_worktree_for_current_agent(&name, base))
 }
 
+/// `berth enter <dir>` — move the current agent session into another
+/// project's checkout (see `ipc::enter_project_for_current_agent`).
+pub fn run_enter(path: String) -> Result<()> {
+    runtime()?.block_on(ipc::enter_project_for_current_agent(&path))
+}
+
 /// `berth spawn "<task>" [--kind <kind>]` — start a new agent session
 /// beside the current one (see `ipc::spawn_sibling_for_current_agent`).
 /// `kind` is the CLI's `--kind`, already parsed where the flag is.
