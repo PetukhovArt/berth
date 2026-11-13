@@ -22,13 +22,20 @@ pub fn read() -> Vec<UsageWindow> {
         }
     }
     let now = now_ms();
-    let mut windows = Vec::new();
-    if let Some(home) = env::home_dir() {
-        windows.extend(claude_windows(&home));
-        windows.extend(codex_windows(&home));
-    }
+    let mut windows = collect(crate::config::Config::load().claude_limits, claude_windows);
     windows.retain(|w| w.resets_at_ms > now);
     *cache = Some((Instant::now(), windows.clone()));
+    windows
+}
+
+fn collect(claude: bool, claude_source: impl FnOnce(&Path) -> Vec<UsageWindow>) -> Vec<UsageWindow> {
+    let mut windows = Vec::new();
+    if let Some(home) = env::home_dir() {
+        if claude {
+            windows.extend(claude_source(&home));
+        }
+        windows.extend(codex_windows(&home));
+    }
     windows
 }
 
@@ -257,6 +264,16 @@ mod tests {
         assert_eq!(windows.len(), 1);
         assert_eq!(windows[0].window_minutes, 300);
         assert_eq!(windows[0].used_percent, 72.0);
+    }
+
+    #[test]
+    fn claude_source_is_skipped_when_switch_is_off() {
+        let mut called = false;
+        collect(false, |_| {
+            called = true;
+            Vec::new()
+        });
+        assert!(!called);
     }
 
     #[test]

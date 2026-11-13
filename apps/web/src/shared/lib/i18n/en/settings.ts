@@ -139,6 +139,10 @@ export const settings = {
       label: 'Prewarm sessions',
       description: 'Start the stopped sessions of a worktree when you select it, so attaching shows a screen that is already booted. Costs idle processes for sessions you may never open. Stored in the berth config.',
     },
+    daemonClaudeLimits: {
+      label: 'Show Claude subscription limits',
+      description: "Uses Claude Code's sign-in to ask Anthropic for your usage every minute. Off by default. Codex limits are read from its local files either way. Stored in the berth config.",
+    },
     sessionsUnloadIdleAfter: {
       label: 'Unload idle sessions after',
       description: 'Closes the processes of sessions nobody has open once they sit idle this long. Each Claude session holds roughly 0.7-0.9 GB of memory, and an unloaded one resumes its conversation when you open it. Sessions with a running agent, a waiting prompt or a running terminal command are kept. Stored in the berth config, so it applies to every client.',

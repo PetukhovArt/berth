@@ -261,6 +261,13 @@ export const SETTINGS = {
     description: 'settings.def.daemonPrewarmSessions.description',
     category: 'sessions',
   },
+  'daemon.claudeLimits': {
+    type: 'boolean',
+    default: false,
+    label: 'settings.def.daemonClaudeLimits.label',
+    description: 'settings.def.daemonClaudeLimits.description',
+    category: 'sessions',
+  },
   'sessions.unloadIdleAfter': {
     type: 'enum',
     default: '1h',

@@ -14,6 +14,7 @@ const SYNCED: { key: SettingKey; command: string; args?: Record<string, unknown>
   { key: 'daemon.gitInitOnCreate', command: 'berth_flag', args: { key: 'git_init_on_create' }, accepts: isBoolean },
   { key: 'daemon.prewarmAgents', command: 'berth_flag', args: { key: 'prewarm_agents' }, accepts: isBoolean },
   { key: 'daemon.prewarmSessions', command: 'berth_flag', args: { key: 'prewarm_sessions' }, accepts: isBoolean },
+  { key: 'daemon.claudeLimits', command: 'berth_flag', args: { key: 'claude_limits' }, accepts: isBoolean },
 ];
 
 export function initBerthIdleSync(): () => void {

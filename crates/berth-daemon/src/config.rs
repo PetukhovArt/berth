@@ -30,6 +30,7 @@ pub struct Config {
     /// Spawn the sessions that were live when the daemon stopped again when
     /// it starts, so a daemon restart brings them back without an attach.
     pub restore_sessions: bool,
+    pub claude_limits: bool,
 }
 
 impl Default for Config {
@@ -40,6 +41,7 @@ impl Default for Config {
             prewarm_sessions: true,
             session_idle_timeout: DEFAULT_SESSION_IDLE_TIMEOUT.into(),
             restore_sessions: true,
+            claude_limits: false,
         }
     }
 }
