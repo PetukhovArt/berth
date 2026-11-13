@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 44;
+pub const PROTOCOL_VERSION: u32 = 45;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -402,6 +402,10 @@ pub enum ClientRequest {
         req_id: u64,
     },
 
+    GetUsageLimits {
+        req_id: u64,
+    },
+
     Shutdown,
 }
 
@@ -462,6 +466,14 @@ pub struct SessionMetrics {
     /// empty `by_model` means measured and nothing spent.
     #[serde(default)]
     pub tokens: Option<TokenUsage>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsageWindow {
+    pub kind: AgentKind,
+    pub window_minutes: u32,
+    pub used_percent: f32,
+    pub resets_at_ms: i64,
 }
 
 /// Tokens one model spent in one conversation. Rates differ per bucket — a
@@ -719,6 +731,11 @@ pub enum ServerEvent {
     Win32Input {
         session: SessionRef,
         on: bool,
+    },
+
+    UsageLimits {
+        req_id: u64,
+        windows: Vec<UsageWindow>,
     },
 
     /// Reply to `ClientRequest::GetMetrics`.

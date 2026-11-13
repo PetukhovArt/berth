@@ -23,6 +23,7 @@ pub mod stop_agent;
 pub mod store;
 pub mod subagents;
 pub mod usage;
+pub mod usage_limits;
 pub mod worktree_seed;
 
 use anyhow::{bail, Context, Result};

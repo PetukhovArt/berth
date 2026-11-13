@@ -4,7 +4,7 @@ import { hostWindow, isDesktop } from '../../../bridge';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
 
-export type AttentionKind = 'waiting' | 'finished' | 'crashed';
+export type AttentionKind = 'waiting' | 'finished' | 'crashed' | 'limited';
 type Kind = AttentionKind;
 export type AttentionToast = { id: number; key: string; kind: Kind; text: string };
 
@@ -28,6 +28,7 @@ export function openAttention(toast: Pick<AttentionToast, 'id' | 'key'>): void {
 export function attentionKindOf(status: string, unseen: boolean): Kind | null {
   if (status === 'needs_feedback') return 'waiting';
   if (status === 'terminated') return 'crashed';
+  if (status === 'limit') return 'limited';
   if (status === 'finished' && unseen) return 'finished';
   return null;
 }

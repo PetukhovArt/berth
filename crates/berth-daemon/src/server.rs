@@ -275,6 +275,14 @@ async fn handle_client(
                         .unwrap_or_else(berth_core::MetricsSnapshot::unsampled);
                     let _ = out_tx.send(ServerEvent::Metrics { req_id, snapshot }).await;
                 }
+                ClientRequest::GetUsageLimits { req_id } => {
+                    let windows = tokio::task::spawn_blocking(crate::usage_limits::read)
+                        .await
+                        .unwrap_or_default();
+                    let _ = out_tx
+                        .send(ServerEvent::UsageLimits { req_id, windows })
+                        .await;
+                }
                 // ---- entity CRUD: run the op, reply Ack/Error ----
                 ClientRequest::AddWorkspace { req_id, name } => {
                     reply(&out_tx, req_id, daemon.add_workspace(&name).map(Some)).await;

@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, shallowRef } from 'vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { describeError, sessionId, sessionKey, useBerth, getMetrics, type MetricsSnapshot, type SessionMetrics } from '../../../entities/session';
+import { describeError, sessionId, sessionKey, useBerth, getMetrics, useUsageLimits, isFiveHourWindow, type MetricsSnapshot, type SessionMetrics, type UsageWindow } from '../../../entities/session';
 
 const POLL_INTERVAL_MS = 3000;
 
-const { t, formatBytes } = useI18n();
+const { t, formatBytes, formatNumber } = useI18n();
 
-type Row = { id: string; name: string; procs: number; rssBytes: number; share: number };
+type Row = { id: string; name: string; procs: number; rssBytes: number; share: number; tokens: number | null };
 
 const berth = useBerth();
 const snapshot = shallowRef<MetricsSnapshot | null>(null);
@@ -21,6 +21,29 @@ function sessionName(metrics: SessionMetrics): string {
   return berth?.sessions.value.get(sessionKey(metrics.session))?.name ?? t('agents.metrics.unnamed', { id: sessionId(metrics.session) });
 }
 
+function tokensOf(metrics: SessionMetrics): number | null {
+  if (!metrics.tokens) return null;
+  return metrics.tokens.by_model.reduce((sum, m) => sum + m.input + m.output + m.cache_read + m.cache_write_5m + m.cache_write_1h, 0);
+}
+
+const usage = useUsageLimits();
+
+function windowLabel(w: UsageWindow): string {
+  if (isFiveHourWindow(w)) return t('agents.metrics.windowFive');
+  if (w.window_minutes === 10080) return t('agents.metrics.windowWeek');
+  return t('agents.metrics.windowOther', { hours: Math.round(w.window_minutes / 60) });
+}
+
+const limitRows = computed(() =>
+  usage.windows.value.map((w) => ({
+    key: `${w.kind}:${w.window_minutes}`,
+    kind: w.kind,
+    label: windowLabel(w),
+    percent: Math.round(w.used_percent),
+    resets: new Date(w.resets_at_ms).toLocaleString([], { weekday: isFiveHourWindow(w) ? undefined : 'short', hour: '2-digit', minute: '2-digit' }),
+  })),
+);
+
 const rows = computed<Row[]>(() => {
   const sessions = [...(snapshot.value?.sessions ?? [])].sort((a, b) => b.rss_bytes - a.rss_bytes);
   const largest = sessions[0]?.rss_bytes ?? 0;
@@ -30,6 +53,7 @@ const rows = computed<Row[]>(() => {
     procs: s.procs,
     rssBytes: s.rss_bytes,
     share: largest > 0 ? s.rss_bytes / largest : 0,
+    tokens: tokensOf(s),
   }));
 });
 
@@ -82,6 +106,7 @@ function onVisibilityChange(): void {
 
 onMounted(() => {
   if (!berth) return;
+  void usage.refresh();
   document.addEventListener('visibilitychange', onVisibilityChange);
   if (!document.hidden) void poll();
 });
@@ -105,6 +130,17 @@ onBeforeUnmount(() => {
           <strong class="summary-value" data-testid="metrics-total" :data-bytes="totalBytes">{{ totalText }}</strong>
           <span class="summary-detail">{{ t('agents.metrics.breakdown', { daemon: formatBytes(snapshot.daemon_rss_bytes), sessions: formatBytes(totalBytes - snapshot.daemon_rss_bytes) }) }}</span>
         </header>
+        <section class="usage" data-testid="usage-limits">
+          <h3 class="usage-title">{{ t('agents.metrics.usage') }}</h3>
+          <p v-if="!limitRows.length" class="note">{{ t('agents.metrics.usageNone') }}</p>
+          <div v-for="row in limitRows" :key="row.key" class="window" data-testid="usage-window" :data-kind="row.kind">
+            <div class="window-head">
+              <span>{{ row.kind }} · {{ row.label }}</span>
+              <span class="window-meta">{{ row.percent }}% · {{ t('agents.metrics.resets', { time: row.resets }) }}</span>
+            </div>
+            <div class="bar"><div class="bar-fill" :data-spent="row.percent >= 100" :style="{ width: `${row.percent}%` }" /></div>
+          </div>
+        </section>
         <p v-if="!rows.length" class="note">{{ t('agents.metrics.none') }}</p>
         <table v-else class="table">
           <thead>
@@ -112,6 +148,7 @@ onBeforeUnmount(() => {
               <th scope="col">{{ t('agents.metrics.session') }}</th>
               <th scope="col" class="num">{{ t('agents.metrics.processes') }}</th>
               <th scope="col" class="num">{{ t('agents.metrics.memory') }}</th>
+              <th scope="col" class="num">{{ t('agents.metrics.tokens') }}</th>
               <th scope="col" class="bar-cell"><span class="visually-hidden">{{ t('agents.metrics.share') }}</span></th>
             </tr>
           </thead>
@@ -120,6 +157,7 @@ onBeforeUnmount(() => {
               <td class="name" :title="row.name">{{ row.name }}</td>
               <td class="num">{{ row.procs }}</td>
               <td class="num">{{ formatBytes(row.rssBytes) }}</td>
+              <td class="num" data-testid="metrics-tokens" :title="row.tokens === null ? t('agents.metrics.tokensNone') : undefined">{{ row.tokens === null ? '–' : formatNumber(row.tokens, { notation: 'compact' }) }}</td>
               <td class="bar-cell">
                 <div class="bar"><div class="bar-fill" :style="{ width: `${row.share * 100}%` }" /></div>
               </td>
@@ -175,6 +213,35 @@ onBeforeUnmount(() => {
 .summary-value {
   font-size: var(--vr-font-size-lg);
   font-variant-numeric: tabular-nums;
+}
+
+.usage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vr-space-2);
+}
+
+.usage-title {
+  margin: 0;
+  font-size: var(--vr-font-size-xs);
+  font-weight: 500;
+  color: var(--vr-color-text-muted);
+}
+
+.window-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--vr-space-2);
+  margin-bottom: var(--vr-space-1);
+}
+
+.window-meta {
+  color: var(--vr-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.bar-fill[data-spent='true'] {
+  background: var(--vr-status-limit);
 }
 
 .table {

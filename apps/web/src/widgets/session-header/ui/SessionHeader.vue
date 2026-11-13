@@ -35,8 +35,15 @@ const status = computed<SessionStatus | undefined>(() => {
 });
 const tone = computed(() => {
   if (status.value === 'finished' && node.value?.unseen) return 'unseen';
-  if (status.value === 'running' || status.value === 'needs_feedback' || status.value === 'terminated') return { running: 'running', needs_feedback: 'feedback', terminated: 'crashed' }[status.value];
+  if (status.value === 'running' || status.value === 'needs_feedback' || status.value === 'terminated' || status.value === 'limit') return { running: 'running', needs_feedback: 'feedback', terminated: 'crashed', limit: 'limit' }[status.value];
   return 'neutral';
+});
+
+const statusText = computed(() => {
+  if (!status.value) return '';
+  const label = t(`agents.status.${status.value}`);
+  const until = status.value === 'limit' ? node.value?.limitUntil : undefined;
+  return until ? `${label} · ${t('agents.metrics.resets', { time: new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}` : label;
 });
 
 const place = computed(() => [project.value, worktree.value?.branch].filter(Boolean).join(' › '));
@@ -60,7 +67,7 @@ watch(
         <span class="title" data-testid="session-header-title">{{ node.name }}</span>
         <span v-if="status" class="pill" :data-tone="tone" data-testid="session-header-status">
           <StatusIcon class="icon" :status="status" :unseen="node.unseen" />
-          {{ t(`agents.status.${status}`) }}
+          {{ statusText }}
         </span>
       </div>
       <div v-if="meta" class="meta" data-testid="session-header-meta">{{ meta }}</div>
@@ -135,6 +142,11 @@ watch(
 .pill[data-tone='feedback'] {
   color: var(--vr-status-feedback);
   background: var(--vr-tint-feedback);
+}
+
+.pill[data-tone='limit'] {
+  color: var(--vr-status-limit);
+  background: var(--vr-tint-limit);
 }
 
 .pill[data-tone='unseen'] {

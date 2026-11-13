@@ -2,7 +2,7 @@ import { computed, ref } from 'vue';
 import { useBerth, type SessionNode } from '../../../entities/session';
 import { attentionKindOf, type AttentionKind } from './attention';
 
-export type InboxEntry = { key: string; node: SessionNode; kind: AttentionKind; since: number; place: string };
+export type InboxEntry = { key: string; node: SessionNode; kind: AttentionKind; since: number; place: string; until?: number | undefined };
 
 type Mark = { sig: string; until: number | null };
 
@@ -69,7 +69,7 @@ export function useInbox() {
       since.set(node.key, { sig: kind, at });
       const worktree = worktrees.get(agent.worktree_id);
       const project = worktree ? projects.get(worktree.project_id) : undefined;
-      list.push({ key: node.key, node, kind, since: at, place: [project?.name, worktree?.branch].filter(Boolean).join(' › ') });
+      list.push({ key: node.key, node, kind, since: at, place: [project?.name, worktree?.branch].filter(Boolean).join(' › '), until: node.limitUntil });
     }
     return list.sort((a, b) => b.since - a.since);
   });

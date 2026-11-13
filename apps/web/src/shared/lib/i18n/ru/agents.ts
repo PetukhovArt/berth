@@ -15,6 +15,7 @@ export const agents: Translation<typeof en> = {
     disconnected: 'отключена',
     shell: 'терминал',
     closed: 'закрыт',
+    limit: 'лимит',
   },
   session: {
     restart: 'Перезапустить',
@@ -101,6 +102,14 @@ export const agents: Translation<typeof en> = {
     share: 'Доля от наибольшей',
     prewarm: 'запас: {kind}',
     unnamed: 'сессия {id}',
+    usage: 'Лимиты',
+    tokens: 'Токены',
+    tokensNone: 'не измерено',
+    usageNone: 'Нет данных о лимитах',
+    windowFive: 'Окно 5 часов',
+    windowWeek: 'Окно недели',
+    windowOther: 'Окно {hours} ч',
+    resets: 'сброс {time}',
   },
   project: {
     actions: 'Действия проекта',

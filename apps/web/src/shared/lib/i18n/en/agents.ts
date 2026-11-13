@@ -12,6 +12,7 @@ export const agents = {
     disconnected: 'disconnected',
     shell: 'terminal',
     closed: 'closed',
+    limit: 'limit',
   },
   session: {
     restart: 'Restart',
@@ -98,6 +99,14 @@ export const agents = {
     share: 'Share of the largest',
     prewarm: 'spare: {kind}',
     unnamed: 'session {id}',
+    usage: 'Usage',
+    tokens: 'Tokens',
+    tokensNone: 'not measured',
+    usageNone: 'No usage reported',
+    windowFive: '5-hour window',
+    windowWeek: 'Weekly window',
+    windowOther: '{hours}-hour window',
+    resets: 'resets {time}',
   },
   project: {
     actions: 'Project actions',

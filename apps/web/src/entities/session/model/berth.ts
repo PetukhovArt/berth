@@ -1,6 +1,7 @@
 import { createChannel, hasBackend, invoke } from '../../../bridge';
 import { computed, shallowRef, type ComputedRef, type ShallowRef } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
+import { limitUntil, watchUsageLimits } from './limits';
 
 export type AgentKind = 'claude' | 'codex' | 'cursor' | 'opencode' | 'grok';
 type AgentStatus = 'fresh' | 'running' | 'finished' | 'needs_feedback' | 'terminated' | 'disconnected';
@@ -50,8 +51,8 @@ type WatchEvent =
 
 export type SessionEvent = { type: 'reset'; data: string } | { type: 'output'; data: string } | { type: 'exited'; exit_code: number | null };
 
-export type SessionStatus = AgentStatus | 'shell' | 'closed';
-export type SessionNode = { key: string; id: string; ref: SessionRef; name: string; status: SessionStatus; unseen: boolean; alive: boolean };
+export type SessionStatus = AgentStatus | 'shell' | 'closed' | 'limit';
+export type SessionNode = { key: string; id: string; ref: SessionRef; name: string; status: SessionStatus; unseen: boolean; alive: boolean; limitUntil?: number };
 export type WorktreeNode = { id: string; path: string; branch: string; main: boolean; sessions: SessionNode[]; archived: SessionNode[] };
 type ProjectNode = { id: string; name: string; worktrees: WorktreeNode[] };
 type WorkspaceNode = { id: string; name: string; projects: ProjectNode[] };
@@ -138,7 +139,9 @@ export function isSessionRef(value: unknown): value is SessionRef {
 
 function agentNode(agent: Agent): SessionNode {
   const ref = { Agent: agent.id };
-  return { key: sessionKey(ref), id: agent.id, ref, name: agent.name, status: agent.status, unseen: agent.unseen, alive: agent.alive };
+  const until = agent.status === 'finished' && agent.alive ? limitUntil(agent.kind) : null;
+  const node: SessionNode = { key: sessionKey(ref), id: agent.id, ref, name: agent.name, status: agent.status, unseen: agent.unseen, alive: agent.alive };
+  return until === null ? node : { ...node, status: 'limit', limitUntil: until };
 }
 
 function terminalNode(terminal: Terminal): SessionNode {
@@ -230,6 +233,7 @@ function createStore(): BerthStore {
     }
   }
 
+  watchUsageLimits();
   watching = invoke<void>('berth_watch', { onEvent: createChannel<WatchEvent>(receive) }).catch((e: unknown) => {
     error.value = describeError(e);
   });
@@ -281,7 +285,8 @@ type OrphanedSession = {
   live: boolean;
 };
 type PrewarmInfo = { worktree: string; kind: AgentKind; model: string | null };
-type SessionMetrics = { session: SessionRef; pid: number; rss_bytes: number; procs: number; prewarm: PrewarmInfo | null };
+type ModelTokens = { model: string; input: number; output: number; cache_read: number; cache_write_5m: number; cache_write_1h: number };
+type SessionMetrics = { session: SessionRef; pid: number; rss_bytes: number; procs: number; prewarm: PrewarmInfo | null; tokens?: { by_model: ModelTokens[] } | null };
 type MetricsSnapshot = { daemon_pid: number; daemon_rss_bytes: number; system_total_bytes: number; sessions: SessionMetrics[]; sampled_at_ms: number };
 type EnterOutcome = 'AlreadyThere' | 'Relocating' | 'NextLaunch';
 export type Branch = { name: string; worktree: string | null };
@@ -291,11 +296,12 @@ export type BerthReply =
   | { OrphanedSessions: { req_id: number; sessions: OrphanedSession[] } }
   | { Branches: { req_id: number; branches: Branch[] } }
   | { WorktreeEntered: { req_id: number; worktree: Worktree; outcome: EnterOutcome } }
-  | { Metrics: { req_id: number; snapshot: MetricsSnapshot } };
+  | { Metrics: { req_id: number; snapshot: MetricsSnapshot } }
+  | { UsageLimits: { req_id: number; windows: unknown[] } };
 
 export class BerthCallError extends Error {}
 
-const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics']);
+const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits']);
 
 function isBerthReply(value: unknown): value is BerthReply {
   if (typeof value !== 'object' || value === null) return false;

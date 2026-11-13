@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added a setting, off by default, that comments on the Jira or GitLab issue named in the branch when an Agent finishes in the desktop app (#40).
+- Added subscription limits in the desktop app: the 5-hour and weekly windows of Claude and Codex with their reset times and tokens per Session in the Memory Usage panel, and a limit status with the reset time in the Inbox, the sidebar and the session header (#26).
 - Added `berth sessions`, `berth attention` and `berth send`, which print JSON for scripts and chat bots, and an OpenClaw skill built on them (#37).
 - Added the Agent's todo list to the Chat view of a Session in the desktop app, updated as the transcript grows (#18).
 - Added a next-step button to the session header in the desktop app: it shows Commit and push, Push, Pull or Create merge request for the worktree and runs it (#24)

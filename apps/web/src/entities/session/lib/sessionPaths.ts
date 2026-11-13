@@ -29,6 +29,7 @@ const URGENCY: Record<SessionStatus, number> = {
   needs_feedback: 8,
   terminated: 7,
   running: 5,
+  limit: 4.5,
   finished: 4,
   fresh: 3,
   shell: 2,

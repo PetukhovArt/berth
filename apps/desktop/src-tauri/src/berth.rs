@@ -675,6 +675,7 @@ fn reply_req_id(event: &ServerEvent) -> Option<u64> {
         | ServerEvent::OrphanedSessions { req_id, .. }
         | ServerEvent::Branches { req_id, .. }
         | ServerEvent::WorktreeEntered { req_id, .. }
+        | ServerEvent::UsageLimits { req_id, .. }
         | ServerEvent::Metrics { req_id, .. } => Some(*req_id),
         ServerEvent::Error { req_id, .. } => *req_id,
         _ => None,
@@ -719,6 +720,7 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::DeleteLink { req_id, .. }
         | ClientRequest::RenameTerminal { req_id, .. }
         | ClientRequest::CloseTerminal { req_id, .. }
+        | ClientRequest::GetUsageLimits { req_id }
         | ClientRequest::GetMetrics { req_id } => Some(req_id),
         ClientRequest::Hello { .. }
         | ClientRequest::Subscribe
