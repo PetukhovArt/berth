@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 # Two version bumps in a row must not race for the same tag.
 concurrency:
@@ -154,4 +155,16 @@ jobs:
             berth-*.tar.gz
             berth-*.zip
           body_path: RELEASE_NOTES.md
+
+      - name: Note the release on its fixed issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.gate.outputs.version }}
+        run: |
+          retry() { for wait in 5 15 45; do "$@" && return 0; sleep "$wait"; done; "$@"; }
+          retry gh issue list -R "$GITHUB_REPOSITORY" --state closed --label fixed-on-main --limit 200 --json number -q '.[].number' > fixed.txt
+          while read -r n; do
+            retry gh issue edit "$n" -R "$GITHUB_REPOSITORY" --remove-label fixed-on-main
+            retry gh issue comment "$n" -R "$GITHUB_REPOSITORY" --body "Released in berth $VERSION: https://github.com/$GITHUB_REPOSITORY/releases/tag/v$VERSION"
+          done < fixed.txt
 

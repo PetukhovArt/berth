@@ -1,0 +1,21 @@
+name: Feature
+description: A gap berth should cover, or a change to how it works
+labels: [enhancement, needs-triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What you were doing and where berth fell short. One problem per issue.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What berth could do. Say which OS and Agents it touches.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: What you do now, or other ways to solve it.

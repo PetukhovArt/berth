@@ -64,6 +64,7 @@ project, in its main checkout or a new worktree.
 - [Windows](docs/windows.md)
 - [macOS desktop app](docs/macos.md)
 - [Remote access over Tailscale](docs/remote-access-tailscale.md)
+- [Issues](docs/issues.md)
 - [Changelog](CHANGELOG.md)
 
 ## License

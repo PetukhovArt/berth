@@ -70,6 +70,12 @@ never bump `version` unless releasing is what was asked for; every other change 
 
 Repository visibility stays a human decision: never change it on your own.
 
+## Issues
+Filing, triage, fixing and release of an issue follow `docs/issues.md`. Working one: read it with its
+comments first; a bug fix starts with a failing test; the commit body ends with `Fixes #<n>`
+(`Refs #<n>` for a part); a `CHANGELOG.md` line ends with `(#<n>)`; then label `fixed-on-main` and
+comment the commits. Ask before posting to GitHub.
+
 ## Features backlog
 
 `BACKLOG.md` lists ideas not yet built and where they come from. Add new ones there.

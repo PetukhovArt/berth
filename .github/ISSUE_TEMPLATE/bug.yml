@@ -1,0 +1,52 @@
+name: Bug
+description: berth did something wrong (the desktop app, the phone web client, the daemon or a berth command)
+labels: [bug, needs-triage]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did and what berth showed or did. Paste output and logs as is; replace private names and paths.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+      description: What berth should have done instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: The smallest steps that show it, or "seen once".
+  - type: input
+    id: version
+    attributes:
+      label: berth version
+      description: The output of `berth --version`, or a commit.
+      placeholder: 0.20.0 or 24eebc8
+    validations:
+      required: true
+  - type: dropdown
+    id: client
+    attributes:
+      label: Where
+      options: [Desktop app, Phone web client, berth command, Daemon]
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options: [Windows, macOS, Linux]
+    validations:
+      required: true
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent
+      options: [Claude Code, Codex, Cursor, OpenCode, Shell, Other]
+    validations:
+      required: true
