@@ -68,6 +68,8 @@ export const forge: Translation<typeof en> = {
     filter: 'Фильтр файлов',
     fileCount: { one: '{count} файл', few: '{count} файла', many: '{count} файлов', other: '{count} файла' },
     unresolvedCount: '{count} нерешённых',
+    quote: { one: 'Цитировать {count} строку в промпте', few: 'Цитировать {count} строки в промпте', many: 'Цитировать {count} строк в промпте', other: 'Цитировать {count} строки в промпте' },
+    quoteTitle: 'Вставить выбранные строки в промпт сессии. Клик по номеру строки выбирает, Shift-клик расширяет.',
     reviewed: 'Просмотрено',
     reviewedCount: '{done} из {total} просмотрено',
     prevThread: 'Предыдущее обсуждение',

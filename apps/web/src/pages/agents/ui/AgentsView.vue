@@ -49,7 +49,7 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
           <SessionViews class="body" :panel-id="api.id">
             <template #terminal><SessionPanel v-if="isSessionRef(params.session)" class="vr-fade-in" :session="params.session" :panel="api" /></template>
             <template #mr="{ mr }"><ChangeRequestView class="pane vr-fade-in" :connector="mr.connector" :project="mr.project" :number="mr.number" :panel="api" data-testid="session-mr-view" /></template>
-            <template #diff="{ path, status }"><WorktreeChanges class="pane" :path="path" :status="status" data-testid="session-diff-view" /></template>
+            <template #diff="{ path, status, session }"><WorktreeChanges class="pane" :path="path" :status="status" :session="session" data-testid="session-diff-view" /></template>
           </SessionViews>
         </div>
       </template>
@@ -74,7 +74,7 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
         <SessionViews :panel-id="api.id">
           <template #terminal><ConversationView v-if="isHarness(params.harness) && typeof params.id === 'string'" class="vr-fade-in" :harness="params.harness" :session-id="params.id" /></template>
           <template #mr="{ mr }"><ChangeRequestView class="pane vr-fade-in" :connector="mr.connector" :project="mr.project" :number="mr.number" :panel="api" data-testid="session-mr-view" /></template>
-          <template #diff="{ path, status }"><WorktreeChanges class="pane" :path="path" :status="status" data-testid="session-diff-view" /></template>
+          <template #diff="{ path, status, session }"><WorktreeChanges class="pane" :path="path" :status="status" :session="session" data-testid="session-diff-view" /></template>
         </SessionViews>
       </template>
       <template #panel-metrics>

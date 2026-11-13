@@ -65,6 +65,8 @@ export const forge = {
     filter: 'Filter files',
     fileCount: { one: '{count} file', other: '{count} files' },
     unresolvedCount: '{count} unresolved',
+    quote: { one: 'Quote {count} line in the prompt', other: 'Quote {count} lines in the prompt' },
+    quoteTitle: 'Put the selected lines in the session prompt. Click a line number to select, Shift-click to extend.',
     reviewed: 'Reviewed',
     reviewedCount: '{done} of {total} reviewed',
     prevThread: 'Previous thread',

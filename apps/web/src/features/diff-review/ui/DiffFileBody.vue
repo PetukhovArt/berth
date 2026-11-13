@@ -15,8 +15,10 @@ const props = defineProps<{
   wrap: boolean;
   flashId: string | null;
   connector?: string;
+  pickable?: boolean;
+  picked?: { from: number; to: number } | null;
 }>();
-const emit = defineEmits<{ expand: [] }>();
+const emit = defineEmits<{ expand: []; pick: [index: number, extend: boolean] }>();
 
 type Model = { lines: PatchLine[]; rows: SplitRow[]; html: string[]; threads: Map<number, Discussion[]>; orphans: Discussion[] };
 
@@ -78,6 +80,12 @@ function rowThreads(row: SplitRow): Discussion[] {
   return left.length && right.length ? [...left, ...right] : left.length ? left : right;
 }
 
+const isPicked = (line: PatchLine | null) => !!line && !!props.picked && line.index >= props.picked.from && line.index <= props.picked.to;
+
+function pick(line: PatchLine | null, event: MouseEvent) {
+  if (props.pickable && line) emit('pick', line.index, event.shiftKey);
+}
+
 const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] || ' ' : ' ');
 </script>
 
@@ -91,9 +99,9 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
       <template v-for="line in shownLines" :key="line.index">
         <div v-if="line.kind === 'hunk'" class="hunk">{{ line.text }}</div>
         <div v-else-if="line.kind === 'meta'" class="hunk meta">{{ line.text }}</div>
-        <div v-else class="line" :data-kind="line.kind">
-          <span class="num">{{ line.oldLine ?? '' }}</span>
-          <span class="num">{{ line.newLine ?? '' }}</span>
+        <div v-else class="line" :data-kind="line.kind" :data-picked="isPicked(line)">
+          <span class="num" :data-pickable="pickable" @click="pick(line, $event)">{{ line.oldLine ?? '' }}</span>
+          <span class="num" :data-pickable="pickable" @click="pick(line, $event)">{{ line.newLine ?? '' }}</span>
           <span class="sign">{{ line.kind === 'add' ? '+' : line.kind === 'del' ? '−' : '' }}</span>
           <span class="code" v-html="codeOf(line)" />
         </div>
@@ -107,10 +115,10 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
       <template v-for="(row, r) in shownRows" :key="r">
         <div v-if="row.full" class="hunk" :class="{ meta: row.full.kind === 'meta' }">{{ row.full.text }}</div>
         <div v-else class="line split-line">
-          <span class="num" :data-kind="row.left?.kind">{{ row.left?.oldLine ?? '' }}</span>
-          <span class="code" :data-kind="row.left?.kind" v-html="codeOf(row.left)" />
-          <span class="num" :data-kind="row.right?.kind">{{ row.right?.newLine ?? '' }}</span>
-          <span class="code" :data-kind="row.right?.kind" v-html="codeOf(row.right)" />
+          <span class="num" :data-kind="row.left?.kind" :data-picked="isPicked(row.left)" :data-pickable="pickable" @click="pick(row.left, $event)">{{ row.left?.oldLine ?? '' }}</span>
+          <span class="code" :data-kind="row.left?.kind" :data-picked="isPicked(row.left)" v-html="codeOf(row.left)" />
+          <span class="num" :data-kind="row.right?.kind" :data-picked="isPicked(row.right)" :data-pickable="pickable" @click="pick(row.right, $event)">{{ row.right?.newLine ?? '' }}</span>
+          <span class="code" :data-kind="row.right?.kind" :data-picked="isPicked(row.right)" v-html="codeOf(row.right)" />
         </div>
         <div v-for="d in rowThreads(row)" :key="d.id" class="thread-row" :data-flash="flashId === d.id">
           <ThreadView :discussion="d" :connector="connector" />
@@ -180,6 +188,14 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
   user-select: none;
 }
 
+.num[data-pickable='true'] {
+  cursor: pointer;
+}
+
+.num[data-pickable='true']:hover {
+  color: var(--vr-color-text);
+}
+
 .sign {
   color: var(--vr-term-dim);
   text-align: center;
@@ -196,6 +212,12 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
 
 .code {
   white-space: pre;
+}
+
+.line[data-picked='true'],
+.split-line .num[data-picked='true'],
+.split-line .code[data-picked='true'] {
+  background: var(--vr-color-nav-active);
 }
 
 .split-line {

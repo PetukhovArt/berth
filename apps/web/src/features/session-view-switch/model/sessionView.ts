@@ -51,7 +51,7 @@ const SESSION_VIEWS = {
     },
     props: (panelId: string) => {
       const path = worktreeOf(panelId)?.path;
-      return path ? { path, status: statusOf(panelId) } : null;
+      return path ? { path, status: statusOf(panelId), session: useBerth()?.sessions.value.get(panelId)?.ref } : null;
     },
   },
 };

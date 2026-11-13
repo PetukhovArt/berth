@@ -2,14 +2,15 @@
 import { shallowRef, watch } from 'vue';
 import { RefreshCw } from '../../../shared/ui/icons';
 import { VButton } from '../../../shared/ui/kit';
-import type { SessionStatus } from '../../../entities/session';
+import { sendInput, type SessionRef, type SessionStatus } from '../../../entities/session';
+import { showViewInActivePanel } from '../../../features/session-view-switch';
 import { describeError, type DiffFile, type Discussion } from '../../../shared/api/connectors/api';
 import { worktreeChanges } from '../../../shared/api/fs';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { DiffView } from '../../../features/diff-review';
 
 import { UiButton } from '../../../shared/ui/UiButton';
-const props = defineProps<{ path: string; status?: SessionStatus }>();
+const props = defineProps<{ path: string; status?: SessionStatus; session?: SessionRef }>();
 
 type Changes = { kind: 'loading' } | { kind: 'failed'; message: string } | { kind: 'ready'; files: DiffFile[]; signature: string };
 
@@ -19,6 +20,12 @@ const changes = shallowRef<Changes>({ kind: 'loading' });
 const refreshing = shallowRef(false);
 
 let generation = 0;
+
+function quote(text: string) {
+  if (!props.session) return;
+  void sendInput(props.session, `\x1b[200~${text}\x1b[201~`);
+  showViewInActivePanel('terminal');
+}
 
 async function load() {
   const ticket = ++generation;
@@ -64,7 +71,7 @@ watch(
       <p>{{ t('agents.changes.empty') }}</p>
       <VButton size="small" severity="secondary" :label="t('agents.changes.refresh')" :loading="refreshing" data-testid="worktree-changes-refresh" @click="load" />
     </div>
-    <DiffView v-else :files="changes.files" :discussions="NO_DISCUSSIONS" :root="path">
+    <DiffView v-else :files="changes.files" :discussions="NO_DISCUSSIONS" :root="path" :quotable="!!session" @quote="quote">
       <template #actions>
         <UiButton class="refresh" :disabled="refreshing" :aria-busy="refreshing" :title="t('agents.changes.refresh')" :aria-label="t('agents.changes.refresh')" data-testid="worktree-changes-refresh" @click="load">
           <RefreshCw :size="14" :class="{ spin: refreshing }" />
