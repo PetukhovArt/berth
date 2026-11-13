@@ -3,6 +3,7 @@ import { computed, shallowRef, watch, type Component } from 'vue';
 import { Bot, ExternalLink, FileJson, FileText, History, Keyboard, Palette, Plug, RefreshCw, Search, SlidersHorizontal, Smartphone, SquareTerminal } from '../../../shared/ui/icons';
 import { VButton, VInputText, VMessage } from '../../../shared/ui/kit';
 import { ConnectorsPanel } from '../../../features/manage-connectors';
+import { RouterPanel } from '../../../features/edit-router';
 import BackBar from '../../../shared/ui/BackBar.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { withViewTransition } from '../../../shared/ui/motion/motion';
@@ -43,6 +44,7 @@ watch(normalizedQuery, (value) => {
 });
 const showKeymap = computed(() => !normalizedQuery.value && category.value === 'keymap');
 const showRemote = computed(() => !normalizedQuery.value && category.value === 'remote');
+const showRouter = computed(() => !normalizedQuery.value && category.value === 'sessions');
 const showProviders = computed(() => !normalizedQuery.value && category.value === 'providers');
 const showConnectors = computed(() => {
   if (!normalizedQuery.value) return category.value === 'connectors';
@@ -164,6 +166,9 @@ function onSearchKey(event: KeyboardEvent) {
           </section>
           <section v-if="showProviders" class="group" data-testid="settings-providers">
             <ProvidersPanel />
+          </section>
+          <section v-if="showRouter" class="group" data-testid="settings-router">
+            <RouterPanel />
           </section>
           <section v-if="showRemote" class="group" data-testid="settings-remote">
             <RemotePanel />

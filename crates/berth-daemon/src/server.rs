@@ -608,25 +608,25 @@ async fn handle_client(
                         (None, None) => None,
                     };
                     let providers = crate::config::Config::load().providers;
-                    let result = match crate::acp::providers::ensure_native_enabled(&providers, kind)
-                    {
-                        Err(off) => Err(off),
-                        Ok(()) => {
-                            daemon
-                                .create_agent(CreateAgentSpec {
-                                    worktree: worktree.clone(),
-                                    name,
-                                    kind,
-                                    model,
-                                    effort,
-                                    auto_title,
-                                    cloud_prompt,
-                                    starting_prompt,
-                                    pr_url: None,
-                                })
-                                .await
-                        }
-                    };
+                    let result =
+                        match crate::acp::providers::ensure_native_enabled(&providers, kind) {
+                            Err(off) => Err(off),
+                            Ok(()) => {
+                                daemon
+                                    .create_agent(CreateAgentSpec {
+                                        worktree: worktree.clone(),
+                                        name,
+                                        kind,
+                                        model,
+                                        effort,
+                                        auto_title,
+                                        cloud_prompt,
+                                        starting_prompt,
+                                        pr_url: None,
+                                    })
+                                    .await
+                            }
+                        };
                     if let Some(launch_mode) = launch_mode {
                         match &result {
                             Ok(berth_core::EntityId::Agent(agent)) => tracing::info!(
@@ -892,6 +892,14 @@ async fn handle_client(
                     let result = daemon.continue_agent_in(&id, kind, model).await;
                     reply(&out_tx, req_id, result.map(Some)).await;
                 }
+                ClientRequest::GetRouterConfig { req_id } => {
+                    let result = daemon.router_config();
+                    reply_router_config(&out_tx, req_id, result).await;
+                }
+                ClientRequest::SaveRouterConfig { req_id, json } => {
+                    let result = daemon.save_router_config(&json);
+                    reply_router_config(&out_tx, req_id, result).await;
+                }
                 ClientRequest::AttachCloudAgent { req_id, id } => {
                     reply_done(&out_tx, req_id, daemon.attach_cloud_agent(&id).await).await;
                 }
@@ -1072,6 +1080,21 @@ async fn forward_pty(
 }
 
 /// [`reply`] for the requests that create nothing: success is a bare Ack.
+async fn reply_router_config(
+    out_tx: &mpsc::Sender<ServerEvent>,
+    req_id: u64,
+    result: anyhow::Result<(String, String)>,
+) {
+    let ev = match result {
+        Ok((json, path)) => ServerEvent::RouterConfig { req_id, json, path },
+        Err(e) => ServerEvent::Error {
+            req_id: Some(req_id),
+            message: format!("{e:#}"),
+        },
+    };
+    let _ = out_tx.send(ev).await;
+}
+
 async fn reply_done(out_tx: &mpsc::Sender<ServerEvent>, req_id: u64, result: anyhow::Result<()>) {
     reply(out_tx, req_id, result.map(|_| None)).await
 }

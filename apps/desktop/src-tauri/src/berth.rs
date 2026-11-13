@@ -698,6 +698,7 @@ fn reply_req_id(event: &ServerEvent) -> Option<u64> {
         | ServerEvent::WorktreeEntered { req_id, .. }
         | ServerEvent::UsageLimits { req_id, .. }
         | ServerEvent::TaskNote { req_id, .. }
+        | ServerEvent::RouterConfig { req_id, .. }
         | ServerEvent::ProjectSetup { req_id, .. }
         | ServerEvent::Triggers { req_id, .. }
         | ServerEvent::TriggerCreated { req_id, .. }
@@ -744,6 +745,8 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::RestartAgent { req_id, .. }
         | ClientRequest::SwitchAgentModel { req_id, .. }
         | ClientRequest::ContinueAgentIn { req_id, .. }
+        | ClientRequest::GetRouterConfig { req_id }
+        | ClientRequest::SaveRouterConfig { req_id, .. }
         | ClientRequest::AttachCloudAgent { req_id, .. }
         | ClientRequest::SendCloudMessage { req_id, .. }
         | ClientRequest::CreateTerminal { req_id, .. }

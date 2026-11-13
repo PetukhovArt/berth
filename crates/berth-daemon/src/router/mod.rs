@@ -1,3 +1,5 @@
+pub mod auto;
+pub mod config;
 pub mod detect;
 pub mod handoff;
 pub mod rules;
@@ -8,7 +10,8 @@ use anyhow::{bail, Context, Result};
 use berth_core::protocol::SessionRef;
 use berth_core::ProviderErrorKind;
 use berth_core::{
-    Agent, AgentId, AgentKind, AgentStatus, EntityId, ProviderError, RouteSuggestion, UsageWindow,
+    Agent, AgentId, AgentKind, AgentStatus, EntityId, ProviderError, RouteAction, RouteSuggestion,
+    UsageWindow,
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -35,6 +38,7 @@ pub struct ProviderErrors {
     errors: Mutex<HashMap<AgentId, (ProviderError, Source)>>,
     suggestions: Mutex<HashMap<AgentId, RouteSuggestion>>,
     rules: Mutex<Option<LoadedRules>>,
+    auto: auto::AutoRoutes,
 }
 
 impl ProviderErrors {
@@ -115,6 +119,9 @@ impl ProviderErrors {
             }
         }
         let file = Arc::new(load_router_file(&path));
+        if file.is_auto() {
+            tracing::info!("router mode is auto");
+        }
         let mtime = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
         *cache = Some((mtime, file.clone()));
         file
@@ -175,6 +182,14 @@ fn window_reset(windows: &[UsageWindow], kind: AgentKind) -> Option<i64> {
         .max()
 }
 
+fn may_route(status: AgentStatus, error: Option<&ProviderError>) -> bool {
+    error.is_some() || matches!(status, AgentStatus::Finished | AgentStatus::NeedsFeedback)
+}
+
+fn stuck_long_enough(status: AgentStatus, error: Option<&ProviderError>, now_ms: i64) -> bool {
+    status != AgentStatus::Running || error.is_some_and(|e| now_ms - e.since_ms >= auto::STUCK_MS)
+}
+
 impl Daemon {
     pub(crate) fn decorate_route(&self, agent: &mut Agent) {
         agent.provider_error = self.provider_errors.get(&agent.id);
@@ -209,9 +224,13 @@ impl Daemon {
         if agent.archived || self.store.was_routed_on(&agent.id).unwrap_or(false) {
             return None;
         }
+        let error = self.provider_errors.get(&agent.id);
+        if !may_route(agent.status, error.as_ref()) {
+            return None;
+        }
         let file = self.provider_errors.router_file();
         let windows = crate::usage_limits::cached();
-        let error = self.provider_errors.get(&agent.id);
+        let now = now_ms();
         rules::suggest(
             &file,
             &rules::Facts {
@@ -220,9 +239,117 @@ impl Daemon {
                 status: agent.status,
                 error: error.as_ref(),
                 windows: &windows,
-                now_ms: now_ms(),
+                now_ms: now,
             },
         )
+        .or_else(|| {
+            let origin_free = |kind| {
+                windows
+                    .iter()
+                    .all(|w| w.kind != kind || w.used_percent < rules::FULL_PERCENT)
+            };
+            error
+                .is_none()
+                .then(|| {
+                    self.provider_errors.auto.due_return(
+                        &agent.id,
+                        agent.kind,
+                        agent.model.as_deref(),
+                        now,
+                    )
+                })
+                .flatten()
+                .filter(|s| match &s.action {
+                    RouteAction::ContinueIn { kind, .. } => origin_free(*kind),
+                    RouteAction::SwitchModel { .. } => origin_free(agent.kind),
+                })
+        })
+    }
+
+    fn route_depth(&self, id: &AgentId) -> u32 {
+        let mut depth = 0;
+        let mut at = id.clone();
+        while let Ok(Some(from)) = self.store.routed_from(&at) {
+            depth += 1;
+            if depth >= 64 {
+                break;
+            }
+            at = from;
+        }
+        depth
+    }
+
+    fn auto_route(self: &Arc<Self>, agent: &Agent) {
+        let file = self.provider_errors.router_file();
+        if !file.is_auto() || agent.archived || self.store.was_routed_on(&agent.id).unwrap_or(false)
+        {
+            return;
+        }
+        let error = self.provider_errors.get(&agent.id);
+        let now = now_ms();
+        if !may_route(agent.status, error.as_ref())
+            || !stuck_long_enough(agent.status, error.as_ref(), now)
+        {
+            return;
+        }
+        let windows = crate::usage_limits::cached();
+        let Some(picked) = rules::pick(
+            &file,
+            &rules::Facts {
+                kind: agent.kind,
+                model: agent.model.as_deref(),
+                status: agent.status,
+                error: error.as_ref(),
+                windows: &windows,
+                now_ms: now,
+            },
+        ) else {
+            return;
+        };
+        let attempt = auto::Attempt {
+            agent: &agent.id,
+            rule_id: &picked.rule.id,
+            cooldown_ms: picked.cooldown_ms(),
+            hops_before: self.route_depth(&agent.id),
+            hop_cap: file.hop_cap(),
+            now_ms: now,
+        };
+        if let Err(why) = self.provider_errors.auto.begin(&attempt) {
+            tracing::debug!(agent = %agent.id, rule = %picked.rule.id, ?why, "auto route held back");
+            return;
+        }
+        let action = picked.suggestion.action.clone();
+        tracing::info!(agent = %agent.id, rule = %picked.rule.id, ?action, "auto route");
+        let daemon = self.clone();
+        let id = agent.id.clone();
+        tokio::spawn(async move {
+            let result = match action {
+                RouteAction::SwitchModel { model } => {
+                    daemon.switch_agent_model(&id, model).await.map(|_| None)
+                }
+                RouteAction::ContinueIn { kind, model } => daemon
+                    .continue_agent_in(&id, kind, model)
+                    .await
+                    .map(|created| match created {
+                        EntityId::Agent(new) => Some(new),
+                        _ => None,
+                    }),
+            };
+            match result {
+                Ok(new) => daemon.provider_errors.auto.finish(&id, new.as_ref()),
+                Err(e) => {
+                    tracing::warn!(agent = %id, "auto route failed: {e:#}");
+                    daemon.provider_errors.auto.finish(&id, None);
+                }
+            }
+        });
+    }
+
+    fn limit_reset_of(&self, agent: &Agent, error: Option<&ProviderError>) -> Option<i64> {
+        error.and_then(|e| e.resets_at_ms).or_else(|| {
+            let windows = crate::usage_limits::cached();
+            window_reset(&windows, agent.kind)
+        })
     }
 
     fn refresh_route_suggestion(&self, agent: &Agent) -> bool {
@@ -231,15 +358,17 @@ impl Daemon {
     }
 
     pub fn route_hook_event(
-        &self,
+        self: &Arc<Self>,
         id: &AgentId,
         event: &HookEvent,
         reported: Option<DetectedError>,
     ) {
         match event {
-            HookEvent::UserPromptSubmit | HookEvent::SessionStart { .. } => {
+            HookEvent::UserPromptSubmit => {
+                self.provider_errors.auto.turn_started(id);
                 self.clear_provider_error(id, None)
             }
+            HookEvent::SessionStart { .. } => self.clear_provider_error(id, None),
             HookEvent::Stop => {
                 let Ok(Some(agent)) = self.store.get_agent(id) else {
                     return;
@@ -256,12 +385,18 @@ impl Daemon {
                     tracing::info!(agent = %id, kind = ?found.kind, "provider error at turn end");
                     self.set_provider_error(&agent, found, Source::TurnEnd);
                 }
+                if let Ok(Some(agent)) = self.store.get_agent(id) {
+                    if self.refresh_route_suggestion(&agent) {
+                        let _ = self.broadcast_agent(id);
+                    }
+                    self.auto_route(&agent);
+                }
             }
             _ => {}
         }
     }
 
-    pub fn scan_provider_errors(&self) {
+    pub fn scan_provider_errors(self: &Arc<Self>) {
         let Ok((_, _, agents, _)) = self.store.load_tree() else {
             return;
         };
@@ -280,6 +415,7 @@ impl Daemon {
             if self.refresh_route_suggestion(agent) {
                 let _ = self.broadcast_agent(&agent.id);
             }
+            self.auto_route(agent);
         }
     }
 
@@ -293,6 +429,18 @@ impl Daemon {
             bail!("the agent has no conversation to resume yet");
         }
         let model = clean_model(model)?;
+        let error = self.provider_errors.get(id);
+        self.provider_errors.auto.drop_return(id);
+        if let Some(resets_at_ms) = error.as_ref().and_then(|e| e.resets_at_ms) {
+            self.provider_errors.auto.offer_return(
+                id,
+                auto::ReturnOffer {
+                    kind: agent.kind,
+                    model: agent.model.clone(),
+                    resets_at_ms,
+                },
+            );
+        }
         self.store.set_agent_model(id, model.as_deref())?;
         self.provider_errors.clear(id, None);
         self.provider_errors.set_suggestion(id, None);
@@ -341,11 +489,51 @@ impl Daemon {
         let created = self.create_agent(spec).await?;
         if let EntityId::Agent(new_id) = &created {
             self.store.set_routed_from(new_id, id)?;
+            let limited = error
+                .as_ref()
+                .is_none_or(|e| e.kind == ProviderErrorKind::UsageLimit);
+            if let Some(resets_at_ms) = limited
+                .then(|| self.limit_reset_of(&old, error.as_ref()))
+                .flatten()
+            {
+                self.provider_errors.auto.offer_return(
+                    new_id,
+                    auto::ReturnOffer {
+                        kind: old.kind,
+                        model: old.model.clone(),
+                        resets_at_ms,
+                    },
+                );
+            }
             let _ = self.broadcast_agent(new_id);
         }
         self.provider_errors.set_suggestion(id, None);
         let _ = self.broadcast_agent(id);
         Ok(created)
+    }
+
+    pub fn router_config(&self) -> Result<(String, String)> {
+        let path = router_path();
+        let file = match std::fs::read_to_string(&path) {
+            Ok(text) => rules::parse(&text)
+                .map_err(anyhow::Error::msg)
+                .with_context(|| format!("{} does not parse", path.display()))?,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => rules::RouterFile::default(),
+            Err(e) => return Err(e).with_context(|| format!("reading {}", path.display())),
+        };
+        Ok((config::to_json(&file)?, path.display().to_string()))
+    }
+
+    pub fn save_router_config(self: &Arc<Self>, json: &str) -> Result<(String, String)> {
+        let (file, text) = config::from_json(json)?;
+        let path = router_path();
+        let tmp = path.with_extension("toml.tmp");
+        std::fs::write(&tmp, &text).with_context(|| format!("writing {}", tmp.display()))?;
+        std::fs::rename(&tmp, &path).with_context(|| format!("replacing {}", path.display()))?;
+        *self.provider_errors.rules.lock().unwrap() = None;
+        tracing::info!(rules = file.rules.len(), mode = %file.mode, "router.toml saved");
+        self.scan_provider_errors();
+        Ok((config::to_json(&file)?, path.display().to_string()))
     }
 }
 

@@ -7,6 +7,8 @@ use toml::{Table, Value};
 
 pub const SCHEMA_VERSION: u32 = 1;
 pub const FULL_PERCENT: f32 = 95.0;
+pub const DEFAULT_COOLDOWN_SECS: u64 = 600;
+pub const AUTO_MODE: &str = "auto";
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
@@ -47,6 +49,8 @@ pub struct Rule {
     pub name: String,
     #[serde(default = "yes")]
     pub enabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_cooldown_secs: Option<u64>,
     pub when: ExprValue,
     #[serde(default)]
     pub then: Vec<ActionValue>,
@@ -93,6 +97,7 @@ impl Default for RouterFile {
                 id: "fallback".into(),
                 name: "Next agent in the fallback chain".into(),
                 enabled: true,
+                auto_cooldown_secs: None,
                 when: ExprValue(Expr::Any(vec![
                     Expr::ProviderError {
                         kinds: vec![
@@ -142,6 +147,11 @@ fn error_kind_name(kind: ProviderErrorKind) -> String {
     }
 }
 
+fn table_with<'a>(body: &'a Value, keys: &[&str]) -> Option<&'a Table> {
+    let t = body.as_table()?;
+    t.keys().all(|k| keys.contains(&k.as_str())).then_some(t)
+}
+
 fn parse_expr(value: &Value) -> Option<Expr> {
     let (key, body) = single(value)?;
     Some(match key {
@@ -149,7 +159,7 @@ fn parse_expr(value: &Value) -> Option<Expr> {
         "any" => Expr::Any(body.as_array()?.iter().map(expr_of).collect()),
         "not" => Expr::Not(Box::new(expr_of(body))),
         "provider_error" => {
-            let t = body.as_table()?;
+            let t = table_with(body, &["kinds", "for_secs"])?;
             Expr::ProviderError {
                 kinds: match t.get("kinds") {
                     Some(v) => parse_list(v, error_kind)?,
@@ -162,7 +172,7 @@ fn parse_expr(value: &Value) -> Option<Expr> {
             }
         }
         "limit_used" => {
-            let t = body.as_table()?;
+            let t = table_with(body, &["pct", "window_minutes"])?;
             let pct = t.get("pct")?;
             Expr::LimitUsed {
                 pct: pct
@@ -228,16 +238,24 @@ fn expr_value(expr: &Expr) -> Value {
 
 fn parse_action(value: &Value) -> Option<Action> {
     let (key, body) = single(value)?;
-    let t = body.as_table()?;
-    let model = || t.get("model").and_then(Value::as_str).map(str::to_string);
+    let keys: &[&str] = match key {
+        "next_in_chain" => &[],
+        "switch_model" => &["model"],
+        "continue_in" => &["kind", "model"],
+        _ => return None,
+    };
+    let t = table_with(body, keys)?;
+    let model = match t.get("model") {
+        Some(v) => Some(v.as_str()?.to_string()),
+        None => None,
+    };
     Some(match key {
-        "next_in_chain" => Action::NextInChain,
-        "switch_model" => Action::SwitchModel { model: model()? },
+        "switch_model" => Action::SwitchModel { model: model? },
         "continue_in" => Action::ContinueIn {
             kind: AgentKind::parse(t.get("kind")?.as_str()?)?,
-            model: model(),
+            model,
         },
-        _ => return None,
+        _ => Action::NextInChain,
     })
 }
 
@@ -296,8 +314,64 @@ pub fn parse(text: &str) -> Result<RouterFile, String> {
     Ok(file)
 }
 
+fn line(out: &mut String, key: &str, value: Value) {
+    let bare = !key.is_empty()
+        && key
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
+    if bare {
+        out.push_str(key);
+    } else {
+        out.push_str(&Value::String(key.to_string()).to_string());
+    }
+    out.push_str(" = ");
+    out.push_str(&value.to_string());
+    out.push('\n');
+}
+
+fn extra_lines(out: &mut String, extra: &Table) {
+    for (k, v) in extra {
+        line(out, k, v.clone());
+    }
+}
+
 pub fn render(file: &RouterFile) -> Result<String, String> {
-    toml::to_string_pretty(file).map_err(|e| e.to_string())
+    let mut out = String::new();
+    line(
+        &mut out,
+        "schema_version",
+        Value::Integer(file.schema_version.into()),
+    );
+    line(&mut out, "mode", Value::String(file.mode.clone()));
+    line(
+        &mut out,
+        "fallback",
+        Value::Array(file.fallback.iter().cloned().map(Value::String).collect()),
+    );
+    extra_lines(&mut out, &file.extra);
+    for rule in &file.rules {
+        out.push_str("\n[[rule]]\n");
+        line(&mut out, "id", Value::String(rule.id.clone()));
+        if !rule.name.is_empty() {
+            line(&mut out, "name", Value::String(rule.name.clone()));
+        }
+        if !rule.enabled {
+            line(&mut out, "enabled", Value::Boolean(false));
+        }
+        if let Some(secs) = rule.auto_cooldown_secs {
+            let secs = i64::try_from(secs).map_err(|e| e.to_string())?;
+            line(&mut out, "auto_cooldown_secs", Value::Integer(secs));
+        }
+        line(&mut out, "when", expr_value(&rule.when.0));
+        line(
+            &mut out,
+            "then",
+            Value::Array(rule.then.iter().map(|a| action_value(&a.0)).collect()),
+        );
+        extra_lines(&mut out, &rule.extra);
+    }
+    parse(&out).map_err(|e| format!("rendered router.toml does not parse: {e}"))?;
+    Ok(out)
 }
 
 pub struct Facts<'a> {
@@ -369,7 +443,38 @@ fn next_in_chain(chain: &[String], f: &Facts) -> Option<RouteAction> {
         })
 }
 
+pub struct Picked<'a> {
+    pub rule: &'a Rule,
+    pub suggestion: RouteSuggestion,
+}
+
+impl Picked<'_> {
+    pub fn cooldown_ms(&self) -> i64 {
+        let secs = self
+            .rule
+            .auto_cooldown_secs
+            .unwrap_or(DEFAULT_COOLDOWN_SECS);
+        i64::try_from(secs).unwrap_or(i64::MAX / 1000) * 1000
+    }
+}
+
+impl RouterFile {
+    pub fn is_auto(&self) -> bool {
+        self.mode == AUTO_MODE
+    }
+
+    pub fn hop_cap(&self) -> u32 {
+        u32::try_from(self.fallback.len())
+            .unwrap_or(u32::MAX)
+            .max(1)
+    }
+}
+
 pub fn suggest(file: &RouterFile, f: &Facts) -> Option<RouteSuggestion> {
+    pick(file, f).map(|p| p.suggestion)
+}
+
+pub fn pick<'a>(file: &'a RouterFile, f: &Facts) -> Option<Picked<'a>> {
     file.rules
         .iter()
         .filter(|r| r.enabled && eval(&r.when.0, f))
@@ -389,13 +494,16 @@ pub fn suggest(file: &RouterFile, f: &Facts) -> Option<RouteSuggestion> {
                 }
                 Action::Unknown(_) => None,
             })?;
-            Some(RouteSuggestion {
-                rule: if rule.name.is_empty() {
-                    rule.id.clone()
-                } else {
-                    rule.name.clone()
+            Some(Picked {
+                rule,
+                suggestion: RouteSuggestion {
+                    rule: if rule.name.is_empty() {
+                        rule.id.clone()
+                    } else {
+                        rule.name.clone()
+                    },
+                    action,
                 },
-                action,
             })
         })
 }
@@ -522,6 +630,35 @@ then = [{ page_me = { channel = "x" } }, { next_in_chain = {} }]
         let rendered = render(&again).unwrap();
         assert!(rendered.contains("time_of_day") && rendered.contains("page_me"));
         assert!(rendered.contains("future_key") && rendered.contains("kept too"));
+    }
+
+    #[test]
+    fn render_is_compact_and_keeps_unknown_fields_of_known_nodes() {
+        let text = r#"
+schema_version = 1
+mode = "auto"
+fallback = ["claude", "codex"]
+
+[[rule]]
+id = "r"
+auto_cooldown_secs = 30
+when = { any = [{ provider_error = { kinds = ["overloaded"], level = 3 } }, { limit_used = { pct = 90 } }] }
+then = [{ switch_model = { model = "sonnet", effort = "high" } }]
+"#;
+        let file = parse(text).unwrap();
+        let Expr::Any(items) = &file.rules[0].when.0 else {
+            panic!("any")
+        };
+        assert!(matches!(items[0], Expr::Unknown(_)));
+        assert!(matches!(file.rules[0].then[0].0, Action::Unknown(_)));
+        let rendered = render(&file).unwrap();
+        assert!(!rendered.contains("[rule.when"), "{rendered}");
+        assert!(rendered.contains("when = { any = ["), "{rendered}");
+        assert!(rendered.contains("level = 3") && rendered.contains("effort = \"high\""));
+        assert_eq!(parse(&rendered).unwrap(), file);
+        assert_eq!(render(&parse(&rendered).unwrap()).unwrap(), rendered);
+        assert!(file.is_auto());
+        assert_eq!(file.rules[0].auto_cooldown_secs, Some(30));
     }
 
     #[test]

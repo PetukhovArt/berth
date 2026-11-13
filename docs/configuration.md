@@ -68,7 +68,11 @@ file or a missing key means the default.
 
 `router.toml`, beside `config.json`, says what berth suggests when an Agent hits a provider error
 or a usage limit. The daemon writes the default file on first start and rereads it when it changes.
-Suggestions show under the Agent's row in the sidebar; nothing switches until you click one.
+Suggestions show under the Agent's row in the sidebar for an Agent that has a provider error or
+has finished its turn or waits on you, never for one that is working normally. With the default
+`mode = "suggest"` nothing switches until you click one. Settings → Sessions edits the same file:
+the fallback chain and each rule's conditions as rows joined by and / or, with not and groups. The
+daemon validates and formats what you save, so hand edits and the editor stay in one compact shape.
 
 ```toml
 schema_version = 1
@@ -93,6 +97,14 @@ model downgrade such as opus to sonnet happens only through a rule you write, fo
 with `then = [{ switch_model = { model = "sonnet" } }]`. A condition or action berth does not know
 never matches, and it is kept as written when the file is saved. A file with a newer
 `schema_version` is ignored in favour of the default rule.
+
+`mode = "auto"` applies the suggestion without a click. It stays careful: one switch per Agent per
+turn, no more hops along one task's chain of sessions than `fallback` has entries, a running Agent
+only after its error has lasted a minute, and a rule that switched an Agent waits
+`auto_cooldown_secs` (default 600) before it switches any Agent again. When an Agent moved because
+of a usage limit, the session that took over offers to return to the original agent or model once
+the limit has reset and its turn has ended. That offer is always a chip you click; berth never moves
+a task back on its own. The offer lives in the daemon's memory and is gone after a daemon restart.
 
 ## Desktop app settings
 

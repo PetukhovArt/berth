@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added `mode = "auto"` in `router.toml`: berth applies a router suggestion by itself, at most once per turn, no more hops per task than the fallback chain is long, and each rule waits `auto_cooldown_secs` (600 by default) before it switches again.
+- Added a Return chip after a usage limit resets: the Agent that took over offers to go back to the agent or model it came from, once its turn has ended, and never switches back on its own.
+- Added a router editor in Settings → Sessions: the fallback chain, and each rule's conditions as rows with and, or, not and groups, saved to `router.toml` by the daemon with unknown conditions kept as written.
+- Changed router suggestions to appear only for an Agent with a provider error or one that has finished its turn or waits on you, so a running Agent no longer shows a chip.
 - Added Settings → Providers: Claude, Codex and Grok are on by default, and Cursor, OpenCode, Antigravity, Gemini, Kiro and Pi can be turned on to run over ACP in the chat view, with permission requests answered from a card; the terminal Cursor and OpenCode stay on where you already use them.
 - Added jig steps to the plan strip, and the plan strip to the terminal view (collapsed until you open it), so you can see which step an Agent is on without switching to Chat (#18).
 - Added route switching to the remote web client: when a faster route to the same machine answers (LAN, then Tailscale, then a public HTTPS URL), the page moves to it by itself, and when the current route drops it reconnects over the first one that answers (#34).
