@@ -16,6 +16,10 @@ const COMMON_ANCHORS: &[&str] = &[
     "limit reached",
     "rate limit",
     "overloaded",
+    "selected model",
+    "model is not supported",
+    "unknown model",
+    "couldn't set model",
 ];
 
 fn anchors(kind: AgentKind) -> &'static [&'static str] {
@@ -45,6 +49,16 @@ pub fn classify_status(status: u64) -> Option<ProviderErrorKind> {
 pub fn classify(text: &str) -> Option<ProviderErrorKind> {
     let t = text.to_lowercase();
     let has = |needles: &[&str]| needles.iter().any(|n| t.contains(n));
+    if has(&[
+        "issue with the selected model",
+        "model is not supported",
+        "unknown model",
+        "couldn't set model",
+        "model_not_found",
+        "model not found",
+    ]) {
+        return Some(ProviderErrorKind::Model);
+    }
     if has(&["overloaded", "529"]) {
         return Some(ProviderErrorKind::Overloaded);
     }
@@ -98,6 +112,75 @@ pub fn classify(text: &str) -> Option<ProviderErrorKind> {
     None
 }
 
+fn unit_secs(word: &str) -> Option<i64> {
+    let w = word.trim_end_matches(|c: char| !c.is_alphabetic());
+    Some(match w {
+        "s" | "sec" | "secs" | "second" | "seconds" => 1,
+        "m" | "min" | "mins" | "minute" | "minutes" => 60,
+        "h" | "hr" | "hrs" | "hour" | "hours" => 3600,
+        "d" | "day" | "days" => 86400,
+        _ => return None,
+    })
+}
+
+pub fn retry_after_secs(text: &str) -> Option<i64> {
+    let t = text.to_lowercase();
+    let at = [
+        "try again in",
+        "retrying in",
+        "retry in",
+        "retry after",
+        "retry-after:",
+    ]
+    .iter()
+    .find_map(|k| t.find(k).map(|i| i + k.len()))?;
+    let mut tokens = Vec::new();
+    for word in t[at..].split_whitespace().take(8) {
+        let digits = word.chars().take_while(char::is_ascii_digit).count();
+        if digits > 0 {
+            tokens.push(word[..digits].to_string());
+            if digits < word.len() {
+                tokens.push(word[digits..].to_string());
+            }
+        } else {
+            tokens.push(word.to_string());
+        }
+    }
+    let mut total = 0;
+    let mut found = false;
+    let mut i = 0;
+    while i < tokens.len() {
+        let Ok(n) = tokens[i].parse::<i64>() else {
+            if found && tokens[i] != "and" {
+                break;
+            }
+            i += 1;
+            continue;
+        };
+        match tokens.get(i + 1).and_then(|u| unit_secs(u)) {
+            Some(unit) => {
+                total += n * unit;
+                found = true;
+                i += 2;
+            }
+            None if !found && t[at..].trim_start().starts_with(&tokens[i]) => {
+                return Some(n);
+            }
+            None => break,
+        }
+    }
+    found.then_some(total)
+}
+
+fn detected(kind: ProviderErrorKind, message: String) -> DetectedError {
+    let resets_at_ms = retry_after_secs(&message).map(|s| super::now_ms() + s * 1000);
+    DetectedError {
+        kind,
+        message,
+        resets_at_ms,
+    }
+}
+
 fn clip(text: &str) -> String {
     let line = text.split_whitespace().collect::<Vec<_>>().join(" ");
     line.chars().take(MESSAGE_MAX_CHARS).collect()
@@ -117,14 +200,14 @@ pub fn from_stop_failure(payload: &HookPayload) -> DetectedError {
         .map(value_text)
         .collect::<Vec<_>>()
         .join(" ");
-    DetectedError {
-        kind: classify(&text).unwrap_or(ProviderErrorKind::Other),
-        message: if text.trim().is_empty() {
+    detected(
+        classify(&text).unwrap_or(ProviderErrorKind::Other),
+        if text.trim().is_empty() {
             "the turn ended on an API error".into()
         } else {
             clip(&text)
         },
-    }
+    )
 }
 
 pub fn from_screen_text(kind: AgentKind, text: &str) -> Option<DetectedError> {
@@ -143,10 +226,7 @@ pub fn from_screen_text(kind: AgentKind, text: &str) -> Option<DetectedError> {
         if !anchored {
             return None;
         }
-        Some(DetectedError {
-            kind: classify(line)?,
-            message: clip(line),
-        })
+        Some(detected(classify(line)?, clip(line)))
     })
 }
 
@@ -181,14 +261,14 @@ pub fn from_transcript_lines(lines: &str) -> Option<DetectedError> {
         .or_else(|| classify(&text))
         .or_else(|| last["error"].as_str().and_then(classify))
         .unwrap_or(ProviderErrorKind::Other);
-    Some(DetectedError {
+    Some(detected(
         kind,
-        message: if text.is_empty() {
+        if text.is_empty() {
             "API error".into()
         } else {
             clip(&text)
         },
-    })
+    ))
 }
 
 pub fn from_transcript(path: &Path) -> Option<DetectedError> {
@@ -246,6 +326,40 @@ mod tests {
             ProviderErrorKind::Server
         );
         assert!(from_screen_text(AgentKind::Claude, "compiled 503 files").is_none());
+    }
+
+    #[test]
+    fn real_bad_model_lines_classify_as_model() {
+        let codex = "ERROR: The 'no-such-model-xyz' model is not supported when using Codex with a ChatGPT account.";
+        assert_eq!(
+            from_screen_text(AgentKind::Codex, codex).unwrap().kind,
+            ProviderErrorKind::Model
+        );
+        let grok = "Couldn't set model 'x': Invalid params: \"unknown model id\". Run 'grok models' to see available models.";
+        assert_eq!(
+            from_screen_text(AgentKind::Grok, grok).unwrap().kind,
+            ProviderErrorKind::Model
+        );
+        let claude = "There's an issue with the selected model (x). It may not exist or you may not have access to it.";
+        assert_eq!(
+            from_screen_text(AgentKind::Claude, claude).unwrap().kind,
+            ProviderErrorKind::Model
+        );
+    }
+
+    #[test]
+    fn retry_after_reads_relative_durations() {
+        assert_eq!(
+            retry_after_secs("API Error (529) Retrying in 5 seconds"),
+            Some(5)
+        );
+        assert_eq!(
+            retry_after_secs("Rate limit reached. Try again in 2 hours 3 minutes."),
+            Some(7380)
+        );
+        assert_eq!(retry_after_secs("try again in 1h 30m"), Some(5400));
+        assert_eq!(retry_after_secs("retry-after: 30"), Some(30));
+        assert_eq!(retry_after_secs("resets 5pm"), None);
     }
 
     #[test]

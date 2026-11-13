@@ -172,6 +172,8 @@ mod tests {
                 cloud_mirroring: false,
                 suggested_prompt: None,
                 provider_error: None,
+                routed_from: None,
+                route_suggestion: None,
             })
             .unwrap();
 

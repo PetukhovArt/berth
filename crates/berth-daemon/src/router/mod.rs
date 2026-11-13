@@ -1,18 +1,25 @@
 pub mod detect;
+pub mod handoff;
+pub mod rules;
 
 use crate::registry::Daemon;
 use crate::status::HookEvent;
 use anyhow::{bail, Context, Result};
 use berth_core::protocol::SessionRef;
 use berth_core::ProviderErrorKind;
-use berth_core::{Agent, AgentId, AgentKind, AgentStatus, EntityId, ProviderError};
+use berth_core::{
+    Agent, AgentId, AgentKind, AgentStatus, EntityId, ProviderError, RouteSuggestion, UsageWindow,
+};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::time::SystemTime;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DetectedError {
     pub kind: ProviderErrorKind,
     pub message: String,
+    pub resets_at_ms: Option<i64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,16 +28,44 @@ enum Source {
     Screen,
 }
 
+type LoadedRules = (Option<SystemTime>, Arc<rules::RouterFile>);
+
 #[derive(Default)]
-pub struct ProviderErrors(Mutex<HashMap<AgentId, (ProviderError, Source)>>);
+pub struct ProviderErrors {
+    errors: Mutex<HashMap<AgentId, (ProviderError, Source)>>,
+    suggestions: Mutex<HashMap<AgentId, RouteSuggestion>>,
+    rules: Mutex<Option<LoadedRules>>,
+}
 
 impl ProviderErrors {
     pub fn get(&self, id: &AgentId) -> Option<ProviderError> {
-        self.0.lock().unwrap().get(id).map(|(e, _)| e.clone())
+        self.errors.lock().unwrap().get(id).map(|(e, _)| e.clone())
     }
 
-    fn set(&self, id: &AgentId, found: DetectedError, source: Source) -> bool {
-        let mut map = self.0.lock().unwrap();
+    fn suggestion(&self, id: &AgentId) -> Option<RouteSuggestion> {
+        self.suggestions.lock().unwrap().get(id).cloned()
+    }
+
+    fn set_suggestion(&self, id: &AgentId, suggestion: Option<RouteSuggestion>) -> bool {
+        let mut map = self.suggestions.lock().unwrap();
+        if map.get(id) == suggestion.as_ref() {
+            return false;
+        }
+        match suggestion {
+            Some(s) => map.insert(id.clone(), s),
+            None => map.remove(id),
+        };
+        true
+    }
+
+    fn set(
+        &self,
+        id: &AgentId,
+        found: DetectedError,
+        source: Source,
+        window_reset: Option<i64>,
+    ) -> bool {
+        let mut map = self.errors.lock().unwrap();
         let since_ms = match map.get(id) {
             Some((old, _)) if old.kind == found.kind => {
                 if old.message == found.message {
@@ -40,6 +75,10 @@ impl ProviderErrors {
             }
             _ => now_ms(),
         };
+        let resets_at_ms = found.resets_at_ms.or(match found.kind {
+            ProviderErrorKind::UsageLimit => window_reset,
+            _ => None,
+        });
         map.insert(
             id.clone(),
             (
@@ -47,6 +86,7 @@ impl ProviderErrors {
                     kind: found.kind,
                     since_ms,
                     message: found.message,
+                    resets_at_ms,
                 },
                 source,
             ),
@@ -55,7 +95,7 @@ impl ProviderErrors {
     }
 
     fn clear(&self, id: &AgentId, only: Option<Source>) -> bool {
-        let mut map = self.0.lock().unwrap();
+        let mut map = self.errors.lock().unwrap();
         match map.get(id) {
             Some((_, source)) if only.is_none_or(|o| o == *source) => {
                 map.remove(id);
@@ -64,9 +104,51 @@ impl ProviderErrors {
             _ => false,
         }
     }
+
+    fn router_file(&self) -> Arc<rules::RouterFile> {
+        let path = router_path();
+        let mtime = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
+        let mut cache = self.rules.lock().unwrap();
+        if let Some((at, file)) = cache.as_ref() {
+            if *at == mtime {
+                return file.clone();
+            }
+        }
+        let file = Arc::new(load_router_file(&path));
+        let mtime = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
+        *cache = Some((mtime, file.clone()));
+        file
+    }
 }
 
-fn now_ms() -> i64 {
+pub fn router_path() -> PathBuf {
+    berth_core::paths::config_path().with_file_name("router.toml")
+}
+
+fn load_router_file(path: &std::path::Path) -> rules::RouterFile {
+    match std::fs::read_to_string(path) {
+        Ok(text) => rules::parse(&text).unwrap_or_else(|err| {
+            tracing::warn!("ignoring {}: {err}", path.display());
+            rules::RouterFile::default()
+        }),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            let file = rules::RouterFile::default();
+            if let Err(err) = rules::render(&file)
+                .map_err(anyhow::Error::msg)
+                .and_then(|text| Ok(std::fs::write(path, text)?))
+            {
+                tracing::warn!("could not write {}: {err}", path.display());
+            }
+            file
+        }
+        Err(err) => {
+            tracing::warn!("could not read {}: {err}", path.display());
+            rules::RouterFile::default()
+        }
+    }
+}
+
+pub(crate) fn now_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
@@ -80,45 +162,39 @@ fn kind_label(kind: ProviderErrorKind) -> &'static str {
         ProviderErrorKind::Network => "network error",
         ProviderErrorKind::UsageLimit => "usage limit",
         ProviderErrorKind::Auth => "authentication error",
+        ProviderErrorKind::Model => "model not available",
         ProviderErrorKind::Other => "API error",
     }
 }
 
-pub fn handoff_prompt(
-    old: &Agent,
-    transcript: Option<&std::path::Path>,
-    error: Option<&ProviderError>,
-) -> String {
-    let reason = match error {
-        Some(e) => format!(" It stopped on a {} ({}).", kind_label(e.kind), e.message),
-        None => String::new(),
-    };
-    let conversation = match (transcript, old.session_id.as_deref()) {
-        (Some(path), _) => format!(" Its conversation is at {}.", path.display()),
-        (None, Some(sid)) => format!(
-            " Its conversation is {} session {sid}.",
-            old.kind.cli_program()
-        ),
-        (None, None) => String::new(),
-    };
-    format!(
-        "[berth] Continue the task the {} agent \"{}\" was working on in this worktree.{reason}{conversation} \
-Recover the task and its plan from the last turns of that conversation, run git status and git diff \
-to see what is already done, then carry on from where it stopped.",
-        old.kind.cli_program(),
-        old.name,
-    )
+fn window_reset(windows: &[UsageWindow], kind: AgentKind) -> Option<i64> {
+    windows
+        .iter()
+        .filter(|w| w.kind == kind && w.used_percent >= rules::FULL_PERCENT)
+        .map(|w| w.resets_at_ms)
+        .max()
 }
 
 impl Daemon {
-    fn set_provider_error(&self, id: &AgentId, found: DetectedError, source: Source) {
-        if self.provider_errors.set(id, found, source) {
-            let _ = self.broadcast_agent(id);
+    pub(crate) fn decorate_route(&self, agent: &mut Agent) {
+        agent.provider_error = self.provider_errors.get(&agent.id);
+        agent.route_suggestion = self.provider_errors.suggestion(&agent.id);
+        agent.routed_from = self.store.routed_from(&agent.id).ok().flatten();
+    }
+
+    fn set_provider_error(&self, agent: &Agent, found: DetectedError, source: Source) {
+        let reset = window_reset(&crate::usage_limits::cached(), agent.kind);
+        if self.provider_errors.set(&agent.id, found, source, reset) {
+            self.refresh_route_suggestion(agent);
+            let _ = self.broadcast_agent(&agent.id);
         }
     }
 
     fn clear_provider_error(&self, id: &AgentId, only: Option<Source>) {
         if self.provider_errors.clear(id, only) {
+            if let Ok(Some(agent)) = self.store.get_agent(id) {
+                self.refresh_route_suggestion(&agent);
+            }
             let _ = self.broadcast_agent(id);
         }
     }
@@ -127,6 +203,31 @@ impl Daemon {
         let session = self.session(&SessionRef::Agent(agent.id.clone()))?;
         let (_, bytes) = session.snapshot(None);
         detect::from_screen_text(agent.kind, &detect::screen_text(&bytes))
+    }
+
+    fn route_suggestion_for(&self, agent: &Agent) -> Option<RouteSuggestion> {
+        if agent.archived || self.store.was_routed_on(&agent.id).unwrap_or(false) {
+            return None;
+        }
+        let file = self.provider_errors.router_file();
+        let windows = crate::usage_limits::cached();
+        let error = self.provider_errors.get(&agent.id);
+        rules::suggest(
+            &file,
+            &rules::Facts {
+                kind: agent.kind,
+                model: agent.model.as_deref(),
+                status: agent.status,
+                error: error.as_ref(),
+                windows: &windows,
+                now_ms: now_ms(),
+            },
+        )
+    }
+
+    fn refresh_route_suggestion(&self, agent: &Agent) -> bool {
+        let suggestion = self.route_suggestion_for(agent);
+        self.provider_errors.set_suggestion(&agent.id, suggestion)
     }
 
     pub fn route_hook_event(
@@ -153,7 +254,7 @@ impl Daemon {
                     .or_else(|| self.screen_error(&agent));
                 if let Some(found) = found {
                     tracing::info!(agent = %id, kind = ?found.kind, "provider error at turn end");
-                    self.set_provider_error(id, found, Source::TurnEnd);
+                    self.set_provider_error(&agent, found, Source::TurnEnd);
                 }
             }
             _ => {}
@@ -165,17 +266,19 @@ impl Daemon {
             return;
         };
         for agent in agents.iter().filter(|a| !a.archived) {
-            if agent.status != AgentStatus::Running {
-                continue;
-            }
-            match self.screen_error(agent) {
-                Some(found) => {
-                    if self.provider_errors.get(&agent.id).is_none() {
-                        tracing::info!(agent = %agent.id, kind = ?found.kind, "provider error on screen");
+            if agent.status == AgentStatus::Running {
+                match self.screen_error(agent) {
+                    Some(found) => {
+                        if self.provider_errors.get(&agent.id).is_none() {
+                            tracing::info!(agent = %agent.id, kind = ?found.kind, "provider error on screen");
+                        }
+                        self.set_provider_error(agent, found, Source::Screen)
                     }
-                    self.set_provider_error(&agent.id, found, Source::Screen)
+                    None => self.clear_provider_error(&agent.id, Some(Source::Screen)),
                 }
-                None => self.clear_provider_error(&agent.id, Some(Source::Screen)),
+            }
+            if self.refresh_route_suggestion(agent) {
+                let _ = self.broadcast_agent(&agent.id);
             }
         }
     }
@@ -192,6 +295,7 @@ impl Daemon {
         let model = clean_model(model)?;
         self.store.set_agent_model(id, model.as_deref())?;
         self.provider_errors.clear(id, None);
+        self.provider_errors.set_suggestion(id, None);
         tracing::info!(agent = %id, model = ?model, "switch agent model");
         self.restart_agent(id).await
     }
@@ -204,17 +308,44 @@ impl Daemon {
     ) -> Result<EntityId> {
         let old = self.store.get_agent(id)?.context("agent not found")?;
         let model = clean_model(model)?;
-        let prompt = handoff_prompt(
-            &old,
-            self.transcript_path(id).as_deref(),
-            self.provider_errors.get(id).as_ref(),
-        );
+        let error = self.provider_errors.get(id);
+        let transcript = self.transcript_path(id);
+        let conversation = transcript
+            .as_deref()
+            .map(handoff::conversation)
+            .unwrap_or_default();
+        let worktree = self.store.get_worktree(&old.worktree_id)?;
+        let git = match &worktree {
+            Some(w) => handoff::git_state(&w.path).await,
+            None => None,
+        };
+        let task_note = self.store.task_note_for_agent(id).ok();
+        let reason = match &error {
+            Some(e) => kind_label(e.kind),
+            None => "the user moved it to another agent",
+        };
+        let prompt = handoff::handoff_prompt(&handoff::Handoff {
+            old: &old,
+            task_note,
+            conversation,
+            git,
+            transcript,
+            error: error.as_ref(),
+            reason,
+        });
         let mut spec = self.sibling_spec(id, Some(kind), &prompt)?;
         if model.is_some() {
             spec.model = model;
         }
         tracing::info!(agent = %id, to = ?kind, "continue agent in another kind");
-        self.create_agent(spec).await
+        let created = self.create_agent(spec).await?;
+        if let EntityId::Agent(new_id) = &created {
+            self.store.set_routed_from(new_id, id)?;
+            let _ = self.broadcast_agent(new_id);
+        }
+        self.provider_errors.set_suggestion(id, None);
+        let _ = self.broadcast_agent(id);
+        Ok(created)
     }
 }
 
@@ -238,6 +369,7 @@ mod tests {
         DetectedError {
             kind,
             message: message.into(),
+            resets_at_ms: None,
         }
     }
 
@@ -248,17 +380,32 @@ mod tests {
         assert!(errors.set(
             &id,
             found(ProviderErrorKind::Overloaded, "x"),
-            Source::TurnEnd
+            Source::TurnEnd,
+            None
         ));
         assert!(!errors.set(
             &id,
             found(ProviderErrorKind::Overloaded, "x"),
-            Source::TurnEnd
+            Source::TurnEnd,
+            None
         ));
         assert!(!errors.clear(&id, Some(Source::Screen)));
         assert!(errors.get(&id).is_some());
         assert!(errors.clear(&id, None));
         assert!(errors.get(&id).is_none());
+    }
+
+    #[test]
+    fn usage_limit_takes_the_full_window_reset() {
+        let errors = ProviderErrors::default();
+        let id = AgentId("a".into());
+        errors.set(
+            &id,
+            found(ProviderErrorKind::UsageLimit, "You've hit your limit"),
+            Source::TurnEnd,
+            Some(42),
+        );
+        assert_eq!(errors.get(&id).unwrap().resets_at_ms, Some(42));
     }
 
     #[test]

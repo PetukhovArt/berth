@@ -588,7 +588,7 @@ impl Daemon {
             let sessions = self.sessions.lock().unwrap();
             for a in &mut agents {
                 a.alive = sessions.contains_key(&SessionRef::Agent(a.id.clone()));
-                a.provider_error = self.provider_errors.get(&a.id);
+                self.decorate_route(a);
             }
             for t in &mut terminals {
                 t.alive = sessions.contains_key(&SessionRef::Terminal(t.id.clone()));
@@ -621,7 +621,7 @@ impl Daemon {
             .unwrap()
             .get(&SessionRef::Agent(id.clone()))
             .and_then(|session| session.suggested_prompt());
-        agent.provider_error = self.provider_errors.get(id);
+        self.decorate_route(&mut agent);
         Ok(agent)
     }
 
@@ -1019,6 +1019,8 @@ impl Daemon {
             cloud_mirroring: false,
             suggested_prompt: None,
             provider_error: None,
+            routed_from: None,
+            route_suggestion: None,
         };
         self.store.insert_agent(&agent)?;
         // Claude only, like `relocation_prompt`: whether `codex resume` and
@@ -1246,6 +1248,8 @@ impl Daemon {
             cloud_mirroring: false,
             suggested_prompt: None,
             provider_error: None,
+            routed_from: None,
+            route_suggestion: None,
         };
         self.store
             .insert_agent_with_launch_context(&agent, auto_title, pr_url.as_deref())?;
@@ -1352,6 +1356,8 @@ impl Daemon {
             cloud_mirroring: false,
             suggested_prompt: None,
             provider_error: None,
+            routed_from: None,
+            route_suggestion: None,
         };
         self.spawn_agent_session(&agent, &worktree, DEFAULT_COLS, DEFAULT_ROWS)?;
         tracing::info!(agent = %agent.id, kind = kind.as_str(), worktree = %worktree.branch, "prewarmed agent session");
@@ -3919,6 +3925,8 @@ mod tests {
                 cloud_mirroring: false,
                 suggested_prompt: None,
                 provider_error: None,
+                routed_from: None,
+                route_suggestion: None,
             })
             .unwrap();
     }
@@ -4106,6 +4114,8 @@ mod tests {
                     cloud_mirroring: false,
                     suggested_prompt: None,
                     provider_error: None,
+                    routed_from: None,
+                    route_suggestion: None,
                 },
                 true,
             )

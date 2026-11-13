@@ -46,15 +46,27 @@ const tone = computed(() => {
 const statusText = computed(() => {
   if (!status.value) return '';
   const failure = node.value?.providerError;
-  if (failure) return t(`agents.route.errorKind.${failure.kind}`);
-  const label = t(`agents.status.${status.value}`);
+  const label = failure ? t(`agents.route.errorKind.${failure.kind}`) : t(`agents.status.${status.value}`);
   const until = status.value === 'limit' ? node.value?.limitUntil : undefined;
   return until ? `${label} · ${t('agents.metrics.resets', { time: new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}` : label;
 });
 
 const place = computed(() => [project.value, worktree.value?.branch].filter(Boolean).join(' › '));
+const routedFrom = computed(() => {
+  const names: string[] = [];
+  const seen = new Set<string>();
+  let id = agent.value?.routed_from;
+  while (id && !seen.has(id)) {
+    seen.add(id);
+    const previous = entities.value?.agents.get(id);
+    if (!previous) break;
+    names.push(`${previous.name} (${KIND_LABEL[previous.kind]})`);
+    id = previous.routed_from;
+  }
+  return names.length ? t('agents.route.routedFrom', { name: names.join(' ← ') }) : undefined;
+});
 const meta = computed(() =>
-  [agent.value ? KIND_LABEL[agent.value.kind] : undefined, agent.value?.model, place.value, mr.value ? numberLabel(mr.value) : undefined].filter(Boolean).join(' · '),
+  [agent.value ? KIND_LABEL[agent.value.kind] : undefined, agent.value?.model, place.value, mr.value ? numberLabel(mr.value) : undefined, routedFrom.value].filter(Boolean).join(' · '),
 );
 
 watch(

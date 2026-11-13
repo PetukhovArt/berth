@@ -216,6 +216,10 @@ pub struct Agent {
     pub suggested_prompt: Option<String>,
     #[serde(default)]
     pub provider_error: Option<ProviderError>,
+    #[serde(default)]
+    pub routed_from: Option<AgentId>,
+    #[serde(default)]
+    pub route_suggestion: Option<RouteSuggestion>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -226,6 +230,7 @@ pub enum ProviderErrorKind {
     Network,
     UsageLimit,
     Auth,
+    Model,
     Other,
 }
 
@@ -234,6 +239,26 @@ pub struct ProviderError {
     pub kind: ProviderErrorKind,
     pub since_ms: i64,
     pub message: String,
+    #[serde(default)]
+    pub resets_at_ms: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum RouteAction {
+    SwitchModel {
+        model: Option<String>,
+    },
+    ContinueIn {
+        kind: AgentKind,
+        model: Option<String>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RouteSuggestion {
+    pub rule: String,
+    pub action: RouteAction,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

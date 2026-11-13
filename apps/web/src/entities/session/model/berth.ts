@@ -30,9 +30,13 @@ type Agent = {
   alive: boolean;
   suggested_prompt?: string | null;
   provider_error?: ProviderError | null;
+  routed_from?: string | null;
+  route_suggestion?: RouteSuggestion | null;
 };
-type ProviderErrorKind = 'overloaded' | 'server' | 'network' | 'usage_limit' | 'auth' | 'other';
-export type ProviderError = { kind: ProviderErrorKind; since_ms: number; message: string };
+type ProviderErrorKind = 'overloaded' | 'server' | 'network' | 'usage_limit' | 'auth' | 'model' | 'other';
+export type ProviderError = { kind: ProviderErrorKind; since_ms: number; message: string; resets_at_ms?: number | null };
+type RouteAction = { type: 'switch_model'; model: string | null } | { type: 'continue_in'; kind: AgentKind; model: string | null };
+type RouteSuggestion = { rule: string; action: RouteAction };
 type Terminal = { id: string; worktree_id: string; name: string; sort_order: number; alive: boolean; session_id?: string | null };
 
 type Entity = { Workspace: Workspace } | { Project: Project } | { Worktree: Worktree } | { Agent: Agent } | { Terminal: Terminal } | { Link: unknown };
@@ -57,7 +61,7 @@ type WatchEvent =
 export type SessionEvent = { type: 'reset'; data: string } | { type: 'output'; data: string } | { type: 'exited'; exit_code: number | null };
 
 export type SessionStatus = AgentStatus | 'shell' | 'closed' | 'limit';
-export type SessionNode = { key: string; id: string; ref: SessionRef; name: string; status: SessionStatus; unseen: boolean; alive: boolean; limitUntil?: number; providerError?: ProviderError };
+export type SessionNode = { key: string; id: string; ref: SessionRef; name: string; status: SessionStatus; unseen: boolean; alive: boolean; limitUntil?: number; providerError?: ProviderError; suggestion?: RouteSuggestion };
 export type WorktreeNode = { id: string; path: string; branch: string; main: boolean; sessions: SessionNode[]; archived: SessionNode[] };
 type ProjectNode = { id: string; name: string; worktrees: WorktreeNode[] };
 type WorkspaceNode = { id: string; name: string; projects: ProjectNode[] };
@@ -147,7 +151,8 @@ function agentNode(agent: Agent): SessionNode {
   const ref = { Agent: agent.id };
   const until = agent.status === 'finished' && agent.alive ? limitUntil(agent.kind) : null;
   const node: SessionNode = { key: sessionKey(ref), id: agent.id, ref, name: agent.name, status: agent.status, unseen: agent.unseen, alive: agent.alive };
-  if (agent.provider_error) return { ...node, status: 'limit', providerError: agent.provider_error };
+  if (agent.route_suggestion) node.suggestion = agent.route_suggestion;
+  if (agent.provider_error) return { ...node, status: 'limit', providerError: agent.provider_error, limitUntil: agent.provider_error.resets_at_ms ?? undefined };
   return until === null ? node : { ...node, status: 'limit', limitUntil: until };
 }
 
@@ -375,6 +380,14 @@ export async function switchAgentModel(id: string, model: string | null): Promis
 
 export function continueAgentIn(id: string, kind: AgentKind, model: string | null): Promise<EntityId | null> {
   return acknowledged({ ContinueAgentIn: { id, kind, model } });
+}
+
+export async function applyRouteSuggestion(id: string, action: RouteAction): Promise<EntityId | null> {
+  if (action.type === 'switch_model') {
+    await switchAgentModel(id, action.model);
+    return null;
+  }
+  return continueAgentIn(id, action.kind, action.model);
 }
 
 export async function archiveAgent(id: string): Promise<void> {

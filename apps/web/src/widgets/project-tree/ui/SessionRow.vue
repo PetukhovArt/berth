@@ -4,7 +4,7 @@ import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
 import { VButton, VContextMenu, VInputText } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
-import { externalStatusLabel, sessionDot, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, type SessionNode, type SessionStatus, useAction, StatusIcon } from '../../../entities/session';
+import { externalStatusLabel, sessionDot, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, type SessionStatus, useAction, StatusIcon } from '../../../entities/session';
 import { MoveAgentDialog } from '../../../features/move-agent';
 
 import { UiButton } from '../../../shared/ui/UiButton';
@@ -24,6 +24,24 @@ const mode = shallowRef<Mode>('idle');
 const draft = shallowRef('');
 const action = useAction();
 const moving = shallowRef(false);
+const dock = useSessionDock();
+const suggestionText = computed(() => {
+  const route = props.session.suggestion?.action;
+  if (!route) return '';
+  if (route.type === 'switch_model') return t('agents.route.suggestSwitch', { model: route.model ?? t('agents.route.defaultModel') });
+  return t('agents.route.suggestContinue', { kind: route.model ? `${route.kind}:${route.model}` : route.kind });
+});
+
+function applySuggestion() {
+  const session = props.session.ref;
+  const route = props.session.suggestion?.action;
+  if (!('Agent' in session) || !route) return;
+  void action.run(async () => {
+    const created = entitySessionRef(await applyRouteSuggestion(session.Agent, route));
+    if (created) dock.openWhenListed(created);
+  });
+}
+
 const movableAgent = computed(() => ('Agent' in props.session.ref ? props.session.ref.Agent : null));
 
 const menuItems = computed<MenuAction[]>(() => {
@@ -111,6 +129,15 @@ async function confirmDelete() {
       </UiButton>
       <UiButton v-if="linked" class="more conversation" :title="t('workbench.external.open')" :aria-label="t('workbench.external.open')" data-testid="session-open-conversation" @click="emit('open-conversation')"><MessageSquare :size="14" /></UiButton>
       <UiButton class="more" :title="t('agents.session.actions')" :aria-label="t('agents.session.actions')" aria-haspopup="menu" data-testid="session-menu" @click="showMenu"><Ellipsis :size="14" /></UiButton>
+      <UiButton
+        v-if="session.suggestion"
+        class="suggestion"
+        :title="t('agents.route.suggestTitle', { rule: session.suggestion.rule })"
+        :disabled="action.busy.value"
+        data-testid="session-route-suggestion"
+        @click="applySuggestion"
+        >{{ suggestionText }}</UiButton
+      >
     </template>
     <VContextMenu ref="menu" :model="menuItems">
       <template #item="{ item, props: itemProps }">
@@ -230,6 +257,23 @@ async function confirmDelete() {
   gap: var(--vr-space-1) var(--vr-space-2);
   padding: var(--vr-space-1) var(--vr-space-2) var(--vr-space-1) var(--vr-space-5);
   font-size: var(--vr-font-size-xs);
+}
+
+.suggestion {
+  display: block;
+  margin: 0 0 var(--vr-space-1) calc(var(--vr-space-5) + 19px);
+  padding: 1px var(--vr-space-2);
+  font: inherit;
+  font-size: var(--vr-font-size-2xs);
+  color: var(--vr-status-limit);
+  background: var(--vr-color-surface-muted);
+  border: 0;
+  border-radius: var(--vr-radius-sm);
+  cursor: pointer;
+}
+
+.suggestion:hover {
+  color: var(--vr-color-text);
 }
 
 .row-error {

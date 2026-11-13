@@ -320,6 +320,12 @@ const MIGRATIONS: &[&str] = &[
       PRIMARY KEY (agent_id, seq)
     );
     ",
+    "
+    CREATE TABLE agent_routes (
+      agent_id    TEXT PRIMARY KEY REFERENCES agents(id) ON DELETE CASCADE,
+      routed_from TEXT NOT NULL
+    );
+    ",
 ];
 
 pub struct Store {
@@ -1092,6 +1098,36 @@ impl Store {
         Ok(())
     }
 
+    pub fn set_routed_from(&self, id: &AgentId, from: &AgentId) -> Result<()> {
+        self.conn.lock().unwrap().execute(
+            "INSERT OR REPLACE INTO agent_routes (agent_id, routed_from) VALUES (?1, ?2)",
+            params![id.as_str(), from.as_str()],
+        )?;
+        Ok(())
+    }
+
+    pub fn routed_from(&self, id: &AgentId) -> Result<Option<AgentId>> {
+        let from = self
+            .conn
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT routed_from FROM agent_routes WHERE agent_id = ?1",
+                params![id.as_str()],
+                |r| r.get::<_, String>(0),
+            )
+            .optional()?;
+        Ok(from.map(AgentId))
+    }
+
+    pub fn was_routed_on(&self, id: &AgentId) -> Result<bool> {
+        Ok(self.conn.lock().unwrap().query_row(
+            "SELECT EXISTS(SELECT 1 FROM agent_routes WHERE routed_from = ?1)",
+            params![id.as_str()],
+            |r| r.get(0),
+        )?)
+    }
+
     pub fn set_agent_model(&self, id: &AgentId, model: Option<&str>) -> Result<()> {
         self.conn.lock().unwrap().execute(
             "UPDATE agents SET model = ?2 WHERE id = ?1",
@@ -1550,6 +1586,8 @@ fn row_to_agent(r: &rusqlite::Row) -> rusqlite::Result<Agent> {
         cloud_mirroring: false,
         suggested_prompt: None,
         provider_error: None,
+        routed_from: None,
+        route_suggestion: None,
     })
 }
 
@@ -1636,6 +1674,8 @@ mod tests {
             cloud_mirroring: false,
             suggested_prompt: None,
             provider_error: None,
+            routed_from: None,
+            route_suggestion: None,
         };
         let pr_url = "https://github.com/PetukhovArt/berth/pull/42";
         store
@@ -1660,6 +1700,8 @@ mod tests {
             cloud_mirroring: false,
             suggested_prompt: None,
             provider_error: None,
+            routed_from: None,
+            route_suggestion: None,
         };
         store.insert_agent(&codex_agent).unwrap();
         let cursor_agent = Agent {
@@ -1681,6 +1723,8 @@ mod tests {
             cloud_mirroring: false,
             suggested_prompt: None,
             provider_error: None,
+            routed_from: None,
+            route_suggestion: None,
         };
         store.insert_agent(&cursor_agent).unwrap();
 
@@ -2181,6 +2225,8 @@ mod tests {
             cloud_mirroring: false,
             suggested_prompt: None,
             provider_error: None,
+            routed_from: None,
+            route_suggestion: None,
         };
 
         // Default-named session: pending until the agent titles it, and the
@@ -2331,6 +2377,8 @@ mod tests {
                     cloud_mirroring: false,
                     suggested_prompt: None,
                     provider_error: None,
+                    routed_from: None,
+                    route_suggestion: None,
                 })
                 .unwrap();
         }
@@ -2399,6 +2447,8 @@ mod tests {
                 cloud_mirroring: false,
                 suggested_prompt: None,
                 provider_error: None,
+                routed_from: None,
+                route_suggestion: None,
             };
             store.insert_agent(&agent).unwrap();
             agent.id
@@ -2497,6 +2547,8 @@ mod tests {
             cloud_mirroring: false,
             suggested_prompt: None,
             provider_error: None,
+            routed_from: None,
+            route_suggestion: None,
         };
         store.insert_agent(&agent).unwrap();
         (project.id, worktree.id, agent.id)

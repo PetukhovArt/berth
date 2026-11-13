@@ -64,6 +64,36 @@ file or a missing key means the default.
 | `channel_chain_limit` | `4` | how many Agent-authored messages in a row a channel delivers to Sessions before it stops, so two Agents cannot loop |
 | `git_init_on_create` | `true` | `git init` a directory that `Add Project` creates because it did not exist |
 
+## Router rules
+
+`router.toml`, beside `config.json`, says what berth suggests when an Agent hits a provider error
+or a usage limit. The daemon writes the default file on first start and rereads it when it changes.
+Suggestions show under the Agent's row in the sidebar; nothing switches until you click one.
+
+```toml
+schema_version = 1
+mode = "suggest"
+fallback = ["claude", "codex", "grok"]
+
+[[rule]]
+id = "fallback"
+name = "Next agent in the fallback chain"
+enabled = true
+when = { any = [{ provider_error = { kinds = ["usage_limit", "overloaded", "server"] } }, { limit_used = { pct = 95.0 } }] }
+then = [{ next_in_chain = {} }]
+```
+
+`fallback` entries are `kind` or `kind:model`. `next_in_chain` suggests the first entry after the
+Agent's own one, skipping agents whose usage window is at 95% or more, and never wraps around to the
+start. Conditions are `all`, `any`, `not`, `provider_error` (`kinds`, `for_secs`), `limit_used`
+(`pct`, `window_minutes`), `status`, `kind` and `model`. Actions are `next_in_chain`,
+`switch_model = { model = "sonnet" }` and `continue_in = { kind = "codex", model = "..." }`. A
+model downgrade such as opus to sonnet happens only through a rule you write, for example
+`when = { all = [{ model = ["opus"] }, { provider_error = { kinds = ["overloaded"], for_secs = 60 } }] }`
+with `then = [{ switch_model = { model = "sonnet" } }]`. A condition or action berth does not know
+never matches, and it is kept as written when the file is saved. A file with a newer
+`schema_version` is ignored in favour of the default rule.
+
 ## Desktop app settings
 
 The desktop app keeps its own settings in `~/.berth/settings.json` and its key bindings in

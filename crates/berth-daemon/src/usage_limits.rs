@@ -14,6 +14,22 @@ const USAGE_URL: &str = "https://api.anthropic.com/api/oauth/usage";
 
 static CACHE: Mutex<Option<(Instant, Vec<UsageWindow>)>> = Mutex::new(None);
 
+pub fn cached() -> Vec<UsageWindow> {
+    let now = now_ms();
+    CACHE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .as_ref()
+        .map(|(_, windows)| {
+            windows
+                .iter()
+                .filter(|w| w.resets_at_ms > now)
+                .cloned()
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 pub fn read() -> Vec<UsageWindow> {
     let mut cache = CACHE.lock().unwrap_or_else(|e| e.into_inner());
     if let Some((at, windows)) = cache.as_ref() {

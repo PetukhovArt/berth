@@ -426,6 +426,8 @@ mod tests {
             cloud_mirroring: false,
             suggested_prompt: None,
             provider_error: None,
+            routed_from: None,
+            route_suggestion: None,
         };
         store
             .insert_agent_with_auto_title(&agent("pending"), true)
