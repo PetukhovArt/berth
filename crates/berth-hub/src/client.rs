@@ -1,4 +1,4 @@
-use crate::store::{ChannelSummary, Event};
+use crate::store::{ChannelSummary, Event, Mention};
 use anyhow::{anyhow, bail, Context, Result};
 use serde_json::{json, Value};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -115,6 +115,11 @@ impl HubClient {
             )
             .await?;
         Ok(serde_json::from_value(v)?)
+    }
+
+    pub async fn mentions(&self, after: i64) -> Result<Vec<Mention>> {
+        let path = format!("/mentions?after={after}");
+        Ok(serde_json::from_value(self.call("GET", &path, None).await?)?)
     }
 
     pub async fn read(&self, channel: &str, after: i64, as_agent: Option<&str>) -> Result<Vec<Event>> {

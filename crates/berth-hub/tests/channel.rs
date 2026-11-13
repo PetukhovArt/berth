@@ -86,3 +86,38 @@ async fn requests_without_approval_or_scope_are_refused() {
     let (_ann, reader) = person(&url, "ann", &["read"]).await;
     assert!(reader.create_channel("x").await.is_err());
 }
+
+#[tokio::test]
+async fn a_mention_reaches_only_the_owner_of_that_agent_and_counts_the_agent_chain() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_hub, url) = start(dir.path()).await;
+    let (_a, ann) = person(&url, "ann", &["read", "post", "create"]).await;
+    let (bob_id, bob) = person(&url, "bob", &["read", "post"]).await;
+    ann.create_channel("PROJ-12").await.unwrap();
+    ann.add_member("PROJ-12", &bob_id).await.unwrap();
+    let a = ann.agent("agent-a").await.unwrap();
+    let b = bob.agent("agent-b").await.unwrap();
+
+    bob.post("PROJ-12", "@agent-a please look", None).await.unwrap();
+    ann.post("PROJ-12", "@agent-a do it", None).await.unwrap();
+    ann.post("PROJ-12", "nobody mentioned here", None).await.unwrap();
+    let seen = ann.mentions(0).await.unwrap();
+    assert_eq!(seen.len(), 2);
+    assert_eq!((seen[0].agent.as_str(), seen[0].from_owner, seen[0].chain), (a.as_str(), false, 0));
+    assert_eq!((seen[1].agent_name.as_str(), seen[1].from_owner), ("agent-a", true));
+    assert!(bob.mentions(0).await.unwrap().is_empty());
+    assert!(ann.mentions(seen[1].event.seq).await.unwrap().is_empty());
+
+    bob.post("PROJ-12", "@agent-a from my agent", Some(&b)).await.unwrap();
+    ann.post("PROJ-12", "@agent-b and back", Some(&a)).await.unwrap();
+    bob.post("PROJ-12", "@agent-a again", Some(&b)).await.unwrap();
+    let chains: Vec<u32> = ann.mentions(seen[1].event.seq).await.unwrap().iter().map(|m| m.chain).collect();
+    assert_eq!(chains, [1, 3]);
+    let back = bob.mentions(0).await.unwrap();
+    assert_eq!(back.len(), 1);
+    assert_eq!(back[0].chain, 2);
+
+    ann.post("PROJ-12", "stop", None).await.unwrap();
+    bob.post("PROJ-12", "@agent-a human again", None).await.unwrap();
+    assert_eq!(ann.mentions(0).await.unwrap().last().unwrap().chain, 0);
+}

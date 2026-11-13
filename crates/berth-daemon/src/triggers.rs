@@ -20,8 +20,8 @@ pub const PROMPT_MAX_BYTES: usize = 16 * 1024;
 pub const NAME_MAX_CHARS: usize = 80;
 pub const MIN_REPEAT_SECS: u64 = 60;
 const SCHEDULER_TICK: Duration = Duration::from_secs(5);
-const BOOT_GRACE: Duration = Duration::from_secs(6);
-const PASTE_GAP: Duration = Duration::from_millis(150);
+pub(crate) const BOOT_GRACE: Duration = Duration::from_secs(6);
+pub(crate) const PASTE_GAP: Duration = Duration::from_millis(150);
 const MIN_WEBHOOK_GAP: Duration = Duration::from_secs(5);
 const DELIVERY_MEMORY: usize = 512;
 const WEBHOOK_BODY_LIMIT: usize = 64 * 1024;
@@ -46,7 +46,7 @@ fn next_run(run_at: i64, repeat_secs: Option<u64>, now: i64) -> Option<i64> {
     Some(run_at + periods_behind * period)
 }
 
-fn paste(prompt: &str) -> Vec<u8> {
+pub(crate) fn paste(prompt: &str) -> Vec<u8> {
     format!("\x1b[200~{prompt}\x1b[201~").into_bytes()
 }
 

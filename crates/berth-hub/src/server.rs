@@ -31,6 +31,7 @@ pub async fn serve(db: &Path, bind: SocketAddr, admin_token: Option<String>) -> 
         .route("/channels", get(channels).post(create_channel))
         .route("/channels/members", post(add_member))
         .route("/events", get(read).post(post_event))
+        .route("/mentions", get(mentions))
         .with_state(state);
     let listener = tokio::net::TcpListener::bind(bind).await?;
     let addr = listener.local_addr()?;
@@ -191,10 +192,35 @@ async fn post_event(State(s): State<Shared>, headers: HeaderMap, Json(b): Json<P
     let store = s.lock().unwrap();
     let m = member(&store, &headers, "post")?;
     let author = store.acting_member(&m, b.as_agent.as_deref()).map_err(denied)?;
+    let mut tags = b.tags.clone();
+    for tag in store.mention_tags(&b.channel, &b.content).map_err(denied)? {
+        if !tags.contains(&tag) {
+            tags.push(tag);
+        }
+    }
     let event = store
-        .post(&b.channel, &author, KIND_MESSAGE, &b.content, &b.tags)
+        .post(&b.channel, &author, KIND_MESSAGE, &b.content, &tags)
         .map_err(denied)?;
     Ok(Json(json!(event)))
+}
+
+#[derive(Deserialize)]
+struct MentionsQuery {
+    #[serde(default)]
+    after: i64,
+}
+
+async fn mentions(
+    State(s): State<Shared>,
+    headers: HeaderMap,
+    Query(q): Query<MentionsQuery>,
+) -> Reply {
+    let store = s.lock().unwrap();
+    let m = member(&store, &headers, "read")?;
+    let rows = store
+        .mentions(&m, q.after)
+        .map_err(|e| fail(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    Ok(Json(json!(rows)))
 }
 
 #[derive(Deserialize)]

@@ -60,6 +60,7 @@ file or a missing key means the default.
 | `webhook_expose` | `false` | listen on all interfaces instead of `127.0.0.1` only; put it behind something you trust, since the secret is the only check |
 | `hub_url` | none | the team hub the `berth channel` commands talk to, like `http://hub.example:7843` |
 | `hub_token` | none | this device's token on the hub, from `berth hub pair` once an admin ran `berth hub approve` |
+| `channel_chain_limit` | `4` | how many Agent-authored messages in a row a channel delivers to Sessions before it stops, so two Agents cannot loop |
 | `git_init_on_create` | `true` | `git init` a directory that `Add Project` creates because it did not exist |
 
 ## Desktop app settings

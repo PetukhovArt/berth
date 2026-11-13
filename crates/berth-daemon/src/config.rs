@@ -36,6 +36,7 @@ pub struct Config {
     pub webhook_expose: bool,
     pub hub_url: Option<String>,
     pub hub_token: Option<String>,
+    pub channel_chain_limit: u32,
 }
 
 impl Default for Config {
@@ -52,6 +53,7 @@ impl Default for Config {
             webhook_expose: false,
             hub_url: None,
             hub_token: None,
+            channel_chain_limit: 4,
         }
     }
 }

@@ -4,7 +4,7 @@ use berth_core::{AgentId, ChannelEvent, ChannelSummary};
 use berth_hub::client::HubClient;
 use serde::{de::DeserializeOwned, Serialize};
 
-fn hub() -> Result<HubClient> {
+pub(crate) fn hub() -> Result<HubClient> {
     let config = Config::load();
     let url = config
         .hub_url

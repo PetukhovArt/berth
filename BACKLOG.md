@@ -152,6 +152,15 @@ re-approving or narrowing a device's scopes.
 
 Second slice, Agents take part:
 
+Built so far (#50), in `crates/berth-daemon/src/team.rs` and the hub's `GET /mentions`: delivery
+into the PTY and the Agent-to-agent chain limit (`channel_chain_limit`). A message that writes
+`@<agent id>` tags the Agent; the Daemon polls the hub every 5 seconds, types the message when the
+Agent is Finished or Fresh, and drops a message whose Agent chain is longer than the limit. Still
+missing: Promote, Grant, slash commands, remote approvals, mentioning by an Agent's display name
+rather than its id, registering every local Agent on the hub (an Agent is mentionable only after
+its first `berth channel` call), and mentions made while the Daemon was down (the cursor starts at
+the hub's head).
+
 - Delivery into the PTY: a message that mentions an Agent is typed into its Session by the Daemon
   when the Agent is idle, as an instruction if the author is the owner and as quoted information
   otherwise.

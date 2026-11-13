@@ -1,6 +1,7 @@
 pub mod branches;
 pub mod checkpoints;
 pub mod channels;
+pub mod team;
 pub mod cli_title;
 pub mod config;
 pub mod enter_project;
@@ -159,6 +160,7 @@ async fn serve() -> Result<()> {
     }
 
     tokio::spawn(daemon.clone().run_scheduler());
+    tokio::spawn(daemon.clone().run_channel_delivery());
     if let Err(e) = triggers::start_webhooks(daemon.clone(), &config::Config::load()).await {
         tracing::warn!(error = %e, "webhook listener not started");
     }

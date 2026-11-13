@@ -27,6 +27,18 @@ pub struct ChannelSummary {
     pub unread: i64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Mention {
+    pub event: Event,
+    pub agent: String,
+    pub agent_name: String,
+    pub from_owner: bool,
+    pub chain: u32,
+}
+
+pub const MENTION_TAG: &str = "p";
+const CHAIN_SCAN: i64 = 100;
+
 #[derive(Debug, Clone)]
 pub struct Member {
     pub id: String,
@@ -305,6 +317,80 @@ impl Store {
             })
         })?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    pub fn mention_tags(&self, key: &str, content: &str) -> Result<Vec<Vec<String>>> {
+        let mut tags: Vec<Vec<String>> = Vec::new();
+        for word in content.split('@').skip(1) {
+            let name: String = word
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+                .collect();
+            if name.is_empty() {
+                continue;
+            }
+            let id: Option<String> = self
+                .db
+                .query_row(
+                    "SELECT id FROM members WHERE kind='agent' AND name=?1",
+                    [&name],
+                    |r| r.get(0),
+                )
+                .optional()?;
+            if let Some(id) = id {
+                let tag = vec![MENTION_TAG.to_string(), id];
+                if self.can_access(key, &tag[1])? && !tags.contains(&tag) {
+                    tags.push(tag);
+                }
+            }
+        }
+        Ok(tags)
+    }
+
+    fn agent_chain(&self, channel: &str, seq: i64) -> Result<u32> {
+        let mut st = self.db.prepare(
+            "SELECT m.kind FROM events e JOIN members m ON m.id = e.author
+             WHERE e.channel = ?1 AND e.seq <= ?2 ORDER BY e.seq DESC LIMIT ?3",
+        )?;
+        let kinds = st.query_map(params![channel, seq, CHAIN_SCAN], |r| r.get::<_, String>(0))?;
+        let mut n = 0;
+        for kind in kinds {
+            if kind? != "agent" {
+                break;
+            }
+            n += 1;
+        }
+        Ok(n)
+    }
+
+    pub fn mentions(&self, caller: &Member, after: i64) -> Result<Vec<Mention>> {
+        let events =
+            self.events_where("e.seq > ?1 AND e.tags LIKE '%\"p\"%'", params![after])?;
+        let mut out = Vec::new();
+        for event in events {
+            for tag in event.tags.iter().filter(|t| t.len() == 2 && t[0] == MENTION_TAG) {
+                let agent = &tag[1];
+                let Some(owner) = self.agent_owner(agent)? else {
+                    continue;
+                };
+                if owner != caller.id || !self.can_access(&event.channel, agent)? {
+                    continue;
+                }
+                let agent_name: String = self.db.query_row(
+                    "SELECT name FROM members WHERE id=?1",
+                    [agent],
+                    |r| r.get(0),
+                )?;
+                out.push(Mention {
+                    from_owner: event.author == owner,
+                    chain: self.agent_chain(&event.channel, event.seq)?,
+                    agent: agent.clone(),
+                    agent_name,
+                    event: event.clone(),
+                });
+            }
+        }
+        Ok(out)
     }
 
     pub fn read_after(&self, key: &str, reader: &Member, after: i64) -> Result<Vec<Event>> {
