@@ -1,23 +1,23 @@
 # Synced to GitHub by .github/workflows/labels.yml; edit here, not in the UI.
-- { name: bug, color: "d73a4a", description: berth does something wrong }
-- { name: enhancement, color: "a2eeef", description: A new capability or a change to one }
-- { name: documentation, color: "0075ca", description: README or docs/ only }
-- { name: question, color: "d876e3", description: A question, not a defect }
-- { name: needs-triage, color: "fbca04", description: Not looked at yet }
-- { name: needs-info, color: "fef2c0", description: Waits on the reporter }
-- { name: confirmed, color: "0e8a16", description: Reproduced or accepted; ready to work }
-- { name: fixed-on-main, color: "c2e0c6", description: Fixed in a commit on main, not released yet }
-- { name: duplicate, color: "cfd3d7", description: Already reported }
-- { name: wontfix, color: "ffffff", description: Out of scope }
-- { name: invalid, color: "e4e669", description: Not a berth defect }
-- { name: design, color: "c5def5", description: Restyle to the Berth MVP design }
-- { name: feature, color: "a2eeef", description: New behaviour from the Berth MVP design }
-- { name: phone, color: "fbca04", description: Phone web client }
-- { name: backlog, color: "ededed", description: Idea from BACKLOG.md }
-- { name: "area: daemon", color: "5319e7", description: The daemon, PTYs, the socket and the database }
-- { name: "area: desktop", color: "5319e7", description: The desktop app and its UI }
-- { name: "area: cli", color: "5319e7", description: berth commands Agents and people run }
-- { name: "area: hooks", color: "5319e7", description: Managed Hooks and Agent integration }
-- { name: "area: remote", color: "5319e7", description: Remote access and the phone web client }
-- { name: "os: windows", color: "bfdadc", description: Only on Windows }
-- { name: "os: unix", color: "bfdadc", description: Only on macOS or Linux }
+- { name: bug, color: "d73a4a", description: "berth does something wrong" }
+- { name: enhancement, color: "a2eeef", description: "A new capability or a change to one" }
+- { name: documentation, color: "0075ca", description: "README or docs/ only" }
+- { name: question, color: "d876e3", description: "A question, not a defect" }
+- { name: needs-triage, color: "fbca04", description: "Not looked at yet" }
+- { name: needs-info, color: "fef2c0", description: "Waits on the reporter" }
+- { name: confirmed, color: "0e8a16", description: "Reproduced or accepted; ready to work" }
+- { name: fixed-on-main, color: "c2e0c6", description: "Fixed in a commit on main, not released yet" }
+- { name: duplicate, color: "cfd3d7", description: "Already reported" }
+- { name: wontfix, color: "ffffff", description: "Out of scope" }
+- { name: invalid, color: "e4e669", description: "Not a berth defect" }
+- { name: design, color: "c5def5", description: "Restyle to the Berth MVP design" }
+- { name: feature, color: "a2eeef", description: "New behaviour from the Berth MVP design" }
+- { name: phone, color: "fbca04", description: "Phone web client" }
+- { name: backlog, color: "ededed", description: "Idea from BACKLOG.md" }
+- { name: "area: daemon", color: "5319e7", description: "The daemon, PTYs, the socket and the database" }
+- { name: "area: desktop", color: "5319e7", description: "The desktop app and its UI" }
+- { name: "area: cli", color: "5319e7", description: "berth commands Agents and people run" }
+- { name: "area: hooks", color: "5319e7", description: "Managed Hooks and Agent integration" }
+- { name: "area: remote", color: "5319e7", description: "Remote access and the phone web client" }
+- { name: "os: windows", color: "bfdadc", description: "Only on Windows" }
+- { name: "os: unix", color: "bfdadc", description: "Only on macOS or Linux" }
