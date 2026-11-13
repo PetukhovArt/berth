@@ -99,12 +99,12 @@ pub enum Status {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct AgentSession {
-    harness: Harness,
+    pub(crate) harness: Harness,
     id: String,
-    cwd: String,
+    pub(crate) cwd: String,
     title: String,
     branch: Option<String>,
-    updated_at: u64,
+    pub(crate) updated_at: u64,
     status: Status,
     running: bool,
     host: Option<String>,
@@ -1009,7 +1009,7 @@ fn session_of(entry: &Entry, claim: Option<&Claim>, now: u64) -> AgentSession {
     }
 }
 
-fn collect(since_days: Option<u32>) -> Vec<AgentSession> {
+pub(crate) fn collect(since_days: Option<u32>) -> Vec<AgentSession> {
     let now = now_ms();
     let days = u64::from(since_days.unwrap_or(DEFAULT_DAYS).clamp(1, MAX_DAYS));
     let found = scan(now.saturating_sub(days * DAY_MS));

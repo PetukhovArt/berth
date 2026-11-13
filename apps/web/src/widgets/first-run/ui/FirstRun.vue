@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, shallowRef } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useAiAccounts, type AiStatus, type AiView } from '../../../shared/api/connectors/ai';
 import { ProjectActions } from '../../../features/manage-workspace';
-import { useBerth } from '../../../entities/session';
+import { addProject, useBerth } from '../../../entities/session';
+import { relativeTime } from '../../../entities/merge-request';
+import { describeError, useConnectors } from '../../../shared/api/connectors/api';
+import { historyProjects, type HistoryProject } from '../../../shared/api/fs';
+import { VButton } from '../../../shared/ui/kit';
+import UiInput from '../../../shared/ui/UiInput.vue';
 
 const STATUS = {
   signed_in: 'connectors.ai.status.signedIn',
@@ -22,11 +27,62 @@ const cli = computed(() => accounts.value.filter((a) => a.method === 'cli'));
 const hasSignedIn = computed(() => cli.value.some((a) => a.status === 'signed_in'));
 const workspaceId = computed(() => berth?.tree.value[0]?.id);
 
+const { connectors } = useConnectors();
+
+const found = shallowRef<HistoryProject[]>([]);
+const selected = shallowRef<Set<string>>(new Set());
+const adding = shallowRef(false);
+const addError = shallowRef<string | null>(null);
+
+const pathKey = (path: string) => path.replace(/[\\/]+$/, '').replace(/\\/g, '/').toLowerCase();
+const known = computed(() => new Set((berth?.tree.value ?? []).flatMap((w) => w.projects.flatMap((p) => p.worktrees.map((wt) => pathKey(wt.path))))));
+const projects = computed(() => found.value.filter((p) => !known.value.has(pathKey(p.path))));
+const forges = computed(() => connectors.value.filter((c) => (c.kind === 'github' || c.kind === 'gitlab') && c.status === 'ok'));
+
+const hostOf = (url: string) => {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+};
+const signedIn = (account: string | undefined) => (account ? t('workbench.firstRun.signedInAs', { account }) : t('workbench.firstRun.signedIn'));
+
+function toggle(path: string, on: boolean) {
+  const next = new Set(selected.value);
+  if (on) next.add(path);
+  else next.delete(path);
+  selected.value = next;
+}
+
+async function addSelected() {
+  const id = workspaceId.value;
+  if (!id || adding.value) return;
+  adding.value = true;
+  addError.value = null;
+  try {
+    for (const project of projects.value.filter((p) => selected.value.has(p.path))) {
+      await addProject(id, { path: project.path, name: null, createMissing: false });
+      toggle(project.path, false);
+    }
+  } catch (e) {
+    addError.value = describeError(e);
+  } finally {
+    adding.value = false;
+  }
+}
+
 const tone = (status: AiStatus) => (status === 'signed_in' ? 'ok' : status === 'rejected' || status === 'error' ? 'error' : 'idle');
 const state = (a: AiView) => (a.status === 'signed_in' && (a.account || a.plan) ? [a.account, a.plan].filter(Boolean).join(' · ') : t(STATUS[a.status]));
 
 onMounted(() => {
   void refresh();
+  historyProjects()
+    .then((list) => {
+      found.value = list;
+      selected.value = new Set(list.slice(0, 3).map((p) => p.path));
+    })
+    .catch(() => undefined);
 });
 </script>
 
@@ -42,6 +98,32 @@ onMounted(() => {
         <li v-for="a in cli" :key="a.kind" class="agent" :data-status="a.status" :data-testid="`first-run-agent-${a.kind}`">
           <span class="name">{{ a.label }}</span>
           <span class="state" :data-tone="tone(a.status)">{{ state(a) }}</span>
+        </li>
+      </ul>
+    </div>
+    <div v-if="projects.length" class="block">
+      <h2 class="title">{{ t('workbench.firstRun.projects') }} <span class="hint">{{ t('workbench.firstRun.projectsHint') }}</span></h2>
+      <ul class="agents" data-testid="first-run-projects">
+        <li v-for="p in projects" :key="p.path" class="agent" :data-testid="`first-run-project-${p.name}`">
+          <label class="pick">
+            <UiInput type="checkbox" :checked="selected.has(p.path)" :disabled="adding" :aria-label="p.name" data-testid="first-run-project-check" @change="toggle(p.path, ($event.target as HTMLInputElement).checked)" />
+            <span class="info">
+              <span class="name">{{ p.name }}</span>
+              <span class="path">{{ p.path }}</span>
+            </span>
+          </label>
+          <span class="state">{{ t('workbench.firstRun.conversations', { count: p.conversations }) }} · {{ relativeTime(new Date(p.last_active).toISOString()) }}</span>
+        </li>
+      </ul>
+      <p v-if="addError" class="error" data-testid="first-run-add-error">{{ addError }}</p>
+      <VButton :label="t('workbench.firstRun.addSelected')" size="small" :disabled="!selected.size || adding || !workspaceId" data-testid="first-run-add-selected" @click="addSelected" />
+    </div>
+    <div v-if="forges.length" class="block">
+      <h2 class="title">{{ t('workbench.firstRun.mergeRequests') }} <span class="hint">{{ t('workbench.firstRun.mergeRequestsHint') }}</span></h2>
+      <ul class="agents" data-testid="first-run-forges">
+        <li v-for="c in forges" :key="c.id" class="agent" :data-testid="`first-run-forge-${c.id}`">
+          <span class="name">{{ hostOf(c.base_url) }}</span>
+          <span class="state" data-tone="ok">{{ signedIn(c.account?.username) }}</span>
         </li>
       </ul>
     </div>
@@ -135,6 +217,38 @@ onMounted(() => {
 }
 
 .state[data-tone='error'] {
+  color: var(--vr-color-danger);
+}
+
+.hint {
+  font-weight: 400;
+  color: var(--vr-color-text-subtle);
+}
+
+.pick {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-3);
+  min-width: 0;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.path {
+  overflow: hidden;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-subtle);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.error {
+  margin: 0;
+  font-size: var(--vr-font-size-xs);
   color: var(--vr-color-danger);
 }
 

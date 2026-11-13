@@ -26,3 +26,6 @@ export async function fsWatch(path: string, onChange: (doc: FileDoc) => void): P
     void invoke<void>('fs_unwatch', { id }).catch(() => undefined);
   };
 }
+
+export type HistoryProject = { path: string; name: string; conversations: number; last_active: number; harnesses: ('claude' | 'codex')[] };
+export const historyProjects = () => invoke<HistoryProject[]>('history_projects');

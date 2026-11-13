@@ -311,6 +311,7 @@ pub fn run() {
             agent_session_watch,
             agent_session_transcript,
             jira_search,
+            history_projects,
             jira_issue,
             confluence_search,
             confluence_page,

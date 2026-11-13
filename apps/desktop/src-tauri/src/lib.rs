@@ -10,6 +10,8 @@ mod daemon_start;
 #[cfg(feature = "desktop")]
 mod desktop;
 pub mod files;
+mod git_step;
+mod history_projects;
 pub mod legacy;
 mod mr_checkout;
 pub mod platform;
