@@ -345,6 +345,7 @@ export const SETTINGS = {
       { value: 'localhost', label: 'remote.def.bind.localhost' },
       { value: 'lan', label: 'remote.def.bind.lan' },
       { value: 'tailscale', label: 'remote.def.bind.tailscale' },
+      { value: 'tailscale-https', label: 'remote.def.bind.tailscaleHttps' },
     ],
   },
   'app.sourceRepo': {
@@ -352,7 +353,6 @@ export const SETTINGS = {
     default: '',
     label: 'update.setting.label',
     description: 'update.setting.description',
-      { value: 'tailscale-https', label: 'remote.def.bind.tailscaleHttps' },
     category: 'app',
     placeholder: 'update.setting.placeholder',
   },
