@@ -6,6 +6,7 @@ import { sessionDot, StatusIcon, useBerth, useExternalSessions, type AgentKind, 
 import { knownMr, lookupMr, numberLabel } from '../../../entities/merge-request';
 import { SessionViewSwitch } from '../../../features/session-view-switch';
 import { GitStepButton } from '../../../features/git-step';
+import { OverlapChip } from '../../../features/overlaps';
 
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
 
@@ -69,6 +70,7 @@ watch(
           <StatusIcon class="icon" :status="status" :unseen="node.unseen" />
           {{ statusText }}
         </span>
+        <OverlapChip v-if="agent" :agent-id="agent.id" />
       </div>
       <div v-if="meta" class="meta" data-testid="session-header-meta">{{ meta }}</div>
     </div>

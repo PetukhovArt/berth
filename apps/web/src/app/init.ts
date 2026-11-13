@@ -10,6 +10,7 @@ import { useSettings } from '../shared/config/settings/store';
 import { initAttention } from '../features/attention';
 import { initTrackerWriteBack } from '../features/tracker-write-back';
 import { initArchiveOnMerge } from '../features/archive-on-merge';
+import { initOverlaps } from '../features/overlaps';
 import { initCleanup } from '../features/cleanup';
 import { initAutoUpdate, initUpdate } from '../features/update';
 import { initWorkTree } from '../features/work-tree';
@@ -32,6 +33,7 @@ export function initApp(): () => void {
   disposers.push(initAttention());
   disposers.push(initTrackerWriteBack());
   disposers.push(initArchiveOnMerge());
+  disposers.push(initOverlaps());
   disposers.push(initCleanup());
   disposers.push(initUpdate());
   disposers.push(initAutoUpdate());

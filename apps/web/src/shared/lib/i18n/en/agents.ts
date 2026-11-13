@@ -171,6 +171,10 @@ export const agents = {
       diff: 'Session: show changes',
     },
   },
+  overlap: {
+    label: 'Overlaps with {names}',
+    title: 'Also changing {modules}: {names}',
+  },
   changes: {
     refresh: 'Refresh',
     loading: 'Reading changes…',

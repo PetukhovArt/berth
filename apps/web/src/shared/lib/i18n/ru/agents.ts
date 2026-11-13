@@ -174,6 +174,10 @@ export const agents: Translation<typeof en> = {
       diff: 'Сессия: показать изменения',
     },
   },
+  overlap: {
+    label: 'Пересечение с {names}',
+    title: 'Тоже меняют {modules}: {names}',
+  },
   changes: {
     refresh: 'Обновить',
     loading: 'Читаю изменения…',
