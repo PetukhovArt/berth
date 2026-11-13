@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, shallowRef, useTemplateRef } from 'vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import BackBar from '../../../shared/ui/BackBar.vue';
+import { Search } from '../../../shared/ui/icons';
 import { paletteOpen, readContext } from '../../../shared/lib/commands/context';
 import { fuzzyScore } from '../../../shared/lib/fuzzy';
 import { shortcutLabel } from '../../../shared/lib/commands/keymap';
@@ -53,16 +54,19 @@ onMounted(() => input.value?.focus());
   <div class="overlay" data-testid="command-palette" @pointerdown.self="close(true)">
     <div class="panel vr-sheet" role="dialog" :aria-label="t('commands.palette.label')">
       <BackBar class="vr-phone-only" :title="t('commands.palette.label')" @back="close(true)" />
-      <UiInput
-        ref="input"
-        v-model="query"
-        class="query"
-        type="text"
-        :placeholder="t('commands.palette.placeholder')"
-        :aria-label="t('commands.palette.search')"
-        data-testid="command-palette-input"
-        @keydown="onKey"
-      />
+      <div class="search">
+        <Search :size="14" class="search-icon" />
+        <UiInput
+          ref="input"
+          v-model="query"
+          class="query"
+          type="text"
+          :placeholder="t('commands.palette.placeholder')"
+          :aria-label="t('commands.palette.search')"
+          data-testid="command-palette-input"
+          @keydown="onKey"
+        />
+      </div>
       <ul ref="list" v-auto-animate class="results vr-sheet-body" role="listbox">
         <li
           v-for="(action, position) in results"
@@ -76,8 +80,8 @@ onMounted(() => input.value?.focus());
           @pointermove="index = position"
           @click="choose(action)"
         >
-          <span class="category">{{ t(action.category) }}</span>
           <span class="title">{{ t(action.title) }}</span>
+          <span class="category">{{ t(action.category) }}</span>
           <kbd v-if="shortcutLabel(action.id)" class="shortcut vr-key-hint">{{ shortcutLabel(action.id) }}</kbd>
         </li>
         <li v-if="!results.length" class="none">{{ t('commands.palette.empty') }}</li>
@@ -93,8 +97,8 @@ onMounted(() => input.value?.focus());
   z-index: 1000;
   display: flex;
   justify-content: center;
-  padding-top: 14vh;
-  background: var(--vr-palette-black-a-40);
+  padding-top: 70px;
+  background: var(--vr-overlay);
 }
 
 .palette-enter-active {
@@ -116,23 +120,38 @@ onMounted(() => input.value?.focus());
 
 .panel {
   align-self: flex-start;
-  width: min(680px, 90%);
+  width: min(620px, 90%);
   overflow: hidden;
   background: var(--vr-color-surface-raised);
   border: 1px solid var(--vr-color-border);
-  border-radius: var(--vr-radius-lg);
+  border-radius: var(--vr-radius-xl);
   box-shadow: var(--vr-shadow-popover);
 }
 
-.query {
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-2);
+  height: 46px;
   box-sizing: border-box;
-  width: 100%;
-  padding: var(--vr-space-3) var(--vr-space-4);
+  padding: 0 var(--vr-space-4);
+  border-bottom: 1px solid var(--vr-color-border);
+}
+
+.search-icon {
+  flex: none;
+  color: var(--vr-color-text-subtle);
+}
+
+.query {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
   font: inherit;
+  font-size: var(--vr-font-size-sm);
   color: var(--vr-color-text);
   background: none;
   border: 0;
-  border-bottom: 1px solid var(--vr-color-border);
   outline: none;
 }
 
@@ -147,9 +166,10 @@ onMounted(() => input.value?.focus());
 .item {
   display: flex;
   align-items: center;
-  gap: var(--vr-space-3);
-  height: var(--vr-size-row);
-  padding: 0 var(--vr-space-3);
+  gap: 10px;
+  min-height: 36px;
+  box-sizing: border-box;
+  padding: var(--vr-space-1) 10px;
   white-space: nowrap;
   cursor: default;
   border-radius: var(--vr-radius-md);
@@ -157,13 +177,6 @@ onMounted(() => input.value?.focus());
 
 .item[data-current='true'] {
   background: var(--vr-color-nav-active);
-}
-
-.category {
-  flex: none;
-  min-width: 5rem;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-text-muted);
 }
 
 .title {
@@ -174,10 +187,16 @@ onMounted(() => input.value?.focus());
   text-overflow: ellipsis;
 }
 
+.category {
+  flex: none;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-muted);
+}
+
 .shortcut {
   flex: none;
   font-family: var(--vr-font-mono);
-  font-size: var(--vr-font-size-xs);
+  font-size: var(--vr-font-size-2xs);
   color: var(--vr-color-text-muted);
 }
 
