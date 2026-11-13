@@ -326,6 +326,12 @@ impl PtySession {
     }
 
     /// Ring snapshot for attach replay: (base_seq, bytes).
+    pub fn print_notice(&self, text: &str) {
+        let data = text.as_bytes().to_vec();
+        let seq = self.ring.lock().unwrap().append(&data);
+        let _ = self.events.send(PtyEvent::Output { seq, data });
+    }
+
     pub fn snapshot(&self, from_seq: Option<u64>) -> (u64, Vec<u8>) {
         self.ring.lock().unwrap().snapshot_from(from_seq)
     }

@@ -120,6 +120,7 @@
 - Removed the terminal UI: berth is the desktop app and its phone client, and the `berth` command runs the daemon and the commands agents use.
 - Removed `berth browser`, `berth ssh` and `berth tunnel`.
 - Removed the npm package; install the `berth` command with `install.sh` or `cargo`.
+- Fixed opening a Claude session that ended before its first turn: instead of `No conversation found` and a dead pane, berth starts a new conversation in the same worktree and says so in the terminal.
 
 ## 0.20.0 (2026-09-18)
 

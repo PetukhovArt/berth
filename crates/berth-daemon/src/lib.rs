@@ -20,6 +20,7 @@ pub mod project_pins;
 pub mod pty;
 pub mod registry;
 pub mod restore;
+pub mod resume_check;
 pub mod router;
 pub mod sampler;
 pub mod server;

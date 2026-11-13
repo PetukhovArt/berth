@@ -5,6 +5,7 @@ use crate::git;
 use crate::hooks::{self, HookEnv};
 use crate::launch;
 use crate::pty::{PtyEvent, PtySession, SpawnSpec, DEFAULT_COLS, DEFAULT_ROWS};
+use crate::resume_check;
 use crate::status::{AgentStatusMachine, Effect, HookEvent};
 use crate::store::Store;
 use anyhow::{bail, Context, Result};
@@ -553,7 +554,9 @@ impl Daemon {
             tracing::info!(session = ?sref, idle_secs = age.as_secs(), "reaping idle session");
             self.kill_session(&sref);
             let upsert = match &sref {
-                SessionRef::Agent(id) => self.agent_entity(id).map(|agent| Entity::Agent(Box::new(agent))),
+                SessionRef::Agent(id) => self
+                    .agent_entity(id)
+                    .map(|agent| Entity::Agent(Box::new(agent))),
                 SessionRef::Terminal(id) => self.terminal_entity(id).map(Entity::Terminal),
             };
             if let Ok(entity) = upsert {
@@ -2623,6 +2626,25 @@ impl Daemon {
         } else {
             None
         };
+        let unsaved_conversation = cloud.is_none()
+            && resume_check::claude_projects_root().is_some_and(|root| {
+                resume_check::claude_transcript_missing(
+                    agent.kind,
+                    agent.session_id.as_deref(),
+                    &root,
+                )
+            });
+        let fresh_agent;
+        let agent = if unsaved_conversation {
+            tracing::info!(agent = %agent.id, "no transcript for the stored session id, starting fresh");
+            let _ = self.store.set_agent_session_id(&agent.id, None);
+            let mut fresh = agent.clone();
+            fresh.session_id = None;
+            fresh_agent = fresh;
+            &fresh_agent
+        } else {
+            agent
+        };
         let (program, args, resumed) = match cloud {
             Some(launch) => claude_cloud_spawn_command(
                 launch,
@@ -2672,6 +2694,9 @@ impl Daemon {
         let sref = SessionRef::Agent(agent.id.clone());
         let session = PtySession::spawn(sref, spec)?;
         self.install_session(session.clone());
+        if unsaved_conversation {
+            session.print_notice(resume_check::FRESH_START_NOTICE);
+        }
         if agent.kind == AgentKind::Claude {
             session.arm_suggestion_scan();
         }
@@ -2824,7 +2849,9 @@ impl Daemon {
                             );
                         }
                         let upsert = match &sref {
-                            SessionRef::Agent(id) => daemon.agent_entity(id).map(|agent| Entity::Agent(Box::new(agent))),
+                            SessionRef::Agent(id) => daemon
+                                .agent_entity(id)
+                                .map(|agent| Entity::Agent(Box::new(agent))),
                             SessionRef::Terminal(id) => {
                                 daemon.terminal_entity(id).map(Entity::Terminal)
                             }
