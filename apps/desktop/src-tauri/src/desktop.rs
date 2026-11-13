@@ -260,6 +260,8 @@ pub fn run() {
             berth_idle_timeout_write,
             berth_restore_sessions_read,
             berth_restore_sessions_write,
+            berth_flag_read,
+            berth_flag_write,
             settings_watch,
             settings_open_external,
             connectors_list,

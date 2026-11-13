@@ -233,6 +233,27 @@ export const SETTINGS = {
     description: 'settings.def.sessionsRestoreOnRestart.description',
     category: 'sessions',
   },
+  'daemon.gitInitOnCreate': {
+    type: 'boolean',
+    default: true,
+    label: 'settings.def.daemonGitInitOnCreate.label',
+    description: 'settings.def.daemonGitInitOnCreate.description',
+    category: 'sessions',
+  },
+  'daemon.prewarmAgents': {
+    type: 'boolean',
+    default: true,
+    label: 'settings.def.daemonPrewarmAgents.label',
+    description: 'settings.def.daemonPrewarmAgents.description',
+    category: 'sessions',
+  },
+  'daemon.prewarmSessions': {
+    type: 'boolean',
+    default: true,
+    label: 'settings.def.daemonPrewarmSessions.label',
+    description: 'settings.def.daemonPrewarmSessions.description',
+    category: 'sessions',
+  },
   'sessions.unloadIdleAfter': {
     type: 'enum',
     default: '1h',

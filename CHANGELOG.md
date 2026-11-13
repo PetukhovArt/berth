@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added settings for `git init` on a new folder, prewarming Agents and prewarming Sessions to the desktop app's Sessions settings; they are stored in the daemon config (#46).
 - Added quoting selected diff lines into the session prompt in the desktop app: click line numbers in Changes, then `Quote` puts the file, line range and lines into the prompt without sending it (#19).
 - Added a way to start the same prompt in several Agents from the New Session dialog in the desktop app, each in its own Session and, with a new branch, its own worktree (#22).
 - Added a `Reviewed` mark on each file in the desktop app's diff view, kept across restarts per merge request or worktree and cleared when the file changes (#44).

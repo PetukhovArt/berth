@@ -6,9 +6,14 @@ import { createScope } from '../shared/lib/scope';
 
 const IDLE_CHOICES = new Set<unknown>(SETTINGS['sessions.unloadIdleAfter'].options.map((option) => option.value));
 
-const SYNCED: { key: SettingKey; command: string; accepts: (value: unknown) => boolean }[] = [
+const isBoolean = (value: unknown) => typeof value === 'boolean';
+
+const SYNCED: { key: SettingKey; command: string; args?: Record<string, unknown>; accepts: (value: unknown) => boolean }[] = [
   { key: 'sessions.unloadIdleAfter', command: 'berth_idle_timeout', accepts: (value) => IDLE_CHOICES.has(value) },
-  { key: 'sessions.restoreOnRestart', command: 'berth_restore_sessions', accepts: (value) => typeof value === 'boolean' },
+  { key: 'sessions.restoreOnRestart', command: 'berth_restore_sessions', accepts: isBoolean },
+  { key: 'daemon.gitInitOnCreate', command: 'berth_flag', args: { key: 'git_init_on_create' }, accepts: isBoolean },
+  { key: 'daemon.prewarmAgents', command: 'berth_flag', args: { key: 'prewarm_agents' }, accepts: isBoolean },
+  { key: 'daemon.prewarmSessions', command: 'berth_flag', args: { key: 'prewarm_sessions' }, accepts: isBoolean },
 ];
 
 export function initBerthIdleSync(): () => void {
@@ -16,7 +21,7 @@ export function initBerthIdleSync(): () => void {
   if (!hasBackend) return () => scope.dispose();
   const { loaded, values, set } = useSettings();
 
-  const pulls = SYNCED.map(({ key, command, accepts }) => {
+  const pulls = SYNCED.map(({ key, command, args, accepts }) => {
     let known: unknown = null;
 
     scope.add(
@@ -25,7 +30,7 @@ export function initBerthIdleSync(): () => void {
         async (next) => {
           if (known === null || next === known) return;
           try {
-            await scope.load(invoke<void>(`${command}_write`, { value: next }));
+            await scope.load(invoke<void>(`${command}_write`, { ...args, value: next }));
             known = next;
           } catch {
             return;
@@ -36,7 +41,7 @@ export function initBerthIdleSync(): () => void {
 
     return async (): Promise<void> => {
       try {
-        const remote = await scope.load(invoke<unknown>(`${command}_read`));
+        const remote = await scope.load(invoke<unknown>(`${command}_read`, args));
         if (!accepts(remote)) return;
         known = remote;
         if (values.value[key] !== remote) set(key, remote);

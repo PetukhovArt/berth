@@ -196,6 +196,26 @@ pub async fn berth_restore_sessions_write(value: bool) -> Result<(), String> {
     berth_config_write(RESTORE_KEY, serde_json::Value::Bool(value))
 }
 
+const DAEMON_FLAGS: [&str; 3] = ["git_init_on_create", "prewarm_agents", "prewarm_sessions"];
+
+fn daemon_flag(key: &str) -> Result<&'static str, String> {
+    DAEMON_FLAGS
+        .iter()
+        .copied()
+        .find(|flag| *flag == key)
+        .ok_or_else(|| format!("неизвестная настройка {key}"))
+}
+
+pub async fn berth_flag_read(key: String) -> Result<bool, String> {
+    let key = daemon_flag(&key)?;
+    let map = berth_config_object(&berth_core::paths::config_path())?;
+    Ok(map.get(key).and_then(|value| value.as_bool()).unwrap_or(true))
+}
+
+pub async fn berth_flag_write(key: String, value: bool) -> Result<(), String> {
+    berth_config_write(daemon_flag(&key)?, serde_json::Value::Bool(value))
+}
+
 fn berth_config_write(key: &str, value: serde_json::Value) -> Result<(), String> {
     let path = berth_core::paths::config_path();
     let mut map = berth_config_object(&path)?;
