@@ -11,7 +11,8 @@ crates.io is not a channel: the workspace pulls a patched `vt100` through `[patc
 `cargo publish` refuses a patched dependency. `cargo install --git` is unaffected: it builds the
 workspace as it stands, vendored fork and all.
 
-The desktop app is not released. It is built from a checkout, see [getting started](getting-started.md).
+The desktop app is released for Linux only, as a `.deb`. On macOS and Windows it is built from a checkout,
+see [getting started](getting-started.md).
 
 ## Cutting a release
 
@@ -24,8 +25,9 @@ The `Release` workflow does the rest in one run:
 1. `gate` reads the version and asks whether `v<version>` is already tagged. On every other push to
    `main` it is, and the run stops there: a push that changes no version costs one 30-second job.
 2. `build` compiles three targets, macOS arm64/x64 and Windows x64, and uploads the archive
-   `install.sh` downloads for each.
-3. `release` tags the commit and attaches `berth-<target>.tar.gz` (and `.zip` for Windows) to a GitHub
+   `install.sh` downloads for each. `desktop-linux` builds the desktop app on Ubuntu 24.04 and packs it with
+   `berth` into `berth-desktop-x86_64-linux.deb` (`apps/desktop/src-tauri/tauri.linux.conf.json`).
+3. `release` tags the commit and attaches `berth-<target>.tar.gz` (and `.zip` for Windows, and the `.deb`) to a GitHub
    release whose notes are this version's `CHANGELOG.md` section.
 
 The tag is the record of what shipped, not the trigger. It has to be, because a tag pushed with

@@ -1,5 +1,7 @@
 use std::io;
+use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
+use std::process::Stdio;
 
 use tokio::process::Command;
 
@@ -30,8 +32,18 @@ pub fn relaunch_command(_exe: &Path, _after_pid: u32) -> Result<std::process::Co
     Err(INSTALL_ROOT_MISSING.into())
 }
 
-pub fn detach(_command: &mut std::process::Command) -> io::Result<u32> {
-    Err(io::Error::other(INSTALL_ROOT_MISSING))
+pub fn detach(command: &mut std::process::Command) -> io::Result<u32> {
+    command
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .process_group(0);
+    let mut child = command.spawn()?;
+    let pid = child.id();
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
+    Ok(pid)
 }
 
 pub fn install_dir(exe_dir: &Path) -> PathBuf {

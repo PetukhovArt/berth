@@ -6,7 +6,8 @@ the desktop app you work in. Install the command first, then build the app.
 ## Install the berth command
 
 On macOS and Linux the install script installs and updates, and `berth upgrade` runs it again later.
-Releases carry no Linux binaries, so on Linux it builds from source with `cargo install`:
+Releases carry no Linux `berth` archive, so on Linux the script builds from source with `cargo install`
+(the desktop `.deb` below includes `berth`):
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/PetukhovArt/berth/main/install.sh | sh
@@ -29,7 +30,15 @@ see [Moving from pacer](configuration.md#moving-from-pacer).
 
 ## Build the desktop app
 
-The app builds from this repository and needs Node 22, pnpm and a Rust toolchain:
+On Debian and Ubuntu (x86_64) download `berth-desktop-x86_64-linux.deb` from the latest GitHub release and
+install it; it also puts `berth` into `/usr/bin`:
+
+```sh
+sudo apt install ./berth-desktop-x86_64-linux.deb
+```
+
+On macOS and Windows, and on other Linux distributions, the app builds from this repository and needs Node 22,
+pnpm and a Rust toolchain (on Linux also the webkit2gtk 4.1 and GTK 3 development packages):
 
 ```sh
 pnpm install
@@ -40,8 +49,8 @@ For everyday use, install a working copy that you update from inside the app: `s
 on Windows ([details](windows.md#desktop-working-copy)) and `scripts/install-app.sh` on macOS
 ([details](macos.md)).
 
-The app talks to the daemon and needs `berth` on your `PATH`: on Windows and macOS it starts
-`berth daemon` from there when none is running. On Linux, start it yourself with `berth daemon`.
+The app talks to the daemon and needs `berth` on your `PATH`: on every platform it starts
+`berth daemon` from there when none is running.
 
 ## 1. Add a project
 
