@@ -74,41 +74,72 @@ async function submit() {
   });
 }
 
+function onPromptKey(event: KeyboardEvent) {
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+  event.preventDefault();
+  if (location.plan.value.kind === 'incomplete' || action.busy.value) return;
+  void submit();
+}
+
 function onVisible(visible: boolean) {
   if (!visible) emit('close');
 }
 </script>
 
 <template>
-  <VDialog :visible="true" modal :header="t('agents.newSession.title')" :style="{ width: '460px' }" :draggable="false" @update:visible="onVisible">
+  <VDialog
+    :visible="true"
+    modal
+    :header="t('agents.newSession.title')"
+    :style="{ width: '640px', maxWidth: '95vw' }"
+    :pt="{ mask: { style: { background: 'var(--vr-overlay)' } }, root: { style: { borderRadius: '14px', boxShadow: 'var(--vr-shadow-dialog)' } } }"
+    :draggable="false"
+    @update:visible="onVisible"
+  >
     <form class="form" data-testid="new-session-form" @submit.prevent="submit">
-      <NewSessionTarget :state="location" />
-      <label class="field">
-        <span>{{ t('agents.newSession.type') }}</span>
-        <VSelect :model-value="kind" :options="KINDS" option-label="label" option-value="value" size="small" :aria-label="t('agents.newSession.typeAria')" data-testid="new-session-kind" @update:model-value="pickKind" />
-      </label>
-      <label class="field">
-        <span>{{ t('agents.newSession.name') }}</span>
-        <VInputText v-model="name" size="small" :placeholder="defaultName" data-testid="new-session-name" />
-      </label>
-      <template v-if="kind !== 'terminal'">
-        <div class="pair">
-          <label class="field">
-            <span>{{ t('agents.newSession.model') }}</span>
-            <VInputText v-model="model" size="small" :placeholder="t('agents.newSession.byDefault')" data-testid="new-session-model" />
-          </label>
-          <label class="field">
-            <span>{{ t('agents.newSession.effort') }}</span>
-            <VInputText v-model="effort" size="small" :placeholder="t('agents.newSession.byDefault')" data-testid="new-session-effort" />
-          </label>
-        </div>
+      <VTextarea
+        v-if="kind !== 'terminal'"
+        v-model="prompt"
+        rows="4"
+        auto-resize
+        class="prompt"
+        :aria-label="t('agents.newSession.prompt')"
+        :placeholder="t('agents.newSession.optional')"
+        data-testid="new-session-prompt"
+        @keydown="onPromptKey"
+      />
+      <NewSessionTarget :state="location">
+        <template #type>
+          <VSelect
+            :model-value="kind"
+            :options="KINDS"
+            option-label="label"
+            option-value="value"
+            size="small"
+            class="chip"
+            :aria-label="t('agents.newSession.typeAria')"
+            data-testid="new-session-kind"
+            @update:model-value="pickKind"
+          />
+        </template>
+      </NewSessionTarget>
+      <div v-if="kind !== 'terminal'" class="pair">
         <label class="field">
-          <span>{{ t('agents.newSession.prompt') }}</span>
-          <VTextarea v-model="prompt" rows="4" auto-resize :placeholder="t('agents.newSession.optional')" data-testid="new-session-prompt" />
+          <span>{{ t('agents.newSession.model') }}</span>
+          <VInputText v-model="model" size="small" :placeholder="t('agents.newSession.byDefault')" data-testid="new-session-model" />
         </label>
-      </template>
+        <label class="field">
+          <span>{{ t('agents.newSession.effort') }}</span>
+          <VInputText v-model="effort" size="small" :placeholder="t('agents.newSession.byDefault')" data-testid="new-session-effort" />
+        </label>
+      </div>
       <VMessage v-if="action.error.value" severity="error" size="small" data-testid="new-session-error">{{ action.error.value }}</VMessage>
-      <div class="actions">
+      <div class="footer">
+        <label class="name">
+          <span>{{ t('agents.newSession.name') }}</span>
+          <VInputText v-model="name" size="small" :placeholder="defaultName" data-testid="new-session-name" />
+        </label>
+        <span class="spacer" />
         <VButton :label="t('common.cancel')" size="small" text data-testid="new-session-cancel" @click="emit('close')" />
         <VButton type="submit" :label="t('common.create')" size="small" :loading="action.busy.value" :disabled="location.plan.value.kind === 'incomplete'" data-testid="new-session-submit" />
       </div>
@@ -123,6 +154,38 @@ function onVisible(visible: boolean) {
   gap: var(--vr-space-3);
 }
 
+.prompt {
+  min-height: 120px;
+  padding: 12px 14px;
+  border: 1px solid var(--vr-color-border-strong);
+  border-radius: 12px;
+  background: var(--vr-color-surface-sunken);
+  box-shadow: none;
+  font-size: 14px;
+  line-height: 22px;
+  resize: none;
+}
+
+.chip {
+  height: 28px;
+  min-width: 0;
+  border: 0;
+  border-radius: 7px;
+  background: var(--vr-color-surface-muted);
+  box-shadow: none;
+  font-size: 12.5px;
+}
+
+.chip :deep(.p-select-label) {
+  padding: 0 9px;
+  white-space: nowrap;
+}
+
+.pair {
+  display: flex;
+  gap: var(--vr-space-3);
+}
+
 .field {
   display: flex;
   flex: 1;
@@ -133,14 +196,27 @@ function onVisible(visible: boolean) {
   color: var(--vr-color-text-muted);
 }
 
-.pair {
+.footer {
   display: flex;
-  gap: var(--vr-space-3);
+  align-items: center;
+  gap: 10px;
+  padding-top: var(--vr-space-2);
+  border-top: 1px solid var(--vr-color-border);
 }
 
-.actions {
+.name {
   display: flex;
-  justify-content: flex-end;
-  gap: var(--vr-space-2);
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--vr-color-text-muted);
+}
+
+.name :deep(input) {
+  width: 150px;
+}
+
+.spacer {
+  flex: 1;
 }
 </style>

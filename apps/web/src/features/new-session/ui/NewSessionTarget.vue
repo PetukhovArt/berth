@@ -34,22 +34,14 @@ const summary = computed(() => {
 
 <template>
   <div class="target" data-testid="new-session-target">
-    <div class="pair">
-      <label class="field">
-        <span>{{ t('agents.newSession.project') }}</span>
-        <VSelect v-model="project" :options="projects" option-label="label" option-value="id" size="small" :aria-label="t('agents.newSession.project')" data-testid="new-session-project" />
-      </label>
-      <label class="field">
-        <span>{{ t('agents.newSession.target') }}</span>
-        <VSelect v-model="target" :options="targets" option-label="label" option-value="id" size="small" :aria-label="t('agents.newSession.target')" data-testid="new-session-worktree" />
-      </label>
+    <div class="chips">
+      <VSelect v-model="project" :options="projects" option-label="label" option-value="id" size="small" class="chip" :aria-label="t('agents.newSession.project')" data-testid="new-session-project" />
+      <VSelect v-model="target" :options="targets" option-label="label" option-value="id" size="small" class="chip" :aria-label="t('agents.newSession.target')" data-testid="new-session-worktree" />
+      <VSelect v-if="!creating" v-model="mode" :options="MODES" option-label="label" option-value="value" option-disabled="disabled" size="small" class="chip" :aria-label="t('agents.newSession.branch')" data-testid="new-session-branch-mode" />
+      <slot name="type" />
     </div>
-    <label v-if="!creating" class="field">
-      <span>{{ t('agents.newSession.branch') }}</span>
-      <VSelect v-model="mode" :options="MODES" option-label="label" option-value="value" option-disabled="disabled" size="small" :aria-label="t('agents.newSession.branch')" data-testid="new-session-branch-mode" />
-    </label>
-    <label v-if="!creating && mode === 'existing'" class="field">
-      <span>{{ t('agents.newSession.existingBranch') }}</span>
+    <label v-if="!creating && mode === 'existing'" class="row">
+      <span class="row-label">{{ t('agents.newSession.existingBranch') }}</span>
       <VSelect
         v-model="existing"
         :options="branchOptions"
@@ -60,15 +52,19 @@ const summary = computed(() => {
         :loading="loading"
         :placeholder="t('agents.newSession.pickBranch')"
         :aria-label="t('agents.newSession.existingBranch')"
+        class="row-input"
         data-testid="new-session-existing-branch"
       />
     </label>
-    <label v-if="creating || mode === 'new'" class="field">
-      <span>{{ t('agents.newSession.newBranch') }}</span>
-      <VInputText v-model="fresh" size="small" :placeholder="t('agents.newSession.typeBranch')" data-testid="new-session-new-branch" />
+    <label v-if="creating || mode === 'new'" class="row">
+      <span class="row-label">{{ t('agents.newSession.newBranch') }}</span>
+      <VInputText v-model="fresh" size="small" :placeholder="t('agents.newSession.typeBranch')" class="row-input mono" data-testid="new-session-new-branch" />
     </label>
     <VMessage v-if="branchesError" severity="warn" size="small" data-testid="new-session-branches-error">{{ t('agents.newSession.branchesFailed', { error: branchesError }) }}</VMessage>
-    <div class="summary" :data-plan="plan.kind" data-testid="new-session-plan">{{ summary }}</div>
+    <div class="summary" :data-plan="plan.kind" data-testid="new-session-plan">
+      <svg class="arrow" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" /></svg>
+      <span>{{ summary }}</span>
+    </div>
   </div>
 </template>
 
@@ -79,23 +75,62 @@ const summary = computed(() => {
   gap: var(--vr-space-3);
 }
 
-.field {
+.chips {
   display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: var(--vr-space-1);
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  height: 28px;
   min-width: 0;
-  font-size: var(--vr-font-size-xs);
+  border: 0;
+  border-radius: 7px;
+  background: var(--vr-color-surface-muted);
+  box-shadow: none;
+  font-size: 12.5px;
+}
+
+.chip :deep(.p-select-label) {
+  padding: 0 9px;
+  white-space: nowrap;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.row-label {
+  width: 90px;
+  flex: none;
+  font-size: 12px;
   color: var(--vr-color-text-muted);
 }
 
-.pair {
-  display: flex;
-  gap: var(--vr-space-3);
+.row-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.mono {
+  font-family: var(--vr-font-mono);
+  font-size: 12.5px;
 }
 
 .summary {
-  font-size: var(--vr-font-size-xs);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 18px;
   color: var(--vr-color-text-muted);
+}
+
+.arrow {
+  flex: none;
+  margin-top: 2px;
+  color: currentColor;
 }
 </style>
