@@ -2,5 +2,5 @@ export { formatDuration, fullDate, jobTone, numberLabel, pipelineLabel, relative
 export { pipelineTone } from './lib/pipelineTone';
 export { itemId, pipelineRollup, useForgeInbox } from './model/inbox';
 export { openReview, reviveReview } from './model/reviewPanel';
-export { knownMr, lookupMr } from './model/worktreeMr';
+export { knownMr, lookupMr, rememberMr } from './model/worktreeMr';
 export { default as WorktreeBadge } from './ui/WorktreeBadge.vue';

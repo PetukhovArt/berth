@@ -1,0 +1,16 @@
+export const gitStep = {
+  commitAndPush: 'Commit and push',
+  commitPushCreate: 'Commit, push and create merge request',
+  push: 'Push',
+  pushCreate: 'Push and create merge request',
+  create: 'Create merge request',
+  pull: 'Pull',
+  upToDate: 'Branch is up to date. No action needed.',
+  defaultBranch: 'Uncommitted changes on the default branch. Move them to a branch first.',
+  behind: '{count} commits behind origin',
+  commitMessage: 'Commit message',
+  requestTitle: 'Merge request title',
+  requestDescription: 'Description',
+  cancel: 'Cancel',
+  working: 'Working…',
+} as const;

@@ -603,3 +603,31 @@ pub async fn pipeline(ctx: &Ctx, project: &str, number: u64) -> ApiResult<Option
             .collect(),
     }))
 }
+
+pub async fn create(
+    ctx: &Ctx,
+    project: &str,
+    branch: &str,
+    target: &str,
+    title: &str,
+    description: &str,
+) -> ApiResult<ChangeRequestSummary> {
+    let url = format!(
+        "{}/projects/{}/merge_requests",
+        api(ctx),
+        encode_segment(project)
+    );
+    let body = json!({
+        "source_branch": branch,
+        "target_branch": target,
+        "title": title,
+        "description": description,
+    });
+    ctx.api
+        .post_json(&url, &body)
+        .await
+        .map_err(|error| error.write_denied(WRITE_SCOPE))?;
+    for_branch(ctx, project, branch)
+        .await?
+        .ok_or_else(|| ApiError::failed("GitLab не вернул созданный merge request"))
+}

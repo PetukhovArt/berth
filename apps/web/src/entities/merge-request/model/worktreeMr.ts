@@ -19,6 +19,10 @@ export const mrLookupFailed = (path: string, branch: string): boolean => request
 
 export const MR_RETRY_MS = RETRY_MS;
 
+export function rememberMr(path: string, branch: string, summary: ChangeRequestSummary | null) {
+  remember(keyOf(path, branch), summary);
+}
+
 function remember(key: string, summary: ChangeRequestSummary | null) {
   const current = known.value;
   if (current.has(key) && JSON.stringify(current.get(key)) === JSON.stringify(summary)) return;

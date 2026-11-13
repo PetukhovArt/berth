@@ -5,6 +5,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { sessionDot, StatusIcon, useBerth, useExternalSessions, type AgentKind, type SessionStatus } from '../../../entities/session';
 import { knownMr, lookupMr, numberLabel } from '../../../entities/merge-request';
 import { SessionViewSwitch } from '../../../features/session-view-switch';
+import { GitStepButton } from '../../../features/git-step';
 
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
 
@@ -64,6 +65,7 @@ watch(
       </div>
       <div v-if="meta" class="meta" data-testid="session-header-meta">{{ meta }}</div>
     </div>
+    <GitStepButton v-if="worktree && worktree.branch" :path="worktree.path" :branch="worktree.branch" :has-request="!!mr" :refresh-key="status" />
     <SessionViewSwitch :panel="panel" :active="active" />
   </header>
 </template>

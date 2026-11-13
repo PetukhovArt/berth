@@ -1,0 +1,16 @@
+export const gitStep = {
+  commitAndPush: 'Закоммитить и отправить',
+  commitPushCreate: 'Закоммитить, отправить и создать merge request',
+  push: 'Отправить',
+  pushCreate: 'Отправить и создать merge request',
+  create: 'Создать merge request',
+  pull: 'Забрать изменения',
+  upToDate: 'Ветка актуальна, действий не нужно.',
+  defaultBranch: 'Незакоммиченные изменения в основной ветке. Сначала перенесите их в отдельную ветку.',
+  behind: 'Отстаёт от origin на {count} коммитов',
+  commitMessage: 'Сообщение коммита',
+  requestTitle: 'Заголовок merge request',
+  requestDescription: 'Описание',
+  cancel: 'Отмена',
+  working: 'Выполняется…',
+};

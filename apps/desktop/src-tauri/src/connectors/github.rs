@@ -691,3 +691,23 @@ pub async fn pipeline(ctx: &Ctx, project: &str, number: u64) -> ApiResult<Option
         jobs,
     }))
 }
+
+pub async fn create(
+    ctx: &Ctx,
+    project: &str,
+    branch: &str,
+    target: &str,
+    title: &str,
+    description: &str,
+) -> ApiResult<ChangeRequestSummary> {
+    let (owner, name) = split_project(project)?;
+    let url = format!("{}/repos/{owner}/{name}/pulls", api_base(ctx));
+    let body = json!({ "title": title, "head": branch, "base": target, "body": description });
+    ctx.api
+        .post_json(&url, &body)
+        .await
+        .map_err(|error| error.write_denied(WRITE_ACCESS))?;
+    for_branch(ctx, project, branch)
+        .await?
+        .ok_or_else(|| ApiError::failed("GitHub не вернул созданный pull request"))
+}

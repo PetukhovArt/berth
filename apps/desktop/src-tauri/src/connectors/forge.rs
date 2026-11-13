@@ -285,3 +285,23 @@ pub async fn forge_source(
     }
     .map_err(String::from)
 }
+
+pub async fn forge_create_change_request(
+    state: &Connectors,
+    path: String,
+    branch: String,
+    target: String,
+    title: String,
+    description: String,
+) -> Result<ChangeRequestSummary, String> {
+    let Some((ctx, project)) = worktree_forge(state, &path).await? else {
+        return Err("для этого репозитория не подключён форж".to_owned());
+    };
+    match ctx.kind {
+        Kind::Github => {
+            github::create(&ctx, &project, &branch, &target, &title, &description).await
+        }
+        _ => gitlab::create(&ctx, &project, &branch, &target, &title, &description).await,
+    }
+    .map_err(String::from)
+}

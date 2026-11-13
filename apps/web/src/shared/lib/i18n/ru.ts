@@ -11,7 +11,6 @@ import { content } from './ru/content';
 import { files } from './ru/files';
 import { forge } from './ru/forge';
 import { attention } from './ru/attention';
-import { feedback } from './ru/feedback';
 import { hot } from './ru/hot';
 import { gitStep } from './ru/gitStep';
 import { jira } from './ru/jira';
@@ -23,4 +22,4 @@ import { workbench } from './ru/workbench';
 import { remote } from './ru/remote';
 import { update } from './ru/update';
 
-export const ru: Translation<typeof en> = { common, shell, settings, commands, agents, connectors, atlassian, jira, confluence, reviews, forge, content, files, remote, mobile, workbench, hot, update, cleanup, attention, feedback, gitStep };
+export const ru: Translation<typeof en> = { common, shell, settings, commands, agents, connectors, atlassian, jira, confluence, reviews, forge, content, files, remote, mobile, workbench, hot, update, cleanup, attention, gitStep };
