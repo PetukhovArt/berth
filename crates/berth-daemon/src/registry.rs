@@ -118,6 +118,7 @@ pub struct Daemon {
     /// The STOP GATE's escape hatch for subagents Claude killed without a
     /// `SubagentStop`. See `crate::subagents`.
     killed_subagents: crate::subagents::KilledSubagents,
+    pub(crate) feedback: crate::feedback::PendingFeedback,
     pub hook_env: HookEnv,
     /// Shared with the hook HTTP server, which reads agent rows to decide
     /// auto-title injection.
@@ -186,6 +187,7 @@ impl Daemon {
             sessions: Mutex::new(HashMap::new()),
             status_machines: Mutex::new(HashMap::new()),
             killed_subagents: Default::default(),
+            feedback: Default::default(),
             hook_env,
             store,
             events,
@@ -348,6 +350,9 @@ impl Daemon {
         for effect in effects {
             match effect {
                 Effect::SetStatus(status) => {
+                    if status != AgentStatus::NeedsFeedback {
+                        self.clear_feedback(agent_id);
+                    }
                     let (changed_at, unseen) = match self.store.set_agent_status(agent_id, status) {
                         Ok(stamped) => stamped,
                         Err(e) => {

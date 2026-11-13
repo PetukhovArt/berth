@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added permission and question cards under the terminal in the desktop app: when an Agent waits on you, the strip shows what it asks with `Allow` and `Deny` or the answer options, and goes away once answered anywhere (#16).
 - Added a Projects list to the desktop app's first-run screen: git repositories you already ran Claude Code or Codex in, with checkboxes and `Add selected`, plus the GitHub and GitLab hosts you are signed in to (#12).
 - Added Agent presets to the New Session dialog in the desktop app: save the Agent, model, effort and text before and after the prompt under a name, and start a Session from one with a click (#43).
 - Added settings for `git init` on a new folder, prewarming Agents and prewarming Sessions to the desktop app's Sessions settings; they are stored in the daemon config (#46).

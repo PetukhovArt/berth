@@ -9,8 +9,8 @@ use berth_core::codec::{read_frame, write_frame};
 use berth_core::transport::{self, Stream};
 use berth_core::{
     Agent, AgentId, AgentKind, AgentStatus, ArchivedExternalSession, ClientRequest, Entity,
-    EntityId, Project, ServerEvent, SessionRef, TerminalTab, Workspace, WorkspaceId, Worktree,
-    PROTOCOL_VERSION,
+    EntityId, FeedbackRequest, Project, ServerEvent, SessionRef, TerminalTab, Workspace,
+    WorkspaceId, Worktree, PROTOCOL_VERSION,
 };
 use serde::Serialize;
 use tokio::io::{BufReader, BufWriter, ReadHalf, WriteHalf};
@@ -78,6 +78,10 @@ pub enum WatchEvent {
         status: AgentStatus,
         changed_at: i64,
         unseen: bool,
+    },
+    FeedbackRequest {
+        agent: AgentId,
+        request: Option<FeedbackRequest>,
     },
     Error {
         message: String,
@@ -574,6 +578,9 @@ impl Actor {
                 changed_at,
                 unseen,
             },
+            ServerEvent::FeedbackRequestChanged { agent, request } => {
+                WatchEvent::FeedbackRequest { agent, request }
+            }
             ServerEvent::Error { message, .. } => WatchEvent::Error { message },
             ServerEvent::Scrollback {
                 session,

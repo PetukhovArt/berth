@@ -4,6 +4,7 @@ export { acknowledged, archiveAgent, attachSession, BerthCallError, call, closeT
 export type { AgentKind, Branch, Entities, SessionEvent, SessionNode, SessionRef, SessionStatus, Worktree, WorktreeNode } from './model/berth';
 export { archiveExternal, continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, isExternalPanel, placeExternal, readTranscript, resumeCommand, sessionDot, splitEarlier, unarchiveExternal, useExternalSessions } from './model/external';
 export type { ExternalSession, Harness, TranscriptMessage } from './model/external';
+export { allowRequest, chooseOption, denyRequest, useFeedbackRequest } from './model/feedback';
 export { getMetrics } from './model/metrics';
 export type { MetricsSnapshot, SessionMetrics } from './model/metrics';
 export { listOrphans, moveAgent, resumeOrphan } from './model/orphans';

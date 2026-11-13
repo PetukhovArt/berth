@@ -92,6 +92,7 @@ pub struct HookDelivery {
     /// Claude sends it; it locates the subagent meta files the STOP GATE
     /// reads (see `crate::subagents`).
     pub transcript_path: Option<String>,
+    pub request: Option<berth_core::FeedbackRequest>,
 }
 
 /// Permissive payload: every field optional, unknown fields ignored. Hook
@@ -116,6 +117,7 @@ pub struct HookPayload {
     /// Cursor sends no `cwd`; its first workspace root plays the role.
     pub workspace_roots: Option<Vec<String>>,
     pub transcript_path: Option<String>,
+    pub tool_input: Option<serde_json::Value>,
 }
 
 impl HookPayload {
@@ -285,9 +287,16 @@ async fn receive_hook(
     // Same rule as `cwd`, and for the same reason: a subagent's payload
     // names the subagent's own transcript, not the session's.
     let transcript_path = payload.transcript_path.clone().filter(|_| foreground);
+    let request = crate::feedback::from_hook(
+        &query.hook_event,
+        payload.tool_name.as_deref(),
+        payload.tool_input.as_ref(),
+    )
+    .filter(|_| foreground);
     let _ = state
         .tx
         .send(HookDelivery {
+            request,
             agent_id: agent_id.clone(),
             event,
             session_id: payload.session_id(),

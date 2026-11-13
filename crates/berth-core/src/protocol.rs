@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 43;
+pub const PROTOCOL_VERSION: u32 = 44;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -571,6 +571,20 @@ impl MetricsSnapshot {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FeedbackKind {
+    Permission,
+    Question,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FeedbackRequest {
+    pub kind: FeedbackKind,
+    pub title: String,
+    pub detail: Option<String>,
+    pub options: Vec<String>,
+}
+
 /// One local branch of a project, as `ListBranches` reports it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Branch {
@@ -711,5 +725,10 @@ pub enum ServerEvent {
     Metrics {
         req_id: u64,
         snapshot: MetricsSnapshot,
+    },
+
+    FeedbackRequestChanged {
+        agent: AgentId,
+        request: Option<FeedbackRequest>,
     },
 }

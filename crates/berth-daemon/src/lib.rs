@@ -3,6 +3,7 @@ pub mod cli_title;
 pub mod config;
 pub mod enter_project;
 pub mod external_archive;
+pub mod feedback;
 pub mod git;
 pub mod hooks;
 pub mod launch;
@@ -104,6 +105,7 @@ async fn serve() -> Result<()> {
                 session_id,
                 cwd,
                 transcript_path,
+                request,
             }) = hook_rx.recv().await
             {
                 let captures_session = event.captures_session();
@@ -111,6 +113,9 @@ async fn serve() -> Result<()> {
                     daemon.note_transcript_path(&agent_id, path);
                 }
                 daemon.apply_hook_event(&agent_id, event.clone(), session_id.clone());
+                if let Some(request) = request {
+                    daemon.set_feedback_request(&agent_id, request);
+                }
                 // A `/rename` fires no hook, but the next prompt or turn end
                 // does: pick it up here rather than on the sampler's tick.
                 if matches!(

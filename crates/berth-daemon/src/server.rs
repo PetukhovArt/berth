@@ -140,6 +140,14 @@ async fn handle_client(
                     }
                     let _ = out_tx.send(snapshot).await;
                     let mut rx = daemon.events.subscribe();
+                    for (agent, request) in daemon.feedback.all() {
+                        let _ = out_tx
+                            .send(ServerEvent::FeedbackRequestChanged {
+                                agent,
+                                request: Some(request),
+                            })
+                            .await;
+                    }
                     let tx = out_tx.clone();
                     tokio::spawn(async move {
                         loop {

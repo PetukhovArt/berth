@@ -33,6 +33,8 @@ type Terminal = { id: string; worktree_id: string; name: string; sort_order: num
 type Entity = { Workspace: Workspace } | { Project: Project } | { Worktree: Worktree } | { Agent: Agent } | { Terminal: Terminal } | { Link: unknown };
 type EntityId = { Workspace: string } | { Project: string } | { Worktree: string } | { Agent: string } | { Terminal: string } | { Link: string };
 
+export type FeedbackRequest = { kind: 'Permission' | 'Question'; title: string; detail: string | null; options: string[] };
+
 type ArchivedExternal = { kind: AgentKind; session_id: string; archived_at: number };
 
 type WatchEvent =
@@ -43,6 +45,7 @@ type WatchEvent =
   | { type: 'external_unarchived'; kind: AgentKind; session_id: string }
   | { type: 'removed'; id: EntityId }
   | { type: 'status'; agent: string; status: AgentStatus; changed_at: number; unseen: boolean }
+  | { type: 'feedback_request'; agent: string; request: FeedbackRequest | null }
   | { type: 'error'; message: string };
 
 export type SessionEvent = { type: 'reset'; data: string } | { type: 'output'; data: string } | { type: 'exited'; exit_code: number | null };
@@ -60,6 +63,7 @@ type BerthStore = {
   tree: ComputedRef<WorkspaceNode[]>;
   sessions: ComputedRef<ReadonlyMap<string, SessionNode>>;
   archivedExternal: ComputedRef<ReadonlyMap<string, number>>;
+  feedback: ComputedRef<ReadonlyMap<string, FeedbackRequest>>;
 };
 
 export type Entities = {
@@ -178,6 +182,7 @@ function createStore(): BerthStore {
   const connection = shallowRef<Connection>({ state: 'connecting', message: null });
   const error = shallowRef<string | null>(null);
   const archivedExternal = shallowRef<ReadonlyMap<string, number>>(new Map());
+  const feedback = shallowRef<ReadonlyMap<string, FeedbackRequest>>(new Map());
 
   function receive(event: WatchEvent): void {
     if (event.type !== 'error') error.value = null;
@@ -194,6 +199,7 @@ function createStore(): BerthStore {
           terminals: byId(event.terminals),
         };
         publish(true);
+        feedback.value = new Map();
         archivedExternal.value = new Map(event.archived_external.map((mark) => [externalArchiveKey(mark.kind, mark.session_id), mark.archived_at]));
         return;
       case 'external_archived':
@@ -211,6 +217,9 @@ function createStore(): BerthStore {
       case 'status':
         publish(setStatus(state, event.agent, event.status, event.unseen));
         return;
+      case 'feedback_request':
+        feedback.value = event.request ? new Map(feedback.value).set(event.agent, event.request) : drop(feedback.value, event.agent);
+        return;
       case 'error':
         error.value = event.message;
         return;
@@ -227,7 +236,7 @@ function createStore(): BerthStore {
 
   const tree = computed(() => buildTree(entities.value));
   const sessions = computed(() => new Map(tree.value.flatMap((w) => w.projects.flatMap((p) => p.worktrees.flatMap((t) => t.sessions.map((s) => [s.key, s] as const))))));
-  return { entities: computed(() => entities.value), connection, error, tree, sessions, archivedExternal: computed(() => archivedExternal.value) };
+  return { entities: computed(() => entities.value), connection, error, tree, sessions, archivedExternal: computed(() => archivedExternal.value), feedback: computed(() => feedback.value) };
 }
 
 export function useBerth(): BerthStore | null {

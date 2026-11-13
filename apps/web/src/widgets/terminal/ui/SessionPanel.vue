@@ -10,6 +10,7 @@ import { attachSession, detachSession, resizeSession, sendInput, sessionId, type
 import { t } from '../../../shared/lib/i18n/i18n';
 import { openUrl } from '../../../bridge';
 import { hostPlatform } from '../../../shared/lib/platform';
+import FeedbackStrip from './FeedbackStrip.vue';
 import { applyCtrl } from '../lib/mobileKeys';
 import { useSettings } from '../../../shared/config/settings/store';
 import { terminalClipboard } from '../lib/terminalClipboard';
@@ -288,6 +289,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="frame">
     <div ref="host" class="terminal" data-testid="session-terminal" :data-session-id="sessionId(session)" :data-released="released" />
+    <FeedbackStrip :session="session" class="feedback" />
     <p v-if="released" class="released" data-testid="session-terminal-released">{{ t('agents.session.released') }}</p>
   </div>
 </template>
@@ -297,17 +299,21 @@ onBeforeUnmount(() => {
   position: relative;
   box-sizing: border-box;
   width: 100%;
+  display: flex;
+  flex-direction: column;
   height: 100%;
-  padding: var(--vr-space-1) 0 0 var(--vr-space-2);
   background: var(--vr-color-surface-sunken);
 }
 
 .terminal {
   display: flex;
+  flex: 1;
   flex-direction: column;
   justify-content: flex-end;
+  box-sizing: border-box;
   width: 100%;
-  height: 100%;
+  min-height: 0;
+  padding: var(--vr-space-1) 0 0 var(--vr-space-2);
   overflow: hidden;
 }
 

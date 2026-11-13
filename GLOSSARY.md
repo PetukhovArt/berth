@@ -133,6 +133,9 @@ _Avoid_: done, green
 **Needs Feedback**
 The agent waits on a human: a permission prompt or a question.
 _Avoid_: red, waiting on me
+**Feedback Request**
+What a Needs Feedback agent waits on, as its hook reported it: a permission with the tool and its command or path, or a question with its options. Held in memory by the Daemon, cleared when the status leaves Needs Feedback, and answered by typing into the PTY.
+
 
 **Terminated**
 The agent process died mid-run.
