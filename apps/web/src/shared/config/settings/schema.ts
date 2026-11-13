@@ -2,7 +2,7 @@ import type { MessageKey } from '../../lib/i18n/i18n';
 import { isMac } from '../../lib/platform';
 import { tr } from '../../lib/i18n/translate';
 
-type Category = 'appearance' | 'terminal' | 'sessions' | 'providers' | 'files' | 'connectors' | 'remote' | 'app' | 'keymap';
+type Category = 'appearance' | 'terminal' | 'sessions' | 'providers' | 'router' | 'files' | 'connectors' | 'remote' | 'app' | 'keymap';
 type Option = { readonly value: string; readonly label: MessageKey };
 type Base = { readonly label: MessageKey; readonly description: MessageKey; readonly category: Category };
 type BooleanDef = Base & { readonly type: 'boolean'; readonly default: boolean };
@@ -17,6 +17,7 @@ export const CATEGORIES = [
   { id: 'terminal', label: 'settings.category.terminal' },
   { id: 'sessions', label: 'settings.category.sessions' },
   { id: 'providers', label: 'settings.category.providers' },
+  { id: 'router', label: 'settings.category.router' },
   { id: 'files', label: 'files.settings.category' },
   { id: 'connectors', label: 'settings.category.connectors' },
   { id: 'remote', label: 'remote.category' },

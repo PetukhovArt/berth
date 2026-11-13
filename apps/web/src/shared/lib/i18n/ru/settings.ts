@@ -16,12 +16,15 @@ export const settings: Translation<typeof en> = {
   resetTitle: 'Сбросить к значению по умолчанию',
   resetLabel: 'Сбросить',
   connectorKeywords: 'коннекторы коннектор github gitlab jira confluence токен токены подключение аккаунт',
+  routerKeywords: 'llm роутер маршрутизация правило правила цепочка замена лимит ошибка модель провайдер',
+  providerKeywords: 'провайдеры провайдер агенты агент acp claude codex gemini cursor команда включить выключить',
   category: {
     appearance: 'Внешний вид',
     terminal: 'Терминал',
     sessions: 'Сессии',
     connectors: 'Коннекторы',
     keymap: 'Клавиши',
+    router: 'Роутер LLM',
     providers: 'Провайдеры',
   },
   providers: {

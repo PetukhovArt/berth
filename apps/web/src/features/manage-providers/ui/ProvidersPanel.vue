@@ -67,7 +67,7 @@ async function remove(provider: Provider) {
     <section v-for="section in sections" :key="section.id" class="section" :data-testid="`providers-${section.id}`">
       <h2 class="title">{{ section.title }}</h2>
       <p class="hint">{{ section.hint }}</p>
-      <div v-for="provider in section.rows" :key="provider.id" class="row vr-field" :data-testid="`provider-${provider.acp ? 'acp' : 'native'}-${provider.id}`" :data-enabled="provider.enabled">
+      <div v-for="provider in section.rows" :key="provider.id" class="row" :data-testid="`provider-${provider.acp ? 'acp' : 'native'}-${provider.id}`" :data-enabled="provider.enabled">
         <div class="meta">
           <label class="label" :for="`provider-toggle-${provider.acp ? 'acp' : 'native'}-${provider.id}`">{{ provider.name }}</label>
           <code v-if="provider.command" class="command">{{ provider.command }}</code>
@@ -145,9 +145,14 @@ async function remove(provider: Provider) {
 
 .meta {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: var(--vr-space-1);
   min-width: 0;
+}
+
+.row > .p-toggleswitch {
+  flex: none;
 }
 
 .label {

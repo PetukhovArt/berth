@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch, type Component } from 'vue';
-import { Bot, ExternalLink, FileJson, FileText, History, Keyboard, Palette, Plug, RefreshCw, Search, SlidersHorizontal, Smartphone, SquareTerminal } from '../../../shared/ui/icons';
+import { Bot, ExternalLink, FileJson, FileText, History, Keyboard, Palette, Plug, RefreshCw, Search, SlidersHorizontal, Smartphone, SquareTerminal, Waypoints } from '../../../shared/ui/icons';
 import { VButton, VInputText, VMessage } from '../../../shared/ui/kit';
 import { ConnectorsPanel } from '../../../features/manage-connectors';
 import { RouterPanel } from '../../../features/edit-router';
@@ -29,7 +29,7 @@ const category = shallowRef<CategoryId>('appearance');
 const rawMode = shallowRef(false);
 const picked = shallowRef(false);
 
-const CATEGORY_ICONS: Record<CategoryId, Component> = { appearance: Palette, terminal: SquareTerminal, sessions: History, providers: Bot, files: FileText, connectors: Plug, remote: Smartphone, app: RefreshCw, keymap: Keyboard };
+const CATEGORY_ICONS: Record<CategoryId, Component> = { appearance: Palette, terminal: SquareTerminal, sessions: History, providers: Bot, router: Waypoints, files: FileText, connectors: Plug, remote: Smartphone, app: RefreshCw, keymap: Keyboard };
 
 const normalizedQuery = computed(() => query.value.trim().toLowerCase());
 const showDetail = computed(() => picked.value || rawMode.value || Boolean(normalizedQuery.value));
@@ -44,13 +44,13 @@ watch(normalizedQuery, (value) => {
 });
 const showKeymap = computed(() => !normalizedQuery.value && category.value === 'keymap');
 const showRemote = computed(() => !normalizedQuery.value && category.value === 'remote');
-const showRouter = computed(() => !normalizedQuery.value && category.value === 'sessions');
-const showProviders = computed(() => !normalizedQuery.value && category.value === 'providers');
-const showConnectors = computed(() => {
-  if (!normalizedQuery.value) return category.value === 'connectors';
-  const keywords = t('settings.connectorKeywords');
+function panelShown(id: CategoryId, keywords: string) {
+  if (!normalizedQuery.value) return category.value === id;
   return normalizedQuery.value.split(/\s+/).every((word) => keywords.includes(word));
-});
+}
+const showRouter = computed(() => panelShown('router', `${t('settings.category.router').toLowerCase()} ${t('settings.routerKeywords')}`));
+const showProviders = computed(() => panelShown('providers', `${t('settings.category.providers').toLowerCase()} ${t('settings.providerKeywords')}`));
+const showConnectors = computed(() => panelShown('connectors', t('settings.connectorKeywords')));
 const groups = computed(() =>
   CATEGORIES.map((entry) => ({
     ...entry,
@@ -165,9 +165,11 @@ function onSearchKey(event: KeyboardEvent) {
             <ConnectorsPanel />
           </section>
           <section v-if="showProviders" class="group" data-testid="settings-providers">
+            <h2 v-if="normalizedQuery">{{ t('settings.category.providers') }}</h2>
             <ProvidersPanel />
           </section>
           <section v-if="showRouter" class="group" data-testid="settings-router">
+            <h2 v-if="normalizedQuery">{{ t('settings.category.router') }}</h2>
             <RouterPanel />
           </section>
           <section v-if="showRemote" class="group" data-testid="settings-remote">
@@ -178,7 +180,7 @@ function onSearchKey(event: KeyboardEvent) {
             <h2 v-if="normalizedQuery">{{ t(group.label) }}</h2>
             <SettingRow v-for="key in group.keys" :key="key" :setting-key="key" />
           </section>
-          <p v-if="!groups.length && !showConnectors" class="empty" data-testid="settings-empty">{{ t('settings.empty') }}</p>
+          <p v-if="!groups.length && !showConnectors && !showProviders && !showRouter" class="empty" data-testid="settings-empty">{{ t('settings.empty') }}</p>
         </div>
       </div>
     </div>

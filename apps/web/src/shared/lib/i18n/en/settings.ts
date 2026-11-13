@@ -13,12 +13,15 @@ export const settings = {
   resetTitle: 'Reset to default',
   resetLabel: 'Reset',
   connectorKeywords: 'connectors connector github gitlab jira confluence token tokens connection account',
+  routerKeywords: 'llm router routing route rule rules fallback chain limit error switch model provider',
+  providerKeywords: 'providers provider agents agent acp claude codex gemini cursor command enable disable',
   category: {
     appearance: 'Appearance',
     terminal: 'Terminal',
     sessions: 'Sessions',
     connectors: 'Connectors',
     keymap: 'Keys',
+    router: 'LLM Router',
     providers: 'Providers',
   },
   providers: {
