@@ -268,6 +268,13 @@ export const SETTINGS = {
     description: 'settings.def.daemonClaudeLimits.description',
     category: 'sessions',
   },
+  'daemon.checkpointsClaude': {
+    type: 'boolean',
+    default: false,
+    label: 'settings.def.daemonCheckpointsClaude.label',
+    description: 'settings.def.daemonCheckpointsClaude.description',
+    category: 'sessions',
+  },
   'sessions.unloadIdleAfter': {
     type: 'enum',
     default: '1h',

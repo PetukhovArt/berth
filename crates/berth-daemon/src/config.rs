@@ -37,6 +37,7 @@ pub struct Config {
     pub hub_url: Option<String>,
     pub hub_token: Option<String>,
     pub channel_chain_limit: u32,
+    pub checkpoints_claude: bool,
 }
 
 impl Default for Config {
@@ -54,6 +55,7 @@ impl Default for Config {
             hub_url: None,
             hub_token: None,
             channel_chain_limit: 4,
+            checkpoints_claude: false,
         }
     }
 }

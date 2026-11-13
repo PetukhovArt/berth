@@ -1,6 +1,6 @@
 use anyhow::{bail, Context, Result};
 use berth_core::platform::NoWindow;
-use berth_core::{AgentId, Checkpoint};
+use berth_core::{AgentId, AgentKind, Checkpoint};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use tokio::process::Command;
@@ -189,6 +189,10 @@ async fn restore(repo: &Path, agent: &AgentId, number: u32) -> Result<()> {
     Ok(())
 }
 
+fn takes_checkpoints(kind: AgentKind, config: &crate::config::Config) -> bool {
+    kind != AgentKind::Claude || config.checkpoints_claude
+}
+
 impl Daemon {
     fn checkpoint_dir(&self, agent: &AgentId) -> Result<PathBuf> {
         let agent = self.store.get_agent(agent)?.context("agent not found")?;
@@ -200,6 +204,12 @@ impl Daemon {
     }
 
     pub async fn checkpoint_for_prompt(&self, agent: &AgentId) {
+        let Ok(Some(row)) = self.store.get_agent(agent) else {
+            return;
+        };
+        if !takes_checkpoints(row.kind, &crate::config::Config::load()) {
+            return;
+        }
         let Ok(dir) = self.checkpoint_dir(agent) else {
             return;
         };
@@ -250,6 +260,18 @@ mod tests {
         run(tmp.path(), &["add", "."]);
         run(tmp.path(), &["commit", "-m", "base"]);
         tmp
+    }
+
+    #[test]
+    fn claude_takes_no_checkpoint_by_default_and_codex_does() {
+        let config = crate::config::Config::default();
+        assert!(!takes_checkpoints(AgentKind::Claude, &config));
+        assert!(takes_checkpoints(AgentKind::Codex, &config));
+        let on = crate::config::Config {
+            checkpoints_claude: true,
+            ..config
+        };
+        assert!(takes_checkpoints(AgentKind::Claude, &on));
     }
 
     #[tokio::test]

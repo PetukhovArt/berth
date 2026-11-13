@@ -44,6 +44,7 @@
 - Added a toast in the desktop app when an agent starts waiting, finishes or stops with an error, and an OS notification when the window is in the background; clicking either opens the session (#25).
 - Added Grok as a session type: `grok` runs in a berth session with status updates, auto titles and resume, through hooks berth writes to `~/.grok/hooks/berth.json`. Grok runs hooks only in folders it trusts.
 - Added OpenCode as a session type: `opencode` runs in a berth session with status updates, auto titles and resume, through a plugin berth writes to `~/.config/opencode/plugin/berth.js`.
+- Changed Checkpoints to be off for Claude agents by default, since Claude Code has its own `/rewind`; `daemon.checkpointsClaude` in the desktop app's settings turns them back on (#20).
 - Changed the desktop app to update an older berth daemon on its own after an app update, instead of showing a protocol mismatch.
 - Fixed sessions not coming back after `berth kill` stopped a daemon on an older protocol version: the daemon now shuts down cleanly and records them.
 - Changed closing an agent's tab in the desktop app to stop the agent, so it no longer holds memory; the session stays in the tree and `Restart` resumes it.

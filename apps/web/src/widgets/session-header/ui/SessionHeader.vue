@@ -76,7 +76,7 @@ watch(
       </div>
       <div v-if="meta" class="meta" data-testid="session-header-meta">{{ meta }}</div>
     </div>
-    <CheckpointsButton v-if="agent" :agent-id="agent.id" :name="agent.name" :refresh-key="status" />
+    <CheckpointsButton v-if="agent" :agent-id="agent.id" :name="agent.name" :kind="agent.kind" :refresh-key="status" />
     <TaskNoteButton v-if="worktree" :worktree-id="worktree.id" :branch="worktree.branch" />
     <GitStepButton v-if="worktree && worktree.branch" :path="worktree.path" :branch="worktree.branch" :has-request="!!mr" :refresh-key="status" />
     <SessionViewSwitch :panel="panel" :active="active" />

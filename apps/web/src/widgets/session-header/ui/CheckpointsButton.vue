@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useSettings } from '../../../shared/config/settings/store';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { History } from '../../../shared/ui/icons';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
-import { describeError, listCheckpoints, restoreCheckpoint, type Checkpoint } from '../../../entities/session';
+import { describeError, listCheckpoints, restoreCheckpoint, type AgentKind, type Checkpoint } from '../../../entities/session';
 
-const props = defineProps<{ agentId: string; name: string; refreshKey?: unknown }>();
+const props = defineProps<{ agentId: string; name: string; kind: AgentKind; refreshKey?: unknown }>();
 
 const { formatDate } = useI18n();
+const settings = useSettings();
+const visible = computed(() => props.kind !== 'claude' || settings.values.value['daemon.checkpointsClaude'] === true || items.value.length > 0);
 const open = ref(false);
 const items = ref<Checkpoint[]>([]);
 const pending = ref<number | null>(null);
@@ -52,11 +55,11 @@ function time(item: Checkpoint): string {
   return formatDate(item.created_at * 1000, { timeStyle: 'short' });
 }
 
+onMounted(() => void load());
+
 watch(
   () => props.refreshKey,
-  () => {
-    if (open.value) void load();
-  },
+  () => void load(),
 );
 
 watch(
@@ -64,12 +67,13 @@ watch(
   () => {
     open.value = false;
     items.value = [];
+    void load();
   },
 );
 </script>
 
 <template>
-  <div class="checkpoints">
+  <div v-if="visible" class="checkpoints">
     <UiButton type="button" class="chip" :title="t('checkpoints.open')" :aria-label="t('checkpoints.open')" :aria-expanded="open" data-testid="checkpoints-button" @click="toggle">
       <History :size="13" />
     </UiButton>

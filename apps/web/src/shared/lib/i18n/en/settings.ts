@@ -143,6 +143,10 @@ export const settings = {
       label: 'Show Claude subscription limits',
       description: "Uses Claude Code's sign-in to ask Anthropic for your usage every minute. Off by default. Codex limits are read from its local files either way. Stored in the berth config.",
     },
+    daemonCheckpointsClaude: {
+      label: 'Checkpoints for Claude agents',
+      description: 'Take a checkpoint at each prompt of a Claude agent too. Off by default, since Claude Code has its own /rewind. Other agents always take them, and checkpoints already taken stay restorable. Stored in the berth config.',
+    },
     sessionsUnloadIdleAfter: {
       label: 'Unload idle sessions after',
       description: 'Closes the processes of sessions nobody has open once they sit idle this long. Each Claude session holds roughly 0.7-0.9 GB of memory, and an unloaded one resumes its conversation when you open it. Sessions with a running agent, a waiting prompt or a running terminal command are kept. Stored in the berth config, so it applies to every client.',
