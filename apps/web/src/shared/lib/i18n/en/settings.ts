@@ -92,6 +92,7 @@ export const settings = {
       claude: 'Claude',
       codex: 'Codex',
       cursor: 'Cursor',
+      opencode: 'OpenCode',
       terminal: 'Terminal',
     },
     sessionsDefaultModel: {

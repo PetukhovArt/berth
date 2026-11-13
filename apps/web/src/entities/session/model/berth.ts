@@ -2,7 +2,7 @@ import { createChannel, hasBackend, invoke } from '../../../bridge';
 import { computed, shallowRef, type ComputedRef, type ShallowRef } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 
-export type AgentKind = 'claude' | 'codex' | 'cursor';
+export type AgentKind = 'claude' | 'codex' | 'cursor' | 'opencode';
 type AgentStatus = 'fresh' | 'running' | 'finished' | 'needs_feedback' | 'terminated' | 'disconnected';
 export type SessionRef = { Agent: string } | { Terminal: string };
 type ConnectionState = 'connecting' | 'connected' | 'offline' | 'incompatible';

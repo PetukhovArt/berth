@@ -35,7 +35,7 @@ berth worktree [name] [--base <ref>]
                          # branch if it's new. No name invents one; --base picks the start point
 berth enter <dir>        # move the current session into the repo at <dir>, adding it as a project
                          # when berth does not have it; the conversation resumes there
-berth spawn <task> [--kind <claude|codex|cursor>]
+berth spawn <task> [--kind <claude|codex|cursor|opencode>]
                          # start a new agent session beside the current one, in the same worktree,
                          # opening on <task>; --kind defaults to this session's agent kind
 ```

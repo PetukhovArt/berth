@@ -1,6 +1,6 @@
 # berth
 
-Run Claude Code, Codex and Cursor agents across your projects and git worktrees, and see at a glance which
+Run Claude Code, Codex, Cursor and OpenCode agents across your projects and git worktrees, and see at a glance which
 one needs you. A daemon owns the terminals, so the agents keep working after you close the window.
 
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
@@ -25,7 +25,7 @@ On any platform, with a Rust toolchain:
 cargo install --git https://github.com/PetukhovArt/berth berth --locked
 ```
 
-You need at least one agent CLI on your `PATH`: `claude`, `codex` or `cursor-agent`.
+You need at least one agent CLI on your `PATH`: `claude`, `codex`, `cursor-agent` or `opencode`.
 
 Then build the desktop app from this repository, with Node 22, pnpm and a Rust toolchain:
 

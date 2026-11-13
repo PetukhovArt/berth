@@ -169,6 +169,7 @@ export const SETTINGS = {
       { value: 'claude', label: 'settings.def.sessionsDefaultKind.claude' },
       { value: 'codex', label: 'settings.def.sessionsDefaultKind.codex' },
       { value: 'cursor', label: 'settings.def.sessionsDefaultKind.cursor' },
+      { value: 'opencode', label: 'settings.def.sessionsDefaultKind.opencode' },
       { value: 'terminal', label: 'settings.def.sessionsDefaultKind.terminal' },
     ],
   },

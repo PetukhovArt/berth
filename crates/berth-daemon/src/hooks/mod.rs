@@ -8,6 +8,7 @@
 //! still gets a 200 so a broken hook never faults the user's agent turn.
 
 pub mod installer;
+pub mod opencode;
 
 use crate::status::HookEvent;
 use crate::store::Store;
@@ -195,6 +196,7 @@ pub async fn start_hook_server(
     let app = Router::new()
         .route("/api/hooks/claude", post(receive_injectable_hook))
         .route("/api/hooks/codex", post(receive_injectable_hook))
+        .route("/api/hooks/opencode", post(receive_injectable_hook))
         .route("/api/hooks/cursor", post(receive_plain_hook))
         .with_state(state);
 

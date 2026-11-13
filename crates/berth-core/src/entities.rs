@@ -52,18 +52,26 @@ pub enum AgentKind {
     Claude,
     Codex,
     Cursor,
+    #[serde(rename = "opencode")]
+    OpenCode,
 }
 
 impl AgentKind {
     /// Every kind, for callers that must cover all of them (menus, the
     /// boot-time CLI probe warm) and should fail to compile if one is added.
-    pub const ALL: [AgentKind; 3] = [AgentKind::Claude, AgentKind::Codex, AgentKind::Cursor];
+    pub const ALL: [AgentKind; 4] = [
+        AgentKind::Claude,
+        AgentKind::Codex,
+        AgentKind::Cursor,
+        AgentKind::OpenCode,
+    ];
 
     pub fn as_str(&self) -> &'static str {
         match self {
             AgentKind::Claude => "claude",
             AgentKind::Codex => "codex",
             AgentKind::Cursor => "cursor",
+            AgentKind::OpenCode => "opencode",
         }
     }
 
@@ -72,6 +80,7 @@ impl AgentKind {
             "claude" => AgentKind::Claude,
             "codex" => AgentKind::Codex,
             "cursor" => AgentKind::Cursor,
+            "opencode" => AgentKind::OpenCode,
             _ => return None,
         })
     }
@@ -83,6 +92,7 @@ impl AgentKind {
             AgentKind::Claude => "claude",
             AgentKind::Codex => "codex",
             AgentKind::Cursor => "cursor-agent",
+            AgentKind::OpenCode => "opencode",
         }
     }
 }

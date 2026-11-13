@@ -26,7 +26,7 @@ The desktop app is built from a checkout; see [Desktop working copy](#desktop-wo
 You also need:
 
 - A recent Rust toolchain: <https://rustup.rs>.
-- At least one agent CLI on `PATH`: `claude`, `codex` or `cursor-agent`. CLIs installed through npm
+- At least one agent CLI on `PATH`: `claude`, `codex`, `cursor-agent` or `opencode`. CLIs installed through npm
   (`.cmd` shims) are resolved and launched correctly.
 - Git for Windows.
 - `gh` and/or `glab`, if you want to connect GitHub or GitLab through their CLI instead of a token.

@@ -2551,6 +2551,7 @@ impl Daemon {
             // hook dialect has no context-injection channel.
             AgentKind::Cursor => hooks::installer::install_cursor_hooks(&worktree.path)
                 .and_then(|()| hooks::installer::install_cursor_title_rule(&worktree.path)),
+            AgentKind::OpenCode => hooks::opencode::install_plugin(&hooks::opencode::plugin_dir()),
         };
         if let Err(e) = install_result {
             tracing::warn!(error = %e, cwd = %worktree.path.display(), "hook install failed");
@@ -2937,17 +2938,18 @@ fn agent_spawn_command_with(
         (AgentKind::Claude, Some(sid)) => (vec!["--resume".to_string(), sid.to_string()], true),
         (AgentKind::Codex, Some(sid)) => (vec!["resume".to_string(), sid.to_string()], true),
         (AgentKind::Cursor, Some(sid)) => (vec!["--resume".to_string(), sid.to_string()], true),
+        (AgentKind::OpenCode, Some(sid)) => (vec!["--session".to_string(), sid.to_string()], true),
         (_, None) => (Vec::new(), false),
     };
     match kind {
         AgentKind::Codex => args.push("--yolo".to_string()),
         AgentKind::Cursor => args.push("--force".to_string()),
-        AgentKind::Claude => {}
+        AgentKind::Claude | AgentKind::OpenCode => {}
     }
     // Claude and codex spell the model flag the same way, and it follows
     // the skip-permissions flag in both (`codex --yolo --model …`). Cursor
     // has no model knob at all — a choice for it is simply ignored.
-    if let (Some(m), AgentKind::Claude | AgentKind::Codex) = (model, kind) {
+    if let (Some(m), AgentKind::Claude | AgentKind::Codex | AgentKind::OpenCode) = (model, kind) {
         args.extend(["--model".to_string(), m.to_string()]);
     }
     match kind {
@@ -2987,6 +2989,11 @@ fn agent_spawn_command_with(
             // `cursor-agent [options] [prompt...]` — the trailing positional.
             if let Some(p) = initial_prompt {
                 args.push(p.to_string());
+            }
+        }
+        AgentKind::OpenCode => {
+            if let Some(p) = initial_prompt {
+                args.extend(["--prompt".to_string(), p.to_string()]);
             }
         }
     }

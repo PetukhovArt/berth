@@ -95,6 +95,7 @@ export const settings: Translation<typeof en> = {
       claude: 'Claude',
       codex: 'Codex',
       cursor: 'Cursor',
+      opencode: 'OpenCode',
       terminal: 'Терминал',
     },
     sessionsDefaultModel: {

@@ -1,0 +1,88 @@
+export const BerthPlugin = async ({ directory }) => {
+  const agentId = process.env.BERTH_AGENT_ID;
+  const apiUrl = process.env.BERTH_API_URL;
+  const apiToken = process.env.BERTH_API_TOKEN;
+  if (!agentId || !apiUrl || !apiToken) return {};
+
+  const children = new Set();
+  const busy = new Set();
+  let root;
+  let instruction = null;
+
+  const post = async (hookEvent, payload) => {
+    try {
+      const query = `agentId=${encodeURIComponent(agentId)}&hookEvent=${hookEvent}`;
+      const response = await fetch(`${apiUrl}/api/hooks/opencode?${query}`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${apiToken}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ cwd: directory, ...payload }),
+        signal: AbortSignal.timeout(5000),
+      });
+      return await response.text();
+    } catch {
+      return '';
+    }
+  };
+
+  const subagentOf = (sessionID) => (children.has(sessionID) ? sessionID : undefined);
+
+  const settle = async (sessionID) => {
+    if (!busy.delete(sessionID)) return;
+    if (children.has(sessionID)) await post('SubagentStop', { session_id: root, agent_id: sessionID });
+    else await post('Stop', { session_id: sessionID });
+  };
+
+  return {
+    event: async ({ event }) => {
+      const properties = event.properties ?? {};
+      switch (event.type) {
+        case 'session.created': {
+          const info = properties.info ?? {};
+          if (!info.parentID) return;
+          children.add(info.id);
+          busy.add(info.id);
+          await post('SubagentStart', { session_id: root, agent_id: info.id });
+          return;
+        }
+        case 'session.status':
+          if (properties.status?.type === 'idle') await settle(properties.sessionID);
+          else busy.add(properties.sessionID);
+          return;
+        case 'session.idle':
+          await settle(properties.sessionID);
+          return;
+        case 'permission.asked':
+        case 'permission.updated':
+          await post('PermissionRequest', { session_id: root, agent_id: subagentOf(properties.sessionID) });
+          return;
+      }
+    },
+
+    'chat.message': async (input) => {
+      if (children.has(input.sessionID)) return;
+      root = input.sessionID;
+      busy.add(root);
+      const reply = await post('UserPromptSubmit', { session_id: root });
+      try {
+        instruction = JSON.parse(reply).hookSpecificOutput?.additionalContext ?? null;
+      } catch {
+        instruction = null;
+      }
+    },
+
+    'experimental.chat.system.transform': async (input, output) => {
+      if (!instruction) return;
+      if (input?.sessionID !== undefined && input.sessionID !== root) return;
+      output.system.push(instruction);
+      instruction = null;
+    },
+
+    'tool.execute.before': async (input) => {
+      await post('PreToolUse', { session_id: root, tool_name: input.tool, agent_id: subagentOf(input.sessionID) });
+    },
+
+    'tool.execute.after': async (input) => {
+      await post('PostToolUse', { session_id: root, tool_name: input.tool, agent_id: subagentOf(input.sessionID) });
+    },
+  };
+};

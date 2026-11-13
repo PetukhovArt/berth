@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added OpenCode as a session type: `opencode` runs in a berth session with status updates, auto titles and resume, through a plugin berth writes to `~/.config/opencode/plugin/berth.js`.
 - Changed the desktop app to update an older berth daemon on its own after an app update, instead of showing a protocol mismatch.
 - Fixed sessions not coming back after `berth kill` stopped a daemon on an older protocol version: the daemon now shuts down cleanly and records them.
 - Changed closing an agent's tab in the desktop app to stop the agent, so it no longer holds memory; the session stays in the tree and `Restart` resumes it.

@@ -16,6 +16,7 @@ const KINDS = computed<{ label: string; value: Kind }[]>(() => [
   { label: 'Claude', value: 'claude' },
   { label: 'Codex', value: 'codex' },
   { label: 'Cursor', value: 'cursor' },
+  { label: 'OpenCode', value: 'opencode' },
   { label: t('agents.newSession.terminal'), value: 'terminal' },
 ]);
 
