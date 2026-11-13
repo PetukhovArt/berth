@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 import { SquareTerminal, X } from '../../../shared/ui/icons';
-import { HarnessIcon, StatusDot } from '../../../entities/session';
+import { HarnessIcon } from '../../../entities/session';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
 import { useHot, type HotItem } from '../model/hot';
-import { hotDot, hotOverviewOpen } from '../model/view';
+import { hotOverviewOpen } from '../model/view';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const hot = useHot();
@@ -128,8 +128,8 @@ function crumb(item: HotItem): string {
     <div v-if="hotOverviewOpen" class="overlay" data-testid="hot-overview" @pointerdown.self="close">
       <div class="panel vr-sheet" role="dialog" :aria-label="t('hot.overview.title')">
         <header class="bar">
-          <h2 class="heading">{{ t('hot.overview.title') }}</h2>
-          <span class="hint vr-key-hint">{{ t('hot.overview.hint') }}</span>
+          <h2 class="heading">{{ t('hot.title') }}</h2>
+          <span class="count">{{ tiles.length }}</span>
           <UiButton class="close" :title="t('hot.overview.close')" :aria-label="t('hot.overview.close')" data-testid="hot-overview-close" @click="close"><X :size="14" /></UiButton>
         </header>
         <div v-if="tiles.length" ref="grid" class="grid vr-sheet-body" role="listbox" tabindex="-1" :aria-label="t('hot.overview.title')">
@@ -149,17 +149,19 @@ function crumb(item: HotItem): string {
             @click="choose(position)"
           >
             <span class="top">
-              <StatusDot :status="hotDot(tile.item.status)" :unseen="tile.item.unseen" />
-              <SquareTerminal v-if="tile.item.harness === 'shell'" :size="13" class="shell" />
-              <HarnessIcon v-else :harness="tile.item.harness" :size="13" />
-              <span class="title">{{ tile.item.title }}</span>
               <kbd v-if="tile.number <= 9" class="num">{{ tile.number }}</kbd>
+              <span class="badge">
+                <SquareTerminal v-if="tile.item.harness === 'shell'" :size="11" class="shell" />
+                <HarnessIcon v-else :harness="tile.item.harness" :size="11" />
+              </span>
+              <span class="title">{{ tile.item.title }}</span>
             </span>
             <span class="crumb">{{ crumb(tile.item) || ' ' }}</span>
             <span class="preview" :data-empty="!tile.item.preview">{{ tile.item.preview ?? t('hot.overview.noPreview') }}</span>
             <span class="foot">
+              <span class="dot" :data-status="tile.item.status" />
               <span class="state">{{ t(`hot.status.${tile.item.status}`) }}</span>
-              <span class="ago">{{ ago(tile.item) }}</span>
+              <span class="ago">· {{ ago(tile.item) }}</span>
             </span>
           </UiButton>
         </div>
@@ -196,41 +198,44 @@ function crumb(item: HotItem): string {
   inset: 32px 0 0;
   z-index: 900;
   display: flex;
-  padding: var(--vr-space-6);
-  background: var(--vr-palette-black-a-40);
+  align-items: flex-start;
+  justify-content: center;
+  padding: 38px var(--vr-space-6) 0;
+  background: var(--vr-overlay);
 }
 
 .panel {
   display: flex;
-  flex: 1;
+  flex: 0 1 1040px;
   flex-direction: column;
+  align-self: stretch;
   min-width: 0;
   min-height: 0;
+  max-height: 740px;
   overflow: hidden;
-  background: var(--vr-color-surface-raised);
-  border: 1px solid var(--vr-color-border);
-  border-radius: var(--vr-radius-lg);
-  box-shadow: var(--vr-shadow-popover);
+  background: var(--vr-color-surface);
+  border-radius: var(--vr-radius-xl);
+  box-shadow: var(--vr-shadow-dialog);
 }
 
 .bar {
   display: flex;
   flex: none;
-  gap: var(--vr-space-3);
+  gap: var(--vr-space-2);
   align-items: center;
-  padding: var(--vr-space-2) var(--vr-space-2) var(--vr-space-2) var(--vr-space-4);
+  height: 48px;
+  padding: 0 var(--vr-space-2) 0 var(--vr-space-4);
   border-bottom: 1px solid var(--vr-color-border);
 }
 
 .heading {
   margin: 0;
-  font-size: var(--vr-font-size-sm);
+  font-size: 15px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
-.hint {
-  flex: 1;
-  font-size: var(--vr-font-size-xs);
+.count {
   color: var(--vr-color-text-muted);
 }
 
@@ -258,9 +263,10 @@ function crumb(item: HotItem): string {
   flex: 1;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   grid-auto-rows: min-content;
-  gap: var(--vr-space-3);
+  gap: 10px;
+  align-content: start;
   min-height: 0;
-  padding: var(--vr-space-4);
+  padding: 14px;
   overflow-y: auto;
   outline: none;
 }
@@ -270,15 +276,13 @@ function crumb(item: HotItem): string {
   flex-direction: column;
   gap: var(--vr-space-2);
   min-width: 0;
-  min-height: 140px;
-  padding: var(--vr-space-3);
+  padding: 12px;
   font: inherit;
   color: inherit;
   text-align: left;
-  background: var(--vr-color-surface);
+  background: var(--vr-color-canvas);
   border: 1px solid var(--vr-color-border);
   border-radius: var(--vr-radius-lg);
-  box-shadow: var(--vr-elevation-card);
   animation: tile-in var(--vr-motion-slow) var(--vr-motion-ease-emphasized) both;
   animation-delay: calc(var(--i) * var(--vr-motion-fast) * 0.5);
   transition:
@@ -286,22 +290,21 @@ function crumb(item: HotItem): string {
     background var(--vr-motion-fast) var(--vr-motion-ease-standard);
 }
 
+.tile:hover {
+  border-color: var(--vr-color-border-strong);
+}
+
 .tile[data-current='true'] {
   background: var(--vr-color-nav-active);
-  border-color: var(--vr-color-accent);
 }
 
 .tile[data-status='waiting'] {
-  border-color: var(--vr-color-danger);
-}
-
-.tile[data-status='waiting'][data-current='true'] {
-  border-color: var(--vr-color-accent);
+  border-color: var(--vr-status-feedback);
 }
 
 .top {
   display: flex;
-  gap: var(--vr-space-2);
+  gap: 8px;
   align-items: center;
   min-width: 0;
 }
@@ -315,19 +318,35 @@ function crumb(item: HotItem): string {
   text-overflow: ellipsis;
 }
 
+.badge {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--vr-color-text-muted);
+  background: var(--vr-color-surface-muted);
+  border-radius: 5px;
+}
+
 .shell {
   flex: none;
   color: var(--vr-color-text-muted);
 }
 
 .num {
+  display: flex;
   flex: none;
-  padding: 0 var(--vr-space-1);
-  font-family: inherit;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-family: var(--vr-font-mono);
   font-size: var(--vr-font-size-2xs);
   font-variant-numeric: tabular-nums;
   color: var(--vr-color-text-muted);
-  background: var(--vr-color-chip-bg);
+  background: var(--vr-color-surface-muted);
   border-radius: var(--vr-radius-sm);
 }
 
@@ -340,17 +359,16 @@ function crumb(item: HotItem): string {
 }
 
 .preview {
-  display: -webkit-box;
-  flex: 1;
   overflow: hidden;
+  padding: 8px 10px;
   font-family: var(--vr-font-mono);
-  font-size: var(--vr-font-size-xs);
-  line-height: 1.45;
-  color: var(--vr-color-text);
-  word-break: break-word;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
-  -webkit-box-orient: vertical;
+  font-size: 11.5px;
+  line-height: 17px;
+  color: var(--vr-term-fg);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: var(--vr-color-surface-sunken);
+  border-radius: var(--vr-radius-md);
 }
 
 .preview[data-empty='true'] {
@@ -360,15 +378,46 @@ function crumb(item: HotItem): string {
 
 .foot {
   display: flex;
-  gap: var(--vr-space-2);
-  justify-content: space-between;
-  font-size: var(--vr-font-size-2xs);
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vr-status-idle);
+}
+
+.dot[data-status='working'] {
+  background: var(--vr-status-running);
+}
+
+.dot[data-status='waiting'] {
+  background: var(--vr-status-feedback);
+}
+
+.dot[data-status='error'] {
+  background: var(--vr-status-crashed);
+}
+
+.state {
   color: var(--vr-color-text-muted);
 }
 
 .tile[data-status='waiting'] .state {
-  font-weight: 600;
-  color: var(--vr-color-danger);
+  color: var(--vr-status-feedback);
+}
+
+.tile[data-status='error'] .state {
+  color: var(--vr-status-crashed);
+}
+
+.ago {
+  color: var(--vr-color-text-subtle);
 }
 
 .empty {

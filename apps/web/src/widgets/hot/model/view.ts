@@ -1,7 +1,5 @@
 import { computed, shallowRef } from 'vue';
-import type { SessionStatus } from '../../../entities/session';
 import { useSettings } from '../../../shared/config/settings/store';
-import type { HotStatus } from './hot';
 
 const { values } = useSettings();
 
@@ -13,9 +11,3 @@ export function toggleHotOverview(): void {
   hotOverviewOpen.value = !hotOverviewOpen.value;
 }
 
-export function hotDot(status: HotStatus): SessionStatus | undefined {
-  if (status === 'waiting') return 'needs_feedback';
-  if (status === 'working') return 'running';
-  if (status === 'error') return 'terminated';
-  return undefined;
-}

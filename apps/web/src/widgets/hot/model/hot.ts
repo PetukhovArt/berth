@@ -3,7 +3,7 @@ import { externalKey, externalTarget, readTranscript, useExternalSessions, type 
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
 
-export type HotStatus = 'waiting' | 'working' | 'idle' | 'error';
+type HotStatus = 'waiting' | 'working' | 'idle' | 'error';
 type HotHarness = 'claude' | 'codex' | 'shell';
 export type HotItem = {
   key: string;
