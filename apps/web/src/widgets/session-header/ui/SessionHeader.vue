@@ -8,7 +8,7 @@ import { SessionViewSwitch } from '../../../features/session-view-switch';
 
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
 
-const KIND_LABEL: Record<AgentKind, string> = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode' };
+const KIND_LABEL: Record<AgentKind, string> = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode', grok: 'Grok' };
 
 const berth = useBerth();
 const external = useExternalSessions();

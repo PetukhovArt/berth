@@ -2552,6 +2552,10 @@ impl Daemon {
             AgentKind::Cursor => hooks::installer::install_cursor_hooks(&worktree.path)
                 .and_then(|()| hooks::installer::install_cursor_title_rule(&worktree.path)),
             AgentKind::OpenCode => hooks::opencode::install_plugin(&hooks::opencode::plugin_dir()),
+            // Grok's hooks live in its home (global, like codex's) and run
+            // only in folders grok trusts; its UserPromptSubmit cannot
+            // inject context, so the title instruction goes in `--rules`.
+            AgentKind::Grok => hooks::installer::install_grok_hooks(&hooks::installer::grok_home()),
         };
         if let Err(e) = install_result {
             tracing::warn!(error = %e, cwd = %worktree.path.display(), "hook install failed");
@@ -2593,18 +2597,24 @@ impl Daemon {
             launch::wrap_for_user_env(&program, &args)
         };
 
+        let mut agent_env = vec![
+            (env::AGENT_ID.into(), agent.id.to_string()),
+            (
+                env::API_URL.into(),
+                format!("http://127.0.0.1:{}", self.hook_env.port),
+            ),
+            (env::API_TOKEN.into(), self.hook_env.token.clone()),
+        ];
+        // Grok runs hook commands under PowerShell on Windows; the hook
+        // one-liners are sh, so point it at Git Bash.
+        if cfg!(windows) && agent.kind == AgentKind::Grok {
+            agent_env.push(("GROK_SHELL".into(), "bash".into()));
+        }
         let spec = SpawnSpec {
             program,
             args,
             cwd: worktree.path.clone(),
-            env: vec![
-                (env::AGENT_ID.into(), agent.id.to_string()),
-                (
-                    env::API_URL.into(),
-                    format!("http://127.0.0.1:{}", self.hook_env.port),
-                ),
-                (env::API_TOKEN.into(), self.hook_env.token.clone()),
-            ],
+            env: agent_env,
             scrub_env: env::AGENT_SESSION_VARS,
             cols,
             rows,
@@ -2939,11 +2949,13 @@ fn agent_spawn_command_with(
         (AgentKind::Codex, Some(sid)) => (vec!["resume".to_string(), sid.to_string()], true),
         (AgentKind::Cursor, Some(sid)) => (vec!["--resume".to_string(), sid.to_string()], true),
         (AgentKind::OpenCode, Some(sid)) => (vec!["--session".to_string(), sid.to_string()], true),
+        (AgentKind::Grok, Some(sid)) => (vec!["--resume".to_string(), sid.to_string()], true),
         (_, None) => (Vec::new(), false),
     };
     match kind {
         AgentKind::Codex => args.push("--yolo".to_string()),
         AgentKind::Cursor => args.push("--force".to_string()),
+        AgentKind::Grok => args.push("--always-approve".to_string()),
         AgentKind::Claude | AgentKind::OpenCode => {}
     }
     // Claude and codex spell the model flag the same way, and it follows
@@ -2951,6 +2963,9 @@ fn agent_spawn_command_with(
     // has no model knob at all — a choice for it is simply ignored.
     if let (Some(m), AgentKind::Claude | AgentKind::Codex | AgentKind::OpenCode) = (model, kind) {
         args.extend(["--model".to_string(), m.to_string()]);
+    }
+    if let (Some(m), AgentKind::Grok) = (model, kind) {
+        args.extend(["-m".to_string(), m.to_string()]);
     }
     match kind {
         AgentKind::Claude => {
@@ -2994,6 +3009,18 @@ fn agent_spawn_command_with(
         AgentKind::OpenCode => {
             if let Some(p) = initial_prompt {
                 args.extend(["--prompt".to_string(), p.to_string()]);
+            }
+        }
+        AgentKind::Grok => {
+            if !resumed {
+                args.extend([
+                    "--rules".to_string(),
+                    crate::hooks::AUTO_TITLE_INSTRUCTION.to_string(),
+                ]);
+            }
+            // `grok [OPTIONS] [PROMPT]`: the trailing positional.
+            if let Some(p) = initial_prompt {
+                args.push(p.to_string());
             }
         }
     }

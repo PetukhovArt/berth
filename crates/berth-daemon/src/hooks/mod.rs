@@ -198,6 +198,7 @@ pub async fn start_hook_server(
         .route("/api/hooks/codex", post(receive_injectable_hook))
         .route("/api/hooks/opencode", post(receive_injectable_hook))
         .route("/api/hooks/cursor", post(receive_plain_hook))
+        .route("/api/hooks/grok", post(receive_plain_hook))
         .with_state(state);
 
     tokio::spawn(async move {

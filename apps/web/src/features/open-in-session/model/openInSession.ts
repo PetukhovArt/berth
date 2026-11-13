@@ -25,8 +25,8 @@ export type MrRun = {
 const DESCRIPTION_LIMIT = 1500;
 const NAME_LIMIT = 60;
 const TRACKER_KEY = /[A-Z][A-Z0-9]+-\d+/;
-const KIND_LABEL: Record<AgentKind, string> = { claude: 'Claude', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode' };
-const KINDS = new Set<string>(['claude', 'codex', 'cursor', 'opencode']);
+const KIND_LABEL: Record<AgentKind, string> = { claude: 'Claude', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode', grok: 'Grok' };
+const KINDS = new Set<string>(['claude', 'codex', 'cursor', 'opencode', 'grok']);
 
 class Problem extends Error {}
 
@@ -81,7 +81,7 @@ function fetchProblem(fetched: FetchedSource, branch: string): string {
 }
 
 async function ensureCli(kind: AgentKind) {
-  if (kind === 'cursor' || kind === 'opencode') return;
+  if (kind === 'cursor' || kind === 'opencode' || kind === 'grok') return;
   const view = await invoke<AiView>('ai_refresh', { kind }).catch(() => null);
   if (view?.status === 'not_installed') throw new Problem(t('forge.openSession.errors.cliMissing', { kind: KIND_LABEL[kind] }));
   if (view?.status === 'signed_out') throw new Problem(t('forge.openSession.errors.cliSignedOut', { kind: KIND_LABEL[kind] }));

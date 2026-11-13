@@ -93,6 +93,7 @@ export const settings = {
       codex: 'Codex',
       cursor: 'Cursor',
       opencode: 'OpenCode',
+      grok: 'Grok',
       terminal: 'Terminal',
     },
     sessionsDefaultModel: {

@@ -22,7 +22,7 @@ cargo install --git https://github.com/PetukhovArt/berth berth --locked
 
 Windows has its own notes in [windows.md](windows.md).
 
-You need at least one agent CLI on your `PATH`: `claude`, `codex`, `cursor-agent` or `opencode`.
+You need at least one agent CLI on your `PATH`: `claude`, `codex`, `cursor-agent`, `opencode` or `grok`.
 
 berth was called pacer up to 0.20. Its first start copies your pacer data over and leaves pacer running;
 see [Moving from pacer](configuration.md#moving-from-pacer).
@@ -59,7 +59,7 @@ Projects sit in workspaces, named groups of projects shown in the tree. Every in
 
 `Ctrl+Shift+N` (`Cmd+Shift+N` on macOS) opens `New Session`. Pick the project, then where to run: the
 main checkout, an existing worktree, or `New worktree…` with a new branch. Pick the type (Claude, Codex,
-Cursor, OpenCode or a plain terminal), and for an agent the model, the effort and an optional first prompt.
+Cursor, OpenCode, Grok or a plain terminal), and for an agent the model, the effort and an optional first prompt.
 
 A new worktree is a real `git worktree`, created under `<repo>/../<repo-name>-worktrees/<branch>`.
 That is the point of it: two agents in two worktrees edit two directories and never collide.

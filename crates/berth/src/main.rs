@@ -94,7 +94,7 @@ enum Command {
         /// The task the new session starts on; multiple words need no quotes.
         #[arg(required = true, num_args = 1..)]
         task: Vec<String>,
-        /// Harness for the new session: claude, codex, cursor or opencode (default:
+        /// Harness for the new session: claude, codex, cursor, opencode or grok (default:
         /// the same as this session's).
         #[arg(long, value_name = "KIND", value_parser = parse_agent_kind)]
         kind: Option<berth_core::AgentKind>,

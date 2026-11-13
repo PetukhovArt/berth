@@ -52,6 +52,8 @@ const CLAUDE_SETTINGS_FILE: &str = "settings.local.json";
 const CLAUDE_DIR: &str = ".claude";
 const CURSOR_DIR: &str = ".cursor";
 const CODEX_DIR: &str = ".codex";
+const GROK_DIR: &str = ".grok";
+const GROK_HOOKS_FILE: &str = "berth.json";
 /// How long a hook waits on the daemon. Hooks run inline in the agent's
 /// turn, so a hung daemon has to cost seconds, not a stuck session.
 const HOOK_CURL_TIMEOUT_SECS: u32 = 3;
@@ -93,6 +95,17 @@ const CODEX_EVENTS: &[(&str, Option<&str>)] = &[
     ("SubagentStop", None),
 ];
 
+/// Grok reads Claude-dialect matcher groups. Its Stop fires for the main
+/// agent only (a subagent's turn end is SubagentStop, left out: the payload
+/// carries no subagent id to track), and permission waits arrive as
+/// Notification `permission_prompt`, so there is no PermissionRequest.
+const GROK_EVENTS: &[(&str, Option<&str>)] = &[
+    ("UserPromptSubmit", None),
+    ("Stop", None),
+    ("SessionStart", None),
+    ("Notification", None),
+];
+
 /// (cursor hook event, berth hookEvent query value). Cursor has no
 /// PermissionRequest hook and berth always runs cursor-agent with
 /// `--force`, so waiting-on-user is simply not detectable — busy/idle is.
@@ -132,7 +145,8 @@ fn hook_command(endpoint: &str, event: &str) -> String {
     // model's context, which is how the session auto-title instruction
     // reaches the agent. The daemon keeps that body empty except when an
     // instruction is due. Every other event stays fully silent.
-    let silence = if event == "UserPromptSubmit" {
+    // Grok discards a UserPromptSubmit hook's stdout instead, so it stays silent.
+    let silence = if event == "UserPromptSubmit" && endpoint != "grok" {
         "2>/dev/null"
     } else {
         ">/dev/null 2>&1"
@@ -287,6 +301,29 @@ pub fn codex_home() -> PathBuf {
 /// Merge berth's managed hooks for Codex into `<codex_home>/hooks.json`.
 pub fn install_codex_hooks(codex_home: &Path) -> Result<()> {
     install_managed_hooks(codex_home, HOOKS_FILE, "codex", CODEX_EVENTS, &[])
+}
+
+/// Grok's home: `$GROK_HOME`, else `~/.grok`.
+pub fn grok_home() -> PathBuf {
+    berth_core::env::non_empty("GROK_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            berth_core::env::home_dir()
+                .unwrap_or_default()
+                .join(GROK_DIR)
+        })
+}
+
+/// Merge berth's managed hooks for Grok into `<grok_home>/hooks/berth.json`,
+/// a file of its own in the directory Grok loads every `*.json` from.
+pub fn install_grok_hooks(grok_home: &Path) -> Result<()> {
+    install_managed_hooks(
+        &grok_home.join("hooks"),
+        GROK_HOOKS_FILE,
+        "grok",
+        GROK_EVENTS,
+        &[],
+    )
 }
 
 /// Drop the per-worktree `.codex/hooks.json` groups an older berth wrote:
@@ -628,6 +665,23 @@ mod tests {
 
     /// Codex hooks land in its home dir, not the worktree — that stable
     /// path is what keeps its trust prompt to a single approval.
+    #[test]
+    fn grok_installs_its_own_file_and_stays_silent() {
+        let tmp = tempfile::tempdir().unwrap();
+        install_grok_hooks(tmp.path()).unwrap();
+        let hooks = read_json(tmp.path(), "hooks/berth.json");
+        let submit = hooks["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"]
+            .as_str()
+            .unwrap();
+        assert!(
+            submit.contains("/api/hooks/grok?"),
+            "grok endpoint: {submit}"
+        );
+        assert!(submit.contains(">/dev/null 2>&1"), "stdout: {submit}");
+        assert!(hooks["hooks"]["Notification"].is_array());
+        assert!(hooks["hooks"].get("PermissionRequest").is_none());
+    }
+
     #[test]
     fn codex_installs_into_codex_home() {
         let tmp = tempfile::tempdir().unwrap();
