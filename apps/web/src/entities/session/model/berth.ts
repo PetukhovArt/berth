@@ -304,11 +304,12 @@ export type BerthReply =
   | { WorktreeEntered: { req_id: number; worktree: Worktree; outcome: EnterOutcome } }
   | { Metrics: { req_id: number; snapshot: MetricsSnapshot } }
   | { UsageLimits: { req_id: number; windows: unknown[] } }
-  | { TaskNote: { req_id: number; worktree: string; text: string } };
+  | { TaskNote: { req_id: number; worktree: string; text: string } }
+  | { Checkpoints: { req_id: number; agent: string; checkpoints: { number: number; created_at: number; before_restore: boolean }[] } };
 
 export class BerthCallError extends Error {}
 
-const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote']);
+const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote', 'Checkpoints']);
 
 function isBerthReply(value: unknown): value is BerthReply {
   if (typeof value !== 'object' || value === null) return false;

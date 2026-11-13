@@ -13,6 +13,7 @@ import { feedback } from './en/feedback';
 import { hot } from './en/hot';
 import { gitStep } from './en/gitStep';
 import { taskNote } from './en/taskNote';
+import { checkpoints } from './en/checkpoints';
 import { jira } from './en/jira';
 import { reviews } from './en/reviews';
 import { settings } from './en/settings';
@@ -22,4 +23,4 @@ import { workbench } from './en/workbench';
 import { remote } from './en/remote';
 import { update } from './en/update';
 
-export const en = { common, shell, settings, commands, agents, connectors, atlassian, jira, confluence, reviews, forge, content, files, remote, mobile, workbench, hot, update, cleanup, attention, feedback, gitStep, taskNote } as const;
+export const en = { common, shell, settings, commands, agents, connectors, atlassian, jira, confluence, reviews, forge, content, files, remote, mobile, workbench, hot, update, cleanup, attention, feedback, gitStep, taskNote, checkpoints } as const;

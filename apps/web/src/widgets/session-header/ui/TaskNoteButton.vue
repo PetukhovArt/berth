@@ -50,7 +50,7 @@ watch(
   <div class="task-note">
     <UiButton type="button" class="chip" :class="{ filled: !!note }" :title="label" :aria-label="label" :aria-expanded="open" data-testid="task-note-button" @click="toggle">
       <FileText :size="13" />
-    </button>
+    </UiButton>
     <form v-if="open" class="form vr-sheet" data-testid="task-note-form" @submit.prevent="save(draft)">
       <span class="heading">{{ t('taskNote.title', { branch }) }}</span>
       <UiTextarea v-model="draft" rows="5" :placeholder="t('taskNote.placeholder')" data-testid="task-note-text" autofocus />

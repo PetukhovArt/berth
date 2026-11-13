@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added Checkpoints: berth saves the files of an Agent's worktree at each prompt on hidden git refs, and the session header lists them with a Restore files button that keeps the branch and the current files safe (#20).
 - Added a token per paired device in Remote access settings, read-only or full access, each with its own pairing link and a Revoke button that locks that device out (#35).
 - Added a hold-to-talk microphone button to the Chat view on a phone: hold it, speak, release to send the transcript to the Agent, slide away to cancel (#32).
 - Added a Hands-free button to the Chat view on a phone: berth listens, a pause sends your turn, the Agent's reply is read aloud without code, then it listens again until you press End voice (#33).
