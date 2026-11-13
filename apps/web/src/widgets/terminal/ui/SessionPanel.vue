@@ -11,6 +11,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { openUrl } from '../../../bridge';
 import { hostPlatform } from '../../../shared/lib/platform';
 import FeedbackStrip from './FeedbackStrip.vue';
+import QueueStrip from './QueueStrip.vue';
 import { applyCtrl } from '../lib/mobileKeys';
 import { useSettings } from '../../../shared/config/settings/store';
 import { terminalClipboard } from '../lib/terminalClipboard';
@@ -290,6 +291,7 @@ onBeforeUnmount(() => {
   <div class="frame">
     <div ref="host" class="terminal" data-testid="session-terminal" :data-session-id="sessionId(session)" :data-released="released" />
     <FeedbackStrip :session="session" class="feedback" />
+    <QueueStrip v-if="'Agent' in session" :agent="session.Agent" />
     <p v-if="released" class="released" data-testid="session-terminal-released">{{ t('agents.session.released') }}</p>
   </div>
 </template>
