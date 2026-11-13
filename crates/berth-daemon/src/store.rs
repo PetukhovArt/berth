@@ -1014,6 +1014,14 @@ impl Store {
         Ok(())
     }
 
+    pub fn set_agent_model(&self, id: &AgentId, model: Option<&str>) -> Result<()> {
+        self.conn.lock().unwrap().execute(
+            "UPDATE agents SET model = ?2 WHERE id = ?1",
+            params![id.as_str(), model],
+        )?;
+        Ok(())
+    }
+
     // ---- orphaned sessions ----
 
     /// Copy every resumable AGENT of `worktree_id` into `orphaned_sessions`.
@@ -1463,6 +1471,7 @@ fn row_to_agent(r: &rusqlite::Row) -> rusqlite::Result<Agent> {
         alive: false,
         cloud_mirroring: false,
         suggested_prompt: None,
+        provider_error: None,
     })
 }
 
@@ -1548,6 +1557,7 @@ mod tests {
             alive: false,
             cloud_mirroring: false,
             suggested_prompt: None,
+            provider_error: None,
         };
         let pr_url = "https://github.com/PetukhovArt/berth/pull/42";
         store
@@ -1571,6 +1581,7 @@ mod tests {
             alive: false,
             cloud_mirroring: false,
             suggested_prompt: None,
+            provider_error: None,
         };
         store.insert_agent(&codex_agent).unwrap();
         let cursor_agent = Agent {
@@ -1591,6 +1602,7 @@ mod tests {
             alive: false,
             cloud_mirroring: false,
             suggested_prompt: None,
+            provider_error: None,
         };
         store.insert_agent(&cursor_agent).unwrap();
 
@@ -2090,6 +2102,7 @@ mod tests {
             alive: false,
             cloud_mirroring: false,
             suggested_prompt: None,
+            provider_error: None,
         };
 
         // Default-named session: pending until the agent titles it, and the
@@ -2239,6 +2252,7 @@ mod tests {
                     alive: false,
                     cloud_mirroring: false,
                     suggested_prompt: None,
+                    provider_error: None,
                 })
                 .unwrap();
         }
@@ -2306,6 +2320,7 @@ mod tests {
                 alive: false,
                 cloud_mirroring: false,
                 suggested_prompt: None,
+                provider_error: None,
             };
             store.insert_agent(&agent).unwrap();
             agent.id
@@ -2403,6 +2418,7 @@ mod tests {
             alive: false,
             cloud_mirroring: false,
             suggested_prompt: None,
+            provider_error: None,
         };
         store.insert_agent(&agent).unwrap();
         (project.id, worktree.id, agent.id)

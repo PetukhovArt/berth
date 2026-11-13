@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 52;
+pub const PROTOCOL_VERSION: u32 = 53;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -314,6 +314,17 @@ pub enum ClientRequest {
     RestartAgent {
         req_id: u64,
         id: AgentId,
+    },
+    SwitchAgentModel {
+        req_id: u64,
+        id: AgentId,
+        model: Option<String>,
+    },
+    ContinueAgentIn {
+        req_id: u64,
+        id: AgentId,
+        kind: AgentKind,
+        model: Option<String>,
     },
     /// Re-enter the Claude Cloud session a row launched: `claude --cloud
     /// <id>` for a live attach, which the daemon downgrades to `claude

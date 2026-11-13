@@ -303,6 +303,7 @@ mod tests {
             alive: true,
             cloud_mirroring: false,
             suggested_prompt: None,
+            provider_error: None,
         }
     }
 

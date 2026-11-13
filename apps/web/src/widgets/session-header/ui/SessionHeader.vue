@@ -8,6 +8,7 @@ import { SessionViewSwitch } from '../../../features/session-view-switch';
 import { GitStepButton } from '../../../features/git-step';
 import TaskNoteButton from './TaskNoteButton.vue';
 import CheckpointsButton from './CheckpointsButton.vue';
+import RouteButton from './RouteButton.vue';
 import { OverlapChip } from '../../../features/overlaps';
 
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
@@ -44,6 +45,8 @@ const tone = computed(() => {
 
 const statusText = computed(() => {
   if (!status.value) return '';
+  const failure = node.value?.providerError;
+  if (failure) return t(`agents.route.errorKind.${failure.kind}`);
   const label = t(`agents.status.${status.value}`);
   const until = status.value === 'limit' ? node.value?.limitUntil : undefined;
   return until ? `${label} · ${t('agents.metrics.resets', { time: new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}` : label;
@@ -76,6 +79,7 @@ watch(
       </div>
       <div v-if="meta" class="meta" data-testid="session-header-meta">{{ meta }}</div>
     </div>
+    <RouteButton v-if="agent" :agent-id="agent.id" :kind="agent.kind" :model="agent.model" :resumable="!!agent.session_id" :error="agent.provider_error ?? null" />
     <CheckpointsButton v-if="agent" :agent-id="agent.id" :name="agent.name" :kind="agent.kind" :refresh-key="status" />
     <TaskNoteButton v-if="worktree" :worktree-id="worktree.id" :branch="worktree.branch" />
     <GitStepButton v-if="worktree && worktree.branch" :path="worktree.path" :branch="worktree.branch" :has-request="!!mr" :refresh-key="status" />

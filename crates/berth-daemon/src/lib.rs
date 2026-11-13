@@ -19,6 +19,7 @@ pub mod project_pins;
 pub mod pty;
 pub mod registry;
 pub mod restore;
+pub mod router;
 pub mod sampler;
 pub mod server;
 pub mod sibling;
@@ -115,6 +116,7 @@ async fn serve() -> Result<()> {
                 cwd,
                 transcript_path,
                 request,
+                provider_error,
             }) = hook_rx.recv().await
             {
                 let captures_session = event.captures_session();
@@ -157,6 +159,7 @@ async fn serve() -> Result<()> {
                 // still carries the old checkout's cwd, which must be seen
                 // (and ignored) while the relocation is still pending.
                 daemon.complete_pending_move(&agent_id, &event);
+                daemon.route_hook_event(&agent_id, &event, provider_error);
             }
         });
     }
@@ -186,6 +189,7 @@ async fn serve() -> Result<()> {
                     _ = daemon.shutdown.cancelled() => break,
                     _ = interval.tick() => {
                         daemon.tick_status_machines();
+                        daemon.scan_provider_errors();
                         daemon.reap_prewarmed();
                     }
                 }

@@ -29,7 +29,10 @@ type Agent = {
   sort_order: number;
   alive: boolean;
   suggested_prompt?: string | null;
+  provider_error?: ProviderError | null;
 };
+type ProviderErrorKind = 'overloaded' | 'server' | 'network' | 'usage_limit' | 'auth' | 'other';
+export type ProviderError = { kind: ProviderErrorKind; since_ms: number; message: string };
 type Terminal = { id: string; worktree_id: string; name: string; sort_order: number; alive: boolean; session_id?: string | null };
 
 type Entity = { Workspace: Workspace } | { Project: Project } | { Worktree: Worktree } | { Agent: Agent } | { Terminal: Terminal } | { Link: unknown };
@@ -54,7 +57,7 @@ type WatchEvent =
 export type SessionEvent = { type: 'reset'; data: string } | { type: 'output'; data: string } | { type: 'exited'; exit_code: number | null };
 
 export type SessionStatus = AgentStatus | 'shell' | 'closed' | 'limit';
-export type SessionNode = { key: string; id: string; ref: SessionRef; name: string; status: SessionStatus; unseen: boolean; alive: boolean; limitUntil?: number };
+export type SessionNode = { key: string; id: string; ref: SessionRef; name: string; status: SessionStatus; unseen: boolean; alive: boolean; limitUntil?: number; providerError?: ProviderError };
 export type WorktreeNode = { id: string; path: string; branch: string; main: boolean; sessions: SessionNode[]; archived: SessionNode[] };
 type ProjectNode = { id: string; name: string; worktrees: WorktreeNode[] };
 type WorkspaceNode = { id: string; name: string; projects: ProjectNode[] };
@@ -144,6 +147,7 @@ function agentNode(agent: Agent): SessionNode {
   const ref = { Agent: agent.id };
   const until = agent.status === 'finished' && agent.alive ? limitUntil(agent.kind) : null;
   const node: SessionNode = { key: sessionKey(ref), id: agent.id, ref, name: agent.name, status: agent.status, unseen: agent.unseen, alive: agent.alive };
+  if (agent.provider_error) return { ...node, status: 'limit', providerError: agent.provider_error };
   return until === null ? node : { ...node, status: 'limit', limitUntil: until };
 }
 
@@ -363,6 +367,14 @@ export async function renameSession(session: SessionRef, name: string): Promise<
 
 export async function restartAgent(id: string): Promise<void> {
   await acknowledged({ RestartAgent: { id } });
+}
+
+export async function switchAgentModel(id: string, model: string | null): Promise<void> {
+  await acknowledged({ SwitchAgentModel: { id, model } });
+}
+
+export function continueAgentIn(id: string, kind: AgentKind, model: string | null): Promise<EntityId | null> {
+  return acknowledged({ ContinueAgentIn: { id, kind, model } });
 }
 
 export async function archiveAgent(id: string): Promise<void> {

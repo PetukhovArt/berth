@@ -1,7 +1,7 @@
 export { rollupOf } from './lib/sessionPaths';
 export type { Rollup, WorkspaceNode } from './lib/sessionPaths';
-export { acknowledged, archiveAgent, attachSession, BerthCallError, call, closeTerminal, createAgent, createTerminal, deleteAgent, describeError, detachSession, entitySessionRef, isSessionRef, renameSession, resizeSession, restartAgent, sendInput, sessionId, sessionKey, stopAgent, unarchiveAgent, useBerth, worktreesOfProject } from './model/berth';
-export type { AgentKind, Branch, Entities, SessionEvent, SessionNode, SessionRef, SessionStatus, Worktree, WorktreeNode } from './model/berth';
+export { acknowledged, archiveAgent, attachSession, BerthCallError, call, closeTerminal, createAgent, createTerminal, deleteAgent, describeError, detachSession, entitySessionRef, isSessionRef, renameSession, resizeSession, restartAgent, sendInput, switchAgentModel, continueAgentIn, sessionId, sessionKey, stopAgent, unarchiveAgent, useBerth, worktreesOfProject } from './model/berth';
+export type { AgentKind, Branch, Entities, ProviderError, SessionEvent, SessionNode, SessionRef, SessionStatus, Worktree, WorktreeNode } from './model/berth';
 export { archiveExternal, continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, isExternalPanel, placeExternal, readTranscript, resumeCommand, sessionDot, splitEarlier, unarchiveExternal, useExternalSessions } from './model/external';
 export type { ExternalSession, Harness, TranscriptMessage } from './model/external';
 export { derivePlan } from './model/plan';

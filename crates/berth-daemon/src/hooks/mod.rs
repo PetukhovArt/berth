@@ -93,6 +93,7 @@ pub struct HookDelivery {
     /// reads (see `crate::subagents`).
     pub transcript_path: Option<String>,
     pub request: Option<berth_core::FeedbackRequest>,
+    pub provider_error: Option<crate::router::DetectedError>,
 }
 
 /// Permissive payload: every field optional, unknown fields ignored. Hook
@@ -119,6 +120,9 @@ pub struct HookPayload {
     pub workspace_roots: Option<Vec<String>>,
     pub transcript_path: Option<String>,
     pub tool_input: Option<serde_json::Value>,
+    pub error: Option<serde_json::Value>,
+    #[serde(alias = "errorDetails")]
+    pub error_details: Option<serde_json::Value>,
 }
 
 impl HookPayload {
@@ -298,6 +302,9 @@ async fn receive_hook(
         payload.tool_input.as_ref(),
     )
     .filter(|_| foreground);
+    let provider_error = (query.hook_event == "StopFailure")
+        .then(|| crate::router::detect::from_stop_failure(&payload))
+        .filter(|_| foreground);
     let _ = state
         .tx
         .send(HookDelivery {
@@ -307,6 +314,7 @@ async fn receive_hook(
             session_id: payload.session_id(),
             cwd,
             transcript_path,
+            provider_error,
         })
         .await;
 
@@ -417,6 +425,7 @@ mod tests {
             alive: false,
             cloud_mirroring: false,
             suggested_prompt: None,
+            provider_error: None,
         };
         store
             .insert_agent_with_auto_title(&agent("pending"), true)

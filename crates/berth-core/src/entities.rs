@@ -210,6 +210,26 @@ pub struct Agent {
     pub cloud_mirroring: bool,
     #[serde(default)]
     pub suggested_prompt: Option<String>,
+    #[serde(default)]
+    pub provider_error: Option<ProviderError>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderErrorKind {
+    Overloaded,
+    Server,
+    Network,
+    UsageLimit,
+    Auth,
+    Other,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProviderError {
+    pub kind: ProviderErrorKind,
+    pub since_ms: i64,
+    pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

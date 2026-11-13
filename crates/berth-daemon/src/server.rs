@@ -814,6 +814,19 @@ async fn handle_client(
                 ClientRequest::RestartAgent { req_id, id } => {
                     reply_done(&out_tx, req_id, daemon.restart_agent(&id).await).await;
                 }
+                ClientRequest::SwitchAgentModel { req_id, id, model } => {
+                    let done = daemon.switch_agent_model(&id, model).await;
+                    reply_done(&out_tx, req_id, done).await;
+                }
+                ClientRequest::ContinueAgentIn {
+                    req_id,
+                    id,
+                    kind,
+                    model,
+                } => {
+                    let result = daemon.continue_agent_in(&id, kind, model).await;
+                    reply(&out_tx, req_id, result.map(Some)).await;
+                }
                 ClientRequest::AttachCloudAgent { req_id, id } => {
                     reply_done(&out_tx, req_id, daemon.attach_cloud_agent(&id).await).await;
                 }

@@ -171,6 +171,7 @@ mod tests {
                 alive: false,
                 cloud_mirroring: false,
                 suggested_prompt: None,
+                provider_error: None,
             })
             .unwrap();
 
