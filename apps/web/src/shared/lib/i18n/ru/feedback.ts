@@ -5,9 +5,6 @@ export const feedback = {
   deny: 'Отклонить',
   queue: {
     sendsWhenFinished: 'Отправится, когда агент закончит',
-    edit: 'Изменить',
     remove: 'Убрать',
-    placeholder: 'Сообщение агенту',
-    placeholderBusy: 'Сообщение в очередь: уйдёт, когда агент закончит',
   },
 } as const;

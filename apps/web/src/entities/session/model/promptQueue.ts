@@ -58,10 +58,6 @@ export function removeQueuedPrompt(agent: string, id: number) {
   );
 }
 
-export function useAgentBusy(agent: string): ComputedRef<boolean> {
-  return computed(() => useBerth()?.entities.value.agents.get(agent)?.status === 'running');
-}
-
 export function useQueuedPrompts(agent: string): ComputedRef<readonly QueuedPrompt[]> {
   return computed(() => queues.value.get(agent) ?? []);
 }
