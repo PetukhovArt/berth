@@ -1,4 +1,3 @@
-mod branch_name;
 mod client;
 mod mcp;
 mod sessions;

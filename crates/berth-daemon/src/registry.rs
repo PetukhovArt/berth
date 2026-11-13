@@ -866,14 +866,20 @@ impl Daemon {
         branch: &str,
         base: Option<&str>,
     ) -> Result<EntityId> {
-        if branch.trim().is_empty() {
-            bail!("branch name is empty");
-        }
         let _ops = self.worktree_ops.lock().await;
         let project = self
             .store
             .get_project(project_id)?
             .context("project not found")?;
+        let branch = &match branch.trim() {
+            "" => {
+                let taken = git::list_branches(&project.repo_path)
+                    .await
+                    .unwrap_or_default();
+                berth_core::branch_name::random_name(&taken)
+            }
+            named => named.to_string(),
+        };
         let path = git::add_worktree(&project.repo_path, branch, base).await?;
         // Before the row exists, so the agent that `berth worktree` moves in
         // finds its `.env` and skills already there rather than seconds later.
@@ -890,6 +896,7 @@ impl Daemon {
         self.broadcast(ServerEvent::EntityUpserted {
             entity: Entity::Worktree(worktree.clone()),
         });
+        self.run_project_setup(&worktree);
         Ok(EntityId::Worktree(worktree.id))
     }
 

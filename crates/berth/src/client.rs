@@ -367,8 +367,8 @@ async fn spawn_sibling_for_current_agent(task: &str, kind: Option<AgentKind>) ->
 /// stays put.
 async fn enter_worktree_for_current_agent(name: &str, base: Option<String>) -> Result<()> {
     let agent_id = current_agent_id("worktree")?;
-    let branch = match crate::branch_name::slugify(name) {
-        slug if slug.is_empty() => crate::branch_name::random_name(&[]),
+    let branch = match berth_core::branch_name::slugify(name) {
+        slug if slug.is_empty() => berth_core::branch_name::random_name(&[]),
         slug => slug,
     };
     let Ok(stream) = try_connect().await else {

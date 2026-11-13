@@ -10,6 +10,7 @@ export { enqueuePrompt, removeQueuedPrompt, submitPrompt, useAgentBusy, useQueue
 export { isFiveHourWindow, useUsageLimits } from './model/limits';
 export type { UsageWindow } from './model/limits';
 export { saveTaskNote, useTaskNote } from './model/taskNote';
+export { loadProjectSetup, saveProjectSetup } from './model/projectSetup';
 export { listCheckpoints, restoreCheckpoint } from './model/checkpoints';
 export type { Checkpoint } from './model/checkpoints';
 export { getMetrics } from './model/metrics';

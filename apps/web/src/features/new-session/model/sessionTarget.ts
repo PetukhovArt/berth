@@ -2,7 +2,7 @@ import { computed, shallowRef, watch, type ComputedRef, type ShallowRef } from '
 import { t } from '../../../shared/lib/i18n/i18n';
 import { mrFetchSource } from '../../../shared/api/connectors/api';
 import { useSettings } from '../../../shared/config/settings/store';
-import { acknowledged, call, describeError, BerthCallError, useBerth, worktreesOfProject, type Branch, type Worktree } from '../../../entities/session';
+import { acknowledged, call, describeError, loadProjectSetup, saveProjectSetup, BerthCallError, useBerth, worktreesOfProject, type Branch, type Worktree } from '../../../entities/session';
 
 export type BranchMode = 'current' | 'existing' | 'new';
 type TargetPlan = { kind: 'use'; worktree: Worktree } | { kind: 'create'; branch: string; base: string | null; fetch: boolean } | { kind: 'incomplete'; reason: string };
@@ -14,6 +14,7 @@ export type SessionTarget = {
   mode: ShallowRef<BranchMode>;
   existing: ShallowRef<string | null>;
   fresh: ShallowRef<string>;
+  setup: ShallowRef<string>;
   branches: ShallowRef<Branch[] | null>;
   branchesError: ShallowRef<string | null>;
   loading: ShallowRef<boolean>;
@@ -49,6 +50,8 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
   const mode = shallowRef<BranchMode>('current');
   const existing = shallowRef<string | null>(null);
   const fresh = shallowRef('');
+  const setup = shallowRef('');
+  const savedSetup = shallowRef('');
   const branches = shallowRef<Branch[] | null>(null);
   const branchesError = shallowRef<string | null>(null);
   const loading = shallowRef(false);
@@ -107,6 +110,17 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
         existing.value = null;
       }
       if (id) void load(id);
+      setup.value = '';
+      savedSetup.value = '';
+      if (id) {
+        void loadProjectSetup(id)
+          .then((command) => {
+            if (project.value !== id) return;
+            setup.value = command;
+            savedSetup.value = command;
+          })
+          .catch(() => undefined);
+      }
     },
     { immediate: true },
   );
@@ -133,7 +147,6 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
     if (branchMode.value === 'current') return { kind: 'use', worktree: targetWorktree.value };
     if (branchMode.value === 'existing') return existing.value ? planFor(existing.value) : { kind: 'incomplete', reason: t('agents.newSession.pickBranch') };
     const name = fresh.value.trim();
-    if (!name) return { kind: 'incomplete', reason: t('agents.newSession.typeBranch') };
     if (/\s/.test(name)) return { kind: 'incomplete', reason: t('agents.newSession.badBranch') };
     return planFor(name);
   });
@@ -172,21 +185,27 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
     const id = project.value;
     if (!id) throw new BerthCallError(t('agents.newSession.noTarget'));
     const base = current.fetch && current.base ? await fetchBase(id, current.base) : current.base;
+    const command = setup.value.trim();
+    if (command !== savedSetup.value) {
+      await saveProjectSetup(id, command);
+      savedSetup.value = command;
+    }
     const made = new Map<string, string>();
     const ids: string[] = [];
     for (const suffix of suffixes) {
-      const branch = suffix && !sharesBranch.value ? `${current.branch}-${suffix}` : current.branch;
-      let worktree = made.get(branch);
+      const branch = suffix && current.branch && !sharesBranch.value ? `${current.branch}-${suffix}` : current.branch;
+      const key = branch || suffix;
+      let worktree = made.get(key);
       if (!worktree) {
         const created = await acknowledged({ CreateWorktree: { project: id, branch, base } });
         if (!created || !('Worktree' in created)) throw new BerthCallError(t('agents.errors.noWorktreeCreated'));
         worktree = created.Worktree;
-        made.set(branch, worktree);
+        made.set(key, worktree);
       }
       ids.push(worktree);
     }
     return ids;
   }
 
-  return { project, target, mode, existing, fresh, branches, branchesError, loading, count, projects, targets, creating, plan, takenNames, sharesBranch, resolve };
+  return { project, target, mode, existing, fresh, setup, branches, branchesError, loading, count, projects, targets, creating, plan, takenNames, sharesBranch, resolve };
 }

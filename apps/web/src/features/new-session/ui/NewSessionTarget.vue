@@ -7,7 +7,7 @@ import type { BranchMode, SessionTarget } from '../model/sessionTarget';
 
 const props = defineProps<{ state: SessionTarget }>();
 const berth = useBerth();
-const { project, target, mode, existing, fresh, branches, branchesError, loading, count, sharesBranch, projects, targets, creating, plan } = props.state;
+const { project, target, mode, existing, fresh, setup, branches, branchesError, loading, count, sharesBranch, projects, targets, creating, plan } = props.state;
 
 const MODES = computed<{ label: string; value: BranchMode; disabled?: boolean }[]>(() => [
   { label: t('agents.newSession.branchCurrent'), value: 'current' },
@@ -23,10 +23,13 @@ const branchOptions = computed(() =>
   }),
 );
 
+const setupNote = computed(() => (plan.value.kind === 'create' && setup.value.trim() ? t('agents.newSession.planSetup', { command: setup.value.trim() }) : ''));
+
 const summary = computed(() => {
   const current = plan.value;
   if (current.kind === 'incomplete') return current.reason;
   if (current.kind === 'use') return t(current.worktree.is_main ? 'agents.newSession.planMain' : 'agents.newSession.planUse', { branch: current.worktree.branch });
+  if (!current.branch) return current.base ? t('agents.newSession.planCreateGeneratedFrom', { base: current.base }) : t('agents.newSession.planCreateGenerated');
   if (count.value > 1 && !sharesBranch.value) return t('agents.newSession.planCreateEach', { branch: current.branch });
   if (current.fetch && current.base) return t('agents.newSession.planCreateFresh', { branch: current.branch, base: current.base });
   return current.base ? t('agents.newSession.planCreateFrom', { branch: current.branch, base: current.base }) : t('agents.newSession.planCreate', { branch: current.branch });
@@ -61,10 +64,17 @@ const summary = computed(() => {
       <span class="row-label">{{ t('agents.newSession.newBranch') }}</span>
       <VInputText v-model="fresh" size="small" :placeholder="t('agents.newSession.typeBranch')" class="row-input mono" data-testid="new-session-new-branch" />
     </label>
+    <label v-if="plan.kind === 'create'" class="row">
+      <span class="row-label">{{ t('agents.newSession.setupCommand') }}</span>
+      <VInputText v-model="setup" size="small" :placeholder="t('agents.newSession.setupPlaceholder')" class="row-input mono" data-testid="new-session-setup" />
+    </label>
     <VMessage v-if="branchesError" severity="warn" size="small" data-testid="new-session-branches-error">{{ t('agents.newSession.branchesFailed', { error: branchesError }) }}</VMessage>
     <div class="summary" :data-plan="plan.kind" data-testid="new-session-plan">
       <svg class="arrow" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" /></svg>
-      <span>{{ summary }}</span>
+      <div>
+        <span>{{ summary }}</span>
+        <div v-if="setupNote" data-testid="new-session-setup-plan" class="setup">{{ setupNote }}</div>
+      </div>
     </div>
   </div>
 </template>
@@ -127,6 +137,11 @@ const summary = computed(() => {
   font-size: 12.5px;
   line-height: 18px;
   color: var(--vr-color-text-muted);
+}
+
+.setup {
+  font-family: var(--vr-font-mono);
+  font-size: 12px;
 }
 
 .arrow {

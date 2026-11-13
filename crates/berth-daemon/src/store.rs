@@ -290,6 +290,12 @@ const MIGRATIONS: &[&str] = &[
       text        TEXT NOT NULL
     );
     ",
+    "
+    CREATE TABLE project_setup (
+      project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+      command    TEXT NOT NULL
+    );
+    ",
 ];
 
 pub struct Store {
@@ -559,6 +565,37 @@ impl Store {
             )
             .optional()?;
         Ok(text.unwrap_or_default())
+    }
+
+    pub fn project_setup(&self, project: &ProjectId) -> Result<String> {
+        let command = self
+            .conn
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT command FROM project_setup WHERE project_id = ?1",
+                params![project.as_str()],
+                |r| r.get(0),
+            )
+            .optional()?;
+        Ok(command.unwrap_or_default())
+    }
+
+    pub fn set_project_setup(&self, project: &ProjectId, command: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        if command.is_empty() {
+            conn.execute(
+                "DELETE FROM project_setup WHERE project_id = ?1",
+                params![project.as_str()],
+            )?;
+        } else {
+            conn.execute(
+                "INSERT INTO project_setup (project_id, command) VALUES (?1, ?2)
+                 ON CONFLICT(project_id) DO UPDATE SET command = excluded.command",
+                params![project.as_str(), command],
+            )?;
+        }
+        Ok(())
     }
 
     pub fn task_note_for_agent(&self, agent: &AgentId) -> Result<String> {

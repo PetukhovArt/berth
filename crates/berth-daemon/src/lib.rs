@@ -27,6 +27,7 @@ pub mod task_notes;
 pub mod usage;
 pub mod usage_limits;
 pub mod worktree_seed;
+pub mod worktree_setup;
 
 use anyhow::{bail, Context, Result};
 use berth_core::{env, paths, transport};

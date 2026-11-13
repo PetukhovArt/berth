@@ -692,6 +692,7 @@ fn reply_req_id(event: &ServerEvent) -> Option<u64> {
         | ServerEvent::WorktreeEntered { req_id, .. }
         | ServerEvent::UsageLimits { req_id, .. }
         | ServerEvent::TaskNote { req_id, .. }
+        | ServerEvent::ProjectSetup { req_id, .. }
         | ServerEvent::Checkpoints { req_id, .. }
         | ServerEvent::Metrics { req_id, .. } => Some(*req_id),
         ServerEvent::Error { req_id, .. } => *req_id,
@@ -739,6 +740,8 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::CloseTerminal { req_id, .. }
         | ClientRequest::GetTaskNote { req_id, .. }
         | ClientRequest::SetTaskNote { req_id, .. }
+        | ClientRequest::GetProjectSetup { req_id, .. }
+        | ClientRequest::SetProjectSetup { req_id, .. }
         | ClientRequest::ListCheckpoints { req_id, .. }
         | ClientRequest::RestoreCheckpoint { req_id, .. }
         | ClientRequest::GetUsageLimits { req_id }

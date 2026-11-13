@@ -297,6 +297,32 @@ async fn handle_client(
                     };
                     let _ = out_tx.send(ev).await;
                 }
+                ClientRequest::GetProjectSetup { req_id, project } => {
+                    let ev = match daemon.store.project_setup(&project) {
+                        Ok(command) => ServerEvent::ProjectSetup {
+                            req_id,
+                            project,
+                            command,
+                        },
+                        Err(e) => ServerEvent::Error {
+                            req_id: Some(req_id),
+                            message: format!("{e:#}"),
+                        },
+                    };
+                    let _ = out_tx.send(ev).await;
+                }
+                ClientRequest::SetProjectSetup {
+                    req_id,
+                    project,
+                    command,
+                } => {
+                    reply_done(
+                        &out_tx,
+                        req_id,
+                        daemon.set_project_setup(&project, &command),
+                    )
+                    .await;
+                }
                 ClientRequest::ListCheckpoints { req_id, agent } => {
                     let daemon = daemon.clone();
                     let out_tx = out_tx.clone();
