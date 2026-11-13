@@ -17,12 +17,14 @@ export type SessionTarget = {
   branches: ShallowRef<Branch[] | null>;
   branchesError: ShallowRef<string | null>;
   loading: ShallowRef<boolean>;
+  count: ShallowRef<number>;
+  sharesBranch: ComputedRef<boolean>;
   projects: ComputedRef<Option[]>;
   targets: ComputedRef<Option[]>;
   creating: ComputedRef<boolean>;
   plan: ComputedRef<TargetPlan>;
   takenNames: ComputedRef<ReadonlySet<string>>;
-  resolve: () => Promise<string>;
+  resolve: (suffixes: string[]) => Promise<string[]>;
 };
 
 async function listBranches(project: string): Promise<Branch[]> {
@@ -50,6 +52,7 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
   const branches = shallowRef<Branch[] | null>(null);
   const branchesError = shallowRef<string | null>(null);
   const loading = shallowRef(false);
+  const count = shallowRef(1);
 
   const projects = computed<Option[]>(() =>
     (berth?.tree.value ?? []).flatMap((workspace) => workspace.projects.map((candidate) => ({ id: candidate.id, label: candidate.name }))),
@@ -157,16 +160,33 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
     return `${fetched.base}^0`;
   }
 
-  async function resolve(): Promise<string> {
+  const sharesBranch = computed(() => {
+    const current = plan.value;
+    return current.kind === 'create' && (branches.value?.some((branch) => branch.name === current.branch) ?? false);
+  });
+
+  async function resolve(suffixes: string[]): Promise<string[]> {
     const current = plan.value;
     if (current.kind === 'incomplete') throw new BerthCallError(current.reason);
-    if (current.kind === 'use') return current.worktree.id;
-    if (!project.value) throw new BerthCallError(t('agents.newSession.noTarget'));
-    const base = current.fetch && current.base ? await fetchBase(project.value, current.base) : current.base;
-    const created = await acknowledged({ CreateWorktree: { project: project.value, branch: current.branch, base } });
-    if (!created || !('Worktree' in created)) throw new BerthCallError(t('agents.errors.noWorktreeCreated'));
-    return created.Worktree;
+    if (current.kind === 'use') return suffixes.map(() => current.worktree.id);
+    const id = project.value;
+    if (!id) throw new BerthCallError(t('agents.newSession.noTarget'));
+    const base = current.fetch && current.base ? await fetchBase(id, current.base) : current.base;
+    const made = new Map<string, string>();
+    const ids: string[] = [];
+    for (const suffix of suffixes) {
+      const branch = suffix && !sharesBranch.value ? `${current.branch}-${suffix}` : current.branch;
+      let worktree = made.get(branch);
+      if (!worktree) {
+        const created = await acknowledged({ CreateWorktree: { project: id, branch, base } });
+        if (!created || !('Worktree' in created)) throw new BerthCallError(t('agents.errors.noWorktreeCreated'));
+        worktree = created.Worktree;
+        made.set(branch, worktree);
+      }
+      ids.push(worktree);
+    }
+    return ids;
   }
 
-  return { project, target, mode, existing, fresh, branches, branchesError, loading, projects, targets, creating, plan, takenNames, resolve };
+  return { project, target, mode, existing, fresh, branches, branchesError, loading, count, projects, targets, creating, plan, takenNames, sharesBranch, resolve };
 }

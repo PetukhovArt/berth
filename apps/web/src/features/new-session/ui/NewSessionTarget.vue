@@ -7,7 +7,7 @@ import type { BranchMode, SessionTarget } from '../model/sessionTarget';
 
 const props = defineProps<{ state: SessionTarget }>();
 const berth = useBerth();
-const { project, target, mode, existing, fresh, branches, branchesError, loading, projects, targets, creating, plan } = props.state;
+const { project, target, mode, existing, fresh, branches, branchesError, loading, count, sharesBranch, projects, targets, creating, plan } = props.state;
 
 const MODES = computed<{ label: string; value: BranchMode; disabled?: boolean }[]>(() => [
   { label: t('agents.newSession.branchCurrent'), value: 'current' },
@@ -27,6 +27,7 @@ const summary = computed(() => {
   const current = plan.value;
   if (current.kind === 'incomplete') return current.reason;
   if (current.kind === 'use') return t(current.worktree.is_main ? 'agents.newSession.planMain' : 'agents.newSession.planUse', { branch: current.worktree.branch });
+  if (count.value > 1 && !sharesBranch.value) return t('agents.newSession.planCreateEach', { branch: current.branch });
   if (current.fetch && current.base) return t('agents.newSession.planCreateFresh', { branch: current.branch, base: current.base });
   return current.base ? t('agents.newSession.planCreateFrom', { branch: current.branch, base: current.base }) : t('agents.newSession.planCreate', { branch: current.branch });
 });

@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Added quoting selected diff lines into the session prompt in the desktop app: click line numbers in Changes, then `Quote` puts the file, line range and lines into the prompt without sending it (#19).
+- Added a way to start the same prompt in several Agents from the New Session dialog in the desktop app, each in its own Session and, with a new branch, its own worktree (#22).
 - Added a `Reviewed` mark on each file in the desktop app's diff view, kept across restarts per merge request or worktree and cleared when the file changes (#44).
 - Added `Open Repository` to a project's menu in the desktop app: it opens the repository page on the git host for the `origin` remote, without the credentials in the URL (#45).
 - Added a badge on the desktop app's taskbar icon with the number of sessions waiting for an answer; the icon flashes when a new one starts waiting while the window is in the background.

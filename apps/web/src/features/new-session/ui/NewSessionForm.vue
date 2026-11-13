@@ -43,6 +43,23 @@ watch(defaultName, (next, previous) => {
   if (name.value.trim() === previous || !name.value.trim()) name.value = next;
 });
 
+const extras = shallowRef<Kind[]>([]);
+const kinds = computed<Kind[]>(() => (kind.value === 'terminal' ? [kind.value] : [kind.value, ...extras.value.filter((extra) => extra !== kind.value)]));
+const extraOptions = computed(() => KINDS.value.filter((option) => option.value !== 'terminal' && option.value !== kind.value));
+const many = computed(() => kinds.value.length > 1);
+
+watch(
+  kinds,
+  (list) => {
+    location.count.value = list.length;
+  },
+  { immediate: true },
+);
+
+function toggleExtra(value: Kind) {
+  extras.value = extras.value.includes(value) ? extras.value.filter((extra) => extra !== value) : [...extras.value, value];
+}
+
 function pickKind(value: unknown) {
   const next = KINDS.value.find((option) => option.value === value);
   if (!next) return;
@@ -53,24 +70,31 @@ function pickKind(value: unknown) {
 const optional = (text: string) => text.trim() || null;
 
 async function submit() {
-  const chosen = kind.value;
-  const finalName = name.value.trim() || defaultName.value;
+  const chosen = kinds.value;
+  const defaults = chosen.map(generatedName);
+  const names = chosen.length > 1 ? defaults : [name.value.trim() || defaults[0]];
   await action.run(async () => {
-    const worktree = await location.resolve();
-    const id =
-      chosen === 'terminal'
-        ? await createTerminal(worktree, finalName)
-        : await createAgent({
-            worktree,
-            name: finalName,
-            kind: chosen,
-            model: optional(model.value),
-            effort: optional(effort.value),
-            autoTitle: finalName === defaultName.value,
-            startingPrompt: optional(prompt.value),
-          });
-    const created = entitySessionRef(id);
-    if (created) emit('created', created);
+    const worktrees = await location.resolve(chosen.length > 1 ? chosen : ['']);
+    let first: SessionRef | null = null;
+    for (const [index, chosenKind] of chosen.entries()) {
+      const sessionName = names[index];
+      const worktree = worktrees[index];
+      if (!sessionName || !worktree) continue;
+      const id =
+        chosenKind === 'terminal'
+          ? await createTerminal(worktree, sessionName)
+          : await createAgent({
+              worktree,
+              name: sessionName,
+              kind: chosenKind,
+              model: optional(model.value),
+              effort: optional(effort.value),
+              autoTitle: sessionName === defaults[index],
+              startingPrompt: optional(prompt.value),
+            });
+      first ??= entitySessionRef(id);
+    }
+    if (first) emit('created', first);
     else emit('close');
   });
 }
@@ -124,6 +148,19 @@ function onVisible(visible: boolean) {
           />
         </template>
       </NewSessionTarget>
+      <div v-if="kind !== 'terminal'" class="extras" data-testid="new-session-extras">
+        <span class="extras-label">{{ t('agents.newSession.alsoStart') }}</span>
+        <VButton
+          v-for="option in extraOptions"
+          :key="option.value"
+          :label="option.label"
+          size="small"
+          :outlined="!extras.includes(option.value)"
+          :aria-pressed="extras.includes(option.value)"
+          :data-testid="`new-session-extra-${option.value}`"
+          @click="toggleExtra(option.value)"
+        />
+      </div>
       <div v-if="kind !== 'terminal'" class="pair">
         <label class="field">
           <span>{{ t('agents.newSession.model') }}</span>
@@ -136,13 +173,13 @@ function onVisible(visible: boolean) {
       </div>
       <VMessage v-if="action.error.value" severity="error" size="small" data-testid="new-session-error">{{ action.error.value }}</VMessage>
       <div class="footer">
-        <label class="name">
+        <label v-if="!many" class="name">
           <span>{{ t('agents.newSession.name') }}</span>
           <VInputText v-model="name" size="small" :placeholder="defaultName" data-testid="new-session-name" />
         </label>
         <span class="spacer" />
         <VButton :label="t('common.cancel')" size="small" text data-testid="new-session-cancel" @click="emit('close')" />
-        <VButton type="submit" :label="t('common.create')" size="small" :loading="action.busy.value" :disabled="location.plan.value.kind === 'incomplete'" data-testid="new-session-submit" />
+        <VButton type="submit" :label="many ? t('agents.newSession.startMany', { count: kinds.length }) : t('common.create')" size="small" :loading="action.busy.value" :disabled="location.plan.value.kind === 'incomplete'" data-testid="new-session-submit" />
       </div>
     </form>
   </VDialog>
@@ -185,6 +222,19 @@ function onVisible(visible: boolean) {
 .pair {
   display: flex;
   gap: var(--vr-space-3);
+}
+
+.extras {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-muted);
+}
+
+.extras-label {
+  margin-right: 4px;
 }
 
 .field {
