@@ -8,6 +8,7 @@ import { continueInBerth, externalDot, externalKey, externalOrigin, externalStat
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
+import { readAcpAgentLog } from '../../../shared/api/providers';
 import { useHoldToTalk, type HoldToTalkIssue } from '../model/useHoldToTalk';
 import { useVoiceLoop } from '../model/useVoiceLoop';
 
@@ -40,6 +41,19 @@ const sending = shallowRef(false);
 const notice = shallowRef('');
 const phone = useIsPhone();
 const plan = computed(() => acp?.plan.value ?? derivePlan(messages.value));
+const agentLog = shallowRef<string | null>(null);
+
+async function toggleAgentLog() {
+  if (agentLog.value !== null) {
+    agentLog.value = null;
+    return;
+  }
+  try {
+    agentLog.value = await readAcpAgentLog(props.sessionId);
+  } catch (e) {
+    agentLog.value = describeError(e);
+  }
+}
 let generation = 0;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 let copiedTimer: ReturnType<typeof setTimeout> | undefined;
@@ -284,6 +298,10 @@ onBeforeUnmount(() => {
       </template>
       <UiButton v-for="(option, index) in request.options" v-else :key="index" type="button" class="feedback-action" data-testid="feedback-option" @click="chooseOption(terminal, index)">{{ option }}</UiButton>
     </div>
+    <div v-if="acp" class="agent-log" data-testid="chat-agent-log">
+      <UiButton type="button" class="agent-log-toggle" :aria-expanded="agentLog !== null" data-testid="chat-agent-log-toggle" @click="toggleAgentLog">{{ t('agents.sessionView.chatAgentLog') }}</UiButton>
+      <pre v-if="agentLog !== null" class="agent-log-text mono" data-testid="chat-agent-log-text">{{ agentLog || t('agents.sessionView.chatAgentLogEmpty') }}</pre>
+    </div>
     <ul v-if="acp && queued.length" class="queued" data-testid="chat-queue">
       <li v-for="item in queued" :key="item.id" class="queued-item" data-testid="queue-item">
         <span class="queued-text" data-testid="queue-item-text">{{ item.text }}</span>
@@ -308,6 +326,30 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.agent-log {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--vr-space-1);
+  padding: var(--vr-space-1) var(--vr-space-4) 0;
+}
+
+.agent-log-toggle {
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-muted);
+}
+
+.agent-log-text {
+  align-self: stretch;
+  max-height: 200px;
+  margin: 0;
+  overflow: auto;
+  font-size: var(--vr-font-size-2xs);
+  white-space: pre-wrap;
+  color: var(--vr-color-text-muted);
+}
+
 .queued {
   display: flex;
   flex: none;
