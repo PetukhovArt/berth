@@ -9,6 +9,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { useScope, visibleInterval } from '../../../shared/lib/scope';
 import { ArchitectureAction } from '../../../features/architecture';
 import { MrSessionNotice, OpenInSessionAction, mrRuns } from '../../../features/open-in-session';
+import { WatchAction, WatchStrip, isWatching } from '../../../features/watch-merge-request';
 import { RepoActions } from '../../../features/manage-workspace';
 import { itemId, fullDate, numberLabel, pipelineLabel, relativeTime } from '../../../entities/merge-request';
 import { StatusIcon } from '../../../entities/session';
@@ -33,7 +34,8 @@ const diffRef = useTemplateRef<InstanceType<typeof DiffView>>('diff');
 const unresolved = computed(() => discussions.value.filter((d) => d.resolvable && !d.resolved).length);
 const sessionRun = computed(() => mrRuns.value.get(itemId(target.value)));
 
-const pendingThread = shallowRef<string | null>(null);
+const watching = computed(() => isWatching(target.value));
+const pendingThread =shallowRef<string | null>(null);
 
 function gotoThread(discussion: Discussion) {
   pendingThread.value = discussion.id;
@@ -94,6 +96,7 @@ onMounted(() => {
               <template #icon><ExternalLink :size="14" /></template>
             </VButton>
             <OpenInSessionAction :item="cr" />
+            <WatchAction v-if="cr.state === 'open'" :target="target" />
             <ArchitectureAction :item="cr" />
           </div>
         </div>
@@ -126,6 +129,7 @@ onMounted(() => {
           <PipelineJobs />
         </div>
         <p v-if="sideFailure" class="side-failure" role="alert">{{ sideFailure }}</p>
+        <WatchStrip v-if="watching" :target="target" :url="cr.url" />
         <MrSessionNotice v-if="sessionRun" :run="sessionRun">
           <template #project="{ repo }"><RepoActions :repo="repo" /></template>
         </MrSessionNotice>

@@ -7,7 +7,8 @@ import { initAppearance } from '../shared/ui/appearance';
 import { setMotionEnabled } from '../shared/ui/motion/motion';
 import { initStatusAnimation } from '../shared/ui/motion/statusAnimation';
 import { useSettings } from '../shared/config/settings/store';
-import { initAttention } from '../features/attention';
+import { announceAttention, initAttention } from '../features/attention';
+import { initWatchMergeRequest } from '../features/watch-merge-request';
 import { initTrackerWriteBack } from '../features/tracker-write-back';
 import { initArchiveOnMerge } from '../features/archive-on-merge';
 import { initOverlaps } from '../features/overlaps';
@@ -33,6 +34,7 @@ export function initApp(): () => void {
   disposers.push(initAttention());
   disposers.push(initTrackerWriteBack());
   disposers.push(initArchiveOnMerge());
+  disposers.push(initWatchMergeRequest(announceAttention));
   disposers.push(initOverlaps());
   disposers.push(initCleanup());
   disposers.push(initUpdate());
