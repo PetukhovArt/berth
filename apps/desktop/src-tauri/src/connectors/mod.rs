@@ -8,6 +8,7 @@ mod http;
 pub mod jira;
 pub mod monitor;
 pub mod secrets;
+pub mod tracker;
 pub mod types;
 
 use std::collections::HashMap;

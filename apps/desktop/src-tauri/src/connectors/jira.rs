@@ -262,3 +262,17 @@ pub async fn jira_issue(
         subtasks,
     })
 }
+
+pub async fn post_comment(ctx: &Ctx, key: &str, body: &str) -> ApiResult<bool> {
+    let url = format!("{}/issue/{}", api(ctx), encode_segment(key));
+    if ctx.api.json(&url, &[("fields", "summary")]).await.is_err() {
+        return Ok(false);
+    }
+    ctx.api
+        .post_json(
+            &format!("{url}/comment"),
+            &serde_json::json!({ "body": body }),
+        )
+        .await?;
+    Ok(true)
+}

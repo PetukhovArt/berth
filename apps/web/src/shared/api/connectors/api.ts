@@ -278,3 +278,4 @@ export function useConnectors(): ConnectorsStore {
   store ??= createStore();
   return store;
 }
+export const trackerComment = (path: string, branch: string, body: string) => invoke<string | null>('tracker_comment', { path, branch, body });

@@ -96,7 +96,10 @@ fn base_parts(base_url: &str) -> Option<(String, String)> {
     ))
 }
 
-async fn worktree_forge(state: &Connectors, path: &str) -> Result<Option<(Ctx, String)>, String> {
+pub(super) async fn worktree_forge(
+    state: &Connectors,
+    path: &str,
+) -> Result<Option<(Ctx, String)>, String> {
     let output = match cli::capture("git", &["-C", path, "remote", "get-url", "origin"]).await {
         Ok(output) if output.status.success() => output,
         _ => return Ok(None),

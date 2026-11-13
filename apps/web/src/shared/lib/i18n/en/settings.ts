@@ -145,6 +145,10 @@ export const settings = {
       m30: '30 minutes',
       h1: '1 hour',
     },
+    trackerWriteBack: {
+      label: 'Comment on the tracker issue when an Agent finishes',
+      description: 'Posts the Agent status and branch as a comment on the Jira issue whose key is in the branch name, or the GitLab issue whose number starts it. Off by default.',
+    },
     connectorsAutoReconnect: {
       label: 'Reconnect connectors automatically',
       description: 'While the network is up, retries unreachable connectors every 15 seconds up to 5 minutes and re-checks working ones every 5 minutes. Connectors with a rejected token are not retried.',

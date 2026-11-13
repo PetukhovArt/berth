@@ -300,6 +300,13 @@ export const SETTINGS = {
     category: 'connectors',
     placeholder: 'settings.def.treeJiraProjects.placeholder',
   },
+  'connectors.trackerWriteBack': {
+    type: 'boolean',
+    default: false,
+    label: 'settings.def.trackerWriteBack.label',
+    description: 'settings.def.trackerWriteBack.description',
+    category: 'connectors',
+  },
   'connectors.autoReconnect': {
     type: 'boolean',
     default: true,

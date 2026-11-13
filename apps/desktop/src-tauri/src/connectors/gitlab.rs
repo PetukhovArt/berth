@@ -631,3 +631,19 @@ pub async fn create(
         .await?
         .ok_or_else(|| ApiError::failed("GitLab не вернул созданный merge request"))
 }
+
+pub async fn issue_note(ctx: &Ctx, project: &str, iid: u64, body: &str) -> ApiResult<bool> {
+    let url = format!(
+        "{}/projects/{}/issues/{iid}",
+        api(ctx),
+        encode_segment(project)
+    );
+    if ctx.api.json(&url, &[]).await.is_err() {
+        return Ok(false);
+    }
+    ctx.api
+        .post_json(&format!("{url}/notes"), &json!({ "body": body }))
+        .await
+        .map_err(|error| error.write_denied(WRITE_SCOPE))?;
+    Ok(true)
+}

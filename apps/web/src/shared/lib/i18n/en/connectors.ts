@@ -1,4 +1,5 @@
 export const connectors = {
+  writeBack: 'Berth: Agent "{name}" finished on branch {branch}.',
   panel: {
     title: 'Connectors',
     checkAll: 'Check All',

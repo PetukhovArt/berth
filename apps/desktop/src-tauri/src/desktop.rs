@@ -299,6 +299,7 @@ pub fn run() {
             worktree_git_state,
             worktree_git_step,
             forge_create_change_request,
+            tracker_comment,
             project_repo_url,
             fs_open_external,
             stratum_probe,

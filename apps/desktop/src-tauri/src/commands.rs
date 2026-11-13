@@ -76,6 +76,7 @@ macro_rules! plain_commands {
             free worktree_git_state(path: String) = $crate::git_step::worktree_git_state;
             free worktree_git_step(path: String, step: String, message: Option<String>) = $crate::git_step::worktree_git_step;
             state forge_create_change_request(path: String, branch: String, target: String, title: String, description: String) = $crate::connectors::forge::forge_create_change_request;
+            state tracker_comment(path: String, branch: String, body: String) = $crate::connectors::tracker::tracker_comment;
             free project_repo_url(path: String) = $crate::connectors::forge::project_repo_url;
             local_free settings_open_external(file: Option<$crate::settings::ConfigFile>) = $crate::settings::settings_open_external;
             local_free fs_open_external(path: String) = $crate::files::fs_open_external;
