@@ -4,16 +4,19 @@ import { VButton, VInputText } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useBerth, useAction, addWorkspace, removeWorkspace, renameWorkspace } from '../../../entities/session';
 import ActionMenu from '../../../shared/ui/ActionMenu.vue';
+import ConfirmPopover from '../../../shared/ui/ConfirmPopover.vue';
 
 const props = defineProps<{ workspaceId?: string }>();
 
-type Mode = 'idle' | 'creating' | 'renaming' | 'removing';
+type Mode = 'idle' | 'creating' | 'renaming';
 
 const berth = useBerth();
 const mode = shallowRef<Mode>('idle');
 const draft = shallowRef('');
 const { error, busy, run, clear } = useAction();
 const input = useTemplateRef<{ $el: HTMLInputElement }>('input');
+const root = useTemplateRef<HTMLElement>('root');
+const confirm = useTemplateRef<InstanceType<typeof ConfirmPopover>>('confirm');
 
 const current = computed(() => (props.workspaceId ? berth?.entities.value.workspaces.get(props.workspaceId) : undefined));
 const name = computed(() => draft.value.trim());
@@ -42,20 +45,24 @@ async function submit() {
 async function confirmRemove() {
   const id = props.workspaceId;
   if (!id) return;
-  await run(() => removeWorkspace(id));
-  mode.value = 'idle';
+  if (await run(() => removeWorkspace(id))) confirm.value?.hide();
+}
+
+function askRemove() {
+  clear();
+  setTimeout(() => confirm.value?.show(root.value), 0);
 }
 </script>
 
 <template>
-  <div v-if="berth" class="actions">
+  <div v-if="berth" ref="root" class="actions">
     <ActionMenu
       v-if="workspaceId"
       testid="workspace-menu"
       :label="t('agents.workspace.actions')"
       :remove-label="t('common.delete')"
       @rename="open('renaming', current?.name ?? '')"
-      @remove="clear(), (mode = 'removing')"
+      @remove="askRemove"
     />
     <VButton v-else :label="t('agents.workspace.new')" size="small" text severity="secondary" data-testid="workspace-new" @click="open('creating', '')" />
     <form v-if="editing" class="inline" @submit.prevent="submit">
@@ -63,11 +70,7 @@ async function confirmRemove() {
       <VButton type="submit" :label="t('common.save')" size="small" :disabled="!name" :loading="busy" data-testid="workspace-submit" />
       <VButton :label="t('common.cancel')" size="small" text severity="secondary" @click="cancel" />
     </form>
-    <div v-else-if="mode === 'removing'" class="inline" role="alertdialog" :aria-label="t('agents.session.confirmDeleteLabel')">
-      <span class="question">{{ t('agents.workspace.removeQuestion', { name: current?.name ?? '' }) }}</span>
-      <VButton :label="t('common.delete')" size="small" severity="danger" :loading="busy" data-testid="confirm-remove" @click="confirmRemove" />
-      <VButton :label="t('common.cancel')" size="small" text severity="secondary" @click="cancel" />
-    </div>
+    <ConfirmPopover ref="confirm" :question="t('agents.workspace.removeQuestion', { name: current?.name ?? '' })" :busy="busy" testid="workspace-remove-confirm" @confirm="confirmRemove" />
     <p v-if="error" class="error" role="alert" data-testid="workspace-error">{{ error }}</p>
   </div>
 </template>
@@ -96,12 +99,6 @@ async function confirmRemove() {
 .inline :deep(input) {
   flex: 1;
   min-width: 0;
-}
-
-.question {
-  flex: 1 0 100%;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-text);
 }
 
 .error {
