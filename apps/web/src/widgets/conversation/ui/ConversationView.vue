@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
-import { Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, TriangleAlert, Wrench } from '../../../shared/ui/icons';
+import { Check, ChevronDown, ChevronUp, Copy, FolderOpen, GitBranch, LoaderCircle, Play, SquareTerminal, TriangleAlert, Wrench } from '../../../shared/ui/icons';
 import { VButton, VMessage } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
-import { continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, readTranscript, resumeCommand, useExternalSessions, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, sendInput, useFeedbackRequest, allowRequest, denyRequest, chooseOption, type SessionRef } from '../../../entities/session';
+import { continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, readTranscript, resumeCommand, useExternalSessions, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, sendInput, useFeedbackRequest, allowRequest, denyRequest, chooseOption, type SessionRef } from '../../../entities/session';
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
@@ -28,6 +28,9 @@ const copied = shallowRef(false);
 const request = props.terminal ? useFeedbackRequest(props.terminal) : null;
 const draft = shallowRef('');
 const sending = shallowRef(false);
+const planOpen = shallowRef(true);
+const plan = computed(() => derivePlan(messages.value));
+const planDone = computed(() => plan.value.filter((item) => item.state === 'done').length);
 let generation = 0;
 let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -171,6 +174,21 @@ onBeforeUnmount(() => {
       <p v-else-if="target" class="hint" data-testid="conversation-target">{{ t('workbench.external.continuesIn', { project: target.projectName, branch: target.branch }) }}</p>
       <VMessage v-if="action.error.value" severity="error" size="small" data-testid="conversation-error">{{ action.error.value }}</VMessage>
     </header>
+    <div v-if="plan.length" class="plan" data-testid="conversation-plan">
+      <UiButton type="button" class="plan-toggle" :aria-expanded="planOpen" data-testid="conversation-plan-toggle" @click="planOpen = !planOpen">
+        {{ t('workbench.external.plan', { done: planDone, total: plan.length }) }}
+        <ChevronUp v-if="planOpen" :size="12" />
+        <ChevronDown v-else :size="12" />
+      </UiButton>
+      <ul v-if="planOpen" class="plan-items">
+        <li v-for="(item, index) in plan" :key="index" class="plan-item" :data-state="item.state" data-testid="conversation-plan-item">
+          <Check v-if="item.state === 'done'" :size="13" class="plan-icon" />
+          <LoaderCircle v-else-if="item.state === 'doing'" :size="13" class="plan-icon" />
+          <span v-else class="plan-ring" />
+          <span class="plan-text">{{ item.text }}</span>
+        </li>
+      </ul>
+    </div>
     <div ref="scroller" class="scroll" data-testid="conversation-scroll">
       <p v-if="loading" class="state">{{ t('workbench.external.loading') }}</p>
       <p v-else-if="error" class="state error" role="alert">{{ error }}</p>
@@ -297,6 +315,82 @@ onBeforeUnmount(() => {
 
 .hint {
   color: var(--vr-color-text-muted);
+}
+
+.plan {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--vr-space-2);
+  padding: var(--vr-space-2) var(--vr-space-4);
+  border-bottom: 1px solid var(--vr-color-border);
+}
+
+.plan-toggle {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-end;
+  gap: var(--vr-space-1);
+  padding: 0;
+  font: inherit;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-muted);
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.plan-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--vr-space-1) var(--vr-space-4);
+  max-height: 160px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.plan-item {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-2);
+  min-width: 0;
+  font-size: var(--vr-font-size-xs);
+}
+
+.plan-item[data-state='done'] {
+  color: var(--vr-color-text-muted);
+  text-decoration: line-through;
+}
+
+.plan-icon {
+  flex: none;
+  color: var(--vr-color-text-subtle);
+}
+
+.plan-item[data-state='done'] .plan-icon {
+  color: var(--vr-status-finished);
+}
+
+.plan-item[data-state='doing'] .plan-icon {
+  color: var(--vr-status-running);
+}
+
+.plan-ring {
+  flex: none;
+  width: 11px;
+  height: 11px;
+  margin: 1px;
+  border: 1.5px solid var(--vr-color-text-subtle);
+  border-radius: var(--vr-radius-full);
+}
+
+.plan-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .scroll {

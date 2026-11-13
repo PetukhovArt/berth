@@ -22,7 +22,7 @@ export type ExternalSession = {
   berth_pids: number[];
   messages: number;
 };
-export type TranscriptMessage = { key: string; role: 'user' | 'assistant'; text: string; tool: string | null; at: string | null };
+export type TranscriptMessage = { key: string; role: 'user' | 'assistant'; text: string; tool: string | null; at: string | null; input?: unknown };
 export type ExternalTarget = { projectId: string; projectName: string; worktreeId: string; branch: string; exact: boolean };
 export type Placement = { kind: 'worktree'; projectId: string; worktreeId: string } | { kind: 'project'; projectId: string } | { kind: 'loose'; folder: string };
 

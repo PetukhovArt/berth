@@ -132,6 +132,7 @@ pub struct TranscriptMessage {
     text: String,
     tool: Option<String>,
     at: Option<String>,
+    input: Option<Value>,
 }
 
 #[derive(Default)]
@@ -1075,6 +1076,18 @@ fn locate(harness: Harness, id: &str) -> Result<PathBuf, String> {
     }
 }
 
+const PLAN_TOOLS: [&str; 4] = ["TodoWrite", "TaskCreate", "TaskUpdate", "update_plan"];
+
+fn plan_input(name: Option<&str>, input: &Value) -> Option<Value> {
+    if !PLAN_TOOLS.contains(&name?) {
+        return None;
+    }
+    match input {
+        Value::String(raw) => serde_json::from_str(raw).ok(),
+        other => Some(other.clone()),
+    }
+}
+
 fn tool_summary(input: &Value) -> String {
     let input = match input {
         Value::String(raw) => serde_json::from_str::<Value>(raw).unwrap_or_else(|_| input.clone()),
@@ -1141,6 +1154,7 @@ fn claude_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
                     text,
                     tool: None,
                     at: at.clone(),
+                    input: None,
                 });
             }
         } else if block["type"].as_str() == Some("tool_use") {
@@ -1150,6 +1164,7 @@ fn claude_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
                 text: tool_summary(&block["input"]),
                 tool: owned(&block["name"]).or_else(|| Some("tool".to_owned())),
                 at: at.clone(),
+                input: plan_input(block["name"].as_str(), &block["input"]),
             });
         }
     }
@@ -1200,6 +1215,7 @@ fn codex_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
                 text,
                 tool: None,
                 at,
+                input: None,
             }
         }
         "function_call" | "custom_tool_call" => TranscriptMessage {
@@ -1212,6 +1228,14 @@ fn codex_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
             }),
             tool: owned(&payload["name"]).or_else(|| Some("tool".to_owned())),
             at,
+            input: plan_input(
+                payload["name"].as_str(),
+                if kind == "function_call" {
+                    &payload["arguments"]
+                } else {
+                    &payload["input"]
+                },
+            ),
         },
         "local_shell_call" => TranscriptMessage {
             key,
@@ -1219,6 +1243,7 @@ fn codex_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
             text: tool_summary(&payload["action"]),
             tool: Some("shell".to_owned()),
             at,
+            input: None,
         },
         _ => return,
     };

@@ -73,6 +73,7 @@ export const workbench = {
     continuesIn: 'Continues in {project} › {branch}',
     inTerminal: 'Running in a Berth terminal',
     liveInTerminal: 'This session is running in a Berth terminal: its live view is the neighbouring terminal tab, this tab is the read-only transcript',
+    plan: 'Todo {done} of {total}',
     stillOpen: 'This session is still open in another terminal — close it there first, two processes on one conversation will diverge',
     noProject: 'The folder is not in a berth project: add it to continue here, or resume it with the command',
     noTerminal: 'berth did not create a terminal',
