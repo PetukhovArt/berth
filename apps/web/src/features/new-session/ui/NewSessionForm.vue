@@ -5,7 +5,6 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
 import { createAgent, createTerminal, entitySessionRef, type AgentKind, type SessionRef, useAction } from '../../../entities/session';
 import { useSessionTarget } from '../model/sessionTarget';
-import { deletePreset, presets, savePreset, withPromptFrame, type AgentPreset } from '../model/presets';
 import NewSessionTarget from './NewSessionTarget.vue';
 
 const props = defineProps<{ worktree: string | null }>();
@@ -36,10 +35,6 @@ const name = shallowRef(generatedName(initialKind));
 const model = shallowRef(values.value['sessions.default_model']);
 const effort = shallowRef(values.value['sessions.default_effort']);
 const prompt = shallowRef('');
-const before = shallowRef('');
-const after = shallowRef('');
-const activePreset = shallowRef<string | null>(null);
-const presetName = shallowRef('');
 const action = useAction();
 
 const defaultName = computed(() => generatedName(kind.value));
@@ -72,32 +67,6 @@ function pickKind(value: unknown) {
   kind.value = next.value;
 }
 
-function applyPreset(preset: AgentPreset) {
-  if (activePreset.value === preset.name) {
-    activePreset.value = null;
-    return;
-  }
-  activePreset.value = preset.name;
-  pickKind(preset.kind);
-  model.value = preset.model;
-  effort.value = preset.effort;
-  before.value = preset.before;
-  after.value = preset.after;
-}
-
-function saveCurrent() {
-  const trimmed = presetName.value.trim();
-  if (!trimmed || kind.value === 'terminal') return;
-  savePreset({ name: trimmed, kind: kind.value, model: model.value.trim(), effort: effort.value.trim(), before: before.value, after: after.value });
-  activePreset.value = trimmed;
-  presetName.value = '';
-}
-
-function removePreset(name: string) {
-  deletePreset(name);
-  if (activePreset.value === name) activePreset.value = null;
-}
-
 const optional = (text: string) => text.trim() || null;
 
 async function submit() {
@@ -121,7 +90,7 @@ async function submit() {
               model: optional(model.value),
               effort: optional(effort.value),
               autoTitle: sessionName === defaults[index],
-              startingPrompt: withPromptFrame({ before: before.value, after: after.value }, prompt.value),
+              startingPrompt: optional(prompt.value),
             });
       first ??= entitySessionRef(id);
     }
@@ -192,37 +161,6 @@ function onVisible(visible: boolean) {
           @click="toggleExtra(option.value)"
         />
       </div>
-      <div v-if="presets.length" class="extras" data-testid="new-session-presets">
-        <span class="extras-label">{{ t('agents.newSession.presets') }}</span>
-        <span v-for="preset in presets" :key="preset.name" class="preset">
-          <VButton
-            :label="preset.name"
-            size="small"
-            :outlined="activePreset !== preset.name"
-            :aria-pressed="activePreset === preset.name"
-            :data-testid="`new-session-preset-${preset.name}`"
-            @click="applyPreset(preset)"
-          />
-          <VButton
-            icon="pi pi-times"
-            size="small"
-            text
-            :aria-label="t('agents.newSession.deletePreset', { name: preset.name })"
-            :data-testid="`new-session-preset-delete-${preset.name}`"
-            @click="removePreset(preset.name)"
-          />
-        </span>
-      </div>
-      <div v-if="kind !== 'terminal'" class="pair">
-        <label class="field">
-          <span>{{ t('agents.newSession.before') }}</span>
-          <VInputText v-model="before" size="small" data-testid="new-session-before" />
-        </label>
-        <label class="field">
-          <span>{{ t('agents.newSession.after') }}</span>
-          <VInputText v-model="after" size="small" data-testid="new-session-after" />
-        </label>
-      </div>
       <div v-if="kind !== 'terminal'" class="pair">
         <label class="field">
           <span>{{ t('agents.newSession.model') }}</span>
@@ -232,10 +170,6 @@ function onVisible(visible: boolean) {
           <span>{{ t('agents.newSession.effort') }}</span>
           <VInputText v-model="effort" size="small" :placeholder="t('agents.newSession.byDefault')" data-testid="new-session-effort" />
         </label>
-      </div>
-      <div v-if="kind !== 'terminal'" class="extras">
-        <VInputText v-model="presetName" size="small" :placeholder="t('agents.newSession.presetName')" data-testid="new-session-preset-name" @keydown.enter.prevent="saveCurrent" />
-        <VButton :label="t('agents.newSession.savePreset')" size="small" outlined :disabled="!presetName.trim()" data-testid="new-session-preset-save" @click="saveCurrent" />
       </div>
       <VMessage v-if="action.error.value" severity="error" size="small" data-testid="new-session-error">{{ action.error.value }}</VMessage>
       <div class="footer">
@@ -301,11 +235,6 @@ function onVisible(visible: boolean) {
 
 .extras-label {
   margin-right: 4px;
-}
-
-.preset {
-  display: inline-flex;
-  align-items: center;
 }
 
 .field {

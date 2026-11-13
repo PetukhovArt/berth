@@ -50,8 +50,8 @@ function open() {
 
 <template>
   <UiButton v-if="summary" class="badge" :title="title" :aria-label="title" data-testid="worktree-badge" @click.stop="open">
+    <span class="pipe"><slot name="pipeline" :pipeline="summary.pipeline" /></span>
     <span class="num">{{ numberLabel(summary) }}</span>
-    <slot name="pipeline" :pipeline="summary.pipeline" />
   </UiButton>
 </template>
 
@@ -60,19 +60,34 @@ function open() {
   display: inline-flex;
   flex: none;
   align-items: center;
-  gap: 3px;
-  padding: 0 var(--vr-space-2);
+  gap: 4px;
+  height: 18px;
+  padding: 0 5px;
   color: var(--vr-color-text-muted);
-  font: inherit;
-  font-size: var(--vr-font-size-2xs);
-  line-height: 16px;
-  background: var(--vr-color-chip-bg);
+  font-family: var(--vr-font-mono);
+  font-size: 10.5px;
+  line-height: 1;
+  background: var(--vr-color-surface-muted);
   border: none;
-  border-radius: var(--vr-radius-full);
+  border-radius: var(--vr-radius-sm);
   cursor: pointer;
 }
 
 .badge:hover {
   color: var(--vr-color-text);
+}
+
+.pipe {
+  display: inline-flex;
+  flex: none;
+}
+
+.pipe:empty {
+  display: none;
+}
+
+.pipe :deep(.status-icon) {
+  width: 10px;
+  height: 10px;
 }
 </style>

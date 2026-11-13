@@ -3,7 +3,7 @@ import { computed, onMounted, shallowRef, useTemplateRef } from 'vue';
 import { ChevronRight, FileText, GitPullRequest, Search, Ticket, Zap } from '../../../shared/ui/icons';
 import { subsequenceScore } from '../../../shared/lib/fuzzy';
 import { usePickerList } from '../../../shared/lib/usePickerList';
-import { PipelineIcon } from '../../../entities/merge-request';
+import { pipelineTone } from '../../../entities/merge-request';
 import { t } from '../../../shared/lib/i18n/i18n';
 import BackBar from '../../../shared/ui/BackBar.vue';
 import type { QuickItem, WorkNode } from '../../../features/work-tree';
@@ -145,7 +145,7 @@ onMounted(() => input.value?.focus());
                   </template>
                 </span>
               </span>
-              <PipelineIcon v-if="item.entry.node.data?.item && item.entry.node.data.item.pipeline !== 'none'" :status="item.entry.node.data.item.pipeline" :size="12" />
+              <StatusIcon v-if="item.entry.node.data?.item && item.entry.node.data.item.pipeline !== 'none'" :tone="pipelineTone(item.entry.node.data.item.pipeline)" />
             </template>
             <template v-else-if="item.kind === 'action'">
               <Zap :size="14" class="file-icon" />

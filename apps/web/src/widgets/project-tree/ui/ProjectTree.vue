@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, useTemplateRef } from 'vue';
-import { Activity, Eye, GitPullRequest, ListTodo, MessageSquare, Plus, Radio, RefreshCw, Search, SquareTerminal, TriangleAlert, Trash2, LoaderCircle } from '../../../shared/ui/icons';
+import { Activity, Eye, GitPullRequest, ListTodo, MessageSquare, Plus, Radio, RefreshCw, Search, SlidersHorizontal, SquareTerminal, TriangleAlert, Trash2, LoaderCircle } from '../../../shared/ui/icons';
 import { VContextMenu } from '../../../shared/ui/kit';
 import ArchivedExternalRow from './ArchivedExternalRow.vue';
 import ArchivedRow from './ArchivedRow.vue';
@@ -15,12 +15,12 @@ import { CleanupBadge, cleanupCount, openCleanup, removing as cleanupRemoving } 
 import { openUrl, type InboxItem } from '../../../shared/api/connectors/api';
 import { ArchitectureAction, openArchitecture, useArchitecture } from '../../../features/architecture';
 import { MrSessionNotice, OpenInSessionAction, useOpenInSession } from '../../../features/open-in-session';
-import { numberLabel, pipelineLabel, pipelineTone, itemId, PipelineIcon, WorktreeBadge, openReview } from '../../../entities/merge-request';
+import { numberLabel, pipelineLabel, pipelineTone, itemId, WorktreeBadge, openReview } from '../../../entities/merge-request';
 import { t } from '../../../shared/lib/i18n/i18n';
 import ExplorerTree from '../../../shared/ui/explorer-tree/ExplorerTree.vue';
 import { useDock } from '../../../shared/model/dock';
 import { startCreate } from '../../../features/new-session';
-import { openLeaf, type ReviewMeta, treeLiveOnly, treeQuery, treeTab, useWorkTree } from '../../../features/work-tree';
+import { openLeaf, type ReviewMeta, type WorkNode, treeLiveOnly, treeQuery, treeTab, useWorkTree } from '../../../features/work-tree';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiInput from '../../../shared/ui/UiInput.vue';
@@ -62,11 +62,27 @@ function showArchMenu(event: MouseEvent, item: InboxItem, review?: ReviewMeta) {
 
 const jiraRefs = (review: ReviewMeta | undefined) => review?.refs.filter((ref) => !ref.startsWith('!')).join(', ') ?? '';
 const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft:|\[draft\]|\(draft\)|wip:)\s*/i, '') : item.title);
+
+const showFilter = shallowRef(false);
+const projectAdd = useTemplateRef<InstanceType<typeof ProjectActions>>('projectAdd');
+const addWorkspaceId = computed(() => berth?.tree.value[0]?.id);
+const listNodes = computed(() => withoutAddRows(nodes.value));
+
+function withoutAddRows(list: WorkNode[]): WorkNode[] {
+  return list
+    .filter((node) => node.kind !== 'add-project')
+    .map((node) => (node.children ? { ...node, children: withoutAddRows(node.children) } : node));
+}
+
+function toggleFilter() {
+  if (showFilter.value) treeQuery.value = '';
+  showFilter.value = !showFilter.value;
+}
 </script>
 
 <template>
   <section class="project-tree" data-testid="project-tree">
-    <label v-if="withFilter" class="filter">
+    <label v-if="withFilter || showFilter" class="filter">
       <Search :size="14" />
       <UiInput v-model="treeQuery" :placeholder="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="tree-filter" @keydown.esc="treeQuery = ''" />
     </label>
@@ -123,8 +139,16 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
         <template #project="{ repo }"><RepoActions :repo="repo" /></template>
       </MrSessionNotice>
       <p v-for="error in errors" :key="`${error.connector}:${error.message}`" class="strip" role="alert" data-testid="tree-error" :title="error.message">{{ error.connector }}: {{ error.message }}</p>
+      <div v-if="activeTab === 'sessions'" class="section-head" data-testid="project-tree-head">
+        <span class="section-title">{{ t('workbench.tree') }}</span>
+        <span class="section-actions">
+          <UiButton v-if="!withFilter" class="icon" :title="t('workbench.filter')" :aria-label="t('workbench.filter')" :aria-pressed="showFilter" data-testid="tree-filter-toggle" @click="toggleFilter"><SlidersHorizontal :size="14" /></UiButton>
+          <UiButton v-if="addWorkspaceId" class="icon" :title="t('agents.project.add')" :aria-label="t('agents.project.add')" data-testid="project-add" @click="projectAdd?.openAdd()"><Plus :size="14" /></UiButton>
+        </span>
+      </div>
+      <ProjectActions v-if="activeTab === 'sessions' && addWorkspaceId" ref="projectAdd" :workspace-id="addWorkspaceId" bare />
       <ExplorerTree
-        :nodes="nodes"
+        :nodes="listNodes"
         :storage-key="`berth.tree.expanded.${activeTab}`"
         :label="t('workbench.tree')"
         :selected="selected"
@@ -138,7 +162,7 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
         </template>
         <template #rollup="{ node }">
           <StatusIcon v-if="node.kind !== 'project' && node.data?.rollup?.total" :status="node.data.rollup.status" :unseen="node.data.rollup.unseen" />
-          <PipelineIcon v-if="node.data?.pipeline && node.data.pipeline !== 'none'" :status="node.data.pipeline" :size="12" :title="pipelineLabel(node.data.pipeline)" />
+          <span v-if="node.data?.pipeline && node.data.pipeline !== 'none'" class="pipe" :title="pipelineLabel(node.data.pipeline)"><StatusIcon :tone="pipelineTone(node.data.pipeline)" /></span>
         </template>
         <template #leaf="{ node, data }">
           <span v-if="data?.item" class="line" data-testid="tree-mr-row" :data-mr="`${data.item.project}!${data.item.number}`" @contextmenu="showArchMenu($event, data.item, data.review)">
@@ -148,7 +172,7 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
             <span v-if="data.review?.note" class="verdict note" :title="data.review.note" data-testid="tree-mr-note">{{ data.review.note }}</span>
             <span v-else-if="data.review" class="verdict" :data-approved="data.review.approved" :title="data.review.approved ? t('workbench.review.approvedTitle') : t('workbench.review.pendingTitle')" data-testid="tree-mr-verdict">{{ data.review.approved ? t('workbench.review.approved') : t('workbench.review.pending') }}</span>
             <span v-if="data.item.unresolved_threads" class="threads" :title="t('forge.unresolvedThreads', { count: data.item.unresolved_threads })"><MessageSquare :size="12" />{{ data.item.unresolved_threads }}</span>
-            <PipelineIcon v-if="data.item.pipeline !== 'none'" :status="data.item.pipeline" :size="12" :title="pipelineLabel(data.item.pipeline)" />
+            <span v-if="data.item.pipeline !== 'none'" class="pipe" :title="pipelineLabel(data.item.pipeline)"><StatusIcon :tone="pipelineTone(data.item.pipeline)" /></span>
           </span>
           <span v-else-if="data?.issue" class="line" data-testid="tree-issue-row">
             <TypeIcon :type="data.issue.issue_type" />
@@ -178,7 +202,6 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
           <ul v-else-if="node.kind === 'review-notes' && node.data?.notes" class="review-notes" :aria-label="node.label" data-testid="review-notes">
             <li v-for="(note, index) in node.data.notes" :key="index" :title="note.text"><b v-if="note.refs.length">{{ note.refs.join(', ') }}</b> {{ note.text }}</li>
           </ul>
-          <div v-else-if="node.kind === 'add-project' && node.data?.workspaceId" class="extra"><ProjectActions :workspace-id="node.data.workspaceId" /></div>
           <div v-else-if="node.kind === 'add-workspace'" class="extra new-workspace"><WorkspaceActions /></div>
         </template>
         <template #badges="{ node }">
@@ -477,19 +500,40 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
   justify-content: flex-start;
 }
 
-.extra :deep([data-testid='project-add']) {
-  justify-content: flex-start;
-  width: 100%;
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vr-space-1);
   height: 28px;
-  padding: 0 8px;
-  font-size: 12px;
-  color: var(--vr-color-text-muted);
-  background: none;
+  padding-left: var(--vr-space-2);
 }
 
-.extra :deep([data-testid='project-add']:hover) {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
+.section-title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--vr-font-size-xs);
+  font-weight: 500;
+  color: var(--vr-color-text-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.section-actions {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+}
+
+.pipe {
+  display: inline-flex;
+  flex: none;
+}
+
+.pipe :deep(.status-icon) {
+  width: 12px;
+  height: 12px;
 }
 
 .new-workspace {

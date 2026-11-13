@@ -45,7 +45,7 @@ onUnmounted(() => stopResize?.());
       @click="toggleQuickOpen()"
     >
       <Search :size="13" :stroke-width="1.6" />
-      <span class="search-label">{{ t('common.search') }}</span>
+      <span class="search-label">{{ t('common.searchPlaceholder') }}</span>
       <kbd v-if="shortcutLabel('agents.quickOpen')">{{ shortcutLabel('agents.quickOpen') }}</kbd>
     </UiButton>
     <div class="end">

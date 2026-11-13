@@ -79,6 +79,10 @@ watch(
   border-bottom: 1px solid var(--vr-color-border);
 }
 
+:root[data-vr-viewport='phone'] .session-header .title {
+  display: none;
+}
+
 .identity {
   display: flex;
   flex: 1;
