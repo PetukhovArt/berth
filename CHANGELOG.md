@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added a draggable edge on the file tree of the Changes view: drag or use the arrow keys to resize it, double-click to reset, and the width is remembered.
 - Added `mode = "auto"` in `router.toml`: berth applies a router suggestion by itself, at most once per turn, no more hops per task than the fallback chain is long, and each rule waits `auto_cooldown_secs` (600 by default) before it switches again.
 - Added a Return chip after a usage limit resets: the Agent that took over offers to go back to the agent or model it came from, once its turn has ended, and never switches back on its own.
 - Added a router editor in Settings → Sessions: the fallback chain, and each rule's conditions as rows with and, or, not and groups, saved to `router.toml` by the daemon with unknown conditions kept as written.

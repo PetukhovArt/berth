@@ -4,6 +4,7 @@ import { Check, ChevronDown, ChevronRight, ChevronUp, Columns2, Folder, FolderOp
 import { useIsPhone, VInputText } from '../../../shared/ui/kit';
 import type { DiffFile, Discussion } from '../../../shared/api/connectors/api';
 import { t } from '../../../shared/lib/i18n/i18n';
+import SidePane from '../../../shared/ui/SidePane.vue';
 import DiffFileBody from './DiffFileBody.vue';
 import { isMarkdownPath, type PreviewSource } from '../lib/fileBase';
 import MarkdownPreview from './MarkdownPreview.vue';
@@ -515,7 +516,7 @@ defineExpose({ focusThread, root });
 
 <template>
   <div ref="root" class="diff vr-master-detail" :data-detail="!filesOpen" tabindex="0" data-testid="diff-view" @keydown="onKey">
-    <aside class="tree vr-master" data-testid="diff-tree">
+    <SidePane class="tree vr-master" storage-key="berth.diff.treeWidth" :default-width="260" :label="t('forge.diff.treeWidth')" handle-testid="diff-tree-resize-handle" data-testid="diff-tree">
       <div class="tree-filter">
         <Search :size="14" />
         <VInputText v-model="filter" class="tree-input" :placeholder="t('forge.diff.filter')" autocomplete="off" data-testid="diff-filter" />
@@ -545,7 +546,7 @@ defineExpose({ focusThread, root });
         </template>
         <p v-if="!treeRows.length" class="tree-empty">{{ t('common.noResults') }}</p>
       </div>
-    </aside>
+    </SidePane>
 
     <div class="main vr-detail">
       <header class="toolbar">
@@ -628,15 +629,6 @@ defineExpose({ focusThread, root });
   color: var(--vr-color-text);
   font-size: var(--vr-font-size-sm);
   outline: none;
-}
-
-.tree {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  width: 260px;
-  min-height: 0;
-  border-right: 1px solid var(--vr-color-border);
 }
 
 .tree-filter {

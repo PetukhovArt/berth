@@ -65,6 +65,7 @@ export const forge = {
   diff: {
     showAll: 'Show the whole file',
     filter: 'Filter files',
+    treeWidth: 'File tree width',
     fileCount: { one: '{count} file', other: '{count} files' },
     unresolvedCount: '{count} unresolved',
     quote: { one: 'Quote {count} line in the prompt', other: 'Quote {count} lines in the prompt' },

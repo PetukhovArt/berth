@@ -6,7 +6,7 @@ const props = withDefaults(defineProps<{ storageKey: string; defaultWidth: numbe
   handleTestid: 'tree-resize-handle',
 });
 
-const MIN_WIDTH = 200;
+const MIN_WIDTH = 180;
 const KEY_STEP = 16;
 
 const pane = useTemplateRef<HTMLElement>('pane');
@@ -16,6 +16,11 @@ const width = shallowRef(stored >= MIN_WIDTH ? stored : props.defaultWidth);
 function setWidth(next: number) {
   const max = Math.max(MIN_WIDTH, (pane.value?.parentElement?.clientWidth ?? Number.POSITIVE_INFINITY) / 2);
   width.value = Math.round(Math.min(max, Math.max(MIN_WIDTH, next)));
+}
+
+function reset() {
+  width.value = props.defaultWidth;
+  localStorage.removeItem(props.storageKey);
 }
 
 function save() {
@@ -63,6 +68,7 @@ function resizeByKey(event: KeyboardEvent) {
       :aria-valuemin="MIN_WIDTH"
       :data-testid="handleTestid"
       @pointerdown="startResize"
+      @dblclick="reset"
       @keydown="resizeByKey"
     />
   </div>
