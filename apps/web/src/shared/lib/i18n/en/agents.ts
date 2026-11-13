@@ -195,6 +195,8 @@ export const agents = {
     chatPlaceholder: 'Message the Agent',
     chatSuggestion: 'Suggested next prompt, Tab to use',
     chatSend: 'Send',
+    chatAgentLog: 'Agent log',
+    chatAgentLogEmpty: 'The agent has written nothing to its log.',
     chatTalk: 'Hold to talk',
     chatTalkHint: 'Release to send, slide away to cancel',
     chatTalkListening: 'Listening…',

@@ -14,6 +14,8 @@ const NATIVE: [(AgentKind, &str); 5] = [
     (AgentKind::OpenCode, "OpenCode"),
 ];
 
+const LOG_BYTES_SHOWN: u64 = 64 * 1024;
+
 #[derive(Debug, Serialize)]
 pub struct ProviderRow {
     id: String,
@@ -21,6 +23,9 @@ pub struct ProviderRow {
     acp: bool,
     enabled: bool,
     command: Option<String>,
+    program: Option<String>,
+    args: Option<Vec<String>>,
+    built_in: bool,
     found: Option<bool>,
 }
 
@@ -73,6 +78,9 @@ fn acp_row(id: &str, entry: Option<&Value>) -> Option<ProviderRow> {
         enabled: enabled_in(entry).unwrap_or(built_in.is_none()),
         found: Some(berth_core::platform::resolve_program(&command).is_some()),
         command: Some(command_line(&command, &args)),
+        program: Some(command),
+        args: Some(args),
+        built_in: built_in.is_some(),
     })
 }
 
@@ -85,6 +93,9 @@ pub async fn providers_read() -> Result<Vec<ProviderRow>, String> {
         enabled: enabled_in(providers.get(kind.as_str()))
             .unwrap_or(!NATIVE_OFF_FOR_NEW_INSTALLS.contains(kind)),
         command: None,
+        program: None,
+        args: None,
+        built_in: true,
         found: None,
     });
     let acp_entries = match providers.get("acp") {
@@ -128,4 +139,110 @@ pub async fn providers_write(id: String, acp: bool, enabled: bool) -> Result<(),
         _ => *entry = serde_json::json!({ "enabled": enabled }),
     }
     berth_config_write(PROVIDERS_KEY, Value::Object(providers))
+}
+
+fn acp_entries(providers: &mut Map<String, Value>) -> Result<&mut Map<String, Value>, String> {
+    match providers
+        .entry("acp")
+        .or_insert_with(|| Value::Object(Map::new()))
+    {
+        Value::Object(entries) => Ok(entries),
+        _ => Err("providers.acp is not an object".into()),
+    }
+}
+
+fn valid_acp_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 40
+        && id
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
+}
+
+pub async fn providers_save_acp(
+    id: String,
+    name: String,
+    command: String,
+    args: Vec<String>,
+) -> Result<(), String> {
+    if !valid_acp_id(&id) {
+        return Err(format!(
+            "`{id}` is not a valid id: use lowercase letters, digits, - and _"
+        ));
+    }
+    let command = command.trim().to_string();
+    if command.is_empty() {
+        return Err("the command is empty".into());
+    }
+    let built_in = BUILT_IN_PROVIDERS.iter().find(|b| b.id == id);
+    let mut providers = providers_object()?;
+    let entries = acp_entries(&mut providers)?;
+    let entry = entries
+        .entry(id)
+        .or_insert_with(|| Value::Object(Map::new()));
+    if !entry.is_object() {
+        *entry = Value::Object(Map::new());
+    }
+    let Value::Object(fields) = entry else {
+        unreachable!()
+    };
+    let args: Vec<String> = args
+        .into_iter()
+        .map(|a| a.trim().to_string())
+        .filter(|a| !a.is_empty())
+        .collect();
+    match built_in {
+        Some(b) => {
+            fields.remove("name");
+            if command == b.command {
+                fields.remove("command");
+            } else {
+                fields.insert("command".into(), Value::String(command));
+            }
+            if args.iter().map(String::as_str).eq(b.args.iter().copied()) {
+                fields.remove("args");
+            } else {
+                fields.insert("args".into(), serde_json::json!(args));
+            }
+        }
+        None => {
+            let name = name.trim();
+            if name.is_empty() {
+                fields.remove("name");
+            } else {
+                fields.insert("name".into(), Value::String(name.to_string()));
+            }
+            fields.insert("command".into(), Value::String(command));
+            fields.insert("args".into(), serde_json::json!(args));
+        }
+    }
+    berth_config_write(PROVIDERS_KEY, Value::Object(providers))
+}
+
+pub async fn providers_remove_acp(id: String) -> Result<(), String> {
+    let built_in = BUILT_IN_PROVIDERS.iter().any(|b| b.id == id);
+    let mut providers = providers_object()?;
+    let entries = acp_entries(&mut providers)?;
+    if built_in {
+        if let Some(Value::Object(fields)) = entries.get_mut(&id) {
+            fields.retain(|key, _| key == "enabled");
+        }
+    } else {
+        entries.remove(&id);
+    }
+    berth_config_write(PROVIDERS_KEY, Value::Object(providers))
+}
+
+pub async fn acp_agent_log(agent: String) -> Result<String, String> {
+    if agent.is_empty() || !agent.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return Err("invalid agent id".into());
+    }
+    let path = berth_core::paths::acp_log_path(&agent);
+    let bytes = match std::fs::read(&path) {
+        Ok(bytes) => bytes,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(String::new()),
+        Err(e) => return Err(e.to_string()),
+    };
+    let start = bytes.len().saturating_sub(LOG_BYTES_SHOWN as usize);
+    Ok(String::from_utf8_lossy(&bytes[start..]).into_owned())
 }

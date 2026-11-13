@@ -29,6 +29,18 @@ export const settings = {
     notFound: 'not found on PATH',
     piWarning: 'Pi runs through npx, which downloads pi-acp from npm each time the agent starts.',
     loadFailed: 'Could not read the provider list.',
+    edit: 'Edit',
+    save: 'Save',
+    cancel: 'Cancel',
+    reset: 'Reset to default',
+    remove: 'Remove',
+    add: 'Add ACP agent',
+    id: 'Id',
+    name: 'Name',
+    command: 'Command',
+    args: 'Arguments',
+    argsHint: 'Separated by spaces. No shell: quotes and variables are passed as written.',
+    secretsHint: 'Do not put API keys here. Set them in the environment berth starts in.',
   },
   def: {
     theme: {

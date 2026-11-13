@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue';
-import { VMessage, VToggleSwitch } from '../../../shared/ui/kit';
+import { VButton, VInputText, VMessage, VToggleSwitch } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { reloadProviders, setProviderEnabled, useProviders, type Provider } from '../../../shared/api/providers';
+import { reloadProviders, removeAcpProvider, saveAcpProvider, setProviderEnabled, useProviders, type Provider } from '../../../shared/api/providers';
 
 const PI = 'pi';
 
@@ -18,13 +18,46 @@ const sections = computed(() => [
 
 void reloadProviders();
 
-async function toggle(provider: Provider, enabled: boolean) {
+const NEW = '';
+const editing = shallowRef<string | null>(null);
+const draftId = shallowRef('');
+const draftName = shallowRef('');
+const draftCommand = shallowRef('');
+const draftArgs = shallowRef('');
+
+async function run(task: () => Promise<void>): Promise<boolean> {
   try {
-    await setProviderEnabled(provider, enabled);
+    await task();
     error.value = null;
+    return true;
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e);
+    return false;
   }
+}
+
+function toggle(provider: Provider, enabled: boolean) {
+  void run(() => setProviderEnabled(provider, enabled));
+}
+
+function startEdit(provider: Provider | null) {
+  editing.value = provider?.id ?? NEW;
+  draftId.value = provider?.id ?? '';
+  draftName.value = provider && !provider.built_in ? provider.name : '';
+  draftCommand.value = provider?.program ?? '';
+  draftArgs.value = (provider?.args ?? []).join(' ');
+}
+
+async function saveEdit() {
+  const saved = await run(() =>
+    saveAcpProvider({ id: draftId.value.trim(), name: draftName.value.trim(), command: draftCommand.value.trim(), args: draftArgs.value.split(/\s+/).filter(Boolean) }),
+  );
+  if (saved) editing.value = null;
+}
+
+async function remove(provider: Provider) {
+  const removed = await run(() => removeAcpProvider(provider.id));
+  if (removed) editing.value = null;
 }
 </script>
 
@@ -40,6 +73,20 @@ async function toggle(provider: Provider, enabled: boolean) {
           <code v-if="provider.command" class="command">{{ provider.command }}</code>
           <span v-if="provider.found === false" class="missing" data-testid="provider-not-found">{{ t('settings.providers.notFound') }}</span>
           <p v-if="provider.acp && provider.id === PI" class="warning" data-testid="provider-pi-warning">{{ t('settings.providers.piWarning') }}</p>
+          <div v-if="provider.acp && editing !== provider.id" class="row-actions">
+            <VButton :label="t('settings.providers.edit')" size="small" text :data-testid="`provider-edit-${provider.id}`" @click="startEdit(provider)" />
+          </div>
+          <form v-if="provider.acp && editing === provider.id" class="editor" :data-testid="`provider-editor-${provider.id}`" @submit.prevent="saveEdit">
+            <label v-if="!provider.built_in" class="field"><span>{{ t('settings.providers.name') }}</span><VInputText v-model="draftName" size="small" data-testid="provider-draft-name" /></label>
+            <label class="field"><span>{{ t('settings.providers.command') }}</span><VInputText v-model="draftCommand" size="small" data-testid="provider-draft-command" /></label>
+            <label class="field"><span>{{ t('settings.providers.args') }}</span><VInputText v-model="draftArgs" size="small" data-testid="provider-draft-args" /></label>
+            <p class="hint">{{ t('settings.providers.argsHint') }}</p>
+            <div class="row-actions">
+              <VButton type="submit" :label="t('settings.providers.save')" size="small" :disabled="!draftCommand.trim()" data-testid="provider-draft-save" />
+              <VButton :label="provider.built_in ? t('settings.providers.reset') : t('settings.providers.remove')" size="small" severity="secondary" outlined :data-testid="`provider-remove-${provider.id}`" @click="remove(provider)" />
+              <VButton :label="t('settings.providers.cancel')" size="small" text data-testid="provider-draft-cancel" @click="editing = null" />
+            </div>
+          </form>
         </div>
         <VToggleSwitch
           :input-id="`provider-toggle-${provider.acp ? 'acp' : 'native'}-${provider.id}`"
@@ -48,6 +95,22 @@ async function toggle(provider: Provider, enabled: boolean) {
           @update:model-value="toggle(provider, $event)"
         />
       </div>
+      <template v-if="section.id === 'acp'">
+        <form v-if="editing === NEW" class="editor" data-testid="provider-editor-new" @submit.prevent="saveEdit">
+          <label class="field"><span>{{ t('settings.providers.id') }}</span><VInputText v-model="draftId" size="small" data-testid="provider-draft-id" /></label>
+          <label class="field"><span>{{ t('settings.providers.name') }}</span><VInputText v-model="draftName" size="small" data-testid="provider-draft-name" /></label>
+          <label class="field"><span>{{ t('settings.providers.command') }}</span><VInputText v-model="draftCommand" size="small" data-testid="provider-draft-command" /></label>
+          <label class="field"><span>{{ t('settings.providers.args') }}</span><VInputText v-model="draftArgs" size="small" data-testid="provider-draft-args" /></label>
+          <p class="hint">{{ t('settings.providers.argsHint') }} {{ t('settings.providers.secretsHint') }}</p>
+          <div class="row-actions">
+            <VButton type="submit" :label="t('settings.providers.save')" size="small" :disabled="!draftId.trim() || !draftCommand.trim()" data-testid="provider-draft-save" />
+            <VButton :label="t('settings.providers.cancel')" size="small" text data-testid="provider-draft-cancel" @click="editing = null" />
+          </div>
+        </form>
+        <div v-else class="row-actions">
+          <VButton :label="t('settings.providers.add')" size="small" outlined data-testid="provider-add" @click="startEdit(null)" />
+        </div>
+      </template>
     </section>
   </div>
 </template>
@@ -100,6 +163,26 @@ async function toggle(provider: Provider, enabled: boolean) {
 .missing {
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
+}
+
+.row-actions {
+  display: flex;
+  gap: var(--vr-space-2);
+  padding-top: var(--vr-space-1);
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vr-space-2);
+  padding: var(--vr-space-2) 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vr-space-1);
+  font-size: var(--vr-font-size-xs);
 }
 
 .warning {

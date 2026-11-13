@@ -97,8 +97,9 @@ function applyPreset(preset: AgentPreset) {
 
 function saveCurrent() {
   const trimmed = presetName.value.trim();
-  if (!trimmed || kind.value === 'terminal' || acpProviderOf(kind.value)) return;
-  savePreset({ name: trimmed, kind: kind.value, model: model.value.trim(), effort: effort.value.trim(), before: before.value, after: after.value });
+  if (!trimmed || kind.value === 'terminal') return;
+  const acp = acpProviderOf(kind.value) !== null;
+  savePreset({ name: trimmed, kind: kind.value, model: acp ? '' : model.value.trim(), effort: acp ? '' : effort.value.trim(), before: before.value, after: after.value });
   activePreset.value = trimmed;
   presetName.value = '';
 }
