@@ -45,6 +45,8 @@ function readWidth() {
 const width = ref(readWidth());
 const collapsed = sidebarCollapsed;
 const dragging = ref(false);
+const searchOpened = ref(false);
+const searchShown = computed(() => searchOpened.value || treeQuery.value.length > 0);
 const currentWidth = computed(() => (collapsed.value ? RAIL_WIDTH : Math.min(width.value, maxWidth.value)));
 const collapseLabel = computed(() => (collapsed.value ? t('shell.expand') : t('shell.collapse')));
 const nextLocale = computed(() => (locale.value === 'en' ? 'ru' : 'en'));
@@ -52,9 +54,14 @@ const nextLocale = computed(() => (locale.value === 'en' ? 'ru' : 'en'));
 watch(width, (value) => localStorage.setItem(WIDTH_KEY, String(value)));
 
 async function openSearch() {
+  searchOpened.value = true;
   collapsed.value = false;
   await nextTick();
   searchInput.value?.focus();
+}
+
+function onSearchBlur() {
+  if (!treeQuery.value) searchOpened.value = false;
 }
 
 watch(sidebarSearchRequests, () => void openSearch());
@@ -128,7 +135,9 @@ watch(hasForge, (on) => {
 }, { immediate: true });
 
 function onSearchKey(event: KeyboardEvent) {
-  if (event.key === 'Escape') treeQuery.value = '';
+  if (event.key !== 'Escape') return;
+  treeQuery.value = '';
+  searchOpened.value = false;
 }
 
 onMounted(() => {
@@ -153,13 +162,16 @@ onUnmounted(() => {
   >
     <slot name="head" />
     <div class="top">
-      <label v-if="!collapsed" class="search">
-        <Search :size="16" />
-        <UiInput ref="searchInput" v-model="treeQuery" :placeholder="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="sidebar-search" @keydown="onSearchKey" />
+      <label v-if="!collapsed && searchShown" class="search">
+        <Search :size="14" />
+        <UiInput ref="searchInput" v-model="treeQuery" :placeholder="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="sidebar-search" @keydown="onSearchKey" @blur="onSearchBlur" />
         <kbd v-if="shortcutLabel('sidebar.search')">{{ shortcutLabel('sidebar.search') }}</kbd>
       </label>
-      <UiButton v-else class="item rail-item" :title="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="sidebar-search-open" @click="openSearch">
+      <UiButton v-else-if="collapsed" class="item rail-item" :title="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="sidebar-search-open" @click="openSearch">
         <Search :size="16" />
+      </UiButton>
+      <UiButton v-else class="icon filter" :title="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="sidebar-search-open" @click="openSearch">
+        <Search :size="14" />
       </UiButton>
       <UiButton
         class="icon toggle"
@@ -330,11 +342,15 @@ onUnmounted(() => {
   min-width: 0;
   align-items: center;
   gap: var(--vr-space-2);
-  height: var(--vr-size-row);
+  height: 26px;
   padding: 0 var(--vr-space-2);
   border-radius: var(--vr-radius-md);
-  background: var(--vr-color-nav-hover);
-  color: var(--vr-color-nav-muted);
+  background: var(--vr-color-surface-muted);
+  color: var(--vr-color-text-subtle);
+}
+
+.icon.filter {
+  margin-right: auto;
 }
 
 .search input {
@@ -361,7 +377,7 @@ kbd {
   align-items: center;
   gap: var(--vr-space-2);
   width: 100%;
-  height: var(--vr-size-row);
+  height: 28px;
   padding: 0 var(--vr-space-2);
   font: inherit;
   text-align: left;

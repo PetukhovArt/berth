@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, useTemplateRef } from 'vue';
-import { SquareTerminal } from '../../../shared/ui/icons';
 import { VContextMenu } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
-import { archiveExternal, externalDot, externalOrigin, externalStatusLabel, resumeCommand, type ExternalSession, HarnessIcon, StatusIcon, useAction } from '../../../entities/session';
+import { archiveExternal, externalDot, externalOrigin, externalStatusLabel, resumeCommand, type ExternalSession, StatusIcon, useAction } from '../../../entities/session';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ session: ExternalSession; active: boolean }>();
@@ -41,9 +40,7 @@ const menuItems = computed(() => [
       @contextmenu.prevent="menu?.show($event)"
     >
       <StatusIcon :status="externalDot(session)" :unseen="false" />
-      <HarnessIcon :harness="session.harness" :working="externalDot(session) === 'running'" />
       <span class="name">{{ session.title }}</span>
-      <span class="marker" :title="origin" :aria-label="origin" role="img" data-testid="external-marker"><SquareTerminal :size="11" /></span>
       <span class="label">{{ session.running ? externalStatusLabel(session) : formatRelative(session.updated_at) }}</span>
     </UiButton>
     <VContextMenu ref="menu" :model="menuItems">
@@ -59,11 +56,12 @@ const menuItems = computed(() => [
 .row {
   display: flex;
   align-items: center;
-  gap: var(--vr-space-2);
+  gap: 7px;
   width: 100%;
-  height: var(--vr-size-row);
-  padding: 0 var(--vr-space-2) 0 var(--vr-space-5);
+  height: 28px;
+  padding: 0 4px 0 var(--vr-space-5);
   font: inherit;
+  font-size: 13px;
   text-align: left;
   color: inherit;
   background: none;
@@ -92,21 +90,14 @@ const menuItems = computed(() => [
   text-overflow: ellipsis;
 }
 
-.marker {
-  display: inline-flex;
-  flex: none;
-  color: var(--vr-color-text-muted);
-  opacity: 0.7;
-}
-
 .label {
   flex: none;
-  font-size: var(--vr-font-size-2xs);
+  font-size: 11.5px;
   color: var(--vr-color-text-muted);
 }
 
 .row[data-running='true'][data-status='waiting'] .label {
-  color: var(--vr-color-danger);
+  color: var(--vr-status-feedback);
 }
 
 .row-error {

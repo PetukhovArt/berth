@@ -4,7 +4,7 @@ import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
 import { VButton, VContextMenu, VInputText } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
-import { externalStatusLabel, sessionDot, type ExternalSession, HarnessIcon, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, type SessionNode, type SessionStatus, useAction, StatusIcon } from '../../../entities/session';
+import { externalStatusLabel, sessionDot, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, type SessionNode, type SessionStatus, useAction, StatusIcon } from '../../../entities/session';
 import { MoveAgentDialog } from '../../../features/move-agent';
 
 import { UiButton } from '../../../shared/ui/UiButton';
@@ -106,7 +106,6 @@ async function confirmDelete() {
         @contextmenu.prevent="showMenu"
       >
         <StatusIcon :status="sessionDot(session, linked)" :unseen="session.unseen" />
-        <HarnessIcon v-if="linked" :harness="linked.harness" :working="sessionDot(session, linked) === 'running'" />
         <span class="name">{{ session.name }}</span>
         <span class="label">{{ linked ? externalStatusLabel(linked) : statusLabel(session.status) }}</span>
       </UiButton>
@@ -140,11 +139,12 @@ async function confirmDelete() {
 .row {
   display: flex;
   align-items: center;
-  gap: var(--vr-space-2);
+  gap: 7px;
   width: 100%;
-  height: var(--vr-size-row);
-  padding: 0 var(--vr-space-2) 0 var(--vr-space-5);
+  height: 28px;
+  padding: 0 4px 0 var(--vr-space-5);
   font: inherit;
+  font-size: 13px;
   text-align: left;
   color: inherit;
   background: none;
@@ -170,7 +170,7 @@ async function confirmDelete() {
 
 .label {
   flex: none;
-  font-size: var(--vr-font-size-2xs);
+  font-size: 11.5px;
   color: var(--vr-color-text-muted);
 }
 
@@ -195,7 +195,7 @@ async function confirmDelete() {
   align-items: center;
   justify-content: center;
   width: 22px;
-  height: var(--vr-size-row);
+  height: 28px;
   padding: 0;
   color: var(--vr-color-text-muted);
   background: none;

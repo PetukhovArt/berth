@@ -224,7 +224,7 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  font-size: var(--vr-font-size-sm);
+  font-size: 13px;
 }
 
 .filter {
@@ -269,7 +269,7 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
   display: flex;
   gap: 2px;
   padding: 2px;
-  background: var(--vr-color-nav-hover);
+  background: var(--vr-color-surface-muted);
   border-radius: var(--vr-radius-md);
 }
 
@@ -278,13 +278,13 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
   flex: 1 1 auto;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
-  height: 22px;
-  padding: 0 2px;
+  height: 24px;
+  padding: 0 4px;
   font: inherit;
-  font-size: var(--vr-font-size-2xs);
-  color: var(--vr-color-nav-muted);
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-muted);
   white-space: nowrap;
   background: none;
   border: 0;
@@ -315,26 +315,18 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
 
 .badge {
   flex: none;
-  min-width: 14px;
-  height: 14px;
-  padding: 0 4px;
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  line-height: 14px;
-  text-align: center;
   color: var(--vr-color-text-muted);
-  background: var(--vr-color-chip-bg);
-  border-radius: var(--vr-radius-full);
 }
 
 .badge[data-tone='accent'] {
-  color: var(--vr-color-accent);
+  color: var(--vr-color-text);
 }
 
 .badge[data-tone='alert'] {
-  font-weight: 600;
-  color: var(--vr-color-danger);
-  background: color-mix(in srgb, var(--vr-color-danger) 20%, transparent);
+  color: var(--vr-status-feedback);
 }
 
 @container tabs (max-width: 214px) {
@@ -479,6 +471,25 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
 
 .extra {
   padding-left: 12px;
+}
+
+.extra :deep(.actions) {
+  justify-content: flex-start;
+}
+
+.extra :deep([data-testid='project-add']) {
+  justify-content: flex-start;
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: var(--vr-color-text-muted);
+  background: none;
+}
+
+.extra :deep([data-testid='project-add']:hover) {
+  color: var(--vr-color-text);
+  background: var(--vr-color-nav-hover);
 }
 
 .new-workspace {

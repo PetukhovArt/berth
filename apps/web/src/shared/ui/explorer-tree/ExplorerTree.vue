@@ -312,7 +312,7 @@ function onKey(event: KeyboardEvent) {
   align-items: center;
   border-radius: var(--vr-radius-md);
   content-visibility: auto;
-  contain-intrinsic-size: auto var(--vr-size-row);
+  contain-intrinsic-size: auto 28px;
 }
 
 .tree[data-animate] .node {
@@ -367,11 +367,13 @@ function onKey(event: KeyboardEvent) {
   display: flex;
   flex: 1;
   align-items: center;
-  gap: var(--vr-space-1);
+  gap: 7px;
   min-width: 0;
-  min-height: var(--vr-size-row);
-  padding: 0 var(--vr-space-1) 0 calc(var(--depth) * var(--indent) + 6px);
+  height: 28px;
+  min-height: 28px;
+  padding: 0 4px 0 calc(var(--depth) * var(--indent) + 6px);
   font: inherit;
+  font-size: 13px;
   text-align: left;
   color: var(--vr-color-text);
   background: none;
@@ -381,17 +383,23 @@ function onKey(event: KeyboardEvent) {
 }
 
 .leaf .toggle {
-  padding-left: calc(var(--depth) * var(--indent) + 6px + 14px + var(--vr-space-1));
+  padding-left: calc(var(--depth) * var(--indent) + 6px + 14px + 7px);
 }
 
 .toggle:hover {
   background: var(--vr-color-nav-hover);
 }
 
-.chevron,
+.chevron {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  color: var(--vr-color-text-subtle);
+}
+
 .kind-icon {
   flex: none;
-  color: var(--vr-color-text-muted);
+  color: var(--vr-color-text-subtle);
 }
 
 .label {
@@ -411,10 +419,7 @@ function onKey(event: KeyboardEvent) {
 }
 
 .detail {
-  margin-left: var(--vr-space-1);
-  font-size: var(--vr-font-size-xs);
-  font-weight: 400;
-  color: var(--vr-color-text-muted);
+  display: none;
 }
 
 .group[aria-level='1'] > .toggle > .label {
@@ -423,11 +428,10 @@ function onKey(event: KeyboardEvent) {
 
 .count {
   flex: none;
-  padding: 0 var(--vr-space-2);
-  font-size: var(--vr-font-size-2xs);
+  padding: 0 0 0 var(--vr-space-1);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
   color: var(--vr-color-text-muted);
-  background: var(--vr-color-chip-bg);
-  border-radius: var(--vr-radius-full);
 }
 
 .node-actions {
