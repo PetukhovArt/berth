@@ -152,11 +152,15 @@ export const agents: Translation<typeof en> = {
   sessionView: {
     switcher: 'Вид сессии',
     terminal: 'Терминал',
+    chat: 'Чат',
+    chatPlaceholder: 'Сообщение агенту',
+    chatSend: 'Отправить',
     mr: 'Merge request',
     diff: 'Изменения',
     withShortcut: '{name} ({shortcut})',
     action: {
       terminal: 'Сессия: показать терминал',
+      chat: 'Сессия: показать чат',
       mr: 'Сессия: показать merge request',
       diff: 'Сессия: показать изменения',
     },

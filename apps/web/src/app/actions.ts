@@ -39,6 +39,7 @@ defineAction({ id: 'agents.quickOpen', title: 'commands.action.agentsQuickOpen',
 defineAction({ id: 'hot.overview', title: 'hot.overview.title', category: NAVIGATION, run: () => hotEnabled.value && toggleHotOverview() });
 defineAction({ id: 'agents.newSession', title: 'commands.action.agentsNewSession', category: NAVIGATION, run: startNewSession });
 defineAction({ id: 'session.view.terminal', title: 'agents.sessionView.action.terminal', category: VIEW, run: () => showViewInActivePanel('terminal') });
+defineAction({ id: 'session.view.chat', title: 'agents.sessionView.action.chat', category: VIEW, run: () => showViewInActivePanel('chat') });
 defineAction({ id: 'session.view.mr', title: 'agents.sessionView.action.mr', category: VIEW, run: () => showViewInActivePanel('mr') });
 defineAction({ id: 'session.view.diff', title: 'agents.sessionView.action.diff', category: VIEW, run: () => showViewInActivePanel('diff') });
 defineAction({ id: 'dock.toggleMaximize', title: 'commands.action.dockToggleMaximize', category: VIEW, run: toggleMaximizedGroup });

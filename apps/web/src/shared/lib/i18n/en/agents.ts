@@ -149,11 +149,15 @@ export const agents = {
   sessionView: {
     switcher: 'Session view',
     terminal: 'Terminal',
+    chat: 'Chat',
+    chatPlaceholder: 'Message the Agent',
+    chatSend: 'Send',
     mr: 'Merge request',
     diff: 'Changes',
     withShortcut: '{name} ({shortcut})',
     action: {
       terminal: 'Session: show terminal',
+      chat: 'Session: show chat',
       mr: 'Session: show merge request',
       diff: 'Session: show changes',
     },

@@ -29,11 +29,22 @@ function statusOf(panelId: string) {
   return conversation ? externalDot(conversation) : undefined;
 }
 
+function chatOf(panelId: string) {
+  const linked = useExternalSessions()?.linked.value.get(panelId);
+  const session = useBerth()?.sessions.value.get(panelId);
+  return linked && session ? { harness: linked.harness, sessionId: linked.id, terminal: session.ref } : null;
+}
+
 const SESSION_VIEWS = {
   terminal: {
     letter: 'T',
     available: () => true,
     props: () => ({}),
+  },
+  chat: {
+    letter: 'C',
+    available: (panelId: string) => chatOf(panelId) !== null,
+    props: (panelId: string) => chatOf(panelId),
   },
   mr: {
     letter: 'M',

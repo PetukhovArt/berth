@@ -10,6 +10,7 @@ export const DEFAULT_KEYMAP: readonly KeymapEntry[] = [
       'mod-shift-n': 'agents.newSession',
       'mod-shift-o': 'hot.overview',
       'ctrl-space t': 'session.view.terminal',
+      'ctrl-space c': 'session.view.chat',
       'ctrl-space m': 'session.view.mr',
       'ctrl-space d': 'session.view.diff',
     },

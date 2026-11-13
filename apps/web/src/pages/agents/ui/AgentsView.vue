@@ -48,6 +48,7 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
           <SessionHeader :panel="api" :active="activeKey === api.id" />
           <SessionViews class="body" :panel-id="api.id">
             <template #terminal><SessionPanel v-if="isSessionRef(params.session)" class="vr-fade-in" :session="params.session" :panel="api" /></template>
+            <template #chat="{ harness, sessionId, terminal }"><ConversationView class="pane" :harness="harness" :session-id="sessionId" :terminal="terminal" data-testid="session-chat-view" /></template>
             <template #mr="{ mr }"><ChangeRequestView class="pane vr-fade-in" :connector="mr.connector" :project="mr.project" :number="mr.number" :panel="api" data-testid="session-mr-view" /></template>
             <template #diff="{ path, status, session }"><WorktreeChanges class="pane" :path="path" :status="status" :session="session" data-testid="session-diff-view" /></template>
           </SessionViews>

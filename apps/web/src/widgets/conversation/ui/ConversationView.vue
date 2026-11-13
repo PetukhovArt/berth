@@ -4,14 +4,16 @@ import { Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, TriangleAlert
 import { VButton, VMessage } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
-import { continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, readTranscript, resumeCommand, useExternalSessions, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock } from '../../../entities/session';
+import { continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, readTranscript, resumeCommand, useExternalSessions, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, sendInput, useFeedbackRequest, allowRequest, denyRequest, chooseOption, type SessionRef } from '../../../entities/session';
+import { UiButton } from '../../../shared/ui/UiButton';
+import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 
 const TAIL = 200;
 const PIN_PX = 48;
 const COPIED_MS = 1500;
 
-const props = defineProps<{ harness: Harness; sessionId: string }>();
+const props = defineProps<{ harness: Harness; sessionId: string; terminal?: SessionRef }>();
 
 const { t, formatRelative, formatDate } = useI18n();
 const external = useExternalSessions();
@@ -23,6 +25,9 @@ const messages = shallowRef<TranscriptMessage[]>([]);
 const loading = shallowRef(true);
 const error = shallowRef<string | null>(null);
 const copied = shallowRef(false);
+const request = props.terminal ? useFeedbackRequest(props.terminal) : null;
+const draft = shallowRef('');
+const sending = shallowRef(false);
 let generation = 0;
 let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -103,6 +108,27 @@ async function continueHere() {
   });
 }
 
+async function send() {
+  const text = draft.value.trim();
+  if (!props.terminal || !text || sending.value) return;
+  sending.value = true;
+  try {
+    await sendInput(props.terminal, `\x1b[200~${text}\x1b[201~`);
+    await sendInput(props.terminal, '\r');
+    draft.value = '';
+  } catch (e) {
+    error.value = describeError(e);
+  } finally {
+    sending.value = false;
+  }
+}
+
+function onKey(event: KeyboardEvent) {
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+  event.preventDefault();
+  void send();
+}
+
 onBeforeUnmount(() => {
   clearTimeout(copiedTimer);
   observer?.disconnect();
@@ -111,7 +137,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section ref="root" class="conversation" data-testid="conversation-view" :data-session-id="sessionId" :data-harness="harness">
-    <header class="head">
+    <header v-if="!terminal" class="head">
       <div class="title-line">
         <HarnessIcon :harness="harness" :size="14" />
         <h2 class="title">{{ session?.title ?? sessionId }}</h2>
@@ -161,6 +187,19 @@ onBeforeUnmount(() => {
         </li>
       </ol>
     </div>
+    <div v-if="terminal && request" class="feedback" data-testid="chat-feedback" :data-kind="request.kind">
+      <span class="feedback-text">{{ request.kind === 'Permission' ? t('feedback.permission', { tool: request.title }) : request.title }}</span>
+      <code v-if="request.detail" class="feedback-detail mono">{{ request.detail }}</code>
+      <template v-if="request.kind === 'Permission'">
+        <UiButton type="button" class="feedback-action" data-testid="feedback-allow" @click="allowRequest(terminal)">{{ t('feedback.allow') }}</UiButton>
+        <UiButton type="button" class="feedback-action" data-testid="feedback-deny" @click="denyRequest(terminal)">{{ t('feedback.deny') }}</UiButton>
+      </template>
+      <UiButton v-for="(option, index) in request.options" v-else :key="index" type="button" class="feedback-action" data-testid="feedback-option" @click="chooseOption(terminal, index)">{{ option }}</UiButton>
+    </div>
+    <form v-if="terminal" class="composer" data-testid="chat-composer" @submit.prevent="send">
+      <UiTextarea v-model="draft" class="input" rows="2" :placeholder="t('agents.sessionView.chatPlaceholder')" :aria-label="t('agents.sessionView.chatPlaceholder')" data-testid="chat-input" @keydown="onKey" />
+      <VButton size="small" type="submit" :disabled="!draft.trim()" :loading="sending" data-testid="chat-send">{{ t('agents.sessionView.chatSend') }}</VButton>
+    </form>
   </section>
 </template>
 
@@ -265,6 +304,74 @@ onBeforeUnmount(() => {
   min-height: 0;
   overflow-y: auto;
   padding: var(--vr-space-3) var(--vr-space-4) var(--vr-space-6);
+}
+
+.feedback {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vr-space-2);
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto var(--vr-space-2);
+  padding: var(--vr-space-2) var(--vr-space-3);
+  font-size: var(--vr-font-size-sm);
+  background: var(--vr-tint-feedback);
+  border-radius: var(--vr-radius-lg);
+  box-shadow: inset 3px 0 0 var(--vr-status-feedback);
+}
+
+.feedback-detail {
+  min-width: 0;
+  padding: 1px 6px;
+  overflow: hidden;
+  font-size: var(--vr-font-size-xs);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: var(--vr-color-surface-muted);
+  border-radius: var(--vr-radius-sm);
+}
+
+.feedback-action {
+  height: 26px;
+  padding: 0 var(--vr-space-3);
+  font: inherit;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text);
+  cursor: pointer;
+  background: var(--vr-color-surface-muted);
+  border: none;
+  border-radius: var(--vr-radius-md);
+}
+
+.composer {
+  display: flex;
+  flex: none;
+  align-items: flex-end;
+  gap: var(--vr-space-2);
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 0 var(--vr-space-4) var(--vr-space-4);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--vr-space-2) var(--vr-space-3);
+  color: var(--vr-color-text);
+  font: inherit;
+  font-size: var(--vr-font-size-sm);
+  resize: none;
+  background: var(--vr-color-surface-sunken);
+  border: 1px solid var(--vr-color-border-strong);
+  border-radius: var(--vr-radius-lg);
+  outline: none;
+}
+
+.input:focus-visible {
+  border-color: var(--vr-color-focus);
 }
 
 .state {
