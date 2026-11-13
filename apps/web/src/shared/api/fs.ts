@@ -14,6 +14,7 @@ export const fsReadBinary = (path: string) => invoke<BinaryFile>('fs_read_binary
 export const fsListMarkdown = (root: string) => invoke<string[]>('fs_list_markdown', { root });
 export const fsListDirs = (root: string) => invoke<string[]>('fs_list_dirs', { root });
 export const worktreeChanges = (path: string) => invoke<DiffFile[]>('worktree_changes', { path });
+export const projectRepoUrl = (path: string) => invoke<string | null>('project_repo_url', { path });
 export const canOpenExternal = isDesktop;
 export const fsOpenExternal = (path: string) => invoke<void>('fs_open_external', { path });
 

@@ -70,6 +70,7 @@ macro_rules! plain_commands {
             free fs_list_markdown(root: String) = $crate::files::fs_list_markdown;
             free fs_list_dirs(root: String) = $crate::files::fs_list_dirs;
             free worktree_changes(path: String) = $crate::changes::worktree_changes;
+            free project_repo_url(path: String) = $crate::connectors::forge::project_repo_url;
             local_free settings_open_external(file: Option<$crate::settings::ConfigFile>) = $crate::settings::settings_open_external;
             local_free fs_open_external(path: String) = $crate::files::fs_open_external;
             local_free stratum_probe(repo: String, target: String) = $crate::stratum::stratum_probe;

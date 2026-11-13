@@ -62,6 +62,32 @@ pub(crate) fn parse_remote(remote: &str) -> Option<(String, String)> {
     Some((host.to_ascii_lowercase(), path.to_owned()))
 }
 
+fn repo_page(remote: &str) -> Option<String> {
+    let remote = remote.trim();
+    if let Ok(mut url) = Url::parse(remote) {
+        if matches!(url.scheme(), "http" | "https") {
+            url.set_username("").ok()?;
+            url.set_password(None).ok()?;
+            url.set_query(None);
+            url.set_fragment(None);
+            let path = url.path().trim_end_matches('/').to_owned();
+            let path = path.strip_suffix(".git").unwrap_or(&path).to_owned();
+            url.set_path(&path);
+            return Some(url.to_string());
+        }
+    }
+    let (host, path) = parse_remote(remote)?;
+    Some(format!("https://{host}/{path}"))
+}
+
+pub async fn project_repo_url(path: String) -> Result<Option<String>, String> {
+    let output = match cli::capture("git", &["-C", &path, "remote", "get-url", "origin"]).await {
+        Ok(output) if output.status.success() => output,
+        _ => return Ok(None),
+    };
+    Ok(repo_page(&String::from_utf8_lossy(&output.stdout)))
+}
+
 fn base_parts(base_url: &str) -> Option<(String, String)> {
     let url = Url::parse(base_url).ok()?;
     Some((

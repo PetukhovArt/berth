@@ -3,6 +3,8 @@ import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import { VButton, VInputText } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useBerth, worktreesOfProject, useAction, canMove, moved, pinned, unpinned, addProject, removeProject, renameProject, setProjectPins } from '../../../entities/session';
+import { openUrl } from '../../../bridge';
+import { projectRepoUrl } from '../../../shared/api/fs';
 import ActionMenu, { type MenuItem } from '../../../shared/ui/ActionMenu.vue';
 import OrphansDialog from './OrphansDialog.vue';
 
@@ -35,8 +37,10 @@ const pinItems = computed((): MenuItem[] => {
   const projects = berth?.entities.value.projects;
   const id = props.projectId;
   if (!projects || !id || !current.value) return [];
-  if (current.value.pin_order === null) return [{ key: 'pin', label: t('agents.project.pin'), testid: 'project-pin' }];
+  const repo: MenuItem = { key: 'repo', label: t('agents.project.openRepo'), testid: 'project-open-repo' };
+  if (current.value.pin_order === null) return [repo, { key: 'pin', label: t('agents.project.pin'), testid: 'project-pin' }];
   return [
+    repo,
     { key: 'unpin', label: t('agents.project.unpin'), testid: 'project-unpin' },
     { key: 'up', label: t('agents.project.moveUp'), testid: 'project-move-up', disabled: !canMove(projects, id, -1) },
     { key: 'down', label: t('agents.project.moveDown'), testid: 'project-move-down', disabled: !canMove(projects, id, 1) },
@@ -55,8 +59,19 @@ function pinOrder(key: string): string[] | undefined {
 }
 
 async function choosePin(key: string) {
+  if (key === 'repo') return openRepo();
   const order = pinOrder(key);
   if (order) await run(() => setProjectPins(order));
+}
+
+async function openRepo() {
+  const path = mainWorktree.value?.path;
+  if (!path) return;
+  await run(async () => {
+    const url = await projectRepoUrl(path);
+    if (!url) throw new Error(t('agents.project.noOrigin'));
+    await openUrl(url);
+  });
 }
 
 function createInMain() {

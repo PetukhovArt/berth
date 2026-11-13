@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added `Open Repository` to a project's menu in the desktop app: it opens the repository page on the git host for the `origin` remote, without the credentials in the URL (#45).
 - Added a badge on the desktop app's taskbar icon with the number of sessions waiting for an answer; the icon flashes when a new one starts waiting while the window is in the background.
 - Added Grok as a session type: `grok` runs in a berth session with status updates, auto titles and resume, through hooks berth writes to `~/.grok/hooks/berth.json`. Grok runs hooks only in folders it trusts.
 - Added OpenCode as a session type: `opencode` runs in a berth session with status updates, auto titles and resume, through a plugin berth writes to `~/.config/opencode/plugin/berth.js`.

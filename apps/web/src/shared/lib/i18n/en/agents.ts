@@ -110,6 +110,8 @@ export const agents = {
     unpin: 'Unpin',
     moveUp: 'Move Up',
     moveDown: 'Move Down',
+    openRepo: 'Open Repository',
+    noOrigin: 'This project has no origin remote to open',
   },
   workspace: {
     fallback: 'Workspace',

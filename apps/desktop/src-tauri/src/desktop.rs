@@ -294,6 +294,7 @@ pub fn run() {
             fs_list_markdown,
             fs_list_dirs,
             worktree_changes,
+            project_repo_url,
             fs_open_external,
             stratum_probe,
             stratum_visualize,

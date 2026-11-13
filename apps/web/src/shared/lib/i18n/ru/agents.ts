@@ -113,6 +113,8 @@ export const agents: Translation<typeof en> = {
     unpin: 'Открепить',
     moveUp: 'Выше',
     moveDown: 'Ниже',
+    openRepo: 'Открыть репозиторий',
+    noOrigin: 'У проекта нет origin, открыть репозиторий нельзя',
   },
   workspace: {
     fallback: 'Workspace',
