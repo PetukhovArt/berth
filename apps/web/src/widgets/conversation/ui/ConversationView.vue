@@ -245,6 +245,7 @@ onBeforeUnmount(() => {
             <span class="tool-name">{{ message.tool }}</span>
             <span class="tool-arg mono">{{ message.text }}</span>
           </div>
+          <RichContent v-else-if="message.shell && message.markdown" class="shell" :data-shell="message.shell" :markdown="message.markdown" />
           <p v-else-if="message.role === 'user'" class="user">{{ message.text }}</p>
           <RichContent v-else class="assistant" :markdown="message.text" />
         </li>
@@ -566,6 +567,14 @@ onBeforeUnmount(() => {
   overflow-wrap: anywhere;
   background: var(--vr-color-chip-bg);
   border-radius: var(--vr-radius-lg);
+}
+
+.shell {
+  font-size: var(--vr-font-size-xs);
+}
+
+.shell[data-shell='output'] {
+  color: var(--vr-color-text-muted);
 }
 
 .assistant {

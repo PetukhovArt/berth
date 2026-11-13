@@ -4,6 +4,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
 import { getMetrics } from './metrics';
 import { listOrphans, resumeOrphan } from './orphans';
+import { withShellBlocks, type ShellMessage } from './shellTags';
 import { archiveExternalSession, createTerminal, describeError, entitySessionRef, externalArchiveKey, BerthCallError, sendInput, sessionKey, unarchiveExternalSession, useBerth, worktreesOfProject, type Entities, type SessionNode, type SessionRef, type SessionStatus } from './berth';
 
 export type Harness = 'claude' | 'codex';
@@ -22,7 +23,7 @@ export type ExternalSession = {
   berth_pids: number[];
   messages: number;
 };
-export type TranscriptMessage = { key: string; role: 'user' | 'assistant'; text: string; tool: string | null; at: string | null; input?: unknown };
+export type TranscriptMessage = ShellMessage;
 export type ExternalTarget = { projectId: string; projectName: string; worktreeId: string; branch: string; exact: boolean };
 export type Placement = { kind: 'worktree'; projectId: string; worktreeId: string } | { kind: 'project'; projectId: string } | { kind: 'loose'; folder: string };
 
@@ -135,7 +136,7 @@ export function unarchiveExternal(session: Pick<ExternalSession, 'harness' | 'id
 }
 
 export function readTranscript(session: Pick<ExternalSession, 'harness' | 'id'>, tail = 200): Promise<TranscriptMessage[]> {
-  return invoke<TranscriptMessage[]>('agent_session_transcript', { harness: session.harness, id: session.id, tail });
+  return invoke<TranscriptMessage[]>('agent_session_transcript', { harness: session.harness, id: session.id, tail }).then(withShellBlocks);
 }
 
 export async function continueInBerth(session: ExternalSession, target: ExternalTarget): Promise<SessionRef> {
