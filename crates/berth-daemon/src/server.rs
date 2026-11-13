@@ -297,6 +297,36 @@ async fn handle_client(
                     };
                     let _ = out_tx.send(ev).await;
                 }
+                ClientRequest::ListCheckpoints { req_id, agent } => {
+                    let daemon = daemon.clone();
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let ev = match daemon.list_checkpoints(&agent).await {
+                            Ok(checkpoints) => ServerEvent::Checkpoints {
+                                req_id,
+                                agent,
+                                checkpoints,
+                            },
+                            Err(e) => ServerEvent::Error {
+                                req_id: Some(req_id),
+                                message: format!("{e:#}"),
+                            },
+                        };
+                        let _ = out_tx.send(ev).await;
+                    });
+                }
+                ClientRequest::RestoreCheckpoint {
+                    req_id,
+                    agent,
+                    number,
+                } => {
+                    let daemon = daemon.clone();
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let done = daemon.restore_checkpoint(&agent, number).await;
+                        reply_done(&out_tx, req_id, done).await;
+                    });
+                }
                 ClientRequest::SetTaskNote {
                     req_id,
                     worktree,

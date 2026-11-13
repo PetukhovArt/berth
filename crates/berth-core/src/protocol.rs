@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 46;
+pub const PROTOCOL_VERSION: u32 = 47;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -417,6 +417,17 @@ pub enum ClientRequest {
         text: String,
     },
 
+    ListCheckpoints {
+        req_id: u64,
+        agent: AgentId,
+    },
+
+    RestoreCheckpoint {
+        req_id: u64,
+        agent: AgentId,
+        number: u32,
+    },
+
     Shutdown,
 }
 
@@ -770,4 +781,17 @@ pub enum ServerEvent {
         worktree: WorktreeId,
         text: String,
     },
+
+    Checkpoints {
+        req_id: u64,
+        agent: AgentId,
+        checkpoints: Vec<Checkpoint>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Checkpoint {
+    pub number: u32,
+    pub created_at: i64,
+    pub before_restore: bool,
 }

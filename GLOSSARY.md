@@ -193,6 +193,10 @@ One pre-booted CLI from the Prewarm Pool: a real process with no store row.
 The mechanism that kills idle PTYs in Worktrees nobody is viewing. Working agents and ones waiting on a human are spared; a reaped Agent resumes on the next Attach.
 _Avoid_: auto suspend
 
+**Checkpoint**
+A commit of an Agent's Worktree files, taken at each prompt under `refs/berth/checkpoints/<agent>/<number>` without touching the branch, the index or the stash. Restoring one puts the files back and first checkpoints what it replaces.
+_Avoid_: snapshot, backup
+
 ## Cloud sessions
 
 **Cloud Session**

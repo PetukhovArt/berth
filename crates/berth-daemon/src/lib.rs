@@ -1,4 +1,5 @@
 pub mod branches;
+pub mod checkpoints;
 pub mod cli_title;
 pub mod config;
 pub mod enter_project;
@@ -113,6 +114,11 @@ async fn serve() -> Result<()> {
                 let captures_session = event.captures_session();
                 if let Some(path) = &transcript_path {
                     daemon.note_transcript_path(&agent_id, path);
+                }
+                if matches!(event, status::HookEvent::UserPromptSubmit) {
+                    let daemon = daemon.clone();
+                    let agent_id = agent_id.clone();
+                    tokio::spawn(async move { daemon.checkpoint_for_prompt(&agent_id).await });
                 }
                 daemon.apply_hook_event(&agent_id, event.clone(), session_id.clone());
                 if let Some(request) = request {
