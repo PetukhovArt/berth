@@ -106,6 +106,7 @@ pub struct HookPayload {
     /// Cursor names the resumable chat id `conversation_id` (== its
     /// `session_id`, but only the alias is guaranteed on every event).
     pub conversation_id: Option<String>,
+    #[serde(alias = "notificationType")]
     pub notification_type: Option<String>,
     pub tool_name: Option<String>,
     pub agent_id: Option<String>,
@@ -149,7 +150,7 @@ pub struct HookQuery {
 pub fn parse_event(hook_event: &str, payload: &HookPayload) -> Option<HookEvent> {
     Some(match hook_event {
         "UserPromptSubmit" => HookEvent::UserPromptSubmit,
-        "Stop" => HookEvent::Stop,
+        "Stop" | "StopCancelled" | "StopFailure" => HookEvent::Stop,
         "SessionStart" => HookEvent::SessionStart {
             source: payload.source.clone(),
         },
@@ -633,5 +634,26 @@ mod tests {
             }
             other => panic!("unexpected event: {other:?}"),
         }
+    }
+
+    #[test]
+    fn grok_camel_case_notification_reaches_the_status_machine() {
+        let payload: HookPayload = serde_json::from_str(
+            r#"{"hookEventName":"notification","hook_event_name":"Notification",
+                "sessionId":"g1","session_id":"g1","cwd":"/w/feat","workspaceRoot":"/w/feat",
+                "notificationType":"permission_prompt","message":"Approve?"}"#,
+        )
+        .unwrap();
+        assert_eq!(payload.session_id().as_deref(), Some("g1"));
+        match parse_event("Notification", &payload) {
+            Some(HookEvent::Notification { notification_type }) => {
+                assert_eq!(notification_type.as_deref(), Some("permission_prompt"));
+            }
+            other => panic!("unexpected event: {other:?}"),
+        }
+        assert!(matches!(
+            parse_event("StopCancelled", &payload),
+            Some(HookEvent::Stop)
+        ));
     }
 }

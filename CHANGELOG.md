@@ -42,7 +42,7 @@
 - Added `Open Repository` to a project's menu in the desktop app: it opens the repository page on the git host for the `origin` remote, without the credentials in the URL (#45).
 - Added a badge on the desktop app's taskbar icon with the number of sessions waiting for an answer; the icon flashes when a new one starts waiting while the window is in the background.
 - Added a toast in the desktop app when an agent starts waiting, finishes or stops with an error, and an OS notification when the window is in the background; clicking either opens the session (#25).
-- Added Grok as a session type: `grok` runs in a berth session with status updates, auto titles and resume, through hooks berth writes to `~/.grok/hooks/berth.json`. Grok runs hooks only in folders it trusts.
+- Added Grok as a session type: `grok` runs in a berth session with status updates, auto titles and resume, through hooks berth writes to `~/.grok/hooks/berth.json`.
 - Added OpenCode as a session type: `opencode` runs in a berth session with status updates, auto titles and resume, through a plugin berth writes to `~/.config/opencode/plugin/berth.js`.
 - Changed Checkpoints to be off for Claude agents by default, since Claude Code has its own `/rewind`; `daemon.checkpointsClaude` in the desktop app's settings turns them back on (#20).
 - Changed the desktop app to update an older berth daemon on its own after an app update, instead of showing a protocol mismatch.

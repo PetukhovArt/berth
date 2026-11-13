@@ -77,6 +77,7 @@ pub const HOST_AGENT_SESSION_VARS: &[&str] = &[
     "CLAUDE_CODE_MESSAGING_TOKEN",
     "CLAUDE_CODE_ENTRYPOINT",
     "CLAUDE_CODE_EXECPATH",
+    "GROK_SESSION_ID",
 ];
 
 /// The value of `var`, treating unset and empty the same way — an empty

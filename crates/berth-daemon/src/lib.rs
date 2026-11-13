@@ -7,6 +7,7 @@ pub mod enter_project;
 pub mod external_archive;
 pub mod feedback;
 pub mod git;
+pub mod grok;
 pub mod hooks;
 pub mod launch;
 pub mod lifecycle;

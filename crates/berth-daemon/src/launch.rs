@@ -39,6 +39,10 @@ pub async fn program_is_installed(program: &str, timeout: std::time::Duration) -
     platform::program_is_installed(program, timeout).await
 }
 
+pub fn grok_hook_shell_env() -> Vec<(String, String)> {
+    platform::grok_hook_shell_env()
+}
+
 // ---------------------------------------------------------------------------
 // Unix
 // ---------------------------------------------------------------------------
@@ -58,6 +62,10 @@ mod platform {
 
     pub fn wrap_for_user_env(program: &str, args: &[String]) -> (String, Vec<String>) {
         login_shell_wrap(&user_shell(), program, args)
+    }
+
+    pub fn grok_hook_shell_env() -> Vec<(String, String)> {
+        Vec::new()
     }
 
     /// Wrap `program args…` in a login + interactive shell (`$SHELL -l -i -c
@@ -253,6 +261,10 @@ mod platform {
         // makes the answer immediate instead of costing a shell start — so
         // this branch never has to say "could not tell".
         Some(resolve_program(program).is_some())
+    }
+
+    pub fn grok_hook_shell_env() -> Vec<(String, String)> {
+        vec![("GROK_SHELL".into(), "bash".into())]
     }
 
     fn comspec() -> String {

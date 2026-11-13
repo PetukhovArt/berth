@@ -2573,9 +2573,6 @@ impl Daemon {
             AgentKind::Cursor => hooks::installer::install_cursor_hooks(&worktree.path)
                 .and_then(|()| hooks::installer::install_cursor_title_rule(&worktree.path)),
             AgentKind::OpenCode => hooks::opencode::install_plugin(&hooks::opencode::plugin_dir()),
-            // Grok's hooks live in its home (global, like codex's) and run
-            // only in folders grok trusts; its UserPromptSubmit cannot
-            // inject context, so the title instruction goes in `--rules`.
             AgentKind::Grok => hooks::installer::install_grok_hooks(&hooks::installer::grok_home()),
         };
         if let Err(e) = install_result {
@@ -2626,10 +2623,8 @@ impl Daemon {
             ),
             (env::API_TOKEN.into(), self.hook_env.token.clone()),
         ];
-        // Grok runs hook commands under PowerShell on Windows; the hook
-        // one-liners are sh, so point it at Git Bash.
-        if cfg!(windows) && agent.kind == AgentKind::Grok {
-            agent_env.push(("GROK_SHELL".into(), "bash".into()));
+        if agent.kind == AgentKind::Grok {
+            agent_env.extend(launch::grok_hook_shell_env());
         }
         let spec = SpawnSpec {
             program,
@@ -3040,18 +3035,7 @@ fn agent_spawn_command_with(
                 args.extend(["--prompt".to_string(), p.to_string()]);
             }
         }
-        AgentKind::Grok => {
-            if !resumed {
-                args.extend([
-                    "--rules".to_string(),
-                    crate::hooks::AUTO_TITLE_INSTRUCTION.to_string(),
-                ]);
-            }
-            // `grok [OPTIONS] [PROMPT]`: the trailing positional.
-            if let Some(p) = initial_prompt {
-                args.push(p.to_string());
-            }
-        }
+        AgentKind::Grok => crate::grok::push_tail_args(&mut args, resumed, effort, initial_prompt),
     }
     (program, args, resumed)
 }
@@ -3392,6 +3376,52 @@ mod tests {
         assert_eq!(
             agent_spawn_command(AgentKind::Claude, None, Some("opus"), None, Some("/bin/sh")),
             ("/bin/sh".into(), vec![], false)
+        );
+    }
+
+    #[test]
+    fn spawn_command_grok_shapes() {
+        let title = crate::hooks::AUTO_TITLE_INSTRUCTION;
+        assert_eq!(
+            agent_spawn_command_with(
+                AgentKind::Grok,
+                None,
+                Some("grok-4.6"),
+                Some("high"),
+                None,
+                Some("fix it"),
+                None,
+                true
+            ),
+            (
+                "grok".into(),
+                vec![
+                    "--always-approve",
+                    "-m",
+                    "grok-4.6",
+                    "--reasoning-effort",
+                    "high",
+                    "--rules",
+                    title,
+                    "fix it"
+                ]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+                false
+            )
+        );
+        assert_eq!(
+            agent_spawn_command(AgentKind::Grok, Some("sid-5"), None, None, None),
+            (
+                "grok".into(),
+                vec![
+                    "--resume".to_string(),
+                    "sid-5".to_string(),
+                    "--always-approve".to_string()
+                ],
+                true
+            )
         );
     }
 

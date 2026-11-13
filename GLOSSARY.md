@@ -40,7 +40,7 @@ A Session running an agent CLI (`claude`, `codex`, `cursor-agent`).
 _Avoid_: the claude
 
 **Agent Kind**
-Which CLI an Agent runs: `claude`, `codex`, or `cursor`.
+Which CLI an Agent runs: `claude`, `codex`, `cursor`, `opencode` or `grok`.
 _Avoid_: harness, agent type
 
 **Terminal Session**

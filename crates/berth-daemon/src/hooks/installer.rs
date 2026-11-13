@@ -102,6 +102,8 @@ const CODEX_EVENTS: &[(&str, Option<&str>)] = &[
 const GROK_EVENTS: &[(&str, Option<&str>)] = &[
     ("UserPromptSubmit", None),
     ("Stop", None),
+    ("StopCancelled", None),
+    ("StopFailure", None),
     ("SessionStart", None),
     ("Notification", None),
 ];
@@ -679,6 +681,7 @@ mod tests {
         );
         assert!(submit.contains(">/dev/null 2>&1"), "stdout: {submit}");
         assert!(hooks["hooks"]["Notification"].is_array());
+        assert!(hooks["hooks"]["StopCancelled"].is_array());
         assert!(hooks["hooks"].get("PermissionRequest").is_none());
     }
 
