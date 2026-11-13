@@ -20,6 +20,8 @@ pub mod settings;
 pub mod sink;
 pub mod stratum;
 #[cfg(feature = "desktop")]
+mod taskbar;
+#[cfg(feature = "desktop")]
 mod tray;
 #[cfg(feature = "desktop")]
 mod working_copy;

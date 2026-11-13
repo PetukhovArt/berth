@@ -158,8 +158,9 @@ fn refresh_tooltip(app: &AppHandle, lang: Lang) {
 pub fn tray_status(app: AppHandle, status: State<'_, TrayStatus>, running: u32, waiting: u32) {
     let mut current = status.0.lock().unwrap_or_else(|e| e.into_inner());
     current.0 = running;
-    current.1 = waiting;
+    let previous = std::mem::replace(&mut current.1, waiting);
     drop(current);
+    crate::taskbar::sync(&app, previous, waiting);
     refresh_tooltip(&app, read_prefs().lang);
 }
 
