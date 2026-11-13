@@ -63,6 +63,12 @@ export const agents = {
     prompt: 'First prompt',
     optional: 'optional',
     terminal: 'Terminal',
+    presets: 'Presets',
+    before: 'Text before the prompt',
+    after: 'Text after the prompt',
+    presetName: 'Preset name',
+    savePreset: 'Save as preset',
+    deletePreset: 'Delete preset {name}',
     action: 'New Session',
   },
   move: {

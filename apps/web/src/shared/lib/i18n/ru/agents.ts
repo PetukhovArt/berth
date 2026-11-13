@@ -66,6 +66,12 @@ export const agents: Translation<typeof en> = {
     prompt: 'Первый промпт',
     optional: 'необязательно',
     terminal: 'Терминал',
+    presets: 'Пресеты',
+    before: 'Текст перед промптом',
+    after: 'Текст после промпта',
+    presetName: 'Имя пресета',
+    savePreset: 'Сохранить как пресет',
+    deletePreset: 'Удалить пресет {name}',
     action: 'Новая сессия',
   },
   move: {
