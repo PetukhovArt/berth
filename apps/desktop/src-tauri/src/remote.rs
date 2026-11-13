@@ -22,10 +22,13 @@ use crate::remote_devices::{self, Device, DeviceInfo, Pairing, Scope};
 use crate::rpc::{Client, Outbox};
 use crate::settings;
 
+mod routes;
+
 const COOKIE: &str = "berth_remote";
 const COOKIE_MAX_AGE: u32 = 30 * 24 * 60 * 60;
 const WS_PATH: &str = "/__berth/ws";
 const HEALTH_PATH: &str = "/__berth/health";
+const ROUTES_PATH: &str = "/__berth/routes";
 const POLL: Duration = Duration::from_secs(1);
 const AUTH_TIMEOUT: Duration = Duration::from_secs(10);
 const FAIL_WINDOW: Duration = Duration::from_secs(60);
@@ -598,6 +601,7 @@ impl Remote {
                 let app = Router::new()
                     .route(WS_PATH, get(socket))
                     .route(HEALTH_PATH, get(health))
+                    .route(ROUTES_PATH, get(routes_api))
                     .fallback(page)
                     .with_state(ctx);
                 let task = tokio::spawn(async move {
@@ -718,6 +722,42 @@ impl Remote {
         self.refresh().await;
         Ok(self.status())
     }
+}
+
+async fn routes_api(
+    State(ctx): State<Ctx>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Response {
+    if !ctx.current() {
+        return plain(StatusCode::SERVICE_UNAVAILABLE);
+    }
+    let ip = client_ip(&ctx, peer, &headers);
+    let Some(presented) = cookie_token(&headers) else {
+        return harden(denied());
+    };
+    harden(match ctx.shared.check(ip, &presented) {
+        Auth::Granted => {
+            let urls = guard(&ctx.shared.live)
+                .server
+                .as_ref()
+                .map(|server| server.urls.clone())
+                .unwrap_or_default();
+            let routes: Vec<Value> = routes::ordered(&urls)
+                .into_iter()
+                .map(|route| {
+                    json!({
+                        "kind": route.kind,
+                        "url": route.url,
+                        "entry": format!("{}?token={presented}", route.url),
+                    })
+                })
+                .collect();
+            axum::Json(routes).into_response()
+        }
+        Auth::Denied => denied(),
+        Auth::Blocked => plain(StatusCode::TOO_MANY_REQUESTS),
+    })
 }
 
 async fn page(

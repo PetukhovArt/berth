@@ -1,6 +1,7 @@
 import { Channel as TauriChannel, invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { listen as tauriListen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { recoverRoute, watchRoutes } from './remoteRoutes';
 
 export const isDesktop = '__TAURI_INTERNALS__' in window;
 const isRemote = !isDesktop && document.querySelector('meta[name="berth-remote"]') !== null;
@@ -11,7 +12,7 @@ export type BridgeChannel<T> = { onmessage: (message: T) => void };
 type Frame = { ready?: true; id?: number; ok?: unknown; err?: string; channel?: number; message?: unknown };
 type Pending = { resolve: (value: unknown) => void; reject: (reason: unknown) => void };
 
-const RECONNECT_DELAY_MS = 2000;
+const request = (url: string, init: RequestInit) => fetch(url, init);
 const WS_PATH = '/__berth/ws';
 
 class RemoteChannel<T> implements BridgeChannel<T> {
@@ -52,6 +53,7 @@ function connect(): Promise<WebSocket> {
     ws.onmessage = (event: MessageEvent<string>) => {
       receive(JSON.parse(event.data) as Frame, () => {
         opened = true;
+        watchRoutes(request);
         resolve(ws);
       });
     };
@@ -59,7 +61,7 @@ function connect(): Promise<WebSocket> {
       socket = null;
       for (const call of pending.values()) call.reject('remote connection closed');
       pending.clear();
-      if (opened) setTimeout(() => location.reload(), RECONNECT_DELAY_MS);
+      if (opened) recoverRoute(request);
       else reject(new Error('remote connection refused'));
     };
   });
