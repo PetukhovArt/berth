@@ -17,12 +17,11 @@ use serde_json::{json, Value};
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
-use crate::connectors::secrets::{self, Lookup};
 use crate::connectors::Connectors;
+use crate::remote_devices::{self, Device, DeviceInfo, Pairing, Scope};
 use crate::rpc::{Client, Outbox};
 use crate::settings;
 
-const TOKEN_ID: &str = "remote-pairing-token";
 const COOKIE: &str = "berth_remote";
 const COOKIE_MAX_AGE: u32 = 30 * 24 * 60 * 60;
 const WS_PATH: &str = "/__berth/ws";
@@ -97,6 +96,7 @@ pub struct ClientInfo {
     id: u64,
     address: String,
     agent: String,
+    device: String,
     connected_at: u64,
 }
 
@@ -109,6 +109,7 @@ pub struct RemoteStatus {
     pairing_url: Option<String>,
     qr_svg: Option<String>,
     clients: Vec<ClientInfo>,
+    devices: Vec<DeviceInfo>,
 }
 
 struct Server {
@@ -136,7 +137,8 @@ struct Shared {
     connectors: Arc<Connectors>,
     web: WebSource,
     http: reqwest::Client,
-    token: Mutex<Option<String>>,
+    devices: Mutex<Option<Vec<Device>>>,
+    revoked: watch::Sender<u64>,
     live: Mutex<Live>,
     failures: Mutex<HashMap<IpAddr, (u32, Instant)>>,
     epoch: watch::Sender<u64>,
@@ -382,22 +384,43 @@ impl Shared {
         Some(vec![format!("{}/", url.trim_end_matches('/'))])
     }
 
-    fn token(&self) -> Result<String, String> {
-        let mut slot = guard(&self.token);
-        if let Some(token) = slot.as_ref() {
-            return Ok(token.clone());
+    fn with_devices<T>(&self, work: impl FnOnce(&mut Vec<Device>) -> T) -> Result<T, String> {
+        let mut slot = guard(&self.devices);
+        if slot.is_none() {
+            *slot = Some(remote_devices::load(now_ms(), fresh_token)?);
         }
-        let token = match secrets::lookup(TOKEN_ID) {
-            Lookup::Found(token) => token,
-            Lookup::Missing => {
-                let token = fresh_token()?;
-                secrets::save(TOKEN_ID, &token)?;
-                token
-            }
-            Lookup::Failed(message) => return Err(message),
-        };
-        *slot = Some(token.clone());
-        Ok(token)
+        slot.as_mut()
+            .map(work)
+            .ok_or_else(|| "device list unavailable".to_owned())
+    }
+
+    fn token(&self) -> Result<String, String> {
+        self.with_devices(|devices| {
+            devices
+                .iter()
+                .find(|device| device.scope == Scope::Full)
+                .map(|device| device.token.clone())
+        })?
+        .ok_or_else(|| "no full-access device".to_owned())
+    }
+
+    fn identify(&self, presented: &str) -> Option<Device> {
+        self.with_devices(|devices| {
+            devices.iter().fold(None, |found, device| {
+                if same(&device.token, presented) {
+                    Some(device.clone())
+                } else {
+                    found
+                }
+            })
+        })
+        .ok()
+        .flatten()
+    }
+
+    fn has_device(&self, id: u64) -> bool {
+        self.with_devices(|devices| devices.iter().any(|device| device.id == id))
+            .unwrap_or(false)
     }
 
     fn check(&self, ip: IpAddr, presented: &str) -> Auth {
@@ -410,7 +433,7 @@ impl Shared {
         {
             return Auth::Blocked;
         }
-        let granted = self.token().is_ok_and(|token| same(&token, presented));
+        let granted = self.identify(presented).is_some();
         if granted {
             failures.remove(&ip);
             Auth::Granted
@@ -420,7 +443,7 @@ impl Shared {
         }
     }
 
-    fn register(&self, ip: IpAddr, agent: String) -> u64 {
+    fn register(&self, ip: IpAddr, agent: String, device: String) -> u64 {
         let id = self.next_client.fetch_add(1, Ordering::Relaxed) + 1;
         guard(&self.live).clients.insert(
             id,
@@ -428,6 +451,7 @@ impl Shared {
                 id,
                 address: ip.to_string(),
                 agent,
+                device,
                 connected_at: now_ms(),
             },
         );
@@ -471,7 +495,8 @@ impl Remote {
             connectors,
             web,
             http: reqwest::Client::new(),
-            token: Mutex::new(None),
+            devices: Mutex::new(None),
+            revoked: watch::Sender::new(0),
             live: Mutex::new(Live::default()),
             failures: Mutex::new(HashMap::new()),
             epoch: watch::Sender::new(0),
@@ -606,7 +631,7 @@ impl Remote {
             .map(|server| server.urls.clone())
             .unwrap_or_default();
         let pairing_url = urls.first().and_then(|url| {
-            let token = guard(&self.0.token).clone()?;
+            let token = self.0.token().ok()?;
             Some(format!("{url}?token={token}"))
         });
         let mut clients: Vec<ClientInfo> = live.clients.values().cloned().collect();
@@ -619,6 +644,10 @@ impl Remote {
             pairing_url,
             urls,
             clients,
+            devices: self
+                .0
+                .with_devices(|devices| devices.iter().map(Device::info).collect())
+                .unwrap_or_default(),
         }
     }
 
@@ -635,10 +664,50 @@ impl Remote {
         })
     }
 
-    pub async fn regenerate(&self) -> Result<RemoteStatus, String> {
+    pub fn add_device(&self, name: String, scope: Scope) -> Result<Pairing, String> {
+        let name = name.trim().to_owned();
+        if name.is_empty() {
+            return Err("device name is required".to_owned());
+        }
+        let base = self
+            .status()
+            .urls
+            .into_iter()
+            .next()
+            .ok_or_else(|| "remote server is not running".to_owned())?;
         let token = fresh_token()?;
-        secrets::save(TOKEN_ID, &token)?;
-        *guard(&self.0.token) = Some(token);
+        self.0.with_devices(|devices| {
+            let device = remote_devices::fresh(devices, &name, scope, token.clone(), now_ms());
+            devices.push(device);
+            remote_devices::save(devices)
+        })??;
+        let url = format!("{base}?token={token}");
+        Ok(Pairing {
+            qr_svg: qr_svg(&url),
+            url,
+        })
+    }
+
+    pub fn revoke_device(&self, id: u64) -> Result<RemoteStatus, String> {
+        let spare = fresh_token()?;
+        self.0.with_devices(|devices| {
+            devices.retain(|device| device.id != id);
+            if !devices.iter().any(|device| device.scope == Scope::Full) {
+                let device =
+                    remote_devices::fresh(devices, "Default", Scope::Full, spare, now_ms());
+                devices.push(device);
+            }
+            remote_devices::save(devices)
+        })??;
+        self.0.revoked.send_modify(|count| *count += 1);
+        Ok(self.status())
+    }
+
+    pub async fn regenerate(&self) -> Result<RemoteStatus, String> {
+        let devices = vec![remote_devices::default_device(fresh_token()?, now_ms())];
+        remote_devices::save(&devices)?;
+        *guard(&self.0.devices) = Some(devices);
+        self.0.revoked.send_modify(|count| *count += 1);
         guard(&self.0.failures).clear();
         {
             let mut live = guard(&self.0.live);
@@ -761,11 +830,11 @@ async fn socket(
     let ip = client_ip(&ctx, peer, &headers);
     let authed = match cookie_token(&headers) {
         Some(presented) => match ctx.shared.check(ip, &presented) {
-            Auth::Granted => true,
-            Auth::Denied => false,
+            Auth::Granted => Some(presented),
+            Auth::Denied => None,
             Auth::Blocked => return plain(StatusCode::TOO_MANY_REQUESTS),
         },
-        None => false,
+        None => None,
     };
     let agent = headers
         .get(header::USER_AGENT)
@@ -791,7 +860,7 @@ async fn handle(client: &Client, request: Request) -> String {
     .to_string()
 }
 
-async fn authenticate(ctx: &Ctx, socket: &mut WebSocket, ip: IpAddr) -> bool {
+async fn authenticate(ctx: &Ctx, socket: &mut WebSocket, ip: IpAddr) -> Option<String> {
     let first = tokio::time::timeout(AUTH_TIMEOUT, socket.recv()).await;
     let presented = match first {
         Ok(Some(Ok(Message::Text(text)))) => serde_json::from_str::<Value>(text.as_str())
@@ -799,11 +868,22 @@ async fn authenticate(ctx: &Ctx, socket: &mut WebSocket, ip: IpAddr) -> bool {
             .and_then(|value| value.get("auth").and_then(Value::as_str).map(str::to_owned)),
         _ => None,
     };
-    presented.is_some_and(|token| matches!(ctx.shared.check(ip, &token), Auth::Granted))
+    presented.filter(|token| matches!(ctx.shared.check(ip, token), Auth::Granted))
 }
 
-async fn session(ctx: Ctx, mut socket: WebSocket, ip: IpAddr, agent: String, authed: bool) {
-    if !authed && !authenticate(&ctx, &mut socket, ip).await {
+async fn session(
+    ctx: Ctx,
+    mut socket: WebSocket,
+    ip: IpAddr,
+    agent: String,
+    authed: Option<String>,
+) {
+    let mut revoked = ctx.shared.revoked.subscribe();
+    let token = match authed {
+        Some(token) => Some(token),
+        None => authenticate(&ctx, &mut socket, ip).await,
+    };
+    let Some(device) = token.and_then(|token| ctx.shared.identify(&token)) else {
         let _ = socket
             .send(Message::Close(Some(CloseFrame {
                 code: 4401,
@@ -811,11 +891,11 @@ async fn session(ctx: Ctx, mut socket: WebSocket, ip: IpAddr, agent: String, aut
             })))
             .await;
         return;
-    }
+    };
     let (mut sink, mut stream) = socket.split();
     let (out, mut outgoing) = Outbox::new();
     let client = Arc::new(Client::new(ctx.shared.connectors.clone(), out.clone()));
-    let id = ctx.shared.register(ip, agent);
+    let id = ctx.shared.register(ip, agent, device.name.clone());
     out.push(json!({ "ready": true }).to_string());
     let overflow = out.clone();
     let mut writer = tokio::spawn(async move {
@@ -848,12 +928,19 @@ async fn session(ctx: Ctx, mut socket: WebSocket, ip: IpAddr, agent: String, aut
                     break;
                 }
             }
+            _ = revoked.changed() => {
+                if !ctx.shared.has_device(device.id) {
+                    break;
+                }
+            }
             message = stream.next() => match message {
                 Some(Ok(Message::Text(text))) => {
                     let Ok(request) = serde_json::from_str::<Request>(text.as_str()) else {
                         continue;
                     };
-                    if INLINE.contains(&request.cmd.as_str()) {
+                    if !remote_devices::permits(device.scope, &request.cmd, &request.args) {
+                        out.push(json!({ "id": request.id, "err": format!("{} is not allowed for a read-only device", request.cmd) }).to_string());
+                    } else if INLINE.contains(&request.cmd.as_str()) {
                         out.push(handle(&client, request).await);
                     } else {
                         let client = client.clone();

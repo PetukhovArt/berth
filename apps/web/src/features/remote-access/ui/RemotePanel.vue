@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, shallowRef } from 'vue';
-import { Copy, Download, Network, RefreshCw, ShieldAlert, Smartphone } from '../../../shared/ui/icons';
-import { VButton, VMessage } from '../../../shared/ui/kit';
+import { Copy, Download, Network, Plus, RefreshCw, ShieldAlert, Smartphone, Trash2 } from '../../../shared/ui/icons';
+import { VButton, VInputText, VMessage, VSelect } from '../../../shared/ui/kit';
 import { invoke, isDesktop, openUrl } from '../../../bridge';
 import { describeError } from '../../../shared/api/connectors/api';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
@@ -9,7 +9,10 @@ import { useSettings } from '../../../shared/config/settings/store';
 import { useScope, visibleInterval } from '../../../shared/lib/scope';
 
 type Problem = { kind: 'tailscale_missing' } | { kind: 'serve_failed'; message: string } | { kind: 'bind_failed'; message: string } | { kind: 'token_store'; message: string };
-type ClientInfo = { id: number; address: string; agent: string; connected_at: number };
+type Scope = 'full' | 'read_only';
+type ClientInfo = { id: number; address: string; agent: string; device: string; connected_at: number };
+type DeviceInfo = { id: number; name: string; scope: Scope; created_at: number };
+type Pairing = { url: string; qr_svg: string | null };
 type RemoteStatus = {
   enabled: boolean;
   running: boolean;
@@ -18,6 +21,7 @@ type RemoteStatus = {
   pairing_url: string | null;
   qr_svg: string | null;
   clients: ClientInfo[];
+  devices: DeviceInfo[];
 };
 
 const POLL_MS = 2000;
@@ -30,6 +34,9 @@ const status = shallowRef<RemoteStatus | null>(null);
 const failure = shallowRef<string | null>(null);
 const busy = shallowRef(false);
 const copied = shallowRef(false);
+const deviceName = shallowRef('');
+const deviceScope = shallowRef<Scope>('read_only');
+const issued = shallowRef<Pairing | null>(null);
 const scope = useScope();
 
 async function load() {
@@ -45,6 +52,32 @@ async function regenerate() {
   busy.value = true;
   try {
     status.value = await scope.load(invoke<RemoteStatus>('remote_regenerate_token'));
+    failure.value = null;
+  } catch (e) {
+    failure.value = describeError(e);
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function addDevice() {
+  busy.value = true;
+  try {
+    issued.value = await invoke<Pairing>('remote_add_device', { name: deviceName.value, scope: deviceScope.value });
+    deviceName.value = '';
+    failure.value = null;
+    await load();
+  } catch (e) {
+    failure.value = describeError(e);
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function revokeDevice(id: number) {
+  busy.value = true;
+  try {
+    status.value = await scope.load(invoke<RemoteStatus>('remote_revoke_device', { id }));
     failure.value = null;
   } catch (e) {
     failure.value = describeError(e);
@@ -117,10 +150,45 @@ onMounted(() => {
             </template>
           </div>
         </div>
+        <h3>{{ t('remote.panel.devices') }}</h3>
+        <ul class="clients" data-testid="remote-devices">
+          <li v-for="device in status.devices" :key="device.id" :data-testid="`remote-device-${device.id}`">
+            <Smartphone :size="14" />
+            <span class="agent">{{ device.name }}</span>
+            <span class="muted">{{ t(`remote.panel.scope.${device.scope}`) }}</span>
+            <VButton size="small" severity="danger" :label="t('remote.panel.revoke')" :disabled="busy" data-testid="remote-revoke" @click="revokeDevice(device.id)">
+              <template #icon><Trash2 :size="14" /></template>
+            </VButton>
+          </li>
+        </ul>
+        <div class="actions">
+          <VInputText v-model="deviceName" :placeholder="t('remote.panel.deviceName')" data-testid="remote-device-name" />
+          <VSelect
+            v-model="deviceScope"
+            :options="[
+              { value: 'read_only', label: t('remote.panel.scope.read_only') },
+              { value: 'full', label: t('remote.panel.scope.full') },
+            ]"
+            option-label="label"
+            option-value="value"
+            data-testid="remote-device-scope"
+          />
+          <VButton size="small" :label="t('remote.panel.addDevice')" :disabled="busy || !deviceName.trim()" data-testid="remote-add-device" @click="addDevice">
+            <template #icon><Plus :size="14" /></template>
+          </VButton>
+        </div>
+        <div v-if="issued" class="pairing" data-testid="remote-issued">
+          <div v-if="issued.qr_svg" class="qr" role="img" :aria-label="t('remote.panel.qrLabel')" v-html="issued.qr_svg" />
+          <div class="details">
+            <code class="link" data-testid="remote-issued-url">{{ issued.url }}</code>
+            <p class="muted">{{ t('remote.panel.issuedHint') }}</p>
+          </div>
+        </div>
         <h3>{{ t('remote.panel.clients') }}</h3>
         <ul v-if="status.clients.length" class="clients" data-testid="remote-clients">
           <li v-for="client in status.clients" :key="client.id">
             <Smartphone :size="14" />
+            <span>{{ client.device }}</span>
             <code>{{ client.address }}</code>
             <span class="muted agent" :title="client.agent">{{ client.agent }}</span>
             <span class="muted">{{ since(client.connected_at) }}</span>

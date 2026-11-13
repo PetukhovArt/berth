@@ -145,10 +145,10 @@ fn install_secrets(options: &Options) -> String {
         }
     };
     if !file {
-        return "OS keyring, service \"berth\", entry \"remote-pairing-token\"".to_owned();
+        return "OS keyring, service \"berth\", entry \"remote-devices\"".to_owned();
     }
     let store = FileStore::new(options.data.join("secrets.json"));
-    let note = format!("{} (key \"remote-pairing-token\")", store.path().display());
+    let note = format!("{} (key \"remote-devices\")", store.path().display());
     secrets::install(Box::new(store));
     note
 }

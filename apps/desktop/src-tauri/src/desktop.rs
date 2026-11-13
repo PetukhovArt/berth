@@ -12,6 +12,7 @@ use crate::connectors::monitor::{self, ConnectorsChanged};
 use crate::connectors::Connectors;
 use crate::files::{self, FileChanged, FileWatches};
 use crate::remote::{Remote, RemoteStatus, WebAsset, WebSource};
+use crate::remote_devices::{Pairing, Scope};
 use crate::settings::{self, ConfigFile, SettingsChanged, SettingsWatch};
 use crate::sink::Sink;
 use crate::tray;
@@ -144,6 +145,20 @@ pub fn remote_status(remote: State<'_, Remote>) -> RemoteStatus {
 #[tauri::command]
 pub async fn remote_regenerate_token(remote: State<'_, Remote>) -> Result<RemoteStatus, String> {
     remote.regenerate().await
+}
+
+#[tauri::command]
+pub fn remote_add_device(
+    remote: State<'_, Remote>,
+    name: String,
+    scope: Scope,
+) -> Result<Pairing, String> {
+    remote.add_device(name, scope)
+}
+
+#[tauri::command]
+pub fn remote_revoke_device(remote: State<'_, Remote>, id: u64) -> Result<RemoteStatus, String> {
+    remote.revoke_device(id)
 }
 
 #[tauri::command]
@@ -329,6 +344,8 @@ pub fn run() {
             ai_env,
             remote_status,
             remote_regenerate_token,
+            remote_add_device,
+            remote_revoke_device,
             tray::tray_status,
             tray::tray_cleanup,
             app_update_info,

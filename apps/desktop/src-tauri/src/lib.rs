@@ -16,6 +16,7 @@ pub mod legacy;
 mod mr_checkout;
 pub mod platform;
 pub mod remote;
+pub mod remote_devices;
 mod review;
 pub mod rpc;
 pub mod settings;
