@@ -2,8 +2,11 @@
 
 ## Unreleased
 
+- Added `berth sessions`, `berth attention` and `berth send`, which print JSON for scripts and chat bots, and an OpenClaw skill built on them (#37).
+- Added the Agent's todo list to the Chat view of a Session in the desktop app, updated as the transcript grows (#18).
 - Added a next-step button to the session header in the desktop app: it shows Commit and push, Push, Pull or Create merge request for the worktree and runs it (#24)
 - Added an Inbox section above Projects in the desktop app's sidebar: Sessions that wait for you, finished unseen or stopped with an error, each with its age and place, and a menu to snooze for an hour, until tomorrow, or settle (#14).
+- Added a `Tailscale (HTTPS)` choice to Remote access in the desktop app: the server stays on localhost and `tailscale serve` publishes it over https, so a phone browser gets a secure page (#29).
 - Added a Linux desktop app: releases carry `berth-desktop-x86_64-linux.deb`, which installs the app and `berth`, and the app starts the daemon on Linux like on the other systems (#47).
 - Added a `Chat` view to Sessions in the desktop app: the conversation of an Agent as messages, with a box that sends your text to the Session (#15).
 - Added a prompt queue under the terminal in the desktop app: a message typed while an Agent works waits there, can be edited or removed, and is sent once when the Agent finishes (#17).

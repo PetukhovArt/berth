@@ -1,5 +1,6 @@
 mod branch_name;
 mod client;
+mod sessions;
 mod upgrade;
 
 use anyhow::Result;
@@ -99,6 +100,25 @@ enum Command {
         #[arg(long, value_name = "KIND", value_parser = parse_agent_kind)]
         kind: Option<berth_core::AgentKind>,
     },
+    #[command(about = "List sessions as JSON (live ones; --all adds archived)")]
+    Sessions {
+        #[arg(long, help = "Include archived sessions")]
+        all: bool,
+    },
+    #[command(
+        about = "List the sessions that need you as JSON: waiting on a permission or question, or finished a turn nobody has read"
+    )]
+    Attention,
+    #[command(
+        about = "Type a message into a running session and press Enter; prints JSON. The session is an id, an id prefix or an exact name"
+    )]
+    Send {
+        session: String,
+        #[arg(required = true, num_args = 1.., help = "The message; multiple words need no quotes")]
+        text: Vec<String>,
+        #[arg(long, help = "Leave the message in the input box without pressing Enter")]
+        no_enter: bool,
+    },
     /// Manage workspaces — named project groups.
     Workspace {
         #[command(subcommand)]
@@ -158,6 +178,13 @@ fn main() -> Result<()> {
             };
             client::run_workspace(op)
         }
+        Some(Command::Sessions { all }) => sessions::run_sessions(all),
+        Some(Command::Attention) => sessions::run_attention(),
+        Some(Command::Send {
+            session,
+            text,
+            no_enter,
+        }) => sessions::run_send(session, text.join(" "), !no_enter),
         Some(Command::Kill) => client::run_kill(),
         Some(Command::Rename { title, force }) => {
             let mode = if force {

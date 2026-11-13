@@ -15,6 +15,7 @@ anyhow = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 tokio = { workspace = true }
 tracing = { workspace = true }
+serde_json = { workspace = true }
 tracing-subscriber = { workspace = true }
 
 # `QueryFullProcessImageNameW` for the version-skew message and
@@ -26,4 +27,3 @@ windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_
 [dev-dependencies]
 tempfile = "3"
 tokio = { workspace = true, features = ["test-util"] }
-serde_json = { workspace = true }

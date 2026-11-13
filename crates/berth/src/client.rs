@@ -12,18 +12,18 @@ use std::time::Duration;
 
 /// Request id for the one-shot CLIs: each opens a fresh connection, sends a
 /// single request and waits for its reply, so there is never a second id.
-const ONE_SHOT_REQ_ID: u64 = 1;
+pub(crate) const ONE_SHOT_REQ_ID: u64 = 1;
 /// The daemon hung up mid-request — the message every one-shot client shows.
 const CLOSED_BEFORE_REPLY: &str = "daemon closed the connection before replying";
 /// How often the connect and shutdown waits re-check the daemon.
 const POLL_STEP: Duration = Duration::from_millis(50);
 
-struct Connection {
-    stream: Stream,
+pub(crate) struct Connection {
+    pub(crate) stream: Stream,
 }
 
 /// Connect, auto-spawning `current_exe() daemon` when nothing is listening.
-async fn connect_or_spawn() -> Result<Connection> {
+pub(crate) async fn connect_or_spawn() -> Result<Connection> {
     if let Ok(conn) = try_connect().await {
         return handshake(conn).await;
     }
@@ -53,7 +53,7 @@ async fn connect_or_spawn() -> Result<Connection> {
 
 /// Reach the daemon over whatever the DAEMON SOCKET is on this platform,
 /// clearing its authorization gate on the way (`berth_core::transport`).
-async fn try_connect() -> Result<Stream> {
+pub(crate) async fn try_connect() -> Result<Stream> {
     Ok(transport::connect().await?)
 }
 
@@ -117,7 +117,7 @@ fn detach(cmd: &mut std::process::Command) {
     cmd.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
 }
 
-async fn handshake(mut stream: Stream) -> Result<Connection> {
+pub(crate) async fn handshake(mut stream: Stream) -> Result<Connection> {
     write_frame(
         &mut stream,
         &ClientRequest::Hello {
@@ -821,7 +821,7 @@ fn request_termination(pid: i32) -> bool {
     }
 }
 
-fn runtime() -> Result<tokio::runtime::Runtime> {
+pub(crate) fn runtime() -> Result<tokio::runtime::Runtime> {
     Ok(tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()

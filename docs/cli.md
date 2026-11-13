@@ -40,6 +40,31 @@ berth spawn <task> [--kind <claude|codex|cursor|opencode|grok>]
                          # opening on <task>; --kind defaults to this session's agent kind
 ```
 
+## JSON for scripts and chat bots
+
+```sh
+berth sessions [--all]   # list sessions (--all adds archived ones)
+berth attention          # only the sessions that need you
+berth send <session> <message...> [--no-enter]
+                         # type a message into a running session and press Enter
+```
+
+Each prints one JSON object on stdout. On success it holds `"ok": true`. On failure it is
+`{"ok": false, "error": "..."}` with exit code 1. Fields are only ever added, never renamed.
+
+`sessions` and `attention` return `{"ok": true, "sessions": [...]}`. A session has `id`, `name`,
+`status` (`fresh`, `running`, `finished`, `needs_feedback`, `terminated`, `disconnected`),
+`attention`, `alive`, `archived`, `kind`, `model`, `status_changed_at` (epoch ms), `workspace`,
+`project`, `branch` and `path`. `attention` is `"needs_feedback"` when the agent waits on a
+permission prompt or question, `"unseen"` when it finished a turn nobody has read, else `null`.
+
+`<session>` is an id, a unique id prefix or an exact name. `send` returns
+`{"ok": true, "session": {"id", "name"}, "submitted": true, "bytes": N}`. It refuses a session
+that is not running, and it does not wait for the agent's answer.
+
+An [OpenClaw](https://github.com/openclaw/openclaw) skill built on these is in
+`integrations/openclaw/berth/SKILL.md`; copy the `berth` folder into `~/.openclaw/workspace/skills/`.
+
 ## Workspaces
 
 ```sh
