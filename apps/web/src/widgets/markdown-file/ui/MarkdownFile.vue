@@ -484,7 +484,7 @@ onBeforeUnmount(() => {
   background: var(--vr-color-surface-raised);
   border: 1px solid var(--vr-color-border);
   border-radius: var(--vr-radius-md);
-  box-shadow: var(--vr-elevation-popover);
+  box-shadow: var(--vr-shadow-popover);
 }
 
 .toc-item {
