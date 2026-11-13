@@ -3,7 +3,7 @@ import type { ChangeRequestRef } from '../../../shared/api/connectors/api';
 import { hasChanges } from './worktreeChanged';
 import { knownMr } from '../../../entities/merge-request';
 import { useDock } from '../../../shared/model/dock';
-import { useSessionDock, useBerth, externalDot, sessionDot, useExternalSessions } from '../../../entities/session';
+import { useSessionDock, useBerth, externalDot, sessionDot, useExternalSessions, externalKey } from '../../../entities/session';
 
 export type SessionWorktree = { path: string; branch: string };
 
@@ -30,9 +30,17 @@ function statusOf(panelId: string) {
 }
 
 function chatOf(panelId: string) {
-  const linked = useExternalSessions()?.linked.value.get(panelId);
-  const session = useBerth()?.sessions.value.get(panelId);
-  return linked && session ? { harness: linked.harness, sessionId: linked.id, terminal: session.ref } : null;
+  const external = useExternalSessions();
+  const berth = useBerth();
+  const session = berth?.sessions.value.get(panelId);
+  if (!session) return null;
+  const linked = external?.linked.value.get(panelId);
+  if (linked) return { harness: linked.harness, sessionId: linked.id, terminal: session.ref };
+  if (!('Agent' in session.ref)) return null;
+  const agent = berth?.entities.value.agents.get(session.ref.Agent);
+  if (agent?.kind !== 'claude' || !agent.session_id) return null;
+  const own = external?.anyByKey.value.get(externalKey({ harness: 'claude', id: agent.session_id }));
+  return own ? { harness: own.harness, sessionId: own.id, terminal: session.ref } : null;
 }
 
 const SESSION_VIEWS = {
