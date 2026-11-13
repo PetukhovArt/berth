@@ -40,7 +40,7 @@
   },
   "font": {
     "family": { "$type": "fontFamily", "$value": "'Wix Madefor Text Variable', 'Wix Madefor Text', 'Segoe UI', sans-serif" },
-    "mono": { "$type": "fontFamily", "$value": "'JetBrains Mono', Consolas, monospace" },
+    "mono": { "$type": "fontFamily", "$value": "'JetBrains Mono Variable', 'JetBrains Mono', Consolas, monospace" },
     "size": {
       "$type": "dimension",
       "2xs": { "$value": "11px" }, "xs": { "$value": "12px" }, "sm": { "$value": "14px" }, "base": { "$value": "16px" }, "lg": { "$value": "18px" }, "xl": { "$value": "20px" }, "display": { "$value": "26px" }

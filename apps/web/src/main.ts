@@ -1,4 +1,6 @@
 import './app/legacyStorage';
+import '@fontsource-variable/wix-madefor-text';
+import '@fontsource-variable/jetbrains-mono';
 import { createApp } from 'vue';
 import { installUiKit } from './shared/ui/kit';
 import './app/styles/app.css';

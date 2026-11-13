@@ -23,7 +23,7 @@ export const CATEGORIES = [
   { id: 'keymap', label: 'settings.category.keymap' },
 ] as const satisfies readonly { readonly id: Category; readonly label: MessageKey }[];
 
-const FALLBACK_MONO = "'JetBrains Mono', Consolas, monospace";
+const FALLBACK_MONO = "'JetBrains Mono Variable', 'JetBrains Mono', Consolas, monospace";
 const monoFont = getComputedStyle(document.documentElement).getPropertyValue('--vr-font-mono').trim() || FALLBACK_MONO;
 
 export const SETTINGS = {
