@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { shallowRef, useTemplateRef } from 'vue';
-import { Ellipsis } from '../../../shared/ui/icons';
+import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
 import { VContextMenu } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
-import { allowRequest, chooseOption, denyRequest, StatusIcon, useBerth, useSessionDock } from '../../../entities/session';
+import { allowRequest, chooseOption, denyRequest, openChannel, StatusIcon, useBerth, useChannelUnread, useSessionDock } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { settleInbox, snoozeInbox, useInbox, type InboxEntry } from '../model/inbox';
 
@@ -12,6 +12,7 @@ const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
 const { items, now } = useInbox();
+const { unread: channels } = useChannelUnread();
 const dock = useSessionDock();
 const berth = useBerth();
 const requestOf = (entry: InboxEntry) => berth?.feedback.value.get(entry.node.id);
@@ -50,10 +51,10 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
 </script>
 
 <template>
-  <section v-if="items.length" class="inbox" data-testid="inbox">
+  <section v-if="items.length || channels.length" class="inbox" data-testid="inbox">
     <div class="head">
       <span class="title">{{ t('attention.inbox.title') }}</span>
-      <span class="count" data-testid="inbox-count">{{ items.length }}</span>
+      <span class="count" data-testid="inbox-count">{{ items.length + channels.length }}</span>
     </div>
     <div v-for="entry in items" :key="entry.key" class="item" data-testid="inbox-item" :data-kind="entry.kind" :data-session-id="entry.node.id">
       <UiButton class="row" :title="entry.node.name" @click="dock.openSession(entry.node)" @contextmenu.prevent="showMenu($event, entry)">
@@ -77,6 +78,17 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
         </div>
       </div>
       <UiButton class="more" :title="t('attention.inbox.actions')" :aria-label="t('attention.inbox.actions')" aria-haspopup="menu" data-testid="inbox-menu" @click="showMenu($event, entry)"><Ellipsis :size="14" /></UiButton>
+    </div>
+    <div v-for="channel in channels" :key="channel.key" class="item" data-testid="inbox-channel" data-kind="channel">
+      <UiButton class="row" :title="channel.key" @click="openChannel(channel.key)">
+        <MessageSquare :size="14" class="channel-icon" />
+        <span class="body">
+          <span class="line">
+            <span class="name"># {{ channel.key }}</span>
+          </span>
+          <span class="reason">{{ t('attention.inbox.channelUnread', { count: channel.unread }) }}</span>
+        </span>
+      </UiButton>
     </div>
     <VContextMenu ref="menu" :model="menuItems">
       <template #item="{ item, props: itemProps }">
@@ -123,6 +135,12 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
 
 .row:hover {
   background: var(--vr-color-nav-hover);
+}
+
+.channel-icon {
+  flex: none;
+  margin-top: 3px;
+  color: var(--vr-color-text-muted);
 }
 
 .row :deep(.status-icon) {

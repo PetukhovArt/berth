@@ -32,5 +32,15 @@ export const attention = {
     minutes: '{count} min',
     hours: '{count} h',
     days: '{count} d',
+    channelUnread: '{count} unread in the Channel',
+  },
+  channel: {
+    messages: 'Channel {key}',
+    empty: 'No messages yet.',
+    placeholder: 'Write to the Channel',
+    send: 'Send',
+    agent: 'Agent',
+    person: 'Person',
+    present: 'Running Sessions on this task: {who}',
   },
 } as const;

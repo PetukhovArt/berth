@@ -307,11 +307,13 @@ export type BerthReply =
   | { UsageLimits: { req_id: number; windows: unknown[] } }
   | { TaskNote: { req_id: number; worktree: string; text: string } }
   | { ProjectSetup: { req_id: number; project: string; command: string } }
-  | { Checkpoints: { req_id: number; agent: string; checkpoints: { number: number; created_at: number; before_restore: boolean }[] } };
+  | { Checkpoints: { req_id: number; agent: string; checkpoints: { number: number; created_at: number; before_restore: boolean }[] } }
+  | { Channels: { req_id: number; channels: { key: string; head: number; unread: number }[] } }
+  | { ChannelEvents: { req_id: number; events: { seq: number; kind: number; author: string; author_name: string; author_kind: string; channel: string; tags: string[][]; content: string; created_at: number }[] } };
 
 export class BerthCallError extends Error {}
 
-const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote', 'ProjectSetup', 'Checkpoints']);
+const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote', 'ProjectSetup', 'Checkpoints', 'Channels', 'ChannelEvents']);
 
 function isBerthReply(value: unknown): value is BerthReply {
   if (typeof value !== 'object' || value === null) return false;

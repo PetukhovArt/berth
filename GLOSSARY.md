@@ -197,6 +197,10 @@ _Avoid_: auto suspend
 A commit of an Agent's Worktree files, taken at each prompt under `refs/berth/checkpoints/<agent>/<number>` without touching the branch, the index or the stash. Restoring one puts the files back and first checkpoints what it replaces.
 _Avoid_: snapshot, backup
 
+**Channel**
+A named stream of messages on the team hub (`hub_url`) that people and Agents post to and read, with an unread count per member. The Inbox lists Channels with unread messages and opens them as a view beside the Sessions. Not the Transport.
+_Avoid_: chat room, topic
+
 ## Cloud sessions
 
 **Cloud Session**

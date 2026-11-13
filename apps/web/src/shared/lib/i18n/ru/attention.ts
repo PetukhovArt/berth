@@ -32,5 +32,15 @@ export const attention = {
     minutes: '{count} мин',
     hours: '{count} ч',
     days: '{count} д',
+    channelUnread: 'Непрочитано в Канале: {count}',
+  },
+  channel: {
+    messages: 'Канал {key}',
+    empty: 'Сообщений пока нет.',
+    placeholder: 'Написать в Канал',
+    send: 'Отправить',
+    agent: 'Агент',
+    person: 'Человек',
+    present: 'Запущены Сессии по этой задаче: {who}',
   },
 } as const;

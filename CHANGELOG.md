@@ -5,6 +5,7 @@
 - Added route switching to the remote web client: when a faster route to the same machine answers (LAN, then Tailscale, then a public HTTPS URL), the page moves to it by itself, and when the current route drops it reconnects over the first one that answers (#34).
 - Added a suggested next prompt in the Chat view: after a Claude Agent finishes, the text Claude Code shows dimmed in its input box appears above the message box, and Tab or a click puts it there without sending it (#28).
 - Added `berth schedule` and `berth webhook`: type a prompt into a session, or start a new one, at a set time or when a webhook is called with its own secret. Schedules survive a daemon restart and webhooks are off until `"webhooks": true` is set (#36).
+- Added a Channel view in the desktop app for the team hub: the Inbox lists Channels with unread messages, and the view shows who wrote each message, a person or an Agent, with a box to post (#49).
 - Added Checkpoints: berth saves the files of an Agent's worktree at each prompt on hidden git refs, and the session header lists them with a Restore files button that keeps the branch and the current files safe (#20).
 - Added a Setup command field for a new worktree in New Session: berth saves it for the Project and runs it in a terminal named setup in every worktree it creates, and the field stays empty until you opt in (#21).
 - Added New Session worktrees without a branch name: leave the name empty and berth generates one (#21).

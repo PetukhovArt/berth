@@ -13,6 +13,8 @@ export { saveTaskNote, useTaskNote } from './model/taskNote';
 export { loadProjectSetup, saveProjectSetup } from './model/projectSetup';
 export { listCheckpoints, restoreCheckpoint } from './model/checkpoints';
 export type { Checkpoint } from './model/checkpoints';
+export { isAgentMessage, openChannel, postToChannel, readChannel, refreshChannels, useChannelUnread } from './model/channels';
+export type { ChannelMessage } from './model/channels';
 export { getMetrics } from './model/metrics';
 export type { MetricsSnapshot, SessionMetrics } from './model/metrics';
 export { listOrphans, moveAgent, resumeOrphan } from './model/orphans';

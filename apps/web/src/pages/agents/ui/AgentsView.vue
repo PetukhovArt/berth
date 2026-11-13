@@ -20,7 +20,8 @@ const WorktreeChanges = defineAsyncComponent(() => import('../../../widgets/work
 const JiraIssueView = defineAsyncComponent(() => import('../../../widgets/jira-browser').then((m) => m.JiraIssueView));
 const ConversationView = defineAsyncComponent(() => import('../../../widgets/conversation').then((m) => m.ConversationView));
 const MetricsPanel = defineAsyncComponent(() => import('../../../widgets/metrics').then((m) => m.MetricsPanel));
-const MarkdownFile = defineAsyncComponent(() => import('../../../widgets/markdown-file').then((m) => m.MarkdownFile));
+const ChannelView = defineAsyncComponent(() => import('../../../widgets/channel').then((m) => m.ChannelView));
+const MarkdownFile =defineAsyncComponent(() => import('../../../widgets/markdown-file').then((m) => m.MarkdownFile));
 
 localStorage.removeItem('berth.agents.layout');
 localStorage.removeItem('berth.agents.explorer.expanded');
@@ -80,6 +81,9 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
       </template>
       <template #panel-metrics>
         <MetricsPanel class="vr-fade-in" />
+      </template>
+      <template #panel-channel="{ params }">
+        <ChannelView v-if="typeof params.key === 'string'" class="vr-fade-in" :channel="params.key" />
       </template>
       <template #panel-markdown="{ params, api }">
         <MarkdownFile v-if="typeof params.path === 'string'" class="vr-fade-in" :path="params.path" :hash="typeof params.hash === 'string' ? params.hash : ''" @open-file="(path, hash) => sessions.openFile(path, { hash, from: api.id })" />
