@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
-import { Check, ChevronDown, ChevronUp, Copy, FolderOpen, GitBranch, LoaderCircle, Play, SquareTerminal, TriangleAlert, Wrench } from '../../../shared/ui/icons';
-import { VButton, VMessage } from '../../../shared/ui/kit';
+import { Check, ChevronDown, ChevronUp, Copy, FolderOpen, GitBranch, LoaderCircle, Mic, Play, SquareTerminal, TriangleAlert, Wrench } from '../../../shared/ui/icons';
+import { useIsPhone, VButton, VMessage } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, readTranscript, resumeCommand, useExternalSessions, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, sendInput, useFeedbackRequest, allowRequest, denyRequest, chooseOption, type SessionRef } from '../../../entities/session';
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
+import { useHoldToTalk, type HoldToTalkIssue } from '../model/useHoldToTalk';
 
 const TAIL = 200;
 const PIN_PX = 48;
 const COPIED_MS = 1500;
+const NOTICE_MS = 3000;
 
 const props = defineProps<{ harness: Harness; sessionId: string; terminal?: SessionRef }>();
 
@@ -28,10 +30,13 @@ const copied = shallowRef(false);
 const request = props.terminal ? useFeedbackRequest(props.terminal) : null;
 const draft = shallowRef('');
 const sending = shallowRef(false);
+const notice = shallowRef('');
+const phone = useIsPhone();
 const planOpen = shallowRef(true);
 const plan = computed(() => derivePlan(messages.value));
 const planDone = computed(() => plan.value.filter((item) => item.state === 'done').length);
 let generation = 0;
+let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
 const session = computed(() => external?.anyByKey.value.get(externalKey({ harness: props.harness, id: props.sessionId })));
@@ -98,6 +103,7 @@ async function copyCommand() {
   await copyText(command.value);
   copied.value = true;
   clearTimeout(copiedTimer);
+  clearTimeout(noticeTimer);
   copiedTimer = setTimeout(() => (copied.value = false), COPIED_MS);
 }
 
@@ -112,19 +118,34 @@ async function continueHere() {
 }
 
 async function send() {
-  const text = draft.value.trim();
+  await submit(draft.value.trim(), true);
+}
+
+async function submit(text: string, clearDraft: boolean) {
   if (!props.terminal || !text || sending.value) return;
   sending.value = true;
   try {
     await sendInput(props.terminal, `\x1b[200~${text}\x1b[201~`);
     await sendInput(props.terminal, '\r');
-    draft.value = '';
+    if (clearDraft) draft.value = '';
   } catch (e) {
     error.value = describeError(e);
   } finally {
     sending.value = false;
   }
 }
+
+const ISSUES: Record<HoldToTalkIssue, 'chatTalkDenied' | 'chatTalkShort' | 'chatTalkEmpty' | 'chatTalkFailed'> = { denied: 'chatTalkDenied', short: 'chatTalkShort', empty: 'chatTalkEmpty', failed: 'chatTalkFailed' };
+const talk = useHoldToTalk({
+  lang: () => (document.documentElement.lang === 'ru' ? 'ru-RU' : 'en-US'),
+  onSend: (text) => submit(text, false),
+  onIssue: (issue) => {
+    notice.value = t(`agents.sessionView.${ISSUES[issue]}`);
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => (notice.value = ''), NOTICE_MS);
+  },
+});
+const showTalk = computed(() => phone.value && talk.supported);
 
 function onKey(event: KeyboardEvent) {
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
@@ -215,8 +236,10 @@ onBeforeUnmount(() => {
       <UiButton v-for="(option, index) in request.options" v-else :key="index" type="button" class="feedback-action" data-testid="feedback-option" @click="chooseOption(terminal, index)">{{ option }}</UiButton>
     </div>
     <form v-if="terminal" class="composer" data-testid="chat-composer" @submit.prevent="send">
+      <p v-if="talk.holding.value || notice" class="talk-note" :data-cancelling="talk.cancelling.value || undefined" data-testid="chat-talk-note" role="status">{{ talk.holding.value ? talk.transcript.value || t('agents.sessionView.chatTalkListening') : notice }}{{ talk.holding.value ? ' ' + t('agents.sessionView.chatTalkHint') : '' }}</p>
       <UiTextarea v-model="draft" class="input" rows="2" :placeholder="t('agents.sessionView.chatPlaceholder')" :aria-label="t('agents.sessionView.chatPlaceholder')" data-testid="chat-input" @keydown="onKey" />
       <VButton size="small" type="submit" :disabled="!draft.trim()" :loading="sending" data-testid="chat-send">{{ t('agents.sessionView.chatSend') }}</VButton>
+      <UiButton v-if="showTalk" type="button" class="talk" :data-holding="talk.holding.value || undefined" :data-cancelling="talk.cancelling.value || undefined" :aria-label="t('agents.sessionView.chatTalk')" :title="t('agents.sessionView.chatTalk')" data-testid="chat-talk" @pointerdown="talk.start" @pointermove="talk.move" @pointerup="talk.release" @pointercancel="talk.release" @contextmenu.prevent><Mic :size="20" /></UiButton>
     </form>
   </section>
 </template>
@@ -448,6 +471,47 @@ onBeforeUnmount(() => {
   max-width: 920px;
   margin: 0 auto;
   padding: 0 var(--vr-space-4) var(--vr-space-4);
+}
+
+.composer {
+  flex-wrap: wrap;
+}
+
+.talk-note {
+  flex: 0 0 100%;
+  margin: 0;
+  font-size: var(--vr-font-size-sm);
+  color: var(--vr-color-text-muted);
+}
+
+.talk-note[data-cancelling] {
+  color: var(--vr-color-danger);
+}
+
+.talk {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--vr-size-row);
+  height: var(--vr-size-row);
+  color: var(--vr-color-text);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  background: var(--vr-color-surface-sunken);
+  border: 1px solid var(--vr-color-border-strong);
+  border-radius: 50%;
+}
+
+.talk[data-holding] {
+  background: var(--vr-color-nav-active);
+  transform: scale(1.1);
+}
+
+.talk[data-cancelling] {
+  color: var(--vr-color-danger);
+  border-color: var(--vr-color-danger);
 }
 
 .input {
