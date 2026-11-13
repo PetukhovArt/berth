@@ -15,7 +15,7 @@ import { CleanupBadge, cleanupCount, openCleanup, removing as cleanupRemoving } 
 import { openUrl, type InboxItem } from '../../../shared/api/connectors/api';
 import { ArchitectureAction, openArchitecture, useArchitecture } from '../../../features/architecture';
 import { MrSessionNotice, OpenInSessionAction, useOpenInSession } from '../../../features/open-in-session';
-import { numberLabel, pipelineLabel, itemId, PipelineIcon, WorktreeBadge, openReview } from '../../../entities/merge-request';
+import { numberLabel, pipelineLabel, pipelineTone, itemId, PipelineIcon, WorktreeBadge, openReview } from '../../../entities/merge-request';
 import { t } from '../../../shared/lib/i18n/i18n';
 import ExplorerTree from '../../../shared/ui/explorer-tree/ExplorerTree.vue';
 import { useDock } from '../../../shared/model/dock';
@@ -132,8 +132,12 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
         test-id="explorer-tree"
         @open="openLeaf"
       >
+        <template #lead="{ node, icon }">
+          <StatusIcon v-if="node.kind === 'project' && node.data?.rollup?.total" :status="node.data.rollup.status" :unseen="node.data.rollup.unseen" />
+          <component :is="icon" v-else-if="icon" :size="14" class="kind-icon" />
+        </template>
         <template #rollup="{ node }">
-          <StatusIcon v-if="node.data?.rollup?.total" :status="node.data.rollup.status" :unseen="node.data.rollup.unseen" />
+          <StatusIcon v-if="node.kind !== 'project' && node.data?.rollup?.total" :status="node.data.rollup.status" :unseen="node.data.rollup.unseen" />
           <PipelineIcon v-if="node.data?.pipeline && node.data.pipeline !== 'none'" :status="node.data.pipeline" :size="12" :title="pipelineLabel(node.data.pipeline)" />
         </template>
         <template #leaf="{ node, data }">
@@ -179,7 +183,9 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
         </template>
         <template #badges="{ node }">
           <CleanupBadge v-if="node.kind === 'worktree' && node.data?.worktree && !node.data.worktree.main" :worktree-id="node.data.worktree.id" />
-          <WorktreeBadge v-if="node.kind === 'worktree' && node.data?.worktree" :path="node.data.worktree.path" :branch="node.data.worktree.branch" :summary="node.data.worktreeMr" @open="(ref) => openReview(ref)" />
+          <WorktreeBadge v-if="node.kind === 'worktree' && node.data?.worktree" :path="node.data.worktree.path" :branch="node.data.worktree.branch" :summary="node.data.worktreeMr" @open="(ref) => openReview(ref)">
+            <template #pipeline="{ pipeline }"><StatusIcon v-if="pipeline !== 'none'" :tone="pipelineTone(pipeline)" /></template>
+          </WorktreeBadge>
         </template>
         <template #actions="{ node }">
           <template v-if="node.kind === 'worktree' && node.data?.worktree">
@@ -432,6 +438,11 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
   text-overflow: ellipsis;
   background: var(--vr-color-chip-bg);
   border-radius: var(--vr-radius-sm);
+}
+
+.kind-icon {
+  flex: none;
+  color: var(--vr-color-text-muted);
 }
 
 .scroll :deep(.label[data-kind='worktree']) {

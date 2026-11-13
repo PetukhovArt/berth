@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T">
-import { computed, nextTick, onMounted, shallowRef, useId, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onMounted, shallowRef, useId, useTemplateRef, watch, type Component } from 'vue';
 import { ChevronRight } from '../icons';
 import { primaryPressed } from '../../lib/platform';
 import type { TreeNode, TreeRow } from './types';
@@ -19,6 +19,7 @@ const props = withDefaults(
 const emit = defineEmits<{ open: [node: TreeNode<T>, split: boolean]; toggle: [id: string, expanded: boolean] }>();
 
 defineSlots<{
+  lead?(props: { node: TreeNode<T>; expanded: boolean; icon: Component | undefined }): unknown;
   label?(props: { node: TreeNode<T>; expanded: boolean }): unknown;
   leaf?(props: { node: TreeNode<T>; data: T | undefined; selected: boolean }): unknown;
   rollup?(props: { node: TreeNode<T> }): unknown;
@@ -267,7 +268,9 @@ function onKey(event: KeyboardEvent) {
       <slot v-if="row.node.custom" name="row" :node="row.node" :row="row" />
       <button v-else class="toggle" tabindex="-1" :title="row.node.title ?? row.node.label" :data-testid="`tree-${row.node.kind}`" @click="onRowClick(row, $event)">
         <ChevronRight v-if="row.group" :size="14" class="chevron vr-chevron" :data-open="row.expanded" />
-        <component :is="row.expanded && row.node.iconOpen ? row.node.iconOpen : row.node.icon" v-if="row.node.icon" :size="14" class="kind-icon" />
+        <slot name="lead" :node="row.node" :expanded="row.expanded" :icon="row.expanded && row.node.iconOpen ? row.node.iconOpen : row.node.icon">
+          <component :is="row.expanded && row.node.iconOpen ? row.node.iconOpen : row.node.icon" v-if="row.node.icon" :size="14" class="kind-icon" />
+        </slot>
         <template v-if="row.group">
           <slot name="label" :node="row.node" :expanded="row.expanded">
             <span class="label" :data-kind="row.node.kind">

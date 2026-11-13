@@ -3,7 +3,6 @@ import { computed, shallowRef, watch } from 'vue';
 import type { ChangeRequestRef, ChangeRequestSummary } from '../../../shared/api/connectors/api';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { numberLabel, pipelineLabel } from '../lib/format';
-import PipelineIcon from './PipelineIcon.vue';
 import { lookupMr, mrLookupFailed, MR_RETRY_MS } from '../model/worktreeMr';
 
 import { UiButton } from '../../../shared/ui/UiButton';
@@ -52,7 +51,7 @@ function open() {
 <template>
   <UiButton v-if="summary" class="badge" :title="title" :aria-label="title" data-testid="worktree-badge" @click.stop="open">
     <span class="num">{{ numberLabel(summary) }}</span>
-    <PipelineIcon v-if="summary.pipeline !== 'none'" :status="summary.pipeline" :size="12" />
+    <slot name="pipeline" :pipeline="summary.pipeline" />
   </UiButton>
 </template>
 

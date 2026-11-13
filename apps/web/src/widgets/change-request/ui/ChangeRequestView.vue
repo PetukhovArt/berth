@@ -10,9 +10,11 @@ import { useScope, visibleInterval } from '../../../shared/lib/scope';
 import { ArchitectureAction } from '../../../features/architecture';
 import { MrSessionNotice, OpenInSessionAction, mrRuns } from '../../../features/open-in-session';
 import { RepoActions } from '../../../features/manage-workspace';
-import { itemId, fullDate, numberLabel, pipelineLabel, relativeTime, PipelineIcon } from '../../../entities/merge-request';
+import { itemId, fullDate, numberLabel, pipelineLabel, relativeTime } from '../../../entities/merge-request';
+import { StatusIcon } from '../../../entities/session';
 import { DiffView } from '../../../features/diff-review';
 import { createChangeRequest } from '../model/changeRequest';
+import { pipelineTone } from '../model/pipelineTone';
 import { provideChangeRequest } from '../model/change-request-scope';
 import PipelineJobs from './PipelineJobs.vue';
 import ChangeRequestOverview from './ChangeRequestOverview.vue';
@@ -114,9 +116,9 @@ onMounted(() => {
           </span>
           <span v-for="label in cr.labels" :key="label" class="chip label"><Tag :size="10" />{{ label }}</span>
           <UiButton v-if="pipeline" class="chip pipeline" :aria-expanded="pipelineOpen" data-testid="cr-pipeline-chip" @click="pipelineOpen = !pipelineOpen">
-            <PipelineIcon :status="pipeline.status" />{{ pipelineLabel(pipeline.status) }}
+            <StatusIcon :tone="pipelineTone(pipeline.status)" />{{ pipelineLabel(pipeline.status) }}
           </UiButton>
-          <span v-else-if="cr.pipeline !== 'none'" class="chip pipeline"><PipelineIcon :status="cr.pipeline" />{{ pipelineLabel(cr.pipeline) }}</span>
+          <span v-else-if="cr.pipeline !== 'none'" class="chip pipeline"><StatusIcon :tone="pipelineTone(cr.pipeline)" />{{ pipelineLabel(cr.pipeline) }}</span>
         </div>
 
         <div v-if="pipeline && pipelineOpen" class="pipeline-pop" data-testid="cr-pipeline-jobs">
@@ -150,7 +152,7 @@ onMounted(() => {
       <div v-show="tab === 'pipeline'" class="pane scroll" data-testid="cr-pipeline">
         <template v-if="pipeline">
           <p class="pipeline-head">
-            <PipelineIcon :status="pipeline.status" :size="16" />{{ pipelineLabel(pipeline.status) }}
+            <StatusIcon :tone="pipelineTone(pipeline.status)" />{{ pipelineLabel(pipeline.status) }}
             <a class="link" :href="pipeline.url" @click.prevent="openUrl(pipeline.url)">{{ t('common.open') }} <ExternalLink :size="12" /></a>
           </p>
           <PipelineJobs />

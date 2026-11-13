@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, useTemplateRef, watch } from 'vue';
 import { ChevronRight, SquareTerminal } from '../../../shared/ui/icons';
-import { HarnessIcon, StatusDot } from '../../../entities/session';
+import { HarnessIcon, StatusIcon } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { hotDotOf, useHot } from '../model/hot';
 import { chooseSwitcher, switcher } from '../model/hotkeys';
@@ -43,7 +43,7 @@ watch(
           @pointermove="switcher && (switcher = { keys: switcher.keys, index: position })"
           @click="chooseSwitcher(position)"
         >
-          <StatusDot :status="hotDotOf(item)" :unseen="item.unseen" />
+          <StatusIcon :status="hotDotOf(item)" :unseen="item.unseen" />
           <SquareTerminal v-if="item.harness === 'shell'" :size="12" class="shell" />
           <HarnessIcon v-else :harness="item.harness" />
           <span class="text">

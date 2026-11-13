@@ -7,7 +7,7 @@ import { PipelineIcon } from '../../../entities/merge-request';
 import { t } from '../../../shared/lib/i18n/i18n';
 import BackBar from '../../../shared/ui/BackBar.vue';
 import type { QuickItem, WorkNode } from '../../../features/work-tree';
-import { externalDot, HarnessIcon, StatusDot } from '../../../entities/session';
+import { externalDot, HarnessIcon, StatusIcon } from '../../../entities/session';
 import type { MarkdownEntry } from '../../../shared/lib/markdownFiles';
 
 import UiInput from '../../../shared/ui/UiInput.vue';
@@ -25,7 +25,13 @@ const query = shallowRef('');
 const ICONS = { mr: GitPullRequest, issue: Ticket } as const;
 const iconOf = (kind: string) => (kind in ICONS ? ICONS[kind as keyof typeof ICONS] : undefined);
 
-const GROUP_LABELS = { sessions: 'workbench.sessions', mr: 'workbench.mergeRequests', issue: 'workbench.tabTasks', files: 'forge.diff.files', actions: 'agents.session.actions' } as const;
+const GROUP_LABELS = {
+  sessions: 'files.switcher.groups.sessions',
+  mr: 'files.switcher.groups.mergeRequests',
+  issue: 'files.switcher.groups.tasks',
+  files: 'files.switcher.groups.files',
+  actions: 'files.switcher.groups.actions',
+} as const;
 
 function groupOf(item: Item): Group {
   if (item.kind === 'file') return 'files';
@@ -124,9 +130,9 @@ onMounted(() => input.value?.focus());
             @click="choose(item)"
           >
             <template v-if="item.kind === 'leaf'">
-              <StatusDot v-if="item.entry.node.data?.session" :status="item.entry.node.data.session.status" :unseen="item.entry.node.data.session.unseen" />
+              <StatusIcon v-if="item.entry.node.data?.session" :status="item.entry.node.data.session.status" :unseen="item.entry.node.data.session.unseen" />
               <template v-else-if="item.entry.node.data?.external">
-                <StatusDot :status="externalDot(item.entry.node.data.external)" :unseen="false" />
+                <StatusIcon :status="externalDot(item.entry.node.data.external)" :unseen="false" />
                 <HarnessIcon :harness="item.entry.node.data.external.harness" />
               </template>
               <component :is="iconOf(item.entry.node.kind)" v-else-if="iconOf(item.entry.node.kind)" :size="14" class="file-icon" />
@@ -158,6 +164,7 @@ onMounted(() => input.value?.focus());
         </template>
         <li v-if="!results.length" class="none">{{ t('common.noResults') }}</li>
       </ul>
+      <footer class="footer" data-testid="quick-switcher-hint">{{ t('files.switcher.hint') }}</footer>
     </div>
   </div>
 </template>
@@ -304,5 +311,13 @@ onMounted(() => input.value?.focus());
 .none {
   padding: var(--vr-space-3);
   color: var(--vr-color-text-muted);
+}
+
+.footer {
+  padding: var(--vr-space-2) var(--vr-space-3);
+  border-top: 1px solid var(--vr-color-border);
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-subtle);
+  text-align: center;
 }
 </style>
