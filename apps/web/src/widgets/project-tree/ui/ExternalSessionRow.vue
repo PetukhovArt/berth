@@ -5,7 +5,7 @@ import { VContextMenu } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
-import { archiveExternal, externalDot, externalOrigin, externalStatusLabel, resumeCommand, type ExternalSession, HarnessIcon, StatusDot, useAction } from '../../../entities/session';
+import { archiveExternal, externalDot, externalOrigin, externalStatusLabel, resumeCommand, type ExternalSession, HarnessIcon, StatusIcon, useAction } from '../../../entities/session';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ session: ExternalSession; active: boolean }>();
@@ -40,7 +40,7 @@ const menuItems = computed(() => [
       @click="emit('open', primaryPressed($event))"
       @contextmenu.prevent="menu?.show($event)"
     >
-      <StatusDot :status="externalDot(session)" :unseen="false" />
+      <StatusIcon :status="externalDot(session)" :unseen="false" />
       <HarnessIcon :harness="session.harness" :working="externalDot(session) === 'running'" />
       <span class="name">{{ session.title }}</span>
       <span class="marker" :title="origin" :aria-label="origin" role="img" data-testid="external-marker"><SquareTerminal :size="11" /></span>

@@ -7,7 +7,7 @@ import ArchivedRow from './ArchivedRow.vue';
 import ExternalSessionRow from './ExternalSessionRow.vue';
 import MarkdownPicker from './MarkdownPicker.vue';
 import SessionRow from './SessionRow.vue';
-import { useExternalSessions, NavNotices, StatusDot, useSessionDock } from '../../../entities/session';
+import { useExternalSessions, NavNotices, StatusIcon, useSessionDock } from '../../../entities/session';
 import { ProjectActions, WorkspaceActions, RepoActions } from '../../../features/manage-workspace';
 import { TypeIcon } from '../../../entities/jira-issue';
 import { isDesktop } from '../../../bridge';
@@ -133,7 +133,7 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
         @open="openLeaf"
       >
         <template #rollup="{ node }">
-          <StatusDot v-if="node.data?.rollup?.total" :status="node.data.rollup.status" :unseen="node.data.rollup.unseen" />
+          <StatusIcon v-if="node.data?.rollup?.total" :status="node.data.rollup.status" :unseen="node.data.rollup.unseen" />
           <PipelineIcon v-if="node.data?.pipeline && node.data.pipeline !== 'none'" :status="node.data.pipeline" :size="12" :title="pipelineLabel(node.data.pipeline)" />
         </template>
         <template #leaf="{ node, data }">

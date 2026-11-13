@@ -16,3 +16,4 @@ export { useWorktreeOptions } from './model/worktrees';
 export { default as HarnessIcon } from './ui/HarnessIcon.vue';
 export { default as NavNotices } from './ui/NavNotices.vue';
 export { default as StatusDot } from './ui/StatusDot.vue';
+export { default as StatusIcon } from './ui/StatusIcon.vue';

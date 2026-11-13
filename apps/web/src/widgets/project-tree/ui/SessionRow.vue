@@ -4,7 +4,7 @@ import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
 import { VButton, VContextMenu, VInputText } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
-import { externalStatusLabel, sessionDot, type ExternalSession, HarnessIcon, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, type SessionNode, type SessionStatus, useAction, StatusDot } from '../../../entities/session';
+import { externalStatusLabel, sessionDot, type ExternalSession, HarnessIcon, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, type SessionNode, type SessionStatus, useAction, StatusIcon } from '../../../entities/session';
 import { MoveAgentDialog } from '../../../features/move-agent';
 
 import { UiButton } from '../../../shared/ui/UiButton';
@@ -105,7 +105,7 @@ async function confirmDelete() {
         @click="emit('open', primaryPressed($event))"
         @contextmenu.prevent="showMenu"
       >
-        <StatusDot :status="sessionDot(session, linked)" :unseen="session.unseen" />
+        <StatusIcon :status="sessionDot(session, linked)" :unseen="session.unseen" />
         <HarnessIcon v-if="linked" :harness="linked.harness" :working="sessionDot(session, linked) === 'running'" />
         <span class="name">{{ session.name }}</span>
         <span class="label">{{ linked ? externalStatusLabel(linked) : statusLabel(session.status) }}</span>
@@ -168,11 +168,6 @@ async function confirmDelete() {
   text-overflow: ellipsis;
 }
 
-.row[data-unseen='true'] .name,
-.row[data-unseen='true'] .label {
-  font-weight: 600;
-}
-
 .label {
   flex: none;
   font-size: var(--vr-font-size-2xs);
@@ -185,11 +180,11 @@ async function confirmDelete() {
 }
 
 .row[data-status='needs_feedback'] .label {
-  color: var(--vr-color-danger);
+  color: var(--vr-status-feedback);
 }
 
-.row[data-unseen='true'] .label {
-  color: var(--vr-color-success);
+.row[data-status='terminated'] .label {
+  color: var(--vr-status-crashed);
 }
 
 .more {
