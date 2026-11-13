@@ -158,7 +158,11 @@ impl Daemon {
     async fn fire_trigger(self: &Arc<Self>, trigger: &PromptTrigger) -> Result<()> {
         match &trigger.target {
             TriggerTarget::Agent(id) if self.is_acp_agent(id) => {
-                self.acp_prompt(id, &trigger.prompt).await
+                let sent = self.acp_prompt(id, &trigger.prompt).await;
+                if let Err(error) = &sent {
+                    self.acp_note_trigger_failed(id, error);
+                }
+                sent
             }
             TriggerTarget::Agent(id) => {
                 let sref = SessionRef::Agent(id.clone());

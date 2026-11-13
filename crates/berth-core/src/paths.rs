@@ -102,6 +102,10 @@ pub fn live_sessions_path() -> PathBuf {
     data_dir().join("live-sessions.json")
 }
 
+pub fn acp_log_path(agent_id: &str) -> PathBuf {
+    data_dir().join("acp-logs").join(format!("{agent_id}.log"))
+}
+
 pub fn log_dir() -> PathBuf {
     // Tests and parallel instances override the data dir; keep their logs
     // beside their data instead of the real user's state dir.

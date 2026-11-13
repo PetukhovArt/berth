@@ -42,9 +42,10 @@ fn mock_agent_entry() {
                     break message.get("id").cloned().unwrap_or(Value::Null);
                 }
             };
-            match step.get("result") {
-                Some(result) => send(&json!({"jsonrpc": "2.0", "id": id, "result": result})),
-                None => {
+            match (step.get("result"), step.get("error")) {
+                (Some(result), _) => send(&json!({"jsonrpc": "2.0", "id": id, "result": result})),
+                (None, Some(error)) => send(&json!({"jsonrpc": "2.0", "id": id, "error": error})),
+                (None, None) => {
                     ids.insert(method.to_string(), id);
                 }
             }

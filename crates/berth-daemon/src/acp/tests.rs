@@ -220,3 +220,187 @@ async fn a_turn_runs_through_a_permission_answer_to_finished() {
     daemon.stop_agent_or_its_acp_turn(&agent).await.unwrap();
     assert!(!daemon.is_alive(&berth_core::SessionRef::Agent(agent.clone())));
 }
+
+async fn mock_daemon(tmp: &Path) -> (Arc<Daemon>, berth_core::WorktreeId, std::path::PathBuf) {
+    let repo = berth_core::paths::canonical_or_raw(tmp).join("repo");
+    std::fs::create_dir_all(&repo).unwrap();
+    git(&repo, &["init", "-b", "main"]);
+    std::fs::write(repo.join("a.txt"), "one\n").unwrap();
+    git(&repo, &["add", "."]);
+    git(&repo, &["commit", "-m", "base"]);
+    let daemon = Daemon::new(
+        Arc::new(Store::open_in_memory().unwrap()),
+        HookEnv {
+            port: 0,
+            token: String::new(),
+        },
+    );
+    let EntityId::Project(project) = daemon.add_project(&repo, None, false, None).await.unwrap()
+    else {
+        panic!("expected a project id");
+    };
+    let (_, worktrees, _, _) = daemon.store.load_tree().unwrap();
+    let worktree = worktrees.iter().find(|w| w.project_id == project).unwrap();
+    (daemon, worktree.id.clone(), repo)
+}
+
+fn mock_provider(tmp: &Path, name: &str, script: serde_json::Value) -> AcpProvider {
+    let script_path = tmp.join(format!("{name}.json"));
+    std::fs::write(&script_path, script.to_string()).unwrap();
+    AcpProvider {
+        id: "mock".into(),
+        name: "Mock".into(),
+        command: std::env::current_exe().unwrap().display().to_string(),
+        args: mock_agent_args(&script_path),
+        enabled: true,
+    }
+}
+
+fn turn(reply: &str) -> Vec<serde_json::Value> {
+    vec![
+        json!({"expect": "session/prompt"}),
+        json!({"send": update("agent_message_chunk", json!({"content": {"type": "text", "text": reply}}))}),
+        json!({"reply_to": "session/prompt", "result": {"stopReason": "end_turn"}}),
+    ]
+}
+
+async fn until_finished(events: &mut broadcast::Receiver<ServerEvent>) {
+    next_event(
+        events,
+        |e| {
+            matches!(
+                e,
+                ServerEvent::StatusChanged {
+                    status: AgentStatus::Finished,
+                    ..
+                }
+            )
+        },
+        &mut Vec::new(),
+    )
+    .await;
+}
+
+fn items_of(daemon: &Daemon, agent: &berth_core::AgentId) -> Vec<AcpItem> {
+    daemon
+        .acp_transcript(agent, 0)
+        .unwrap()
+        .into_iter()
+        .map(|i| i.item)
+        .collect()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_respawned_agent_loads_its_session_without_duplicating_history() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (daemon, worktree, repo) = mock_daemon(tmp.path()).await;
+    let mut events = daemon.events.subscribe();
+    let mut first = vec![
+        json!({"expect": "initialize", "result": {"protocolVersion": 1,
+            "agentCapabilities": {"loadSession": true}, "authMethods": []}}),
+        json!({"expect": "session/new", "result": {"sessionId": "mock-1"}}),
+    ];
+    first.extend(turn("first answer"));
+    let provider = mock_provider(tmp.path(), "first", json!(first));
+    let EntityId::Agent(agent) = daemon
+        .create_acp_agent_with(worktree, "mock".into(), provider, false)
+        .unwrap()
+    else {
+        panic!("expected an agent id");
+    };
+    daemon.acp_prompt(&agent, "one").await.unwrap();
+    until_finished(&mut events).await;
+    daemon.acp.kill(&agent);
+
+    let mut second = vec![
+        json!({"expect": "initialize", "result": {"protocolVersion": 1,
+            "agentCapabilities": {"loadSession": true}, "authMethods": []}}),
+        json!({"expect": "session/load"}),
+        json!({"send": update("user_message_chunk", json!({"content": {"type": "text", "text": "one"}}))}),
+        json!({"send": update("agent_message_chunk", json!({"content": {"type": "text", "text": "first answer"}}))}),
+        json!({"reply_to": "session/load", "result": {}}),
+    ];
+    second.extend(turn("second answer"));
+    let provider = mock_provider(tmp.path(), "second", json!(second));
+    let program = provider.program().unwrap();
+    daemon
+        .acp_start(&agent, &repo, &provider, &program, Some("mock-1".into()))
+        .unwrap();
+    daemon.acp_prompt(&agent, "two").await.unwrap();
+    until_finished(&mut events).await;
+
+    assert_eq!(
+        items_of(&daemon, &agent),
+        [
+            AcpItem::User { text: "one".into() },
+            AcpItem::Assistant {
+                text: "first answer".into()
+            },
+            AcpItem::User { text: "two".into() },
+            AcpItem::Assistant {
+                text: "second answer".into()
+            },
+        ]
+    );
+    daemon.acp.kill(&agent);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_agent_that_needs_sign_in_asks_and_starts_after_the_answer() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (daemon, worktree, _) = mock_daemon(tmp.path()).await;
+    let mut events = daemon.events.subscribe();
+    let mut script = vec![
+        json!({"expect": "initialize", "result": {"protocolVersion": 1, "agentCapabilities": {},
+            "authMethods": [{"id": "agent_login", "name": "Log in with the browser"}]}}),
+        json!({"expect": "session/new", "error": {"code": -32000, "message": "Authentication required"}}),
+        json!({"expect": "authenticate", "result": {}}),
+        json!({"expect": "session/new", "result": {"sessionId": "mock-2"}}),
+    ];
+    script.extend(turn("signed in"));
+    let provider = mock_provider(tmp.path(), "auth", json!(script));
+    let EntityId::Agent(agent) = daemon
+        .create_acp_agent_with(worktree, "mock".into(), provider, false)
+        .unwrap()
+    else {
+        panic!("expected an agent id");
+    };
+    let ServerEvent::FeedbackRequestChanged {
+        request: Some(request),
+        ..
+    } = next_event(
+        &mut events,
+        |e| {
+            matches!(
+                e,
+                ServerEvent::FeedbackRequestChanged {
+                    request: Some(_),
+                    ..
+                }
+            )
+        },
+        &mut Vec::new(),
+    )
+    .await
+    else {
+        unreachable!()
+    };
+    assert_eq!(request.title, "Sign in to Mock");
+    assert_eq!(request.options, ["Log in with the browser"]);
+    assert!(daemon.acp_prompt(&agent, "too early").await.is_err());
+
+    daemon.answer_feedback(&agent, 0).await.unwrap();
+    daemon.acp_prompt(&agent, "hello").await.unwrap();
+    until_finished(&mut events).await;
+    assert_eq!(
+        daemon
+            .store
+            .get_agent(&agent)
+            .unwrap()
+            .unwrap()
+            .session_id
+            .as_deref(),
+        Some("mock-2")
+    );
+    daemon.acp.kill(&agent);
+}

@@ -227,7 +227,9 @@ impl Daemon {
     pub async fn restore_checkpoint(&self, agent: &AgentId, number: u32) -> Result<()> {
         let dir = self.checkpoint_dir(agent)?;
         let _guard = SERIAL.lock().await;
-        restore(&dir, agent, number).await
+        restore(&dir, agent, number).await?;
+        self.acp_note_checkpoint_restored(agent, number);
+        Ok(())
     }
 }
 

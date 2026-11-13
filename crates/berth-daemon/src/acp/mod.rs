@@ -1,4 +1,5 @@
 pub mod conn;
+mod lifecycle;
 pub mod map;
 pub mod providers;
 pub mod transcript;
@@ -18,7 +19,7 @@ use providers::AcpProvider;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, watch};
@@ -66,9 +67,16 @@ impl AcpSessions {
     }
 }
 
-struct PendingPermission {
-    rpc_id: Value,
-    option_ids: Vec<String>,
+enum Pending {
+    Permission {
+        rpc_id: Value,
+        option_ids: Vec<String>,
+    },
+    SignIn {
+        method_ids: Vec<String>,
+        cwd: PathBuf,
+        previous_session: Option<String>,
+    },
 }
 
 type SessionReady = Option<Result<String, String>>;
@@ -78,8 +86,12 @@ struct AcpLive {
     provider_name: String,
     ready: watch::Sender<SessionReady>,
     turn_open: AtomicBool,
-    permission: Mutex<Option<PendingPermission>>,
+    permission: Mutex<Option<Pending>>,
     transcript: Mutex<Transcript>,
+    capabilities: Mutex<lifecycle::Capabilities>,
+    notifications_handled: AtomicU64,
+    replay_until: AtomicU64,
+    last_active: Mutex<Instant>,
 }
 
 impl AcpLive {
@@ -95,6 +107,10 @@ impl AcpLive {
             Some(Err(e)) => bail!("{e}"),
             None => unreachable!("waited for Some"),
         }
+    }
+
+    fn touch(&self) {
+        *self.last_active.lock().unwrap() = Instant::now();
     }
 
     fn current_session_id(&self) -> Option<String> {
@@ -190,7 +206,8 @@ impl Daemon {
         if let Some(live) = map.get(agent_id) {
             return Ok(live.clone());
         }
-        let (conn, inbound) = Conn::spawn(program, &provider.args, cwd)?;
+        let log = berth_core::paths::acp_log_path(&agent_id.0);
+        let (conn, inbound) = Conn::spawn(program, &provider.args, cwd, Some(&log))?;
         let live = Arc::new(AcpLive {
             conn,
             provider_name: provider.name.clone(),
@@ -200,6 +217,10 @@ impl Daemon {
             transcript: Mutex::new(Transcript::after(
                 self.store.last_acp_seq(agent_id).unwrap_or(0),
             )),
+            capabilities: Default::default(),
+            notifications_handled: AtomicU64::new(0),
+            replay_until: AtomicU64::new(0),
+            last_active: Mutex::new(Instant::now()),
         });
         map.insert(agent_id.clone(), live.clone());
         drop(map);
@@ -216,78 +237,6 @@ impl Daemon {
         Ok(live)
     }
 
-    async fn acp_handshake(
-        self: Arc<Self>,
-        agent_id: AgentId,
-        live: Arc<AcpLive>,
-        cwd: PathBuf,
-        previous_session: Option<String>,
-    ) {
-        let started = async {
-            live.conn
-                .request(
-                    "initialize",
-                    json!({
-                        "protocolVersion": ACP_PROTOCOL_VERSION,
-                        "clientCapabilities": {
-                            "fs": {"readTextFile": false, "writeTextFile": false},
-                            "terminal": false
-                        },
-                        "clientInfo": {"name": "berth", "version": env!("CARGO_PKG_VERSION")}
-                    }),
-                )
-                .await?;
-            let created = live
-                .conn
-                .request("session/new", json!({"cwd": cwd, "mcpServers": []}))
-                .await?;
-            created
-                .get("sessionId")
-                .and_then(Value::as_str)
-                .map(str::to_string)
-                .ok_or(RpcError::Remote {
-                    code: 0,
-                    message: "session/new returned no sessionId".into(),
-                })
-        }
-        .await;
-        match started {
-            Ok(sid) => {
-                if previous_session.is_some_and(|old| old != sid) {
-                    self.acp_push(
-                        &agent_id,
-                        &live,
-                        AcpItem::Notice {
-                            text: "The previous conversation could not be resumed; this is a new session."
-                                .into(),
-                        },
-                    );
-                }
-                self.apply_hook_event(
-                    &agent_id,
-                    HookEvent::SessionStart {
-                        source: Some("acp".into()),
-                    },
-                    Some(sid.clone()),
-                );
-                live.ready.send_replace(Some(Ok(sid)));
-            }
-            Err(error) => {
-                let message = format!("{} did not start: {error}", live.provider_name);
-                tracing::warn!(agent = %agent_id, stderr = ?live.conn.stderr_tail(), "{message}");
-                self.acp_push(
-                    &agent_id,
-                    &live,
-                    AcpItem::Notice {
-                        text: message.clone(),
-                    },
-                );
-                live.ready.send_replace(Some(Err(message)));
-                live.conn.kill();
-            }
-        }
-    }
-
     async fn acp_inbound(
         self: Arc<Self>,
         agent_id: AgentId,
@@ -297,7 +246,10 @@ impl Daemon {
         while let Some(message) = inbound.recv().await {
             match message {
                 Inbound::Notification { method, params } if method == "session/update" => {
-                    self.acp_update(&agent_id, &live, &params)
+                    let n = live.notifications_handled.fetch_add(1, Ordering::SeqCst) + 1;
+                    if n > live.replay_until.load(Ordering::SeqCst) {
+                        self.acp_update(&agent_id, &live, &params)
+                    }
                 }
                 Inbound::Notification { .. } => {}
                 Inbound::Request { id, method, params }
@@ -344,12 +296,17 @@ impl Daemon {
         let permission = map::permission(params);
         let tail = live.transcript.lock().unwrap().flush();
         self.acp_emit(agent_id, tail);
-        let replaced = live.permission.lock().unwrap().replace(PendingPermission {
-            rpc_id,
-            option_ids: permission.option_ids,
-        });
-        if let Some(old) = replaced {
-            let _ = live.conn.respond(old.rpc_id, cancelled_outcome()).await;
+        live.touch();
+        let replaced = live
+            .permission
+            .lock()
+            .unwrap()
+            .replace(Pending::Permission {
+                rpc_id,
+                option_ids: permission.option_ids,
+            });
+        if let Some(Pending::Permission { rpc_id, .. }) = replaced {
+            let _ = live.conn.respond(rpc_id, cancelled_outcome()).await;
         }
         self.apply_hook_event(
             agent_id,
@@ -393,6 +350,7 @@ impl Daemon {
         }
         let live = self.acp_ensure(agent_id)?;
         let sid = live.session_id().await?;
+        live.touch();
         if live.turn_open.swap(true, Ordering::SeqCst) {
             bail!("a turn is already running; wait for it or stop it");
         }
@@ -433,6 +391,7 @@ impl Daemon {
         let tail = live.transcript.lock().unwrap().flush();
         self.acp_emit(agent_id, tail);
         live.turn_open.store(false, Ordering::SeqCst);
+        live.touch();
         live.permission.lock().unwrap().take();
         let notice = match &outcome {
             Err(RpcError::Closed) => return,
@@ -462,13 +421,44 @@ impl Daemon {
             .unwrap()
             .take()
             .context("the agent is not waiting for an answer")?;
-        let Some(option_id) = pending.option_ids.get(option as usize).cloned() else {
-            live.permission.lock().unwrap().replace(pending);
+        let (rpc_id, option_ids) = match pending {
+            Pending::Permission { rpc_id, option_ids } => (rpc_id, option_ids),
+            Pending::SignIn {
+                method_ids,
+                cwd,
+                previous_session,
+            } => {
+                let Some(method_id) = method_ids.get(option as usize).cloned() else {
+                    live.permission.lock().unwrap().replace(Pending::SignIn {
+                        method_ids,
+                        cwd,
+                        previous_session,
+                    });
+                    bail!("no such option");
+                };
+                self.clear_feedback(agent_id);
+                live.ready.send_replace(None);
+                tokio::spawn(self.clone().acp_sign_in(
+                    agent_id.clone(),
+                    live,
+                    method_id,
+                    cwd,
+                    previous_session,
+                ));
+                return Ok(());
+            }
+        };
+        live.touch();
+        let Some(option_id) = option_ids.get(option as usize).cloned() else {
+            live.permission
+                .lock()
+                .unwrap()
+                .replace(Pending::Permission { rpc_id, option_ids });
             bail!("no such option");
         };
         live.conn
             .respond(
-                pending.rpc_id,
+                rpc_id,
                 json!({"outcome": {"outcome": "selected", "optionId": option_id}}),
             )
             .await?;
@@ -496,8 +486,8 @@ impl Daemon {
             .notify("session/cancel", json!({"sessionId": sid}))
             .await;
         let pending = live.permission.lock().unwrap().take();
-        if let Some(pending) = pending {
-            let _ = live.conn.respond(pending.rpc_id, cancelled_outcome()).await;
+        if let Some(Pending::Permission { rpc_id, .. }) = pending {
+            let _ = live.conn.respond(rpc_id, cancelled_outcome()).await;
         }
     }
 

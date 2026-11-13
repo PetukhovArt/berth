@@ -52,7 +52,7 @@ pub const BUILT_IN_PROVIDERS: [BuiltInProvider; 6] = [
     BuiltInProvider {
         id: "cursor",
         name: "Cursor",
-        command: "agent",
+        command: "cursor-agent",
         args: &["acp"],
     },
     BuiltInProvider {

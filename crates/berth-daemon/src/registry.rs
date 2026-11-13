@@ -504,6 +504,7 @@ impl Daemon {
         let Some(timeout) = crate::config::Config::load().session_idle_timeout() else {
             return;
         };
+        self.reap_idle_acp(timeout);
         let sessions: Vec<(SessionRef, Arc<PtySession>)> = self
             .sessions
             .lock()

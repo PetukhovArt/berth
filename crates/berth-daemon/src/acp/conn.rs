@@ -11,6 +11,7 @@ use tokio::process::{Child, ChildStdin, Command};
 use tokio::sync::{mpsc, oneshot};
 
 const STDERR_LINES_KEPT: usize = 200;
+const LOG_BYTES_KEPT: usize = 4 * 1024 * 1024;
 
 #[derive(Debug)]
 pub enum Inbound {
@@ -42,6 +43,7 @@ pub struct Conn {
     next_id: AtomicU64,
     pid: Option<u32>,
     stderr: Arc<Mutex<VecDeque<String>>>,
+    notifications_seen: Arc<AtomicU64>,
 }
 
 impl Conn {
@@ -49,6 +51,7 @@ impl Conn {
         program: &Path,
         args: &[String],
         cwd: &Path,
+        log: Option<&Path>,
     ) -> Result<(Arc<Conn>, mpsc::UnboundedReceiver<Inbound>)> {
         let mut command = Command::new(program);
         command
@@ -72,10 +75,23 @@ impl Conn {
             next_id: AtomicU64::new(1),
             pid: child.id(),
             stderr: Default::default(),
+            notifications_seen: Default::default(),
         });
         let (tx, rx) = mpsc::unbounded_channel();
-        tokio::spawn(read_stderr(stderr, conn.stderr.clone()));
-        tokio::spawn(read_stdout(stdout, child, conn.waiters.clone(), tx));
+        let log = log.and_then(|path| {
+            if let Some(dir) = path.parent() {
+                let _ = std::fs::create_dir_all(dir);
+            }
+            std::fs::File::create(path).ok()
+        });
+        tokio::spawn(read_stderr(stderr, conn.stderr.clone(), log));
+        tokio::spawn(read_stdout(
+            stdout,
+            child,
+            conn.waiters.clone(),
+            conn.notifications_seen.clone(),
+            tx,
+        ));
         Ok((conn, rx))
     }
 
@@ -118,6 +134,10 @@ impl Conn {
         }
     }
 
+    pub fn notifications_seen(&self) -> u64 {
+        self.notifications_seen.load(Ordering::SeqCst)
+    }
+
     pub fn stderr_tail(&self) -> Vec<String> {
         self.stderr.lock().unwrap().iter().cloned().collect()
     }
@@ -139,9 +159,21 @@ impl Conn {
     }
 }
 
-async fn read_stderr(stderr: tokio::process::ChildStderr, tail: Arc<Mutex<VecDeque<String>>>) {
+async fn read_stderr(
+    stderr: tokio::process::ChildStderr,
+    tail: Arc<Mutex<VecDeque<String>>>,
+    mut log: Option<std::fs::File>,
+) {
     let mut lines = BufReader::new(stderr).lines();
+    let mut logged = 0usize;
     while let Ok(Some(line)) = lines.next_line().await {
+        if let Some(file) = log.as_mut() {
+            use std::io::Write;
+            logged += line.len() + 1;
+            if logged > LOG_BYTES_KEPT || writeln!(file, "{line}").is_err() {
+                log = None;
+            }
+        }
         let mut tail = tail.lock().unwrap();
         if tail.len() == STDERR_LINES_KEPT {
             tail.pop_front();
@@ -154,6 +186,7 @@ async fn read_stdout(
     stdout: tokio::process::ChildStdout,
     mut child: Child,
     waiters: Arc<Waiters>,
+    notifications_seen: Arc<AtomicU64>,
     tx: mpsc::UnboundedSender<Inbound>,
 ) {
     let mut lines = BufReader::new(stdout).lines();
@@ -163,6 +196,10 @@ async fn read_stdout(
             continue;
         };
         if let Some(inbound) = route(message, &waiters) {
+            if matches!(&inbound, Inbound::Notification { method, .. } if method == "session/update")
+            {
+                notifications_seen.fetch_add(1, Ordering::SeqCst);
+            }
             let _ = tx.send(inbound);
         }
     }

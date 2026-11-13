@@ -25,6 +25,7 @@ impl Daemon {
             .into_iter()
             .filter(|(_, _, prewarm)| prewarm.is_none())
             .map(|(sref, _, _)| sref)
+            .chain(self.live_acp_agents().into_iter().map(SessionRef::Agent))
             .collect();
         let path = berth_core::paths::live_sessions_path();
         let written = serde_json::to_vec(&live)
@@ -57,8 +58,9 @@ impl Daemon {
             }
             let daemon = self.clone();
             let target = sref.clone();
-            let spawned = tokio::task::spawn_blocking(move || {
-                daemon.ensure_session(&target, COLS, ROWS).map(|_| ())
+            let spawned = tokio::task::spawn_blocking(move || match &target {
+                SessionRef::Agent(id) if daemon.is_acp_agent(id) => daemon.restore_acp_agent(id),
+                _ => daemon.ensure_session(&target, COLS, ROWS).map(|_| ()),
             })
             .await;
             match spawned {
