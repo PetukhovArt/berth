@@ -29,6 +29,8 @@ export const forge = {
     updated: 'updated {time}',
     reviewers: 'Reviewers:',
     reviewersHeading: 'Reviewers',
+    issueHeading: 'Linked issue',
+    openIssue: 'Open {key}',
     pipelineNumber: 'Pipeline #{id}',
     tabOverview: 'Overview',
     tabChanges: 'Changes',

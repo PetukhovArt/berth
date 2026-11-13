@@ -32,6 +32,8 @@ export const forge: Translation<typeof en> = {
     updated: 'обновлён {time}',
     reviewers: 'Ревьюеры:',
     reviewersHeading: 'Ревьюеры',
+    issueHeading: 'Связанная задача',
+    openIssue: 'Открыть {key}',
     pipelineNumber: 'Пайплайн #{id}',
     tabOverview: 'Обзор',
     tabChanges: 'Изменения',

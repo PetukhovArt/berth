@@ -6,6 +6,7 @@ import { forgeChangeRequest, forgeSource, mrFetchSource, useConnectors, type Cha
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
 import { type RepoRef, connectorBase, inspectClone, remotes, type Remote, projectOfRepo, repoRefOf } from '../../../entities/repo';
+import { issueKeyOf } from '../../../entities/jira-issue';
 import { openReview, numberLabel, itemId } from '../../../entities/merge-request';
 
 export type MrItem = Pick<ChangeRequestSummary, 'connector' | 'project' | 'number' | 'title' | 'url' | 'source_branch' | 'target_branch' | 'author'>;
@@ -24,7 +25,6 @@ export type MrRun = {
 
 const DESCRIPTION_LIMIT = 1500;
 const NAME_LIMIT = 60;
-const TRACKER_KEY = /[A-Z][A-Z0-9]+-\d+/;
 const KIND_LABEL: Record<AgentKind, string> = { claude: 'Claude', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode', grok: 'Grok' };
 const KINDS = new Set<string>(['claude', 'codex', 'cursor', 'opencode', 'grok']);
 
@@ -60,7 +60,7 @@ function composeMrPrompt(template: string, fields: PromptFields): string {
 function issueOf(item: MrItem, refs: readonly string[]): string {
   const known = refs.filter((ref) => !ref.startsWith('!'));
   if (known.length) return known.join(', ');
-  return TRACKER_KEY.exec(item.source_branch.toUpperCase())?.[0] ?? TRACKER_KEY.exec(item.title)?.[0] ?? '';
+  return issueKeyOf(item.source_branch, item.title);
 }
 
 function authorOf(item: MrItem): string {

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { openUrl, type ChangeRequest, type Discussion, type PipelineJob } from '../../../shared/api/connectors/api';
+import { openUrl, useConnectors, type ChangeRequest, type Discussion, type PipelineJob } from '../../../shared/api/connectors/api';
 import PersonAvatar from '../../../shared/ui/PersonAvatar.vue';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { CommentComposer, ThreadView } from '../../../features/diff-review';
+import { issueKeyOf, openIssue } from '../../../entities/jira-issue';
 import { jobTone, pipelineLabel } from '../../../entities/merge-request';
 import { StatusIcon } from '../../../entities/session';
 import { useChangeRequest } from '../model/change-request-scope';
@@ -15,6 +16,10 @@ const props = defineProps<{ connector: string; request: ChangeRequest }>();
 const emit = defineEmits<{ goto: [discussion: Discussion] }>();
 
 const { target, discussions, pipeline, commentDraft, commenting, commentError, selectTab, upsertDiscussion, sendComment } = useChangeRequest();
+
+const { connectors } = useConnectors();
+const jiraConnector = computed(() => connectors.value.find((c) => c.kind === 'jira'));
+const issueKey = computed(() => issueKeyOf(props.request.source_branch, props.request.title, props.request.description));
 
 const conversation = computed(() => discussions.value.filter((d) => d.notes.some((n) => !n.system)));
 const anchored = computed(() => discussions.value.some((d) => d.position));
@@ -79,6 +84,12 @@ const stages = computed(() => {
             <PersonAvatar :person="r" small />
             <span class="reviewer-name">{{ r.name || r.username }}</span>
           </div>
+        </section>
+
+        <section v-if="issueKey" class="fact" data-testid="cr-fact-issue">
+          <h3 class="fact-title">{{ t('forge.request.issueHeading') }}</h3>
+          <UiButton v-if="jiraConnector" class="status-link issue-key" :title="t('forge.request.openIssue', { key: issueKey })" @click="openIssue(jiraConnector.id, issueKey)">{{ issueKey }}</UiButton>
+          <span v-else class="issue-key">{{ issueKey }}</span>
         </section>
       </aside>
     </div>
@@ -190,6 +201,11 @@ const stages = computed(() => {
   background: none;
   border: none;
   cursor: pointer;
+}
+
+.issue-key {
+  font-family: var(--vr-font-mono);
+  font-size: var(--vr-font-size-xs);
 }
 
 .pipe-id {
