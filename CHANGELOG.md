@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added `berth mcp`, an MCP server over stdio that lets an Agent list sessions, see which need attention and send a message to another session (#41).
 - Added a setting, off by default, that comments on the Jira or GitLab issue named in the branch when an Agent finishes in the desktop app (#40).
 - Added subscription limits in the desktop app: the 5-hour and weekly windows of Claude and Codex with their reset times and tokens per Session in the Memory Usage panel, and a limit status with the reset time in the Inbox, the sidebar and the session header (#26).
 - Added `berth sessions`, `berth attention` and `berth send`, which print JSON for scripts and chat bots, and an OpenClaw skill built on them (#37).

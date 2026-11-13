@@ -65,6 +65,31 @@ that is not running, and it does not wait for the agent's answer.
 An [OpenClaw](https://github.com/openclaw/openclaw) skill built on these is in
 `integrations/openclaw/berth/SKILL.md`; copy the `berth` folder into `~/.openclaw/workspace/skills/`.
 
+## MCP server for agents
+
+`berth mcp` speaks MCP over stdio and exposes the same reads and action as the JSON commands above:
+
+- `berth_sessions` with optional `all`: the `sessions` document.
+- `berth_attention`: the `attention` document.
+- `berth_send` with `session`, `text` and optional `submit`: the `send` document, for messaging another agent of the same task.
+
+Each tool returns the command's JSON as text. A failure sets `isError` and carries `{"ok": false, "error": "..."}`.
+Task notes and overlaps are not served yet; the daemon has nothing to read them from.
+
+Claude Code:
+
+```sh
+claude mcp add berth -- berth mcp
+```
+
+Codex, in `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.berth]
+command = "berth"
+args = ["mcp"]
+```
+
 ## Workspaces
 
 ```sh

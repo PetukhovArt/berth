@@ -1,5 +1,6 @@
 mod branch_name;
 mod client;
+mod mcp;
 mod sessions;
 mod upgrade;
 
@@ -119,6 +120,8 @@ enum Command {
         #[arg(long, help = "Leave the message in the input box without pressing Enter")]
         no_enter: bool,
     },
+    #[command(about = "Serve MCP over stdio: tools to list sessions, see which need you and message one")]
+    Mcp,
     /// Manage workspaces — named project groups.
     Workspace {
         #[command(subcommand)]
@@ -185,6 +188,7 @@ fn main() -> Result<()> {
             text,
             no_enter,
         }) => sessions::run_send(session, text.join(" "), !no_enter),
+        Some(Command::Mcp) => mcp::run_mcp(),
         Some(Command::Kill) => client::run_kill(),
         Some(Command::Rename { title, force }) => {
             let mode = if force {

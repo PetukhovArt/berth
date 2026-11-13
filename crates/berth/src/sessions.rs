@@ -155,7 +155,7 @@ async fn snapshot(conn: &mut Connection) -> Result<Snapshot> {
     }
 }
 
-async fn list(all: bool, only_attention: bool) -> Result<Value> {
+pub(crate) async fn list(all: bool, only_attention: bool) -> Result<Value> {
     let mut conn = connect_or_spawn().await?;
     let s = snapshot(&mut conn).await?;
     Ok(sessions_document(
@@ -168,7 +168,7 @@ async fn list(all: bool, only_attention: bool) -> Result<Value> {
     ))
 }
 
-async fn send(session: &str, text: &str, submit: bool) -> Result<Value> {
+pub(crate) async fn send(session: &str, text: &str, submit: bool) -> Result<Value> {
     if text.trim().is_empty() {
         bail!("the message is empty");
     }
