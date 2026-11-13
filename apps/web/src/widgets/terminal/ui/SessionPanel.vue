@@ -47,7 +47,19 @@ function decode(base64: string): Uint8Array {
 function themeFromTokens(): ITheme {
   const style = getComputedStyle(document.documentElement);
   const token = (name: string) => style.getPropertyValue(`--vr-color-${name}`).trim();
-  return { background: token('surface'), foreground: token('text'), cursor: token('text'), cursorAccent: token('surface'), selectionBackground: token('nav-active') };
+  const term = (name: string) => style.getPropertyValue(`--vr-term-${name}`).trim();
+  return {
+    background: token('surface-sunken'),
+    foreground: term('fg'),
+    cursor: term('fg'),
+    cursorAccent: token('surface-sunken'),
+    selectionBackground: token('nav-active'),
+    brightBlack: term('dim'),
+    red: term('red'),
+    green: term('green'),
+    yellow: term('accent'),
+    blue: term('blue'),
+  };
 }
 
 let detached: Promise<unknown> = Promise.resolve();
@@ -287,7 +299,7 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   padding: var(--vr-space-1) 0 0 var(--vr-space-2);
-  background: var(--vr-color-surface);
+  background: var(--vr-color-surface-sunken);
 }
 
 .terminal {

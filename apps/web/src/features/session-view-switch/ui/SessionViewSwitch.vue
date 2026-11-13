@@ -57,7 +57,8 @@ function show(view: SessionView) {
       :data-testid="`tab-view-${mode.view}`"
       @click.stop="show(mode.view)"
     >
-      {{ mode.letter }}
+      <span class="name">{{ t(`agents.sessionView.${mode.view}`) }}</span>
+      <span class="key">{{ mode.letter }}</span>
     </UiButton>
   </span>
 </template>
@@ -67,22 +68,34 @@ function show(view: SessionView) {
   display: inline-flex;
   flex: none;
   align-items: center;
+  gap: 2px;
+  padding: 2px;
   overflow: hidden;
-  background: var(--vr-color-chip-bg);
-  border-radius: var(--vr-radius-sm);
+  background: var(--vr-color-surface-muted);
+  border-radius: var(--vr-radius-md);
 }
 
 .mode {
-  min-width: 14px;
-  padding: 0 3px;
-  color: var(--vr-color-text);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vr-space-1);
+  height: 26px;
+  padding: 0 9px;
+  color: var(--vr-color-text-muted);
   font: inherit;
-  font-family: var(--vr-font-mono);
-  font-size: var(--vr-font-size-2xs);
-  line-height: 16px;
+  font-size: var(--vr-font-size-xs);
+  white-space: nowrap;
   background: none;
   border: none;
+  border-radius: var(--vr-radius-sm);
   cursor: pointer;
+}
+
+.key {
+  font-family: var(--vr-font-mono);
+  font-size: var(--vr-font-size-2xs);
+  color: var(--vr-color-text-subtle);
 }
 
 .mode:hover:not([aria-pressed='true']) {
@@ -91,8 +104,8 @@ function show(view: SessionView) {
 }
 
 .mode[aria-pressed='true'] {
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-accent);
+  color: var(--vr-color-text);
+  background: var(--vr-color-surface);
 }
 
 .mode[data-pending='true'] {
