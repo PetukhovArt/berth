@@ -19,16 +19,18 @@ pub enum AiKind {
     Claude,
     Codex,
     Gemini,
+    Opencode,
     Openrouter,
     AnthropicApi,
     OpenaiApi,
     Grok,
 }
 
-const ALL: [AiKind; 7] = [
+const ALL: [AiKind; 8] = [
     AiKind::Claude,
     AiKind::Codex,
     AiKind::Gemini,
+    AiKind::Opencode,
     AiKind::AnthropicApi,
     AiKind::OpenaiApi,
     AiKind::Openrouter,
@@ -52,6 +54,7 @@ impl AiKind {
             AiKind::Claude => "Claude Code",
             AiKind::Codex => "Codex",
             AiKind::Gemini => "Gemini CLI",
+            AiKind::Opencode => "OpenCode",
             AiKind::Openrouter => "OpenRouter",
             AiKind::AnthropicApi => "Anthropic API",
             AiKind::OpenaiApi => "OpenAI API",
@@ -64,6 +67,7 @@ impl AiKind {
             AiKind::Claude => "claude",
             AiKind::Codex => "codex",
             AiKind::Gemini => "gemini",
+            AiKind::Opencode => "opencode",
             AiKind::Openrouter => "openrouter",
             AiKind::AnthropicApi => "anthropic_api",
             AiKind::OpenaiApi => "openai_api",
@@ -87,6 +91,11 @@ impl AiKind {
                 binary: "gemini",
                 login: &["gemini"],
                 logout: None,
+            }),
+            AiKind::Opencode => Some(CliSpec {
+                binary: "opencode",
+                login: &["opencode", "auth", "login"],
+                logout: Some(&["opencode", "auth", "logout"]),
             }),
             _ => None,
         }
@@ -426,6 +435,44 @@ fn probe_gemini() -> Probe {
     Probe::new(AiStatus::SignedOut)
 }
 
+fn opencode_auth_file() -> Option<PathBuf> {
+    let data = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .filter(|path| !path.as_os_str().is_empty())
+        .or_else(|| home().map(|home| home.join(".local").join("share")))?;
+    Some(data.join("opencode").join("auth.json"))
+}
+
+fn opencode_providers() -> Vec<String> {
+    let Some(Value::Object(entries)) = opencode_auth_file().and_then(|path| read_json(&path))
+    else {
+        return Vec::new();
+    };
+    entries.keys().cloned().collect()
+}
+
+async fn probe_opencode(program: &str) -> Probe {
+    let providers = opencode_providers();
+    if !providers.is_empty() {
+        return Probe {
+            plan: Some(providers.join(", ")),
+            ..Probe::new(AiStatus::SignedIn)
+        };
+    }
+    let listed = match capture(program, &["auth", "list"]).await {
+        Ok(output) => String::from_utf8_lossy(&output.stdout).to_lowercase(),
+        Err(message) => return Probe::error(message),
+    };
+    let has_rows = listed
+        .lines()
+        .any(|line| line.contains("stored") || line.contains("environment"));
+    if has_rows {
+        Probe::new(AiStatus::SignedIn)
+    } else {
+        Probe::new(AiStatus::SignedOut)
+    }
+}
+
 async fn check_cli(kind: AiKind) -> AiView {
     let Some(spec) = kind.cli() else {
         return AiView::base(kind, AiStatus::Error);
@@ -437,6 +484,7 @@ async fn check_cli(kind: AiKind) -> AiView {
     let (version, probe) = match kind {
         AiKind::Claude => tokio::join!(version_of(&program), probe_claude(&program)),
         AiKind::Codex => tokio::join!(version_of(&program), probe_codex(&program)),
+        AiKind::Opencode => tokio::join!(version_of(&program), probe_opencode(&program)),
         _ => (version_of(&program).await, probe_gemini()),
     };
     AiView {

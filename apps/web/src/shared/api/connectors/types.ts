@@ -1,4 +1,4 @@
-export type AiKind = 'claude' | 'codex' | 'gemini' | 'anthropic_api' | 'openai_api' | 'openrouter' | 'grok';
+export type AiKind = 'claude' | 'codex' | 'gemini' | 'opencode' | 'anthropic_api' | 'openai_api' | 'openrouter' | 'grok';
 export type AiStatus = 'signed_in' | 'signed_out' | 'not_installed' | 'rejected' | 'unreachable' | 'error' | 'unchecked';
 
 export type AiView = {

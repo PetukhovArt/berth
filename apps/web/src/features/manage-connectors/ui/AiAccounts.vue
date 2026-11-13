@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef, type Component } from 'vue';
-import { Bot, Brain, Cpu, ExternalLink, Gem, KeyRound, Sparkles, Waypoints, Zap } from '../../../shared/ui/icons';
+import { Bot, Brain, Cpu, ExternalLink, Gem, KeyRound, Sparkles, SquareTerminal, Waypoints, Zap } from '../../../shared/ui/icons';
 import { VButton, VInputText, VMessage } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { isDesktop } from '../../../bridge';
@@ -14,6 +14,7 @@ const ICONS: Record<AiKind, Component> = {
   claude: Sparkles,
   codex: Bot,
   gemini: Gem,
+  opencode: SquareTerminal,
   anthropic_api: Brain,
   openai_api: Cpu,
   openrouter: Waypoints,
@@ -27,7 +28,7 @@ const KEY_PAGES: Partial<Record<AiKind, string>> = {
   grok: 'https://console.x.ai',
 };
 
-const BINARIES: Partial<Record<AiKind, string>> = { claude: 'claude', codex: 'codex', gemini: 'gemini' };
+const BINARIES: Partial<Record<AiKind, string>> = { claude: 'claude', codex: 'codex', gemini: 'gemini', opencode: 'opencode' };
 
 function statusText(a: AiView): string {
   const key = a.method === 'key';
