@@ -5,8 +5,10 @@ import PersonAvatar from '../../../shared/ui/PersonAvatar.vue';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { CommentComposer, ThreadView } from '../../../features/diff-review';
-import { jobTone, pipelineLabel, PipelineIcon } from '../../../entities/merge-request';
+import { jobTone, pipelineLabel } from '../../../entities/merge-request';
+import { StatusIcon } from '../../../entities/session';
 import { useChangeRequest } from '../model/change-request-scope';
+import { pipelineTone } from '../model/pipelineTone';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ connector: string; request: ChangeRequest }>();
@@ -57,14 +59,14 @@ const stages = computed(() => {
         <section v-if="pipeline || props.request.pipeline !== 'none'" class="fact" data-testid="cr-fact-pipeline">
           <h3 class="fact-title">{{ t('forge.request.tabPipeline') }}</h3>
           <UiButton class="status-link" @click="selectTab('pipeline')">
-            <PipelineIcon :status="pipeline ? pipeline.status : props.request.pipeline" :size="13" />
+            <StatusIcon :tone="pipelineTone(pipeline ? pipeline.status : props.request.pipeline)" />
             <span>{{ pipelineLabel(pipeline ? pipeline.status : props.request.pipeline) }}</span>
             <span v-if="pipeline" class="pipe-id">{{ t('forge.request.pipelineNumber', { id: pipeline.id }) }}</span>
           </UiButton>
           <div v-for="stage in stages" :key="stage.name" class="stage">
             <span class="stage-name">{{ stage.name }}</span>
             <a v-for="job in stage.jobs" :key="job.id" class="job" :href="job.url" :title="job.status" @click.prevent="openUrl(job.url)">
-              <PipelineIcon :status="jobTone(job.status)" :size="13" />
+              <StatusIcon :tone="pipelineTone(jobTone(job.status))" />
               <span class="job-name">{{ job.name }}</span>
               <span class="job-status">{{ job.status }}</span>
             </a>

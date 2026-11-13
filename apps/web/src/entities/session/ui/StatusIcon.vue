@@ -2,28 +2,43 @@
 import { computed } from 'vue';
 import type { SessionStatus } from '../model/berth';
 
-type Tone = 'running' | 'feedback' | 'unseen' | 'finished' | 'crashed' | 'idle';
+type Tone = 'running' | 'feedback' | 'unseen' | 'finished' | 'crashed' | 'idle' | 'success';
 type Glyph = { tone: Tone; d: string };
 
-const props = defineProps<{ status: SessionStatus | undefined; unseen?: boolean }>();
+const props = defineProps<{ status?: SessionStatus | undefined; unseen?: boolean; tone?: Tone }>();
 
 const RING = 'M8 2.25a5.75 5.75 0 1 0 0 11.5a5.75 5.75 0 1 0 0-11.5Z';
 const CHECK = 'M5.6 8.2l1.7 1.7 3.2-3.5';
+const ARC = 'M8 2.25a5.75 5.75 0 1 1-5.75 5.75';
+const FEEDBACK = `${RING} M8 5v3.4 M8 10.9v.1`;
+const CRASH = `${RING} M6 6l4 4M10 6l-4 4`;
+const UNSEEN_D = `M13.7 7.2A5.75 5.75 0 1 1 8.8 2.3 ${CHECK} M12.9 1.9a1.3 1.3 0 1 0 .01 0Z`;
 
 const GLYPHS: Record<SessionStatus, Glyph> = {
   fresh: { tone: 'idle', d: RING },
-  running: { tone: 'running', d: 'M8 2.25a5.75 5.75 0 1 1-5.75 5.75' },
-  needs_feedback: { tone: 'feedback', d: `${RING} M8 5v3.4 M8 10.9v.1` },
+  running: { tone: 'running', d: ARC },
+  needs_feedback: { tone: 'feedback', d: FEEDBACK },
   finished: { tone: 'finished', d: `${RING} ${CHECK}` },
-  terminated: { tone: 'crashed', d: `${RING} M6 6l4 4M10 6l-4 4` },
+  terminated: { tone: 'crashed', d: CRASH },
   disconnected: { tone: 'idle', d: 'M8 2.25a5.75 5.75 0 0 1 3.6 1.3 M13.75 8a5.75 5.75 0 0 1-1.3 3.6 M8 13.75a5.75 5.75 0 0 1-3.6-1.3 M2.25 8a5.75 5.75 0 0 1 1.3-3.6' },
   shell: { tone: 'idle', d: 'M2.25 3.25h11.5v9.5H2.25z M5 6.5l1.8 1.5L5 9.5 M8.5 10h2.5' },
   closed: { tone: 'idle', d: `${RING} M5.5 8h5` },
 };
 
-const UNSEEN: Glyph = { tone: 'unseen', d: `M13.7 7.2A5.75 5.75 0 1 1 8.8 2.3 ${CHECK} M12.9 1.9a1.3 1.3 0 1 0 .01 0Z` };
+const TONE_GLYPHS: Record<Tone, string> = {
+  running: ARC,
+  feedback: FEEDBACK,
+  unseen: UNSEEN_D,
+  finished: `${RING} ${CHECK}`,
+  crashed: CRASH,
+  idle: RING,
+  success: `${RING} ${CHECK}`,
+};
+
+const UNSEEN: Glyph = { tone: 'unseen', d: UNSEEN_D };
 
 const glyph = computed<Glyph>(() => {
+  if (props.tone) return { tone: props.tone, d: TONE_GLYPHS[props.tone] };
   if (props.status === 'finished' && props.unseen) return UNSEEN;
   return props.status ? GLYPHS[props.status] : { tone: 'idle', d: RING };
 });
@@ -61,5 +76,9 @@ const glyph = computed<Glyph>(() => {
 
 .status-icon[data-tone='crashed'] {
   color: var(--vr-status-crashed);
+}
+
+.status-icon[data-tone='success'] {
+  color: var(--vr-color-success);
 }
 </style>
