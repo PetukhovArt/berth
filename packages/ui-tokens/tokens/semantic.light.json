@@ -1,29 +1,179 @@
 {
   "color": {
     "$type": "color",
-    "canvas-top": { "$value": "{palette.gradient.light-top}" },
-    "canvas-bottom": { "$value": "{palette.gradient.light-bottom}" },
-    "surface": { "$value": "{palette.ink.0}" },
-    "surface-muted": { "$value": "{palette.ink.100}" },
-    "surface-raised": { "$value": "{palette.ink.0}" },
-    "border": { "$value": "{palette.ink.200}" },
-    "text": { "$value": "{palette.ink.900}" },
-    "text-muted": { "$value": "{palette.ink.500}" },
-    "accent": { "$value": "{palette.ink.900}" },
-    "accent-contrast": { "$value": "{palette.ink.0}" },
-    "chip-bg": { "$value": "rgba(36, 41, 46, 0.15)" },
-    "danger": { "$value": "{palette.red.light}" },
-    "success": { "$value": "{palette.green.light}" },
-    "conflict": { "$value": "{palette.orange.light}" },
-    "presence-online": { "$value": "{palette.green.light}" },
-    "agent-running": { "$value": "{palette.blue.500}" },
-    "pin-bg": { "$value": "rgba(154, 103, 0, 0.08)" },
-    "nav-muted": { "$value": "{palette.black-a.40}" },
-    "nav-hover": { "$value": "{palette.black-a.4}" },
-    "nav-active": { "$value": "{palette.black-a.7}" },
-    "chrome": { "$value": "{palette.black-a.50}" }
+    "canvas-top": {
+      "$value": "{palette.gradient.light-top}"
+    },
+    "canvas-bottom": {
+      "$value": "{palette.gradient.light-bottom}"
+    },
+    "surface": {
+      "$value": "#ffffff"
+    },
+    "surface-muted": {
+      "$value": "#f0f0ee"
+    },
+    "surface-raised": {
+      "$value": "#ffffff"
+    },
+    "border": {
+      "$value": "rgba(0, 0, 0, 0.08)"
+    },
+    "text": {
+      "$value": "#1f2328"
+    },
+    "text-muted": {
+      "$value": "#57606a"
+    },
+    "accent": {
+      "$value": "#1f2328"
+    },
+    "accent-contrast": {
+      "$value": "#ffffff"
+    },
+    "chip-bg": {
+      "$value": "rgba(36, 41, 46, 0.15)"
+    },
+    "danger": {
+      "$value": "#cf222e"
+    },
+    "success": {
+      "$value": "#1a7f37"
+    },
+    "conflict": {
+      "$value": "{palette.orange.light}"
+    },
+    "presence-online": {
+      "$value": "{palette.green.light}"
+    },
+    "agent-running": {
+      "$value": "#2f6feb"
+    },
+    "pin-bg": {
+      "$value": "rgba(154, 103, 0, 0.08)"
+    },
+    "nav-muted": {
+      "$value": "{palette.black-a.40}"
+    },
+    "nav-hover": {
+      "$value": "rgba(0, 0, 0, 0.04)"
+    },
+    "nav-active": {
+      "$value": "rgba(0, 0, 0, 0.07)"
+    },
+    "chrome": {
+      "$value": "{palette.black-a.50}"
+    },
+    "page": {
+      "$value": "#e9e9e6"
+    },
+    "canvas": {
+      "$value": "#f6f6f4"
+    },
+    "surface-sunken": {
+      "$value": "#fbfbfa"
+    },
+    "border-strong": {
+      "$value": "rgba(0, 0, 0, 0.15)"
+    },
+    "text-subtle": {
+      "$value": "#656d76"
+    },
+    "link": {
+      "$value": "#2f6feb"
+    },
+    "focus": {
+      "$value": "#2f6feb"
+    }
   },
   "elevation": {
-    "card": { "$value": "{shadow.card}" }
+    "card": {
+      "$value": "{shadow.card}"
+    }
+  },
+  "status": {
+    "$type": "color",
+    "running": {
+      "$value": "#2f6feb"
+    },
+    "feedback": {
+      "$value": "#9a6700"
+    },
+    "unseen": {
+      "$value": "#7a4fd6"
+    },
+    "finished": {
+      "$value": "#57606a"
+    },
+    "limit": {
+      "$value": "#0e7a72"
+    },
+    "crashed": {
+      "$value": "#cf222e"
+    },
+    "idle": {
+      "$value": "#656d76"
+    }
+  },
+  "tint": {
+    "$type": "color",
+    "running": {
+      "$value": "rgba(47, 111, 235, 0.09)"
+    },
+    "feedback": {
+      "$value": "rgba(191, 135, 0, 0.12)"
+    },
+    "unseen": {
+      "$value": "rgba(122, 79, 214, 0.09)"
+    },
+    "limit": {
+      "$value": "rgba(14, 122, 114, 0.09)"
+    },
+    "crashed": {
+      "$value": "rgba(207, 34, 46, 0.08)"
+    }
+  },
+  "diff": {
+    "$type": "color",
+    "add": {
+      "$value": "rgba(26, 127, 55, 0.09)"
+    },
+    "del": {
+      "$value": "rgba(207, 34, 46, 0.08)"
+    }
+  },
+  "term": {
+    "$type": "color",
+    "fg": {
+      "$value": "#24292f"
+    },
+    "dim": {
+      "$value": "#6e7781"
+    },
+    "accent": {
+      "$value": "#b4532a"
+    },
+    "blue": {
+      "$value": "#0b5cd5"
+    },
+    "green": {
+      "$value": "#1a7f37"
+    },
+    "red": {
+      "$value": "#cf222e"
+    }
+  },
+  "shadow": {
+    "$type": "shadow",
+    "popover": {
+      "$value": "0 0 0 1px rgba(0, 0, 0, 0.08), 0 12px 32px -8px rgba(0, 0, 0, 0.18)"
+    },
+    "dialog": {
+      "$value": "0 0 0 1px rgba(0, 0, 0, 0.08), 0 32px 80px -16px rgba(0, 0, 0, 0.25)"
+    }
+  },
+  "overlay": {
+    "$type": "color",
+    "$value": "rgba(20, 20, 20, 0.28)"
   }
 }
