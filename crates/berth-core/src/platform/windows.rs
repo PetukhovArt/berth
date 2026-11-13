@@ -36,6 +36,10 @@ pub fn no_window_tokio(command: &mut tokio::process::Command) -> &mut tokio::pro
     command.creation_flags(CREATE_NO_WINDOW)
 }
 
+pub fn lead_process_tree(command: &mut tokio::process::Command) -> &mut tokio::process::Command {
+    command
+}
+
 pub fn open_url(url: &str) -> bool {
     use std::os::windows::process::CommandExt;
     // `start` is a cmd builtin (ShellExecute under the hood), so the URL

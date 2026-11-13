@@ -38,6 +38,7 @@ pub struct Config {
     pub hub_token: Option<String>,
     pub channel_chain_limit: u32,
     pub checkpoints_claude: bool,
+    pub providers: crate::acp::providers::ProvidersConfig,
 }
 
 impl Default for Config {
@@ -56,6 +57,7 @@ impl Default for Config {
             hub_token: None,
             channel_chain_limit: 4,
             checkpoints_claude: false,
+            providers: Default::default(),
         }
     }
 }

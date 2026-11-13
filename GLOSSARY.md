@@ -40,8 +40,16 @@ A Session running an agent CLI (`claude`, `codex`, `cursor-agent`).
 _Avoid_: the claude
 
 **Agent Kind**
-Which CLI an Agent runs: `claude`, `codex`, `cursor`, `opencode` or `grok`.
+Which CLI an Agent runs: `claude`, `codex`, `cursor`, `opencode` or `grok`, or `acp` for an ACP Agent.
 _Avoid_: harness, agent type
+
+**ACP Agent**
+An Agent whose CLI speaks the Agent Client Protocol over stdio instead of running in a PTY: Agent Kind `acp`, and its Provider names the CLI. It has no terminal; its conversation is the transcript the daemon keeps.
+_Avoid_: headless agent, chat agent
+
+**Provider**
+An entry in Settings for an agent CLI berth can launch, with an enabled flag: a native Agent Kind, or an ACP agent definition (command and args; the built-ins are Cursor, OpenCode, Antigravity, Gemini, Kiro and Pi). Not the model vendor behind an API error.
+_Avoid_: integration, backend
 
 **Terminal Session**
 A Session that is a plain shell in the Worktree's directory — no agent.

@@ -55,6 +55,7 @@ pub enum AgentKind {
     #[serde(rename = "opencode")]
     OpenCode,
     Grok,
+    Acp,
 }
 
 impl AgentKind {
@@ -75,6 +76,7 @@ impl AgentKind {
             AgentKind::Cursor => "cursor",
             AgentKind::OpenCode => "opencode",
             AgentKind::Grok => "grok",
+            AgentKind::Acp => "acp",
         }
     }
 
@@ -85,6 +87,7 @@ impl AgentKind {
             "cursor" => AgentKind::Cursor,
             "opencode" => AgentKind::OpenCode,
             "grok" => AgentKind::Grok,
+            "acp" => AgentKind::Acp,
             _ => return None,
         })
     }
@@ -98,6 +101,7 @@ impl AgentKind {
             AgentKind::Cursor => "cursor-agent",
             AgentKind::OpenCode => "opencode",
             AgentKind::Grok => "grok",
+            AgentKind::Acp => "",
         }
     }
 }

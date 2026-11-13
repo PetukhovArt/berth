@@ -376,6 +376,59 @@ async fn handle_client(
                         let _ = out_tx.send(ev).await;
                     });
                 }
+                ClientRequest::CreateAcpAgent {
+                    req_id,
+                    worktree,
+                    name,
+                    provider,
+                    auto_title,
+                } => {
+                    let result = daemon
+                        .create_acp_agent(worktree, name, &provider, auto_title)
+                        .await;
+                    reply(&out_tx, req_id, result.map(Some)).await;
+                }
+                ClientRequest::AcpPrompt {
+                    req_id,
+                    agent,
+                    text,
+                } => {
+                    let daemon = daemon.clone();
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        reply_done(&out_tx, req_id, daemon.acp_prompt(&agent, &text).await).await;
+                    });
+                }
+                ClientRequest::AcpTranscript {
+                    req_id,
+                    agent,
+                    after,
+                } => {
+                    let ev = match daemon.acp_transcript(&agent, after) {
+                        Ok(items) => ServerEvent::AcpTranscript {
+                            req_id,
+                            agent,
+                            items,
+                        },
+                        Err(e) => ServerEvent::Error {
+                            req_id: Some(req_id),
+                            message: format!("{e:#}"),
+                        },
+                    };
+                    let _ = out_tx.send(ev).await;
+                }
+                ClientRequest::AnswerFeedback {
+                    req_id,
+                    agent,
+                    option,
+                } => {
+                    reply_done(
+                        &out_tx,
+                        req_id,
+                        daemon.answer_feedback(&agent, option).await,
+                    )
+                    .await;
+                }
                 ClientRequest::ReadChannel {
                     req_id,
                     channel,
@@ -790,7 +843,12 @@ async fn handle_client(
                     reply_done(&out_tx, req_id, daemon.unarchive_agent(&id)).await;
                 }
                 ClientRequest::StopAgent { req_id, id } => {
-                    reply_done(&out_tx, req_id, daemon.stop_agent(&id)).await;
+                    reply_done(
+                        &out_tx,
+                        req_id,
+                        daemon.stop_agent_or_its_acp_turn(&id).await,
+                    )
+                    .await;
                 }
                 ClientRequest::ArchiveExternalSession {
                     req_id,

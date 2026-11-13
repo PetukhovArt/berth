@@ -209,6 +209,10 @@ pub fn kill_process_tree(pid: u32) -> Result<(), String> {
     imp::kill_process_tree(pid)
 }
 
+pub fn lead_process_tree(command: &mut tokio::process::Command) -> &mut tokio::process::Command {
+    imp::lead_process_tree(command)
+}
+
 /// Create `link` pointing at `target`. Windows picks a file or a directory
 /// symlink at creation time, settled by what `kind_of` is (followed).
 pub fn symlink(target: &Path, link: &Path, kind_of: &Path) -> io::Result<()> {

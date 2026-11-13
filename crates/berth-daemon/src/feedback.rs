@@ -6,7 +6,7 @@ use std::sync::Mutex;
 
 const DETAIL_KEYS: [&str; 5] = ["command", "file_path", "path", "url", "pattern"];
 const MAX_DETAIL_CHARS: usize = 400;
-const MAX_OPTIONS: usize = 9;
+pub(crate) const MAX_OPTIONS: usize = 9;
 
 #[derive(Default)]
 pub struct PendingFeedback {
@@ -92,7 +92,7 @@ fn question(input: &Value) -> Option<FeedbackRequest> {
     })
 }
 
-fn detail(input: &Value) -> Option<String> {
+pub(crate) fn detail(input: &Value) -> Option<String> {
     let text = DETAIL_KEYS
         .iter()
         .find_map(|key| input.get(key).and_then(Value::as_str))?;

@@ -1,3 +1,4 @@
+pub mod acp;
 pub mod branches;
 pub mod channels;
 pub mod checkpoints;

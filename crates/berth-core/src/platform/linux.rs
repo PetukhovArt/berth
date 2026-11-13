@@ -8,9 +8,10 @@ use std::path::{Path, PathBuf};
 use super::{Capabilities, Os};
 
 pub use super::unix::{
-    has_child_processes, is_link, kill_process_tree, no_window_std, no_window_tokio, owner_only,
-    process_rss_bytes, resolve_editor_program, resolve_program, restrict_to_owner,
-    strip_verbatim_prefix, symlink, termination_signal, EXECUTABLE_SUFFIXES, PROFILE_HOME_VAR,
+    has_child_processes, is_link, kill_process_tree, lead_process_tree, no_window_std,
+    no_window_tokio, owner_only, process_rss_bytes, resolve_editor_program, resolve_program,
+    restrict_to_owner, strip_verbatim_prefix, symlink, termination_signal, EXECUTABLE_SUFFIXES,
+    PROFILE_HOME_VAR,
 };
 
 pub const OS: Os = Os::Linux;

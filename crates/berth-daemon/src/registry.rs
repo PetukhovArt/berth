@@ -179,6 +179,7 @@ pub struct Daemon {
     /// is a file offset, so only one owner may measure them. The sampler
     /// task is the only writer; every request handler only reads.
     last_sample: Mutex<Option<MetricsSnapshot>>,
+    pub(crate) acp: crate::acp::AcpSessions,
 }
 
 impl Daemon {
@@ -206,6 +207,7 @@ impl Daemon {
             spawn_gate: Mutex::new(()),
             prewarm_sweep: Mutex::new(None),
             last_sample: Mutex::new(None),
+            acp: Default::default(),
         })
     }
 
@@ -389,6 +391,7 @@ impl Daemon {
 
     pub fn is_alive(&self, sref: &SessionRef) -> bool {
         self.sessions.lock().unwrap().contains_key(sref)
+            || matches!(sref, SessionRef::Agent(id) if self.acp.is_live(id))
     }
 
     /// (session, child pid, prewarm-pool home) for every live PTY — the
@@ -438,12 +441,16 @@ impl Daemon {
         if let Some(s) = self.remove_session(sref) {
             s.kill();
         }
+        if let SessionRef::Agent(id) = sref {
+            self.acp.kill(id);
+        }
     }
 
     pub fn kill_all(&self) {
         for (_, s) in self.sessions.lock().unwrap().drain() {
             s.kill();
         }
+        self.acp.kill_all();
     }
 
     // ---- attach tracking & idle reaping ----
@@ -586,6 +593,9 @@ impl Daemon {
             for t in &mut terminals {
                 t.alive = sessions.contains_key(&SessionRef::Terminal(t.id.clone()));
             }
+        }
+        for a in &mut agents {
+            a.alive |= self.acp.is_live(&a.id);
         }
         Ok(ServerEvent::Snapshot {
             workspaces: self.store.load_workspaces()?,
@@ -1162,6 +1172,9 @@ impl Daemon {
             starting_prompt,
             pr_url,
         } = spec;
+        if kind == AgentKind::Acp {
+            bail!("an ACP agent is created with its provider (CreateAcpAgent)");
+        }
         let cloud_prompt = match cloud_prompt {
             Some(_) if kind != AgentKind::Claude => {
                 bail!("cloud launch is only supported for Claude")
@@ -2415,6 +2428,9 @@ impl Daemon {
         match sref {
             SessionRef::Agent(id) => {
                 let agent = self.store.get_agent(id)?.context("agent not found")?;
+                if agent.kind == AgentKind::Acp {
+                    bail!("an ACP agent has no terminal");
+                }
                 if agent.archived {
                     bail!("agent is archived — unarchive it first");
                 }
@@ -2581,6 +2597,7 @@ impl Daemon {
                 .and_then(|()| hooks::installer::install_cursor_title_rule(&worktree.path)),
             AgentKind::OpenCode => hooks::opencode::install_plugin(&hooks::opencode::plugin_dir()),
             AgentKind::Grok => hooks::installer::install_grok_hooks(&hooks::installer::grok_home()),
+            AgentKind::Acp => Ok(()),
         };
         if let Err(e) = install_result {
             tracing::warn!(error = %e, cwd = %worktree.path.display(), "hook install failed");
@@ -2981,13 +2998,13 @@ fn agent_spawn_command_with(
         (AgentKind::Cursor, Some(sid)) => (vec!["--resume".to_string(), sid.to_string()], true),
         (AgentKind::OpenCode, Some(sid)) => (vec!["--session".to_string(), sid.to_string()], true),
         (AgentKind::Grok, Some(sid)) => (vec!["--resume".to_string(), sid.to_string()], true),
-        (_, None) => (Vec::new(), false),
+        (AgentKind::Acp, _) | (_, None) => (Vec::new(), false),
     };
     match kind {
         AgentKind::Codex => args.push("--yolo".to_string()),
         AgentKind::Cursor => args.push("--force".to_string()),
         AgentKind::Grok => args.push("--always-approve".to_string()),
-        AgentKind::Claude | AgentKind::OpenCode => {}
+        AgentKind::Claude | AgentKind::OpenCode | AgentKind::Acp => {}
     }
     // Claude and codex spell the model flag the same way, and it follows
     // the skip-permissions flag in both (`codex --yolo --model …`). Cursor
@@ -3043,6 +3060,7 @@ fn agent_spawn_command_with(
             }
         }
         AgentKind::Grok => crate::grok::push_tail_args(&mut args, resumed, effort, initial_prompt),
+        AgentKind::Acp => {}
     }
     (program, args, resumed)
 }

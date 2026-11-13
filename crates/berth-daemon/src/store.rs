@@ -311,6 +311,15 @@ const MIGRATIONS: &[&str] = &[
       created_at      INTEGER NOT NULL
     );
     ",
+    "
+    ALTER TABLE agents ADD COLUMN acp_provider TEXT;
+    CREATE TABLE acp_items (
+      agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+      seq      INTEGER NOT NULL,
+      item     TEXT NOT NULL,
+      PRIMARY KEY (agent_id, seq)
+    );
+    ",
 ];
 
 pub struct Store {
@@ -869,6 +878,75 @@ impl Store {
             Some(row) => Ok(row.get(0)?),
             None => Ok(None),
         }
+    }
+
+    pub fn insert_acp_agent(
+        &self,
+        id: &AgentId,
+        worktree: &WorktreeId,
+        name: &str,
+        provider: &str,
+        auto_title: bool,
+    ) -> Result<()> {
+        let now = now_ms();
+        self.conn.lock().unwrap().execute(
+            "INSERT INTO agents (id, worktree_id, name, status, archived, archived_at, kind, sort_order, created_at, status_changed_at, auto_title_pending, unseen, acp_provider)
+             VALUES (?1, ?2, ?3, ?4, 0, 0, ?5, 0, ?6, ?6, ?7, 0, ?8)",
+            params![
+                id.as_str(),
+                worktree.as_str(),
+                name,
+                AgentStatus::Fresh.as_str(),
+                AgentKind::Acp.as_str(),
+                now,
+                auto_title as i64,
+                provider,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn agent_acp_provider(&self, id: &AgentId) -> Result<Option<String>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT acp_provider FROM agents WHERE id = ?1")?;
+        let mut rows = stmt.query(params![id.as_str()])?;
+        match rows.next()? {
+            Some(row) => Ok(row.get(0)?),
+            None => Ok(None),
+        }
+    }
+
+    pub fn put_acp_item(&self, agent: &AgentId, seq: u64, item: &str, keep: u64) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT OR REPLACE INTO acp_items (agent_id, seq, item) VALUES (?1, ?2, ?3)",
+            params![agent.as_str(), seq as i64, item],
+        )?;
+        conn.execute(
+            "DELETE FROM acp_items WHERE agent_id = ?1 AND seq < ?2",
+            params![agent.as_str(), seq.saturating_sub(keep) as i64],
+        )?;
+        Ok(())
+    }
+
+    pub fn acp_items_after(&self, agent: &AgentId, after: u64) -> Result<Vec<(u64, String)>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT seq, item FROM acp_items WHERE agent_id = ?1 AND seq > ?2 ORDER BY seq",
+        )?;
+        let rows = stmt.query_map(params![agent.as_str(), after as i64], |r| {
+            Ok((r.get::<_, i64>(0)? as u64, r.get(1)?))
+        })?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    pub fn last_acp_seq(&self, agent: &AgentId) -> Result<u64> {
+        let seq: Option<i64> = self.conn.lock().unwrap().query_row(
+            "SELECT MAX(seq) FROM acp_items WHERE agent_id = ?1",
+            params![agent.as_str()],
+            |r| r.get(0),
+        )?;
+        Ok(seq.unwrap_or(0) as u64)
     }
 
     /// User rename: always applies, and retires any pending auto-title so a

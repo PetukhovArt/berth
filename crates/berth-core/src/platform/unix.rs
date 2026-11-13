@@ -17,6 +17,10 @@ pub fn no_window_tokio(command: &mut tokio::process::Command) -> &mut tokio::pro
     command
 }
 
+pub fn lead_process_tree(command: &mut tokio::process::Command) -> &mut tokio::process::Command {
+    command.process_group(0)
+}
+
 pub fn open_url_with(opener: &str, url: &str) -> bool {
     Command::new(opener)
         .arg(url)

@@ -1,3 +1,4 @@
+pub mod acp;
 pub mod branch_name;
 pub mod codec;
 pub mod crashlog;
