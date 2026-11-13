@@ -612,17 +612,17 @@ async fn run_workspace_op(op: WorkspaceOp) -> Result<()> {
 }
 
 /// Ask a running daemon to shut down. Ok(false) when none is running.
-///
-/// A daemon on a different protocol version closes the socket right after
-/// the handshake, so `Shutdown` can never reach it — exactly the situation
-/// `berth kill` exists to fix. Fall back to terminating the pid in the
-/// pidfile, guarded by the daemon's own lock so a stale pid is never hit.
 async fn kill_daemon() -> Result<bool> {
     if let Ok(stream) = try_connect().await {
         if let Ok(mut conn) = handshake(stream).await {
             write_frame(&mut conn.stream, &ClientRequest::Shutdown).await?;
             wait_for_daemon_exit().await;
             return Ok(true);
+        }
+        if let Ok(mut stream) = try_connect().await {
+            if write_frame(&mut stream, &ClientRequest::Shutdown).await.is_ok() {
+                wait_for_daemon_exit().await;
+            }
         }
         return kill_by_pidfile().await;
     }

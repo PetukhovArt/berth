@@ -328,6 +328,7 @@ struct Actor {
     pending: HashMap<u64, oneshot::Sender<CallResult>>,
     autostart: bool,
     started_daemon: bool,
+    updating_daemon: bool,
 }
 
 impl Actor {
@@ -335,6 +336,7 @@ impl Actor {
         Self {
             autostart,
             started_daemon: false,
+            updating_daemon: false,
             inbox,
             watcher: None,
             shown: None,
@@ -607,11 +609,27 @@ impl Actor {
     }
 
     fn start_daemon(&mut self, failure: &Failure) -> Option<io::Error> {
+        if let Failure::Incompatible(daemon) = failure {
+            self.update_daemon(*daemon);
+            return None;
+        }
         if !self.autostart || self.started_daemon || !matches!(failure, Failure::Absent(_)) {
             return None;
         }
         self.started_daemon = true;
         crate::daemon_start::start().err()
+    }
+
+    fn update_daemon(&mut self, daemon: u32) {
+        if !self.autostart || self.updating_daemon || daemon >= PROTOCOL_VERSION {
+            return;
+        }
+        self.updating_daemon = true;
+        tokio::spawn(async {
+            if let Err(error) = crate::working_copy::app_daemon_update().await {
+                eprintln!("berth: could not update the older berth daemon: {error}");
+            }
+        });
     }
 
     fn show(&mut self, state: ConnectionState, message: Option<String>) {

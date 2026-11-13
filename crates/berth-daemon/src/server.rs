@@ -100,6 +100,11 @@ async fn handle_client(
                         break;
                     }
                 }
+                ClientRequest::Shutdown => {
+                    tracing::info!("shutdown requested by client");
+                    daemon.shutdown.cancel();
+                    break;
+                }
                 _ if !handshaken => {
                     let _ = out_tx
                         .send(ServerEvent::Error {
@@ -236,11 +241,6 @@ async fn handle_client(
                     if let Some(s) = daemon.session(&session) {
                         let _ = s.resize(cols, rows);
                     }
-                }
-                ClientRequest::Shutdown => {
-                    tracing::info!("shutdown requested by client");
-                    daemon.shutdown.cancel();
-                    break;
                 }
                 ClientRequest::SaveUiState { json } => {
                     let _ = daemon.store.save_ui_state(&json);

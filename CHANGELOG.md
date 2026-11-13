@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Changed the desktop app to update an older berth daemon on its own after an app update, instead of showing a protocol mismatch.
+- Fixed sessions not coming back after `berth kill` stopped a daemon on an older protocol version: the daemon now shuts down cleanly and records them.
 - Changed closing an agent's tab in the desktop app to stop the agent, so it no longer holds memory; the session stays in the tree and `Restart` resumes it.
 
 - Added animated session statuses in the desktop app, in step between the tree and the tabs: a working session breathes, a finished one you have not looked at sends out a green ripple, and one asking for an answer or a permission sends out fast red ripples. `ui.statusAnimation` picks between `ripple`, `blink` (a spinner and blinking dots) and `row` (the whole row and tab).
