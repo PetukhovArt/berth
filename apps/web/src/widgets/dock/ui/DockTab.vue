@@ -3,7 +3,7 @@ import type { DockviewPanelApi } from 'dockview-vue';
 import { FileText, GitPullRequest, Network, Ticket, X } from '../../../shared/ui/icons';
 import { isDirtyPath, settleDirty } from '../../../entities/document';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { METRICS_PANEL, useBerth, externalDot, isExternalPanel, sessionDot, stopAgent, useExternalSessions, type Harness, HarnessIcon, StatusDot } from '../../../entities/session';
+import { METRICS_PANEL, useBerth, externalDot, isExternalPanel, sessionDot, stopAgent, useExternalSessions, type Harness, HarnessIcon, StatusIcon } from '../../../entities/session';
 import { FILE_PANEL_PREFIX, isFilePanel } from '../../../shared/lib/markdownFiles';
 import { SessionViewSwitch } from '../../../features/session-view-switch';
 
@@ -50,11 +50,11 @@ async function close() {
     <Network v-else-if="kindOf(panel.id) === 'architecture'" :size="12" />
     <Ticket v-else-if="kindOf(panel.id) === 'issue'" :size="12" />
     <template v-else-if="kindOf(panel.id) === 'conversation'">
-      <StatusDot :status="conversationDot(panel.id)" :unseen="false" />
+      <StatusIcon class="status-dot" :status="conversationDot(panel.id)" :unseen="false" />
       <HarnessIcon :harness="harness(panel.id)" :working="conversationDot(panel.id) === 'running'" />
     </template>
     <template v-else-if="session(panel.id)">
-      <StatusDot :status="sessionTabDot(panel.id)" :unseen="session(panel.id)?.unseen" data-testid="session-tab-status" />
+      <StatusIcon class="status-dot" :status="sessionTabDot(panel.id)" :unseen="session(panel.id)?.unseen" :data-unseen="session(panel.id)?.unseen" data-testid="session-tab-status" />
       <HarnessIcon v-if="linked(panel.id)" :harness="linked(panel.id)?.harness ?? 'claude'" :working="sessionTabDot(panel.id) === 'running'" />
     </template>
     <span class="name">{{ session(panel.id)?.name ?? external?.anyByKey.value.get(panel.id)?.title ?? panel.title }}</span>
