@@ -168,6 +168,7 @@ export const agents: Translation<typeof en> = {
     terminal: 'Терминал',
     chat: 'Чат',
     chatPlaceholder: 'Сообщение агенту',
+    chatSuggestion: 'Предложенный следующий запрос, Tab чтобы вставить',
     chatSend: 'Отправить',
     chatTalk: 'Удерживайте, чтобы говорить',
     chatTalkHint: 'Отпустите, чтобы отправить, отведите палец, чтобы отменить',

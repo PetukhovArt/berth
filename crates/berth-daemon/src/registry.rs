@@ -602,6 +602,12 @@ impl Daemon {
         let mut agent = self.store.get_agent(id)?.context("agent not found")?;
         agent.alive = self.is_alive(&SessionRef::Agent(id.clone()));
         agent.cloud_mirroring = self.cloud_mirror_active(id);
+        agent.suggested_prompt = self
+            .sessions
+            .lock()
+            .unwrap()
+            .get(&SessionRef::Agent(id.clone()))
+            .and_then(|session| session.suggested_prompt());
         Ok(agent)
     }
 
@@ -997,6 +1003,7 @@ impl Daemon {
             status_changed_at: epoch_ms(),
             alive: false,
             cloud_mirroring: false,
+            suggested_prompt: None,
         };
         self.store.insert_agent(&agent)?;
         // Claude only, like `relocation_prompt`: whether `codex resume` and
@@ -1219,6 +1226,7 @@ impl Daemon {
             status_changed_at: epoch_ms(),
             alive: false,
             cloud_mirroring: false,
+            suggested_prompt: None,
         };
         self.store
             .insert_agent_with_launch_context(&agent, auto_title, pr_url.as_deref())?;
@@ -1323,6 +1331,7 @@ impl Daemon {
             status_changed_at: 0,
             alive: false,
             cloud_mirroring: false,
+            suggested_prompt: None,
         };
         self.spawn_agent_session(&agent, &worktree, DEFAULT_COLS, DEFAULT_ROWS)?;
         tracing::info!(agent = %agent.id, kind = kind.as_str(), worktree = %worktree.branch, "prewarmed agent session");
@@ -2634,6 +2643,9 @@ impl Daemon {
         let sref = SessionRef::Agent(agent.id.clone());
         let session = PtySession::spawn(sref, spec)?;
         self.install_session(session.clone());
+        if agent.kind == AgentKind::Claude {
+            session.arm_suggestion_scan();
+        }
         if resumed {
             self.arm_resume_fallback(agent.clone(), worktree.clone(), session.clone(), cols, rows);
         }
@@ -2817,6 +2829,11 @@ impl Daemon {
                     // is typically gone within milliseconds of printing it —
                     // and re-broadcast so the row grows its `cloud` badge and
                     // its attach menu entry.
+                    Ok(PtyEvent::Suggestion) => {
+                        if let SessionRef::Agent(id) = &sref {
+                            daemon.try_broadcast_agent(id);
+                        }
+                    }
                     Ok(PtyEvent::CloudSession { id: cloud_id }) => {
                         if let SessionRef::Agent(id) = &sref {
                             match daemon.store.set_agent_cloud_session_id(id, Some(&cloud_id)) {
@@ -3845,6 +3862,7 @@ mod tests {
                 status_changed_at: 0,
                 alive: false,
                 cloud_mirroring: false,
+                suggested_prompt: None,
             })
             .unwrap();
     }
@@ -4030,6 +4048,7 @@ mod tests {
                     status_changed_at: 0,
                     alive: false,
                     cloud_mirroring: false,
+                    suggested_prompt: None,
                 },
                 true,
             )

@@ -4,6 +4,7 @@ pub mod kill;
 pub mod kitty;
 mod own_dir;
 pub mod progress;
+pub mod suggestion;
 pub mod ring;
 pub mod title;
 
@@ -97,6 +98,7 @@ pub enum PtyEvent {
     CloudSession {
         id: String,
     },
+    Suggestion,
     /// The child refused to attach to a cloud session ("not enabled for
     /// your account"); it exits right after. Likewise `--cloud` launches only.
     CloudAttachRejected,
@@ -134,6 +136,7 @@ pub struct PtySession {
     /// Claude Cloud session id / attach-refusal scanner; `None` until a
     /// `--cloud` launch arms it, so ordinary sessions pay nothing.
     cloud: Mutex<Option<CloudScanner>>,
+    suggestion: Mutex<Option<suggestion::SuggestionScanner>>,
     /// The child's process tree, claimed at spawn: what the kill watchdog
     /// reaches for when the child outlives its hangup (see `pty::kill`).
     group: kill::ProcessGroup,
@@ -225,6 +228,7 @@ impl PtySession {
             progress: Mutex::new(ProgressScanner::new()),
             title: Mutex::new(TitleScanner::new()),
             cloud: Mutex::new(None),
+            suggestion: Mutex::new(None),
             capture: Mutex::new(capture),
             input_seen: AtomicBool::new(false),
         });
@@ -256,6 +260,9 @@ impl PtySession {
         let master = self.master.lock().unwrap();
         master.resize(pty_size(cols, rows))?;
         *self.last_size.lock().unwrap() = (cols, rows);
+        if let Some(scanner) = self.suggestion.lock().unwrap().as_mut() {
+            scanner.resize(cols, rows);
+        }
         self.capture.lock().unwrap().resize(cols, rows);
         Ok(())
     }
@@ -355,6 +362,18 @@ impl PtySession {
     /// Cloud mirror's "stop refreshing once it's yours" rule.
     pub fn input_seen(&self) -> bool {
         self.input_seen.load(Ordering::Relaxed)
+    }
+
+    pub fn arm_suggestion_scan(&self) {
+        let (cols, rows) = *self.last_size.lock().unwrap();
+        let mut scanner = suggestion::SuggestionScanner::new(cols, rows);
+        let (_, replay) = self.snapshot(None);
+        scanner.feed(&replay);
+        *self.suggestion.lock().unwrap() = Some(scanner);
+    }
+
+    pub fn suggested_prompt(&self) -> Option<String> {
+        self.suggestion.lock().unwrap().as_ref()?.current()
     }
 
     pub fn arm_cloud_scan(&self) {
@@ -462,6 +481,10 @@ async fn pump(session: Arc<PtySession>, mut rx: mpsc::Receiver<ReaderMsg>) {
             Some(scanner) => scanner.feed(pending),
             None => Vec::new(),
         };
+        let suggestion_edge = match session.suggestion.lock().unwrap().as_mut() {
+            Some(scanner) => scanner.feed(pending).is_some(),
+            None => false,
+        };
         session.capture.lock().unwrap().output(pending);
         let seq = session.ring.lock().unwrap().append(pending);
         let _ = session.events.send(PtyEvent::Output {
@@ -483,6 +506,9 @@ async fn pump(session: Arc<PtySession>, mut rx: mpsc::Receiver<ReaderMsg>) {
         if let Some(idle) = title_edge {
             tracing::debug!(session = ?session.sref, idle, "child title glyph changed");
             let _ = session.events.send(PtyEvent::TitleIdle { idle });
+        }
+        if suggestion_edge {
+            let _ = session.events.send(PtyEvent::Suggestion);
         }
         for sighting in cloud_sightings {
             tracing::info!(session = ?session.sref, ?sighting, "cloud sighting in child output");

@@ -43,6 +43,12 @@ let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 const session = computed(() => external?.anyByKey.value.get(externalKey({ harness: props.harness, id: props.sessionId })));
 const target = computed(() => (session.value ? externalTarget(session.value, berth?.entities.value) : null));
 const running = computed(() => session.value?.running ?? false);
+const suggestion = computed(() => {
+  const ref = props.terminal;
+  if (!ref || !('Agent' in ref) || draft.value) return null;
+  const agent = berth?.entities.value.agents.get(ref.Agent);
+  return agent?.status === 'finished' ? (agent.suggested_prompt ?? null) : null;
+});
 const command = computed(() => resumeCommand({ harness: props.harness, id: props.sessionId }));
 const canContinue = computed(() => !!session.value && !!target.value && !running.value && !action.busy.value);
 
@@ -172,7 +178,16 @@ const voiceStatus = computed(() => {
 
 watch(messages, () => voice.transcriptChanged());
 
+function acceptSuggestion() {
+  if (suggestion.value) draft.value = suggestion.value;
+}
+
 function onKey(event: KeyboardEvent) {
+  if (event.key === 'Tab' && !event.shiftKey && suggestion.value) {
+    event.preventDefault();
+    acceptSuggestion();
+    return;
+  }
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
   event.preventDefault();
   void send();
@@ -267,6 +282,7 @@ onBeforeUnmount(() => {
         <UiButton type="button" class="voice-action voice-end" data-testid="chat-voice-end" @click="voice.end">{{ t('agents.sessionView.chatVoiceEnd') }}</UiButton>
       </div>
       <p v-else-if="talk.holding.value || notice" class="talk-note" :data-cancelling="talk.cancelling.value || undefined" data-testid="chat-talk-note" role="status">{{ talk.holding.value ? talk.transcript.value || t('agents.sessionView.chatTalkListening') : notice }}{{ talk.holding.value ? ' ' + t('agents.sessionView.chatTalkHint') : '' }}</p>
+      <UiButton v-if="suggestion && !voice.active.value" type="button" class="suggestion" :title="t('agents.sessionView.chatSuggestion')" data-testid="chat-suggestion" @click="acceptSuggestion">{{ suggestion }}</UiButton>
       <UiTextarea v-if="!voice.active.value" v-model="draft" class="input" rows="2" :placeholder="t('agents.sessionView.chatPlaceholder')" :aria-label="t('agents.sessionView.chatPlaceholder')" data-testid="chat-input" @keydown="onKey" />
       <VButton v-if="!voice.active.value" size="small" type="submit" :disabled="!draft.trim()" :loading="sending" data-testid="chat-send">{{ t('agents.sessionView.chatSend') }}</VButton>
       <UiButton v-if="showVoice && !voice.active.value" type="button" class="voice-start" data-testid="chat-voice-start" @click="voice.start">{{ t('agents.sessionView.chatVoiceStart') }}</UiButton>
@@ -506,6 +522,19 @@ onBeforeUnmount(() => {
 
 .composer {
   flex-wrap: wrap;
+}
+
+.suggestion {
+  flex: 0 0 100%;
+  overflow: hidden;
+  padding: var(--vr-space-1) var(--vr-space-3);
+  border: 1px dashed var(--vr-color-border);
+  border-radius: var(--vr-radius-md);
+  font-size: var(--vr-font-size-sm);
+  color: var(--vr-color-text-muted);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .talk-note {

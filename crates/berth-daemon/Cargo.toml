@@ -23,6 +23,7 @@ tokio-util = "0.7"
 rand = "0.10"
 subtle = "2"
 berth-hub = { workspace = true }
+vt100 = "0.16"
 
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.31", features = ["process", "fs", "signal", "term"] }
@@ -37,6 +38,3 @@ sysinfo = { version = "0.37", default-features = false, features = ["system"] }
 
 [dev-dependencies]
 tempfile = "3"
-# The ConPTY unicode probe rebuilds a captured stream in a vt100 grid, the
-# vendored one.
-vt100 = "0.16"

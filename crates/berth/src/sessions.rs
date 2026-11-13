@@ -300,6 +300,7 @@ mod tests {
             sort_order: 0,
             alive: true,
             cloud_mirroring: false,
+            suggested_prompt: None,
         }
     }
 

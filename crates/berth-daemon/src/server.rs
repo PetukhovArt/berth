@@ -945,6 +945,7 @@ async fn forward_pty(
                 PtyEvent::Progress { .. }
                 | PtyEvent::TitleIdle { .. }
                 | PtyEvent::CloudSession { .. }
+                | PtyEvent::Suggestion
                 | PtyEvent::CloudAttachRejected,
             ) => {}
             Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {

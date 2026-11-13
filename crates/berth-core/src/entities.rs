@@ -208,6 +208,8 @@ pub struct Agent {
     /// does not survive a daemon restart.
     #[serde(default)]
     pub cloud_mirroring: bool,
+    #[serde(default)]
+    pub suggested_prompt: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

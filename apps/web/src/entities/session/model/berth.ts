@@ -28,6 +28,7 @@ type Agent = {
   cloud_session_id: string | null;
   sort_order: number;
   alive: boolean;
+  suggested_prompt?: string | null;
 };
 type Terminal = { id: string; worktree_id: string; name: string; sort_order: number; alive: boolean; session_id?: string | null };
 

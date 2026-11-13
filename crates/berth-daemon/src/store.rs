@@ -1456,6 +1456,7 @@ fn row_to_agent(r: &rusqlite::Row) -> rusqlite::Result<Agent> {
         cloud_session_id: r.get(13)?,
         alive: false,
         cloud_mirroring: false,
+        suggested_prompt: None,
     })
 }
 
@@ -1540,6 +1541,7 @@ mod tests {
             status_changed_at: 0,
             alive: false,
             cloud_mirroring: false,
+            suggested_prompt: None,
         };
         let pr_url = "https://github.com/PetukhovArt/berth/pull/42";
         store
@@ -1562,6 +1564,7 @@ mod tests {
             status_changed_at: 0,
             alive: false,
             cloud_mirroring: false,
+            suggested_prompt: None,
         };
         store.insert_agent(&codex_agent).unwrap();
         let cursor_agent = Agent {
@@ -1581,6 +1584,7 @@ mod tests {
             status_changed_at: 0,
             alive: false,
             cloud_mirroring: false,
+            suggested_prompt: None,
         };
         store.insert_agent(&cursor_agent).unwrap();
 
@@ -2079,6 +2083,7 @@ mod tests {
             status_changed_at: 0,
             alive: false,
             cloud_mirroring: false,
+            suggested_prompt: None,
         };
 
         // Default-named session: pending until the agent titles it, and the
@@ -2227,6 +2232,7 @@ mod tests {
                     status_changed_at: 0,
                     alive: false,
                     cloud_mirroring: false,
+                    suggested_prompt: None,
                 })
                 .unwrap();
         }
@@ -2293,6 +2299,7 @@ mod tests {
                 status_changed_at: 0,
                 alive: false,
                 cloud_mirroring: false,
+                suggested_prompt: None,
             };
             store.insert_agent(&agent).unwrap();
             agent.id
@@ -2389,6 +2396,7 @@ mod tests {
             status_changed_at: 0,
             alive: false,
             cloud_mirroring: false,
+            suggested_prompt: None,
         };
         store.insert_agent(&agent).unwrap();
         (project.id, worktree.id, agent.id)

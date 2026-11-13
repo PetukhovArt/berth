@@ -165,6 +165,7 @@ export const agents = {
     terminal: 'Terminal',
     chat: 'Chat',
     chatPlaceholder: 'Message the Agent',
+    chatSuggestion: 'Suggested next prompt, Tab to use',
     chatSend: 'Send',
     chatTalk: 'Hold to talk',
     chatTalkHint: 'Release to send, slide away to cancel',
