@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Changed closing an agent's tab in the desktop app to stop the agent, so it no longer holds memory; the session stays in the tree and `Restart` resumes it.
+
 - Added animated session statuses in the desktop app, in step between the tree and the tabs: a working session breathes, a finished one you have not looked at sends out a green ripple, and one asking for an answer or a permission sends out fast red ripples. `ui.statusAnimation` picks between `ripple`, `blink` (a spinner and blinking dots) and `row` (the whole row and tab).
 - Added restoring sessions after a restart: the daemon starts the sessions that were running when it was stopped again (`restore_sessions` in the config, agents resume their conversation), and the desktop app reopens the session tabs that were open. `sessions.restoreOnRestart` in the desktop app's settings turns both off.
 - Added a desktop app (`apps/desktop`): a window over the berth daemon with a project tree, docked terminals, merge request reviews, Jira tasks and remote access from a phone, which carries over Veyra settings, keychain tokens and layout on first start.

@@ -681,6 +681,7 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::SpawnSiblingAgent { req_id, .. }
         | ClientRequest::ArchiveAgent { req_id, .. }
         | ClientRequest::UnarchiveAgent { req_id, .. }
+        | ClientRequest::StopAgent { req_id, .. }
         | ClientRequest::ArchiveExternalSession { req_id, .. }
         | ClientRequest::UnarchiveExternalSession { req_id, .. }
         | ClientRequest::DeleteAgent { req_id, .. }

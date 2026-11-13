@@ -285,6 +285,10 @@ pub enum ClientRequest {
         req_id: u64,
         id: AgentId,
     },
+    StopAgent {
+        req_id: u64,
+        id: AgentId,
+    },
     /// Archive an EXTERNAL SESSION — a conversation berth did not start,
     /// found on disk by a client. Only the mark is stored: the transcript
     /// and any process running it are left alone. Re-archiving moves

@@ -3,7 +3,7 @@ import type { DockviewPanelApi } from 'dockview-vue';
 import { FileText, GitPullRequest, Network, Ticket, X } from '../../../shared/ui/icons';
 import { isDirtyPath, settleDirty } from '../../../entities/document';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { METRICS_PANEL, useBerth, externalDot, isExternalPanel, sessionDot, useExternalSessions, type Harness, HarnessIcon, StatusDot } from '../../../entities/session';
+import { METRICS_PANEL, useBerth, externalDot, isExternalPanel, sessionDot, stopAgent, useExternalSessions, type Harness, HarnessIcon, StatusDot } from '../../../entities/session';
 import { FILE_PANEL_PREFIX, isFilePanel } from '../../../shared/lib/markdownFiles';
 import { SessionViewSwitch } from '../../../features/session-view-switch';
 
@@ -37,7 +37,9 @@ const sessionTabDot = (id: string) => {
 
 async function close() {
   if (isFilePanel(props.panel.id) && !(await settleDirty([props.panel.id.slice(FILE_PANEL_PREFIX.length)]))) return;
+  const node = session(props.panel.id);
   props.panel.close();
+  if (node?.alive && 'Agent' in node.ref) void stopAgent(node.ref.Agent);
 }
 </script>
 

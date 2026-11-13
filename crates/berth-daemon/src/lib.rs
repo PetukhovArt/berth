@@ -18,6 +18,7 @@ pub mod sampler;
 pub mod server;
 pub mod sibling;
 pub mod status;
+pub mod stop_agent;
 pub mod store;
 pub mod subagents;
 pub mod usage;

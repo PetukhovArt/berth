@@ -601,6 +601,9 @@ async fn handle_client(
                 ClientRequest::UnarchiveAgent { req_id, id } => {
                     reply_done(&out_tx, req_id, daemon.unarchive_agent(&id)).await;
                 }
+                ClientRequest::StopAgent { req_id, id } => {
+                    reply_done(&out_tx, req_id, daemon.stop_agent(&id)).await;
+                }
                 ClientRequest::ArchiveExternalSession {
                     req_id,
                     kind,

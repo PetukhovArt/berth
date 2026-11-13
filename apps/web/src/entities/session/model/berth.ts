@@ -341,6 +341,10 @@ export async function archiveAgent(id: string): Promise<void> {
   await acknowledged({ ArchiveAgent: { id } });
 }
 
+export async function stopAgent(id: string): Promise<void> {
+  await acknowledged({ StopAgent: { id } });
+}
+
 export async function unarchiveAgent(id: string): Promise<void> {
   await acknowledged({ UnarchiveAgent: { id } });
 }
