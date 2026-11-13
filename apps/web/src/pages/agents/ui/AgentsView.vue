@@ -12,6 +12,7 @@ import { NewSessionForm, cancelCreate, creatingIn, onCreated } from '../../../fe
 import { ArchitectureView } from '../../../features/architecture';
 import { SessionViews } from '../../../features/session-view-switch';
 import { DockArea } from '../../../widgets/dock';
+import { FirstRun, isFirstRun } from '../../../widgets/first-run';
 
 const ChangeRequestView = defineAsyncComponent(() => import('../../../widgets/change-request').then((m) => m.ChangeRequestView));
 const WorktreeChanges = defineAsyncComponent(() => import('../../../widgets/worktree-changes').then((m) => m.WorktreeChanges));
@@ -36,6 +37,7 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
 
 <template>
   <div v-if="!berth" class="unavailable" data-testid="berth-banner" data-state="unavailable">{{ t('agents.unavailable') }}</div>
+  <FirstRun v-else-if="isFirstRun(berth.entities.value)" />
   <div v-else class="workbench vr-master-detail" data-testid="workbench" :data-detail="detail">
     <ProjectTree v-if="mobile" class="vr-master" with-filter />
     <BackBar v-if="mobile && detail" :title="activeSession?.name ?? activeTitle" @back="detail = false" />
