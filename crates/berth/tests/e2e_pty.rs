@@ -53,6 +53,10 @@ impl TestEnv {
         cmd
     }
 
+    fn forget_live_sessions(&self) {
+        let _ = std::fs::remove_file(self.tmp.path().join("data").join("live-sessions.json"));
+    }
+
     fn spawn_daemon(&self) -> DaemonProc {
         self.spawn_daemon_with_agent_cmd("/bin/sh") // no real claude in tests
     }
@@ -445,6 +449,7 @@ async fn full_crud_attach_and_restart_persistence() {
     // ---- restart: tree persists, boot sweep marks nothing (agents fresh) ----
     write_frame(&mut c, &ClientRequest::Shutdown).await.unwrap();
     wait_for_exit(&mut daemon);
+    env.forget_live_sessions();
 
     let mut daemon2 = env.spawn_daemon();
     let mut c2 = connect(&env.sock()).await;
@@ -2586,6 +2591,7 @@ async fn prewarm_worktree_sessions_boots_dead_sessions() {
     // Restart: rows persist, every PTY is dead.
     write_frame(&mut c, &ClientRequest::Shutdown).await.unwrap();
     wait_for_exit(&mut daemon);
+    env.forget_live_sessions();
     let mut daemon2 = env.spawn_daemon();
     let mut c2 = connect(&env.sock()).await;
     handshake(&mut c2).await;
