@@ -31,9 +31,8 @@ Source paths are in [`pingdotgg/t3code`](https://github.com/pingdotgg/t3code).
   Code offers three engines: on the device, on your own server (transcribe-cpp with Whisper or
   Parakeet models) and in the cloud. Source: `docs/user/voice-input.md`,
   `apps/server/src/speech/SpeechService.ts`.
-- Scheduled and webhook-triggered prompts: start a Session or send a prompt at a set time or on an
-  inbound webhook, with signature check and dedupe. Builds on the prompt queue. Source:
-  `docs/user/project-settings.md:79-125`, `apps/server/src/scheduledTasks/ScheduledTaskService.ts`.
+- A screen in the desktop app for scheduled prompts and webhooks, which `berth schedule`,
+  `berth webhook` and `berth triggers` cover from the command line today.
 - Chat view of a berth Session, for people who do not want a terminal: messages, grouped tool calls
   and changed files read from the transcript, with a composer below, as a fourth view beside the
   terminal, merge request and changes. The same PTY Agent stays underneath: the composer types into

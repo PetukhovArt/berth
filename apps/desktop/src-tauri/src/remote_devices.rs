@@ -148,6 +148,7 @@ const READ_ONLY_REQUESTS: &[&str] = &[
     "GetUsageLimits",
     "GetTaskNote",
     "GetProjectSetup",
+    "ListTriggers",
 ];
 
 fn request_kind(request: &Value) -> Option<&str> {

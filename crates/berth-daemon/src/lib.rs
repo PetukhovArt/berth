@@ -24,6 +24,7 @@ pub mod stop_agent;
 pub mod store;
 pub mod subagents;
 pub mod task_notes;
+pub mod triggers;
 pub mod usage;
 pub mod usage_limits;
 pub mod worktree_seed;
@@ -154,6 +155,11 @@ async fn serve() -> Result<()> {
                 daemon.complete_pending_move(&agent_id, &event);
             }
         });
+    }
+
+    tokio::spawn(daemon.clone().run_scheduler());
+    if let Err(e) = triggers::start_webhooks(daemon.clone(), &config::Config::load()).await {
+        tracing::warn!(error = %e, "webhook listener not started");
     }
 
     // Learn which agent CLIs are installed before anyone asks, so a create

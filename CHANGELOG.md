@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added `berth schedule` and `berth webhook`: type a prompt into a session, or start a new one, at a set time or when a webhook is called with its own secret. Schedules survive a daemon restart and webhooks are off until `"webhooks": true` is set (#36).
 - Added Checkpoints: berth saves the files of an Agent's worktree at each prompt on hidden git refs, and the session header lists them with a Restore files button that keeps the branch and the current files safe (#20).
 - Added a Setup command field for a new worktree in New Session: berth saves it for the Project and runs it in a terminal named setup in every worktree it creates, and the field stays empty until you opt in (#21).
 - Added New Session worktrees without a branch name: leave the name empty and berth generates one (#21).

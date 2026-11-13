@@ -1,6 +1,7 @@
 mod client;
 mod mcp;
 mod sessions;
+mod triggers;
 mod upgrade;
 
 use anyhow::Result;
@@ -34,6 +35,26 @@ fn parse_agent_kind(s: &str) -> Result<berth_core::AgentKind, String> {
                 .join(", ")
         )
     })
+}
+
+#[derive(clap::Args)]
+struct TargetArgs {
+    #[arg(long, value_name = "ID", help = "Type into this session (default: the session this runs in)")]
+    agent: Option<String>,
+    #[arg(long, value_name = "ID", help = "Start a new session in this worktree instead")]
+    worktree: Option<String>,
+    #[arg(long, value_name = "KIND", value_parser = parse_agent_kind, help = "Harness of the new session")]
+    kind: Option<berth_core::AgentKind>,
+}
+
+impl From<TargetArgs> for triggers::TriggerTargetArgs {
+    fn from(t: TargetArgs) -> Self {
+        Self {
+            agent: t.agent,
+            worktree: t.worktree,
+            kind: t.kind,
+        }
+    }
 }
 
 #[derive(Subcommand)]
@@ -103,6 +124,37 @@ enum Command {
         /// the same as this session's).
         #[arg(long, value_name = "KIND", value_parser = parse_agent_kind)]
         kind: Option<berth_core::AgentKind>,
+    },
+    #[command(
+        about = "Type a prompt into a session, or start a new session on it, after --in (once), repeating with --every"
+    )]
+    Schedule {
+        #[arg(required = true, num_args = 1.., help = "The prompt; multiple words need no quotes")]
+        prompt: Vec<String>,
+        #[arg(long = "in", value_name = "SPAN", value_parser = triggers::parse_span, help = "Delay before the first run: 30m, 2h, 1d")]
+        delay: std::time::Duration,
+        #[arg(long, value_name = "SPAN", value_parser = triggers::parse_span, help = "Repeat every span, at least 60s")]
+        every: Option<std::time::Duration>,
+        #[arg(long)]
+        name: Option<String>,
+        #[command(flatten)]
+        target: TargetArgs,
+    },
+    #[command(
+        about = "Create a webhook that types a prompt into a session, or starts a new one; prints its secret once. Needs \"webhooks\": true in the config"
+    )]
+    Webhook {
+        #[arg(required = true, num_args = 1.., help = "The prompt; multiple words need no quotes")]
+        prompt: Vec<String>,
+        #[arg(long)]
+        name: Option<String>,
+        #[command(flatten)]
+        target: TargetArgs,
+    },
+    #[command(about = "List scheduled prompts and webhooks as JSON, or delete one with --remove")]
+    Triggers {
+        #[arg(long, value_name = "ID")]
+        remove: Option<String>,
     },
     #[command(about = "List sessions as JSON (live ones; --all adds archived)")]
     Sessions {
@@ -205,6 +257,19 @@ fn main() -> Result<()> {
         Some(Command::Worktree { name, base }) => client::run_worktree(name.join(" "), base),
         Some(Command::Enter { dir }) => client::run_enter(dir),
         Some(Command::Spawn { task, kind }) => client::run_spawn(task.join(" "), kind),
+        Some(Command::Schedule {
+            prompt,
+            delay,
+            every,
+            name,
+            target,
+        }) => triggers::run_schedule(prompt.join(" "), name, delay, every, target.into()),
+        Some(Command::Webhook {
+            prompt,
+            name,
+            target,
+        }) => triggers::run_webhook(prompt.join(" "), name, target.into()),
+        Some(Command::Triggers { remove }) => triggers::run_triggers(remove),
         Some(Command::Upgrade { force }) => upgrade::run_upgrade(force),
         Some(Command::StaleDaemonNote) => {
             if berth_daemon::lifecycle::daemon_is_stale() {

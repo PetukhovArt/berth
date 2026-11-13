@@ -127,6 +127,8 @@ history.
 - **BERTH WORKSPACE** — `berth workspace open <name>` switches no running client — it sets the remembered default: the workspace a connection that never opens one (the one-shot `berth add`) adds projects to, and the `active_workspace` a new client's snapshot starts on. ⟵ 2026-08-24-workspaces-are-per-instance-not-daemon-global
 - **BERTH WORKTREE** — `berth worktree <name>` finds its target by `w.branch == branch` and creates a worktree when nothing matches, so during a paused rebase (row labelled `detached @ …`) it would add a second checkout for the branch. ⟵ 2026-08-27-a-paused-rebase-renamed-the-worktree-row-to-detached
 
+- **PROMPT TRIGGERS** — A trigger aimed at an Agent whose PTY is gone respawns it (`ensure_session`) and types after a fixed 6s boot grace, because nothing tells the daemon the CLI's input box is ready; a busy Agent just gets the text typed, like a person pressing Enter. A webhook never forwards its request body, and its secret is stored in plain text in the database (it is compared, not hashed) and shown only by `TriggerCreated`.
+
 ## Config and environment
 - **HOST AGENT ENV** — A daemon auto-started by a `berth` call from a Claude Code Bash tool keeps that session's `CLAUDE_CODE_CHILD_SESSION` and friends for life, and every `claude` it spawns then turns its transcript off; `env::HOST_AGENT_SESSION_VARS` is scrubbed from `spawn_daemon` and from every PTY child — extend it when Claude Code adds a session var, never strip the whole `CLAUDE_CODE_*` prefix (users set config there).
 

@@ -323,6 +323,33 @@ async fn handle_client(
                     )
                     .await;
                 }
+                ClientRequest::ListTriggers { req_id } => {
+                    let ev = match daemon.store.list_triggers() {
+                        Ok(triggers) => ServerEvent::Triggers { req_id, triggers },
+                        Err(e) => ServerEvent::Error {
+                            req_id: Some(req_id),
+                            message: format!("{e:#}"),
+                        },
+                    };
+                    let _ = out_tx.send(ev).await;
+                }
+                ClientRequest::CreateTrigger { req_id, trigger } => {
+                    let ev = match daemon.create_trigger(trigger) {
+                        Ok((trigger, secret)) => ServerEvent::TriggerCreated {
+                            req_id,
+                            trigger,
+                            secret,
+                        },
+                        Err(e) => ServerEvent::Error {
+                            req_id: Some(req_id),
+                            message: format!("{e:#}"),
+                        },
+                    };
+                    let _ = out_tx.send(ev).await;
+                }
+                ClientRequest::DeleteTrigger { req_id, id } => {
+                    reply_done(&out_tx, req_id, daemon.delete_trigger(&id)).await;
+                }
                 ClientRequest::ListCheckpoints { req_id, agent } => {
                     let daemon = daemon.clone();
                     let out_tx = out_tx.clone();

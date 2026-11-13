@@ -5,8 +5,8 @@
 use anyhow::{Context, Result};
 use berth_core::{
     Agent, AgentId, AgentKind, AgentStatus, ArchivedExternalSession, Link, LinkId, OrphanedSession,
-    PrSeen, Project, ProjectId, TerminalId, TerminalTab, Workspace, WorkspaceId, Worktree,
-    WorktreeId, DEFAULT_WORKSPACE_ID,
+    PrSeen, Project, ProjectId, PromptTrigger, TerminalId, TerminalTab, TriggerId, TriggerTarget,
+    TriggerWhen, Workspace, WorkspaceId, Worktree, WorktreeId, DEFAULT_WORKSPACE_ID,
 };
 use rusqlite::OptionalExtension;
 use rusqlite::{params, Connection};
@@ -294,6 +294,21 @@ const MIGRATIONS: &[&str] = &[
     CREATE TABLE project_setup (
       project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
       command    TEXT NOT NULL
+    );
+    ",
+    "
+    CREATE TABLE prompt_triggers (
+      id              TEXT PRIMARY KEY,
+      name            TEXT NOT NULL,
+      run_at          INTEGER,
+      repeat_secs     INTEGER,
+      webhook_secret  TEXT,
+      target_agent    TEXT REFERENCES agents(id) ON DELETE CASCADE,
+      target_worktree TEXT REFERENCES worktrees(id) ON DELETE CASCADE,
+      agent_kind      TEXT,
+      prompt          TEXT NOT NULL,
+      last_fired_at   INTEGER,
+      created_at      INTEGER NOT NULL
     );
     ",
 ];
@@ -596,6 +611,144 @@ impl Store {
             )?;
         }
         Ok(())
+    }
+
+    pub fn insert_trigger(&self, trigger: &PromptTrigger, secret: Option<&str>) -> Result<()> {
+        let (run_at, repeat_secs) = match &trigger.when {
+            TriggerWhen::At {
+                run_at,
+                repeat_secs,
+            } => (Some(*run_at), repeat_secs.map(|s| s as i64)),
+            TriggerWhen::Webhook => (None, None),
+        };
+        let (agent, worktree, kind) = match &trigger.target {
+            TriggerTarget::Agent(id) => (Some(id.as_str().to_string()), None, None),
+            TriggerTarget::NewAgent { worktree, kind } => (
+                None,
+                Some(worktree.as_str().to_string()),
+                Some(kind.as_str()),
+            ),
+        };
+        self.conn.lock().unwrap().execute(
+            "INSERT INTO prompt_triggers (id, name, run_at, repeat_secs, webhook_secret, target_agent, target_worktree, agent_kind, prompt, last_fired_at, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            params![
+                trigger.id.0,
+                trigger.name,
+                run_at,
+                repeat_secs,
+                secret,
+                agent,
+                worktree,
+                kind,
+                trigger.prompt,
+                trigger.last_fired_at,
+                now_ms()
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_triggers(&self) -> Result<Vec<PromptTrigger>> {
+        self.query_triggers("1 = 1", params![])
+    }
+
+    pub fn due_triggers(&self, now: i64) -> Result<Vec<PromptTrigger>> {
+        self.query_triggers("run_at IS NOT NULL AND run_at <= ?1", params![now])
+    }
+
+    pub fn trigger_with_secret(&self, id: &TriggerId) -> Result<Option<(PromptTrigger, String)>> {
+        let found = self.query_triggers("id = ?1 AND webhook_secret IS NOT NULL", params![id.0])?;
+        let Some(trigger) = found.into_iter().next() else {
+            return Ok(None);
+        };
+        let secret = self.conn.lock().unwrap().query_row(
+            "SELECT webhook_secret FROM prompt_triggers WHERE id = ?1",
+            params![id.0],
+            |r| r.get(0),
+        )?;
+        Ok(Some((trigger, secret)))
+    }
+
+    pub fn delete_trigger(&self, id: &TriggerId) -> Result<bool> {
+        let n = self.conn.lock().unwrap().execute(
+            "DELETE FROM prompt_triggers WHERE id = ?1",
+            params![id.0],
+        )?;
+        Ok(n > 0)
+    }
+
+    pub fn claim_due_trigger(&self, id: &TriggerId, now: i64, next_run: Option<i64>) -> Result<bool> {
+        let conn = self.conn.lock().unwrap();
+        let n = match next_run {
+            Some(next) => conn.execute(
+                "UPDATE prompt_triggers SET run_at = ?2, last_fired_at = ?3 WHERE id = ?1 AND run_at IS NOT NULL AND run_at <= ?3",
+                params![id.0, next, now],
+            )?,
+            None => conn.execute(
+                "DELETE FROM prompt_triggers WHERE id = ?1 AND run_at IS NOT NULL AND run_at <= ?2",
+                params![id.0, now],
+            )?,
+        };
+        Ok(n > 0)
+    }
+
+    pub fn mark_trigger_fired(&self, id: &TriggerId, now: i64) -> Result<()> {
+        self.conn.lock().unwrap().execute(
+            "UPDATE prompt_triggers SET last_fired_at = ?2 WHERE id = ?1",
+            params![id.0, now],
+        )?;
+        Ok(())
+    }
+
+    fn query_triggers(
+        &self,
+        filter: &str,
+        args: impl rusqlite::Params,
+    ) -> Result<Vec<PromptTrigger>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(&format!(
+            "SELECT id, name, run_at, repeat_secs, webhook_secret IS NOT NULL, target_agent, target_worktree, agent_kind, prompt, last_fired_at
+             FROM prompt_triggers WHERE {filter} ORDER BY created_at, id"
+        ))?;
+        let rows = stmt.query_map(args, |r| {
+            let run_at: Option<i64> = r.get(2)?;
+            let repeat_secs: Option<i64> = r.get(3)?;
+            let webhook: bool = r.get(4)?;
+            let agent: Option<String> = r.get(5)?;
+            let worktree: Option<String> = r.get(6)?;
+            let kind: Option<String> = r.get(7)?;
+            let when = match (webhook, run_at) {
+                (false, Some(run_at)) => TriggerWhen::At {
+                    run_at,
+                    repeat_secs: repeat_secs.map(|s| s as u64),
+                },
+                _ => TriggerWhen::Webhook,
+            };
+            let target = match (agent, worktree) {
+                (Some(agent), _) => TriggerTarget::Agent(AgentId(agent)),
+                (None, Some(worktree)) => TriggerTarget::NewAgent {
+                    worktree: WorktreeId(worktree),
+                    kind: kind
+                        .as_deref()
+                        .and_then(AgentKind::parse)
+                        .unwrap_or_default(),
+                },
+                (None, None) => TriggerTarget::NewAgent {
+                    worktree: WorktreeId(String::new()),
+                    kind: AgentKind::default(),
+                },
+            };
+            Ok(PromptTrigger {
+                id: TriggerId(r.get(0)?),
+                name: r.get(1)?,
+                when,
+                target,
+                prompt: r.get(8)?,
+                last_fired_at: r.get(9)?,
+            })
+        })?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
     pub fn task_note_for_agent(&self, agent: &AgentId) -> Result<String> {

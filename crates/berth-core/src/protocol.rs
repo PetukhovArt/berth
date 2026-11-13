@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 48;
+pub const PROTOCOL_VERSION: u32 = 49;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -428,6 +428,20 @@ pub enum ClientRequest {
         command: String,
     },
 
+    ListTriggers {
+        req_id: u64,
+    },
+
+    CreateTrigger {
+        req_id: u64,
+        trigger: NewTrigger,
+    },
+
+    DeleteTrigger {
+        req_id: u64,
+        id: TriggerId,
+    },
+
     ListCheckpoints {
         req_id: u64,
         agent: AgentId,
@@ -804,6 +818,56 @@ pub enum ServerEvent {
         agent: AgentId,
         checkpoints: Vec<Checkpoint>,
     },
+
+    Triggers {
+        req_id: u64,
+        triggers: Vec<PromptTrigger>,
+    },
+
+    TriggerCreated {
+        req_id: u64,
+        trigger: PromptTrigger,
+        secret: Option<String>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TriggerId(pub String);
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TriggerWhen {
+    At {
+        run_at: i64,
+        repeat_secs: Option<u64>,
+    },
+    Webhook,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TriggerTarget {
+    Agent(AgentId),
+    NewAgent {
+        worktree: WorktreeId,
+        kind: AgentKind,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NewTrigger {
+    pub name: String,
+    pub when: TriggerWhen,
+    pub target: TriggerTarget,
+    pub prompt: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PromptTrigger {
+    pub id: TriggerId,
+    pub name: String,
+    pub when: TriggerWhen,
+    pub target: TriggerTarget,
+    pub prompt: String,
+    pub last_fired_at: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

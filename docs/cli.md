@@ -40,6 +40,32 @@ berth spawn <task> [--kind <claude|codex|cursor|opencode|grok>]
                          # opening on <task>; --kind defaults to this session's agent kind
 ```
 
+## Scheduled prompts and webhooks
+
+A prompt can be typed into a session, or start a new one, at a set time or when a webhook is called.
+The target is `--agent <id>` (the default is the session the command runs in) or `--worktree <id>`
+with an optional `--kind`, which starts a new session on the prompt each time.
+
+```sh
+berth schedule <prompt> --in <span> [--every <span>] [--name <n>] [--agent <id> | --worktree <id> [--kind <k>]]
+                         # spans are like 30m, 2h, 1d; --every is at least 60s
+berth webhook <prompt> [--name <n>] [--agent <id> | --worktree <id> [--kind <k>]]
+                         # prints the hook's path and its secret, once
+berth triggers [--remove <id>]
+                         # list them as JSON, or delete one
+```
+
+A one-time schedule runs once and is then gone. Schedules live in the daemon and survive a restart;
+a run missed while the daemon was down happens once when it starts, never once per missed period. A
+repeating schedule is re-armed after its run.
+
+A webhook is off until `"webhooks": true` is set in the config file (see
+[configuration](configuration.md)). It then listens on `127.0.0.1` only, on `webhook_port`. Each hook
+has its own secret. Call it with `POST /hooks/<id>` and the header `X-Berth-Secret: <secret>` (or
+`Authorization: Bearer <secret>`). A wrong secret gets `401`. `X-Berth-Delivery: <id>` makes a repeat
+of the same delivery a no-op, and a hook runs at most once every 5 seconds. The request body is
+ignored: a hook only ever sends the prompt you saved, and never runs a command.
+
 ## JSON for scripts and chat bots
 
 ```sh

@@ -31,6 +31,9 @@ pub struct Config {
     /// it starts, so a daemon restart brings them back without an attach.
     pub restore_sessions: bool,
     pub claude_limits: bool,
+    pub webhooks: bool,
+    pub webhook_port: u16,
+    pub webhook_expose: bool,
 }
 
 impl Default for Config {
@@ -42,12 +45,17 @@ impl Default for Config {
             session_idle_timeout: DEFAULT_SESSION_IDLE_TIMEOUT.into(),
             restore_sessions: true,
             claude_limits: false,
+            webhooks: false,
+            webhook_port: DEFAULT_WEBHOOK_PORT,
+            webhook_expose: false,
         }
     }
 }
 
 /// Fallback for `session_idle_timeout` when the value is malformed.
 pub const DEFAULT_SESSION_IDLE_TIMEOUT: &str = "5m";
+
+pub const DEFAULT_WEBHOOK_PORT: u16 = 47821;
 
 impl Config {
     pub fn load() -> Self {
