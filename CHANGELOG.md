@@ -6,6 +6,7 @@
 - Added `BERTH_REMOTE=user@host`, which makes the desktop app show the Sessions of a Daemon on another machine over an ssh tunnel and install berth there when it is missing (#42).
 - Added a Watch button on a merge request in the desktop app: while it is on, a failed pipeline, a new thread or a conflict with the target branch types a prompt into the Agent working on that branch, and Stop turns it off (#23).
 - Added an overlap chip in the session header of the desktop app that names the other Agents in the same Project changing files in the same module (#39).
+- Added a Task note per worktree, edited from the session header of the desktop app and handed to every new Agent in that worktree at start, with a `berth_notes` tool in `berth mcp` (#38).
 - Added `berth mcp`, an MCP server over stdio that lets an Agent list sessions, see which need attention and send a message to another session (#41).
 - Added a setting, off by default, that comments on the Jira or GitLab issue named in the branch when an Agent finishes in the desktop app (#40).
 - Added subscription limits in the desktop app: the 5-hour and weekly windows of Codex, and of Claude once you turn on `Show Claude subscription limits` in Settings, with their reset times and tokens per Session in the Memory Usage panel, and a limit status with the reset time in the Inbox, the sidebar and the session header (#26).
