@@ -1,6 +1,8 @@
+use crate::presence::Present;
 use crate::store::{ChannelSummary, Event, Mention};
 use anyhow::{anyhow, bail, Context, Result};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
@@ -127,6 +129,17 @@ impl HubClient {
         if let Some(a) = as_agent {
             path.push_str(&format!("&as_agent={}", percent_encode(a)));
         }
+        Ok(serde_json::from_value(self.call("GET", &path, None).await?)?)
+    }
+
+    pub async fn report_presence(&self, channels: &HashMap<String, Vec<String>>) -> Result<()> {
+        self.call("POST", "/presence", Some(json!({ "channels": channels })))
+            .await?;
+        Ok(())
+    }
+
+    pub async fn presence(&self, channel: &str) -> Result<Vec<Present>> {
+        let path = format!("/presence?channel={}", percent_encode(channel));
         Ok(serde_json::from_value(self.call("GET", &path, None).await?)?)
     }
 }

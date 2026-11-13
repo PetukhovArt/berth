@@ -1,3 +1,4 @@
+use crate::presence::{Presence, Present, PRESENCE_TTL};
 use crate::store::{Member, Store, KIND_MESSAGE};
 use anyhow::Result;
 use axum::extract::{Query, State};
@@ -6,11 +7,18 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
-type Shared = Arc<Mutex<Store>>;
+#[derive(Clone)]
+struct Shared {
+    store: Arc<Mutex<Store>>,
+    presence: Arc<Mutex<Presence>>,
+}
+
 type Reply = Result<Json<Value>, (StatusCode, String)>;
 
 pub struct Hub {
@@ -20,9 +28,21 @@ pub struct Hub {
 }
 
 pub async fn serve(db: &Path, bind: SocketAddr, admin_token: Option<String>) -> Result<Hub> {
+    serve_with_ttl(db, bind, admin_token, PRESENCE_TTL).await
+}
+
+pub async fn serve_with_ttl(
+    db: &Path,
+    bind: SocketAddr,
+    admin_token: Option<String>,
+    presence_ttl: Duration,
+) -> Result<Hub> {
     let store = Store::open(db)?;
     let admin_token = store.admin_token(admin_token)?;
-    let state: Shared = Arc::new(Mutex::new(store));
+    let state = Shared {
+        store: Arc::new(Mutex::new(store)),
+        presence: Arc::new(Mutex::new(Presence::new(presence_ttl))),
+    };
     let app = Router::new()
         .route("/pair", post(pair))
         .route("/admin/pending", get(pending))
@@ -32,6 +52,7 @@ pub async fn serve(db: &Path, bind: SocketAddr, admin_token: Option<String>) -> 
         .route("/channels/members", post(add_member))
         .route("/events", get(read).post(post_event))
         .route("/mentions", get(mentions))
+        .route("/presence", get(presence).post(report_presence))
         .with_state(state);
     let listener = tokio::net::TcpListener::bind(bind).await?;
     let addr = listener.local_addr()?;
@@ -88,7 +109,7 @@ struct PairBody {
 }
 
 async fn pair(State(s): State<Shared>, Json(b): Json<PairBody>) -> Reply {
-    let store = s.lock().unwrap();
+    let store = s.store.lock().unwrap();
     let (id, token) = store
         .admit_device(&b.name)
         .map_err(|e| fail(StatusCode::INTERNAL_SERVER_ERROR, e))?;
@@ -96,7 +117,7 @@ async fn pair(State(s): State<Shared>, Json(b): Json<PairBody>) -> Reply {
 }
 
 async fn pending(State(s): State<Shared>, headers: HeaderMap) -> Reply {
-    let store = s.lock().unwrap();
+    let store = s.store.lock().unwrap();
     admin(&store, &headers)?;
     let rows = store
         .pending()
@@ -114,7 +135,7 @@ struct ApproveBody {
 }
 
 async fn approve(State(s): State<Shared>, headers: HeaderMap, Json(b): Json<ApproveBody>) -> Reply {
-    let store = s.lock().unwrap();
+    let store = s.store.lock().unwrap();
     admin(&store, &headers)?;
     store
         .approve_scopes(&b.id, &b.scopes)
@@ -128,7 +149,7 @@ struct AgentBody {
 }
 
 async fn agent(State(s): State<Shared>, headers: HeaderMap, Json(b): Json<AgentBody>) -> Reply {
-    let store = s.lock().unwrap();
+    let store = s.store.lock().unwrap();
     let owner = member(&store, &headers, "post")?;
     let id = store
         .ensure_agent(&owner, &b.name)
@@ -137,7 +158,7 @@ async fn agent(State(s): State<Shared>, headers: HeaderMap, Json(b): Json<AgentB
 }
 
 async fn channels(State(s): State<Shared>, headers: HeaderMap) -> Reply {
-    let store = s.lock().unwrap();
+    let store = s.store.lock().unwrap();
     let m = member(&store, &headers, "read")?;
     let rows = store
         .channels(&m)
@@ -155,7 +176,7 @@ async fn create_channel(
     headers: HeaderMap,
     Json(b): Json<ChannelBody>,
 ) -> Reply {
-    let store = s.lock().unwrap();
+    let store = s.store.lock().unwrap();
     let m = member(&store, &headers, "create")?;
     store.create_channel(&b.key, &m).map_err(denied)?;
     Ok(Json(json!({ "ok": true })))
@@ -172,7 +193,7 @@ async fn add_member(
     headers: HeaderMap,
     Json(b): Json<AddMemberBody>,
 ) -> Reply {
-    let store = s.lock().unwrap();
+    let store = s.store.lock().unwrap();
     let m = member(&store, &headers, "create")?;
     store.add_member(&b.key, &m, &b.member).map_err(denied)?;
     Ok(Json(json!({ "ok": true })))
@@ -189,7 +210,7 @@ struct PostBody {
 }
 
 async fn post_event(State(s): State<Shared>, headers: HeaderMap, Json(b): Json<PostBody>) -> Reply {
-    let store = s.lock().unwrap();
+    let store = s.store.lock().unwrap();
     let m = member(&store, &headers, "post")?;
     let author = store.acting_member(&m, b.as_agent.as_deref()).map_err(denied)?;
     let mut tags = b.tags.clone();
@@ -215,7 +236,7 @@ async fn mentions(
     headers: HeaderMap,
     Query(q): Query<MentionsQuery>,
 ) -> Reply {
-    let store = s.lock().unwrap();
+    let store = s.store.lock().unwrap();
     let m = member(&store, &headers, "read")?;
     let rows = store
         .mentions(&m, q.after)
@@ -233,7 +254,7 @@ struct ReadQuery {
 }
 
 async fn read(State(s): State<Shared>, headers: HeaderMap, Query(q): Query<ReadQuery>) -> Reply {
-    let store = s.lock().unwrap();
+    let store = s.store.lock().unwrap();
     let m = member(&store, &headers, "read")?;
     let reader = store.acting_member(&m, q.as_agent.as_deref()).map_err(denied)?;
     let as_reader = Member {
@@ -242,4 +263,57 @@ async fn read(State(s): State<Shared>, headers: HeaderMap, Query(q): Query<ReadQ
     };
     let events = store.read_after(&q.channel, &as_reader, q.after).map_err(denied)?;
     Ok(Json(json!(events)))
+}
+
+#[derive(Deserialize)]
+struct ReportBody {
+    channels: HashMap<String, Vec<String>>,
+}
+
+async fn report_presence(
+    State(s): State<Shared>,
+    headers: HeaderMap,
+    Json(b): Json<ReportBody>,
+) -> Reply {
+    let (id, known) = {
+        let store = s.store.lock().unwrap();
+        let m = member(&store, &headers, "post")?;
+        let mut known = HashMap::new();
+        for (key, agents) in b.channels {
+            if store.is_member(&key, &m.id).map_err(denied)? {
+                known.insert(key, agents);
+            }
+        }
+        (m.id, known)
+    };
+    s.presence.lock().unwrap().report(&id, known);
+    Ok(Json(json!({ "ok": true })))
+}
+
+#[derive(Deserialize)]
+struct PresenceQuery {
+    channel: String,
+}
+
+async fn presence(
+    State(s): State<Shared>,
+    headers: HeaderMap,
+    Query(q): Query<PresenceQuery>,
+) -> Reply {
+    let here: Vec<Present> = {
+        let store = s.store.lock().unwrap();
+        let m = member(&store, &headers, "read")?;
+        if !store.is_member(&q.channel, &m.id).map_err(denied)? {
+            return Err(denied(anyhow::anyhow!("not a member of this channel")));
+        }
+        let ids = s.presence.lock().unwrap().on(&q.channel);
+        ids.into_iter()
+            .map(|(member, agents)| Present {
+                name: store.member_name(&member).unwrap_or_default(),
+                member,
+                agents,
+            })
+            .collect()
+    };
+    Ok(Json(json!(here)))
 }

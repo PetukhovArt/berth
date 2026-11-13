@@ -255,7 +255,7 @@ impl Store {
         Ok(())
     }
 
-    fn is_member(&self, key: &str, member: &str) -> Result<bool> {
+    pub fn is_member(&self, key: &str, member: &str) -> Result<bool> {
         Ok(self.db.query_row(
             "SELECT EXISTS(SELECT 1 FROM channel_members WHERE channel=?1 AND member=?2)",
             params![key, member],
@@ -424,5 +424,9 @@ impl Store {
             })
         })?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    pub fn member_name(&self, id: &str) -> Result<String> {
+        Ok(self.db.query_row("SELECT name FROM members WHERE id=?1", [id], |r| r.get(0))?)
     }
 }

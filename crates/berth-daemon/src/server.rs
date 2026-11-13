@@ -363,6 +363,19 @@ async fn handle_client(
                         let _ = out_tx.send(ev).await;
                     });
                 }
+                ClientRequest::GetChannelPresence { req_id, channel } => {
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let ev = match crate::channels::channel_presence(&channel).await {
+                            Ok(here) => ServerEvent::ChannelPresence { req_id, here },
+                            Err(e) => ServerEvent::Error {
+                                req_id: Some(req_id),
+                                message: format!("{e:#}"),
+                            },
+                        };
+                        let _ = out_tx.send(ev).await;
+                    });
+                }
                 ClientRequest::ReadChannel {
                     req_id,
                     channel,

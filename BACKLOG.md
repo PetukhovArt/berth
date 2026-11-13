@@ -187,5 +187,12 @@ Third slice, shared context:
 - Bridge to the company messenger: attention events and task notes go out to the chat the team
   already uses (OpenClaw: `docs/cli/message.md`).
 
+Built so far (#51): presence only. Every 15 seconds the Daemon (`crates/berth-daemon/src/presence.rs`)
+tells the hub which of its running Agents are on which Channel, matched by the Channel key inside the
+Worktree's branch name; the hub keeps that in memory for 45 seconds (`crates/berth-hub/src/presence.rs`,
+`GET /presence`) and the Channel view shows it above the messages. Still missing: the other four
+items above, a presence line for a person who has the app open but no Session, and matching by a
+Task note key rather than the branch name.
+
 Keep the event shape close to Buzz (a numeric kind, an author, a channel, tags) so a Buzz relay can
 replace the hub if the team outgrows it.

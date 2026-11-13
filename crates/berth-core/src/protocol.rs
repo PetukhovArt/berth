@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 51;
+pub const PROTOCOL_VERSION: u32 = 52;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -471,6 +471,11 @@ pub enum ClientRequest {
         agent: Option<AgentId>,
     },
 
+    GetChannelPresence {
+        req_id: u64,
+        channel: String,
+    },
+
     Shutdown,
 }
 
@@ -857,6 +862,18 @@ pub enum ServerEvent {
         req_id: u64,
         events: Vec<ChannelEvent>,
     },
+
+    ChannelPresence {
+        req_id: u64,
+        here: Vec<ChannelPresent>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChannelPresent {
+    pub member: String,
+    pub name: String,
+    pub agents: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

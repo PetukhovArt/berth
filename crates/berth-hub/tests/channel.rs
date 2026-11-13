@@ -121,3 +121,45 @@ async fn a_mention_reaches_only_the_owner_of_that_agent_and_counts_the_agent_cha
     bob.post("PROJ-12", "@agent-a human again", None).await.unwrap();
     assert_eq!(ann.mentions(0).await.unwrap().last().unwrap().chain, 0);
 }
+
+#[tokio::test]
+async fn presence_shows_who_runs_sessions_on_a_task_and_expires() {
+    let dir = tempfile::tempdir().unwrap();
+    let hub = berth_hub::serve_with_ttl(
+        &dir.path().join("hub.db"),
+        "127.0.0.1:0".parse().unwrap(),
+        Some("admin-secret".into()),
+        std::time::Duration::from_millis(400),
+    )
+    .await
+    .unwrap();
+    let url = format!("http://{}", hub.addr);
+    let (_a, ann) = person(&url, "ann", &["read", "post", "create"]).await;
+    let (bob_id, bob) = person(&url, "bob", &["read", "post"]).await;
+    let (_c, carol) = person(&url, "carol", &["read", "post"]).await;
+    ann.create_channel("PROJ-12").await.unwrap();
+    ann.add_member("PROJ-12", &bob_id).await.unwrap();
+
+    let on = |agents: &[&str]| {
+        std::collections::HashMap::from([(
+            "PROJ-12".to_string(),
+            agents.iter().map(|a| a.to_string()).collect::<Vec<_>>(),
+        )])
+    };
+    ann.report_presence(&on(&["agent-1", "agent-2"])).await.unwrap();
+    carol.report_presence(&on(&["agent-9"])).await.unwrap();
+
+    let here = bob.presence("PROJ-12").await.unwrap();
+    assert_eq!(here.len(), 1);
+    assert_eq!(here[0].name, "ann");
+    assert_eq!(here[0].agents, ["agent-1", "agent-2"]);
+    assert!(carol.presence("PROJ-12").await.is_err());
+
+    ann.report_presence(&on(&[])).await.unwrap();
+    assert!(bob.presence("PROJ-12").await.unwrap().is_empty());
+
+    ann.report_presence(&on(&["agent-1"])).await.unwrap();
+    assert_eq!(bob.presence("PROJ-12").await.unwrap().len(), 1);
+    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+    assert!(bob.presence("PROJ-12").await.unwrap().is_empty());
+}
