@@ -368,7 +368,6 @@ export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly 
   const filtering = query.trim().length > 0;
   const pruned = filtering || liveOnly;
   const placed = place(sources);
-  const editable = tab === 'sessions';
   const projectRollup = (project: ProjectNode) => liveRollup(sessionsOf(project), placed.ofProject.get(project.id) ?? [], placed.linked);
   const kinds = reviewKinds(sources);
   const wanted = (item: InboxItem) => (tab === 'reviews' ? kinds.has(itemId(item)) : tab === 'mrs' ? !kinds.has(itemId(item)) : true);
@@ -391,7 +390,6 @@ export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly 
         return [{ id: `s|pr:${project.id}`, kind: 'project', label: project.name, icon: pin ? Pin : Folder, iconOpen: pin ? Pin : FolderOpen, children: worktrees, ...sessionsCount(rollup), data: { projectId: project.id, rollup } }];
       });
       if (pruned && !children.length) return [];
-      if (editable && !pruned) children.push({ id: `add-project:${workspace.id}`, kind: 'add-project', label: '', custom: true, inert: true, data: { workspaceId: workspace.id } });
       if (sources.workspaces.length === 1) return children;
       const rollup = liveRollup(
         workspace.projects.flatMap(sessionsOf),

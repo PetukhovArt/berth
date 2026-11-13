@@ -66,13 +66,6 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
 const showFilter = shallowRef(false);
 const projectAdd = useTemplateRef<InstanceType<typeof ProjectActions>>('projectAdd');
 const addWorkspaceId = computed(() => berth?.tree.value[0]?.id);
-const listNodes = computed(() => withoutAddRows(nodes.value));
-
-function withoutAddRows(list: WorkNode[]): WorkNode[] {
-  return list
-    .filter((node) => node.kind !== 'add-project')
-    .map((node) => (node.children ? { ...node, children: withoutAddRows(node.children) } : node));
-}
 
 function toggleFilter() {
   if (showFilter.value) treeQuery.value = '';
@@ -148,7 +141,7 @@ function toggleFilter() {
       </div>
       <ProjectActions v-if="activeTab === 'sessions' && addWorkspaceId" ref="projectAdd" :workspace-id="addWorkspaceId" bare />
       <ExplorerTree
-        :nodes="listNodes"
+        :nodes="nodes"
         :storage-key="`berth.tree.expanded.${activeTab}`"
         :label="t('workbench.tree')"
         :selected="selected"
