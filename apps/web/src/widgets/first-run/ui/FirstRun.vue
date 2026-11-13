@@ -70,14 +70,14 @@ onMounted(() => {
 
 .heading {
   margin: 0;
-  font-size: var(--vr-font-size-xl);
+  font-size: var(--vr-font-size-display);
   font-weight: 600;
   color: var(--vr-color-text);
 }
 
 .lead {
   margin: 0;
-  font-size: var(--vr-font-size-md);
+  font-size: var(--vr-font-size-sm);
   color: var(--vr-color-text-muted);
 }
 

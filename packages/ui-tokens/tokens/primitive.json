@@ -24,7 +24,7 @@
   },
   "space": {
     "$type": "dimension",
-    "1": { "$value": "4px" }, "2": { "$value": "8px" }, "3": { "$value": "12px" }, "4": { "$value": "16px" }, "5": { "$value": "20px" }, "6": { "$value": "24px" }
+    "1": { "$value": "4px" }, "2": { "$value": "8px" }, "3": { "$value": "12px" }, "4": { "$value": "16px" }, "5": { "$value": "20px" }, "6": { "$value": "24px" }, "8": { "$value": "32px" }
   },
   "breakpoint": {
     "$type": "dimension",
@@ -43,7 +43,7 @@
     "mono": { "$type": "fontFamily", "$value": "'JetBrains Mono', Consolas, monospace" },
     "size": {
       "$type": "dimension",
-      "2xs": { "$value": "11px" }, "xs": { "$value": "12px" }, "sm": { "$value": "14px" }, "base": { "$value": "16px" }, "lg": { "$value": "18px" }, "xl": { "$value": "20px" }
+      "2xs": { "$value": "11px" }, "xs": { "$value": "12px" }, "sm": { "$value": "14px" }, "base": { "$value": "16px" }, "lg": { "$value": "18px" }, "xl": { "$value": "20px" }, "display": { "$value": "26px" }
     },
     "leading": {
       "message": { "$value": "20px" }, "author": { "$value": "16px" }
