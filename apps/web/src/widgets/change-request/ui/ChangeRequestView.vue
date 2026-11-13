@@ -5,17 +5,17 @@ import { ArrowRight, ExternalLink, GitMerge, GitPullRequest, GitPullRequestClose
 import { VButton } from '../../../shared/ui/kit';
 import { forgeChangeRequest, openUrl, type ChangeRequest, type Discussion } from '../../../shared/api/connectors/api';
 import PersonAvatar from '../../../shared/ui/PersonAvatar.vue';
-import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useScope, visibleInterval } from '../../../shared/lib/scope';
 import { ArchitectureAction } from '../../../features/architecture';
 import { MrSessionNotice, OpenInSessionAction, mrRuns } from '../../../features/open-in-session';
 import { RepoActions } from '../../../features/manage-workspace';
 import { itemId, fullDate, numberLabel, pipelineLabel, relativeTime, PipelineIcon } from '../../../entities/merge-request';
-import { CommentComposer, DiffView, ThreadView } from '../../../features/diff-review';
+import { DiffView } from '../../../features/diff-review';
 import { createChangeRequest } from '../model/changeRequest';
 import { provideChangeRequest } from '../model/change-request-scope';
 import PipelineJobs from './PipelineJobs.vue';
+import ChangeRequestOverview from './ChangeRequestOverview.vue';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ connector: string; project: string; number: number; panel?: DockviewPanelApi }>();
@@ -25,12 +25,10 @@ const STATE_KEY = { open: 'forge.request.state.open', merged: 'forge.request.sta
 const scope = useScope();
 const store = createChangeRequest(() => ({ connector: props.connector, project: props.project, number: props.number }), scope);
 provideChangeRequest(store);
-const { target, cr, discussions, pipeline, files, loading, failure, sideFailure, diffLoading, diffFailure, diffLoaded, tab, pipelineOpen, commentDraft, commenting, commentError, generation, load, selectTab, upsertDiscussion, sendComment } = store;
+const { target, cr, discussions, pipeline, files, loading, failure, sideFailure, diffLoading, diffFailure, diffLoaded, tab, pipelineOpen, generation, load, selectTab } = store;
 const diffRef = useTemplateRef<InstanceType<typeof DiffView>>('diff');
 
 const unresolved = computed(() => discussions.value.filter((d) => d.resolvable && !d.resolved).length);
-const conversation = computed(() => discussions.value.filter((d) => d.notes.some((n) => !n.system)));
-const anchored = computed(() => discussions.value.some((d) => d.position));
 const sessionRun = computed(() => mrRuns.value.get(itemId(target.value)));
 
 const pendingThread = shallowRef<string | null>(null);
@@ -141,27 +139,7 @@ onMounted(() => {
         <UiButton class="tab" role="tab" :aria-selected="tab === 'pipeline'" data-testid="cr-tab-pipeline" @click="selectTab('pipeline')">{{ t('forge.request.tabPipeline') }}</UiButton>
       </nav>
 
-      <div v-show="tab === 'overview'" class="pane scroll" data-testid="cr-overview">
-        <RichContent v-if="cr.description.trim()" :markdown="cr.description" :connector="connector" variant="document" />
-        <p v-else class="muted">{{ t('forge.request.noDescription') }}</p>
-
-        <h3 v-if="conversation.length" class="section">{{ t('forge.request.discussions') }} <span class="count">{{ conversation.length }}</span></h3>
-        <div class="threads">
-          <ThreadView v-for="d in conversation" :key="d.id" :discussion="d" :connector="connector" :target="target" show-position @goto="gotoThread" @update="upsertDiscussion" />
-        </div>
-        <CommentComposer
-          v-model="commentDraft"
-          class="new-comment"
-          testid="cr-comment"
-          :busy="commenting"
-          :error="commentError"
-          :placeholder="t('forge.composer.commentPlaceholder')"
-          :label="t('forge.composer.comment')"
-          @send="sendComment"
-          @cancel="commentError = null"
-        />
-        <p v-if="anchored" class="hint muted vr-key-hint">{{ t('forge.request.keysHint') }}</p>
-      </div>
+      <ChangeRequestOverview v-show="tab === 'overview'" :connector="connector" :request="cr" @goto="gotoThread" />
 
       <div v-if="tab === 'diff' || diffLoaded" v-show="tab === 'diff'" class="pane" data-testid="cr-diff">
         <p v-if="diffFailure" class="failure" role="alert">{{ diffFailure }}</p>
@@ -413,31 +391,6 @@ code {
 .pane.scroll {
   padding: var(--vr-space-4);
   overflow: auto;
-}
-
-.section {
-  margin: var(--vr-space-5) 0 var(--vr-space-2);
-  font-size: var(--vr-font-size-sm);
-}
-
-.count {
-  color: var(--vr-color-text-muted);
-  font-weight: 400;
-}
-
-.threads {
-  display: flex;
-  flex-direction: column;
-  gap: var(--vr-space-2);
-}
-
-.new-comment {
-  margin-top: var(--vr-space-3);
-}
-
-.hint {
-  margin: var(--vr-space-4) 0 0;
-  font-size: var(--vr-font-size-xs);
 }
 
 .pipeline-head {
