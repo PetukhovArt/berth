@@ -84,6 +84,27 @@ mod unix_transport {
     pub async fn connect() -> io::Result<Stream> {
         tokio::net::UnixStream::connect(endpoint_path()).await
     }
+
+    pub struct Forward {
+        path: std::path::PathBuf,
+    }
+
+    impl Forward {
+        pub fn new(scratch: &std::path::Path) -> io::Result<Self> {
+            std::fs::create_dir_all(scratch)?;
+            let path = scratch.join("forward.sock");
+            let _ = std::fs::remove_file(&path);
+            Ok(Self { path })
+        }
+
+        pub fn ssh_spec(&self) -> String {
+            self.path.display().to_string()
+        }
+
+        pub async fn connect(&self) -> io::Result<Stream> {
+            tokio::net::UnixStream::connect(&self.path).await
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -178,6 +199,29 @@ mod windows_transport {
         Ok(stream)
     }
 
+    pub struct Forward {
+        port: u16,
+    }
+
+    impl Forward {
+        pub fn new(_scratch: &std::path::Path) -> io::Result<Self> {
+            let probe = std::net::TcpListener::bind(("127.0.0.1", 0))?;
+            Ok(Self {
+                port: probe.local_addr()?.port(),
+            })
+        }
+
+        pub fn ssh_spec(&self) -> String {
+            format!("127.0.0.1:{}", self.port)
+        }
+
+        pub async fn connect(&self) -> io::Result<Stream> {
+            let stream = tokio::net::TcpStream::connect(("127.0.0.1", self.port)).await?;
+            let _ = stream.set_nodelay(true);
+            Ok(stream)
+        }
+    }
+
     /// The ENDPOINT FILE is rewritten, not appended: a shorter token must not
     /// leave the tail of a longer one behind for a client to read.
     fn write_endpoint_file(port: u16, token: &str) -> io::Result<()> {
@@ -241,6 +285,17 @@ mod windows_transport {
                     "token {presented:?}"
                 );
             }
+        }
+
+        #[tokio::test]
+        async fn a_forward_connects_to_the_port_it_names() {
+            let forward = Forward::new(std::path::Path::new("")).unwrap();
+            let listener = tokio::net::TcpListener::bind(forward.ssh_spec())
+                .await
+                .unwrap();
+            let (client, accepted) = tokio::join!(forward.connect(), listener.accept());
+            client.unwrap();
+            accepted.unwrap();
         }
 
         #[test]

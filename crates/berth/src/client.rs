@@ -868,6 +868,16 @@ pub fn run_workspace(op: WorkspaceOp) -> Result<()> {
     runtime()?.block_on(run_workspace_op(op))
 }
 
+pub fn run_socket() -> Result<()> {
+    runtime()?.block_on(async {
+        if let Err(error) = connect_or_spawn().await {
+            try_connect().await.map_err(|_| error)?;
+        }
+        println!("{}", transport::endpoint_description());
+        Ok(())
+    })
+}
+
 /// `berth kill`.
 pub fn run_kill() -> Result<()> {
     runtime()?.block_on(async {

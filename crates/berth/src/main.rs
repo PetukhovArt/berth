@@ -55,6 +55,10 @@ enum Command {
     },
     /// Ask a running daemon to shut down cleanly.
     Kill,
+    #[command(
+        about = "Start the daemon when none runs and print its socket path (the desktop app runs this over ssh)"
+    )]
+    Socket,
     /// Title this session (run from inside a berth agent session; agents
     /// use it to auto-title on the first prompt).
     Rename {
@@ -190,6 +194,7 @@ fn main() -> Result<()> {
         }) => sessions::run_send(session, text.join(" "), !no_enter),
         Some(Command::Mcp) => mcp::run_mcp(),
         Some(Command::Kill) => client::run_kill(),
+        Some(Command::Socket) => client::run_socket(),
         Some(Command::Rename { title, force }) => {
             let mode = if force {
                 client::RenameMode::Force

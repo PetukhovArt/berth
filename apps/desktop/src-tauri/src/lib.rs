@@ -20,6 +20,7 @@ mod review;
 pub mod rpc;
 pub mod settings;
 pub mod sink;
+pub mod ssh_remote;
 pub mod stratum;
 pub mod tailscale;
 #[cfg(feature = "desktop")]

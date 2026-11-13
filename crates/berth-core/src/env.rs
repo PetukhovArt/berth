@@ -31,6 +31,7 @@ pub const CLOUD_MIRROR_SECS: &str = "BERTH_CLOUD_MIRROR_SECS";
 pub const LOG: &str = "BERTH_LOG";
 /// Overrides the install script URL `berth upgrade` / `berth ssh` fetch.
 pub const INSTALL_URL: &str = "BERTH_INSTALL_URL";
+pub const REMOTE: &str = "BERTH_REMOTE";
 /// Editor command the file modals open, ahead of the config's `editor`.
 pub const EDITOR: &str = "BERTH_EDITOR";
 

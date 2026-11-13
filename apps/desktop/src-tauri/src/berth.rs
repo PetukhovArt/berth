@@ -501,7 +501,12 @@ impl Actor {
         let inbox = self.inbox.clone();
         let epoch = self.epoch;
         self.spawn(async move {
-            let event = match tokio::time::timeout(HANDSHAKE_TIMEOUT, handshake()).await {
+            let timeout = if crate::ssh_remote::target().is_some() {
+                crate::ssh_remote::HANDSHAKE_TIMEOUT
+            } else {
+                HANDSHAKE_TIMEOUT
+            };
+            let event = match tokio::time::timeout(timeout, handshake()).await {
                 Ok(Ok(stream)) => LinkEvent::Up(stream),
                 Ok(Err(failure)) => LinkEvent::Failed(failure),
                 Err(_) => {
@@ -616,6 +621,9 @@ impl Actor {
     }
 
     fn start_daemon(&mut self, failure: &Failure) -> Option<io::Error> {
+        if crate::ssh_remote::target().is_some() {
+            return None;
+        }
         if let Failure::Incompatible(daemon) = failure {
             self.update_daemon(*daemon);
             return None;
@@ -739,7 +747,11 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
 
 async fn handshake() -> Result<Stream, Failure> {
     DAEMON_PROTOCOL.store(0, Ordering::Relaxed);
-    let mut stream = transport::connect().await.map_err(Failure::unreachable)?;
+    let mut stream = match crate::ssh_remote::target() {
+        Some(target) => crate::ssh_remote::connect(&target).await,
+        None => transport::connect().await,
+    }
+    .map_err(Failure::unreachable)?;
     write_frame(
         &mut stream,
         &ClientRequest::Hello {

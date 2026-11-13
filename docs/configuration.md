@@ -76,6 +76,21 @@ your editor; hand edits apply while the app runs. `BERTH_HOME` moves the directo
 | `BERTH_INSTALL_URL` | install-script URL used by `berth upgrade` |
 | `BERTH_INSTALL_DIR` | install destination for `install.sh` (default `~/.local/bin`) |
 | `BERTH_HOME` | the desktop app's settings directory (default `~/.berth`) |
+| `BERTH_REMOTE` | `ssh` destination of another machine; the desktop app shows that machine's Daemon instead of the local one (see below) |
+
+### Berth on another machine
+
+Set `BERTH_REMOTE=user@host` (or a `Host` name from your ssh config) in the environment the desktop app
+starts from, then restart the app. The app runs your own `ssh` binary twice: once to start the Daemon on
+the server and learn its socket (`berth socket`), installing berth with `install.sh` first when the
+server has none, and once as a `-L` forward from a local port or socket to that Daemon socket. berth
+stores no ssh credentials. Login must work without a prompt (`BatchMode`): an ssh key, agent or
+certificate, and a host key already in `known_hosts`.
+
+The server must be a Linux or macOS machine. Sessions, terminals and their output come from the server;
+what the app does on the local disk (opening files, git, worktree cleanup) still looks at this machine's
+paths. A server whose berth is older than the app shows as incompatible: run `berth upgrade` there.
+Unset the variable to go back to the local Daemon.
 
 Agent PTYs additionally carry `BERTH_AGENT_ID`, `BERTH_API_URL` and `BERTH_API_TOKEN` so hooks and
 `berth rename` / `worktree` / `enter` / `spawn` can find their own session. They are scrubbed from plain
