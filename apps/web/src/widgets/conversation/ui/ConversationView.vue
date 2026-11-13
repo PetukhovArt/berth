@@ -9,6 +9,7 @@ import { UiButton } from '../../../shared/ui/UiButton';
 import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { useHoldToTalk, type HoldToTalkIssue } from '../model/useHoldToTalk';
+import { useVoiceLoop } from '../model/useVoiceLoop';
 
 const TAIL = 200;
 const PIN_PX = 48;
@@ -121,31 +122,55 @@ async function send() {
   await submit(draft.value.trim(), true);
 }
 
-async function submit(text: string, clearDraft: boolean) {
-  if (!props.terminal || !text || sending.value) return;
+async function submit(text: string, clearDraft: boolean): Promise<boolean> {
+  if (!props.terminal || !text || sending.value) return false;
   sending.value = true;
   try {
     await sendInput(props.terminal, `\x1b[200~${text}\x1b[201~`);
     await sendInput(props.terminal, '\r');
     if (clearDraft) draft.value = '';
+    return true;
   } catch (e) {
     error.value = describeError(e);
+    return false;
   } finally {
     sending.value = false;
   }
 }
 
 const ISSUES: Record<HoldToTalkIssue, 'chatTalkDenied' | 'chatTalkShort' | 'chatTalkEmpty' | 'chatTalkFailed'> = { denied: 'chatTalkDenied', short: 'chatTalkShort', empty: 'chatTalkEmpty', failed: 'chatTalkFailed' };
+const voice = useVoiceLoop({
+  messages: () => messages.value,
+  lang: () => (document.documentElement.lang === 'ru' ? 'ru-RU' : 'en-US'),
+  listen: () => talk.listen(),
+  stop: () => talk.stopListening(),
+  listening: () => talk.holding.value,
+});
 const talk = useHoldToTalk({
   lang: () => (document.documentElement.lang === 'ru' ? 'ru-RU' : 'en-US'),
-  onSend: (text) => submit(text, false),
+  onSend: async (text) => {
+    voice.sent();
+    if (!(await submit(text, false))) voice.unsent();
+  },
+  onSpeech: () => voice.onSpeech(),
+  onSettled: () => voice.onSettled(),
   onIssue: (issue) => {
+    if (voice.active.value && (issue === 'denied' || issue === 'failed')) voice.end();
     notice.value = t(`agents.sessionView.${ISSUES[issue]}`);
     clearTimeout(noticeTimer);
     noticeTimer = setTimeout(() => (notice.value = ''), NOTICE_MS);
   },
 });
 const showTalk = computed(() => phone.value && talk.supported);
+const showVoice = computed(() => showTalk.value && voice.supported);
+const voiceStatus = computed(() => {
+  if (voice.phase.value === 'wait') return t('agents.sessionView.chatVoiceWaiting');
+  if (voice.phase.value === 'speak') return t('agents.sessionView.chatVoiceSpeaking');
+  if (voice.muted.value) return t('agents.sessionView.chatVoiceMuted');
+  return talk.transcript.value || t('agents.sessionView.chatVoiceListening');
+});
+
+watch(messages, () => voice.transcriptChanged());
 
 function onKey(event: KeyboardEvent) {
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
@@ -236,10 +261,16 @@ onBeforeUnmount(() => {
       <UiButton v-for="(option, index) in request.options" v-else :key="index" type="button" class="feedback-action" data-testid="feedback-option" @click="chooseOption(terminal, index)">{{ option }}</UiButton>
     </div>
     <form v-if="terminal" class="composer" data-testid="chat-composer" @submit.prevent="send">
-      <p v-if="talk.holding.value || notice" class="talk-note" :data-cancelling="talk.cancelling.value || undefined" data-testid="chat-talk-note" role="status">{{ talk.holding.value ? talk.transcript.value || t('agents.sessionView.chatTalkListening') : notice }}{{ talk.holding.value ? ' ' + t('agents.sessionView.chatTalkHint') : '' }}</p>
-      <UiTextarea v-model="draft" class="input" rows="2" :placeholder="t('agents.sessionView.chatPlaceholder')" :aria-label="t('agents.sessionView.chatPlaceholder')" data-testid="chat-input" @keydown="onKey" />
-      <VButton size="small" type="submit" :disabled="!draft.trim()" :loading="sending" data-testid="chat-send">{{ t('agents.sessionView.chatSend') }}</VButton>
-      <UiButton v-if="showTalk" type="button" class="talk" :data-holding="talk.holding.value || undefined" :data-cancelling="talk.cancelling.value || undefined" :aria-label="t('agents.sessionView.chatTalk')" :title="t('agents.sessionView.chatTalk')" data-testid="chat-talk" @pointerdown="talk.start" @pointermove="talk.move" @pointerup="talk.release" @pointercancel="talk.release" @contextmenu.prevent><Mic :size="20" /></UiButton>
+      <div v-if="voice.active.value" class="voice" data-testid="chat-voice" :data-phase="voice.phase.value" role="status">
+        <span class="voice-text" data-testid="chat-voice-status">{{ voiceStatus }}</span>
+        <UiButton type="button" class="voice-action" data-testid="chat-voice-mute" @click="voice.toggleMute">{{ voice.muted.value ? t('agents.sessionView.chatVoiceUnmute') : t('agents.sessionView.chatVoiceMute') }}</UiButton>
+        <UiButton type="button" class="voice-action voice-end" data-testid="chat-voice-end" @click="voice.end">{{ t('agents.sessionView.chatVoiceEnd') }}</UiButton>
+      </div>
+      <p v-else-if="talk.holding.value || notice" class="talk-note" :data-cancelling="talk.cancelling.value || undefined" data-testid="chat-talk-note" role="status">{{ talk.holding.value ? talk.transcript.value || t('agents.sessionView.chatTalkListening') : notice }}{{ talk.holding.value ? ' ' + t('agents.sessionView.chatTalkHint') : '' }}</p>
+      <UiTextarea v-if="!voice.active.value" v-model="draft" class="input" rows="2" :placeholder="t('agents.sessionView.chatPlaceholder')" :aria-label="t('agents.sessionView.chatPlaceholder')" data-testid="chat-input" @keydown="onKey" />
+      <VButton v-if="!voice.active.value" size="small" type="submit" :disabled="!draft.trim()" :loading="sending" data-testid="chat-send">{{ t('agents.sessionView.chatSend') }}</VButton>
+      <UiButton v-if="showVoice && !voice.active.value" type="button" class="voice-start" data-testid="chat-voice-start" @click="voice.start">{{ t('agents.sessionView.chatVoiceStart') }}</UiButton>
+      <UiButton v-if="showTalk && !voice.active.value" type="button" class="talk" :data-holding="talk.holding.value || undefined" :data-cancelling="talk.cancelling.value || undefined" :aria-label="t('agents.sessionView.chatTalk')" :title="t('agents.sessionView.chatTalk')" data-testid="chat-talk" @pointerdown="talk.start" @pointermove="talk.move" @pointerup="talk.release" @pointercancel="talk.release" @contextmenu.prevent><Mic :size="20" /></UiButton>
     </form>
   </section>
 </template>
@@ -482,6 +513,39 @@ onBeforeUnmount(() => {
   margin: 0;
   font-size: var(--vr-font-size-sm);
   color: var(--vr-color-text-muted);
+}
+
+.voice {
+  display: flex;
+  flex: 0 0 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vr-space-2);
+}
+
+.voice-text {
+  flex: 1 1 100%;
+  font-size: var(--vr-font-size-sm);
+  color: var(--vr-color-text-muted);
+}
+
+.voice-action,
+.voice-start {
+  height: var(--vr-size-row);
+  padding: 0 var(--vr-space-4);
+  font: inherit;
+  font-size: var(--vr-font-size-sm);
+  color: var(--vr-color-text);
+  cursor: pointer;
+  background: var(--vr-color-surface-muted);
+  border: none;
+  border-radius: var(--vr-radius-full);
+}
+
+.voice-end {
+  font-weight: 600;
+  color: var(--vr-color-accent-contrast);
+  background: var(--vr-color-accent);
 }
 
 .talk-note[data-cancelling] {

@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Added a hold-to-talk microphone button to the Chat view on a phone: hold it, speak, release to send the transcript to the Agent, slide away to cancel (#32).
+- Added a Hands-free button to the Chat view on a phone: berth listens, a pause sends your turn, the Agent's reply is read aloud without code, then it listens again until you press End voice (#33).
 - Added `BERTH_REMOTE=user@host`, which makes the desktop app show the Sessions of a Daemon on another machine over an ssh tunnel and install berth there when it is missing (#42).
 - Added a Watch button on a merge request in the desktop app: while it is on, a failed pipeline, a new thread or a conflict with the target branch types a prompt into the Agent working on that branch, and Stop turns it off (#23).
 - Added an overlap chip in the session header of the desktop app that names the other Agents in the same Project changing files in the same module (#39).

@@ -23,6 +23,7 @@ type RecognitionCtor = new () => Recognition;
 
 const CANCEL_SLIDE_PX = 80;
 const MIN_HOLD_MS = 400;
+const PAUSE_MS = 1600;
 
 function recognitionCtor(): RecognitionCtor | null {
   const scope = window as unknown as { SpeechRecognition?: RecognitionCtor; webkitSpeechRecognition?: RecognitionCtor };
@@ -31,7 +32,7 @@ function recognitionCtor(): RecognitionCtor | null {
 
 export type HoldToTalkIssue = 'denied' | 'short' | 'empty' | 'failed';
 
-export function useHoldToTalk(options: { lang: () => string; onSend: (text: string) => void | Promise<void>; onIssue: (issue: HoldToTalkIssue) => void }) {
+export function useHoldToTalk(options: { lang: () => string; onSend: (text: string) => void | Promise<void>; onIssue: (issue: HoldToTalkIssue) => void; onSpeech?: () => void; onSettled?: () => void }) {
   const supported = recognitionCtor() !== null;
   const holding = shallowRef(false);
   const cancelling = shallowRef(false);
@@ -43,8 +44,11 @@ export function useHoldToTalk(options: { lang: () => string; onSend: (text: stri
   let released = false;
   let aborted = false;
   let failure: HoldToTalkIssue | null = null;
+  let handsFree = false;
+  let pauseTimer: ReturnType<typeof setTimeout> | undefined;
 
   function reset() {
+    clearTimeout(pauseTimer);
     holding.value = false;
     cancelling.value = false;
     transcript.value = '';
@@ -56,20 +60,20 @@ export function useHoldToTalk(options: { lang: () => string; onSend: (text: stri
     const issue = failure;
     const cancel = aborted;
     const heldFor = Date.now() - startedAt;
+    const free = handsFree;
     reset();
     if (cancel) return;
-    if (issue) return options.onIssue(issue);
-    if (heldFor < MIN_HOLD_MS && !text) return options.onIssue('short');
-    if (!text) return options.onIssue('empty');
-    void options.onSend(text);
+    if (issue) options.onIssue(issue);
+    else if (!text) {
+      if (!free) options.onIssue(heldFor < MIN_HOLD_MS ? 'short' : 'empty');
+    } else void options.onSend(text);
+    options.onSettled?.();
   }
 
-  function start(event: PointerEvent) {
+  function begin(free: boolean) {
     const Ctor = recognitionCtor();
     if (!Ctor || holding.value) return;
-    event.preventDefault();
-    (event.currentTarget as HTMLElement | null)?.setPointerCapture(event.pointerId);
-    origin = { x: event.clientX, y: event.clientY };
+    handsFree = free;
     startedAt = Date.now();
     finalText = '';
     released = false;
@@ -82,6 +86,7 @@ export function useHoldToTalk(options: { lang: () => string; onSend: (text: stri
     next.continuous = true;
     next.interimResults = true;
     next.onresult = (e) => {
+      options.onSpeech?.();
       let interim = '';
       for (let i = e.resultIndex; i < e.results.length; i += 1) {
         const result = e.results[i]!;
@@ -89,6 +94,15 @@ export function useHoldToTalk(options: { lang: () => string; onSend: (text: stri
         else interim += result[0].transcript;
       }
       transcript.value = interim;
+      if (handsFree) {
+        clearTimeout(pauseTimer);
+        pauseTimer = setTimeout(() => {
+          if (recognition !== next || !(finalText || transcript.value)) return;
+          released = true;
+          holding.value = false;
+          next.stop();
+        }, PAUSE_MS);
+      }
     };
     next.onerror = (e) => {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') failure = 'denied';
@@ -106,6 +120,25 @@ export function useHoldToTalk(options: { lang: () => string; onSend: (text: stri
       failure = 'failed';
       finish();
     }
+  }
+
+  function start(event: PointerEvent) {
+    if (!recognitionCtor() || holding.value) return;
+    event.preventDefault();
+    (event.currentTarget as HTMLElement | null)?.setPointerCapture(event.pointerId);
+    origin = { x: event.clientX, y: event.clientY };
+    begin(false);
+  }
+
+  function listen() {
+    begin(true);
+  }
+
+  function stopListening() {
+    if (!recognition) return;
+    aborted = true;
+    recognition.abort();
+    finish();
   }
 
   function move(event: PointerEvent) {
@@ -131,5 +164,5 @@ export function useHoldToTalk(options: { lang: () => string; onSend: (text: stri
     recognition?.abort();
   });
 
-  return { supported, holding, cancelling, transcript, start, move, release };
+  return { supported, holding, cancelling, transcript, start, move, release, listen, stopListening };
 }
