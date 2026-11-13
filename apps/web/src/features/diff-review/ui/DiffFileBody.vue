@@ -132,12 +132,13 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
   min-width: max-content;
   font-family: var(--vr-font-mono);
   font-size: var(--vr-font-size-xs);
-  line-height: 20px;
+  line-height: 21px;
+  background: var(--vr-color-surface-sunken);
 }
 
 .lines.split {
   display: grid;
-  grid-template-columns: 52px minmax(calc(50cqw - 52px), max-content) 52px minmax(calc(50cqw - 52px), max-content);
+  grid-template-columns: 44px minmax(calc(50cqw - 44px), max-content) 44px minmax(calc(50cqw - 44px), max-content);
   width: max-content;
   min-width: 0;
 }
@@ -149,9 +150,9 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
 
 .hunk {
   padding: 0 var(--vr-space-3);
-  color: var(--vr-color-text-muted);
+  color: var(--vr-status-running);
   white-space: pre;
-  background: var(--vr-color-chip-bg);
+  background: var(--vr-tint-running);
 }
 
 .hunk.meta {
@@ -161,28 +162,36 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
 
 .line {
   display: grid;
-  grid-template-columns: 52px 52px 16px 1fr;
+  grid-template-columns: 44px 44px 18px 1fr;
 }
 
 .line[data-kind='add'] {
-  background: color-mix(in srgb, var(--vr-color-success) 14%, transparent);
+  background: var(--vr-diff-add);
 }
 
 .line[data-kind='del'] {
-  background: color-mix(in srgb, var(--vr-color-danger) 14%, transparent);
+  background: var(--vr-diff-del);
 }
 
 .num {
   padding: 0 var(--vr-space-2);
-  color: var(--vr-color-text-muted);
+  color: var(--vr-term-dim);
   text-align: right;
   user-select: none;
 }
 
 .sign {
-  color: var(--vr-color-text-muted);
+  color: var(--vr-term-dim);
   text-align: center;
   user-select: none;
+}
+
+.line[data-kind='add'] .sign {
+  color: var(--vr-color-success);
+}
+
+.line[data-kind='del'] .sign {
+  color: var(--vr-color-danger);
 }
 
 .code {
@@ -195,11 +204,11 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
 }
 
 .split-line [data-kind='add'] {
-  background: color-mix(in srgb, var(--vr-color-success) 14%, transparent);
+  background: var(--vr-diff-add);
 }
 
 .split-line [data-kind='del'] {
-  background: color-mix(in srgb, var(--vr-color-danger) 14%, transparent);
+  background: var(--vr-diff-del);
 }
 
 .split-line .code + .num {
@@ -211,12 +220,12 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
 }
 
 .body[data-wrap='true'] .lines.split {
-  grid-template-columns: 52px minmax(0, 1fr) 52px minmax(0, 1fr);
+  grid-template-columns: 44px minmax(0, 1fr) 44px minmax(0, 1fr);
   width: auto;
 }
 
 .body[data-wrap='true'] .lines:not(.split) .line {
-  grid-template-columns: 52px 52px 16px minmax(0, 1fr);
+  grid-template-columns: 44px 44px 18px minmax(0, 1fr);
 }
 
 .body[data-wrap='true'] .code,

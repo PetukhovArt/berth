@@ -566,7 +566,7 @@ defineExpose({ focusThread, root });
   display: flex;
   flex: none;
   flex-direction: column;
-  width: 280px;
+  width: 260px;
   min-height: 0;
   border-right: 1px solid var(--vr-color-border);
 }
@@ -600,9 +600,10 @@ defineExpose({ focusThread, root });
 .tree-row {
   display: flex;
   align-items: center;
-  gap: var(--vr-space-1);
-  width: 100%;
-  min-height: calc(var(--vr-size-row) - 6px);
+  gap: 7px;
+  width: calc(100% - 12px);
+  min-height: 28px;
+  margin: 0 6px;
   padding-right: var(--vr-space-2);
   color: inherit;
   font: inherit;
@@ -610,6 +611,7 @@ defineExpose({ focusThread, root });
   text-align: left;
   background: none;
   border: none;
+  border-radius: var(--vr-radius-sm);
   cursor: pointer;
 }
 
@@ -691,9 +693,28 @@ defineExpose({ focusThread, root });
   flex-wrap: wrap;
   align-items: center;
   gap: var(--vr-space-3);
-  padding: var(--vr-space-1) var(--vr-space-3);
+  min-height: 40px;
+  box-sizing: border-box;
+  padding: 0 var(--vr-space-2) 0 var(--vr-space-3);
   font-size: var(--vr-font-size-xs);
   border-bottom: 1px solid var(--vr-color-border);
+}
+
+.toolbar > .group[role='group'] {
+  padding: 2px;
+  gap: 2px;
+  border-radius: 7px;
+  background: var(--vr-color-surface-muted);
+}
+
+.toolbar > .group[role='group'] .mode {
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 5px;
+}
+
+.toolbar > .group[role='group'] .mode[data-active='true'] {
+  background: var(--vr-color-surface);
 }
 
 .spacer {
@@ -735,6 +756,7 @@ defineExpose({ focusThread, root });
   flex: 1;
   min-height: 0;
   overflow: auto;
+  background: var(--vr-color-surface-sunken);
 }
 
 .empty {
@@ -743,9 +765,7 @@ defineExpose({ focusThread, root });
 }
 
 .file {
-  margin: var(--vr-space-3);
-  border: 1px solid var(--vr-color-border);
-  border-radius: var(--vr-radius-md);
+  border-bottom: 1px solid var(--vr-color-border);
 }
 
 .file-head {
@@ -755,16 +775,18 @@ defineExpose({ focusThread, root });
   display: flex;
   align-items: center;
   gap: var(--vr-space-2);
-  padding: var(--vr-space-1) var(--vr-space-3);
-  background: var(--vr-color-surface-muted);
-  border-radius: var(--vr-radius-md) var(--vr-radius-md) 0 0;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 var(--vr-space-3) 0 6px;
+  background: var(--vr-color-surface);
+  border-bottom: 1px solid var(--vr-color-border);
   cursor: pointer;
   user-select: none;
 }
 
 .chev {
   flex: none;
-  color: var(--vr-color-text-muted);
+  color: var(--vr-color-text-subtle);
 }
 
 .path {
