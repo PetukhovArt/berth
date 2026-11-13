@@ -3,4 +3,18 @@ export const attention = {
   finished: '{name} finished',
   crashed: '{name} stopped with an error',
   dismiss: 'Dismiss',
+  inbox: {
+    title: 'Inbox',
+    waiting: 'waiting for you',
+    finished: 'finished, not seen yet',
+    crashed: 'stopped with an error',
+    actions: 'Inbox actions',
+    snoozeHour: 'Snooze for 1 hour',
+    snoozeDay: 'Snooze until tomorrow',
+    settle: 'Settle',
+    now: 'now',
+    minutes: '{count} min',
+    hours: '{count} h',
+    days: '{count} d',
+  },
 } as const;

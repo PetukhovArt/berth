@@ -4,7 +4,8 @@ import { hostWindow, isDesktop } from '../../../bridge';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
 
-type Kind = 'waiting' | 'finished' | 'crashed';
+export type AttentionKind = 'waiting' | 'finished' | 'crashed';
+type Kind = AttentionKind;
 export type AttentionToast = { id: number; key: string; kind: Kind; text: string };
 
 const TOAST_MS = 8000;
@@ -24,12 +25,17 @@ export function openAttention(toast: Pick<AttentionToast, 'id' | 'key'>): void {
   void hostWindow.raise().catch(() => undefined);
 }
 
-function kindOf(previous: string | undefined, status: string, unseen: boolean): Kind | null {
-  if (previous === status) return null;
+export function attentionKindOf(status: string, unseen: boolean): Kind | null {
   if (status === 'needs_feedback') return 'waiting';
   if (status === 'terminated') return 'crashed';
-  if (status === 'finished' && unseen && previous === 'running') return 'finished';
+  if (status === 'finished' && unseen) return 'finished';
   return null;
+}
+
+function kindOf(previous: string | undefined, status: string, unseen: boolean): Kind | null {
+  if (previous === status) return null;
+  if (status === 'finished' && previous !== 'running') return null;
+  return attentionKindOf(status, unseen);
 }
 
 function notifyOs(toast: AttentionToast): void {

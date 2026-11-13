@@ -19,6 +19,7 @@ import { numberLabel, pipelineLabel, pipelineTone, itemId, WorktreeBadge, openRe
 import { t } from '../../../shared/lib/i18n/i18n';
 import ExplorerTree from '../../../shared/ui/explorer-tree/ExplorerTree.vue';
 import { useDock } from '../../../shared/model/dock';
+import { InboxSection } from '../../../features/attention';
 import { startCreate } from '../../../features/new-session';
 import { openLeaf, type ReviewMeta, type WorkNode, treeLiveOnly, treeQuery, treeTab, useWorkTree } from '../../../features/work-tree';
 
@@ -132,6 +133,7 @@ function toggleFilter() {
         <template #project="{ repo }"><RepoActions :repo="repo" /></template>
       </MrSessionNotice>
       <p v-for="error in errors" :key="`${error.connector}:${error.message}`" class="strip" role="alert" data-testid="tree-error" :title="error.message">{{ error.connector }}: {{ error.message }}</p>
+      <InboxSection v-if="activeTab === 'sessions' && !filtering" />
       <div v-if="activeTab === 'sessions'" class="section-head" data-testid="project-tree-head">
         <span class="section-title">{{ t('workbench.tree') }}</span>
         <span class="section-actions">
