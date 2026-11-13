@@ -59,6 +59,7 @@ export const agents: Translation<typeof en> = {
   },
   newSession: {
     title: 'Новая сессия',
+    acpProvider: '{name} (ACP)',
     project: 'Проект',
     target: 'Worktree',
     branch: 'Ветка',

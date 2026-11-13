@@ -63,6 +63,9 @@ impl Daemon {
         if has_control(text) {
             bail!("refusing control characters");
         }
+        if self.is_acp_agent(id) {
+            return self.acp_prompt(id, text).await;
+        }
         let sref = SessionRef::Agent(id.clone());
         let was_alive = self.is_alive(&sref);
         let session = self.ensure_session(&sref, DEFAULT_COLS, DEFAULT_ROWS)?;

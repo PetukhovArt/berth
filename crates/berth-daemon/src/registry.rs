@@ -552,7 +552,7 @@ impl Daemon {
             tracing::info!(session = ?sref, idle_secs = age.as_secs(), "reaping idle session");
             self.kill_session(&sref);
             let upsert = match &sref {
-                SessionRef::Agent(id) => self.agent_entity(id).map(Entity::Agent),
+                SessionRef::Agent(id) => self.agent_entity(id).map(|agent| Entity::Agent(Box::new(agent))),
                 SessionRef::Terminal(id) => self.terminal_entity(id).map(Entity::Terminal),
             };
             if let Ok(entity) = upsert {
@@ -631,7 +631,7 @@ impl Daemon {
     pub(crate) fn broadcast_agent(&self, id: &AgentId) -> Result<()> {
         let agent = self.agent_entity(id)?;
         self.broadcast(ServerEvent::EntityUpserted {
-            entity: Entity::Agent(agent),
+            entity: Entity::Agent(Box::new(agent)),
         });
         Ok(())
     }
@@ -1021,6 +1021,7 @@ impl Daemon {
             provider_error: None,
             routed_from: None,
             route_suggestion: None,
+            acp_provider: None,
         };
         self.store.insert_agent(&agent)?;
         // Claude only, like `relocation_prompt`: whether `codex resume` and
@@ -1047,7 +1048,7 @@ impl Daemon {
         let mut broadcast_agent = agent.clone();
         broadcast_agent.alive = true;
         self.broadcast(ServerEvent::EntityUpserted {
-            entity: Entity::Agent(broadcast_agent),
+            entity: Entity::Agent(Box::new(broadcast_agent)),
         });
         Ok(EntityId::Agent(agent.id))
     }
@@ -1250,6 +1251,7 @@ impl Daemon {
             provider_error: None,
             routed_from: None,
             route_suggestion: None,
+            acp_provider: None,
         };
         self.store
             .insert_agent_with_launch_context(&agent, auto_title, pr_url.as_deref())?;
@@ -1268,7 +1270,7 @@ impl Daemon {
         let mut broadcast_agent = agent.clone();
         broadcast_agent.alive = true;
         self.broadcast(ServerEvent::EntityUpserted {
-            entity: Entity::Agent(broadcast_agent),
+            entity: Entity::Agent(Box::new(broadcast_agent)),
         });
         if let Some(entry) = adopted {
             // Now that the row exists, replay the hooks the warm CLI fired
@@ -1358,6 +1360,7 @@ impl Daemon {
             provider_error: None,
             routed_from: None,
             route_suggestion: None,
+            acp_provider: None,
         };
         self.spawn_agent_session(&agent, &worktree, DEFAULT_COLS, DEFAULT_ROWS)?;
         tracing::info!(agent = %agent.id, kind = kind.as_str(), worktree = %worktree.branch, "prewarmed agent session");
@@ -1954,7 +1957,7 @@ impl Daemon {
         let mut broadcast_agent = agent.clone();
         broadcast_agent.alive = true;
         self.broadcast(ServerEvent::EntityUpserted {
-            entity: Entity::Agent(broadcast_agent),
+            entity: Entity::Agent(Box::new(broadcast_agent)),
         });
         Ok(())
     }
@@ -2448,7 +2451,7 @@ impl Daemon {
                 let mut broadcast_agent = agent;
                 broadcast_agent.alive = true;
                 self.broadcast(ServerEvent::EntityUpserted {
-                    entity: Entity::Agent(broadcast_agent),
+                    entity: Entity::Agent(Box::new(broadcast_agent)),
                 });
                 Ok(session)
             }
@@ -2743,7 +2746,7 @@ impl Daemon {
                 let mut broadcast_agent = fresh;
                 broadcast_agent.alive = true;
                 daemon.broadcast(ServerEvent::EntityUpserted {
-                    entity: Entity::Agent(broadcast_agent),
+                    entity: Entity::Agent(Box::new(broadcast_agent)),
                 });
             }
         });
@@ -2820,7 +2823,7 @@ impl Daemon {
                             );
                         }
                         let upsert = match &sref {
-                            SessionRef::Agent(id) => daemon.agent_entity(id).map(Entity::Agent),
+                            SessionRef::Agent(id) => daemon.agent_entity(id).map(|agent| Entity::Agent(Box::new(agent))),
                             SessionRef::Terminal(id) => {
                                 daemon.terminal_entity(id).map(Entity::Terminal)
                             }
@@ -3927,6 +3930,7 @@ mod tests {
                 provider_error: None,
                 routed_from: None,
                 route_suggestion: None,
+                acp_provider: None,
             })
             .unwrap();
     }
@@ -4116,6 +4120,7 @@ mod tests {
                     provider_error: None,
                     routed_from: None,
                     route_suggestion: None,
+                    acp_provider: None,
                 },
                 true,
             )

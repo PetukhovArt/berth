@@ -3,7 +3,7 @@ import { computed, shallowRef, type ComputedRef, type ShallowRef } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { limitUntil, watchUsageLimits } from './limits';
 
-export type AgentKind = 'claude' | 'codex' | 'cursor' | 'opencode' | 'grok';
+export type AgentKind = 'claude' | 'codex' | 'cursor' | 'opencode' | 'grok' | 'acp';
 type AgentStatus = 'fresh' | 'running' | 'finished' | 'needs_feedback' | 'terminated' | 'disconnected';
 export type SessionRef = { Agent: string } | { Terminal: string };
 type ConnectionState = 'connecting' | 'connected' | 'offline' | 'incompatible';
@@ -32,6 +32,7 @@ type Agent = {
   provider_error?: ProviderError | null;
   routed_from?: string | null;
   route_suggestion?: RouteSuggestion | null;
+  acp_provider?: string | null;
 };
 type ProviderErrorKind = 'overloaded' | 'server' | 'network' | 'usage_limit' | 'auth' | 'model' | 'other';
 export type ProviderError = { kind: ProviderErrorKind; since_ms: number; message: string; resets_at_ms?: number | null };
@@ -56,7 +57,20 @@ type WatchEvent =
   | { type: 'status'; agent: string; status: AgentStatus; changed_at: number; unseen: boolean }
   | { type: 'feedback_request'; agent: string; request: FeedbackRequest | null }
   | { type: 'task_note'; worktree: string; text: string }
+  | { type: 'acp_item'; agent: string; seq: number; item: AcpItem }
   | { type: 'error'; message: string };
+
+type AcpTool = { id: string; title: string; kind: string; status: string; detail: string | null; diff: { path: string; old: string | null; new: string } | null; output: string | null };
+export type AcpPlanEntry = { content: string; priority: string; status: string };
+export type AcpItem = { User: { text: string } } | { Assistant: { text: string } } | { Thought: { text: string } } | { Tool: AcpTool } | { Plan: { entries: AcpPlanEntry[] } } | { Notice: { text: string } };
+export type AcpItemAt = { seq: number; item: AcpItem };
+
+const acpListeners = new Set<(agent: string, item: AcpItemAt) => void>();
+
+export function onAcpItem(listener: (agent: string, item: AcpItemAt) => void): () => void {
+  acpListeners.add(listener);
+  return () => acpListeners.delete(listener);
+}
 
 export type SessionEvent = { type: 'reset'; data: string } | { type: 'output'; data: string } | { type: 'exited'; exit_code: number | null };
 
@@ -239,6 +253,9 @@ function createStore(): BerthStore {
       case 'task_note':
         taskNotes.value = new Map(taskNotes.value).set(event.worktree, event.text);
         return;
+      case 'acp_item':
+        for (const listener of acpListeners) listener(event.agent, { seq: event.seq, item: event.item });
+        return;
       case 'error':
         error.value = event.message;
         return;
@@ -319,11 +336,12 @@ export type BerthReply =
   | { Checkpoints: { req_id: number; agent: string; checkpoints: { number: number; created_at: number; before_restore: boolean }[] } }
   | { Channels: { req_id: number; channels: { key: string; head: number; unread: number }[] } }
   | { ChannelEvents: { req_id: number; events: { seq: number; kind: number; author: string; author_name: string; author_kind: string; channel: string; tags: string[][]; content: string; created_at: number }[] } }
-  | { ChannelPresence: { req_id: number; here: { member: string; name: string; agents: string[] }[] } };
+  | { ChannelPresence: { req_id: number; here: { member: string; name: string; agents: string[] }[] } }
+  | { AcpTranscript: { req_id: number; agent: string; items: AcpItemAt[] } };
 
 export class BerthCallError extends Error {}
 
-const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote', 'ProjectSetup', 'Checkpoints', 'Channels', 'ChannelEvents', 'ChannelPresence']);
+const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote', 'ProjectSetup', 'Checkpoints', 'Channels', 'ChannelEvents', 'ChannelPresence', 'AcpTranscript']);
 
 function isBerthReply(value: unknown): value is BerthReply {
   if (typeof value !== 'object' || value === null) return false;
@@ -360,6 +378,28 @@ export function createAgent(agent: NewAgent): Promise<EntityId | null> {
       starting_prompt: agent.startingPrompt,
     },
   });
+}
+
+export function createAcpAgent(worktree: string, name: string, provider: string, autoTitle: boolean): Promise<EntityId | null> {
+  return acknowledged({ CreateAcpAgent: { worktree, name, provider, auto_title: autoTitle } });
+}
+
+export function isAcpAgent(agent: string): boolean {
+  return useBerth()?.entities.value.agents.get(agent)?.kind === 'acp';
+}
+
+export async function acpPrompt(agent: string, text: string): Promise<void> {
+  await acknowledged({ AcpPrompt: { agent, text } });
+}
+
+export async function answerFeedback(agent: string, option: number): Promise<void> {
+  await acknowledged({ AnswerFeedback: { agent, option } });
+}
+
+export async function acpTranscript(agent: string, after: number): Promise<AcpItemAt[]> {
+  const reply = await call({ AcpTranscript: { agent, after } });
+  if (!('AcpTranscript' in reply)) throw new BerthCallError(t('agents.errors.unexpectedReply', { reply: Object.keys(reply).join('') }));
+  return reply.AcpTranscript.items;
 }
 
 export function createTerminal(worktree: string, name: string | null): Promise<EntityId | null> {

@@ -15,6 +15,7 @@ mod history_projects;
 pub mod legacy;
 mod mr_checkout;
 pub mod platform;
+mod providers;
 pub mod push;
 pub mod remote;
 pub mod remote_devices;

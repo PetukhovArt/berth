@@ -19,6 +19,16 @@ export const settings = {
     sessions: 'Sessions',
     connectors: 'Connectors',
     keymap: 'Keys',
+    providers: 'Providers',
+  },
+  providers: {
+    native: 'Agents with a terminal',
+    nativeHint: 'Turning one off hides it from New Session. Sessions you already have keep working.',
+    acp: 'Agents over ACP',
+    acpHint: 'These run without a terminal and show in the chat view. Permission requests ask every time. API keys come from the environment berth starts in.',
+    notFound: 'not found on PATH',
+    piWarning: 'Pi runs through npx, which downloads pi-acp from npm each time the agent starts.',
+    loadFailed: 'Could not read the provider list.',
   },
   def: {
     theme: {

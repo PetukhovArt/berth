@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added Settings → Providers: Claude, Codex and Grok are on by default, and Cursor, OpenCode, Antigravity, Gemini, Kiro and Pi can be turned on to run over ACP in the chat view, with permission requests answered from a card; the terminal Cursor and OpenCode stay on where you already use them.
 - Added jig steps to the plan strip, and the plan strip to the terminal view (collapsed until you open it), so you can see which step an Agent is on without switching to Chat (#18).
 - Added route switching to the remote web client: when a faster route to the same machine answers (LAN, then Tailscale, then a public HTTPS URL), the page moves to it by itself, and when the current route drops it reconnects over the first one that answers (#34).
 - Added provider error detection: when an Agent's turn ends on, or keeps retrying, an overloaded, rate-limited, 5xx, network or sign-in error, its status shows what happened and the session header offers Switch model, which resumes the same conversation with another model, and Continue in, which starts another agent CLI in the same worktree with a handoff prompt.

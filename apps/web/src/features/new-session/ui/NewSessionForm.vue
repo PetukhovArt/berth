@@ -3,7 +3,8 @@ import { computed, shallowRef, watch } from 'vue';
 import { VButton, VDialog, VInputText, VMessage, VSelect, VTextarea } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
-import { createAgent, createTerminal, entitySessionRef, type AgentKind, type SessionRef, useAction } from '../../../entities/session';
+import { acpPrompt, createAcpAgent, createAgent, createTerminal, entitySessionRef, type AgentKind, type SessionRef, useAction } from '../../../entities/session';
+import { useProviders } from '../../../shared/api/providers';
 import { useSessionTarget } from '../model/sessionTarget';
 import { deletePreset, presets, savePreset, withPromptFrame, type AgentPreset } from '../model/presets';
 import NewSessionTarget from './NewSessionTarget.vue';
@@ -12,21 +13,30 @@ const props = defineProps<{ worktree: string | null }>();
 const emit = defineEmits<{ close: []; created: [session: SessionRef] }>();
 const location = useSessionTarget(props.worktree);
 
-type Kind = AgentKind | 'terminal';
-const KINDS = computed<{ label: string; value: Kind }[]>(() => [
+type AcpKind = `acp:${string}`;
+type Kind = Exclude<AgentKind, 'acp'> | AcpKind | 'terminal';
+const ON_BEFORE_PROVIDERS_LOAD: { label: string; value: Kind }[] = [
   { label: 'Claude', value: 'claude' },
   { label: 'Codex', value: 'codex' },
-  { label: 'Cursor', value: 'cursor' },
-  { label: 'OpenCode', value: 'opencode' },
   { label: 'Grok', value: 'grok' },
-  { label: t('agents.newSession.terminal'), value: 'terminal' },
-]);
+];
+const providers = useProviders();
+const KINDS = computed<{ label: string; value: Kind }[]>(() => {
+  const enabled = providers.value.filter((provider) => provider.enabled);
+  const agents: { label: string; value: Kind }[] = providers.value.length
+    ? enabled.map((provider) => (provider.acp ? { label: t('agents.newSession.acpProvider', { name: provider.name }), value: `acp:${provider.id}` as const } : { label: provider.name, value: provider.id as Kind }))
+    : ON_BEFORE_PROVIDERS_LOAD;
+  return [...agents, { label: t('agents.newSession.terminal'), value: 'terminal' }];
+});
+
+const acpProviderOf = (kind: Kind): string | null => (kind.startsWith('acp:') ? kind.slice('acp:'.length) : null);
 
 function generatedName(kind: Kind): string {
+  const base = acpProviderOf(kind) ?? kind;
   const taken = location.takenNames.value;
   let n = 1;
-  while (taken.has(`${kind}-${n}`)) n++;
-  return `${kind}-${n}`;
+  while (taken.has(`${base}-${n}`)) n++;
+  return `${base}-${n}`;
 }
 
 const { values } = useSettings();
@@ -87,7 +97,7 @@ function applyPreset(preset: AgentPreset) {
 
 function saveCurrent() {
   const trimmed = presetName.value.trim();
-  if (!trimmed || kind.value === 'terminal') return;
+  if (!trimmed || kind.value === 'terminal' || acpProviderOf(kind.value)) return;
   savePreset({ name: trimmed, kind: kind.value, model: model.value.trim(), effort: effort.value.trim(), before: before.value, after: after.value });
   activePreset.value = trimmed;
   presetName.value = '';
@@ -111,19 +121,25 @@ async function submit() {
       const sessionName = names[index];
       const worktree = worktrees[index];
       if (!sessionName || !worktree) continue;
+      const acpProvider = acpProviderOf(chosenKind);
+      const startingPrompt = withPromptFrame({ before: before.value, after: after.value }, prompt.value);
       const id =
         chosenKind === 'terminal'
           ? await createTerminal(worktree, sessionName)
-          : await createAgent({
+          : acpProvider
+            ? await createAcpAgent(worktree, sessionName, acpProvider, sessionName === defaults[index])
+            : await createAgent({
               worktree,
               name: sessionName,
-              kind: chosenKind,
+              kind: chosenKind as AgentKind,
               model: optional(model.value),
               effort: optional(effort.value),
               autoTitle: sessionName === defaults[index],
-              startingPrompt: withPromptFrame({ before: before.value, after: after.value }, prompt.value),
+              startingPrompt,
             });
-      first ??= entitySessionRef(id);
+      const created = entitySessionRef(id);
+      if (acpProvider && startingPrompt && created && 'Agent' in created) await acpPrompt(created.Agent, startingPrompt);
+      first ??= created;
     }
     if (first) emit('created', first);
     else emit('close');
@@ -223,7 +239,7 @@ function onVisible(visible: boolean) {
           <VInputText v-model="after" size="small" data-testid="new-session-after" />
         </label>
       </div>
-      <div v-if="kind !== 'terminal'" class="pair">
+      <div v-if="kind !== 'terminal' && !acpProviderOf(kind)" class="pair">
         <label class="field">
           <span>{{ t('agents.newSession.model') }}</span>
           <VInputText v-model="model" size="small" :placeholder="t('agents.newSession.byDefault')" data-testid="new-session-model" />

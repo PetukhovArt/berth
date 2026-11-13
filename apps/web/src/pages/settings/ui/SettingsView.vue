@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch, type Component } from 'vue';
-import { ExternalLink, FileJson, FileText, History, Keyboard, Palette, Plug, RefreshCw, Search, SlidersHorizontal, Smartphone, SquareTerminal } from '../../../shared/ui/icons';
+import { Bot, ExternalLink, FileJson, FileText, History, Keyboard, Palette, Plug, RefreshCw, Search, SlidersHorizontal, Smartphone, SquareTerminal } from '../../../shared/ui/icons';
 import { VButton, VInputText, VMessage } from '../../../shared/ui/kit';
 import { ConnectorsPanel } from '../../../features/manage-connectors';
 import BackBar from '../../../shared/ui/BackBar.vue';
@@ -10,6 +10,7 @@ import { requestedSettingsCategory } from '../../../shared/model/nav';
 import SettingRow from './SettingRow.vue';
 import { KeymapPanel } from '../../../features/keymap-editor';
 import { RemotePanel } from '../../../features/remote-access';
+import { ProvidersPanel } from '../../../features/manage-providers';
 import { PushToggle } from '../../../features/web-push';
 import { isDesktop } from '../../../bridge';
 import SettingsJsonEditor from '../../../shared/ui/SettingsJsonEditor.vue';
@@ -27,7 +28,7 @@ const category = shallowRef<CategoryId>('appearance');
 const rawMode = shallowRef(false);
 const picked = shallowRef(false);
 
-const CATEGORY_ICONS: Record<CategoryId, Component> = { appearance: Palette, terminal: SquareTerminal, sessions: History, files: FileText, connectors: Plug, remote: Smartphone, app: RefreshCw, keymap: Keyboard };
+const CATEGORY_ICONS: Record<CategoryId, Component> = { appearance: Palette, terminal: SquareTerminal, sessions: History, providers: Bot, files: FileText, connectors: Plug, remote: Smartphone, app: RefreshCw, keymap: Keyboard };
 
 const normalizedQuery = computed(() => query.value.trim().toLowerCase());
 const showDetail = computed(() => picked.value || rawMode.value || Boolean(normalizedQuery.value));
@@ -42,6 +43,7 @@ watch(normalizedQuery, (value) => {
 });
 const showKeymap = computed(() => !normalizedQuery.value && category.value === 'keymap');
 const showRemote = computed(() => !normalizedQuery.value && category.value === 'remote');
+const showProviders = computed(() => !normalizedQuery.value && category.value === 'providers');
 const showConnectors = computed(() => {
   if (!normalizedQuery.value) return category.value === 'connectors';
   const keywords = t('settings.connectorKeywords');
@@ -159,6 +161,9 @@ function onSearchKey(event: KeyboardEvent) {
         <div v-else class="list" :class="{ locked: parseError }" data-testid="settings-list">
           <section v-if="showConnectors" class="group" data-testid="settings-connectors">
             <ConnectorsPanel />
+          </section>
+          <section v-if="showProviders" class="group" data-testid="settings-providers">
+            <ProvidersPanel />
           </section>
           <section v-if="showRemote" class="group" data-testid="settings-remote">
             <RemotePanel />

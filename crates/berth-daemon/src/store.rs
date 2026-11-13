@@ -1526,7 +1526,7 @@ const PROJECT_COLUMNS: &str = "id, name, repo_path, sort_order, workspace_id, pi
 const WORKTREE_COLUMNS: &str = "id, project_id, path, branch, is_main, sort_order";
 const AGENT_COLUMNS: &str = "id, worktree_id, name, status, archived, kind, \
                              claude_session_id, sort_order, status_changed_at, model, effort, \
-                             archived_at, unseen, cloud_session_id";
+                             archived_at, unseen, cloud_session_id, acp_provider";
 const TERMINAL_COLUMNS: &str = "id, worktree_id, name, sort_order, session_id";
 const LINK_COLUMNS: &str = "id, worktree_id, url, sort_order";
 const ORPHAN_COLUMNS: &str =
@@ -1588,6 +1588,7 @@ fn row_to_agent(r: &rusqlite::Row) -> rusqlite::Result<Agent> {
         provider_error: None,
         routed_from: None,
         route_suggestion: None,
+        acp_provider: r.get(14)?,
     })
 }
 
@@ -1676,6 +1677,7 @@ mod tests {
             provider_error: None,
             routed_from: None,
             route_suggestion: None,
+            acp_provider: None,
         };
         let pr_url = "https://github.com/PetukhovArt/berth/pull/42";
         store
@@ -1702,6 +1704,7 @@ mod tests {
             provider_error: None,
             routed_from: None,
             route_suggestion: None,
+            acp_provider: None,
         };
         store.insert_agent(&codex_agent).unwrap();
         let cursor_agent = Agent {
@@ -1725,6 +1728,7 @@ mod tests {
             provider_error: None,
             routed_from: None,
             route_suggestion: None,
+            acp_provider: None,
         };
         store.insert_agent(&cursor_agent).unwrap();
 
@@ -2227,6 +2231,7 @@ mod tests {
             provider_error: None,
             routed_from: None,
             route_suggestion: None,
+            acp_provider: None,
         };
 
         // Default-named session: pending until the agent titles it, and the
@@ -2379,6 +2384,7 @@ mod tests {
                     provider_error: None,
                     routed_from: None,
                     route_suggestion: None,
+                    acp_provider: None,
                 })
                 .unwrap();
         }
@@ -2449,6 +2455,7 @@ mod tests {
                 provider_error: None,
                 routed_from: None,
                 route_suggestion: None,
+                acp_provider: None,
             };
             store.insert_agent(&agent).unwrap();
             agent.id
@@ -2549,6 +2556,7 @@ mod tests {
             provider_error: None,
             routed_from: None,
             route_suggestion: None,
+            acp_provider: None,
         };
         store.insert_agent(&agent).unwrap();
         (project.id, worktree.id, agent.id)

@@ -428,6 +428,7 @@ mod tests {
             provider_error: None,
             routed_from: None,
             route_suggestion: None,
+            acp_provider: None,
         };
         store
             .insert_agent_with_auto_title(&agent("pending"), true)

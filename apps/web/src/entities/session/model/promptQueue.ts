@@ -1,5 +1,5 @@
 import { computed, shallowRef, watch, type ComputedRef } from 'vue';
-import { sendInput, useBerth, type SessionRef } from './berth';
+import { acpPrompt, isAcpAgent, sendInput, useBerth, type SessionRef } from './berth';
 
 export type QueuedPrompt = { id: number; text: string };
 
@@ -15,6 +15,7 @@ function setQueue(agent: string, items: readonly QueuedPrompt[]) {
 }
 
 export function submitPrompt(session: SessionRef, text: string): Promise<void> {
+  if ('Agent' in session && isAcpAgent(session.Agent)) return acpPrompt(session.Agent, text);
   return sendInput(session, `\x1b[200~${text}\x1b[201~`).then(() => sendInput(session, '\r'));
 }
 

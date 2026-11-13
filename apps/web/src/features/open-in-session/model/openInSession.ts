@@ -25,7 +25,7 @@ export type MrRun = {
 
 const DESCRIPTION_LIMIT = 1500;
 const NAME_LIMIT = 60;
-const KIND_LABEL: Record<AgentKind, string> = { claude: 'Claude', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode', grok: 'Grok' };
+const KIND_LABEL: Record<AgentKind, string> = { claude: 'Claude', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode', grok: 'Grok', acp: 'ACP' };
 const KINDS = new Set<string>(['claude', 'codex', 'cursor', 'opencode', 'grok']);
 
 class Problem extends Error {}

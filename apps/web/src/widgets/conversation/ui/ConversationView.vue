@@ -4,7 +4,7 @@ import { Check, Copy, FolderOpen, GitBranch, Mic, Play, SquareTerminal, Triangle
 import { useIsPhone, VButton, VMessage } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
-import { continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, readTranscript, resumeCommand, useExternalSessions, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, sendInput, useFeedbackRequest, allowRequest, denyRequest, chooseOption, type SessionRef } from '../../../entities/session';
+import { continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, readTranscript, resumeCommand, useExternalSessions, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, sendInput, useFeedbackRequest, allowRequest, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, submitPrompt, useAcpChat, useQueuedPrompts, type SessionRef } from '../../../entities/session';
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
@@ -16,7 +16,7 @@ const PIN_PX = 48;
 const COPIED_MS = 1500;
 const NOTICE_MS = 3000;
 
-const props = defineProps<{ harness: Harness; sessionId: string; terminal?: SessionRef }>();
+const props = defineProps<{ harness: Harness | 'acp'; sessionId: string; terminal?: SessionRef }>();
 
 const { t, formatRelative, formatDate } = useI18n();
 const external = useExternalSessions();
@@ -24,21 +24,27 @@ const berth = useBerth();
 const dock = useSessionDock();
 const action = useAction();
 const scroller = useTemplateRef<HTMLElement>('scroller');
-const messages = shallowRef<TranscriptMessage[]>([]);
-const loading = shallowRef(true);
+const acp = props.harness === 'acp' ? useAcpChat(props.sessionId) : null;
+const harness = computed<Harness | null>(() => (props.harness === 'acp' ? null : props.harness));
+const transcript = shallowRef<TranscriptMessage[]>([]);
+const messages = computed(() => acp?.messages.value ?? transcript.value);
+const loadingTranscript = shallowRef(!acp);
+const loading = computed(() => acp?.loading.value ?? loadingTranscript.value);
 const error = shallowRef<string | null>(null);
+const shownError = computed(() => error.value ?? acp?.error.value ?? null);
+const queued = useQueuedPrompts(props.sessionId);
 const copied = shallowRef(false);
 const request = props.terminal ? useFeedbackRequest(props.terminal) : null;
 const draft = shallowRef('');
 const sending = shallowRef(false);
 const notice = shallowRef('');
 const phone = useIsPhone();
-const plan = computed(() => derivePlan(messages.value));
+const plan = computed(() => acp?.plan.value ?? derivePlan(messages.value));
 let generation = 0;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
-const session = computed(() => external?.anyByKey.value.get(externalKey({ harness: props.harness, id: props.sessionId })));
+const session = computed(() => (harness.value ? external?.anyByKey.value.get(externalKey({ harness: harness.value, id: props.sessionId })) : undefined));
 const target = computed(() => (session.value ? externalTarget(session.value, berth?.entities.value) : null));
 const running = computed(() => session.value?.running ?? false);
 const suggestion = computed(() => {
@@ -47,22 +53,24 @@ const suggestion = computed(() => {
   const agent = berth?.entities.value.agents.get(ref.Agent);
   return agent?.status === 'finished' ? (agent.suggested_prompt ?? null) : null;
 });
-const command = computed(() => resumeCommand({ harness: props.harness, id: props.sessionId }));
+const command = computed(() => (harness.value ? resumeCommand({ harness: harness.value, id: props.sessionId }) : ''));
 const canContinue = computed(() => !!session.value && !!target.value && !running.value && !action.busy.value);
 
 async function load() {
+  const own = harness.value;
+  if (!own) return;
   const current = ++generation;
   const el = scroller.value;
   const pinned = !el || el.scrollHeight - el.scrollTop - el.clientHeight < PIN_PX;
   try {
-    const next = await readTranscript({ harness: props.harness, id: props.sessionId }, TAIL);
+    const next = await readTranscript({ harness: own, id: props.sessionId }, TAIL);
     if (current !== generation) return;
-    messages.value = next;
+    transcript.value = next;
     error.value = null;
   } catch (e) {
     if (current === generation) error.value = describeError(e);
   } finally {
-    if (current === generation) loading.value = false;
+    if (current === generation) loadingTranscript.value = false;
   }
   if (!pinned || current !== generation) return;
   await nextTick();
@@ -130,8 +138,11 @@ async function submit(text: string, clearDraft: boolean): Promise<boolean> {
   if (!props.terminal || !text || sending.value) return false;
   sending.value = true;
   try {
-    await sendInput(props.terminal, `\x1b[200~${text}\x1b[201~`);
-    await sendInput(props.terminal, '\r');
+    if (acp) await sendToAcp(text);
+    else {
+      await sendInput(props.terminal, `\x1b[200~${text}\x1b[201~`);
+      await sendInput(props.terminal, '\r');
+    }
     if (clearDraft) draft.value = '';
     return true;
   } catch (e) {
@@ -140,6 +151,12 @@ async function submit(text: string, clearDraft: boolean): Promise<boolean> {
   } finally {
     sending.value = false;
   }
+}
+
+async function sendToAcp(text: string) {
+  const status = berth?.entities.value.agents.get(props.sessionId)?.status;
+  if (status === 'running' || status === 'needs_feedback') enqueuePrompt(props.sessionId, text);
+  else await submitPrompt({ Agent: props.sessionId }, text);
 }
 
 const ISSUES: Record<HoldToTalkIssue, 'chatTalkDenied' | 'chatTalkShort' | 'chatTalkEmpty' | 'chatTalkFailed'> = { denied: 'chatTalkDenied', short: 'chatTalkShort', empty: 'chatTalkEmpty', failed: 'chatTalkFailed' };
@@ -174,7 +191,14 @@ const voiceStatus = computed(() => {
   return talk.transcript.value || t('agents.sessionView.chatVoiceListening');
 });
 
-watch(messages, () => voice.transcriptChanged());
+watch(messages, async () => {
+  voice.transcriptChanged();
+  if (!acp) return;
+  const el = scroller.value;
+  if (!el || el.scrollHeight - el.scrollTop - el.clientHeight >= PIN_PX) return;
+  await nextTick();
+  el.scrollTop = el.scrollHeight;
+});
 
 function acceptSuggestion() {
   if (suggestion.value) draft.value = suggestion.value;
@@ -201,7 +225,7 @@ onBeforeUnmount(() => {
   <section ref="root" class="conversation" data-testid="conversation-view" :data-session-id="sessionId" :data-harness="harness">
     <header v-if="!terminal" class="head">
       <div class="title-line">
-        <HarnessIcon :harness="harness" :size="14" />
+        <HarnessIcon v-if="harness" :harness="harness" :size="14" />
         <h2 class="title">{{ session?.title ?? sessionId }}</h2>
         <span v-if="session" class="status" data-testid="conversation-status" :data-running="session.running" :data-status="session.status">
           <StatusIcon :status="externalDot(session)" :unseen="false" />
@@ -209,7 +233,7 @@ onBeforeUnmount(() => {
         </span>
       </div>
       <div class="meta">
-        <span class="chip">{{ t(`workbench.external.harness.${harness}`) }}</span>
+        <span v-if="harness" class="chip">{{ t(`workbench.external.harness.${harness}`) }}</span>
         <span v-if="session" class="chip mono" :title="session.cwd"><FolderOpen :size="12" />{{ session.cwd }}</span>
         <span v-if="session?.branch" class="chip mono"><GitBranch :size="12" />{{ session.branch }}</span>
         <span v-if="session" class="chip" :title="formatDate(session.updated_at)">{{ formatRelative(session.updated_at) }}</span>
@@ -236,7 +260,7 @@ onBeforeUnmount(() => {
     <PlanStrip :plan="plan" />
     <div ref="scroller" class="scroll" data-testid="conversation-scroll">
       <p v-if="loading" class="state">{{ t('workbench.external.loading') }}</p>
-      <p v-else-if="error" class="state error" role="alert">{{ error }}</p>
+      <p v-else-if="shownError" class="state error" role="alert">{{ shownError }}</p>
       <p v-else-if="!messages.length" class="state">{{ t('workbench.external.empty') }}</p>
       <ol v-else class="messages" data-testid="conversation-messages">
         <li v-for="message in messages" :key="message.key" class="message" :data-role="message.role" :data-tool="message.tool !== null" :title="message.at ? formatDate(message.at) : undefined" data-testid="conversation-message">
@@ -254,12 +278,19 @@ onBeforeUnmount(() => {
     <div v-if="terminal && request" class="feedback" data-testid="chat-feedback" :data-kind="request.kind">
       <span class="feedback-text">{{ request.kind === 'Permission' ? t('feedback.permission', { tool: request.title }) : request.title }}</span>
       <code v-if="request.detail" class="feedback-detail mono">{{ request.detail }}</code>
-      <template v-if="request.kind === 'Permission'">
+      <template v-if="request.kind === 'Permission' && !request.options.length">
         <UiButton type="button" class="feedback-action" data-testid="feedback-allow" @click="allowRequest(terminal)">{{ t('feedback.allow') }}</UiButton>
         <UiButton type="button" class="feedback-action" data-testid="feedback-deny" @click="denyRequest(terminal)">{{ t('feedback.deny') }}</UiButton>
       </template>
       <UiButton v-for="(option, index) in request.options" v-else :key="index" type="button" class="feedback-action" data-testid="feedback-option" @click="chooseOption(terminal, index)">{{ option }}</UiButton>
     </div>
+    <ul v-if="acp && queued.length" class="queued" data-testid="chat-queue">
+      <li v-for="item in queued" :key="item.id" class="queued-item" data-testid="queue-item">
+        <span class="queued-text" data-testid="queue-item-text">{{ item.text }}</span>
+        <span class="queued-hint">{{ t('feedback.queue.sendsWhenFinished') }}</span>
+        <UiButton type="button" class="queued-remove" data-testid="queue-remove" @click="removeQueuedPrompt(sessionId, item.id)">{{ t('feedback.queue.remove') }}</UiButton>
+      </li>
+    </ul>
     <form v-if="terminal" class="composer" data-testid="chat-composer" @submit.prevent="send">
       <div v-if="voice.active.value" class="voice" data-testid="chat-voice" :data-phase="voice.phase.value" role="status">
         <span class="voice-text" data-testid="chat-voice-status">{{ voiceStatus }}</span>
@@ -277,6 +308,50 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.queued {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--vr-space-1);
+  padding: var(--vr-space-2) var(--vr-space-4) 0;
+  margin: 0;
+  list-style: none;
+}
+
+.queued-item {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-2);
+  padding: 0 var(--vr-space-2);
+  border: 1px dashed var(--vr-color-border-strong);
+  border-radius: var(--vr-radius-md);
+}
+
+.queued-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--vr-font-size-sm);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.queued-hint {
+  flex: none;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-muted);
+}
+
+.queued-remove {
+  flex: none;
+  padding: 0;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-link);
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
 .conversation {
   display: flex;
   flex-direction: column;

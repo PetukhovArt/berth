@@ -378,6 +378,14 @@ impl Daemon {
         self.try_broadcast_acp_agent(agent_id);
     }
 
+    pub(crate) fn is_acp_agent(&self, agent_id: &AgentId) -> bool {
+        self.store
+            .get_agent(agent_id)
+            .ok()
+            .flatten()
+            .is_some_and(|agent| agent.kind == AgentKind::Acp)
+    }
+
     pub async fn acp_prompt(self: &Arc<Self>, agent_id: &AgentId, text: &str) -> Result<()> {
         let text = text.trim();
         if text.is_empty() {

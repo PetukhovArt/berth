@@ -1,10 +1,11 @@
 export { rollupOf } from './lib/sessionPaths';
 export type { Rollup, WorkspaceNode } from './lib/sessionPaths';
-export { acknowledged, archiveAgent, attachSession, BerthCallError, call, closeTerminal, createAgent, createTerminal, deleteAgent, describeError, detachSession, entitySessionRef, isSessionRef, renameSession, resizeSession, restartAgent, sendInput, switchAgentModel, continueAgentIn, applyRouteSuggestion, sessionId, sessionKey, stopAgent, unarchiveAgent, useBerth, worktreesOfProject } from './model/berth';
+export { acknowledged, acpPrompt, archiveAgent, createAcpAgent, attachSession, BerthCallError, call, closeTerminal, createAgent, createTerminal, deleteAgent, describeError, detachSession, entitySessionRef, isSessionRef, renameSession, resizeSession, restartAgent, sendInput, switchAgentModel, continueAgentIn, applyRouteSuggestion, sessionId, sessionKey, stopAgent, unarchiveAgent, useBerth, worktreesOfProject } from './model/berth';
 export type { AgentKind, Branch, Entities, ProviderError, SessionEvent, SessionNode, SessionRef, SessionStatus, Worktree, WorktreeNode } from './model/berth';
 export { archiveExternal, continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, isExternalPanel, placeExternal, readTranscript, resumeCommand, sessionDot, splitEarlier, unarchiveExternal, useExternalSessions } from './model/external';
 export type { ExternalSession, Harness, TranscriptMessage } from './model/external';
 export { derivePlan } from './model/plan';
+export { useAcpChat } from './model/acpChat';
 export { useLinkedPlan } from './model/linkedPlan';
 export { ALLOW, DENY, allowRequest, chooseOption, denyRequest, useFeedbackRequest } from './model/feedback';
 export { enqueuePrompt, removeQueuedPrompt, submitPrompt, useAgentBusy, useQueuedPrompts } from './model/promptQueue';

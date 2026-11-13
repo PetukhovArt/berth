@@ -217,6 +217,8 @@ pub struct Agent {
     #[serde(default)]
     pub provider_error: Option<ProviderError>,
     #[serde(default)]
+    pub acp_provider: Option<String>,
+    #[serde(default)]
     pub routed_from: Option<AgentId>,
     #[serde(default)]
     pub route_suggestion: Option<RouteSuggestion>,
@@ -295,7 +297,7 @@ pub enum Entity {
     Workspace(Workspace),
     Project(Project),
     Worktree(Worktree),
-    Agent(Agent),
+    Agent(Box<Agent>),
     Terminal(TerminalTab),
     Link(Link),
 }

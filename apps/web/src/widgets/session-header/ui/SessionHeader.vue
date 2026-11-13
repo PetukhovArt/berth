@@ -13,7 +13,7 @@ import { OverlapChip } from '../../../features/overlaps';
 
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
 
-const KIND_LABEL: Record<AgentKind, string> = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode', grok: 'Grok' };
+const KIND_LABEL: Record<AgentKind, string> = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode', grok: 'Grok', acp: 'ACP' };
 
 const berth = useBerth();
 const external = useExternalSessions();

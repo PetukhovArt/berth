@@ -87,6 +87,11 @@ pub enum WatchEvent {
         worktree: WorktreeId,
         text: String,
     },
+    AcpItem {
+        agent: AgentId,
+        seq: u64,
+        item: Box<berth_core::acp::AcpItem>,
+    },
     Error {
         message: String,
     },
@@ -224,7 +229,7 @@ enum LinkEvent {
     Up(Stream),
     Failed(Failure),
     RetryDue,
-    Frame(ServerEvent),
+    Frame(Box<ServerEvent>),
     Down,
 }
 
@@ -491,7 +496,7 @@ impl Actor {
                 });
             }
             LinkEvent::RetryDue => self.connect(),
-            LinkEvent::Frame(event) => self.frame(event),
+            LinkEvent::Frame(event) => self.frame(*event),
             LinkEvent::Down => {
                 self.show(ConnectionState::Connecting, None);
                 self.connect();
@@ -593,6 +598,7 @@ impl Actor {
             ServerEvent::TaskNoteChanged { worktree, text } => {
                 WatchEvent::TaskNote { worktree, text }
             }
+            ServerEvent::AcpItem { agent, seq, item } => WatchEvent::AcpItem { agent, seq, item },
             ServerEvent::Error { message, .. } => WatchEvent::Error { message },
             ServerEvent::Scrollback {
                 session,
@@ -824,7 +830,7 @@ async fn read_loop(
     while let Ok(Some(event)) = read_frame::<ServerEvent, _>(&mut reader).await {
         let frame = Msg::Link {
             epoch,
-            event: LinkEvent::Frame(event),
+            event: LinkEvent::Frame(Box::new(event)),
         };
         if inbox.send(frame).is_err() {
             return;

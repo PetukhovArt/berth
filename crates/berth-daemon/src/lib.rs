@@ -165,6 +165,16 @@ async fn serve() -> Result<()> {
         });
     }
 
+    if let Ok((_, _, agents, _)) = daemon.store.load_tree() {
+        let kinds_in_use: Vec<_> = agents.iter().map(|agent| agent.kind).collect();
+        if let Err(e) = acp::providers::keep_native_kinds_in_use(
+            &berth_core::paths::config_path(),
+            &kinds_in_use,
+        ) {
+            tracing::warn!(error = %e, "could not keep native providers in use turned on");
+        }
+    }
+
     tokio::spawn(daemon.clone().run_scheduler());
     tokio::spawn(daemon.clone().run_channel_delivery());
     tokio::spawn(daemon.clone().run_presence_report());

@@ -40,3 +40,52 @@ pub struct AcpItemAt {
     pub seq: u64,
     pub item: AcpItem,
 }
+
+pub struct BuiltInProvider {
+    pub id: &'static str,
+    pub name: &'static str,
+    pub command: &'static str,
+    pub args: &'static [&'static str],
+}
+
+pub const BUILT_IN_PROVIDERS: [BuiltInProvider; 6] = [
+    BuiltInProvider {
+        id: "cursor",
+        name: "Cursor",
+        command: "agent",
+        args: &["acp"],
+    },
+    BuiltInProvider {
+        id: "opencode",
+        name: "OpenCode",
+        command: "opencode",
+        args: &["acp"],
+    },
+    BuiltInProvider {
+        id: "antigravity",
+        name: "Antigravity",
+        command: "agy",
+        args: &["acp"],
+    },
+    BuiltInProvider {
+        id: "gemini",
+        name: "Gemini",
+        command: "gemini",
+        args: &["--acp"],
+    },
+    BuiltInProvider {
+        id: "kiro",
+        name: "Kiro",
+        command: "kiro-cli",
+        args: &["acp"],
+    },
+    BuiltInProvider {
+        id: "pi",
+        name: "Pi",
+        command: "npx",
+        args: &["-y", "pi-acp"],
+    },
+];
+
+pub const NATIVE_OFF_FOR_NEW_INSTALLS: [crate::AgentKind; 2] =
+    [crate::AgentKind::Cursor, crate::AgentKind::OpenCode];

@@ -61,6 +61,8 @@ macro_rules! plain_commands {
             free berth_restore_sessions_write(value: bool) = $crate::settings::berth_restore_sessions_write;
             free berth_flag_read(key: String) = $crate::settings::berth_flag_read;
             free berth_flag_write(key: String, value: bool) = $crate::settings::berth_flag_write;
+            free providers_read() = $crate::providers::providers_read;
+            free providers_write(id: String, acp: bool, enabled: bool) = $crate::providers::providers_write;
             free agent_sessions_list(since_days: Option<u32>) = $crate::agent_sessions::agent_sessions_list;
             free agent_session_transcript(harness: $crate::agent_sessions::Harness, id: String, tail: Option<u32>) = $crate::agent_sessions::agent_session_transcript;
             free review_queue(repo: String) = $crate::review::review_queue;

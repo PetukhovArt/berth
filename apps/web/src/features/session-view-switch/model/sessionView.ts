@@ -3,7 +3,7 @@ import type { ChangeRequestRef } from '../../../shared/api/connectors/api';
 import { hasChanges } from './worktreeChanged';
 import { knownMr } from '../../../entities/merge-request';
 import { useDock } from '../../../shared/model/dock';
-import { useSessionDock, useBerth, externalDot, sessionDot, useExternalSessions, externalKey } from '../../../entities/session';
+import { useSessionDock, useBerth, externalDot, sessionDot, useExternalSessions, externalKey, type Harness, type SessionRef } from '../../../entities/session';
 
 export type SessionWorktree = { path: string; branch: string };
 
@@ -29,7 +29,15 @@ function statusOf(panelId: string) {
   return conversation ? externalDot(conversation) : undefined;
 }
 
-function chatOf(panelId: string) {
+function acpAgentOf(panelId: string): string | null {
+  const ref = useBerth()?.sessions.value.get(panelId)?.ref;
+  if (!ref || !('Agent' in ref)) return null;
+  return useBerth()?.entities.value.agents.get(ref.Agent)?.kind === 'acp' ? ref.Agent : null;
+}
+
+function chatOf(panelId: string): { harness: Harness | 'acp'; sessionId: string; terminal: SessionRef } | null {
+  const acp = acpAgentOf(panelId);
+  if (acp) return { harness: 'acp', sessionId: acp, terminal: { Agent: acp } };
   const external = useExternalSessions();
   const berth = useBerth();
   const session = berth?.sessions.value.get(panelId);
@@ -46,7 +54,7 @@ function chatOf(panelId: string) {
 const SESSION_VIEWS = {
   terminal: {
     letter: 'T',
-    available: () => true,
+    available: (panelId: string) => acpAgentOf(panelId) === null,
     props: () => ({}),
   },
   chat: {
@@ -93,15 +101,20 @@ export function viewProps(panelId: string, view: SessionView): Record<string, un
   return SESSION_VIEWS[view].props(panelId);
 }
 
+function homeView(panelId: string): SessionView {
+  return acpAgentOf(panelId) === null ? 'terminal' : 'chat';
+}
+
 export function viewOf(panelId: string): SessionView {
-  const view = chosen.value.get(panelId) ?? 'terminal';
-  return isAvailable(panelId, view) ? view : 'terminal';
+  const home = homeView(panelId);
+  const view = chosen.value.get(panelId) ?? home;
+  return isAvailable(panelId, view) ? view : home;
 }
 
 export function showView(panelId: string, view: SessionView): void {
   if (!isAvailable(panelId, view)) return;
   const next = new Map(chosen.value);
-  if (view === 'terminal' || viewOf(panelId) === view) next.delete(panelId);
+  if (view === homeView(panelId) || viewOf(panelId) === view) next.delete(panelId);
   else next.set(panelId, view);
   chosen.value = next;
 }

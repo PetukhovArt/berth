@@ -56,6 +56,7 @@ export const agents = {
   },
   newSession: {
     title: 'New Session',
+    acpProvider: '{name} (ACP)',
     project: 'Project',
     target: 'Worktree',
     branch: 'Branch',

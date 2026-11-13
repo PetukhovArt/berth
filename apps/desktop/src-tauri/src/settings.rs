@@ -153,7 +153,9 @@ const IDLE_KEY: &str = "session_idle_timeout";
 const IDLE_DEFAULT: &str = "5m";
 const IDLE_CHOICES: [&str; 6] = ["off", "1m", "5m", "15m", "30m", "1h"];
 
-fn berth_config_object(path: &Path) -> Result<serde_json::Map<String, serde_json::Value>, String> {
+pub(crate) fn berth_config_object(
+    path: &Path,
+) -> Result<serde_json::Map<String, serde_json::Value>, String> {
     let text =
         read_text(path).map_err(|e| format!("не удалось прочитать {}: {e}", path.display()))?;
     if text.trim().is_empty() {
@@ -225,7 +227,7 @@ pub async fn berth_flag_write(key: String, value: bool) -> Result<(), String> {
     berth_config_write(daemon_flag(&key)?.0, serde_json::Value::Bool(value))
 }
 
-fn berth_config_write(key: &str, value: serde_json::Value) -> Result<(), String> {
+pub(crate) fn berth_config_write(key: &str, value: serde_json::Value) -> Result<(), String> {
     let path = berth_core::paths::config_path();
     let mut map = berth_config_object(&path)?;
     if map.get(key) == Some(&value) {

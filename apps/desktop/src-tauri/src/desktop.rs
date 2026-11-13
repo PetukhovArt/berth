@@ -285,6 +285,8 @@ pub fn run() {
             berth_restore_sessions_write,
             berth_flag_read,
             berth_flag_write,
+            providers_read,
+            providers_write,
             settings_watch,
             settings_open_external,
             connectors_list,
