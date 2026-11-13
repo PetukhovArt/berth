@@ -1,5 +1,6 @@
 pub mod branches;
 pub mod checkpoints;
+pub mod channels;
 pub mod cli_title;
 pub mod config;
 pub mod enter_project;

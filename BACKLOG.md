@@ -142,6 +142,14 @@ First slice, enough to learn whether colleagues read a shared channel:
 - `berth channel read` and `berth channel post` for Agents, part of the JSON-emitting CLI: an Agent
   reports status, asks a question or states a contract in the channel of its task.
 
+Built so far (#49), in `crates/berth-hub` and `crates/berth/src/channel.rs`: the hub over HTTP in
+SQLite with an append-only log, `berth hub serve|pair|approve`, `berth channel list|read|post`
+through the daemon (`hub_url`, `hub_token` in the config), two-step pairing, Agents as members
+marked with their owner. Missing from the first slice: WebSocket push (clients read with
+`after=<seq>` today), creating a channel from a Jira issue, merge request or Worktree key, the
+channel view in desktop and web, unread channels in the Inbox, TLS, token revocation, and
+re-approving or narrowing a device's scopes.
+
 Second slice, Agents take part:
 
 - Delivery into the PTY: a message that mentions an Agent is typed into its Session by the Daemon

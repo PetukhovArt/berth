@@ -350,6 +350,60 @@ async fn handle_client(
                 ClientRequest::DeleteTrigger { req_id, id } => {
                     reply_done(&out_tx, req_id, daemon.delete_trigger(&id)).await;
                 }
+                ClientRequest::ListChannels { req_id } => {
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let ev = match crate::channels::list_channels().await {
+                            Ok(channels) => ServerEvent::Channels { req_id, channels },
+                            Err(e) => ServerEvent::Error {
+                                req_id: Some(req_id),
+                                message: format!("{e:#}"),
+                            },
+                        };
+                        let _ = out_tx.send(ev).await;
+                    });
+                }
+                ClientRequest::ReadChannel {
+                    req_id,
+                    channel,
+                    after,
+                    agent,
+                } => {
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let ev = match crate::channels::read_channel(&channel, after, &agent).await {
+                            Ok(events) => ServerEvent::ChannelEvents { req_id, events },
+                            Err(e) => ServerEvent::Error {
+                                req_id: Some(req_id),
+                                message: format!("{e:#}"),
+                            },
+                        };
+                        let _ = out_tx.send(ev).await;
+                    });
+                }
+                ClientRequest::PostToChannel {
+                    req_id,
+                    channel,
+                    content,
+                    agent,
+                } => {
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let ev = match crate::channels::post_to_channel(&channel, &content, &agent)
+                            .await
+                        {
+                            Ok(event) => ServerEvent::ChannelEvents {
+                                req_id,
+                                events: vec![event],
+                            },
+                            Err(e) => ServerEvent::Error {
+                                req_id: Some(req_id),
+                                message: format!("{e:#}"),
+                            },
+                        };
+                        let _ = out_tx.send(ev).await;
+                    });
+                }
                 ClientRequest::ListCheckpoints { req_id, agent } => {
                     let daemon = daemon.clone();
                     let out_tx = out_tx.clone();

@@ -22,6 +22,7 @@ axum = "0.8"
 tokio-util = "0.7"
 rand = "0.10"
 subtle = "2"
+berth-hub = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.31", features = ["process", "fs", "signal", "term"] }

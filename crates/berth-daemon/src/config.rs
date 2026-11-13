@@ -34,6 +34,8 @@ pub struct Config {
     pub webhooks: bool,
     pub webhook_port: u16,
     pub webhook_expose: bool,
+    pub hub_url: Option<String>,
+    pub hub_token: Option<String>,
 }
 
 impl Default for Config {
@@ -48,6 +50,8 @@ impl Default for Config {
             webhooks: false,
             webhook_port: DEFAULT_WEBHOOK_PORT,
             webhook_expose: false,
+            hub_url: None,
+            hub_token: None,
         }
     }
 }

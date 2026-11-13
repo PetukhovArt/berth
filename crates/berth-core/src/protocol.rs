@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 49;
+pub const PROTOCOL_VERSION: u32 = 50;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -453,6 +453,24 @@ pub enum ClientRequest {
         number: u32,
     },
 
+    ListChannels {
+        req_id: u64,
+    },
+
+    ReadChannel {
+        req_id: u64,
+        channel: String,
+        after: i64,
+        agent: Option<AgentId>,
+    },
+
+    PostToChannel {
+        req_id: u64,
+        channel: String,
+        content: String,
+        agent: Option<AgentId>,
+    },
+
     Shutdown,
 }
 
@@ -829,6 +847,36 @@ pub enum ServerEvent {
         trigger: PromptTrigger,
         secret: Option<String>,
     },
+
+    Channels {
+        req_id: u64,
+        channels: Vec<ChannelSummary>,
+    },
+
+    ChannelEvents {
+        req_id: u64,
+        events: Vec<ChannelEvent>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChannelSummary {
+    pub key: String,
+    pub head: i64,
+    pub unread: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChannelEvent {
+    pub seq: i64,
+    pub kind: u32,
+    pub author: String,
+    pub author_name: String,
+    pub author_kind: String,
+    pub channel: String,
+    pub tags: Vec<Vec<String>>,
+    pub content: String,
+    pub created_at: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

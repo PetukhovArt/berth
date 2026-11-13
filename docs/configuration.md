@@ -58,6 +58,8 @@ file or a missing key means the default.
 | `webhooks` | `false` | listen for webhook prompts (`berth webhook`); read when the daemon starts |
 | `webhook_port` | `47821` | the port the webhook listener uses |
 | `webhook_expose` | `false` | listen on all interfaces instead of `127.0.0.1` only; put it behind something you trust, since the secret is the only check |
+| `hub_url` | none | the team hub the `berth channel` commands talk to, like `http://hub.example:7843` |
+| `hub_token` | none | this device's token on the hub, from `berth hub pair` once an admin ran `berth hub approve` |
 | `git_init_on_create` | `true` | `git init` a directory that `Add Project` creates because it did not exist |
 
 ## Desktop app settings

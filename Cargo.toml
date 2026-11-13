@@ -3,10 +3,11 @@ resolver = "2"
 members = [
     "crates/berth-core",
     "crates/berth-daemon",
+    "crates/berth-hub",
     "crates/berth",
     "apps/desktop/src-tauri",
 ]
-default-members = ["crates/berth-core", "crates/berth-daemon", "crates/berth"]
+default-members = ["crates/berth-core", "crates/berth-daemon", "crates/berth-hub", "crates/berth"]
 exclude = ["vendor/vt100"]
 
 # Vendored vt100 with one patch: rows scrolled out of a top-anchored DECSTBM
@@ -24,6 +25,7 @@ license = "MIT"
 [workspace.dependencies]
 berth-core = { path = "crates/berth-core" }
 berth-daemon = { path = "crates/berth-daemon" }
+berth-hub = { path = "crates/berth-hub" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

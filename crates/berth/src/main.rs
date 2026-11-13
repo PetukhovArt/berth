@@ -1,3 +1,4 @@
+mod channel;
 mod client;
 mod mcp;
 mod sessions;
@@ -156,6 +157,16 @@ enum Command {
         #[arg(long, value_name = "ID")]
         remove: Option<String>,
     },
+    #[command(about = "Read and post in the team channels of the hub set in the config; prints JSON")]
+    Channel {
+        #[command(subcommand)]
+        command: ChannelCommand,
+    },
+    #[command(about = "Run the team hub, or pair and approve a device")]
+    Hub {
+        #[command(subcommand)]
+        command: HubCommand,
+    },
     #[command(about = "List sessions as JSON (live ones; --all adds archived)")]
     Sessions {
         #[arg(long, help = "Include archived sessions")]
@@ -192,6 +203,48 @@ enum Command {
     /// a different build than this binary (see `make install` / install.sh).
     #[command(hide = true, name = "_stale-daemon-note")]
     StaleDaemonNote,
+}
+
+#[derive(Subcommand)]
+enum ChannelCommand {
+    #[command(about = "List the channels you are in, with their unread counts")]
+    List,
+    #[command(about = "Print the events of a channel after a sequence number")]
+    Read {
+        channel: String,
+        #[arg(long, default_value_t = 0)]
+        after: i64,
+    },
+    #[command(about = "Post a message in a channel; from inside a session it is posted as that Agent")]
+    Post {
+        channel: String,
+        #[arg(required = true, num_args = 1.., help = "The message; multiple words need no quotes")]
+        message: Vec<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum HubCommand {
+    #[command(about = "Serve the hub; binds loopback unless --bind says otherwise")]
+    Serve {
+        #[arg(long, default_value = "127.0.0.1:7843")]
+        bind: std::net::SocketAddr,
+        #[arg(long, value_name = "FILE")]
+        db: Option<std::path::PathBuf>,
+        #[arg(long)]
+        admin_token: Option<String>,
+    },
+    #[command(about = "Step one: admit this device; prints its token, which opens nothing yet")]
+    Pair { url: String, name: String },
+    #[command(about = "Step two: approve an admitted device and what it may do")]
+    Approve {
+        url: String,
+        #[arg(long)]
+        admin_token: String,
+        id: String,
+        #[arg(long, value_delimiter = ',', default_value = "read,post,create")]
+        scopes: Vec<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -270,6 +323,27 @@ fn main() -> Result<()> {
             target,
         }) => triggers::run_webhook(prompt.join(" "), name, target.into()),
         Some(Command::Triggers { remove }) => triggers::run_triggers(remove),
+        Some(Command::Channel { command }) => match command {
+            ChannelCommand::List => channel::run_list(),
+            ChannelCommand::Read { channel, after } => channel::run_read(channel, after),
+            ChannelCommand::Post { channel, message } => {
+                channel::run_post(channel, message.join(" "))
+            }
+        },
+        Some(Command::Hub { command }) => match command {
+            HubCommand::Serve {
+                bind,
+                db,
+                admin_token,
+            } => channel::run_hub_serve(bind, db, admin_token),
+            HubCommand::Pair { url, name } => channel::run_hub_pair(url, name),
+            HubCommand::Approve {
+                url,
+                admin_token,
+                id,
+                scopes,
+            } => channel::run_hub_approve(url, admin_token, id, scopes),
+        },
         Some(Command::Upgrade { force }) => upgrade::run_upgrade(force),
         Some(Command::StaleDaemonNote) => {
             if berth_daemon::lifecycle::daemon_is_stale() {
