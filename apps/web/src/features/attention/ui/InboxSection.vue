@@ -3,7 +3,7 @@ import { shallowRef, useTemplateRef } from 'vue';
 import { Ellipsis } from '../../../shared/ui/icons';
 import { VContextMenu } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
-import { StatusIcon, useSessionDock } from '../../../entities/session';
+import { allowRequest, chooseOption, denyRequest, StatusIcon, useBerth, useSessionDock } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { settleInbox, snoozeInbox, useInbox, type InboxEntry } from '../model/inbox';
 
@@ -13,6 +13,8 @@ const DAY = 24 * HOUR;
 
 const { items, now } = useInbox();
 const dock = useSessionDock();
+const berth = useBerth();
+const requestOf = (entry: InboxEntry) => berth?.feedback.value.get(entry.node.id);
 const menu = useTemplateRef<InstanceType<typeof VContextMenu>>('menu');
 const target = shallowRef<InboxEntry | null>(null);
 
@@ -37,6 +39,10 @@ function age(since: number): string {
   return t('attention.inbox.days', { count: Math.floor(diff / DAY) });
 }
 
+function resetTime(until: number | undefined): string {
+  return until ? new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+}
+
 function showMenu(event: MouseEvent, entry: InboxEntry) {
   target.value = entry;
   menu.value?.show(event);
@@ -57,9 +63,19 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
             <span class="name">{{ entry.node.name }}</span>
             <span class="age">{{ age(entry.since) }}</span>
           </span>
-          <span class="reason"><span class="kind">{{ t(`attention.inbox.${entry.kind}`) }}</span><template v-if="entry.place"> · {{ entry.place }}</template></span>
+          <span class="reason"><span class="kind">{{ t(`attention.inbox.${entry.kind}`, { time: resetTime(entry.until) }) }}</span><template v-if="entry.place"> · {{ entry.place }}</template></span>
         </span>
       </UiButton>
+      <div v-if="requestOf(entry)" class="card vr-phone-only" data-testid="inbox-request">
+        <code v-if="requestOf(entry)?.detail" class="detail">{{ requestOf(entry)?.detail }}</code>
+        <div class="actions">
+          <template v-if="requestOf(entry)?.kind === 'Permission'">
+            <UiButton type="button" class="action primary" data-testid="inbox-allow" @click="allowRequest(entry.node.ref)">{{ t('feedback.allow') }}</UiButton>
+            <UiButton type="button" class="action" data-testid="inbox-deny" @click="denyRequest(entry.node.ref)">{{ t('feedback.deny') }}</UiButton>
+          </template>
+          <UiButton v-for="(option, index) in requestOf(entry)?.options" v-else :key="index" type="button" class="action" :class="{ primary: index === 0 }" data-testid="inbox-option" @click="chooseOption(entry.node.ref, index)">{{ option }}</UiButton>
+        </div>
+      </div>
       <UiButton class="more" :title="t('attention.inbox.actions')" :aria-label="t('attention.inbox.actions')" aria-haspopup="menu" data-testid="inbox-menu" @click="showMenu($event, entry)"><Ellipsis :size="14" /></UiButton>
     </div>
     <VContextMenu ref="menu" :model="menuItems">
@@ -148,6 +164,10 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
   color: var(--vr-status-feedback);
 }
 
+.item[data-kind='limited'] .kind {
+  color: var(--vr-status-limit);
+}
+
 .item[data-kind='crashed'] .kind {
   color: var(--vr-status-crashed);
 }
@@ -177,5 +197,62 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
 .item:hover .age,
 .item:focus-within .age {
   visibility: hidden;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vr-space-2);
+  padding: 0 var(--vr-space-2) var(--vr-space-2) 26px;
+}
+
+.detail {
+  padding: 6px 8px;
+  overflow: hidden;
+  font-family: var(--vr-font-mono);
+  font-size: var(--vr-font-size-xs);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: var(--vr-color-surface-sunken);
+  border-radius: var(--vr-radius-md);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vr-space-2);
+}
+
+.action {
+  flex: 1;
+  min-height: var(--vr-size-touch);
+  padding: 0 var(--vr-space-3);
+  font: inherit;
+  font-size: var(--vr-font-size-sm);
+  color: var(--vr-color-text);
+  background: var(--vr-color-surface-muted);
+  border: 0;
+  border-radius: var(--vr-radius-md);
+}
+
+.action.primary {
+  font-weight: 600;
+  color: var(--vr-color-accent-contrast);
+  background: var(--vr-color-accent);
+}
+
+:global(:root[data-vr-viewport='phone']) .item {
+  margin-bottom: var(--vr-space-2);
+  background: var(--vr-color-surface);
+  border: 1px solid var(--vr-color-border);
+  border-radius: var(--vr-radius-lg);
+}
+
+:global(:root[data-vr-viewport='phone']) .item[data-kind='waiting'] {
+  border-color: var(--vr-status-feedback);
+}
+
+:global(:root[data-vr-viewport='phone']) .more {
+  opacity: 1;
 }
 </style>
