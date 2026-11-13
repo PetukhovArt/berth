@@ -53,6 +53,7 @@ export const files = {
       tasks: 'Tasks',
       files: 'Files',
       actions: 'Actions',
+      messages: 'Messages',
     },
     hint: 'Enter opens',
   },

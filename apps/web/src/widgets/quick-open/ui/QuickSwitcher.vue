@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef, useTemplateRef } from 'vue';
-import { ChevronRight, FileText, GitPullRequest, Search, Ticket, Zap } from '../../../shared/ui/icons';
+import { ChevronRight, FileText, GitPullRequest, MessageSquare, Search, Ticket, Zap } from '../../../shared/ui/icons';
 import { subsequenceScore } from '../../../shared/lib/fuzzy';
 import { usePickerList } from '../../../shared/lib/usePickerList';
 import { pipelineTone } from '../../../entities/merge-request';
 import { t } from '../../../shared/lib/i18n/i18n';
 import BackBar from '../../../shared/ui/BackBar.vue';
 import type { QuickItem, WorkNode } from '../../../features/work-tree';
-import { externalDot, HarnessIcon, StatusIcon } from '../../../entities/session';
+import { externalDot, HarnessIcon, openChannel, StatusIcon, useLoadedChannelMessages, type LoadedChannelMessage } from '../../../entities/session';
 import type { MarkdownEntry } from '../../../shared/lib/markdownFiles';
 
 import UiInput from '../../../shared/ui/UiInput.vue';
 type QuickAction = { key: string; label: string };
-type Item = { kind: 'leaf'; key: string; entry: QuickItem } | { kind: 'file'; key: string; file: MarkdownEntry } | { kind: 'action'; key: string; action: QuickAction };
-type Group = 'sessions' | 'mr' | 'issue' | 'files' | 'actions';
+type Item = { kind: 'leaf'; key: string; entry: QuickItem } | { kind: 'file'; key: string; file: MarkdownEntry } | { kind: 'action'; key: string; action: QuickAction } | { kind: 'message'; key: string; message: LoadedChannelMessage };
+type Group = 'sessions' | 'mr' | 'issue' | 'files' | 'actions' | 'messages';
 
 const props = withDefaults(defineProps<{ entries: readonly QuickItem[]; files?: readonly MarkdownEntry[]; fileScope?: string; actions?: readonly QuickAction[] }>(), { files: () => [], fileScope: '', actions: () => [] });
 const emit = defineEmits<{ select: [node: WorkNode]; 'select-file': [path: string]; 'select-action': [key: string]; close: [] }>();
@@ -21,6 +21,8 @@ const emit = defineEmits<{ select: [node: WorkNode]; 'select-file': [path: strin
 const input = useTemplateRef<HTMLInputElement>('input');
 const list = useTemplateRef<HTMLElement>('list');
 const query = shallowRef('');
+const loadedMessages = useLoadedChannelMessages();
+const MAX_MESSAGE_HITS = 20;
 
 const ICONS = { mr: GitPullRequest, issue: Ticket } as const;
 const iconOf = (kind: string) => (kind in ICONS ? ICONS[kind as keyof typeof ICONS] : undefined);
@@ -31,11 +33,13 @@ const GROUP_LABELS = {
   issue: 'files.switcher.groups.tasks',
   files: 'files.switcher.groups.files',
   actions: 'files.switcher.groups.actions',
+  messages: 'files.switcher.groups.messages',
 } as const;
 
 function groupOf(item: Item): Group {
   if (item.kind === 'file') return 'files';
   if (item.kind === 'action') return 'actions';
+  if (item.kind === 'message') return 'messages';
   const kind = item.entry.node.kind;
   if (kind === 'session' || kind === 'external') return 'sessions';
   return kind === 'mr' ? 'mr' : 'issue';
@@ -56,9 +60,10 @@ const results = computed<Item[]>(() => {
   if (!words.length) return leaves;
   const files: Item[] = props.files.map((file) => ({ kind: 'file', key: file.path, file }));
   const actions: Item[] = props.actions.map((action) => ({ kind: 'action', key: `action:${action.key}`, action }));
-  const sorted = [...leaves, ...files, ...actions]
+  const messages: Item[] = loadedMessages.value.map((message) => ({ kind: 'message', key: `message:${message.channel}:${message.seq}`, message }));
+  const sorted = [...leaves, ...files, ...actions, ...messages]
     .map((item, order) => {
-      const text = item.kind === 'leaf' ? item.entry.search : item.kind === 'file' ? item.file.rel.toLowerCase() : item.action.label.toLowerCase();
+      const text = item.kind === 'leaf' ? item.entry.search : item.kind === 'file' ? item.file.rel.toLowerCase() : item.kind === 'message' ? item.message.content.toLowerCase() : item.action.label.toLowerCase();
       let total = 0;
       for (const word of words) {
         const score = subsequenceScore(word, text);
@@ -70,7 +75,8 @@ const results = computed<Item[]>(() => {
     .filter((match): match is { item: Item; order: number; total: number } => match !== null)
     .sort((a, b) => b.total - a.total || a.order - b.order)
     .map((match) => match.item);
-  return groupItems(sorted);
+  let hits = 0;
+  return groupItems(sorted.filter((item) => item.kind !== 'message' || ++hits <= MAX_MESSAGE_HITS));
 });
 
 const groups = computed(() => {
@@ -88,7 +94,10 @@ function choose(item: Item | undefined) {
   if (!item) return;
   if (item.kind === 'leaf') emit('select', item.entry.node);
   else if (item.kind === 'file') emit('select-file', item.file.path);
-  else emit('select-action', item.action.key);
+  else if (item.kind === 'message') {
+    openChannel(item.message.channel);
+    emit('close');
+  } else emit('select-action', item.action.key);
 }
 
 const { index, onKey } = usePickerList({ results, query, list, choose, close: () => emit('close') });
@@ -123,7 +132,7 @@ onMounted(() => input.value?.focus());
             role="option"
             :aria-selected="position === index"
             :data-current="position === index"
-            :data-testid="item.kind === 'leaf' ? 'quick-switcher-item' : item.kind === 'file' ? 'quick-switcher-file' : 'quick-switcher-action'"
+            :data-testid="item.kind === 'leaf' ? 'quick-switcher-item' : item.kind === 'file' ? 'quick-switcher-file' : item.kind === 'message' ? 'quick-switcher-message' : 'quick-switcher-action'"
             :data-kind="item.kind === 'leaf' ? item.entry.node.kind : item.kind"
             :data-session-id="item.kind === 'leaf' ? item.entry.node.data?.session?.id : undefined"
             @pointermove="index = position"
@@ -146,6 +155,15 @@ onMounted(() => input.value?.focus());
                 </span>
               </span>
               <StatusIcon v-if="item.entry.node.data?.item && item.entry.node.data.item.pipeline !== 'none'" :tone="pipelineTone(item.entry.node.data.item.pipeline)" />
+            </template>
+            <template v-else-if="item.kind === 'message'">
+              <MessageSquare :size="14" class="file-icon" />
+              <span class="text">
+                <span class="session">{{ item.message.content }}</span>
+                <span class="sub">
+                  <span class="path"># {{ item.message.channel }} · {{ item.message.authorName }}</span>
+                </span>
+              </span>
             </template>
             <template v-else-if="item.kind === 'action'">
               <Zap :size="14" class="file-icon" />

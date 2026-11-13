@@ -32,8 +32,26 @@ function messages(reply: Awaited<ReturnType<typeof call>>): ChannelMessage[] {
   }));
 }
 
+const SEARCH_CACHE_PER_CHANNEL = 200;
+const loaded = shallowRef<ReadonlyMap<string, readonly ChannelMessage[]>>(new Map());
+
+function remember(channel: string, fresh: ChannelMessage[]): ChannelMessage[] {
+  if (!fresh.length) return fresh;
+  const known = loaded.value.get(channel) ?? [];
+  const seen = new Set(known.map((message) => message.seq));
+  const merged = [...known, ...fresh.filter((message) => !seen.has(message.seq))].sort((a, b) => a.seq - b.seq).slice(-SEARCH_CACHE_PER_CHANNEL);
+  loaded.value = new Map(loaded.value).set(channel, merged);
+  return fresh;
+}
+
+export type LoadedChannelMessage = ChannelMessage & { channel: string };
+
+export function useLoadedChannelMessages() {
+  return computed<LoadedChannelMessage[]>(() => [...loaded.value].flatMap(([channel, list]) => list.map((message) => ({ ...message, channel }))));
+}
+
 export async function readChannel(channel: string, after: number): Promise<ChannelMessage[]> {
-  return messages(await call({ ReadChannel: { channel, after, agent: null } }));
+  return remember(channel, messages(await call({ ReadChannel: { channel, after, agent: null } })));
 }
 
 export async function readPresence(channel: string): Promise<ChannelPresent[]> {
@@ -43,7 +61,7 @@ export async function readPresence(channel: string): Promise<ChannelPresent[]> {
 }
 
 export async function postToChannel(channel: string, content: string): Promise<ChannelMessage[]> {
-  return messages(await call({ PostToChannel: { channel, content, agent: null } }));
+  return remember(channel, messages(await call({ PostToChannel: { channel, content, agent: null } })));
 }
 
 export function openChannel(key: string, split = false): void {

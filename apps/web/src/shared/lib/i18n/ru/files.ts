@@ -56,6 +56,7 @@ export const files: Translation<typeof en> = {
       tasks: 'Задачи',
       files: 'Файлы',
       actions: 'Действия',
+      messages: 'Сообщения',
     },
     hint: 'Enter открывает',
   },
