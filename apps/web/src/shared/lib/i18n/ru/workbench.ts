@@ -20,6 +20,11 @@ export const workbench: Translation<typeof en> = {
   tabAttention: 'Моих MR требуют внимания (упал пайплайн или открытые треды): {count}',
   tabOpen: 'Открыто: {count}',
   tabReviewsPending: 'Ждут вашего ревью: {count}',
+  firstRun: {
+    title: 'Добро пожаловать в berth',
+    lead: 'Мы посмотрели на эту машину. Отметьте, что нужно, и начинайте.',
+    nextStep: 'Настройте один агент, чтобы начать.',
+  },
   liveOnly: 'Только открытые сессии',
   empty: 'Пока пусто: добавьте проект или подключите GitLab, GitHub или Jira',
   nothingFound: 'Ничего не подходит под фильтр',

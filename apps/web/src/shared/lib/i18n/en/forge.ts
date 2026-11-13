@@ -28,6 +28,7 @@ export const forge = {
     conflictsTitle: 'Has merge conflicts',
     updated: 'updated {time}',
     reviewers: 'Reviewers:',
+    reviewersHeading: 'Reviewers',
     pipelineNumber: 'Pipeline #{id}',
     tabOverview: 'Overview',
     tabChanges: 'Changes',

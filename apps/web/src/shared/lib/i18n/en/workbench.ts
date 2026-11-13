@@ -18,6 +18,11 @@ export const workbench = {
   tabOpen: 'Open: {count}',
   tabReviewsPending: 'Waiting for your review: {count}',
   liveOnly: 'Only open sessions',
+  firstRun: {
+    title: 'Welcome to berth',
+    lead: 'We looked at this machine. Check what you want and start.',
+    nextStep: 'Set up one agent to start.',
+  },
   empty: 'Nothing here yet: add a project or connect GitLab, GitHub or Jira',
   nothingFound: 'Nothing matches the filter',
   pick: 'Pick a session, request or task in the tree',

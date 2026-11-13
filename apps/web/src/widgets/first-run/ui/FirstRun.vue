@@ -19,6 +19,7 @@ const berth = useBerth();
 const { accounts, refresh } = useAiAccounts();
 
 const cli = computed(() => accounts.value.filter((a) => a.method === 'cli'));
+const hasSignedIn = computed(() => cli.value.some((a) => a.status === 'signed_in'));
 const workspaceId = computed(() => berth?.tree.value[0]?.id);
 
 const tone = (status: AiStatus) => (status === 'signed_in' ? 'ok' : status === 'rejected' || status === 'error' ? 'error' : 'idle');
@@ -31,7 +32,10 @@ onMounted(() => {
 
 <template>
   <section class="first-run" data-testid="first-run">
-    <p class="lead" data-testid="first-run-lead">{{ t('workbench.empty') }}</p>
+    <header class="head">
+      <h1 class="heading" data-testid="first-run-title">{{ t('workbench.firstRun.title') }}</h1>
+      <p class="lead" data-testid="first-run-lead">{{ t('workbench.firstRun.lead') }}</p>
+    </header>
     <div class="block">
       <h2 class="title">{{ t('connectors.ai.title') }}</h2>
       <ul class="agents" data-testid="first-run-agents">
@@ -42,7 +46,8 @@ onMounted(() => {
       </ul>
     </div>
     <div class="block">
-      <ProjectActions v-if="workspaceId" class="add" :workspace-id="workspaceId" />
+      <ProjectActions v-if="workspaceId" class="add" :workspace-id="workspaceId" primary />
+      <p v-if="!hasSignedIn" class="next" data-testid="first-run-next">{{ t('workbench.firstRun.nextStep') }}</p>
     </div>
   </section>
 </template>
@@ -57,10 +62,29 @@ onMounted(() => {
   padding: var(--vr-space-8) var(--vr-space-4);
 }
 
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vr-space-2);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--vr-font-size-xl);
+  font-weight: 600;
+  color: var(--vr-color-text);
+}
+
 .lead {
   margin: 0;
   font-size: var(--vr-font-size-md);
   color: var(--vr-color-text-muted);
+}
+
+.next {
+  margin: 0;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-subtle);
 }
 
 .block {

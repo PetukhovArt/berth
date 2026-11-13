@@ -8,7 +8,7 @@ import OrphansDialog from './OrphansDialog.vue';
 
 const MISSING_FOLDER = /не существует|не найден|not exist|no such|not found/i;
 
-const props = defineProps<{ projectId?: string; workspaceId?: string; bare?: boolean; hint?: string }>();
+const props = defineProps<{ projectId?: string; workspaceId?: string; bare?: boolean; hint?: string; primary?: boolean }>();
 const emit = defineEmits<{ resumed: [agent: string]; create: [worktree: string] }>();
 
 type Mode = 'idle' | 'adding' | 'renaming' | 'removing';
@@ -138,7 +138,7 @@ async function confirmRemove() {
       @remove="openRemove"
       @extra="orphansOpen = true"
     />
-    <VButton v-else-if="!bare" :label="t('agents.project.add')" size="small" text severity="secondary" data-testid="project-add" @click="openAdd" />
+    <VButton v-else-if="!bare" :label="t('agents.project.add')" size="small" :text="!primary" :severity="primary ? undefined : 'secondary'" data-testid="project-add" @click="openAdd" />
     <form v-if="mode === 'adding'" class="inline" @submit.prevent="submitAdd(false)">
       <span v-if="hint" class="hint" data-testid="project-add-hint">{{ hint }}</span>
       <VInputText ref="pathInput" v-model="path" size="small" :placeholder="t('agents.project.path')" :aria-label="t('agents.project.pathAria')" data-testid="project-path-input" @keydown.esc="cancel" />

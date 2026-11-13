@@ -74,7 +74,7 @@ const stages = computed(() => {
         </section>
 
         <section v-if="props.request.reviewers.length" class="fact" data-testid="cr-fact-reviewers">
-          <h3 class="fact-title">{{ t('forge.request.reviewers') }}</h3>
+          <h3 class="fact-title">{{ t('forge.request.reviewersHeading') }}</h3>
           <div v-for="r in props.request.reviewers" :key="r.username" class="reviewer">
             <PersonAvatar :person="r" small />
             <span class="reviewer-name">{{ r.name || r.username }}</span>

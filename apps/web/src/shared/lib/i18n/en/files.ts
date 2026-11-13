@@ -47,5 +47,13 @@ export const files = {
     dialog: 'Quick jump to a session or file',
     search: 'Search sessions and files',
     placeholderFiles: 'workspace › project › branch › session, or a Markdown file in {scope}',
+    groups: {
+      sessions: 'Sessions',
+      mergeRequests: 'Merge requests',
+      tasks: 'Tasks',
+      files: 'Files',
+      actions: 'Actions',
+    },
+    hint: 'Enter opens',
   },
 } as const;

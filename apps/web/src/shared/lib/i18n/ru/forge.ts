@@ -31,6 +31,7 @@ export const forge: Translation<typeof en> = {
     conflictsTitle: 'Есть конфликты слияния',
     updated: 'обновлён {time}',
     reviewers: 'Ревьюеры:',
+    reviewersHeading: 'Ревьюеры',
     pipelineNumber: 'Пайплайн #{id}',
     tabOverview: 'Обзор',
     tabChanges: 'Изменения',

@@ -166,6 +166,7 @@ function crumb(item: HotItem): string {
           </UiButton>
         </div>
         <p v-else class="empty" data-testid="hot-overview-empty">{{ t('hot.overview.empty') }}</p>
+        <footer class="footer" data-testid="hot-overview-hint">{{ t('hot.overview.hint') }}</footer>
       </div>
     </div>
   </Transition>
@@ -216,6 +217,17 @@ function crumb(item: HotItem): string {
   background: var(--vr-color-surface);
   border-radius: var(--vr-radius-xl);
   box-shadow: var(--vr-shadow-dialog);
+}
+
+.footer {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  border-top: 1px solid var(--vr-color-border);
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-subtle);
 }
 
 .bar {
