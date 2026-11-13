@@ -251,7 +251,8 @@ async fn receive_hook(
 ) -> (StatusCode, String) {
     // On this path the response body reaches the model's context, so every
     // outcome (auth failure included) must answer with empty-or-instruction.
-    let injectable = dialect == HookDialect::Injectable && query.hook_event == "UserPromptSubmit";
+    let injectable = dialect == HookDialect::Injectable
+        && matches!(query.hook_event.as_str(), "UserPromptSubmit" | "SessionStart");
     let quiet_or = |status: StatusCode, diag: &str| {
         let body = if injectable {
             String::new()
@@ -305,6 +306,15 @@ async fn receive_hook(
         })
         .await;
 
+    if injectable && query.hook_event == "SessionStart" {
+        let note = state.store.task_note_for_agent(&agent_id).unwrap_or_default();
+        let body = if note.is_empty() {
+            String::new()
+        } else {
+            crate::task_notes::task_note_injection(&note)
+        };
+        return (StatusCode::OK, body);
+    }
     if injectable {
         // Prompt submitted on a still-untitled session: hand the CLI the
         // titling instruction. Unknown ids (prewarm, stale env) and store
@@ -493,6 +503,42 @@ mod tests {
         )
         .await;
         assert_eq!((status, body.as_str()), (401, ""));
+    }
+
+    #[tokio::test]
+    async fn session_start_carries_the_worktree_task_note_only() {
+        let store = seeded_store();
+        let (env, _rx) = start_hook_server(store.clone()).await.unwrap();
+        let payload = r#"{"session_id":"s1"}"#;
+        let path = "/api/hooks/claude?agentId=titled&hookEvent=SessionStart";
+
+        let (status, body) = http_post(env.port, path, &env.token, payload).await;
+        assert_eq!((status, body.as_str()), (200, ""));
+
+        store
+            .set_task_note(&WorktreeId("w1".into()), "keep the v2 API")
+            .unwrap();
+        let (_, body) = http_post(env.port, path, &env.token, payload).await;
+        assert_eq!(body, crate::task_notes::task_note_injection("keep the v2 API"));
+        assert!(body.contains("[berth] Task note: keep the v2 API"), "{body}");
+
+        let (_, body) = http_post(
+            env.port,
+            "/api/hooks/claude?agentId=ghost&hookEvent=SessionStart",
+            &env.token,
+            payload,
+        )
+        .await;
+        assert_eq!(body, "");
+
+        let (_, body) = http_post(
+            env.port,
+            "/api/hooks/cursor?agentId=titled&hookEvent=SessionStart",
+            &env.token,
+            payload,
+        )
+        .await;
+        assert_eq!(body, HOOK_OK);
     }
 
     #[tokio::test]

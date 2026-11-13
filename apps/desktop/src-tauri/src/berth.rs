@@ -10,7 +10,7 @@ use berth_core::transport::{self, Stream};
 use berth_core::{
     Agent, AgentId, AgentKind, AgentStatus, ArchivedExternalSession, ClientRequest, Entity,
     EntityId, FeedbackRequest, Project, ServerEvent, SessionRef, TerminalTab, Workspace,
-    WorkspaceId, Worktree, PROTOCOL_VERSION,
+    WorkspaceId, Worktree, WorktreeId, PROTOCOL_VERSION,
 };
 use serde::Serialize;
 use tokio::io::{BufReader, BufWriter, ReadHalf, WriteHalf};
@@ -82,6 +82,10 @@ pub enum WatchEvent {
     FeedbackRequest {
         agent: AgentId,
         request: Option<FeedbackRequest>,
+    },
+    TaskNote {
+        worktree: WorktreeId,
+        text: String,
     },
     Error {
         message: String,
@@ -586,6 +590,9 @@ impl Actor {
             ServerEvent::FeedbackRequestChanged { agent, request } => {
                 WatchEvent::FeedbackRequest { agent, request }
             }
+            ServerEvent::TaskNoteChanged { worktree, text } => {
+                WatchEvent::TaskNote { worktree, text }
+            }
             ServerEvent::Error { message, .. } => WatchEvent::Error { message },
             ServerEvent::Scrollback {
                 session,
@@ -684,6 +691,7 @@ fn reply_req_id(event: &ServerEvent) -> Option<u64> {
         | ServerEvent::Branches { req_id, .. }
         | ServerEvent::WorktreeEntered { req_id, .. }
         | ServerEvent::UsageLimits { req_id, .. }
+        | ServerEvent::TaskNote { req_id, .. }
         | ServerEvent::Metrics { req_id, .. } => Some(*req_id),
         ServerEvent::Error { req_id, .. } => *req_id,
         _ => None,
@@ -728,6 +736,8 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::DeleteLink { req_id, .. }
         | ClientRequest::RenameTerminal { req_id, .. }
         | ClientRequest::CloseTerminal { req_id, .. }
+        | ClientRequest::GetTaskNote { req_id, .. }
+        | ClientRequest::SetTaskNote { req_id, .. }
         | ClientRequest::GetUsageLimits { req_id }
         | ClientRequest::GetMetrics { req_id } => Some(req_id),
         ClientRequest::Hello { .. }

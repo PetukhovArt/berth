@@ -47,6 +47,7 @@ type WatchEvent =
   | { type: 'removed'; id: EntityId }
   | { type: 'status'; agent: string; status: AgentStatus; changed_at: number; unseen: boolean }
   | { type: 'feedback_request'; agent: string; request: FeedbackRequest | null }
+  | { type: 'task_note'; worktree: string; text: string }
   | { type: 'error'; message: string };
 
 export type SessionEvent = { type: 'reset'; data: string } | { type: 'output'; data: string } | { type: 'exited'; exit_code: number | null };
@@ -65,6 +66,7 @@ type BerthStore = {
   sessions: ComputedRef<ReadonlyMap<string, SessionNode>>;
   archivedExternal: ComputedRef<ReadonlyMap<string, number>>;
   feedback: ComputedRef<ReadonlyMap<string, FeedbackRequest>>;
+  taskNotes: ComputedRef<ReadonlyMap<string, string>>;
 };
 
 export type Entities = {
@@ -186,6 +188,7 @@ function createStore(): BerthStore {
   const error = shallowRef<string | null>(null);
   const archivedExternal = shallowRef<ReadonlyMap<string, number>>(new Map());
   const feedback = shallowRef<ReadonlyMap<string, FeedbackRequest>>(new Map());
+  const taskNotes = shallowRef<ReadonlyMap<string, string>>(new Map());
 
   function receive(event: WatchEvent): void {
     if (event.type !== 'error') error.value = null;
@@ -223,6 +226,9 @@ function createStore(): BerthStore {
       case 'feedback_request':
         feedback.value = event.request ? new Map(feedback.value).set(event.agent, event.request) : drop(feedback.value, event.agent);
         return;
+      case 'task_note':
+        taskNotes.value = new Map(taskNotes.value).set(event.worktree, event.text);
+        return;
       case 'error':
         error.value = event.message;
         return;
@@ -240,7 +246,7 @@ function createStore(): BerthStore {
 
   const tree = computed(() => buildTree(entities.value));
   const sessions = computed(() => new Map(tree.value.flatMap((w) => w.projects.flatMap((p) => p.worktrees.flatMap((t) => t.sessions.map((s) => [s.key, s] as const))))));
-  return { entities: computed(() => entities.value), connection, error, tree, sessions, archivedExternal: computed(() => archivedExternal.value), feedback: computed(() => feedback.value) };
+  return { entities: computed(() => entities.value), connection, error, tree, sessions, archivedExternal: computed(() => archivedExternal.value), feedback: computed(() => feedback.value), taskNotes: computed(() => taskNotes.value) };
 }
 
 export function useBerth(): BerthStore | null {
@@ -297,11 +303,12 @@ export type BerthReply =
   | { Branches: { req_id: number; branches: Branch[] } }
   | { WorktreeEntered: { req_id: number; worktree: Worktree; outcome: EnterOutcome } }
   | { Metrics: { req_id: number; snapshot: MetricsSnapshot } }
-  | { UsageLimits: { req_id: number; windows: unknown[] } };
+  | { UsageLimits: { req_id: number; windows: unknown[] } }
+  | { TaskNote: { req_id: number; worktree: string; text: string } };
 
 export class BerthCallError extends Error {}
 
-const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits']);
+const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote']);
 
 function isBerthReply(value: unknown): value is BerthReply {
   if (typeof value !== 'object' || value === null) return false;

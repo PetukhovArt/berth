@@ -72,9 +72,10 @@ An [OpenClaw](https://github.com/openclaw/openclaw) skill built on these is in
 - `berth_sessions` with optional `all`: the `sessions` document.
 - `berth_attention`: the `attention` document.
 - `berth_send` with `session`, `text` and optional `submit`: the `send` document, for messaging another agent of the same task.
+- `berth_notes` with optional `session`: the Task note of that session's worktree, by default the calling session's.
 
 Each tool returns the command's JSON as text. A failure sets `isError` and carries `{"ok": false, "error": "..."}`.
-Task notes and overlaps are not served yet; the daemon has nothing to read them from.
+Overlaps are not served yet; the daemon has nothing to read them from.
 
 Claude Code:
 

@@ -168,6 +168,47 @@ pub(crate) async fn list(all: bool, only_attention: bool) -> Result<Value> {
     ))
 }
 
+pub(crate) async fn task_note(session: Option<&str>) -> Result<Value> {
+    let query = match session {
+        Some(s) => s.to_string(),
+        None => berth_core::env::non_empty(berth_core::env::AGENT_ID)
+            .or_else(|| berth_core::env::non_empty(berth_core::legacy::AGENT_ID))
+            .ok_or_else(|| anyhow::anyhow!("`session` is required outside a berth session"))?,
+    };
+    let mut conn = connect_or_spawn().await?;
+    let s = snapshot(&mut conn).await?;
+    let agent = resolve_session(&s.agents, &query)?;
+    let worktree = agent.worktree_id.clone();
+    write_frame(
+        &mut conn.stream,
+        &ClientRequest::GetTaskNote {
+            req_id: ONE_SHOT_REQ_ID,
+            worktree: worktree.clone(),
+        },
+    )
+    .await?;
+    loop {
+        match read_frame::<ServerEvent, _>(&mut conn.stream).await? {
+            Some(ServerEvent::TaskNote { text, .. }) => {
+                let branch = s
+                    .worktrees
+                    .iter()
+                    .find(|w| w.id == worktree)
+                    .map(|w| w.branch.as_str());
+                return Ok(json!({
+                    "ok": true,
+                    "session": { "id": agent.id.as_str(), "name": agent.name },
+                    "branch": branch,
+                    "note": if text.is_empty() { None } else { Some(text) },
+                }));
+            }
+            Some(ServerEvent::Error { message, .. }) => bail!("{message}"),
+            Some(_) => continue,
+            None => bail!("daemon closed the connection before answering"),
+        }
+    }
+}
+
 pub(crate) async fn send(session: &str, text: &str, submit: bool) -> Result<Value> {
     if text.trim().is_empty() {
         bail!("the message is empty");

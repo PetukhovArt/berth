@@ -9,6 +9,7 @@ const DEFAULT_PROTOCOL: &str = "2025-06-18";
 pub trait Backend {
     fn sessions(&self, all: bool, only_attention: bool) -> Result<Value>;
     fn send(&self, session: &str, text: &str, submit: bool) -> Result<Value>;
+    fn notes(&self, session: Option<&str>) -> Result<Value>;
 }
 
 struct Daemon {
@@ -22,6 +23,10 @@ impl Backend for Daemon {
 
     fn send(&self, session: &str, text: &str, submit: bool) -> Result<Value> {
         self.rt.block_on(sessions::send(session, text, submit))
+    }
+
+    fn notes(&self, session: Option<&str>) -> Result<Value> {
+        self.rt.block_on(sessions::task_note(session))
     }
 }
 
@@ -54,6 +59,16 @@ fn tool_list() -> Value {
                 },
                 "required": ["session", "text"]
             }
+        },
+        {
+            "name": "berth_notes",
+            "description": "Read the Task note of a session's worktree: a decision or caveat the user attached to the task. Defaults to the calling session.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "session": { "type": "string", "description": "Session id, unique id prefix or exact name (default: this session)" }
+                }
+            }
         }
     ])
 }
@@ -67,6 +82,7 @@ fn call_tool(backend: &dyn Backend, name: &str, args: &Value) -> Result<Value, S
             let text = args["text"].as_str().ok_or("`text` is required")?;
             backend.send(session, text, args["submit"].as_bool().unwrap_or(true))
         }
+        "berth_notes" => backend.notes(args["session"].as_str()),
         _ => return Err(format!("unknown tool `{name}`")),
     };
     Ok(match doc {
@@ -154,6 +170,10 @@ mod tests {
                 .push((session.into(), text.into(), submit));
             Ok(json!({ "ok": true, "session": { "id": "a1", "name": session } }))
         }
+
+        fn notes(&self, session: Option<&str>) -> Result<Value> {
+            Ok(json!({ "ok": true, "session": session, "note": "keep v2" }))
+        }
     }
 
     fn ask(stub: &Stub, req: Value) -> Value {
@@ -161,7 +181,7 @@ mod tests {
     }
 
     #[test]
-    fn lists_the_three_tools() {
+    fn lists_the_tools() {
         let r = ask(&Stub::default(), json!({"jsonrpc":"2.0","id":1,"method":"tools/list"}));
         let names: Vec<&str> = r["result"]["tools"]
             .as_array()
@@ -169,7 +189,10 @@ mod tests {
             .iter()
             .map(|t| t["name"].as_str().unwrap())
             .collect();
-        assert_eq!(names, ["berth_sessions", "berth_attention", "berth_send"]);
+        assert_eq!(
+            names,
+            ["berth_sessions", "berth_attention", "berth_send", "berth_notes"]
+        );
     }
 
     #[test]

@@ -6,6 +6,7 @@ import { sessionDot, StatusIcon, useBerth, useExternalSessions, type AgentKind, 
 import { knownMr, lookupMr, numberLabel } from '../../../entities/merge-request';
 import { SessionViewSwitch } from '../../../features/session-view-switch';
 import { GitStepButton } from '../../../features/git-step';
+import TaskNoteButton from './TaskNoteButton.vue';
 import { OverlapChip } from '../../../features/overlaps';
 
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
@@ -74,6 +75,7 @@ watch(
       </div>
       <div v-if="meta" class="meta" data-testid="session-header-meta">{{ meta }}</div>
     </div>
+    <TaskNoteButton v-if="worktree" :worktree-id="worktree.id" :branch="worktree.branch" />
     <GitStepButton v-if="worktree && worktree.branch" :path="worktree.path" :branch="worktree.branch" :has-request="!!mr" :refresh-key="status" />
     <SessionViewSwitch :panel="panel" :active="active" />
   </header>

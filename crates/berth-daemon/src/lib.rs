@@ -22,6 +22,7 @@ pub mod status;
 pub mod stop_agent;
 pub mod store;
 pub mod subagents;
+pub mod task_notes;
 pub mod usage;
 pub mod usage_limits;
 pub mod worktree_seed;

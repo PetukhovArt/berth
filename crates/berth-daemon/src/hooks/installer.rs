@@ -146,7 +146,7 @@ fn hook_command(endpoint: &str, event: &str) -> String {
     // reaches the agent. The daemon keeps that body empty except when an
     // instruction is due. Every other event stays fully silent.
     // Grok discards a UserPromptSubmit hook's stdout instead, so it stays silent.
-    let silence = if event == "UserPromptSubmit" && endpoint != "grok" {
+    let silence = if matches!(event, "UserPromptSubmit" | "SessionStart") && endpoint != "grok" {
         "2>/dev/null"
     } else {
         ">/dev/null 2>&1"

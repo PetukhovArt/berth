@@ -8,6 +8,7 @@ use berth_core::{
     PrSeen, Project, ProjectId, TerminalId, TerminalTab, Workspace, WorkspaceId, Worktree,
     WorktreeId, DEFAULT_WORKSPACE_ID,
 };
+use rusqlite::OptionalExtension;
 use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -283,6 +284,12 @@ const MIGRATIONS: &[&str] = &[
     "
     ALTER TABLE projects ADD COLUMN pin_order INTEGER;
     ",
+    "
+    CREATE TABLE task_notes (
+      worktree_id TEXT PRIMARY KEY REFERENCES worktrees(id) ON DELETE CASCADE,
+      text        TEXT NOT NULL
+    );
+    ",
 ];
 
 pub struct Store {
@@ -537,6 +544,51 @@ impl Store {
                 now_ms()
             ],
         )?;
+        Ok(())
+    }
+
+    pub fn task_note(&self, worktree: &WorktreeId) -> Result<String> {
+        let text = self
+            .conn
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT text FROM task_notes WHERE worktree_id = ?1",
+                params![worktree.as_str()],
+                |r| r.get(0),
+            )
+            .optional()?;
+        Ok(text.unwrap_or_default())
+    }
+
+    pub fn task_note_for_agent(&self, agent: &AgentId) -> Result<String> {
+        let text = self
+            .conn
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT n.text FROM task_notes n JOIN agents a ON a.worktree_id = n.worktree_id WHERE a.id = ?1",
+                params![agent.as_str()],
+                |r| r.get(0),
+            )
+            .optional()?;
+        Ok(text.unwrap_or_default())
+    }
+
+    pub fn set_task_note(&self, worktree: &WorktreeId, text: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        if text.is_empty() {
+            conn.execute(
+                "DELETE FROM task_notes WHERE worktree_id = ?1",
+                params![worktree.as_str()],
+            )?;
+        } else {
+            conn.execute(
+                "INSERT INTO task_notes (worktree_id, text) VALUES (?1, ?2)
+                 ON CONFLICT(worktree_id) DO UPDATE SET text = excluded.text",
+                params![worktree.as_str(), text],
+            )?;
+        }
         Ok(())
     }
 

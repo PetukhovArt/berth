@@ -9,6 +9,7 @@ export { allowRequest, chooseOption, denyRequest, useFeedbackRequest } from './m
 export { enqueuePrompt, removeQueuedPrompt, submitPrompt, useAgentBusy, useQueuedPrompts } from './model/promptQueue';
 export { isFiveHourWindow, useUsageLimits } from './model/limits';
 export type { UsageWindow } from './model/limits';
+export { saveTaskNote, useTaskNote } from './model/taskNote';
 export { getMetrics } from './model/metrics';
 export type { MetricsSnapshot, SessionMetrics } from './model/metrics';
 export { listOrphans, moveAgent, resumeOrphan } from './model/orphans';

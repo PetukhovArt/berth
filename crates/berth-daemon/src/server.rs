@@ -283,6 +283,27 @@ async fn handle_client(
                         .send(ServerEvent::UsageLimits { req_id, windows })
                         .await;
                 }
+                ClientRequest::GetTaskNote { req_id, worktree } => {
+                    let ev = match daemon.store.task_note(&worktree) {
+                        Ok(text) => ServerEvent::TaskNote {
+                            req_id,
+                            worktree,
+                            text,
+                        },
+                        Err(e) => ServerEvent::Error {
+                            req_id: Some(req_id),
+                            message: format!("{e:#}"),
+                        },
+                    };
+                    let _ = out_tx.send(ev).await;
+                }
+                ClientRequest::SetTaskNote {
+                    req_id,
+                    worktree,
+                    text,
+                } => {
+                    reply_done(&out_tx, req_id, daemon.set_task_note(&worktree, &text)).await;
+                }
                 // ---- entity CRUD: run the op, reply Ack/Error ----
                 ClientRequest::AddWorkspace { req_id, name } => {
                     reply(&out_tx, req_id, daemon.add_workspace(&name).map(Some)).await;
