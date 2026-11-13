@@ -12,6 +12,7 @@ import { NewSessionForm, cancelCreate, creatingIn, onCreated } from '../../../fe
 import { ArchitectureView } from '../../../features/architecture';
 import { SessionViews } from '../../../features/session-view-switch';
 import { DockArea } from '../../../widgets/dock';
+import { SessionHeader } from '../../../widgets/session-header';
 import { FirstRun, isFirstRun } from '../../../widgets/first-run';
 
 const ChangeRequestView = defineAsyncComponent(() => import('../../../widgets/change-request').then((m) => m.ChangeRequestView));
@@ -43,11 +44,14 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
     <BackBar v-if="mobile && detail" :title="activeSession?.name ?? activeTitle" @back="detail = false" />
     <DockArea class="vr-detail" :active-key="activeKey" @ready="onReady">
       <template #panel-session="{ params, api }">
-        <SessionViews :panel-id="api.id">
-          <template #terminal><SessionPanel v-if="isSessionRef(params.session)" class="vr-fade-in" :session="params.session" :panel="api" /></template>
-          <template #mr="{ mr }"><ChangeRequestView class="pane vr-fade-in" :connector="mr.connector" :project="mr.project" :number="mr.number" :panel="api" data-testid="session-mr-view" /></template>
-          <template #diff="{ path, status }"><WorktreeChanges class="pane" :path="path" :status="status" data-testid="session-diff-view" /></template>
-        </SessionViews>
+        <div class="session">
+          <SessionHeader :panel="api" :active="activeKey === api.id" />
+          <SessionViews class="body" :panel-id="api.id">
+            <template #terminal><SessionPanel v-if="isSessionRef(params.session)" class="vr-fade-in" :session="params.session" :panel="api" /></template>
+            <template #mr="{ mr }"><ChangeRequestView class="pane vr-fade-in" :connector="mr.connector" :project="mr.project" :number="mr.number" :panel="api" data-testid="session-mr-view" /></template>
+            <template #diff="{ path, status }"><WorktreeChanges class="pane" :path="path" :status="status" data-testid="session-diff-view" /></template>
+          </SessionViews>
+        </div>
       </template>
       <template #panel-review="{ params, api }">
         <ChangeRequestView v-if="typeof params.connector === 'string' && typeof params.project === 'string' && typeof params.number === 'number'" class="vr-fade-in" :connector="params.connector" :project="params.project" :number="params.number" :panel="api" />
@@ -93,5 +97,17 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
 
 .workbench {
   flex: 1;
+}
+
+.session {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
 }
 </style>

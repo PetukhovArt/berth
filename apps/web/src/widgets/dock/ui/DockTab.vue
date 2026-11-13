@@ -58,7 +58,7 @@ async function close() {
       <HarnessIcon v-if="linked(panel.id)" :harness="linked(panel.id)?.harness ?? 'claude'" :working="sessionTabDot(panel.id) === 'running'" />
     </template>
     <span class="name">{{ session(panel.id)?.name ?? external?.anyByKey.value.get(panel.id)?.title ?? panel.title }}</span>
-    <SessionViewSwitch v-if="kindOf(panel.id) === 'session' || kindOf(panel.id) === 'conversation'" :panel="panel" :active="active" />
+    <SessionViewSwitch v-if="kindOf(panel.id) === 'conversation'" :panel="panel" :active="active" />
     <span v-if="isFilePanel(panel.id) && isDirtyPath(panel.id.slice(FILE_PANEL_PREFIX.length))" class="dirty" :title="t('files.editor.dirty')" data-testid="file-tab-dirty" />
     <UiButton class="close" :title="t('common.close')" :aria-label="t('common.close')" data-testid="session-tab-close" @pointerdown.stop @click.stop="close"><X :size="12" /></UiButton>
   </span>
