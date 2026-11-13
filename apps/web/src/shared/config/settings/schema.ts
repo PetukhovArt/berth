@@ -206,6 +206,13 @@ export const SETTINGS = {
     category: 'sessions',
     placeholder: 'settings.def.sessionsWorktreeBase.placeholder',
   },
+  'sessions.archiveOnMerge': {
+    type: 'boolean',
+    default: false,
+    label: 'settings.def.sessionsArchiveOnMerge.label',
+    description: 'settings.def.sessionsArchiveOnMerge.description',
+    category: 'sessions',
+  },
   'sessions.externalDays': {
     type: 'number',
     default: 14,

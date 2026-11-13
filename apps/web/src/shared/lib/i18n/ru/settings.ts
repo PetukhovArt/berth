@@ -118,6 +118,10 @@ export const settings: Translation<typeof en> = {
       label: 'Промпт сессии из merge request',
       description: 'Первый промпт сессии, открытой из merge request. Подстановки: {url} {title} {description} {branch} {target} {issue} {author}. Пусто — встроенный промпт на языке интерфейса.',
     },
+    sessionsArchiveOnMerge: {
+      label: 'Архивировать сессии после merge',
+      description: 'Когда merge request worktree влит, его неактивные сессии уходят в архив и пропадают из Inbox. Worktree и ветка остаются; разархивируйте сессию, чтобы вернуть её.',
+    },
     sessionsExternalDays: {
       label: 'Сессии, запущенные вне Berth',
       description: 'За сколько дней дерево показывает сессии Claude Code и Codex, запущенные в терминале или IDE. 0 — не показывать.',

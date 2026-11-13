@@ -115,6 +115,10 @@ export const settings = {
       label: 'Merge request session prompt',
       description: 'First prompt of a session opened from a merge request. Placeholders: {url} {title} {description} {branch} {target} {issue} {author}. Empty: the built-in prompt in the interface language.',
     },
+    sessionsArchiveOnMerge: {
+      label: 'Archive sessions after merge',
+      description: 'When the merge request of a worktree is merged, its idle sessions move to the archive and leave the Inbox. The worktree and its branch stay; unarchive a session to bring it back.',
+    },
     sessionsExternalDays: {
       label: 'Sessions started outside Berth',
       description: 'How many days back the tree shows Claude Code and Codex sessions started in a terminal or an IDE. 0 hides them.',
