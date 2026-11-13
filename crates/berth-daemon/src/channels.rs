@@ -6,9 +6,9 @@ use serde::{de::DeserializeOwned, Serialize};
 
 pub(crate) fn hub() -> Result<HubClient> {
     let config = Config::load();
-    let url = config
-        .hub_url
-        .ok_or_else(|| anyhow!("no team hub: set \"hub_url\" and \"hub_token\" in the config file"))?;
+    let url = config.hub_url.ok_or_else(|| {
+        anyhow!("no team hub: set \"hub_url\" and \"hub_token\" in the config file")
+    })?;
     let token = config
         .hub_token
         .ok_or_else(|| anyhow!("no hub token: set \"hub_token\" in the config file"))?;

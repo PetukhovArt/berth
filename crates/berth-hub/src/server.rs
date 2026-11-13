@@ -86,7 +86,10 @@ fn member(store: &Store, headers: &HeaderMap, scope: &str) -> Result<Member, (St
         .map_err(|e| fail(StatusCode::INTERNAL_SERVER_ERROR, e))?
         .ok_or_else(|| fail(StatusCode::UNAUTHORIZED, "unknown or unapproved token"))?;
     if !m.can(scope) {
-        return Err(fail(StatusCode::FORBIDDEN, format!("this device may not `{scope}`")));
+        return Err(fail(
+            StatusCode::FORBIDDEN,
+            format!("this device may not `{scope}`"),
+        ));
     }
     Ok(m)
 }
@@ -212,7 +215,9 @@ struct PostBody {
 async fn post_event(State(s): State<Shared>, headers: HeaderMap, Json(b): Json<PostBody>) -> Reply {
     let store = s.store.lock().unwrap();
     let m = member(&store, &headers, "post")?;
-    let author = store.acting_member(&m, b.as_agent.as_deref()).map_err(denied)?;
+    let author = store
+        .acting_member(&m, b.as_agent.as_deref())
+        .map_err(denied)?;
     let mut tags = b.tags.clone();
     for tag in store.mention_tags(&b.channel, &b.content).map_err(denied)? {
         if !tags.contains(&tag) {
@@ -256,12 +261,16 @@ struct ReadQuery {
 async fn read(State(s): State<Shared>, headers: HeaderMap, Query(q): Query<ReadQuery>) -> Reply {
     let store = s.store.lock().unwrap();
     let m = member(&store, &headers, "read")?;
-    let reader = store.acting_member(&m, q.as_agent.as_deref()).map_err(denied)?;
+    let reader = store
+        .acting_member(&m, q.as_agent.as_deref())
+        .map_err(denied)?;
     let as_reader = Member {
         id: reader,
         scopes: m.scopes.clone(),
     };
-    let events = store.read_after(&q.channel, &as_reader, q.after).map_err(denied)?;
+    let events = store
+        .read_after(&q.channel, &as_reader, q.after)
+        .map_err(denied)?;
     Ok(Json(json!(events)))
 }
 

@@ -384,7 +384,8 @@ async fn handle_client(
                 } => {
                     let out_tx = out_tx.clone();
                     tokio::spawn(async move {
-                        let ev = match crate::channels::read_channel(&channel, after, &agent).await {
+                        let ev = match crate::channels::read_channel(&channel, after, &agent).await
+                        {
                             Ok(events) => ServerEvent::ChannelEvents { req_id, events },
                             Err(e) => ServerEvent::Error {
                                 req_id: Some(req_id),

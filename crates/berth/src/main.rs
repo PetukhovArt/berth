@@ -40,9 +40,17 @@ fn parse_agent_kind(s: &str) -> Result<berth_core::AgentKind, String> {
 
 #[derive(clap::Args)]
 struct TargetArgs {
-    #[arg(long, value_name = "ID", help = "Type into this session (default: the session this runs in)")]
+    #[arg(
+        long,
+        value_name = "ID",
+        help = "Type into this session (default: the session this runs in)"
+    )]
     agent: Option<String>,
-    #[arg(long, value_name = "ID", help = "Start a new session in this worktree instead")]
+    #[arg(
+        long,
+        value_name = "ID",
+        help = "Start a new session in this worktree instead"
+    )]
     worktree: Option<String>,
     #[arg(long, value_name = "KIND", value_parser = parse_agent_kind, help = "Harness of the new session")]
     kind: Option<berth_core::AgentKind>,
@@ -157,7 +165,9 @@ enum Command {
         #[arg(long, value_name = "ID")]
         remove: Option<String>,
     },
-    #[command(about = "Read and post in the team channels of the hub set in the config; prints JSON")]
+    #[command(
+        about = "Read and post in the team channels of the hub set in the config; prints JSON"
+    )]
     Channel {
         #[command(subcommand)]
         command: ChannelCommand,
@@ -183,10 +193,15 @@ enum Command {
         session: String,
         #[arg(required = true, num_args = 1.., help = "The message; multiple words need no quotes")]
         text: Vec<String>,
-        #[arg(long, help = "Leave the message in the input box without pressing Enter")]
+        #[arg(
+            long,
+            help = "Leave the message in the input box without pressing Enter"
+        )]
         no_enter: bool,
     },
-    #[command(about = "Serve MCP over stdio: tools to list sessions, see which need you and message one")]
+    #[command(
+        about = "Serve MCP over stdio: tools to list sessions, see which need you and message one"
+    )]
     Mcp,
     /// Manage workspaces — named project groups.
     Workspace {
@@ -215,7 +230,9 @@ enum ChannelCommand {
         #[arg(long, default_value_t = 0)]
         after: i64,
     },
-    #[command(about = "Post a message in a channel; from inside a session it is posted as that Agent")]
+    #[command(
+        about = "Post a message in a channel; from inside a session it is posted as that Agent"
+    )]
     Post {
         channel: String,
         #[arg(required = true, num_args = 1.., help = "The message; multiple words need no quotes")]

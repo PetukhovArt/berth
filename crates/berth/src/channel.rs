@@ -43,7 +43,10 @@ pub fn run_list() -> Result<()> {
         else {
             bail!("unexpected reply");
         };
-        println!("{}", serde_json::to_string_pretty(&json!({ "ok": true, "channels": channels }))?);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({ "ok": true, "channels": channels }))?
+        );
         Ok(())
     })
 }
@@ -60,7 +63,10 @@ pub fn run_read(channel: String, after: i64) -> Result<()> {
         else {
             bail!("unexpected reply");
         };
-        println!("{}", serde_json::to_string_pretty(&json!({ "ok": true, "events": events }))?);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({ "ok": true, "events": events }))?
+        );
         Ok(())
     })
 }
@@ -77,12 +83,19 @@ pub fn run_post(channel: String, content: String) -> Result<()> {
         else {
             bail!("unexpected reply");
         };
-        println!("{}", serde_json::to_string_pretty(&json!({ "ok": true, "event": events.first() }))?);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({ "ok": true, "event": events.first() }))?
+        );
         Ok(())
     })
 }
 
-pub fn run_hub_serve(bind: SocketAddr, db: Option<PathBuf>, admin_token: Option<String>) -> Result<()> {
+pub fn run_hub_serve(
+    bind: SocketAddr,
+    db: Option<PathBuf>,
+    admin_token: Option<String>,
+) -> Result<()> {
     let db = db.unwrap_or_else(|| berth_core::paths::data_dir().join("hub.db"));
     runtime()?.block_on(async {
         let hub = berth_hub::serve(&db, bind, admin_token).await?;
@@ -102,18 +115,29 @@ pub fn run_hub_serve(bind: SocketAddr, db: Option<PathBuf>, admin_token: Option<
 pub fn run_hub_pair(url: String, name: String) -> Result<()> {
     runtime()?.block_on(async {
         let (id, token) = HubClient::pair(&url, &name).await?;
-        println!("{}", serde_json::to_string_pretty(&json!({ "ok": true, "id": id, "token": token }))?);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({ "ok": true, "id": id, "token": token }))?
+        );
         Ok(())
     })
 }
 
-pub fn run_hub_approve(url: String, admin_token: String, id: String, scopes: Vec<String>) -> Result<()> {
+pub fn run_hub_approve(
+    url: String,
+    admin_token: String,
+    id: String,
+    scopes: Vec<String>,
+) -> Result<()> {
     runtime()?.block_on(async {
         let hub = HubClient::new(&url, &admin_token)?;
         let scopes: Vec<&str> = scopes.iter().map(String::as_str).collect();
         hub.approve(&id, &scopes).await?;
         let pending: Value = hub.pending().await?;
-        println!("{}", serde_json::to_string_pretty(&json!({ "ok": true, "still_pending": pending }))?);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({ "ok": true, "still_pending": pending }))?
+        );
         Ok(())
     })
 }

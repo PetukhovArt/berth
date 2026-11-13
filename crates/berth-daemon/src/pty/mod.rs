@@ -4,8 +4,8 @@ pub mod kill;
 pub mod kitty;
 mod own_dir;
 pub mod progress;
-pub mod suggestion;
 pub mod ring;
+pub mod suggestion;
 pub mod title;
 
 use anyhow::{Context, Result};

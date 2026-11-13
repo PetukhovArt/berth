@@ -46,7 +46,10 @@ fn input_line(screen: &vt100::Screen, row: u16, cols: u16) -> Option<Option<Stri
     let mut at = cells.iter().position(|c| !c.contents().trim().is_empty())?;
     if cells[at].contents() == BORDER {
         at += 1;
-        while cells.get(at).is_some_and(|c| c.contents().trim().is_empty()) {
+        while cells
+            .get(at)
+            .is_some_and(|c| c.contents().trim().is_empty())
+        {
             at += 1;
         }
     }
@@ -63,9 +66,8 @@ fn input_line(screen: &vt100::Screen, row: u16, cols: u16) -> Option<Option<Stri
         if glyph == BORDER {
             break;
         }
-        let typed = !cell.dim()
-            && !cell.inverse()
-            && matches!(cell.fgcolor(), vt100::Color::Default);
+        let typed =
+            !cell.dim() && !cell.inverse() && matches!(cell.fgcolor(), vt100::Color::Default);
         if typed {
             return Some(None);
         }
@@ -116,7 +118,10 @@ mod tests {
     #[test]
     fn feed_reports_only_changes() {
         let mut scanner = SuggestionScanner::new(80, 6);
-        assert_eq!(scanner.feed(b"\x1b[3;1H\xe2\x9d\xaf \x1b[2mgo on\x1b[0m"), Some(Some("go on".to_string())));
+        assert_eq!(
+            scanner.feed(b"\x1b[3;1H\xe2\x9d\xaf \x1b[2mgo on\x1b[0m"),
+            Some(Some("go on".to_string()))
+        );
         assert_eq!(scanner.feed(b""), None);
         assert_eq!(scanner.feed(b"\x1b[3;3H\x1b[Kx"), Some(None));
     }

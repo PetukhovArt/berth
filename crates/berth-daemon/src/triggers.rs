@@ -7,9 +7,7 @@ use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::post;
 use axum::Router;
-use berth_core::{
-    NewTrigger, PromptTrigger, SessionRef, TriggerId, TriggerTarget, TriggerWhen,
-};
+use berth_core::{NewTrigger, PromptTrigger, SessionRef, TriggerId, TriggerTarget, TriggerWhen};
 use subtle::ConstantTimeEq;
 
 use crate::config::Config;
@@ -195,14 +193,21 @@ impl Daemon {
     }
 }
 
+type DeliveryKey = (String, String);
+
 struct WebhookState {
     daemon: Arc<Daemon>,
-    seen: Mutex<(HashSet<(String, String)>, VecDeque<(String, String)>)>,
+    seen: Mutex<(HashSet<DeliveryKey>, VecDeque<DeliveryKey>)>,
     last_fired: Mutex<HashMap<String, Instant>>,
 }
 
 impl WebhookState {
-    fn receive(&self, id: &str, presented: &str, delivery: Option<&str>) -> (StatusCode, &'static str) {
+    fn receive(
+        &self,
+        id: &str,
+        presented: &str,
+        delivery: Option<&str>,
+    ) -> (StatusCode, &'static str) {
         let found = self
             .daemon
             .store

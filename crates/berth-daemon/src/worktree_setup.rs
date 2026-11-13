@@ -131,8 +131,7 @@ mod create_tests {
             .unwrap();
         daemon.set_project_setup(&project, "echo ready").unwrap();
 
-        let Ok(EntityId::Worktree(id)) = daemon.create_worktree(&project, "  ", None).await
-        else {
+        let Ok(EntityId::Worktree(id)) = daemon.create_worktree(&project, "  ", None).await else {
             panic!("worktree not created");
         };
 

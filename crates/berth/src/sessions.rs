@@ -1,4 +1,6 @@
-use crate::client::{connect_or_spawn, handshake, runtime, try_connect, Connection, ONE_SHOT_REQ_ID};
+use crate::client::{
+    connect_or_spawn, handshake, runtime, try_connect, Connection, ONE_SHOT_REQ_ID,
+};
 use anyhow::{bail, Result};
 use berth_core::codec::{read_frame, write_frame};
 use berth_core::{
@@ -332,7 +334,13 @@ mod tests {
     #[test]
     fn session_row_has_the_stable_fields() {
         let (ws, ps, wts) = world();
-        let agents = vec![agent("a1", "fix login", AgentStatus::NeedsFeedback, false, false)];
+        let agents = vec![agent(
+            "a1",
+            "fix login",
+            AgentStatus::NeedsFeedback,
+            false,
+            false,
+        )];
         let doc = sessions_document(&ws, &ps, &wts, &agents, false, false);
         assert_eq!(doc["ok"], true);
         assert_eq!(
@@ -392,9 +400,18 @@ mod tests {
             agent("01AAB", "fix", AgentStatus::Fresh, false, false),
             agent("01BBB", "docs", AgentStatus::Fresh, false, false),
         ];
-        assert_eq!(resolve_session(&agents, "01AAB").unwrap().id.as_str(), "01AAB");
-        assert_eq!(resolve_session(&agents, "docs").unwrap().id.as_str(), "01BBB");
-        assert_eq!(resolve_session(&agents, "01BB").unwrap().id.as_str(), "01BBB");
+        assert_eq!(
+            resolve_session(&agents, "01AAB").unwrap().id.as_str(),
+            "01AAB"
+        );
+        assert_eq!(
+            resolve_session(&agents, "docs").unwrap().id.as_str(),
+            "01BBB"
+        );
+        assert_eq!(
+            resolve_session(&agents, "01BB").unwrap().id.as_str(),
+            "01BBB"
+        );
         let err = resolve_session(&agents, "fix").unwrap_err().to_string();
         assert!(err.contains("01AAA") && err.contains("01AAB"), "{err}");
         assert!(resolve_session(&agents, "01A").is_err());

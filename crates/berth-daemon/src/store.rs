@@ -671,14 +671,20 @@ impl Store {
     }
 
     pub fn delete_trigger(&self, id: &TriggerId) -> Result<bool> {
-        let n = self.conn.lock().unwrap().execute(
-            "DELETE FROM prompt_triggers WHERE id = ?1",
-            params![id.0],
-        )?;
+        let n = self
+            .conn
+            .lock()
+            .unwrap()
+            .execute("DELETE FROM prompt_triggers WHERE id = ?1", params![id.0])?;
         Ok(n > 0)
     }
 
-    pub fn claim_due_trigger(&self, id: &TriggerId, now: i64, next_run: Option<i64>) -> Result<bool> {
+    pub fn claim_due_trigger(
+        &self,
+        id: &TriggerId,
+        now: i64,
+        next_run: Option<i64>,
+    ) -> Result<bool> {
         let conn = self.conn.lock().unwrap();
         let n = match next_run {
             Some(next) => conn.execute(

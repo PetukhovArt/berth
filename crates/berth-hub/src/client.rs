@@ -70,7 +70,10 @@ impl HubClient {
         let v = Self::new(url, "")?
             .call("POST", "/pair", Some(json!({ "name": name })))
             .await?;
-        Ok((v["id"].as_str().unwrap_or("").into(), v["token"].as_str().unwrap_or("").into()))
+        Ok((
+            v["id"].as_str().unwrap_or("").into(),
+            v["token"].as_str().unwrap_or("").into(),
+        ))
     }
 
     pub async fn pending(&self) -> Result<Value> {
@@ -78,29 +81,42 @@ impl HubClient {
     }
 
     pub async fn approve(&self, id: &str, scopes: &[&str]) -> Result<()> {
-        self.call("POST", "/admin/approve", Some(json!({ "id": id, "scopes": scopes })))
-            .await?;
+        self.call(
+            "POST",
+            "/admin/approve",
+            Some(json!({ "id": id, "scopes": scopes })),
+        )
+        .await?;
         Ok(())
     }
 
     pub async fn agent(&self, name: &str) -> Result<String> {
-        let v = self.call("POST", "/agents", Some(json!({ "name": name }))).await?;
+        let v = self
+            .call("POST", "/agents", Some(json!({ "name": name })))
+            .await?;
         Ok(v["id"].as_str().unwrap_or("").into())
     }
 
     pub async fn create_channel(&self, key: &str) -> Result<()> {
-        self.call("POST", "/channels", Some(json!({ "key": key }))).await?;
-        Ok(())
-    }
-
-    pub async fn add_member(&self, key: &str, member: &str) -> Result<()> {
-        self.call("POST", "/channels/members", Some(json!({ "key": key, "member": member })))
+        self.call("POST", "/channels", Some(json!({ "key": key })))
             .await?;
         Ok(())
     }
 
+    pub async fn add_member(&self, key: &str, member: &str) -> Result<()> {
+        self.call(
+            "POST",
+            "/channels/members",
+            Some(json!({ "key": key, "member": member })),
+        )
+        .await?;
+        Ok(())
+    }
+
     pub async fn channels(&self) -> Result<Vec<ChannelSummary>> {
-        Ok(serde_json::from_value(self.call("GET", "/channels", None).await?)?)
+        Ok(serde_json::from_value(
+            self.call("GET", "/channels", None).await?,
+        )?)
     }
 
     pub async fn post(
@@ -121,15 +137,24 @@ impl HubClient {
 
     pub async fn mentions(&self, after: i64) -> Result<Vec<Mention>> {
         let path = format!("/mentions?after={after}");
-        Ok(serde_json::from_value(self.call("GET", &path, None).await?)?)
+        Ok(serde_json::from_value(
+            self.call("GET", &path, None).await?,
+        )?)
     }
 
-    pub async fn read(&self, channel: &str, after: i64, as_agent: Option<&str>) -> Result<Vec<Event>> {
+    pub async fn read(
+        &self,
+        channel: &str,
+        after: i64,
+        as_agent: Option<&str>,
+    ) -> Result<Vec<Event>> {
         let mut path = format!("/events?channel={}&after={after}", percent_encode(channel));
         if let Some(a) = as_agent {
             path.push_str(&format!("&as_agent={}", percent_encode(a)));
         }
-        Ok(serde_json::from_value(self.call("GET", &path, None).await?)?)
+        Ok(serde_json::from_value(
+            self.call("GET", &path, None).await?,
+        )?)
     }
 
     pub async fn report_presence(&self, channels: &HashMap<String, Vec<String>>) -> Result<()> {
@@ -140,6 +165,8 @@ impl HubClient {
 
     pub async fn presence(&self, channel: &str) -> Result<Vec<Present>> {
         let path = format!("/presence?channel={}", percent_encode(channel));
-        Ok(serde_json::from_value(self.call("GET", &path, None).await?)?)
+        Ok(serde_json::from_value(
+            self.call("GET", &path, None).await?,
+        )?)
     }
 }

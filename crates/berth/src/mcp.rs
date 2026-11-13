@@ -182,7 +182,10 @@ mod tests {
 
     #[test]
     fn lists_the_tools() {
-        let r = ask(&Stub::default(), json!({"jsonrpc":"2.0","id":1,"method":"tools/list"}));
+        let r = ask(
+            &Stub::default(),
+            json!({"jsonrpc":"2.0","id":1,"method":"tools/list"}),
+        );
         let names: Vec<&str> = r["result"]["tools"]
             .as_array()
             .unwrap()
@@ -191,7 +194,12 @@ mod tests {
             .collect();
         assert_eq!(
             names,
-            ["berth_sessions", "berth_attention", "berth_send", "berth_notes"]
+            [
+                "berth_sessions",
+                "berth_attention",
+                "berth_send",
+                "berth_notes"
+            ]
         );
     }
 

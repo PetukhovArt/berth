@@ -287,7 +287,14 @@ impl Store {
         self.db.execute(
             "INSERT INTO events (kind, author, channel, tags, content, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![kind, author, key, serde_json::to_string(tags)?, content, now_ms()],
+            params![
+                kind,
+                author,
+                key,
+                serde_json::to_string(tags)?,
+                content,
+                now_ms()
+            ],
         )?;
         let seq = self.db.last_insert_rowid();
         self.events_where("e.seq = ?1", params![seq])?
@@ -364,11 +371,14 @@ impl Store {
     }
 
     pub fn mentions(&self, caller: &Member, after: i64) -> Result<Vec<Mention>> {
-        let events =
-            self.events_where("e.seq > ?1 AND e.tags LIKE '%\"p\"%'", params![after])?;
+        let events = self.events_where("e.seq > ?1 AND e.tags LIKE '%\"p\"%'", params![after])?;
         let mut out = Vec::new();
         for event in events {
-            for tag in event.tags.iter().filter(|t| t.len() == 2 && t[0] == MENTION_TAG) {
+            for tag in event
+                .tags
+                .iter()
+                .filter(|t| t.len() == 2 && t[0] == MENTION_TAG)
+            {
                 let agent = &tag[1];
                 let Some(owner) = self.agent_owner(agent)? else {
                     continue;
@@ -376,11 +386,11 @@ impl Store {
                 if owner != caller.id || !self.can_access(&event.channel, agent)? {
                     continue;
                 }
-                let agent_name: String = self.db.query_row(
-                    "SELECT name FROM members WHERE id=?1",
-                    [agent],
-                    |r| r.get(0),
-                )?;
+                let agent_name: String =
+                    self.db
+                        .query_row("SELECT name FROM members WHERE id=?1", [agent], |r| {
+                            r.get(0)
+                        })?;
                 out.push(Mention {
                     from_owner: event.author == owner,
                     chain: self.agent_chain(&event.channel, event.seq)?,
@@ -427,6 +437,8 @@ impl Store {
     }
 
     pub fn member_name(&self, id: &str) -> Result<String> {
-        Ok(self.db.query_row("SELECT name FROM members WHERE id=?1", [id], |r| r.get(0))?)
+        Ok(self
+            .db
+            .query_row("SELECT name FROM members WHERE id=?1", [id], |r| r.get(0))?)
     }
 }
