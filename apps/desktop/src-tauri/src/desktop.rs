@@ -346,6 +346,9 @@ pub fn run() {
             if let tauri::RunEvent::Exit = event {
                 crate::stratum::shutdown();
             }
+                if let Some(remote) = app.try_state::<Remote>() {
+                    remote.shutdown();
+                }
             if crate::platform::reopens_main_window(&event) {
                 tray::show_main(app);
             }

@@ -7,10 +7,11 @@ export const remote = {
     },
     bind: {
       label: 'Listen on',
-      description: 'Tailscale listens only on the 100.x address of this machine, LAN on every network interface, localhost only on this machine.',
+      description: 'Tailscale listens only on the 100.x address of this machine, Tailscale (HTTPS) keeps the server on localhost and publishes it with tailscale serve at https://<machine>.ts.net, LAN on every network interface, localhost only on this machine.',
       localhost: 'This machine only (localhost)',
       lan: 'Local network (LAN)',
       tailscale: 'Tailscale',
+      tailscaleHttps: 'Tailscale (HTTPS)',
     },
     port: {
       label: 'Port',
@@ -39,6 +40,7 @@ export const remote = {
     desktopOnly: 'Remote access is managed in the Berth app on the computer. On a berth-server (Docker) host the pairing link and QR code are in the server log: docker compose -f docker/compose.yaml logs berth.',
     problem: {
       tailscale_missing: 'This computer has no Tailscale address (100.x). Install Tailscale and sign in to the same account on this computer and on the phone, or switch to the local network (LAN) if the phone is on the same Wi-Fi.',
+      serve_failed: 'Could not publish the server with Tailscale Serve: {message}',
       bind_failed: 'Could not listen on {message}',
       token_store: 'Could not read the pairing token from the system keychain: {message}',
     },

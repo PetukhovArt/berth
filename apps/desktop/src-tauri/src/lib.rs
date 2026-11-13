@@ -21,6 +21,7 @@ pub mod rpc;
 pub mod settings;
 pub mod sink;
 pub mod stratum;
+pub mod tailscale;
 #[cfg(feature = "desktop")]
 mod taskbar;
 #[cfg(feature = "desktop")]

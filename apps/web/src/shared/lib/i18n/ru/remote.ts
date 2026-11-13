@@ -10,10 +10,11 @@ export const remote: Translation<typeof en> = {
     },
     bind: {
       label: 'Слушать',
-      description: 'Tailscale — только адрес 100.x этой машины, локальная сеть — все сетевые интерфейсы, localhost — только эта машина.',
+      description: 'Tailscale — только адрес 100.x этой машины, Tailscale (HTTPS) — сервер остаётся на localhost и публикуется через tailscale serve по адресу https://<машина>.ts.net, локальная сеть — все сетевые интерфейсы, localhost — только эта машина.',
       localhost: 'Только эта машина (localhost)',
       lan: 'Локальная сеть (LAN)',
       tailscale: 'Tailscale',
+      tailscaleHttps: 'Tailscale (HTTPS)',
     },
     port: {
       label: 'Порт',
@@ -42,6 +43,7 @@ export const remote: Translation<typeof en> = {
     desktopOnly: 'Удалённым доступом управляют в приложении Berth на компьютере. На хосте с berth-server (Docker) ссылка подключения и QR-код есть в логе сервера: docker compose -f docker/compose.yaml logs berth.',
     problem: {
       tailscale_missing: 'У этого компьютера нет адреса Tailscale (100.x). Установите Tailscale и войдите в один и тот же аккаунт на этом компьютере и на телефоне или переключитесь на локальную сеть (LAN), если телефон в той же Wi-Fi.',
+      serve_failed: 'Не удалось опубликовать сервер через Tailscale Serve: {message}',
       bind_failed: 'Не удалось слушать {message}',
       token_store: 'Не удалось прочитать токен подключения из системного хранилища ключей: {message}',
     },

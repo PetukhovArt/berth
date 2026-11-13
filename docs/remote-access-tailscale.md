@@ -32,6 +32,12 @@ In the desktop app, open Settings > Remote access:
    `This machine only (localhost)` is the default.
 3. `Port` is 4477 unless you change it.
 
+For HTTPS (needed by a phone browser for the microphone and Web Push), set `Listen on` to `Tailscale (HTTPS)`
+instead. The server then stays on localhost and Berth runs `tailscale serve --bg --https=443
+http://127.0.0.1:<port>`; the pairing link is `https://<machine>.<tailnet>.ts.net/?token=...`. HTTPS and
+Serve must be enabled for the tailnet (first run prints a link to do it, shown in the panel as an
+error). Berth runs `tailscale serve --https=443 off` when the server stops.
+
 The panel shows the addresses the server answers on, a pairing link and its QR code. Scan the QR code
 with the phone's camera or open the link in the phone's browser. The phone stays paired until you press
 `Regenerate token`, which creates a new link and disconnects every paired device. The panel lists the

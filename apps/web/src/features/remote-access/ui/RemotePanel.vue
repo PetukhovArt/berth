@@ -8,7 +8,7 @@ import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
 import { useScope, visibleInterval } from '../../../shared/lib/scope';
 
-type Problem = { kind: 'tailscale_missing' } | { kind: 'bind_failed'; message: string } | { kind: 'token_store'; message: string };
+type Problem = { kind: 'tailscale_missing' } | { kind: 'serve_failed'; message: string } | { kind: 'bind_failed'; message: string } | { kind: 'token_store'; message: string };
 type ClientInfo = { id: number; address: string; agent: string; connected_at: number };
 type RemoteStatus = {
   enabled: boolean;

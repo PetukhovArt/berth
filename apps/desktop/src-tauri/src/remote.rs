@@ -65,6 +65,8 @@ enum Bind {
     Localhost,
     Lan,
     Tailscale,
+    #[serde(rename = "tailscale-https")]
+    TailscaleHttps,
     #[serde(skip)]
     Fixed(IpAddr),
 }
@@ -85,6 +87,7 @@ struct Config {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Problem {
     TailscaleMissing,
+    ServeFailed { message: String },
     BindFailed { message: String },
     TokenStore { message: String },
 }
@@ -111,6 +114,7 @@ pub struct RemoteStatus {
 struct Server {
     addr: SocketAddr,
     urls: Vec<String>,
+    serve: bool,
     task: JoinHandle<()>,
 }
 
@@ -148,6 +152,7 @@ pub struct Remote(Arc<Shared>);
 struct Ctx {
     shared: Arc<Shared>,
     epoch: u64,
+    forwarded: bool,
 }
 
 fn guard<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -226,6 +231,7 @@ fn plan(config: Config) -> Result<(SocketAddr, Vec<String>), Problem> {
         Bind::Tailscale => tailscale_ip()
             .map(|ip| (SocketAddr::from((ip, port)), vec![url(ip)]))
             .ok_or(Problem::TailscaleMissing),
+        Bind::TailscaleHttps => Ok((SocketAddr::from((Ipv4Addr::LOCALHOST, port)), Vec::new())),
         Bind::Lan => Ok((SocketAddr::from((Ipv4Addr::UNSPECIFIED, port)), every())),
         Bind::Fixed(ip) => {
             let addr = SocketAddr::new(ip, port);
@@ -288,6 +294,26 @@ fn query_token(uri: &Uri) -> Option<String> {
         .split('&')
         .find_map(|pair| pair.strip_prefix("token="))
         .map(str::to_owned)
+}
+
+fn forwarded_ip(headers: &HeaderMap) -> Option<IpAddr> {
+    headers
+        .get("x-forwarded-for")?
+        .to_str()
+        .ok()?
+        .rsplit(',')
+        .next()?
+        .trim()
+        .parse()
+        .ok()
+}
+
+fn client_ip(ctx: &Ctx, peer: SocketAddr, headers: &HeaderMap) -> IpAddr {
+    if ctx.forwarded && peer.ip().is_loopback() {
+        forwarded_ip(headers).unwrap_or_else(|| peer.ip())
+    } else {
+        peer.ip()
+    }
 }
 
 fn same_origin(headers: &HeaderMap) -> bool {
@@ -415,6 +441,9 @@ impl Shared {
     fn stop(&self, live: &mut Live) {
         if let Some(server) = live.server.take() {
             server.task.abort();
+            if server.serve {
+                crate::tailscale::unserve();
+            }
         }
         self.epoch.send_modify(|epoch| *epoch += 1);
         live.clients.clear();
@@ -506,7 +535,9 @@ impl Remote {
                 Some(Ok((addr, urls))) => {
                     if let Some(server) = live.server.as_mut() {
                         if server.addr == addr {
-                            server.urls = urls;
+                            if !urls.is_empty() {
+                                server.urls = urls;
+                            }
                             return;
                         }
                     }
@@ -519,11 +550,25 @@ impl Remote {
         };
         match tokio::net::TcpListener::bind(addr).await {
             Ok(listener) => {
+                let serve = config.bind == Bind::TailscaleHttps;
+                let urls = if serve {
+                    match crate::tailscale::serve(config.port).await {
+                        Ok(url) => vec![url],
+                        Err(message) => {
+                            crate::tailscale::unserve();
+                            guard(&shared.live).problem = Some(Problem::ServeFailed { message });
+                            return;
+                        }
+                    }
+                } else {
+                    urls
+                };
                 let mut live = guard(&shared.live);
                 shared.epoch.send_modify(|epoch| *epoch += 1);
                 let ctx = Ctx {
                     shared: shared.clone(),
                     epoch: *shared.epoch.borrow(),
+                    forwarded: serve,
                 };
                 let app = Router::new()
                     .route(WS_PATH, get(socket))
@@ -537,7 +582,12 @@ impl Remote {
                     )
                     .await;
                 });
-                live.server = Some(Server { addr, urls, task });
+                live.server = Some(Server {
+                    addr,
+                    urls,
+                    serve,
+                    task,
+                });
                 live.problem = None;
             }
             Err(error) => {
@@ -575,7 +625,11 @@ impl Remote {
     pub fn pairing(&self) -> Result<String, String> {
         let status = self.status();
         status.pairing_url.ok_or_else(|| match status.problem {
-            Some(Problem::BindFailed { message } | Problem::TokenStore { message }) => message,
+            Some(
+                Problem::BindFailed { message }
+                | Problem::TokenStore { message }
+                | Problem::ServeFailed { message },
+            ) => message,
             Some(Problem::TailscaleMissing) => "tailscale address not found".to_owned(),
             None => "remote server is not running".to_owned(),
         })
@@ -610,7 +664,7 @@ async fn page(
     if method != Method::GET && method != Method::HEAD {
         return plain(StatusCode::METHOD_NOT_ALLOWED);
     }
-    let ip = peer.ip();
+    let ip = client_ip(&ctx, peer, &headers);
     if let Some(presented) = query_token(&uri) {
         return harden(match ctx.shared.check(ip, &presented) {
             Auth::Granted => Response::builder()
@@ -619,7 +673,8 @@ async fn page(
                 .header(
                     header::SET_COOKIE,
                     format!(
-                        "{COOKIE}={presented}; HttpOnly; SameSite=Strict; Path=/; Max-Age={COOKIE_MAX_AGE}"
+                        "{COOKIE}={presented}; HttpOnly; SameSite=Strict; Path=/; Max-Age={COOKIE_MAX_AGE}{}",
+                        if ctx.forwarded { "; Secure" } else { "" }
                     ),
                 )
                 .body(Body::empty())
@@ -703,7 +758,7 @@ async fn socket(
     if !same_origin(&headers) {
         return plain(StatusCode::FORBIDDEN);
     }
-    let ip = peer.ip();
+    let ip = client_ip(&ctx, peer, &headers);
     let authed = match cookie_token(&headers) {
         Some(presented) => match ctx.shared.check(ip, &presented) {
             Auth::Granted => true,

@@ -331,6 +331,7 @@ export const SETTINGS = {
     default: '',
     label: 'update.setting.label',
     description: 'update.setting.description',
+      { value: 'tailscale-https', label: 'remote.def.bind.tailscaleHttps' },
     category: 'app',
     placeholder: 'update.setting.placeholder',
   },
