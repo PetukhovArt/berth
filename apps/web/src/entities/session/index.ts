@@ -5,7 +5,6 @@ export type { AgentKind, Branch, Entities, SessionEvent, SessionNode, SessionRef
 export { archiveExternal, continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, isExternalPanel, placeExternal, readTranscript, resumeCommand, sessionDot, splitEarlier, unarchiveExternal, useExternalSessions } from './model/external';
 export type { ExternalSession, Harness, TranscriptMessage } from './model/external';
 export { derivePlan } from './model/plan';
-export type { PlanItem } from './model/plan';
 export { useLinkedPlan } from './model/linkedPlan';
 export { ALLOW, DENY, allowRequest, chooseOption, denyRequest, useFeedbackRequest } from './model/feedback';
 export { enqueuePrompt, removeQueuedPrompt, submitPrompt, useAgentBusy, useQueuedPrompts } from './model/promptQueue';
