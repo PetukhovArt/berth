@@ -325,7 +325,6 @@ impl PtySession {
             .expect("spawn pty kill watchdog");
     }
 
-    /// Ring snapshot for attach replay: (base_seq, bytes).
     pub fn print_notice(&self, text: &str) {
         let data = text.as_bytes().to_vec();
         let seq = self.ring.lock().unwrap().append(&data);
