@@ -147,7 +147,17 @@ pub fn open_path(path: &Path) -> io::Result<()> {
 /// on Windows either may be missing the extension, which `PATHEXT` supplies
 /// (`CreateProcess` does none of this).
 pub fn resolve_program(program: &str) -> Option<PathBuf> {
-    imp::resolve_program(program)
+    imp::resolve_program(&expand_home(program, std::env::home_dir().as_deref()))
+}
+
+fn expand_home(program: &str, home: Option<&Path>) -> String {
+    let rest = program
+        .strip_prefix("~/")
+        .or_else(|| program.strip_prefix("~\\"));
+    match (rest, home) {
+        (Some(rest), Some(home)) => home.join(rest).display().to_string(),
+        _ => program.to_string(),
+    }
 }
 
 /// [`resolve_program`] for the configured editor, plus whatever fallback
@@ -314,6 +324,22 @@ mod tests {
             total.is_some_and(|b| b > 64 * 1024 * 1024),
             "the machine has RAM: {total:?}"
         );
+    }
+
+    #[test]
+    fn a_leading_tilde_is_the_home_dir() {
+        let home = Path::new("/home/me");
+        assert_eq!(
+            expand_home("~/.grok/bin/agent.exe", Some(home)),
+            home.join(".grok/bin/agent.exe").display().to_string()
+        );
+        assert_eq!(
+            expand_home("~\\bin\\a.exe", Some(home)),
+            home.join("bin\\a.exe").display().to_string()
+        );
+        assert_eq!(expand_home("~user/x", Some(home)), "~user/x");
+        assert_eq!(expand_home("agent", Some(home)), "agent");
+        assert_eq!(expand_home("~/x", None), "~/x");
     }
 
     /// The process table names this process with its parent, in the text
