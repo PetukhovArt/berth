@@ -6,6 +6,7 @@ import { CommandPalette } from '../../widgets/command-palette';
 import { paletteOpen } from '../../shared/lib/commands/context';
 import { UnsavedDialog } from '../../features/unsaved-changes';
 import { HotHost } from '../../widgets/hot';
+import { AttentionToasts } from '../../features/attention';
 import { MobileNav } from '../../widgets/mobile-nav';
 import { useIsPhone } from '../../shared/ui/kit';
 import { Sidebar } from '../../widgets/project-tree';
@@ -67,6 +68,7 @@ watch(
     <ChangesDialog v-if="inTauri" />
     <CleanupDialog v-if="inTauri" />
     <HotHost />
+    <AttentionToasts v-if="inTauri" />
     <Transition name="palette">
       <CommandPalette v-if="paletteOpen" />
     </Transition>

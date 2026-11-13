@@ -8,6 +8,7 @@ import { connectors } from './en/connectors';
 import { content } from './en/content';
 import { files } from './en/files';
 import { forge } from './en/forge';
+import { attention } from './en/attention';
 import { hot } from './en/hot';
 import { jira } from './en/jira';
 import { reviews } from './en/reviews';
@@ -18,4 +19,4 @@ import { workbench } from './en/workbench';
 import { remote } from './en/remote';
 import { update } from './en/update';
 
-export const en = { common, shell, settings, commands, agents, connectors, atlassian, jira, confluence, reviews, forge, content, files, remote, mobile, workbench, hot, update, cleanup } as const;
+export const en = { common, shell, settings, commands, agents, connectors, atlassian, jira, confluence, reviews, forge, content, files, remote, mobile, workbench, hot, update, cleanup, attention } as const;

@@ -7,6 +7,7 @@ import { initAppearance } from '../shared/ui/appearance';
 import { setMotionEnabled } from '../shared/ui/motion/motion';
 import { initStatusAnimation } from '../shared/ui/motion/statusAnimation';
 import { useSettings } from '../shared/config/settings/store';
+import { initAttention } from '../features/attention';
 import { initCleanup } from '../features/cleanup';
 import { initAutoUpdate, initUpdate } from '../features/update';
 import { initWorkTree } from '../features/work-tree';
@@ -26,6 +27,7 @@ export function initApp(): () => void {
   disposers.push(initStatusAnimation(() => (values.value['ui.animations'] ? values.value['ui.statusAnimation'] : 'off')));
   disposers.push(initKeymap());
   disposers.push(initTray());
+  disposers.push(initAttention());
   disposers.push(initCleanup());
   disposers.push(initUpdate());
   disposers.push(initAutoUpdate());

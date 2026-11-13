@@ -121,6 +121,13 @@ export const hostWindow = {
   close: async (): Promise<void> => {
     if (isDesktop) await getCurrentWindow().close();
   },
+  raise: async (): Promise<void> => {
+    if (!isDesktop) return;
+    const window = getCurrentWindow();
+    await window.unminimize();
+    await window.show();
+    await window.setFocus();
+  },
   isMaximized: async (): Promise<boolean> => (isDesktop ? getCurrentWindow().isMaximized() : false),
   onResized: async (handler: () => void): Promise<() => void> => (isDesktop ? getCurrentWindow().onResized(handler) : () => undefined),
 };
