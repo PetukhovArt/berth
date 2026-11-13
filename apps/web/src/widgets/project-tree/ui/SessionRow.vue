@@ -35,10 +35,10 @@ const menuItems = computed<MenuAction[]>(() => {
       { key: 'close', label: t('common.close'), command: () => void action.run(() => closeTerminal(session.Terminal)) },
     ];
   return [
+    { key: 'archive', label: t('agents.session.archive'), command: () => void action.run(() => archiveAgent(session.Agent)) },
     { key: 'rename', label: t('common.rename'), command: startRename },
     { key: 'restart', label: t('agents.session.restart'), command: () => void action.run(() => restartAgent(session.Agent)) },
     { key: 'move', label: t('agents.session.move'), command: () => (moving.value = true) },
-    { key: 'archive', label: t('agents.session.archive'), command: () => void action.run(() => archiveAgent(session.Agent)) },
     { key: 'delete', label: t('common.delete'), command: () => (mode.value = 'confirming-delete') },
   ];
 });
