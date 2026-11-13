@@ -6,7 +6,7 @@ import { Terminal, type ITheme } from '@xterm/xterm';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import { attachSession, detachSession, resizeSession, sendInput, sessionId, type SessionEvent, type SessionRef } from '../../../entities/session';
+import { attachSession, detachSession, resizeSession, PlanStrip, sendInput, sessionId, useLinkedPlan, type SessionEvent, type SessionRef } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { openUrl } from '../../../bridge';
 import { hostPlatform } from '../../../shared/lib/platform';
@@ -22,6 +22,7 @@ type LiveTerminal = { show: () => void; hide: () => void; dispose: () => void };
 
 const props = defineProps<{ session: SessionRef; panel?: DockviewPanelApi }>();
 const host = useTemplateRef<HTMLDivElement>('host');
+const plan = useLinkedPlan(() => props.session);
 const { values } = useSettings();
 const released = shallowRef(true);
 
@@ -289,6 +290,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="frame">
+    <PlanStrip :plan="plan" :start-open="false" />
     <div ref="host" class="terminal" data-testid="session-terminal" :data-session-id="sessionId(session)" :data-released="released" />
     <FeedbackStrip :session="session" class="feedback" />
     <QueueStrip v-if="'Agent' in session" :agent="session.Agent" />

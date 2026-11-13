@@ -1,7 +1,8 @@
 import type { TranscriptMessage } from './external';
+import { parseJigSteps } from './jigSteps';
 
 type PlanState = 'done' | 'doing' | 'todo';
-type PlanItem = { text: string; state: PlanState };
+export type PlanItem = { text: string; state: PlanState };
 
 type Input = Record<string, unknown> | null;
 
@@ -23,12 +24,37 @@ function replaceAll(list: unknown, textKey: string): PlanItem[] | null {
   });
 }
 
+const JIG_STATES: Record<string, PlanState> = { active: 'doing', done: 'done' };
+
+function applyJig(items: PlanItem[], command: string): PlanItem[] {
+  let next = items;
+  for (const step of parseJigSteps(command)) {
+    if (step.kind === 'plan') {
+      next = step.titles.map((text) => next.find((item) => item.text === text) ?? { text, state: 'todo' });
+      continue;
+    }
+    const state = JIG_STATES[step.result.trim()] ?? 'todo';
+    const exists = next.some((item) => item.text === step.title);
+    next = exists ? next.map((item) => (item.text === step.title ? { text: item.text, state } : item)) : [...next, { text: step.title, state }];
+  }
+  return next;
+}
+
 export function derivePlan(messages: readonly TranscriptMessage[]): PlanItem[] {
   let items: PlanItem[] = [];
   let ids: string[] = [];
   for (const message of messages) {
     const input = message.input as Input | undefined;
     if (!message.tool || !input) continue;
+    if (message.tool === 'Bash' || message.tool === 'shell' || message.tool === 'exec_command') {
+      const command = str(input.command) || str(input.cmd);
+      const next = command ? applyJig(items, command) : items;
+      if (next !== items) {
+        items = next;
+        ids = next.map((_, index) => String(index + 1));
+      }
+      continue;
+    }
     if (message.tool === 'TodoWrite' || message.tool === 'update_plan') {
       const next = replaceAll(message.tool === 'TodoWrite' ? input.todos : input.plan, message.tool === 'TodoWrite' ? 'content' : 'step');
       if (next) {

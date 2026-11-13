@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added jig steps to the plan strip, and the plan strip to the terminal view (collapsed until you open it), so you can see which step an Agent is on without switching to Chat (#18).
 - Added route switching to the remote web client: when a faster route to the same machine answers (LAN, then Tailscale, then a public HTTPS URL), the page moves to it by itself, and when the current route drops it reconnects over the first one that answers (#34).
 - Added a suggested next prompt in the Chat view: after a Claude Agent finishes, the text Claude Code shows dimmed in its input box appears above the message box, and Tab or a click puts it there without sending it (#28).
 - Added `berth schedule` and `berth webhook`: type a prompt into a session, or start a new one, at a set time or when a webhook is called with its own secret. Schedules survive a daemon restart and webhooks are off until `"webhooks": true` is set (#36).

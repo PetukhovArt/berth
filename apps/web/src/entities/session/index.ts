@@ -5,6 +5,8 @@ export type { AgentKind, Branch, Entities, SessionEvent, SessionNode, SessionRef
 export { archiveExternal, continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, isExternalPanel, placeExternal, readTranscript, resumeCommand, sessionDot, splitEarlier, unarchiveExternal, useExternalSessions } from './model/external';
 export type { ExternalSession, Harness, TranscriptMessage } from './model/external';
 export { derivePlan } from './model/plan';
+export type { PlanItem } from './model/plan';
+export { useLinkedPlan } from './model/linkedPlan';
 export { ALLOW, DENY, allowRequest, chooseOption, denyRequest, useFeedbackRequest } from './model/feedback';
 export { enqueuePrompt, removeQueuedPrompt, submitPrompt, useAgentBusy, useQueuedPrompts } from './model/promptQueue';
 export { isFiveHourWindow, useUsageLimits } from './model/limits';
@@ -25,5 +27,6 @@ export { useAction } from './model/useAction';
 export { addProject, addWorkspace, removeProject, removeWorkspace, renameProject, renameWorkspace, setProjectPins } from './model/workspaces';
 export { useWorktreeOptions } from './model/worktrees';
 export { default as HarnessIcon } from './ui/HarnessIcon.vue';
+export { default as PlanStrip } from './ui/PlanStrip.vue';
 export { default as NavNotices } from './ui/NavNotices.vue';
 export { default as StatusIcon } from './ui/StatusIcon.vue';

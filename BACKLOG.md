@@ -82,8 +82,6 @@ shared server:
   path; an overlap is a module touched by more than one Agent.
 - Tracker write-back, off by default: when an Agent finishes, post its status and branch as a comment
   on the Jira or GitLab issue, so colleagues see progress without berth.
-- jig steps and the Agent's todo list in the session view: which phase it is in, without opening the
-  terminal.
 - A small MCP server for Agents: read task notes and overlaps, post a message to another Agent of the
   same task. It shares its commands with a JSON-emitting `berth` CLI, which voice control and
   messenger bots would use too.
