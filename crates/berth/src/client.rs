@@ -620,7 +620,10 @@ async fn kill_daemon() -> Result<bool> {
             return Ok(true);
         }
         if let Ok(mut stream) = try_connect().await {
-            if write_frame(&mut stream, &ClientRequest::Shutdown).await.is_ok() {
+            if write_frame(&mut stream, &ClientRequest::Shutdown)
+                .await
+                .is_ok()
+            {
                 wait_for_daemon_exit().await;
             }
         }

@@ -20,7 +20,7 @@
 #![cfg(windows)]
 
 use berth_core::codec::{read_frame, write_frame};
-use berth_core::{env, ClientRequest, ServerEvent, PROTOCOL_VERSION};
+use berth_core::{env, ClientRequest, Entity, EntityId, ServerEvent, PROTOCOL_VERSION};
 use std::path::PathBuf;
 use std::time::Duration;
 use tokio::net::TcpStream;
@@ -304,5 +304,161 @@ async fn the_auto_spawned_daemon_outlives_the_client_that_started_it() {
             "the endpoint file outlived the daemon"
         );
         std::thread::sleep(POLL_STEP);
+    }
+}
+
+async fn read_until(
+    stream: &mut TcpStream,
+    mut pred: impl FnMut(&ServerEvent) -> bool,
+) -> Vec<ServerEvent> {
+    let mut seen = Vec::new();
+    tokio::time::timeout(EVENT_TIMEOUT, async {
+        while let Some(event) = read_frame::<ServerEvent, _>(stream).await.unwrap() {
+            let done = pred(&event);
+            seen.push(event);
+            if done {
+                return;
+            }
+        }
+        panic!("the daemon hung up; saw {seen:#?}");
+    })
+    .await
+    .expect("timed out waiting for the daemon");
+    seen
+}
+
+#[tokio::test]
+async fn a_bare_shutdown_from_a_skewed_client_keeps_the_sessions_for_the_next_daemon() {
+    let envd = TestEnv::new();
+    let repo = envd.tmp.path().join("repo");
+    std::fs::create_dir_all(&repo).unwrap();
+    assert!(std::process::Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(&repo)
+        .status()
+        .unwrap()
+        .success());
+
+    let mut daemon = envd.spawn_daemon();
+    let (port, token) = envd.await_endpoint();
+    let mut c = connect_with_token(port, &token).await;
+    assert!(matches!(
+        hello(&mut c).await,
+        Some(ServerEvent::HelloOk { .. })
+    ));
+    write_frame(&mut c, &ClientRequest::Subscribe)
+        .await
+        .unwrap();
+    read_until(&mut c, |e| matches!(e, ServerEvent::Snapshot { .. })).await;
+    write_frame(
+        &mut c,
+        &ClientRequest::AddProject {
+            req_id: 1,
+            path: repo.clone(),
+            name: None,
+            create_missing: false,
+        },
+    )
+    .await
+    .unwrap();
+    let worktree = read_until(
+        &mut c,
+        |e| matches!(e, ServerEvent::EntityUpserted { entity: Entity::Worktree(w) } if w.is_main),
+    )
+    .await
+    .into_iter()
+    .find_map(|e| match e {
+        ServerEvent::EntityUpserted {
+            entity: Entity::Worktree(w),
+        } if w.is_main => Some(w),
+        _ => None,
+    })
+    .unwrap();
+    write_frame(
+        &mut c,
+        &ClientRequest::CreateTerminal {
+            req_id: 2,
+            worktree: worktree.id.clone(),
+            name: None,
+        },
+    )
+    .await
+    .unwrap();
+    let events = read_until(&mut c, |e| {
+        matches!(
+            e,
+            ServerEvent::Ack { req_id: 2, .. }
+                | ServerEvent::Error {
+                    req_id: Some(2),
+                    ..
+                }
+        )
+    })
+    .await;
+    let Some(ServerEvent::Ack {
+        created: Some(EntityId::Terminal(terminal)),
+        ..
+    }) = events.last()
+    else {
+        panic!("CreateTerminal failed: {events:#?}");
+    };
+    let terminal = terminal.clone();
+
+    let mut skewed = connect_with_token(port, &token).await;
+    write_frame(&mut skewed, &ClientRequest::Shutdown)
+        .await
+        .unwrap();
+    let deadline = tokio::time::Instant::now() + EVENT_TIMEOUT;
+    let exited = loop {
+        if let Some(status) = daemon.0.try_wait().unwrap() {
+            break status;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "a bare Shutdown did not stop the daemon"
+        );
+        tokio::time::sleep(POLL_STEP).await;
+    };
+    assert!(
+        exited.success(),
+        "the daemon did not stop cleanly: {exited}"
+    );
+    let recorded =
+        std::fs::read_to_string(envd.tmp.path().join("data").join("live-sessions.json")).unwrap();
+    assert!(
+        recorded.contains(terminal.as_str()),
+        "the live terminal was not recorded: {recorded}"
+    );
+
+    let daemon = envd.spawn_daemon();
+    let (port, token) = envd.await_endpoint();
+    let deadline = tokio::time::Instant::now() + EVENT_TIMEOUT;
+    loop {
+        let mut c = connect_with_token(port, &token).await;
+        assert!(matches!(
+            hello(&mut c).await,
+            Some(ServerEvent::HelloOk { .. })
+        ));
+        write_frame(&mut c, &ClientRequest::Subscribe)
+            .await
+            .unwrap();
+        let snapshot = read_until(&mut c, |e| matches!(e, ServerEvent::Snapshot { .. })).await;
+        let alive = snapshot.iter().any(|e| match e {
+            ServerEvent::Snapshot { terminals, .. } => {
+                terminals.iter().any(|t| t.id == terminal && t.alive)
+            }
+            _ => false,
+        });
+        if alive {
+            write_frame(&mut c, &ClientRequest::Shutdown).await.unwrap();
+            let mut daemon = daemon;
+            let _ = tokio::task::spawn_blocking(move || daemon.0.wait()).await;
+            return;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "the next daemon did not bring the terminal back"
+        );
+        tokio::time::sleep(POLL_STEP * 4).await;
     }
 }
