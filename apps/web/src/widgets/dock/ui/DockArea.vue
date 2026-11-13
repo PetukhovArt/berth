@@ -88,15 +88,19 @@ onBeforeUnmount(() => {
   display: none;
 }
 
+.dock :deep(.dv-tabs-and-actions-container) {
+  border-bottom: 1px solid var(--vr-color-border);
+}
+
 .dock :deep(.dockview-theme-light) {
   color-scheme: inherit;
   --dv-group-view-background-color: var(--vr-color-surface);
-  --dv-tabs-and-actions-container-background-color: var(--vr-color-surface-muted);
+  --dv-tabs-and-actions-container-background-color: var(--vr-color-surface);
   --dv-tabs-and-actions-container-font-size: var(--vr-font-size-xs);
-  --dv-activegroup-visiblepanel-tab-background-color: var(--vr-color-surface);
-  --dv-activegroup-hiddenpanel-tab-background-color: var(--vr-color-surface-muted);
-  --dv-inactivegroup-visiblepanel-tab-background-color: var(--vr-color-surface);
-  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--vr-color-surface-muted);
+  --dv-activegroup-visiblepanel-tab-background-color: var(--vr-color-surface-muted);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--vr-color-surface);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--vr-color-surface-muted);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--vr-color-surface);
   --dv-activegroup-visiblepanel-tab-color: var(--vr-color-text);
   --dv-activegroup-hiddenpanel-tab-color: var(--vr-color-text-muted);
   --dv-inactivegroup-visiblepanel-tab-color: var(--vr-color-text-muted);

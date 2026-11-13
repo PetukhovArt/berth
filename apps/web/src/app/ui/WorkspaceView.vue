@@ -48,14 +48,10 @@ watch(
 
 <template>
   <div class="shell">
-    <TitleBar v-if="inTauri && mobile" />
+    <TitleBar v-if="inTauri" />
     <div class="body" :data-mobile="mobile">
-      <Sidebar v-if="!mobile" :dark="isDark" @theme="toggleTheme">
-        <template v-if="inTauri" #head>
-          <TitleBar class="sidebar-titlebar" />
-        </template>
-      </Sidebar>
-      <main class="card vt-main">
+      <Sidebar v-if="!mobile" :dark="isDark" @theme="toggleTheme" />
+      <main class="pane vt-main">
         <KeepAlive include="AgentsView">
           <AgentsView v-if="view.kind === 'agents'" />
           <JiraView v-else-if="view.kind === 'jira'" />
@@ -109,71 +105,22 @@ watch(
     order: -1;
   }
 
-  .body[data-mobile='true'] > .card {
+  .body[data-mobile='true'] > .pane {
     padding-bottom: var(--vr-safe-bottom);
   }
 }
 
-.body[data-mobile='true'] .card {
-  margin: 0;
-  border-radius: 0;
-  box-shadow: none;
+.body > .sidebar {
+  background: var(--vr-color-surface);
+  border-right: 1px solid var(--vr-color-border);
 }
 
-.body .sidebar-titlebar {
-  flex-wrap: wrap;
-  height: auto;
-  min-height: 32px;
-  margin: calc(-1 * var(--vr-space-2)) calc(-1 * var(--vr-space-2)) var(--vr-space-1);
-}
-
-.body .sidebar-titlebar :deep(.update) {
-  min-width: 0;
-  overflow: hidden;
-}
-
-.body .sidebar-titlebar :deep(.ctl) {
-  width: 34px;
-  height: 32px;
-}
-
-.body .collapsed .sidebar-titlebar {
-  flex: none;
-  flex-direction: column;
-  flex-wrap: nowrap;
-  align-items: stretch;
-  padding-left: 0;
-}
-
-.body .collapsed .sidebar-titlebar :deep(.update) {
-  flex: none;
-  justify-content: center;
-  padding-right: 0;
-}
-
-.body .collapsed .sidebar-titlebar :deep(.mark) {
-  align-self: center;
-  margin-top: var(--vr-space-2);
-}
-
-.body .collapsed .sidebar-titlebar :deep(.controls) {
-  flex-direction: column;
-}
-
-.body .collapsed .sidebar-titlebar :deep(.ctl) {
-  width: 100%;
-  height: 28px;
-}
-
-.card {
+.pane {
   display: flex;
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-  margin: var(--vr-space-2) var(--vr-space-2) var(--vr-space-2) 1px;
   overflow: hidden;
-  background: var(--vr-color-surface);
-  border-radius: var(--vr-radius-2xl);
-  box-shadow: var(--vr-elevation-card);
+  background: var(--vr-color-canvas);
 }
 </style>
