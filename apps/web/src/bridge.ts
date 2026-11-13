@@ -133,3 +133,7 @@ export const hostWindow = {
   isMaximized: async (): Promise<boolean> => (isDesktop ? getCurrentWindow().isMaximized() : false),
   onResized: async (handler: () => void): Promise<() => void> => (isDesktop ? getCurrentWindow().onResized(handler) : () => undefined),
 };
+
+export function remoteFetch(path: string, init?: RequestInit): Promise<Response> {
+  return fetch(path, { credentials: 'same-origin', ...init });
+}

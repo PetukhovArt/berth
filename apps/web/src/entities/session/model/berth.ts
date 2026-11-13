@@ -309,11 +309,12 @@ export type BerthReply =
   | { ProjectSetup: { req_id: number; project: string; command: string } }
   | { Checkpoints: { req_id: number; agent: string; checkpoints: { number: number; created_at: number; before_restore: boolean }[] } }
   | { Channels: { req_id: number; channels: { key: string; head: number; unread: number }[] } }
-  | { ChannelEvents: { req_id: number; events: { seq: number; kind: number; author: string; author_name: string; author_kind: string; channel: string; tags: string[][]; content: string; created_at: number }[] } };
+  | { ChannelEvents: { req_id: number; events: { seq: number; kind: number; author: string; author_name: string; author_kind: string; channel: string; tags: string[][]; content: string; created_at: number }[] } }
+  | { ChannelPresence: { req_id: number; here: { member: string; name: string; agents: string[] }[] } };
 
 export class BerthCallError extends Error {}
 
-const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote', 'ProjectSetup', 'Checkpoints', 'Channels', 'ChannelEvents']);
+const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote', 'ProjectSetup', 'Checkpoints', 'Channels', 'ChannelEvents', 'ChannelPresence']);
 
 function isBerthReply(value: unknown): value is BerthReply {
   if (typeof value !== 'object' || value === null) return false;

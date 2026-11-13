@@ -148,6 +148,14 @@ pub async fn remote_regenerate_token(remote: State<'_, Remote>) -> Result<Remote
 }
 
 #[tauri::command]
+pub async fn remote_push_notify(
+    remote: State<'_, Remote>,
+    payload: serde_json::Value,
+) -> Result<(), String> {
+    remote.push_notify(payload).await
+}
+
+#[tauri::command]
 pub fn remote_add_device(
     remote: State<'_, Remote>,
     name: String,
@@ -327,10 +335,10 @@ pub fn run() {
             cleanup_finish,
             cleanup_diff,
             agent_sessions_list,
+            history_projects,
             agent_session_watch,
             agent_session_transcript,
             jira_search,
-            history_projects,
             jira_issue,
             confluence_search,
             confluence_page,
@@ -346,6 +354,7 @@ pub fn run() {
             remote_regenerate_token,
             remote_add_device,
             remote_revoke_device,
+            remote_push_notify,
             tray::tray_status,
             tray::tray_cleanup,
             app_update_info,
@@ -363,10 +372,10 @@ pub fn run() {
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
                 crate::stratum::shutdown();
-            }
                 if let Some(remote) = app.try_state::<Remote>() {
                     remote.shutdown();
                 }
+            }
             if crate::platform::reopens_main_window(&event) {
                 tray::show_main(app);
             }

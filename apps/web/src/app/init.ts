@@ -7,7 +7,8 @@ import { initAppearance } from '../shared/ui/appearance';
 import { setMotionEnabled } from '../shared/ui/motion/motion';
 import { initStatusAnimation } from '../shared/ui/motion/statusAnimation';
 import { useSettings } from '../shared/config/settings/store';
-import { announceAttention, initAttention } from '../features/attention';
+import { announceAttention, initAttention, onAttention } from '../features/attention';
+import { pushToPhones } from '../features/web-push';
 import { initWatchMergeRequest } from '../features/watch-merge-request';
 import { initTrackerWriteBack } from '../features/tracker-write-back';
 import { initArchiveOnMerge } from '../features/archive-on-merge';
@@ -32,6 +33,7 @@ export function initApp(): () => void {
   disposers.push(initKeymap());
   disposers.push(initTray());
   disposers.push(initAttention());
+  disposers.push(onAttention((event) => (event.kind === 'waiting' || event.kind === 'finished') && pushToPhones(event, event.kind, event.text)));
   disposers.push(initTrackerWriteBack());
   disposers.push(initArchiveOnMerge());
   disposers.push(initWatchMergeRequest(announceAttention));

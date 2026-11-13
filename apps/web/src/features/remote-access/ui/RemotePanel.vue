@@ -112,7 +112,9 @@ onMounted(() => {
       <strong class="warning-title"><ShieldAlert :size="14" />{{ t('remote.panel.warningTitle') }}</strong>
       {{ t('remote.panel.warning') }}
     </VMessage>
-    <p v-if="!isDesktop" class="muted">{{ t('remote.panel.desktopOnly') }}</p>
+    <template v-if="!isDesktop">
+      <p class="muted">{{ t('remote.panel.desktopOnly') }}</p>
+    </template>
     <template v-else-if="status">
       <VMessage v-if="status.problem" severity="error" size="small" data-testid="remote-problem">{{ problemText(status.problem) }}</VMessage>
       <div v-if="status.problem?.kind === 'tailscale_missing'" class="actions" data-testid="remote-tailscale-actions">

@@ -5,11 +5,12 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use axum::body::Body;
+use axum::body::Bytes;
 use axum::extract::ws::{CloseFrame, Message, WebSocket, WebSocketUpgrade};
-use axum::extract::{ConnectInfo, State};
+use axum::extract::{ConnectInfo, Path, State};
 use axum::http::{header, HeaderMap, Method, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{any, get};
 use axum::Router;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -18,6 +19,7 @@ use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
 use crate::connectors::Connectors;
+use crate::push::{Push, Subscription};
 use crate::remote_devices::{self, Device, DeviceInfo, Pairing, Scope};
 use crate::rpc::{Client, Outbox};
 use crate::settings;
@@ -29,6 +31,8 @@ const COOKIE_MAX_AGE: u32 = 30 * 24 * 60 * 60;
 const WS_PATH: &str = "/__berth/ws";
 const HEALTH_PATH: &str = "/__berth/health";
 const ROUTES_PATH: &str = "/__berth/routes";
+const PUSH_PATH: &str = "/__berth/push/{op}";
+const PUSH_BODY_LIMIT: usize = 4096;
 const POLL: Duration = Duration::from_secs(1);
 const AUTH_TIMEOUT: Duration = Duration::from_secs(10);
 const FAIL_WINDOW: Duration = Duration::from_secs(60);
@@ -140,6 +144,7 @@ struct Shared {
     connectors: Arc<Connectors>,
     web: WebSource,
     http: reqwest::Client,
+    push: Push,
     devices: Mutex<Option<Vec<Device>>>,
     revoked: watch::Sender<u64>,
     live: Mutex<Live>,
@@ -498,6 +503,7 @@ impl Remote {
             connectors,
             web,
             http: reqwest::Client::new(),
+            push: Push::new(reqwest::Client::new()),
             devices: Mutex::new(None),
             revoked: watch::Sender::new(0),
             live: Mutex::new(Live::default()),
@@ -602,6 +608,7 @@ impl Remote {
                     .route(WS_PATH, get(socket))
                     .route(HEALTH_PATH, get(health))
                     .route(ROUTES_PATH, get(routes_api))
+                    .route(PUSH_PATH, any(push_api))
                     .fallback(page)
                     .with_state(ctx);
                 let task = tokio::spawn(async move {
@@ -666,6 +673,10 @@ impl Remote {
             Some(Problem::TailscaleMissing) => "tailscale address not found".to_owned(),
             None => "remote server is not running".to_owned(),
         })
+    }
+
+    pub async fn push_notify(&self, payload: Value) -> Result<(), String> {
+        self.0.push.notify(payload).await
     }
 
     pub fn add_device(&self, name: String, scope: Scope) -> Result<Pairing, String> {
@@ -799,6 +810,94 @@ async fn page(
         Auth::Granted => serve(&ctx.shared, &uri, &headers).await,
         Auth::Denied => denied(),
         Auth::Blocked => plain(StatusCode::TOO_MANY_REQUESTS),
+    })
+}
+
+#[derive(Deserialize)]
+struct PushAction {
+    session: Value,
+    data: String,
+}
+
+async fn push_api(
+    State(ctx): State<Ctx>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    Path(op): Path<String>,
+    method: Method,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    if !ctx.current() {
+        return plain(StatusCode::SERVICE_UNAVAILABLE);
+    }
+    if method != Method::GET && !same_origin(&headers) {
+        return plain(StatusCode::FORBIDDEN);
+    }
+    let ip = client_ip(&ctx, peer, &headers);
+    let Some(presented) = cookie_token(&headers) else {
+        return harden(denied());
+    };
+    match ctx.shared.check(ip, &presented) {
+        Auth::Granted => {}
+        Auth::Denied => return harden(denied()),
+        Auth::Blocked => return plain(StatusCode::TOO_MANY_REQUESTS),
+    }
+    if op == "action"
+        && ctx
+            .shared
+            .identify(&presented)
+            .is_none_or(|device| device.scope != Scope::Full)
+    {
+        return plain(StatusCode::FORBIDDEN);
+    }
+    if body.len() > PUSH_BODY_LIMIT {
+        return plain(StatusCode::PAYLOAD_TOO_LARGE);
+    }
+    let push = &ctx.shared.push;
+    let done = match (method, op.as_str()) {
+        (Method::GET, "key") => {
+            return harden(match push.public_key() {
+                Ok(key) => key.into_response(),
+                Err(_) => plain(StatusCode::INTERNAL_SERVER_ERROR),
+            });
+        }
+        (Method::POST, "subscribe") => serde_json::from_slice::<Subscription>(&body)
+            .map_err(|error| error.to_string())
+            .and_then(|subscription| push.subscribe(subscription)),
+        (Method::POST, "unsubscribe") => serde_json::from_slice::<Value>(&body)
+            .ok()
+            .and_then(|value| {
+                value
+                    .get("endpoint")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+            })
+            .ok_or_else(|| "endpoint is required".to_owned())
+            .and_then(|endpoint| push.unsubscribe(&endpoint)),
+        (Method::POST, "action") => {
+            let action =
+                serde_json::from_slice::<PushAction>(&body).map_err(|error| error.to_string());
+            match action {
+                Ok(action) if action.session.get("Agent").is_some() && action.data.len() <= 8 => {
+                    let (out, _) = Outbox::new();
+                    let client = Client::new(ctx.shared.connectors.clone(), out);
+                    client
+                        .call(
+                            "berth_input",
+                            json!({ "session": action.session, "data": action.data }),
+                        )
+                        .await
+                        .map(|_| ())
+                }
+                Ok(_) => Err("not an Agent input".to_owned()),
+                Err(error) => Err(error),
+            }
+        }
+        _ => return plain(StatusCode::NOT_FOUND),
+    };
+    harden(match done {
+        Ok(()) => plain(StatusCode::NO_CONTENT),
+        Err(_) => plain(StatusCode::BAD_REQUEST),
     })
 }
 

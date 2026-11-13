@@ -10,6 +10,8 @@ import { requestedSettingsCategory } from '../../../shared/model/nav';
 import SettingRow from './SettingRow.vue';
 import { KeymapPanel } from '../../../features/keymap-editor';
 import { RemotePanel } from '../../../features/remote-access';
+import { PushToggle } from '../../../features/web-push';
+import { isDesktop } from '../../../bridge';
 import SettingsJsonEditor from '../../../shared/ui/SettingsJsonEditor.vue';
 import { CATEGORIES, SETTINGS, SETTING_KEYS } from '../../../shared/config/settings/schema';
 import { useSettings } from '../../../shared/config/settings/store';
@@ -160,6 +162,7 @@ function onSearchKey(event: KeyboardEvent) {
           </section>
           <section v-if="showRemote" class="group" data-testid="settings-remote">
             <RemotePanel />
+            <PushToggle v-if="!isDesktop" />
           </section>
           <section v-for="group in groups" :key="group.id" v-auto-animate class="group">
             <h2 v-if="normalizedQuery">{{ t(group.label) }}</h2>

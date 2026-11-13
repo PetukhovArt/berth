@@ -12,6 +12,12 @@ const TOAST_MS = 8000;
 const TOAST_LIMIT = 4;
 
 export const attentionToasts = shallowRef<readonly AttentionToast[]>([]);
+const listeners = new Set<(event: { key: string; id: string; kind: Kind; text: string }) => void>();
+
+export function onAttention(listen: (event: { key: string; id: string; kind: Kind; text: string }) => void): () => void {
+  listeners.add(listen);
+  return () => listeners.delete(listen);
+}
 let counter = 0;
 
 export function announceAttention(key: string, text: string): void {
@@ -78,6 +84,7 @@ export function initAttention(): () => void {
         if (focused && dock.activeKey.value === node.key) continue;
         const toast: AttentionToast = { id: ++counter, key: node.key, kind, text: t(`attention.${kind}`, { name: node.name }) };
         if (!focused) {
+          for (const listen of listeners) listen({ key: node.key, id: node.id, kind, text: toast.text });
           notifyOs(toast);
           continue;
         }

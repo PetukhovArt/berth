@@ -23,6 +23,7 @@ import { shell } from './ru/shell';
 import { mobile } from './ru/mobile';
 import { workbench } from './ru/workbench';
 import { remote } from './ru/remote';
+import { push } from './ru/push';
 import { update } from './ru/update';
 
-export const ru: Translation<typeof en> = { common, shell, settings, commands, agents, connectors, atlassian, jira, confluence, reviews, forge, content, files, remote, mobile, workbench, hot, update, cleanup, attention, feedback, gitStep, taskNote, checkpoints };
+export const ru: Translation<typeof en> = { common, shell, settings, commands, agents, connectors, atlassian, jira, confluence, reviews, forge, content, files, remote, push, mobile, workbench, hot, update, cleanup, attention, feedback, gitStep, taskNote, checkpoints };

@@ -28,7 +28,10 @@ pub fn read() -> Vec<UsageWindow> {
     windows
 }
 
-fn collect(claude: bool, claude_source: impl FnOnce(&Path) -> Vec<UsageWindow>) -> Vec<UsageWindow> {
+fn collect(
+    claude: bool,
+    claude_source: impl FnOnce(&Path) -> Vec<UsageWindow>,
+) -> Vec<UsageWindow> {
     let mut windows = Vec::new();
     if let Some(home) = env::home_dir() {
         if claude {
@@ -168,7 +171,10 @@ fn codex_windows(home: &Path) -> Vec<UsageWindow> {
         return Vec::new();
     };
     let len = file.metadata().map(|m| m.len()).unwrap_or(0);
-    if file.seek(SeekFrom::Start(len.saturating_sub(CODEX_TAIL_BYTES))).is_err() {
+    if file
+        .seek(SeekFrom::Start(len.saturating_sub(CODEX_TAIL_BYTES)))
+        .is_err()
+    {
         return Vec::new();
     }
     let mut tail = Vec::new();

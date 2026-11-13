@@ -58,3 +58,9 @@ devices connected right now.
   the daemon's PTYs on the PC. Disable sleep in the power settings if you rely on this.
 - For a machine without a desktop session, the `docker` image runs `berth-server`, the same web UI
   without a window; its pairing link and QR code are in the server log.
+
+## Notifications on the phone
+
+With `Tailscale (HTTPS)`, open Berth on the phone, go to Settings, Remote access, and press `Enable notifications`. The browser asks for permission and Berth stores the subscription. From then on, when an Agent is waiting for you or has finished while the desktop app is not focused, the phone gets a push. A permission request shows `Allow` and `Deny` buttons in the notification where the phone supports notification actions (Chrome on Android); the answer goes back through the paired device and is typed into the Agent. A read-only device cannot answer. On iOS the web client must be added to the home screen first, and the notification only opens Berth.
+
+The push keys live in the same keychain as the pairing tokens, under the entry `web-push`.

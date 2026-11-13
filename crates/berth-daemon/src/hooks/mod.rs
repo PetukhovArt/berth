@@ -252,7 +252,10 @@ async fn receive_hook(
     // On this path the response body reaches the model's context, so every
     // outcome (auth failure included) must answer with empty-or-instruction.
     let injectable = dialect == HookDialect::Injectable
-        && matches!(query.hook_event.as_str(), "UserPromptSubmit" | "SessionStart");
+        && matches!(
+            query.hook_event.as_str(),
+            "UserPromptSubmit" | "SessionStart"
+        );
     let quiet_or = |status: StatusCode, diag: &str| {
         let body = if injectable {
             String::new()
@@ -307,7 +310,10 @@ async fn receive_hook(
         .await;
 
     if injectable && query.hook_event == "SessionStart" {
-        let note = state.store.task_note_for_agent(&agent_id).unwrap_or_default();
+        let note = state
+            .store
+            .task_note_for_agent(&agent_id)
+            .unwrap_or_default();
         let body = if note.is_empty() {
             String::new()
         } else {
@@ -520,8 +526,14 @@ mod tests {
             .set_task_note(&WorktreeId("w1".into()), "keep the v2 API")
             .unwrap();
         let (_, body) = http_post(env.port, path, &env.token, payload).await;
-        assert_eq!(body, crate::task_notes::task_note_injection("keep the v2 API"));
-        assert!(body.contains("[berth] Task note: keep the v2 API"), "{body}");
+        assert_eq!(
+            body,
+            crate::task_notes::task_note_injection("keep the v2 API")
+        );
+        assert!(
+            body.contains("[berth] Task note: keep the v2 API"),
+            "{body}"
+        );
 
         let (_, body) = http_post(
             env.port,
