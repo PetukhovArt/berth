@@ -194,3 +194,13 @@ Task note key rather than the branch name.
 
 Keep the event shape close to Buzz (a numeric kind, an author, a channel, tags) so a Buzz relay can
 replace the hub if the team outgrows it.
+
+## Shared agent setup
+
+From the user. One repository holds the skills, plugins, MCP servers, hooks and instructions a
+person wants; berth installs them into every Project and Worktree and into every Agent kind (Claude,
+Codex, Grok, Cursor, ACP agents), translating to each one's format: `.claude/` skills and
+`settings.json`, Codex `config.toml` MCP entries, Cursor rules, `AGENTS.md`. A config in that
+repository says which items go to which Agent kinds and Projects, so a new Project or a new Agent
+kind gets the same setup without copying by hand. Open: link or copy, how a Project overrides an
+item, and keeping in step when the repository changes.
