@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { VInputText, VSelect } from '../../../shared/ui/kit';
 import { Waypoints } from '../../../shared/ui/icons';
+import { useSheetClamp } from '../../../shared/lib/useSheetClamp';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { continueAgentIn, describeError, entitySessionRef, switchAgentModel, useSessionDock, type AgentKind, type ProviderError } from '../../../entities/session';
 
@@ -23,6 +24,8 @@ const target = ref<AgentKind>('codex');
 const targetModel = ref('');
 const busy = ref(false);
 const failure = ref<string | null>(null);
+const sheet = ref<HTMLElement | null>(null);
+useSheetClamp(sheet, open);
 
 const errorText = computed(() => (props.error ? `${t(`agents.route.errorKind.${props.error.kind}`)}: ${props.error.message}` : null));
 const targetLabel = computed(() => KINDS.find((entry) => entry.value === target.value)?.label ?? target.value);
@@ -80,7 +83,7 @@ watch(
     <UiButton type="button" class="chip" :class="{ alert: !!error }" :title="title" :aria-label="title" :aria-expanded="open" data-testid="route-button" @click="toggle">
       <Waypoints :size="13" />
     </UiButton>
-    <div v-if="open" class="form vr-sheet" data-testid="route-form">
+    <div v-if="open" ref="sheet" class="form vr-sheet" data-testid="route-form">
       <span v-if="errorText" class="error" data-testid="route-provider-error">{{ errorText }}</span>
       <form class="block" @submit.prevent="switchModel">
         <span class="heading">{{ t('agents.route.switchTitle') }}</span>

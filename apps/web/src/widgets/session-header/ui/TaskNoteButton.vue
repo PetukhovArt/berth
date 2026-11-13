@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { FileText } from '../../../shared/ui/icons';
+import { useSheetClamp } from '../../../shared/lib/useSheetClamp';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { describeError, saveTaskNote, useTaskNote } from '../../../entities/session';
 
@@ -10,6 +11,8 @@ const props = defineProps<{ worktreeId: string; branch: string }>();
 
 const note = useTaskNote(() => props.worktreeId);
 const open = ref(false);
+const sheet = ref<HTMLElement | null>(null);
+useSheetClamp(sheet, open);
 const draft = ref('');
 const busy = ref(false);
 const error = ref<string | null>(null);
@@ -51,7 +54,7 @@ watch(
     <UiButton type="button" class="chip" :class="{ filled: !!note }" :title="label" :aria-label="label" :aria-expanded="open" data-testid="task-note-button" @click="toggle">
       <FileText :size="13" />
     </UiButton>
-    <form v-if="open" class="form vr-sheet" data-testid="task-note-form" @submit.prevent="save(draft)">
+    <form v-if="open" ref="sheet" class="form vr-sheet" data-testid="task-note-form" @submit.prevent="save(draft)">
       <span class="heading">{{ t('taskNote.title', { branch }) }}</span>
       <UiTextarea v-model="draft" rows="5" :placeholder="t('taskNote.placeholder')" data-testid="task-note-text" autofocus />
       <span class="hint">{{ t('taskNote.hint') }}</span>

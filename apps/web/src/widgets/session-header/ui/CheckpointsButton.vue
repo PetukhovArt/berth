@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useSettings } from '../../../shared/config/settings/store';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { History } from '../../../shared/ui/icons';
+import { useSheetClamp } from '../../../shared/lib/useSheetClamp';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
 import { describeError, listCheckpoints, restoreCheckpoint, type AgentKind, type Checkpoint } from '../../../entities/session';
 
@@ -12,6 +13,8 @@ const { formatDate } = useI18n();
 const settings = useSettings();
 const visible = computed(() => props.kind !== 'claude' || settings.values.value['daemon.checkpointsClaude'] === true || items.value.length > 0);
 const open = ref(false);
+const sheet = ref<HTMLElement | null>(null);
+useSheetClamp(sheet, open);
 const items = ref<Checkpoint[]>([]);
 const pending = ref<number | null>(null);
 const busy = ref(false);
@@ -77,7 +80,7 @@ watch(
     <UiButton type="button" class="chip" :title="t('checkpoints.open')" :aria-label="t('checkpoints.open')" :aria-expanded="open" data-testid="checkpoints-button" @click="toggle">
       <History :size="13" />
     </UiButton>
-    <div v-if="open" class="panel vr-sheet" data-testid="checkpoints-panel">
+    <div v-if="open" ref="sheet" class="panel vr-sheet" data-testid="checkpoints-panel">
       <span class="heading">{{ t('checkpoints.title', { name }) }}</span>
       <span class="hint">{{ t('checkpoints.hint') }}</span>
       <span v-if="!items.length" class="hint" data-testid="checkpoints-empty">{{ t('checkpoints.empty') }}</span>

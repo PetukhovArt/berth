@@ -122,6 +122,8 @@
 - Removed `berth browser`, `berth ssh` and `berth tunnel`.
 - Removed the npm package; install the `berth` command with `install.sh` or `cargo`.
 - Fixed opening a Claude session that ended before its first turn: instead of `No conversation found` and a dead pane, berth starts a new conversation in the same worktree and says so in the terminal.
+- Fixed the Route, task note and checkpoint popovers in the session header opening under the sidebar: they now shift to stay inside the main pane.
+- Fixed the chat of a Claude Code session showing background task notifications, system reminders and subagent hand-backs as your own messages.
 
 ## 0.20.0 (2026-09-18)
 

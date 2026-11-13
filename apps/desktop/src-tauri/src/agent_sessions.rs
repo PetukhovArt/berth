@@ -471,6 +471,8 @@ fn shown_user_text(text: &str) -> Option<String> {
         || trimmed.starts_with("<local-command-stdout>")
         || trimmed.starts_with("<environment_context>")
         || trimmed.starts_with("<user_instructions>")
+        || trimmed.starts_with("<task-notification>")
+        || trimmed.starts_with("<system-reminder>")
         || trimmed.starts_with("Caveat:")
     {
         return None;
@@ -1123,6 +1125,13 @@ fn claude_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
         _ => return,
     };
     if line["isMeta"].as_bool() == Some(true) || line["isSidechain"].as_bool() == Some(true) {
+        return;
+    }
+    if role == Role::User
+        && line["origin"]["kind"]
+            .as_str()
+            .is_some_and(|kind| kind != "human")
+    {
         return;
     }
     let uuid = line["uuid"].as_str().unwrap_or_default();
