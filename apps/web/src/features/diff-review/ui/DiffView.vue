@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch, type ShallowRef } from 'vue';
-import { ChevronDown, ChevronRight, ChevronUp, Columns2, Folder, FolderOpen, ListTree, Rows2, Search, WrapText, X } from '../../../shared/ui/icons';
+import { Check, ChevronDown, ChevronRight, ChevronUp, Columns2, Folder, FolderOpen, ListTree, Rows2, Search, WrapText, X } from '../../../shared/ui/icons';
 import { useIsPhone, VInputText } from '../../../shared/ui/kit';
 import type { DiffFile, Discussion } from '../../../shared/api/connectors/api';
 import { t } from '../../../shared/lib/i18n/i18n';
 import DiffFileBody from './DiffFileBody.vue';
 import { isMarkdownPath, type PreviewSource } from '../lib/fileBase';
 import MarkdownPreview from './MarkdownPreview.vue';
+import { fingerprint, loadMarks, saveMarks, type Marks } from '../lib/reviewed';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ files: DiffFile[]; discussions: Discussion[]; connector?: string; project?: string; headSha?: string; requestUrl?: string; root?: string }>();
@@ -117,6 +118,25 @@ function canPreview(file: DiffFile): boolean {
 function setPreview(index: number, on: boolean) {
   if (on) include(previewing, index);
   else exclude(previewing, index);
+}
+
+const scope = computed(() => props.requestUrl ?? props.root ?? '');
+const marks = shallowRef<Marks>(loadMarks(scope.value));
+const fingerprints = computed(() => props.files.map((file) => fingerprint(`${file.old_path}\n${file.status}\n${file.patch}`)));
+const reviewedFlags = computed(() => props.files.map((file, i) => marks.value[file.new_path] === fingerprints.value[i]));
+const reviewedCount = computed(() => reviewedFlags.value.filter(Boolean).length);
+
+watch(scope, (next) => (marks.value = loadMarks(next)));
+
+function toggleReviewed(index: number) {
+  if (!scope.value) return;
+  const file = props.files[index];
+  if (!file) return;
+  const next = { ...marks.value };
+  if (reviewedFlags.value[index]) delete next[file.new_path];
+  else next[file.new_path] = fingerprints.value[index]!;
+  marks.value = next;
+  saveMarks(scope.value, next);
 }
 
 const totals = computed(() => props.files.reduce((acc, f) => ({ additions: acc.additions + f.additions, deletions: acc.deletions + f.deletions }), { additions: 0, deletions: 0 }));
@@ -487,6 +507,7 @@ defineExpose({ focusThread, root });
           >
             <span class="mark" :data-status="files[row.index]!.status" :title="t(STATUS_TITLE_KEY[files[row.index]!.status])">{{ STATUS_MARK[files[row.index]!.status] }}</span>
             <span class="tree-name">{{ row.name }}</span>
+            <Check v-if="reviewedFlags[row.index]" :size="12" class="tree-reviewed" data-testid="diff-tree-reviewed" />
             <span class="counts"><span class="add">+{{ row.additions }}</span> <span class="del">−{{ row.deletions }}</span></span>
           </UiButton>
         </template>
@@ -498,6 +519,7 @@ defineExpose({ focusThread, root });
       <header class="toolbar">
         <UiButton class="mode vr-phone-only" data-testid="diff-files-open" @click="filesOpen = true"><ListTree :size="14" />{{ t('forge.diff.files') }}</UiButton>
         <span class="summary">{{ t('forge.diff.fileCount', { count: files.length }) }} <span class="add">+{{ totals.additions }}</span> <span class="del">−{{ totals.deletions }}</span></span>
+        <span v-if="scope" class="summary" data-testid="diff-reviewed-count">{{ t('forge.diff.reviewedCount', { done: reviewedCount, total: files.length }) }}</span>
         <span class="spacer" />
         <slot name="actions" />
         <span v-if="unresolved.length" class="group">
@@ -527,6 +549,16 @@ defineExpose({ focusThread, root });
               <UiButton class="mode" :data-active="previewing.has(i)" data-testid="diff-file-preview" @click="setPreview(i, true)">{{ t('forge.diff.preview') }}</UiButton>
             </span>
             <span class="counts"><span class="add">+{{ file.additions }}</span> <span class="del">−{{ file.deletions }}</span></span>
+            <UiButton
+              v-if="scope"
+              class="mode reviewed"
+              :data-active="reviewedFlags[i]"
+              :aria-pressed="reviewedFlags[i]"
+              data-testid="diff-file-reviewed"
+              @click.stop="toggleReviewed(i)"
+            >
+              <Check :size="14" />{{ t('forge.diff.reviewed') }}
+            </UiButton>
           </header>
 
           <template v-if="!collapsed.has(i)">
@@ -621,6 +653,15 @@ defineExpose({ focusThread, root });
 
 .tree-row:hover {
   background: var(--vr-color-nav-hover);
+}
+
+.tree-reviewed {
+  flex: none;
+  color: var(--vr-color-success);
+}
+
+.reviewed {
+  flex: none;
 }
 
 .tree-row[data-active='true'] {

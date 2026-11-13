@@ -68,6 +68,8 @@ export const forge: Translation<typeof en> = {
     filter: 'Фильтр файлов',
     fileCount: { one: '{count} файл', few: '{count} файла', many: '{count} файлов', other: '{count} файла' },
     unresolvedCount: '{count} нерешённых',
+    reviewed: 'Просмотрено',
+    reviewedCount: '{done} из {total} просмотрено',
     prevThread: 'Предыдущее обсуждение',
     prevThreadTitle: 'Предыдущее обсуждение (p)',
     nextThread: 'Следующее обсуждение',

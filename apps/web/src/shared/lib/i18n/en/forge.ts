@@ -65,6 +65,8 @@ export const forge = {
     filter: 'Filter files',
     fileCount: { one: '{count} file', other: '{count} files' },
     unresolvedCount: '{count} unresolved',
+    reviewed: 'Reviewed',
+    reviewedCount: '{done} of {total} reviewed',
     prevThread: 'Previous thread',
     prevThreadTitle: 'Previous thread (p)',
     nextThread: 'Next thread',
