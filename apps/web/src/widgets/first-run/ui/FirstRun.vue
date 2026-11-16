@@ -3,18 +3,19 @@ import { computed, onMounted, onUnmounted, shallowRef } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useAiAccounts, type AiKind, type AiStatus, type AiView } from '../../../shared/api/connectors/ai';
 import { ProjectActions } from '../../../features/manage-workspace';
-import { addProject, useBerth } from '../../../entities/session';
-import { relativeTime } from '../../../entities/merge-request';
+import { addProject, HarnessIcon, useBerth } from '../../../entities/session';
 import { describeError, openUrl, useConnectors } from '../../../shared/api/connectors/api';
 import { historyProjects, type HistoryProject } from '../../../shared/api/fs';
 import { isDesktop } from '../../../bridge';
 import { withTilde } from '../../../shared/lib/homePath';
+import { openSettings } from '../../../shared/model/nav';
 import { chordJoiner, modifierGlyphs, onlyPrimaryPressed, primaryModifier } from '../../../shared/lib/platform';
-import { Bot, Gem, Sparkles, SquareTerminal } from '../../../shared/ui/icons';
+import { Gem, Smartphone, SquareTerminal } from '../../../shared/ui/icons';
 import { VButton } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiInput from '../../../shared/ui/UiInput.vue';
-import { dismissFirstRun } from '../model/dismissed';
+import { activityLabel } from '../model/activity';
+import { dismissFirstRun, dismissPhoneRow, phoneRowDismissed } from '../model/dismissed';
 
 const STATUS = {
   signed_in: 'connectors.ai.status.signedIn',
@@ -33,7 +34,8 @@ const INSTALL_PAGES: Partial<Record<AiKind, string>> = {
   opencode: 'https://opencode.ai/docs',
 };
 
-const ICONS: Partial<Record<AiKind, typeof Bot>> = { claude: Sparkles, codex: Bot, gemini: Gem, opencode: SquareTerminal };
+const ICONS: Partial<Record<AiKind, typeof Gem>> = { gemini: Gem, opencode: SquareTerminal };
+const PREVIEW = 3;
 const RANK: Record<AiStatus, number> = { signed_in: 0, signed_out: 1, rejected: 1, error: 1, unreachable: 1, unchecked: 1, not_installed: 2 };
 
 const berth = useBerth();
@@ -55,6 +57,8 @@ const pathKey = (path: string) => path.replace(/[\\/]+$/, '').replace(/\\/g, '/'
 const known = computed(() => new Set((berth?.tree.value ?? []).flatMap((w) => w.projects.flatMap((p) => p.worktrees.map((wt) => pathKey(wt.path))))));
 const projects = computed(() => found.value.filter((p) => !known.value.has(pathKey(p.path))));
 const picked = computed(() => projects.value.filter((p) => selected.value.has(p.path)));
+const expanded = shallowRef(false);
+const shown = computed(() => (expanded.value ? projects.value : projects.value.slice(0, PREVIEW)));
 const forges = computed(() => connectors.value.filter((c) => (c.kind === 'github' || c.kind === 'gitlab') && c.status === 'ok'));
 
 const hostOf = (url: string) => {
@@ -154,7 +158,10 @@ onUnmounted(() => {
           </h2>
           <ul class="agents" data-testid="first-run-agents">
             <li v-for="a in cli" :key="a.kind" class="agent" :data-status="a.status" :data-testid="`first-run-agent-${a.kind}`">
-              <span class="tile" :data-kind="a.kind" aria-hidden="true"><component :is="ICONS[a.kind] ?? SquareTerminal" :size="16" /></span>
+              <span class="tile" :data-kind="a.kind" aria-hidden="true">
+                <HarnessIcon v-if="a.kind === 'claude' || a.kind === 'codex'" :harness="a.kind" :size="16" />
+                <component :is="ICONS[a.kind] ?? SquareTerminal" v-else :size="16" />
+              </span>
               <span class="info">
                 <span class="name">{{ a.label }}</span>
                 <span class="state" :data-tone="tone(a.status)">{{ state(a) }}</span>
@@ -165,31 +172,47 @@ onUnmounted(() => {
           </ul>
         </div>
         <div v-if="projects.length" class="block">
-          <h2 class="title">{{ t('workbench.firstRun.projects') }} <span class="hint">{{ t('workbench.firstRun.projectsHint') }}</span></h2>
+          <div class="title-row">
+            <h2 class="title">{{ t('workbench.firstRun.projects') }} <span class="hint">{{ t('workbench.firstRun.projectsHint') }}</span></h2>
+            <UiButton type="button" class="link" :aria-expanded="expanded" data-testid="first-run-review-all" @click="expanded = !expanded">
+              {{ expanded ? t('workbench.firstRun.showFewer') : t('workbench.firstRun.reviewAll') }}
+            </UiButton>
+          </div>
           <ul class="agents" data-testid="first-run-projects">
-            <li v-for="p in projects" :key="p.path" class="agent" :data-testid="`first-run-project-${p.name}`">
+            <li v-for="p in shown" :key="p.path" class="agent" :data-testid="`first-run-project-${p.name}`">
               <label class="pick">
-                <UiInput type="checkbox" :checked="selected.has(p.path)" :disabled="adding" :aria-label="p.name" data-testid="first-run-project-check" @change="toggle(p.path, ($event.target as HTMLInputElement).checked)" />
+                <UiInput type="checkbox" class="check" :checked="selected.has(p.path)" :disabled="adding" :aria-label="p.name" data-testid="first-run-project-check" @change="toggle(p.path, ($event.target as HTMLInputElement).checked)" />
                 <span class="info">
                   <span class="name">{{ p.name }}</span>
                   <span class="path" :title="p.path">{{ withTilde(p.path) }}</span>
                 </span>
               </label>
-              <span class="state">{{ t('workbench.firstRun.conversations', { count: p.conversations }) }} · {{ relativeTime(new Date(p.last_active).toISOString()) }}</span>
+              <span class="state">{{ t('workbench.firstRun.conversations', { count: p.conversations }) }} · {{ activityLabel(p.last_active) }}</span>
             </li>
           </ul>
+          <ProjectActions v-if="expanded && workspaceId" class="add" :workspace-id="workspaceId" />
+        </div>
+        <div v-else-if="workspaceId" class="block">
+          <ProjectActions class="add" :workspace-id="workspaceId" primary />
         </div>
         <div v-if="forges.length" class="block">
-          <h2 class="title">{{ t('workbench.firstRun.mergeRequests') }} <span class="hint">{{ t('workbench.firstRun.mergeRequestsHint') }}</span></h2>
+          <div class="title-row">
+            <h2 class="title">{{ t('workbench.firstRun.mergeRequests') }} <span class="hint">{{ t('workbench.firstRun.mergeRequestsHint') }}</span></h2>
+            <UiButton type="button" class="link" data-testid="first-run-connectors" @click="openSettings('connectors')">{{ t('workbench.firstRun.jiraOrConfluence') }}</UiButton>
+          </div>
           <ul class="agents" data-testid="first-run-forges">
             <li v-for="c in forges" :key="c.id" class="agent" :data-testid="`first-run-forge-${c.id}`">
-              <span class="name">{{ hostOf(c.base_url) }}</span>
+              <span class="name host">{{ hostOf(c.base_url) }}</span>
               <span class="state" data-tone="ok">{{ signedIn(c.account?.username) }}</span>
             </li>
           </ul>
         </div>
-        <div class="block">
-          <ProjectActions v-if="workspaceId" class="add" :workspace-id="workspaceId" :primary="!projects.length" />
+        <div v-if="!phoneRowDismissed" class="phone" data-testid="first-run-phone">
+          <UiButton type="button" class="phone-open" :title="t('workbench.firstRun.phoneOpen')" data-testid="first-run-phone-open" @click="openSettings('remote')">
+            <Smartphone :size="14" :stroke-width="1.6" />
+            <span>{{ t('workbench.firstRun.phone') }}</span>
+          </UiButton>
+          <UiButton type="button" class="link" data-testid="first-run-phone-later" @click="dismissPhoneRow">{{ t('workbench.firstRun.phoneLater') }}</UiButton>
         </div>
       </div>
     </div>
@@ -301,8 +324,109 @@ onUnmounted(() => {
   border-radius: var(--vr-radius-md);
 }
 
+.tile :deep(.harness[data-harness]) {
+  color: inherit;
+}
+
 .tile[data-kind='claude'] {
   background: var(--vr-color-conflict);
+}
+
+.title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--vr-space-3);
+}
+
+.link {
+  padding: 0;
+  font: inherit;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-link);
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.host {
+  font-family: var(--vr-font-mono);
+  font-size: var(--vr-font-size-sm);
+}
+
+.check {
+  position: relative;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--vr-color-border-strong);
+  border-radius: 4px;
+  appearance: none;
+}
+
+.check:checked {
+  background: var(--vr-color-accent);
+  border-color: var(--vr-color-accent);
+}
+
+.check:checked::after {
+  position: absolute;
+  top: 1px;
+  left: 4px;
+  width: 4px;
+  height: 8px;
+  content: '';
+  border: solid var(--vr-color-accent-contrast);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.check:focus-visible {
+  outline: 2px solid var(--vr-color-focus);
+  outline-offset: 2px;
+}
+
+.check:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.phone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vr-space-3);
+  padding: var(--vr-space-3) var(--vr-space-4);
+  background: var(--vr-color-surface);
+  border: 1px solid var(--vr-color-border);
+  border-radius: var(--vr-radius-md);
+}
+
+.phone-open {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--vr-space-3);
+  min-width: 0;
+  padding: 0;
+  font: inherit;
+  font-size: var(--vr-font-size-sm);
+  color: var(--vr-color-text-muted);
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.phone-open:hover {
+  color: var(--vr-color-text);
 }
 
 .tile[data-kind='codex'] {

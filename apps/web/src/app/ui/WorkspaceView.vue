@@ -15,6 +15,7 @@ import { Sidebar } from '../../widgets/project-tree';
 import { TitleBar } from '../../widgets/title-bar';
 import { ChangesDialog, UpdateDialog } from '../../features/update';
 import { view, type View } from '../../shared/model/nav';
+import { firstRunActive } from '../../shared/model/firstRun';
 import { isDark, toggleTheme } from '../../shared/ui/appearance';
 import { openReview, reviveReview } from '../../entities/merge-request';
 import { useDock } from '../../shared/model/dock';
@@ -29,6 +30,7 @@ const inTauri = '__TAURI_INTERNALS__' in window;
 const mobile = useIsPhone();
 const berth = useBerth();
 const firstRun = computed(() => view.value.kind === 'agents' && isFirstRun(berth?.entities.value));
+watch(firstRun, (value) => (firstRunActive.value = value), { immediate: true });
 const viewKey = 'berth.view.v2';
 
 useDock().revivable(reviveReview);

@@ -6,6 +6,8 @@ export { archiveExternal, continueInBerth, externalDot, externalKey, externalOri
 export type { ExternalSession, Harness, TranscriptMessage } from './model/external';
 export { derivePlan } from './model/plan';
 export { acpMessages, useAcpChat } from './model/acpChat';
+export { searchSessionText } from './model/sessionText';
+export type { SessionTextCandidate } from './model/sessionText';
 export { withShellBlocks } from './model/shellTags';
 export type { FileEdit } from './model/shellTags';
 export { useLinkedPlan } from './model/linkedPlan';

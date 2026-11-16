@@ -10,6 +10,7 @@ import { hostPlatform } from '../../../shared/lib/platform';
 import { toggleQuickOpen } from '../../../shared/model/dock';
 import { inspectorOpen } from '../../../shared/model/inspector';
 import { view } from '../../../shared/model/nav';
+import { firstRunActive } from '../../../shared/model/firstRun';
 import { useSettings } from '../../../shared/config/settings/store';
 import { UpdateChip } from '../../../features/update';
 import { WorkspaceSwitcher } from '../../../features/manage-workspace';
@@ -49,9 +50,10 @@ onUnmounted(() => stopResize?.());
   <header class="titlebar" data-tauri-drag-region data-testid="titlebar" :data-native-controls="nativeControls">
     <div class="start" data-tauri-drag-region>
       <div class="mark" data-tauri-drag-region aria-hidden="true">b</div>
-      <WorkspaceSwitcher />
+      <WorkspaceSwitcher v-if="!firstRunActive" />
     </div>
     <UiButton
+      v-if="!firstRunActive"
       type="button"
       class="search vr-wide-only"
       data-testid="titlebar-search"
@@ -65,7 +67,7 @@ onUnmounted(() => stopResize?.());
     </UiButton>
     <div class="end">
       <div class="update" data-tauri-drag-region><UpdateChip /></div>
-      <div class="tools">
+      <div v-if="!firstRunActive" class="tools">
         <UiButton
           v-if="hotOn"
           type="button"
