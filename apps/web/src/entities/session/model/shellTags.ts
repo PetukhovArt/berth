@@ -13,6 +13,7 @@ export type ShellMessage = {
   edits?: FileEdit[];
   toolKind?: string;
   callOf?: string;
+  exit?: number;
 };
 
 const TAGS = ['bash-input', 'bash-stdout', 'bash-stderr', 'local-command-stdout', 'local-command-stderr', 'local-command-caveat', 'command-name', 'command-message', 'command-args'] as const;

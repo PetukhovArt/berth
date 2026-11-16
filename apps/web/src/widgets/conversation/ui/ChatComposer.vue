@@ -11,7 +11,7 @@ import type { TranscriptMessage } from '../../../entities/session';
 import { useVoiceLoop } from '../model/useVoiceLoop';
 
 const NOTICE_MS = 3000;
-const WAVE_BARS = 11;
+const WAVE_BARS = [10, 22, 34, 18, 40, 26, 14, 30, 20, 8];
 
 const props = defineProps<{ messages: TranscriptMessage[]; suggestion: string | null; modelChip: string; sending: boolean; send: (text: string, spoken: boolean) => Promise<boolean> }>();
 
@@ -116,7 +116,7 @@ function handsFree() {
     </div>
     <div v-if="voice.active.value" class="voice" data-testid="chat-voice" :data-phase="voice.phase.value" role="status">
       <div class="wave" :data-live="listening || undefined" aria-hidden="true">
-        <span v-for="bar in WAVE_BARS" :key="bar" class="bar" :style="{ '--bar': bar }" />
+        <span v-for="(height, bar) in WAVE_BARS" :key="bar" class="bar" :style="{ '--bar': bar, '--h': `${height}px` }" />
       </div>
       <p class="voice-text" data-testid="chat-voice-status">{{ voiceStatus }}</p>
       <div class="voice-actions">
@@ -137,13 +137,13 @@ function handsFree() {
       </div>
       <div v-else class="box">
         <UiTextarea v-model="draft" class="input" rows="2" :placeholder="t('agents.sessionView.chatPlaceholder')" :aria-label="t('agents.sessionView.chatPlaceholder')" data-testid="chat-input" @keydown="onKey" />
-        <div class="bar">
+        <div class="foot">
           <span v-if="modelChip" class="model" :title="modelChip" data-testid="chat-model">{{ modelChip }}</span>
           <span class="grow" />
           <span v-if="!phone" class="keys">{{ t('chat.keysHint') }}</span>
-          <UiButton v-if="showTalk && phone" type="button" class="talk" :aria-label="t('chat.talkMode')" :title="t('chat.talkMode')" data-testid="chat-talk-mode" @click="typing = false"><Mic :size="16" /></UiButton>
-          <UiButton v-else-if="showTalk" type="button" class="talk" :data-holding="talk.holding.value || undefined" :data-cancelling="talk.cancelling.value || undefined" :aria-label="t('agents.sessionView.chatTalk')" :title="t('agents.sessionView.chatTalk')" data-testid="chat-talk" @pointerdown="talk.start" @pointermove="talk.move" @pointerup="talk.release" @pointercancel="talk.release" @contextmenu.prevent><Mic :size="16" /></UiButton>
-          <UiButton type="submit" class="send" :disabled="!draft.trim() || sending" :aria-busy="sending" :aria-label="t('agents.sessionView.chatSend')" :title="t('agents.sessionView.chatSend')" data-testid="chat-send"><ArrowUp :size="16" /></UiButton>
+          <UiButton v-if="showTalk && phone" type="button" class="talk" :aria-label="t('chat.talkMode')" :title="t('chat.talkMode')" data-testid="chat-talk-mode" @click="typing = false"><Mic :size="14" /></UiButton>
+          <UiButton v-else-if="showTalk" type="button" class="talk" :data-holding="talk.holding.value || undefined" :data-cancelling="talk.cancelling.value || undefined" :aria-label="t('agents.sessionView.chatTalk')" :title="t('agents.sessionView.chatTalk')" data-testid="chat-talk" @pointerdown="talk.start" @pointermove="talk.move" @pointerup="talk.release" @pointercancel="talk.release" @contextmenu.prevent><Mic :size="14" /></UiButton>
+          <UiButton type="submit" class="send" :disabled="!draft.trim() || sending" :aria-busy="sending" :aria-label="t('agents.sessionView.chatSend')" :title="t('agents.sessionView.chatSend')" data-testid="chat-send"><ArrowUp :size="14" /></UiButton>
         </div>
       </div>
     </template>
@@ -155,7 +155,7 @@ function handsFree() {
   display: flex;
   flex: none;
   flex-direction: column;
-  gap: var(--vr-space-2);
+  gap: 10px;
   width: 100%;
   max-width: 920px;
   margin: 0 auto;
@@ -163,18 +163,16 @@ function handsFree() {
 }
 
 .composer[data-phone] {
-  padding: var(--vr-space-3) var(--vr-space-4);
+  padding: 10px 14px var(--vr-space-3);
   border-top: 1px solid var(--vr-color-border);
 }
 
 .box {
   display: flex;
   flex-direction: column;
-  gap: var(--vr-space-1);
-  padding: var(--vr-space-2) var(--vr-space-2) var(--vr-space-2) var(--vr-space-3);
-  background: var(--vr-color-surface-sunken);
+  background: var(--vr-color-surface);
   border: 1px solid var(--vr-color-border-strong);
-  border-radius: var(--vr-radius-lg);
+  border-radius: var(--vr-radius-2xl);
 }
 
 .box:focus-within {
@@ -182,36 +180,44 @@ function handsFree() {
 }
 
 .input {
+  display: block;
   width: 100%;
   min-width: 0;
-  padding: var(--vr-space-1) 0;
+  min-height: 52px;
+  padding: var(--vr-space-3) 14px var(--vr-space-1);
   color: var(--vr-color-text);
   font: inherit;
   font-size: var(--vr-font-size-sm);
+  line-height: 1.57;
   resize: none;
   background: none;
   border: 0;
   outline: none;
 }
 
-.bar {
+.foot {
   display: flex;
   align-items: center;
-  gap: var(--vr-space-2);
+  gap: 6px;
   min-width: 0;
+  padding: var(--vr-space-1) var(--vr-space-2) var(--vr-space-2) 10px;
 }
 
 .model {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
   min-width: 0;
   max-width: 60%;
-  padding: 2px var(--vr-space-2);
+  height: 26px;
+  padding: 0 var(--vr-space-2);
   overflow: hidden;
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
   white-space: nowrap;
   text-overflow: ellipsis;
-  background: var(--vr-color-chip-bg);
-  border-radius: var(--vr-radius-md);
+  background: var(--vr-color-surface-muted);
+  border-radius: var(--vr-radius-sm);
 }
 
 .grow {
@@ -236,7 +242,7 @@ function handsFree() {
   padding: 0;
   color: var(--vr-color-text-muted);
   cursor: pointer;
-  background: none;
+  background: var(--vr-color-surface-muted);
   border: 0;
   border-radius: 50%;
 }
@@ -258,9 +264,8 @@ function handsFree() {
 }
 
 .send:disabled {
-  color: var(--vr-color-text-subtle);
   cursor: default;
-  background: var(--vr-color-surface-muted);
+  background: var(--vr-color-text-subtle);
 }
 
 .talk[data-holding] {
@@ -284,7 +289,7 @@ function handsFree() {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--vr-space-6);
+  gap: var(--vr-space-4);
 }
 
 .aa,
@@ -296,7 +301,7 @@ function handsFree() {
 .aa {
   padding: 0;
   font: inherit;
-  font-size: var(--vr-font-size-sm);
+  font-size: var(--vr-font-size-label);
   color: var(--vr-color-text);
   cursor: pointer;
   background: var(--vr-color-surface-muted);
@@ -324,52 +329,56 @@ function handsFree() {
 
 .hint {
   margin: 0;
-  font-size: var(--vr-font-size-xs);
+  font-size: var(--vr-font-size-2xs);
   color: var(--vr-color-text-subtle);
 }
 
 .modes {
   display: flex;
+  gap: 2px;
   align-self: center;
   padding: 2px;
   background: var(--vr-color-surface-muted);
-  border-radius: var(--vr-radius-md);
+  border-radius: 9px;
 }
 
 .mode {
-  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
   padding: 0 var(--vr-space-3);
   font: inherit;
-  font-size: var(--vr-font-size-sm);
+  font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
   cursor: pointer;
   background: none;
   border: 0;
-  border-radius: var(--vr-radius-sm);
+  border-radius: 7px;
 }
 
 .mode[aria-pressed='true'] {
   color: var(--vr-color-text);
-  background: var(--vr-color-surface-raised);
+  background: var(--vr-color-surface);
+  box-shadow: 0 0 0 1px var(--vr-color-border);
 }
 
 .voice {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--vr-space-2);
+  gap: var(--vr-space-3);
 }
 
 .wave {
   display: flex;
   align-items: center;
-  gap: 4px;
-  height: 36px;
+  gap: 5px;
+  height: 44px;
 }
 
 .bar {
-  width: 3px;
-  height: 30%;
+  width: 4px;
+  height: var(--h);
   background: var(--vr-color-text);
   border-radius: 2px;
   opacity: 0.5;
@@ -377,38 +386,38 @@ function handsFree() {
 
 .wave[data-live] .bar {
   opacity: 1;
-  animation: wave calc(var(--vr-motion-slow) * 4) ease-in-out infinite;
+  animation: wave calc(var(--vr-motion-slow) * 3) ease-in-out infinite alternate;
   animation-delay: calc(var(--bar) * var(--vr-motion-fast) * -0.7);
 }
 
 @keyframes wave {
-  0%,
-  100% {
-    height: 25%;
+  from {
+    height: 6px;
   }
 
-  50% {
-    height: 100%;
+  to {
+    height: var(--h);
   }
 }
 
 .voice-text {
+  max-width: 300px;
   margin: 0;
-  font-size: var(--vr-font-size-sm);
+  font-size: var(--vr-font-size-label);
   color: var(--vr-color-text-muted);
   text-align: center;
 }
 
 .voice-actions {
   display: flex;
-  gap: var(--vr-space-2);
+  gap: var(--vr-space-3);
 }
 
 .pill {
   height: 44px;
   padding: 0 var(--vr-space-4);
   font: inherit;
-  font-size: var(--vr-font-size-sm);
+  font-size: var(--vr-font-size-label);
   color: var(--vr-color-text);
   cursor: pointer;
   background: var(--vr-color-surface-muted);
@@ -417,6 +426,7 @@ function handsFree() {
 }
 
 .pill.strong {
+  padding: 0 18px;
   font-weight: 600;
   color: var(--vr-color-accent-contrast);
   background: var(--vr-color-accent);

@@ -7,7 +7,8 @@ import { t } from '../../../shared/lib/i18n/i18n';
 const OUTPUT_CHARS = 4000;
 
 const PLAN_STATES: Record<string, PlanItem['state']> = { completed: 'done', in_progress: 'doing', pending: 'todo' };
-const TOOL_STATUSES = ['pending', 'in_progress', 'failed'] as const;
+const EXIT_BY_STATUS: Readonly<Record<string, number>> = { completed: 0, failed: 1 };
+const TOOL_STATUSES =['pending', 'in_progress', 'failed'] as const;
 
 const isKnownStatus = (status: string): status is (typeof TOOL_STATUSES)[number] => (TOOL_STATUSES as readonly string[]).includes(status);
 const toolStatus = (status: string) => (isKnownStatus(status) ? t(`agents.sessionView.toolStatus.${status}`) : status);
@@ -55,7 +56,8 @@ function toMessages(seq: number, item: AcpItem): TranscriptMessage[] {
   const tool = item.Tool;
   const label = [tool.detail, tool.status === 'completed' ? '' : toolStatus(tool.status)].filter(Boolean).join(' · ');
   const edits = tool.diff ? [{ path: tool.diff.path, ...lineDelta(tool.diff.old ?? '', tool.diff.new) }] : [];
-  const out: TranscriptMessage[] = [{ ...base, role: 'assistant', tool: tool.title || tool.kind, text: label, toolKind: tool.kind, edits }];
+  const exit = tool.kind === 'execute' ? EXIT_BY_STATUS[tool.status] : undefined;
+  const out: TranscriptMessage[] = [{ ...base, role: 'assistant', tool: tool.title || tool.kind, text: label, toolKind: tool.kind, edits, ...(exit === undefined ? {} : { exit }) }];
   if (tool.diff) out.push({ ...base, key: `${key}:diff`, role: 'assistant', text: tool.diff.path, shell: 'output', markdown: fenced(diffText(tool.diff), 'diff'), callOf: key });
   if (tool.output) out.push({ ...base, key: `${key}:output`, role: 'assistant', text: tool.output, shell: 'output', markdown: fenced(tool.output, ''), callOf: key });
   return out;
