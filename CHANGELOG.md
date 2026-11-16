@@ -56,7 +56,7 @@
 - Added Grok as a session type: `grok` runs in a berth session with status updates, auto titles and resume, through hooks berth writes to `~/.grok/hooks/berth.json`.
 - Added OpenCode as a session type: `opencode` runs in a berth session with status updates, auto titles and resume, through a plugin berth writes to `~/.config/opencode/plugin/berth.js`.
 - Changed Checkpoints to be off for Claude agents by default, since Claude Code has its own `/rewind`; `daemon.checkpointsClaude` in the desktop app's settings turns them back on (#20).
-- Changed Claude's Bash commands to run berth's hook only when they `cd`, so each other command no longer waits on it (about 60 ms per command on Windows).
+- Changed Claude's Bash commands to no longer run a berth hook, so each one stops waiting on it (about 60 ms per command on Windows). A session that `cd`s into another worktree moves there in the sidebar when its turn ends.
 - Changed a new Claude session with a prompt to start in a Claude that berth boots while the New Session dialog is open, so its first answer starts about a second sooner.
 - Changed the desktop app to update an older berth daemon on its own after an app update, instead of showing a protocol mismatch.
 - Fixed the New Session dialog moving focus to its close button right after it opens, so the first letters typed into the prompt went nowhere; the prompt now has focus from the start.

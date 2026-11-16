@@ -74,18 +74,13 @@ const CLAUDE_EVENTS: &[(&str, Option<&str>)] = &[
     // Not a status signal — a position one. Claude reports the session's
     // working directory on every hook payload, and these are the tools that
     // change it: EnterWorktree/ExitWorktree relocate the whole session (what
-    // "do this in a worktree" actually runs), and a Bash `cd` moves it too.
+    // "do this in a worktree" actually runs).
     // Hooking them re-homes the row seconds after the session moves instead
     // of at the turn's Stop, which can be many minutes later.
     // See registry::reparent_agent_by_cwd.
     ("PostToolUse", Some("EnterWorktree|ExitWorktree")),
     ("SubagentStart", None),
     ("SubagentStop", None),
-];
-
-const CLAUDE_BASH_CD_GROUPS: &[(&str, &str, &str)] = &[
-    ("PostToolUse", "Bash", "Bash(cd *)"),
-    ("PostToolUse", "Bash", "Bash(* cd *)"),
 ];
 
 /// Codex has no Notification hook and no AskUserQuestion tool; its native
@@ -235,7 +230,6 @@ pub fn install_claude_hooks(cwd: &Path) -> Result<()> {
         CLAUDE_SETTINGS_FILE,
         "claude",
         CLAUDE_EVENTS,
-        CLAUDE_BASH_CD_GROUPS,
         CLAUDE_ALLOW_RULES,
     )
 }
@@ -307,7 +301,7 @@ pub fn codex_home() -> PathBuf {
 
 /// Merge berth's managed hooks for Codex into `<codex_home>/hooks.json`.
 pub fn install_codex_hooks(codex_home: &Path) -> Result<()> {
-    install_managed_hooks(codex_home, HOOKS_FILE, "codex", CODEX_EVENTS, &[], &[])
+    install_managed_hooks(codex_home, HOOKS_FILE, "codex", CODEX_EVENTS, &[])
 }
 
 /// Grok's home: `$GROK_HOME`, else `~/.grok`.
@@ -329,7 +323,6 @@ pub fn install_grok_hooks(grok_home: &Path) -> Result<()> {
         GROK_HOOKS_FILE,
         "grok",
         GROK_EVENTS,
-        &[],
         &[],
     )
 }
@@ -452,7 +445,6 @@ fn install_managed_hooks(
     file_name: &str,
     endpoint: &str,
     events: &[(&str, Option<&str>)],
-    groups_with_if: &[(&str, &str, &str)],
     allow_rules: &[&str],
 ) -> Result<()> {
     let path = dir.join(file_name);
@@ -460,7 +452,6 @@ fn install_managed_hooks(
 
     let root_obj = root_object_mut(&mut root, &path)?;
     merge_managed_hooks(root_obj, endpoint, events, &path)?;
-    add_if_filtered_groups(root_obj, endpoint, groups_with_if, &path)?;
     for rule in allow_rules {
         ensure_permission_allow(root_obj, rule, &path)?;
     }
@@ -492,26 +483,6 @@ fn merge_managed_hooks(
             groups_arr.retain(|g| !is_berth_group(g));
         }
         groups_arr.push(managed_group(endpoint, event, *matcher));
-    }
-    Ok(())
-}
-
-fn add_if_filtered_groups(
-    root_obj: &mut Map<String, Value>,
-    endpoint: &str,
-    groups_with_if: &[(&str, &str, &str)],
-    path: &Path,
-) -> Result<()> {
-    let hooks = root_obj.entry("hooks").or_insert_with(|| json!({}));
-    let hooks_obj = object_mut(hooks, "\"hooks\"", path)?;
-    for (event, matcher, rule) in groups_with_if {
-        let groups = hooks_obj
-            .entry(event.to_string())
-            .or_insert_with(|| json!([]));
-        let groups_arr = array_mut(groups, &format!("hooks.{event}"), path)?;
-        let mut group = managed_group(endpoint, event, Some(matcher));
-        group["hooks"][0]["if"] = json!(rule);
-        groups_arr.push(group);
     }
     Ok(())
 }
@@ -634,18 +605,8 @@ mod tests {
             .collect();
         assert_eq!(
             matchers,
-            vec![
-                "AskUserQuestion",
-                "EnterWorktree|ExitWorktree",
-                "Bash",
-                "Bash"
-            ]
+            vec!["AskUserQuestion", "EnterWorktree|ExitWorktree"]
         );
-        let rules: Vec<&str> = groups[2..]
-            .iter()
-            .map(|g| g["hooks"][0]["if"].as_str().unwrap())
-            .collect();
-        assert_eq!(rules, vec!["Bash(cd *)", "Bash(* cd *)"]);
         assert!(groups.iter().all(|g| g["_berthManaged"] == json!(true)));
     }
 
@@ -889,11 +850,7 @@ mod tests {
         let settings = read_settings(tmp.path());
         for (event, _) in CLAUDE_EVENTS {
             // One group per (event, matcher) pair — PostToolUse carries two.
-            let expected = CLAUDE_EVENTS.iter().filter(|(e, _)| e == event).count()
-                + CLAUDE_BASH_CD_GROUPS
-                    .iter()
-                    .filter(|(e, _, _)| e == event)
-                    .count();
+            let expected = CLAUDE_EVENTS.iter().filter(|(e, _)| e == event).count();
             assert_eq!(
                 settings["hooks"][*event].as_array().unwrap().len(),
                 expected,
