@@ -68,8 +68,12 @@ async function append(incoming: ChannelMessage[]) {
   }
 }
 
+let readCursor = 0;
+
 async function readNew() {
-  await append(await readChannel(props.channel, messages.value.at(-1)?.seq ?? 0));
+  const incoming = await readChannel(props.channel, readCursor);
+  readCursor = Math.max(readCursor, ...incoming.map((message) => message.seq));
+  await append(incoming);
   error.value = null;
 }
 
