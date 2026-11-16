@@ -149,13 +149,15 @@ async fn approve(State(s): State<Shared>, headers: HeaderMap, Json(b): Json<Appr
 #[derive(Deserialize)]
 struct AgentBody {
     name: String,
+    #[serde(default)]
+    display: Option<String>,
 }
 
 async fn agent(State(s): State<Shared>, headers: HeaderMap, Json(b): Json<AgentBody>) -> Reply {
     let store = s.store.lock().unwrap();
     let owner = member(&store, &headers, "post")?;
     let id = store
-        .ensure_agent(&owner, &b.name)
+        .ensure_agent(&owner, &b.name, b.display.as_deref())
         .map_err(|e| fail(StatusCode::INTERNAL_SERVER_ERROR, e))?;
     Ok(Json(json!({ "id": id })))
 }
@@ -219,7 +221,10 @@ async fn post_event(State(s): State<Shared>, headers: HeaderMap, Json(b): Json<P
         .acting_member(&m, b.as_agent.as_deref())
         .map_err(denied)?;
     let mut tags = b.tags.clone();
-    for tag in store.mention_tags(&b.channel, &b.content).map_err(denied)? {
+    for tag in store
+        .mention_tags(&b.channel, &author, &b.content)
+        .map_err(denied)?
+    {
         if !tags.contains(&tag) {
             tags.push(tag);
         }

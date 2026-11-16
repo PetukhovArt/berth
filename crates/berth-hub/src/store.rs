@@ -1,3 +1,4 @@
+use crate::mention::{mention_key, mentions_in};
 use anyhow::{anyhow, bail, Result};
 use rand::Rng;
 use rusqlite::{params, Connection, OptionalExtension};
@@ -91,6 +92,14 @@ impl Store {
                created_at INTEGER NOT NULL);
              CREATE INDEX IF NOT EXISTS events_channel ON events (channel, seq);",
         )?;
+        let has_display: bool = db.query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('members') WHERE name='display')",
+            [],
+            |r| r.get(0),
+        )?;
+        if !has_display {
+            db.execute_batch("ALTER TABLE members ADD COLUMN display TEXT;")?;
+        }
         Ok(Self { db })
     }
 
@@ -179,24 +188,38 @@ impl Store {
         Ok(found)
     }
 
-    pub fn ensure_agent(&self, owner: &Member, name: &str) -> Result<String> {
-        if let Some(id) = self
+    pub fn ensure_agent(
+        &self,
+        owner: &Member,
+        name: &str,
+        display: Option<&str>,
+    ) -> Result<String> {
+        let existing: Option<String> = self
             .db
             .query_row(
                 "SELECT id FROM members WHERE kind='agent' AND owner=?1 AND name=?2",
                 params![owner.id, name],
                 |r| r.get(0),
             )
-            .optional()?
-        {
-            return Ok(id);
+            .optional()?;
+        let id = match existing {
+            Some(id) => id,
+            None => {
+                let id = format!("a-{}", &random_token()[..12]);
+                self.db.execute(
+                    "INSERT INTO members (id, name, kind, owner, token, status, scopes, created_at)
+                     VALUES (?1, ?2, 'agent', ?3, ?4, 'agent', '', ?5)",
+                    params![id, name, owner.id, random_token(), now_ms()],
+                )?;
+                id
+            }
+        };
+        if let Some(display) = display.map(str::trim).filter(|d| !d.is_empty()) {
+            self.db.execute(
+                "UPDATE members SET display=?2 WHERE id=?1",
+                params![id, display],
+            )?;
         }
-        let id = format!("a-{}", &random_token()[..12]);
-        self.db.execute(
-            "INSERT INTO members (id, name, kind, owner, token, status, scopes, created_at)
-             VALUES (?1, ?2, 'agent', ?3, ?4, 'agent', '', ?5)",
-            params![id, name, owner.id, random_token(), now_ms()],
-        )?;
         Ok(id)
     }
 
@@ -305,7 +328,7 @@ impl Store {
 
     fn events_where(&self, cond: &str, p: impl rusqlite::Params) -> Result<Vec<Event>> {
         let sql = format!(
-            "SELECT e.seq, e.kind, e.author, m.name, m.kind, e.channel, e.tags, e.content, e.created_at
+            "SELECT e.seq, e.kind, e.author, COALESCE(m.display, m.name), m.kind, e.channel, e.tags, e.content, e.created_at
              FROM events e JOIN members m ON m.id = e.author WHERE {cond} ORDER BY e.seq"
         );
         let mut st = self.db.prepare(&sql)?;
@@ -326,27 +349,43 @@ impl Store {
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
-    pub fn mention_tags(&self, key: &str, content: &str) -> Result<Vec<Vec<String>>> {
+    pub fn mention_tags(&self, key: &str, author: &str, content: &str) -> Result<Vec<Vec<String>>> {
+        let words = mentions_in(content);
+        if words.is_empty() {
+            return Ok(Vec::new());
+        }
+        let author_owner = self
+            .agent_owner(author)?
+            .unwrap_or_else(|| author.to_string());
+        let mut st = self.db.prepare(
+            "SELECT id, name, display, owner FROM members WHERE kind='agent' ORDER BY created_at",
+        )?;
+        let agents = st
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, Option<String>>(2)?,
+                    r.get::<_, String>(3)?,
+                ))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
         let mut tags: Vec<Vec<String>> = Vec::new();
-        for word in content.split('@').skip(1) {
-            let name: String = word
-                .chars()
-                .take_while(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
-                .collect();
-            if name.is_empty() {
-                continue;
+        for (_, word) in words {
+            let mut found = Vec::new();
+            for (id, name, display, owner) in &agents {
+                let named = mention_key(name) == word
+                    || display.as_deref().is_some_and(|d| mention_key(d) == word);
+                if named && self.can_access(key, id)? {
+                    found.push((id, owner));
+                }
             }
-            let id: Option<String> = self
-                .db
-                .query_row(
-                    "SELECT id FROM members WHERE kind='agent' AND name=?1",
-                    [&name],
-                    |r| r.get(0),
-                )
-                .optional()?;
-            if let Some(id) = id {
-                let tag = vec![MENTION_TAG.to_string(), id];
-                if self.can_access(key, &tag[1])? && !tags.contains(&tag) {
+            if found.iter().any(|(_, owner)| **owner == author_owner) {
+                found.retain(|(_, owner)| **owner == author_owner);
+            }
+            for (id, _) in found {
+                let tag = vec![MENTION_TAG.to_string(), id.clone()];
+                if !tags.contains(&tag) {
                     tags.push(tag);
                 }
             }

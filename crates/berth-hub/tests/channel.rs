@@ -163,6 +163,44 @@ async fn a_mention_reaches_only_the_owner_of_that_agent_and_counts_the_agent_cha
 }
 
 #[tokio::test]
+async fn a_display_name_mentions_the_agent_and_prefers_the_authors_own() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_hub, url) = start(dir.path()).await;
+    let (_a, ann) = person(&url, "ann", &["read", "post", "create"]).await;
+    let (bob_id, bob) = person(&url, "bob", &["read", "post"]).await;
+    ann.create_channel("PROJ-12").await.unwrap();
+    ann.add_member("PROJ-12", &bob_id).await.unwrap();
+    let a = ann
+        .register_agent("01JANN", Some("Fix Login Redirect"))
+        .await
+        .unwrap();
+    let ann_one = ann
+        .register_agent("01JANN1", Some("agent-1"))
+        .await
+        .unwrap();
+    let bob_one = bob
+        .register_agent("01JBOB1", Some("agent-1"))
+        .await
+        .unwrap();
+
+    let posted = ann
+        .post("PROJ-12", "@fix-login-redirect /compact", None)
+        .await
+        .unwrap();
+    assert_eq!(posted.tags, [vec!["p".to_string(), a.clone()]]);
+    let seen = ann.mentions(0).await.unwrap();
+    assert_eq!(seen[0].agent_name, "01JANN");
+
+    let by_ann = ann.post("PROJ-12", "@Agent-1 go", None).await.unwrap();
+    assert_eq!(by_ann.tags, [vec!["p".to_string(), ann_one]]);
+    let by_bob = bob.post("PROJ-12", "@agent-1 go", None).await.unwrap();
+    assert_eq!(by_bob.tags, [vec!["p".to_string(), bob_one.clone()]]);
+
+    let reply = bob.post("PROJ-12", "done", Some(&bob_one)).await.unwrap();
+    assert_eq!(reply.author_name, "agent-1");
+}
+
+#[tokio::test]
 async fn presence_shows_who_runs_sessions_on_a_task_and_expires() {
     let dir = tempfile::tempdir().unwrap();
     let hub = berth_hub::serve_with_ttl(

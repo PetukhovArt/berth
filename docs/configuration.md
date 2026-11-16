@@ -64,6 +64,18 @@ file or a missing key means the default.
 | `channel_chain_limit` | `4` | how many Agent-authored messages in a row a channel delivers to Sessions before it stops, so two Agents cannot loop |
 | `git_init_on_create` | `true` | `git init` a directory that `Add Project` creates because it did not exist |
 
+## Mentions in team channels
+
+With `hub_url` and `hub_token` set, the daemon registers every Agent on the hub under its session
+name, and a channel message that writes `@<name>` reaches that Agent. The name is matched in lower
+case with spaces and punctuation as dashes, so the Agent "Fix Login Redirect" is
+`@fix-login-redirect`. When people on the team have Agents with the same name, a mention goes to
+the author's own Agent if the author has one. The Agent gets the message when it is idle: your own
+message as an instruction, anyone else's as quoted information. Your own message that starts with
+`/` once the mention is taken out, like `@fix-login-redirect /compact`, is typed as that command.
+The daemon remembers the last mention it fetched, so mentions made while it was stopped arrive when
+it starts again.
+
 ## Router rules
 
 `router.toml`, beside `config.json`, says what berth suggests when an Agent hits a provider error
