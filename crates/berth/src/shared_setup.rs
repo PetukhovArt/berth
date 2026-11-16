@@ -34,6 +34,9 @@ pub fn run_sync() -> Result<()> {
                     for path in report.kept_as_found {
                         println!("  kept {path}: not written by berth, or changed since");
                     }
+                    for line in report.skipped {
+                        println!("  skipped {line}");
+                    }
                 }
                 Err(e) => {
                     failed += 1;

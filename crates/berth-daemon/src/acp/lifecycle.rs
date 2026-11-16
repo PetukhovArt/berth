@@ -18,6 +18,7 @@ const STDERR_LINES_IN_NOTICE: usize = 8;
 pub(super) struct Capabilities {
     resume: bool,
     load: bool,
+    mcp_http: bool,
     auth_methods: Vec<(String, String)>,
 }
 
@@ -30,6 +31,11 @@ impl Capabilities {
             .is_some_and(|r| !r.is_null() && r != &Value::Bool(false));
         let load = caps
             .and_then(|c| c.get("loadSession"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let mcp_http = caps
+            .and_then(|c| c.get("mcpCapabilities"))
+            .and_then(|m| m.get("http"))
             .and_then(Value::as_bool)
             .unwrap_or(false);
         let auth_methods = result
@@ -50,6 +56,7 @@ impl Capabilities {
         Self {
             resume,
             load,
+            mcp_http,
             auth_methods,
         }
     }
@@ -145,7 +152,8 @@ impl Daemon {
         previous_session: Option<&str>,
     ) -> Result<Opened, RpcError> {
         let caps = live.capabilities.lock().unwrap().clone();
-        let params = |sid: &str| json!({"sessionId": sid, "cwd": cwd, "mcpServers": []});
+        let servers = self.acp_shared_mcp_servers(agent_id, caps.mcp_http);
+        let params = |sid: &str| json!({"sessionId": sid, "cwd": cwd, "mcpServers": servers});
         if let Some(old) = previous_session {
             if caps.resume {
                 match live.conn.request("session/resume", params(old)).await {
@@ -174,7 +182,7 @@ impl Daemon {
         }
         let created = match live
             .conn
-            .request("session/new", json!({"cwd": cwd, "mcpServers": []}))
+            .request("session/new", json!({"cwd": cwd, "mcpServers": servers}))
             .await
         {
             Ok(created) => created,
