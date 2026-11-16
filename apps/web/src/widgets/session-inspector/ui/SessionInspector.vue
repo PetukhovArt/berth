@@ -114,9 +114,9 @@ function onHandleKey(event: KeyboardEvent) {
     <div v-if="shown" class="scroll">
       <template v-if="session && worktree">
         <WorktreeSection :path="worktree.path" :branch="worktree.branch" :refresh-key="refreshKey" />
-        <MergeRequestSection v-if="worktree.branch" :path="worktree.path" :branch="worktree.branch" />
+        <MergeRequestSection v-if="worktree.branch" :path="worktree.path" :branch="worktree.branch" :refresh-key="refreshKey" />
         <UsageSection v-if="agent" :panel-key="session.key" :kind="agent.kind" />
-        <CheckpointsSection v-if="agent" :agent-id="agent.id" :kind="agent.kind" :refresh-key="refreshKey" />
+        <CheckpointsSection v-if="agent" :agent-id="agent.id" :kind="agent.kind" :session-id="agent.session_id" :refresh-key="refreshKey" />
         <TaskNoteSection :worktree-id="worktree.id" />
         <OverlapsSection v-if="agent" :agent-id="agent.id" />
         <PeopleSection v-if="worktree.branch" :path="worktree.path" :branch="worktree.branch" />

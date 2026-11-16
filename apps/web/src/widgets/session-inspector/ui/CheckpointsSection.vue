@@ -3,10 +3,12 @@ import { computed, shallowRef, watch } from 'vue';
 import { RotateCcw } from '../../../shared/ui/icons';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { useCheckpoints, type AgentKind, type Checkpoint } from '../../../entities/session';
+import { promptOfCheckpoint, useAgentMessages, useCheckpoints, type AgentKind, type Checkpoint } from '../../../entities/session';
 import InspectorSection from './InspectorSection.vue';
 
-const props = defineProps<{ agentId: string; kind: AgentKind; refreshKey?: unknown }>();
+const PROMPT_TAIL = 600;
+
+const props = defineProps<{ agentId: string; kind: AgentKind; sessionId?: string | null; refreshKey?: unknown }>();
 
 const { t, formatDate } = useI18n();
 const { items, busy, error, available, restore } = useCheckpoints(
@@ -14,11 +16,18 @@ const { items, busy, error, available, restore } = useCheckpoints(
   () => props.kind,
   () => props.refreshKey,
 );
+const messages = useAgentMessages(
+  () => ({ id: props.agentId, kind: props.kind, session_id: props.sessionId ?? null }),
+  PROMPT_TAIL,
+  () => [props.refreshKey, items.value.length],
+);
 const pending = shallowRef<number | null>(null);
-const newestFirst = computed(() => [...items.value].sort((a, b) => b.number - a.number));
+const chronological = computed(() => [...items.value].sort((a, b) => a.number - b.number));
+const prompts = computed(() => promptOfCheckpoint(messages.value, items.value));
 
 function label(item: Checkpoint): string {
-  return t(item.before_restore ? 'checkpoints.beforeRestore' : 'checkpoints.entry', { number: item.number });
+  if (item.before_restore) return t('checkpoints.beforeRestore', { number: item.number });
+  return prompts.value.get(item.number) ?? t('checkpoints.entry', { number: item.number });
 }
 
 async function confirm(number: number) {
@@ -37,7 +46,7 @@ watch(
   <InspectorSection v-if="available" :title="t('inspector.checkpoints.title')" :meta="items.length ? String(items.length) : undefined" testid="inspector-checkpoints">
     <p v-if="!items.length" class="note" data-testid="inspector-checkpoints-empty">{{ t('checkpoints.empty') }}</p>
     <ul v-else class="list">
-      <li v-for="item in newestFirst" :key="item.number" :data-testid="`inspector-checkpoint-${item.number}`">
+      <li v-for="item in chronological" :key="item.number" :data-testid="`inspector-checkpoint-${item.number}`">
         <div v-if="pending === item.number" class="confirm" role="alertdialog" data-testid="inspector-checkpoint-confirm">
           <p class="note">{{ t('checkpoints.confirm', { number: item.number }) }}</p>
           <div class="actions">
@@ -49,7 +58,7 @@ watch(
           v-else
           type="button"
           class="row entry"
-          :title="t('checkpoints.restore')"
+          :title="`${label(item)}\n${t('checkpoints.restore')}`"
           :data-testid="`inspector-checkpoint-restore-${item.number}`"
           @click="pending = item.number"
         >

@@ -30,6 +30,10 @@ export const inspector = {
     unresolved: { one: '{count} unresolved', other: '{count} unresolved' },
     resolved: 'All resolved',
     open: 'Show the merge request',
+    none: 'No merge request yet',
+    create: 'Create',
+    createTitle: 'Commit, push and open a merge request for this branch',
+    createBlocked: 'Nothing to put in a merge request yet, or the branch is behind origin',
   },
   usage: {
     title: 'Usage',
