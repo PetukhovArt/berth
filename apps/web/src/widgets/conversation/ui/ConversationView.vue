@@ -513,12 +513,16 @@ onBeforeUnmount(() => {
 }
 
 .feedback-detail {
+  box-sizing: border-box;
+  flex: 1 1 100%;
   min-width: 0;
+  max-height: min(30dvh, 10em);
   padding: 1px 6px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
   font-size: var(--vr-font-size-xs);
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  white-space: pre-wrap;
   background: var(--vr-color-surface-muted);
   border-radius: var(--vr-radius-sm);
 }

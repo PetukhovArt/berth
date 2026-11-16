@@ -24,6 +24,7 @@ type Tracked = { seq: number; since: number; sig: string };
 const MRU_LIMIT = 50;
 const PREVIEW_LIMIT = 12;
 const PREVIEW_CHARS = 140;
+const NOTICE_CHARS = 300;
 const PREVIEW_DEBOUNCE_MS = 800;
 const TOAST_MS = 1800;
 const SECONDS_LIMIT = 1e11;
@@ -179,7 +180,7 @@ function create() {
           status: entry.status,
           unseen: entry.unseen,
           lastActivity,
-          preview: entry.notice ?? previews.value.get(entry.key) ?? null,
+          preview: entry.notice?.slice(0, NOTICE_CHARS) ?? previews.value.get(entry.key) ?? null,
         };
         return { item, rank: rank(entry), since: info?.since ?? 0, seq: info?.seq ?? 0 };
       });
