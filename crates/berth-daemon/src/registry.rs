@@ -314,8 +314,9 @@ impl Daemon {
                     });
                 }
                 Effect::SaveSessionId(sid) => {
-                    if let Err(e) = self.store.set_agent_session_id(agent_id, Some(&sid)) {
-                        tracing::warn!(error = %e, "persist session id failed");
+                    match self.store.set_agent_session_id(agent_id, Some(&sid)) {
+                        Ok(()) => self.try_broadcast_agent(agent_id),
+                        Err(e) => tracing::warn!(error = %e, "persist session id failed"),
                     }
                 }
                 Effect::ArchiveClearedSession(sid) => self.archive_cleared_session(agent_id, &sid),
