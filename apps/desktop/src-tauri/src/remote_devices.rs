@@ -22,6 +22,8 @@ pub struct Device {
     pub scope: Scope,
     pub token: String,
     pub created_at: u64,
+    #[serde(default)]
+    pub diffs: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -30,6 +32,7 @@ pub struct DeviceInfo {
     pub name: String,
     pub scope: Scope,
     pub created_at: u64,
+    pub diffs: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -45,6 +48,7 @@ impl Device {
             name: self.name.clone(),
             scope: self.scope.clone(),
             created_at: self.created_at,
+            diffs: self.diffs,
         }
     }
 }
@@ -56,6 +60,7 @@ pub fn fresh(devices: &[Device], name: &str, scope: Scope, token: String, now: u
         scope,
         token,
         created_at: now,
+        diffs: false,
     }
 }
 

@@ -48,9 +48,14 @@ devices connected right now.
 A colleague can watch one Agent without getting access to anything else. With remote access on, open
 the Session in the desktop app and press the share button in its header (the broadcast icon), then
 `Share and copy link`. Send the copied link. Whoever opens it in a browser sees that Session's chat,
-its tool calls grouped together and the files changed in its Worktree, updated every few seconds. They
-cannot type, answer a permission prompt, see other Sessions or open settings: the server answers that
-link with this one Session and refuses everything else.
+its tool calls grouped together and the names of the files changed in its Worktree, updated every few
+seconds. They cannot type, answer a permission prompt, see other Sessions or open settings: the server
+answers that link with this one Session and refuses everything else.
+
+The shared part is the conversation, not the code, so the link carries no diffs unless you ask for
+them. Tick `Include diffs` in the same popover and the colleague can click a changed file and read its
+diff, read only. Untick it and the server stops answering diff requests for that link at once. The
+choice is stored with the shared Session, so it survives a restart of the app.
 
 Sharing is off for every Session until you turn it on, and the link keeps working until you press
 `Stop sharing` in the same place, or revoke the device named after the Session in Settings > Remote

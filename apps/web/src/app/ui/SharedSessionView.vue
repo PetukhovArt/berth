@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue';
 import { remoteFetch } from '../../bridge';
-import { Eye, FileText, GitBranch, Wrench } from '../../shared/ui/icons';
+import { Eye, FileText, GitBranch, Wrench, X } from '../../shared/ui/icons';
+import { UiButton } from '../../shared/ui/UiButton';
 import RichContent from '../../shared/ui/rich-content/RichContent.vue';
 import { t } from '../../shared/lib/i18n/i18n';
+import type { DiffFile } from '../../shared/api/connectors/api';
 import { acpMessages, withShellBlocks, type AcpItemAt, type TranscriptMessage } from '../../entities/session';
+import { DiffView } from '../../features/diff-review';
 
 type Status = 'fresh' | 'running' | 'finished' | 'needs_feedback' | 'terminated' | 'disconnected';
 type Change = { path: string; status: string; additions: number; deletions: number };
+type Opened = { path: string; file: DiffFile | null; failed: boolean };
 type Feed = {
+  diffs: boolean;
   name: string;
   status: Status;
   branch: string | null;
@@ -23,6 +28,8 @@ const PIN_PX = 48;
 
 const feed = shallowRef<Feed | null>(null);
 const state = shallowRef<State>('connecting');
+const opened = shallowRef<Opened | null>(null);
+const openedFiles = computed<DiffFile[]>(() => (opened.value?.file ? [opened.value.file] : []));
 const scroller = useTemplateRef<HTMLElement>('scroller');
 let timer: ReturnType<typeof setTimeout> | undefined;
 let stopped = false;
@@ -44,6 +51,28 @@ const blocks = computed<Block[]>(() => {
   return out;
 });
 
+async function openDiff(path: string) {
+  if (opened.value?.path !== path || !opened.value.file) opened.value = { path, file: null, failed: false };
+  const settle = (file: DiffFile | null) => {
+    if (opened.value?.path === path) opened.value = { path, file, failed: !file };
+  };
+  try {
+    const response = await remoteFetch(`/__berth/share/diff?path=${encodeURIComponent(path)}`);
+    settle(response.ok ? ((await response.json()) as DiffFile) : null);
+  } catch {
+    settle(null);
+  }
+}
+
+function followDiff(next: Feed) {
+  const current = opened.value;
+  if (!current) return;
+  const change = next.changes.find((entry) => entry.path === current.path);
+  const file = current.file;
+  if (!next.diffs || !change) opened.value = null;
+  else if (file && (file.additions !== change.additions || file.deletions !== change.deletions)) void openDiff(current.path);
+}
+
 async function poll() {
   try {
     const response = await remoteFetch('/__berth/share');
@@ -52,8 +81,10 @@ async function poll() {
     else if (response.ok) {
       const el = scroller.value;
       const pinned = !el || el.scrollHeight - el.scrollTop - el.clientHeight < PIN_PX;
-      feed.value = (await response.json()) as Feed;
+      const next = (await response.json()) as Feed;
+      feed.value = next;
       state.value = 'live';
+      followDiff(next);
       if (pinned) {
         await nextTick();
         const box = scroller.value;
@@ -112,13 +143,33 @@ onBeforeUnmount(() => {
         <p v-if="!feed?.changes.length" class="state">{{ t('remote.share.noChanges') }}</p>
         <ul v-else class="files">
           <li v-for="change in feed.changes" :key="change.path" class="file" :data-status="change.status">
-            <FileText :size="12" />
-            <span class="path mono" :title="change.path">{{ change.path }}</span>
-            <span class="added">+{{ change.additions }}</span>
-            <span class="removed">-{{ change.deletions }}</span>
+            <UiButton v-if="feed.diffs" type="button" class="file-open" :aria-pressed="opened?.path === change.path" data-testid="shared-session-file" @click="openDiff(change.path)">
+              <FileText :size="12" />
+              <span class="path mono" :title="change.path">{{ change.path }}</span>
+              <span class="added">+{{ change.additions }}</span>
+              <span class="removed">-{{ change.deletions }}</span>
+            </UiButton>
+            <template v-else>
+              <FileText :size="12" />
+              <span class="path mono" :title="change.path">{{ change.path }}</span>
+              <span class="added">+{{ change.additions }}</span>
+              <span class="removed">-{{ change.deletions }}</span>
+            </template>
           </li>
         </ul>
       </aside>
+    </div>
+    <div v-if="opened" class="diff-layer" data-testid="shared-session-diff">
+      <header class="diff-head">
+        <FileText :size="14" />
+        <span class="diff-path mono" :title="opened.path">{{ opened.path }}</span>
+        <UiButton type="button" class="diff-close" :title="t('remote.share.diffClose')" :aria-label="t('remote.share.diffClose')" data-testid="shared-session-diff-close" @click="opened = null"><X :size="16" /></UiButton>
+      </header>
+      <p v-if="opened.failed" class="state" role="alert" data-testid="shared-session-diff-failed">{{ t('remote.share.diffFailed') }}</p>
+      <p v-else-if="!opened.file" class="state">{{ t('remote.share.diffLoading') }}</p>
+      <div v-else class="diff-body">
+        <DiffView :files="openedFiles" :discussions="[]" />
+      </div>
     </div>
   </main>
 </template>
@@ -218,6 +269,75 @@ onBeforeUnmount(() => {
   gap: var(--vr-space-1);
   min-width: 0;
   font-size: var(--vr-font-size-xs);
+}
+
+.file-open {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-1);
+  width: 100%;
+  min-width: 0;
+  padding: 2px 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--vr-radius-sm);
+  cursor: pointer;
+}
+
+.file-open:hover,
+.file-open[aria-pressed='true'] {
+  background: var(--vr-color-surface-muted);
+}
+
+.diff-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  background: var(--vr-color-surface);
+}
+
+.diff-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--vr-space-2);
+  padding: var(--vr-space-3) var(--vr-space-4);
+  border-bottom: 1px solid var(--vr-color-border);
+}
+
+.diff-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--vr-font-size-sm);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+}
+
+.diff-close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--vr-color-text-muted);
+  background: none;
+  border: 0;
+  border-radius: var(--vr-radius-full);
+  cursor: pointer;
+}
+
+.diff-body {
+  flex: 1;
+  min-height: 0;
 }
 
 .path {

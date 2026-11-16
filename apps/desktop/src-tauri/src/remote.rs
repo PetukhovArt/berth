@@ -34,6 +34,7 @@ const HEALTH_PATH: &str = "/__berth/health";
 const ROUTES_PATH: &str = "/__berth/routes";
 const PUSH_PATH: &str = "/__berth/push/{op}";
 const SHARE_PATH: &str = "/__berth/share";
+const SHARE_DIFF_PATH: &str = "/__berth/share/diff";
 const PUSH_BODY_LIMIT: usize = 4096;
 const POLL: Duration = Duration::from_secs(1);
 const AUTH_TIMEOUT: Duration = Duration::from_secs(10);
@@ -616,6 +617,7 @@ impl Remote {
                     .route(ROUTES_PATH, get(routes_api))
                     .route(PUSH_PATH, any(push_api))
                     .route(SHARE_PATH, get(share::feed_api))
+                    .route(SHARE_DIFF_PATH, get(share::diff_api))
                     .fallback(page)
                     .with_state(ctx);
                 let task = tokio::spawn(async move {

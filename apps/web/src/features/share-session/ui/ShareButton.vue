@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { UiButton } from '../../../shared/ui/UiButton';
+import UiInput from '../../../shared/ui/UiInput.vue';
 import { Radio } from '../../../shared/ui/icons';
 import { useSheetClamp } from '../../../shared/lib/useSheetClamp';
 import { copyText } from '../../../shared/lib/atlassian';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { describeError } from '../../../shared/api/connectors/api';
-import { isShared, shareLink, stopSharing } from '../model/share';
+import { shareLink, shareState, stopSharing } from '../model/share';
 
 const COPIED_MS = 1500;
 
@@ -16,6 +17,7 @@ const open = ref(false);
 const sheet = ref<HTMLElement | null>(null);
 useSheetClamp(sheet, open);
 const shared = ref(false);
+const diffs = ref(false);
 const busy = ref(false);
 const copied = ref(false);
 const error = ref<string | null>(null);
@@ -25,9 +27,12 @@ const label = computed(() => (shared.value ? t('remote.share.openShared') : t('r
 
 async function refresh() {
   try {
-    shared.value = await isShared(props.agentId);
+    const state = await shareState(props.agentId);
+    shared.value = state.shared;
+    diffs.value = state.diffs;
   } catch {
     shared.value = false;
+    diffs.value = false;
   }
 }
 
@@ -54,7 +59,7 @@ async function run(work: () => Promise<void>) {
 
 function copy() {
   return run(async () => {
-    await copyText(await shareLink(props.agentId, props.name));
+    await copyText(await shareLink(props.agentId, props.name, diffs.value));
     shared.value = true;
     copied.value = true;
     clearTimeout(copiedTimer);
@@ -66,6 +71,19 @@ function stop() {
   return run(async () => {
     await stopSharing(props.agentId);
     shared.value = false;
+    diffs.value = false;
+  });
+}
+
+async function changeDiffs() {
+  if (!shared.value) return;
+  await run(async () => {
+    try {
+      await shareLink(props.agentId, props.name, diffs.value);
+    } catch (failure) {
+      diffs.value = !diffs.value;
+      throw failure;
+    }
   });
 }
 
@@ -87,6 +105,13 @@ watch(
     <div v-if="open" ref="sheet" class="form vr-sheet" data-testid="share-session-form">
       <span class="heading">{{ t('remote.share.title') }}</span>
       <span class="hint">{{ t('remote.share.hint') }}</span>
+      <label class="option">
+        <UiInput v-model="diffs" type="checkbox" class="check" :disabled="busy" data-testid="share-session-diffs" @change="changeDiffs" />
+        <span class="option-text">
+          <span>{{ t('remote.share.diffs') }}</span>
+          <span class="hint">{{ t('remote.share.diffsHint') }}</span>
+        </span>
+      </label>
       <span v-if="error" class="error" role="alert" data-testid="share-session-error">{{ error }}</span>
       <div class="actions">
         <UiButton v-if="shared" type="button" class="secondary" :disabled="busy" data-testid="share-session-stop" @click="stop">{{ t('remote.share.stop') }}</UiButton>
@@ -144,6 +169,26 @@ watch(
 .hint {
   color: var(--vr-color-text-subtle);
   font-size: var(--vr-font-size-xs);
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--vr-space-2);
+  font-size: var(--vr-font-size-label);
+  cursor: pointer;
+}
+
+.option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.check {
+  flex: none;
+  margin: 2px 0 0;
+  accent-color: var(--vr-color-accent);
 }
 
 .error {
