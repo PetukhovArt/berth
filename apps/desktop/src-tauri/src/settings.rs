@@ -228,12 +228,28 @@ pub async fn berth_flag_write(key: String, value: bool) -> Result<(), String> {
 }
 
 pub(crate) fn berth_config_write(key: &str, value: serde_json::Value) -> Result<(), String> {
+    berth_config_update(&[(key, Some(value))])
+}
+
+pub(crate) fn berth_config_update(
+    changes: &[(&str, Option<serde_json::Value>)],
+) -> Result<(), String> {
     let path = berth_core::paths::config_path();
     let mut map = berth_config_object(&path)?;
-    if map.get(key) == Some(&value) {
+    let mut changed = false;
+    for (key, value) in changes {
+        match value {
+            Some(value) if map.get(*key) != Some(value) => {
+                map.insert((*key).to_owned(), value.clone());
+                changed = true;
+            }
+            None if map.remove(*key).is_some() => changed = true,
+            _ => {}
+        }
+    }
+    if !changed {
         return Ok(());
     }
-    map.insert(key.to_owned(), value);
     let mut text = serde_json::to_string_pretty(&map).map_err(|e| e.to_string())?;
     text.push('\n');
     let temp = path.with_extension("json.berth-tmp");

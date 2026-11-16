@@ -15,8 +15,11 @@ use crate::registry::Daemon;
 
 const SEND_TIMEOUT_SECS: &str = "15";
 const NOTE_MAX_CHARS: usize = 300;
+const TEST_TEXT: &str =
+    "Berth chat bridge test: this chat gets a message when an Agent needs feedback or finishes.";
 
 struct Post {
+    route: &'static str,
     url: String,
     body: Value,
 }
@@ -28,12 +31,14 @@ fn posts(config: &Config, text: &str) -> Vec<Post> {
         &config.messenger_telegram_chat,
     ) {
         out.push(Post {
+            route: "Telegram",
             url: format!("https://api.telegram.org/bot{token}/sendMessage"),
             body: json!({ "chat_id": chat, "text": text }),
         });
     }
     if let Some(url) = &config.messenger_webhook_url {
         out.push(Post {
+            route: "Webhook",
             url: url.clone(),
             body: json!({ "text": text }),
         });
@@ -68,6 +73,35 @@ async fn send(post: &Post) -> Result<()> {
         bail!("{}", String::from_utf8_lossy(&output.stderr).trim());
     }
     Ok(())
+}
+
+pub async fn send_test() -> Result<()> {
+    let sends: Vec<_> = posts(&Config::load(), TEST_TEXT)
+        .into_iter()
+        .map(|post| {
+            tokio::spawn(async move {
+                send(&post)
+                    .await
+                    .map_err(|error| format!("{}: {error}", post.route))
+            })
+        })
+        .collect();
+    if sends.is_empty() {
+        bail!("no chat route is set: fill in the Telegram token and chat, or a webhook URL");
+    }
+    let mut failures = Vec::new();
+    for send in sends {
+        match send.await {
+            Ok(Ok(())) => {}
+            Ok(Err(message)) => failures.push(message),
+            Err(error) => failures.push(error.to_string()),
+        }
+    }
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        bail!("{}", failures.join("; "))
+    }
 }
 
 fn turned_to(

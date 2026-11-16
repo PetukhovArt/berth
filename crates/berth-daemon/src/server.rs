@@ -323,6 +323,12 @@ async fn handle_client(
                     )
                     .await;
                 }
+                ClientRequest::TestChatBridge { req_id } => {
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        reply_done(&out_tx, req_id, crate::messenger::send_test().await).await;
+                    });
+                }
                 ClientRequest::ListTriggers { req_id } => {
                     let ev = match daemon.store.list_triggers() {
                         Ok(triggers) => ServerEvent::Triggers { req_id, triggers },

@@ -3,6 +3,7 @@ pub mod agent_sessions;
 mod app_menu;
 pub mod berth;
 mod changes;
+mod chat_bridge;
 mod cleanup;
 mod commands;
 pub mod connectors;

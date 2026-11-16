@@ -454,6 +454,13 @@ pub enum ClientRequest {
         req_id: u64,
     },
 
+    /// Post a short test text through every configured chat bridge route.
+    /// Answered by an Ack when each route took it, else an Error naming the
+    /// routes that failed, or saying none is configured.
+    TestChatBridge {
+        req_id: u64,
+    },
+
     CreateTrigger {
         req_id: u64,
         trigger: NewTrigger,

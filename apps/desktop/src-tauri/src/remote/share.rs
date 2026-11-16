@@ -2,10 +2,11 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, OnceLock};
 
-use axum::extract::{ConnectInfo, State};
+use axum::extract::{ConnectInfo, Query, State};
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use berth_core::{Agent, AgentKind, Entity, EntityId, Worktree};
+use serde::Deserialize;
 use serde_json::{json, Value};
 
 use super::{
@@ -13,6 +14,7 @@ use super::{
 };
 use crate::agent_sessions::{self, Harness};
 use crate::berth::{self, Berth, WatchEvent};
+use crate::connectors::types::DiffFile;
 use crate::remote_devices::{self, Pairing, Scope};
 use crate::sink::Sink;
 
@@ -142,14 +144,18 @@ impl Feed {
     }
 }
 
-async fn changes(worktree: Option<&Worktree>) -> Value {
+async fn changed_files(worktree: Option<&Worktree>) -> Vec<DiffFile> {
     let Some(worktree) = worktree else {
-        return json!([]);
+        return Vec::new();
     };
-    let files = crate::changes::worktree_changes(worktree.path.to_string_lossy().into_owned())
+    crate::changes::worktree_changes(worktree.path.to_string_lossy().into_owned())
         .await
-        .unwrap_or_default();
-    files
+        .unwrap_or_default()
+}
+
+async fn changes(worktree: Option<&Worktree>) -> Value {
+    changed_files(worktree)
+        .await
         .into_iter()
         .map(|file| {
             json!({
@@ -162,17 +168,35 @@ async fn changes(worktree: Option<&Worktree>) -> Value {
         .collect()
 }
 
+struct Guest {
+    agent: String,
+    diffs: bool,
+}
+
 impl Shared {
-    pub(super) fn guest_of(&self, presented: &str) -> Option<String> {
-        match self.identify(presented)?.scope {
-            Scope::Session(agent) => Some(agent),
+    fn guest(&self, presented: &str) -> Option<Guest> {
+        let device = self.identify(presented)?;
+        match device.scope {
+            Scope::Session(agent) => Some(Guest {
+                agent,
+                diffs: device.diffs,
+            }),
             Scope::Full | Scope::ReadOnly => None,
         }
+    }
+
+    pub(super) fn guest_of(&self, presented: &str) -> Option<String> {
+        self.guest(presented).map(|guest| guest.agent)
     }
 }
 
 impl Remote {
-    pub fn share_session(&self, agent: String, name: String) -> Result<Pairing, String> {
+    pub fn share_session(
+        &self,
+        agent: String,
+        name: String,
+        diffs: bool,
+    ) -> Result<Pairing, String> {
         let scope = Scope::Session(agent);
         let existing = self.0.with_devices(|devices| {
             devices
@@ -180,14 +204,26 @@ impl Remote {
                 .find(|device| device.scope == scope)
                 .map(|device| device.token.clone())
         })?;
-        let Some(token) = existing else {
-            return self.add_device(name, scope);
+        let pairing = match existing {
+            Some(token) => {
+                let url = format!("{}?token={token}", self.base_url()?);
+                Pairing {
+                    qr_svg: qr_svg(&url),
+                    url,
+                }
+            }
+            None => self.add_device(name, scope.clone())?,
         };
-        let url = format!("{}?token={token}", self.base_url()?);
-        Ok(Pairing {
-            qr_svg: qr_svg(&url),
-            url,
-        })
+        self.0.with_devices(|devices| {
+            match devices.iter_mut().find(|device| device.scope == scope) {
+                Some(device) if device.diffs != diffs => {
+                    device.diffs = diffs;
+                    remote_devices::save(devices)
+                }
+                _ => Ok(()),
+            }
+        })??;
+        Ok(pairing)
     }
 
     pub fn unshare_session(&self, agent: String) -> Result<(), String> {
@@ -208,28 +244,35 @@ pub(super) fn first_page(mut response: Response, cookie: &str) -> Response {
     response
 }
 
+fn admit(ctx: &Ctx, peer: SocketAddr, headers: &HeaderMap) -> Result<Guest, Box<Response>> {
+    if !ctx.current() {
+        return Err(Box::new(plain(StatusCode::SERVICE_UNAVAILABLE)));
+    }
+    let ip = client_ip(ctx, peer, headers);
+    let Some(presented) = cookie_token(headers) else {
+        return Err(Box::new(harden(denied())));
+    };
+    match ctx.shared.check(ip, &presented) {
+        Auth::Granted => {}
+        Auth::Denied => return Err(Box::new(harden(denied()))),
+        Auth::Blocked => return Err(Box::new(plain(StatusCode::TOO_MANY_REQUESTS))),
+    }
+    ctx.shared
+        .guest(&presented)
+        .ok_or_else(|| Box::new(harden(plain(StatusCode::FORBIDDEN))))
+}
+
 pub(super) async fn feed_api(
     State(ctx): State<Ctx>,
     ConnectInfo(peer): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
 ) -> Response {
-    if !ctx.current() {
-        return plain(StatusCode::SERVICE_UNAVAILABLE);
-    }
-    let ip = client_ip(&ctx, peer, &headers);
-    let Some(presented) = cookie_token(&headers) else {
-        return harden(denied());
-    };
-    match ctx.shared.check(ip, &presented) {
-        Auth::Granted => {}
-        Auth::Denied => return harden(denied()),
-        Auth::Blocked => return plain(StatusCode::TOO_MANY_REQUESTS),
-    }
-    let Some(agent) = ctx.shared.guest_of(&presented) else {
-        return harden(plain(StatusCode::FORBIDDEN));
+    let guest = match admit(&ctx, peer, &headers) {
+        Ok(guest) => guest,
+        Err(response) => return *response,
     };
     let feed = &ctx.shared.feed;
-    harden(match feed.lookup(&agent) {
+    harden(match feed.lookup(&guest.agent) {
         Read::Connecting => plain(StatusCode::SERVICE_UNAVAILABLE),
         Read::Gone => plain(StatusCode::GONE),
         Read::Found(agent, worktree) => {
@@ -242,8 +285,43 @@ pub(super) async fn feed_api(
                 "branch": worktree.as_ref().map(|worktree| worktree.branch.clone()),
                 "messages": messages,
                 "changes": changes,
+                "diffs": guest.diffs,
             }))
             .into_response()
+        }
+    })
+}
+
+#[derive(Deserialize)]
+pub(super) struct DiffQuery {
+    path: String,
+}
+
+pub(super) async fn diff_api(
+    State(ctx): State<Ctx>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Query(query): Query<DiffQuery>,
+) -> Response {
+    let guest = match admit(&ctx, peer, &headers) {
+        Ok(guest) => guest,
+        Err(response) => return *response,
+    };
+    if !guest.diffs {
+        return harden(plain(StatusCode::FORBIDDEN));
+    }
+    harden(match ctx.shared.feed.lookup(&guest.agent) {
+        Read::Connecting => plain(StatusCode::SERVICE_UNAVAILABLE),
+        Read::Gone => plain(StatusCode::GONE),
+        Read::Found(_, worktree) => {
+            match changed_files(worktree.as_ref())
+                .await
+                .into_iter()
+                .find(|file| file.new_path == query.path)
+            {
+                Some(file) => axum::Json(file).into_response(),
+                None => plain(StatusCode::NOT_FOUND),
+            }
         }
     })
 }

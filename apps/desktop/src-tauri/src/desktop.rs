@@ -174,8 +174,9 @@ pub fn remote_share_session(
     remote: State<'_, Remote>,
     agent: String,
     name: String,
+    diffs: bool,
 ) -> Result<Pairing, String> {
-    remote.share_session(agent, name)
+    remote.share_session(agent, name, diffs)
 }
 
 #[tauri::command]
@@ -299,6 +300,8 @@ pub fn run() {
             berth_restore_sessions_write,
             berth_flag_read,
             berth_flag_write,
+            chat_bridge_read,
+            chat_bridge_write,
             providers_read,
             providers_write,
             providers_save_acp,

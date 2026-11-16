@@ -770,6 +770,7 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::GetProjectSetup { req_id, .. }
         | ClientRequest::SetProjectSetup { req_id, .. }
         | ClientRequest::ListTriggers { req_id }
+        | ClientRequest::TestChatBridge { req_id }
         | ClientRequest::CreateTrigger { req_id, .. }
         | ClientRequest::DeleteTrigger { req_id, .. }
         | ClientRequest::ListCheckpoints { req_id, .. }
