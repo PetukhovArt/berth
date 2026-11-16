@@ -8,7 +8,7 @@ import { forgeCreateChangeRequest, worktreeGitState, worktreeGitStep, type GitSt
 import { rememberMr } from '../../../entities/merge-request';
 import { nextStep, stepLabelKey } from '../model/nextStep';
 
-const props = defineProps<{ path: string; branch: string; hasRequest: boolean; refreshKey?: string }>();
+const props = withDefaults(defineProps<{ path: string; branch: string; hasRequest: boolean; refreshKey?: string; testid?: string; quiet?: boolean }>(), { testid: 'git-step', refreshKey: undefined });
 
 const state = ref<GitState | null>(null);
 const busy = ref(false);
@@ -102,32 +102,32 @@ onBeforeUnmount(() => window.removeEventListener('focus', refresh));
 </script>
 
 <template>
-  <div v-if="step" class="git-step" data-testid="git-step">
-    <span v-if="hint" class="hint" :title="hint" data-testid="git-step-hint">{{ hint }}</span>
-    <UiButton type="button" class="run" :disabled="!runnable || busy" :aria-busy="busy" data-testid="git-step-run" @click="click">
+  <div v-if="step" class="git-step" :data-testid="testid">
+    <span v-if="hint && !quiet" class="hint" :title="hint" :data-testid="`${testid}-hint`">{{ hint }}</span>
+    <UiButton type="button" class="run" :disabled="!runnable || busy" :aria-busy="busy" :title="quiet ? hint : undefined" :data-testid="`${testid}-run`" @click="click">
       {{ busy ? t('gitStep.working') : label }}
     </UiButton>
-    <form v-if="open && step.kind === 'run'" class="form vr-sheet" data-testid="git-step-form" @submit.prevent="valid && perform()">
+    <form v-if="open && step.kind === 'run'" class="form vr-sheet" :data-testid="`${testid}-form`" @submit.prevent="valid && perform()">
       <label v-if="step.commit" class="field">
         <span>{{ t('gitStep.commitMessage') }}</span>
-        <UiInput v-model="message" data-testid="git-step-message" autofocus />
+        <UiInput v-model="message" :data-testid="`${testid}-message`" autofocus />
       </label>
       <template v-if="step.create">
         <label class="field">
           <span>{{ t('gitStep.requestTitle') }}</span>
-          <UiInput v-model="title" data-testid="git-step-title" />
+          <UiInput v-model="title" :data-testid="`${testid}-title`" />
         </label>
         <label class="field">
           <span>{{ t('gitStep.requestDescription') }}</span>
-          <UiTextarea v-model="description" rows="3" data-testid="git-step-description" />
+          <UiTextarea v-model="description" rows="3" :data-testid="`${testid}-description`" />
         </label>
       </template>
       <div class="actions">
         <UiButton type="button" class="cancel" @click="open = false">{{ t('gitStep.cancel') }}</UiButton>
-        <UiButton type="submit" class="run" :disabled="!valid || busy" data-testid="git-step-submit">{{ label }}</UiButton>
+        <UiButton type="submit" class="run" :disabled="!valid || busy" :data-testid="`${testid}-submit`">{{ label }}</UiButton>
       </div>
     </form>
-    <span v-if="error" class="error" role="alert" data-testid="git-step-error">{{ error }}</span>
+    <span v-if="error" class="error" role="alert" :data-testid="`${testid}-error`">{{ error }}</span>
   </div>
 </template>
 

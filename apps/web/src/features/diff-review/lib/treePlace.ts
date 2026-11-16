@@ -11,6 +11,7 @@ export function treePlace(file: DiffFile): TreePlace {
   const limit = Math.min(from.length, to.length) - 1;
   let shared = 0;
   while (shared < limit && from[shared] === to[shared]) shared++;
+  if (shared === 0) return { dirs: from.slice(0, -1), name: `${from.at(-1)!} → ${to.join('/')}` };
   return { dirs: to.slice(0, shared), name: `${from.slice(shared).join('/')} → ${to.slice(shared).join('/')}` };
 }
 

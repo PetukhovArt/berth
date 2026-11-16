@@ -70,7 +70,10 @@ async function close() {
   display: flex;
   align-items: center;
   gap: var(--vr-space-2);
+  width: 100%;
+  min-width: 0;
   height: 100%;
+  box-sizing: border-box;
   padding: 0 var(--vr-space-1) 0 var(--vr-space-3);
 }
 
@@ -87,6 +90,8 @@ async function close() {
 }
 
 .name {
+  flex: 1 1 auto;
+  min-width: 0;
   max-width: 200px;
   overflow: hidden;
   white-space: nowrap;
@@ -103,6 +108,7 @@ async function close() {
 
 .close {
   display: inline-flex;
+  flex: none;
   align-items: center;
   justify-content: center;
   width: 18px;

@@ -525,6 +525,10 @@ defineExpose({ focusThread, focusFile, root });
 <template>
   <div ref="root" class="diff vr-master-detail" :data-detail="!filesOpen" tabindex="0" data-testid="diff-view" @keydown="onKey">
     <SidePane class="tree vr-master" storage-key="berth.diff.treeWidth" :default-width="260" :label="t('forge.diff.treeWidth')" handle-testid="diff-tree-resize-handle" data-testid="diff-tree">
+      <div v-if="!phone" class="tree-head" data-testid="diff-tree-head">
+        <span class="summary">{{ t('forge.diff.fileCount', { count: files.length }) }} <span class="add">+{{ totals.additions }}</span> <span class="del">−{{ totals.deletions }}</span></span>
+        <slot name="scope" />
+      </div>
       <div class="tree-filter">
         <Search :size="14" />
         <VInputText v-model="filter" class="tree-input" :placeholder="t('forge.diff.filter')" autocomplete="off" data-testid="diff-filter" />
@@ -559,12 +563,13 @@ defineExpose({ focusThread, focusFile, root });
     <div class="main vr-detail">
       <header class="toolbar">
         <UiButton class="mode vr-phone-only" data-testid="diff-files-open" @click="filesOpen = true"><ListTree :size="14" />{{ t('forge.diff.files') }}</UiButton>
-        <span class="summary">{{ t('forge.diff.fileCount', { count: files.length }) }} <span class="add">+{{ totals.additions }}</span> <span class="del">−{{ totals.deletions }}</span></span>
-        <slot name="scope" />
-        <span v-if="scope" class="summary" data-testid="diff-reviewed-count">{{ t('forge.diff.reviewedCount', { done: reviewedCount, total: files.length }) }}</span>
+        <template v-if="phone">
+          <span class="summary">{{ t('forge.diff.fileCount', { count: files.length }) }} <span class="add">+{{ totals.additions }}</span> <span class="del">−{{ totals.deletions }}</span></span>
+          <slot name="scope" />
+        </template>
+        <span v-if="scope" class="summary reviewed-count" data-testid="diff-reviewed-count">{{ t('forge.diff.reviewedCount', { done: reviewedCount, total: files.length }) }}</span>
         <span class="spacer" />
         <UiButton v-if="quotable && picked" class="mode" :title="t('forge.diff.quoteTitle')" data-testid="diff-quote" @click="quotePicked"><MessageSquare :size="14" />{{ t('forge.diff.quote', { count: pickedCount }) }}</UiButton>
-        <slot name="actions" />
         <span v-if="unresolved.length" class="group">
           <UiButton class="icon" :title="t('forge.diff.prevThreadTitle')" :aria-label="t('forge.diff.prevThread')" data-testid="diff-prev-thread" @click="stepThread(-1)"><ChevronUp :size="14" /></UiButton>
           <span>{{ t('forge.diff.unresolvedCount', { count: unresolved.length }) }}</span>
@@ -575,6 +580,7 @@ defineExpose({ focusThread, focusFile, root });
           <UiButton class="mode" :data-active="mode === 'unified'" :title="t('forge.diff.unified')" data-testid="diff-mode-unified" @click="setMode('unified')"><Rows2 :size="14" />{{ t('forge.diff.unified') }}</UiButton>
           <UiButton class="mode" :data-active="mode === 'split'" :title="t('forge.diff.split')" data-testid="diff-mode-split" @click="setMode('split')"><Columns2 :size="14" />{{ t('forge.diff.split') }}</UiButton>
         </span>
+        <slot name="actions" />
       </header>
 
       <div ref="scroller" v-auto-animate class="files" data-testid="diff-files" @scroll.passive="onScroll" @wheel.passive="release" @pointerdown="release" @touchstart.passive="release">
@@ -583,15 +589,16 @@ defineExpose({ focusThread, focusFile, root });
         <section v-for="{ file, i } in entries" :key="`${file.old_path}>${file.new_path}`" :ref="(el) => (fileEls[i] = el as HTMLElement | null)" class="file" :data-index="i" data-testid="diff-file">
           <header class="file-head" @click="toggleCollapsed(i)">
             <ChevronRight :size="14" class="chev vr-chevron" :data-open="!collapsed.has(i)" />
-            <span class="mark" :data-status="file.status" :title="t(STATUS_TITLE_KEY[file.status])">{{ STATUS_MARK[file.status] }}</span>
             <span class="path" :title="file.new_path">
               <template v-if="file.status === 'renamed' && file.old_path !== file.new_path">{{ file.old_path }} → </template>{{ file.new_path }}
             </span>
-            <span v-if="canPreview(file)" class="group" role="group" :aria-label="t('forge.diff.fileView')" @click.stop>
+            <span class="pill" :data-status="file.status" data-testid="diff-file-status">{{ t(STATUS_TITLE_KEY[file.status]) }}</span>
+            <span class="counts"><span class="add">+{{ file.additions }}</span> <span class="del">−{{ file.deletions }}</span></span>
+            <span class="spacer" />
+            <span v-if="canPreview(file)" class="group switch" role="group" :aria-label="t('forge.diff.fileView')" @click.stop>
               <UiButton class="mode" :data-active="!previewing.has(i)" data-testid="diff-file-code" @click="setPreview(i, false)">{{ t('forge.diff.code') }}</UiButton>
               <UiButton class="mode" :data-active="previewing.has(i)" data-testid="diff-file-preview" @click="setPreview(i, true)">{{ t('forge.diff.preview') }}</UiButton>
             </span>
-            <span class="counts"><span class="add">+{{ file.additions }}</span> <span class="del">−{{ file.deletions }}</span></span>
             <UiButton
               v-if="scope"
               class="mode reviewed"
@@ -700,6 +707,57 @@ defineExpose({ focusThread, focusFile, root });
 
 .reviewed {
   flex: none;
+  height: 22px;
+  padding: 0 var(--vr-space-2);
+  font-size: var(--vr-font-size-2xs);
+  white-space: nowrap;
+  border-color: var(--vr-color-border);
+}
+
+.reviewed[data-active='true'] {
+  color: var(--vr-color-success);
+}
+
+.switch {
+  flex: none;
+  padding: 2px;
+  background: var(--vr-color-surface-muted);
+  border-radius: 7px;
+}
+
+.switch .mode {
+  height: 20px;
+  padding: 0 var(--vr-space-2);
+  font-size: var(--vr-font-size-2xs);
+  border-radius: 5px;
+}
+
+.switch .mode[data-active='true'] {
+  background: var(--vr-color-surface);
+}
+
+.tree-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vr-space-2);
+  min-height: 40px;
+  box-sizing: border-box;
+  padding: 0 var(--vr-space-2) 0 var(--vr-space-3);
+  font-size: var(--vr-font-size-xs);
+}
+
+.summary {
+  flex: none;
+  color: var(--vr-color-text-muted);
+  white-space: nowrap;
+}
+
+.reviewed-count {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tree-row[data-active='true'] {
@@ -769,7 +827,7 @@ defineExpose({ focusThread, focusFile, root });
 .toolbar {
   display: flex;
   flex: none;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--vr-space-3);
   min-height: 40px;
@@ -777,6 +835,14 @@ defineExpose({ focusThread, focusFile, root });
   padding: 0 var(--vr-space-2) 0 var(--vr-space-3);
   font-size: var(--vr-font-size-xs);
   border-bottom: 1px solid var(--vr-color-border);
+}
+
+:root[data-vr-viewport='phone'] .toolbar {
+  flex-wrap: wrap;
+}
+
+.toolbar .mode {
+  white-space: nowrap;
 }
 
 .toolbar > .group[role='group'] {
@@ -868,8 +934,29 @@ defineExpose({ focusThread, focusFile, root });
   color: var(--vr-color-text-subtle);
 }
 
+.pill {
+  flex: none;
+  padding: 1px 7px;
+  color: var(--vr-color-text-muted);
+  font-size: var(--vr-font-size-2xs);
+  background: var(--vr-color-chip-bg);
+  border-radius: var(--vr-radius-full);
+}
+
+.pill[data-status='added'] {
+  color: var(--vr-color-success);
+}
+
+.pill[data-status='deleted'] {
+  color: var(--vr-color-danger);
+}
+
+.pill[data-status='renamed'] {
+  color: var(--vr-color-conflict);
+}
+
 .path {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   font-family: var(--vr-font-mono);
