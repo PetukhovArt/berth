@@ -110,7 +110,7 @@ const place = computed(() => {
   background: var(--vr-color-accent);
 }
 
-:global(:root[data-vr-viewport='phone']) .strip {
+:root[data-vr-viewport='phone'] .strip {
   position: relative;
   gap: var(--vr-space-2) var(--vr-space-2);
   padding: var(--vr-space-4) var(--vr-space-3) var(--vr-space-3);
@@ -131,14 +131,14 @@ const place = computed(() => {
   transform: translateX(-50%);
 }
 
-:global(:root[data-vr-viewport='phone']) .text {
+:root[data-vr-viewport='phone'] .text {
   flex: 1;
   min-width: 0;
   font-size: var(--vr-font-size-base);
   font-weight: 600;
 }
 
-:global(:root[data-vr-viewport='phone']) .detail {
+:root[data-vr-viewport='phone'] .detail {
   flex: 1 1 100%;
   max-height: min(24dvh, 8em);
   padding: var(--vr-space-2) var(--vr-space-3);
@@ -157,12 +157,12 @@ const place = computed(() => {
   text-overflow: ellipsis;
 }
 
-:global(:root[data-vr-viewport='phone']) .actions {
+:root[data-vr-viewport='phone'] .actions {
   flex: 1 1 100%;
   gap: var(--vr-space-2);
 }
 
-:global(:root[data-vr-viewport='phone']) .action {
+:root[data-vr-viewport='phone'] .action {
   flex: 1;
   height: var(--vr-size-touch);
   font-size: var(--vr-font-size-base);

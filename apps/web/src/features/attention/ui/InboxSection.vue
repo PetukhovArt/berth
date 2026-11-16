@@ -320,22 +320,22 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
   background: var(--vr-color-accent);
 }
 
-:global(:root[data-vr-viewport='phone']) .item {
+:root[data-vr-viewport='phone'] .item {
   margin-bottom: var(--vr-space-2);
   background: var(--vr-color-surface);
   border: 1px solid var(--vr-color-border);
   border-radius: var(--vr-radius-lg);
 }
 
-:global(:root[data-vr-viewport='phone']) .item[data-kind='waiting'] {
+:root[data-vr-viewport='phone'] .item[data-kind='waiting'] {
   border-color: var(--vr-status-feedback);
 }
 
-:global(:root[data-vr-viewport='phone']) .more {
+:root[data-vr-viewport='phone'] .more {
   opacity: 1;
 }
 
-:global(:root[data-vr-viewport='phone']) .head {
+:root[data-vr-viewport='phone'] .head {
   display: none;
 }
 
