@@ -25,6 +25,7 @@ use crate::rpc::{Client, Outbox};
 use crate::settings;
 
 mod routes;
+mod share;
 
 const COOKIE: &str = "berth_remote";
 const COOKIE_MAX_AGE: u32 = 30 * 24 * 60 * 60;
@@ -32,6 +33,7 @@ const WS_PATH: &str = "/__berth/ws";
 const HEALTH_PATH: &str = "/__berth/health";
 const ROUTES_PATH: &str = "/__berth/routes";
 const PUSH_PATH: &str = "/__berth/push/{op}";
+const SHARE_PATH: &str = "/__berth/share";
 const PUSH_BODY_LIMIT: usize = 4096;
 const POLL: Duration = Duration::from_secs(1);
 const AUTH_TIMEOUT: Duration = Duration::from_secs(10);
@@ -50,6 +52,8 @@ const INLINE: [&str; 9] = [
     "fs_unwatch",
 ];
 const REMOTE_MARKER: &str = "<head><meta name=\"berth-remote\" content=\"1\">";
+const SHARE_MARKER: &str =
+    "<head><meta name=\"berth-remote\" content=\"1\"><meta name=\"berth-share\" content=\"1\">";
 const DENIED_PAGE: &str = "<!doctype html><meta charset=utf-8><meta name=viewport content=\"width=device-width\"><title>Berth</title><body style=\"font-family:system-ui;padding:2rem;background:#111;color:#ddd\"><h1>Berth</h1><p>Open the pairing link or scan the QR code from Berth settings → Remote access.</p><p>Откройте ссылку подключения или отсканируйте QR-код в настройках Berth → Удалённый доступ.</p>";
 
 pub struct WebAsset {
@@ -153,6 +157,7 @@ struct Shared {
     next_client: AtomicU64,
     applying: tokio::sync::Mutex<()>,
     pinned: Option<Pinned>,
+    feed: share::Feed,
 }
 
 #[derive(Clone)]
@@ -511,6 +516,7 @@ impl Remote {
             epoch: watch::Sender::new(0),
             next_client: AtomicU64::new(0),
             applying: tokio::sync::Mutex::new(()),
+            feed: share::Feed::default(),
         }))
     }
 
@@ -609,6 +615,7 @@ impl Remote {
                     .route(HEALTH_PATH, get(health))
                     .route(ROUTES_PATH, get(routes_api))
                     .route(PUSH_PATH, any(push_api))
+                    .route(SHARE_PATH, get(share::feed_api))
                     .fallback(page)
                     .with_state(ctx);
                 let task = tokio::spawn(async move {
@@ -684,12 +691,7 @@ impl Remote {
         if name.is_empty() {
             return Err("device name is required".to_owned());
         }
-        let base = self
-            .status()
-            .urls
-            .into_iter()
-            .next()
-            .ok_or_else(|| "remote server is not running".to_owned())?;
+        let base = self.base_url()?;
         let token = fresh_token()?;
         self.0.with_devices(|devices| {
             let device = remote_devices::fresh(devices, &name, scope, token.clone(), now_ms());
@@ -701,6 +703,14 @@ impl Remote {
             qr_svg: qr_svg(&url),
             url,
         })
+    }
+
+    fn base_url(&self) -> Result<String, String> {
+        self.status()
+            .urls
+            .into_iter()
+            .next()
+            .ok_or_else(|| "remote server is not running".to_owned())
     }
 
     pub fn revoke_device(&self, id: u64) -> Result<RemoteStatus, String> {
@@ -748,6 +758,7 @@ async fn routes_api(
         return harden(denied());
     };
     harden(match ctx.shared.check(ip, &presented) {
+        Auth::Granted if ctx.shared.guest_of(&presented).is_some() => plain(StatusCode::FORBIDDEN),
         Auth::Granted => {
             let urls = guard(&ctx.shared.live)
                 .server
@@ -787,18 +798,22 @@ async fn page(
     let ip = client_ip(&ctx, peer, &headers);
     if let Some(presented) = query_token(&uri) {
         return harden(match ctx.shared.check(ip, &presented) {
-            Auth::Granted => Response::builder()
-                .status(StatusCode::SEE_OTHER)
-                .header(header::LOCATION, uri.path())
-                .header(
-                    header::SET_COOKIE,
-                    format!(
-                        "{COOKIE}={presented}; HttpOnly; SameSite=Strict; Path=/; Max-Age={COOKIE_MAX_AGE}{}",
-                        if ctx.forwarded { "; Secure" } else { "" }
-                    ),
-                )
-                .body(Body::empty())
-                .unwrap_or_else(|_| plain(StatusCode::INTERNAL_SERVER_ERROR)),
+            Auth::Granted => {
+                let cookie = format!(
+                    "{COOKIE}={presented}; HttpOnly; SameSite=Strict; Path=/; Max-Age={COOKIE_MAX_AGE}{}",
+                    if ctx.forwarded { "; Secure" } else { "" }
+                );
+                if ctx.shared.guest_of(&presented).is_some() {
+                    share::first_page(serve(&ctx.shared, &uri, &headers, true).await, &cookie)
+                } else {
+                    Response::builder()
+                        .status(StatusCode::SEE_OTHER)
+                        .header(header::LOCATION, uri.path())
+                        .header(header::SET_COOKIE, cookie)
+                        .body(Body::empty())
+                        .unwrap_or_else(|_| plain(StatusCode::INTERNAL_SERVER_ERROR))
+                }
+            }
             Auth::Denied => denied(),
             Auth::Blocked => plain(StatusCode::TOO_MANY_REQUESTS),
         });
@@ -807,7 +822,10 @@ async fn page(
         return harden(denied());
     };
     harden(match ctx.shared.check(ip, &presented) {
-        Auth::Granted => serve(&ctx.shared, &uri, &headers).await,
+        Auth::Granted => {
+            let guest = ctx.shared.guest_of(&presented).is_some();
+            serve(&ctx.shared, &uri, &headers, guest).await
+        }
         Auth::Denied => denied(),
         Auth::Blocked => plain(StatusCode::TOO_MANY_REQUESTS),
     })
@@ -842,12 +860,8 @@ async fn push_api(
         Auth::Denied => return harden(denied()),
         Auth::Blocked => return plain(StatusCode::TOO_MANY_REQUESTS),
     }
-    if op == "action"
-        && ctx
-            .shared
-            .identify(&presented)
-            .is_none_or(|device| device.scope != Scope::Full)
-    {
+    let scope = ctx.shared.identify(&presented).map(|device| device.scope);
+    if matches!(scope, Some(Scope::Session(_))) || (op == "action" && scope != Some(Scope::Full)) {
         return plain(StatusCode::FORBIDDEN);
     }
     if body.len() > PUSH_BODY_LIMIT {
@@ -901,16 +915,17 @@ async fn push_api(
     })
 }
 
-fn page_body(mime: &str, bytes: Vec<u8>) -> Vec<u8> {
+fn page_body(mime: &str, bytes: Vec<u8>, guest: bool) -> Vec<u8> {
     if !mime.starts_with("text/html") {
         return bytes;
     }
+    let marker = if guest { SHARE_MARKER } else { REMOTE_MARKER };
     String::from_utf8_lossy(&bytes)
-        .replacen("<head>", REMOTE_MARKER, 1)
+        .replacen("<head>", marker, 1)
         .into_bytes()
 }
 
-async fn serve(shared: &Shared, uri: &Uri, headers: &HeaderMap) -> Response {
+async fn serve(shared: &Shared, uri: &Uri, headers: &HeaderMap, guest: bool) -> Response {
     match &shared.web {
         WebSource::Proxy(base) => {
             let target = format!(
@@ -935,7 +950,7 @@ async fn serve(shared: &Shared, uri: &Uri, headers: &HeaderMap) -> Response {
                 .as_ref()
                 .and_then(|mime| mime.to_str().ok())
                 .unwrap_or_default();
-            let mut response = (status, page_body(kind, bytes.to_vec())).into_response();
+            let mut response = (status, page_body(kind, bytes.to_vec(), guest)).into_response();
             if let Some(mime) = mime {
                 response.headers_mut().insert(header::CONTENT_TYPE, mime);
             }
@@ -945,7 +960,7 @@ async fn serve(shared: &Shared, uri: &Uri, headers: &HeaderMap) -> Response {
             let Some(asset) = resolve(uri.path()).or_else(|| resolve("/index.html")) else {
                 return plain(StatusCode::NOT_FOUND);
             };
-            let mut response = page_body(&asset.mime, asset.bytes).into_response();
+            let mut response = page_body(&asset.mime, asset.bytes, guest).into_response();
             if let Ok(mime) = header::HeaderValue::from_str(&asset.mime) {
                 response.headers_mut().insert(header::CONTENT_TYPE, mime);
             }
@@ -1022,7 +1037,10 @@ async fn session(
         Some(token) => Some(token),
         None => authenticate(&ctx, &mut socket, ip).await,
     };
-    let Some(device) = token.and_then(|token| ctx.shared.identify(&token)) else {
+    let Some(device) = token
+        .and_then(|token| ctx.shared.identify(&token))
+        .filter(|device| !matches!(device.scope, Scope::Session(_)))
+    else {
         let _ = socket
             .send(Message::Close(Some(CloseFrame {
                 code: 4401,
@@ -1077,7 +1095,7 @@ async fn session(
                     let Ok(request) = serde_json::from_str::<Request>(text.as_str()) else {
                         continue;
                     };
-                    if !remote_devices::permits(device.scope, &request.cmd, &request.args) {
+                    if !remote_devices::permits(&device.scope, &request.cmd, &request.args) {
                         out.push(json!({ "id": request.id, "err": format!("{} is not allowed for a read-only device", request.cmd) }).to_string());
                     } else if INLINE.contains(&request.cmd.as_str()) {
                         out.push(handle(&client, request).await);

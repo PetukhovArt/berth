@@ -7,11 +7,12 @@ const LEGACY_TOKEN_ID: &str = "remote-pairing-token";
 const DEVICES_ID: &str = "remote-devices";
 const DEFAULT_NAME: &str = "Default";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Scope {
     Full,
     ReadOnly,
+    Session(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,7 +43,7 @@ impl Device {
         DeviceInfo {
             id: self.id,
             name: self.name.clone(),
-            scope: self.scope,
+            scope: self.scope.clone(),
             created_at: self.created_at,
         }
     }
@@ -161,9 +162,10 @@ fn request_kind(request: &Value) -> Option<&str> {
     }
 }
 
-pub fn permits(scope: Scope, cmd: &str, args: &Value) -> bool {
+pub fn permits(scope: &Scope, cmd: &str, args: &Value) -> bool {
     match scope {
         Scope::Full => true,
+        Scope::Session(_) => false,
         Scope::ReadOnly if cmd == "berth_call" => args
             .get("request")
             .and_then(request_kind)

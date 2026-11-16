@@ -10,6 +10,8 @@ import TaskNoteButton from './TaskNoteButton.vue';
 import CheckpointsButton from './CheckpointsButton.vue';
 import RouteButton from './RouteButton.vue';
 import { OverlapChip } from '../../../features/overlaps';
+import { ShareButton } from '../../../features/share-session';
+import { isDesktop } from '../../../bridge';
 
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
 
@@ -93,6 +95,7 @@ watch(
     </div>
     <RouteButton v-if="agent" :agent-id="agent.id" :kind="agent.kind" :model="agent.model" :resumable="!!agent.session_id" :error="agent.provider_error ?? null" />
     <CheckpointsButton v-if="agent" :agent-id="agent.id" :name="agent.name" :kind="agent.kind" :refresh-key="status" />
+    <ShareButton v-if="agent && isDesktop" :agent-id="agent.id" :name="node.name" />
     <TaskNoteButton v-if="worktree" :worktree-id="worktree.id" :branch="worktree.branch" />
     <GitStepButton v-if="worktree && worktree.branch" :path="worktree.path" :branch="worktree.branch" :has-request="!!mr" :refresh-key="status" />
     <SessionViewSwitch :panel="panel" :active="active" />

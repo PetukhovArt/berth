@@ -43,6 +43,20 @@ with the phone's camera or open the link in the phone's browser. The phone stays
 `Regenerate token`, which creates a new link and disconnects every paired device. The panel lists the
 devices connected right now.
 
+## Sharing one Session with a colleague
+
+A colleague can watch one Agent without getting access to anything else. With remote access on, open
+the Session in the desktop app and press the share button in its header (the broadcast icon), then
+`Share and copy link`. Send the copied link. Whoever opens it in a browser sees that Session's chat,
+its tool calls grouped together and the files changed in its Worktree, updated every few seconds. They
+cannot type, answer a permission prompt, see other Sessions or open settings: the server answers that
+link with this one Session and refuses everything else.
+
+Sharing is off for every Session until you turn it on, and the link keeps working until you press
+`Stop sharing` in the same place, or revoke the device named after the Session in Settings > Remote
+access. The colleague needs to reach the server the same way a phone does, so on Tailscale they must
+be in your tailnet (or use `Local network (LAN)` on a trusted network).
+
 ## Troubleshooting
 
 - The panel says this computer has no Tailscale address: Tailscale is not running or not logged in on

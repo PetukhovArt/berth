@@ -170,6 +170,20 @@ pub fn remote_revoke_device(remote: State<'_, Remote>, id: u64) -> Result<Remote
 }
 
 #[tauri::command]
+pub fn remote_share_session(
+    remote: State<'_, Remote>,
+    agent: String,
+    name: String,
+) -> Result<Pairing, String> {
+    remote.share_session(agent, name)
+}
+
+#[tauri::command]
+pub fn remote_unshare_session(remote: State<'_, Remote>, agent: String) -> Result<(), String> {
+    remote.unshare_session(agent)
+}
+
+#[tauri::command]
 pub async fn app_update_info() -> Result<working_copy::Info, String> {
     working_copy::app_update_info().await
 }
@@ -359,6 +373,8 @@ pub fn run() {
             remote_regenerate_token,
             remote_add_device,
             remote_revoke_device,
+            remote_share_session,
+            remote_unshare_session,
             remote_push_notify,
             tray::tray_status,
             tray::tray_cleanup,
