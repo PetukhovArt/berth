@@ -101,6 +101,9 @@ const rawDuration = (file, text) =>
       ].map((m) => [m.index, m[0].trim()])
     : [];
 
+const RAW_LOCALE = /\.toLocale(?:Date|Time)?String\(|\bnew\s+Intl\.(?:DateTimeFormat|NumberFormat|RelativeTimeFormat)\(/g;
+const rawLocale = (file, text) =>
+  /^(apps\/web|packages\/ui-kit)\/.*\.(vue|[cm]?[jt]s)$/.test(file) && !file.startsWith('apps/web/src/shared/lib/i18n/') ? [...text.matchAll(RAW_LOCALE)].map((m) => [m.index, m[0]]) : [];
 const RUST_TEST = /#\[(?:cfg\(test\)|test|[\w:]*::test(?:\([^)\]]*\))?)\]/g;
 const SCRIPT_TEST = /\bfrom\s+['"](?:vitest|@playwright\/test|node:test|@vue\/test-utils)['"]/g;
 const testsOf = (file, text) => {
@@ -145,6 +148,7 @@ const checks = [
   ['raw-elements', 'бери кнопки и поля из apps/web/src/shared/ui (UiButton, UiInput, UiTextarea): сырые button, input и textarea живут только там', async () => scan(() => true, rawElements)],
   ['raw-type', 'размер текста бери из var(--vr-font-size-…)/var(--vr-font-leading-…), em/% или безразмерный line-height: сырые px не масштабируются', async () => scan(() => true, rawType)],
   ['raw-duration', 'длительность движения бери из var(--vr-motion-…), в JS спрашивай isMotionEnabled(): сырые s/ms и smooth не выключаются настройкой ui.animations; исключения: statusAnimation.css и бесконечные spin/pulse', async () => scan(() => true, rawDuration)],
+  ['raw-locale', 'даты, время и числа форматируй через formatDate/formatTime/formatNumber/formatRelative из apps/web/src/shared/lib/i18n: toLocale*String и new Intl.* берут язык ОС, а не ui.language', async () => scan(() => true, rawLocale)],
   ['stratum', 'исправь нарушение слоёв: stratum-lint explain <rule> подскажет как, правило не глуши', async () => (lintable.some((file) => file.startsWith('apps/web/')) ? run(`stratum-lint lint --format agent --files ${quoted(lintable)}`) : [])],
   ['oxlint', 'исправь предупреждения oxlint, не отключай правило', async () => (lintable.length ? run(`oxlint --deny-warnings ${quoted(lintable)}`) : [])],
   ['knip', 'удали неиспользуемый export, файл или зависимость', () => run('knip')],
@@ -153,7 +157,7 @@ const checks = [
   ['clippy', 'исправь замечания clippy, не глуши их через allow', async () => (tauriTouched ? run('cargo clippy -p berth-desktop --all-targets -j 4 -- -D warnings') : [])],
 ];
 
-const RULES = new Set(['comments', 'raw-colors', 'new-files', 'tests', 'raw-elements', 'raw-type', 'raw-duration']);
+const RULES = new Set(['comments', 'raw-colors', 'new-files', 'tests', 'raw-elements', 'raw-type', 'raw-duration', 'raw-locale']);
 const results = await Promise.all(checks.filter(([name]) => !rulesOnly || RULES.has(name)).map(async ([name, fix, check]) => [name, fix, await check()]));
 for (const [name, fix, found] of results) {
   console.log(found.length ? `✗ ${name}: ${found.length} — ${fix}` : `✓ ${name}`);
