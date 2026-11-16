@@ -172,6 +172,10 @@ _Avoid_: "the session went green too early"
 The hook groups berth writes into the agent CLI's config at every spawn; user hooks are preserved.
 _Avoid_: the hooks berth installs
 
+**Shared Setup**
+The directory or git repository the `shared_setup` config key names: skills, MCP servers, hooks and instructions, with a `berth-setup.toml` saying which go to which Agent Kinds and Projects. berth copies them into every checkout in each Agent Kind's format and tracks what it wrote, so a file the Project or the user owns is never overwritten.
+_Avoid_: setup command (the Project's own one-line command, typed into a `setup` Terminal Session), global config
+
 **Hook Receiver**
 The Daemon's loopback HTTP endpoint that the agent CLIs' hooks report events to. Not MCP.
 _Avoid_: hook server

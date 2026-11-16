@@ -42,6 +42,7 @@ pub struct Config {
     pub messenger_telegram_chat: Option<serde_json::Value>,
     pub messenger_webhook_url: Option<String>,
     pub providers: crate::acp::providers::ProvidersConfig,
+    pub shared_setup: Option<String>,
 }
 
 impl Default for Config {
@@ -64,6 +65,7 @@ impl Default for Config {
             messenger_telegram_chat: None,
             messenger_webhook_url: None,
             providers: Default::default(),
+            shared_setup: None,
         }
     }
 }

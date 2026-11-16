@@ -126,14 +126,14 @@ fn finish(result: Result<Value>) -> Result<()> {
     }
 }
 
-struct Snapshot {
+pub(crate) struct Snapshot {
     workspaces: Vec<Workspace>,
-    projects: Vec<Project>,
-    worktrees: Vec<Worktree>,
+    pub(crate) projects: Vec<Project>,
+    pub(crate) worktrees: Vec<Worktree>,
     agents: Vec<Agent>,
 }
 
-async fn snapshot(conn: &mut Connection) -> Result<Snapshot> {
+pub(crate) async fn snapshot(conn: &mut Connection) -> Result<Snapshot> {
     write_frame(&mut conn.stream, &ClientRequest::Subscribe).await?;
     loop {
         match read_frame::<ServerEvent, _>(&mut conn.stream).await? {

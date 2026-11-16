@@ -65,6 +65,80 @@ file or a missing key means the default.
 | `messenger_webhook_url` | none | an incoming-webhook URL to post `{"text": "..."}` to; set turns the chat bridge on |
 | `channel_chain_limit` | `4` | how many Agent-authored messages in a row a channel delivers to Sessions before it stops, so two Agents cannot loop |
 | `git_init_on_create` | `true` | `git init` a directory that `Add Project` creates because it did not exist |
+| `shared_setup` | none | a directory, or a git URL, holding the skills, MCP servers, hooks and instructions berth installs into every project (see below) |
+
+## Shared setup
+
+Keep the skills, MCP servers, hooks and instructions you want in every project in one directory or
+git repository, and point `shared_setup` in `config.json` at it: a local path like
+`"~/agent-setup"`, or a URL like `"https://github.com/you/agent-setup.git"` or
+`"git@github.com:you/agent-setup.git"`. berth copies it into every checkout of every project,
+translated to what each agent reads. It does so when you add a project, when berth creates a worktree,
+and when you run `berth shared-setup sync`. Only that command fetches a repository (it clones it into
+`shared-setup/` in the data directory the first time and pulls after that), so run it after you change
+the repository.
+
+The directory holds `berth-setup.toml` and the items it names:
+
+```
+agent-setup/
+  berth-setup.toml
+  skills/review/SKILL.md      # a skill is a directory with its files
+  instructions/style.md       # instructions are one markdown file each
+  hooks/format.json           # Claude Code hooks, the "hooks" object of a settings file
+```
+
+```toml
+# Every agent in every project
+[[set]]
+skills = ["review"]
+instructions = ["style"]
+mcp = ["context7"]
+
+# Claude only, and only in two projects
+[[set]]
+kinds = ["claude"]
+projects = ["berth", "web-app"]
+hooks = ["format"]
+
+[mcp.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
+env = { DEBUG = "0" }
+
+[mcp.docs]
+url = "https://example.com/mcp"
+```
+
+A set says which items go to which agents (`kinds`: `claude`, `codex`, `cursor`, `opencode`, `grok`,
+`acp`) in which projects (`projects`: the name shown in berth or the repository's folder name). Leave
+either out to mean all of them. An item in several sets goes to every agent any of them names. An MCP
+server is a `command` with optional `args` and `env`, or a `url`.
+
+Where each item lands in a checkout:
+
+| Item | Claude | Cursor | Codex | Other agents |
+|---|---|---|---|---|
+| skill | `.claude/skills/<name>/` | `.agents/skills/<name>/` | `.agents/skills/<name>/` | `.agents/skills/<name>/` |
+| instructions | `.claude/rules/<name>.md` | `.cursor/rules/<name>.mdc`, always applied | `AGENTS.md` | `AGENTS.md` |
+| MCP server | `.mcp.json` | `.cursor/mcp.json` | `.codex/config.toml` | not installed |
+| hooks | `.claude/settings.local.json` | not installed | not installed | not installed |
+
+`AGENTS.md` joins every instructions item in the order the sets name them. Codex reads
+`.codex/config.toml` only in a folder you trusted, and Claude Code asks once per checkout before it
+starts the servers in `.mcp.json`. Hooks go to Claude only: Codex asks to trust hooks again in every
+worktree, and Cursor's hooks are written differently. Hook commands run in the checkout, so a script
+they call needs an absolute path.
+
+berth copies files rather than linking them, and it remembers what it wrote in each checkout (in
+`berth-setup.json` inside the checkout's git directory). A sync updates and removes only those files,
+and only while they are still as berth wrote them. A file the project already has, or one you changed
+after berth wrote it, is left alone and the sync names it, so a project overrides an item by keeping
+its own file of the same name. The hooks berth adds to `.claude/settings.local.json` are marked
+`_berthShared` and replaced on every sync; the rest of that file, and the hooks berth installs for its
+own status tracking, stay as they are. berth also lists the files it writes in the repository's
+`.git/info/exclude`, so they stay out of `git status` and out of commits. Remove `shared_setup` and
+run `berth shared-setup sync` to take everything back out.
 
 ## Chat bridge
 

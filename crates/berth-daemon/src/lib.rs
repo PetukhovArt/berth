@@ -25,6 +25,7 @@ pub mod resume_check;
 pub mod router;
 pub mod sampler;
 pub mod server;
+pub mod shared_setup;
 pub mod sibling;
 pub mod status;
 pub mod stop_agent;
