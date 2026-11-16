@@ -46,7 +46,7 @@ sampler (`sampler.rs`) behind the desktop app's metrics panel. In the desktop ap
 
 | Crate | Role |
 |---|---|
-| `berth` | Thin CLI: `daemon`, `kill`, `add`, `rename`, `worktree`, `enter`, `spawn`, `workspace`, `upgrade`; no args prints help. `client.rs` holds the daemon client: auto-spawn, handshake, kill |
+| `berth` | Thin CLI: `daemon`, `kill`, `add`, `rename`, `worktree`, `enter`, `spawn`, `workspace`, `shared-setup`, `upgrade`; no args prints help. `client.rs` holds the daemon client: auto-spawn, handshake, kill |
 | `berth-core` | Shared protocol, entities, IDs, paths, codec |
 | `berth-daemon` | PTYs, SQLite, git, hook receiver, status engine |
 

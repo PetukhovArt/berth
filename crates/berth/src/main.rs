@@ -2,6 +2,7 @@ mod channel;
 mod client;
 mod mcp;
 mod sessions;
+mod shared_setup;
 mod triggers;
 mod upgrade;
 
@@ -208,6 +209,13 @@ enum Command {
         #[command(subcommand)]
         command: WorkspaceCommand,
     },
+    #[command(
+        about = "Install the shared setup named by shared_setup in the config into every project and worktree"
+    )]
+    SharedSetup {
+        #[command(subcommand)]
+        command: SharedSetupCommand,
+    },
     /// Install the latest published berth over this one.
     Upgrade {
         /// Upgrade even when running from a local cargo build.
@@ -265,6 +273,14 @@ enum HubCommand {
 }
 
 #[derive(Subcommand)]
+enum SharedSetupCommand {
+    #[command(
+        about = "Fetch the shared setup when it is a repository, then update every checkout from it"
+    )]
+    Sync,
+}
+
+#[derive(Subcommand)]
 enum WorkspaceCommand {
     /// Create a workspace (does not open it).
     Add { name: String },
@@ -306,6 +322,9 @@ fn main() -> Result<()> {
             };
             client::run_workspace(op)
         }
+        Some(Command::SharedSetup {
+            command: SharedSetupCommand::Sync,
+        }) => shared_setup::run_sync(),
         Some(Command::Sessions { all }) => sessions::run_sessions(all),
         Some(Command::Attention) => sessions::run_attention(),
         Some(Command::Send {

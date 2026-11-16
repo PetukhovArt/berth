@@ -127,6 +127,14 @@ berth workspace rename <a> <b> # rename a workspace
 berth workspace delete <name>  # delete an empty workspace
 ```
 
+## Shared setup
+
+```sh
+berth shared-setup sync  # fetch the shared setup and update every project and worktree from it
+```
+
+What it installs and where is in [configuration](configuration.md#shared-setup).
+
 ## Upgrade
 
 ```sh

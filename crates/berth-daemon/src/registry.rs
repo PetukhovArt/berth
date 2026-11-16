@@ -839,6 +839,7 @@ impl Daemon {
                 sort_order: 0,
             };
             self.store.insert_worktree(&worktree)?;
+            crate::shared_setup::sync_checkout(&project, &worktree.path);
             self.broadcast(ServerEvent::EntityUpserted {
                 entity: Entity::Worktree(worktree),
             });
@@ -908,6 +909,7 @@ impl Daemon {
         // Before the row exists, so the agent that `berth worktree` moves in
         // finds its `.env` and skills already there rather than seconds later.
         crate::worktree_seed::seed(&project.repo_path, &path).await;
+        crate::shared_setup::sync_checkout(&project, &path);
         let worktree = Worktree {
             id: WorktreeId::generate(),
             project_id: project_id.clone(),

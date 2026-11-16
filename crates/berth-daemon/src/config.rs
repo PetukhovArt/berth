@@ -39,6 +39,7 @@ pub struct Config {
     pub channel_chain_limit: u32,
     pub checkpoints_claude: bool,
     pub providers: crate::acp::providers::ProvidersConfig,
+    pub shared_setup: Option<String>,
 }
 
 impl Default for Config {
@@ -58,6 +59,7 @@ impl Default for Config {
             channel_chain_limit: 4,
             checkpoints_claude: false,
             providers: Default::default(),
+            shared_setup: None,
         }
     }
 }
