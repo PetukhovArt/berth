@@ -10,6 +10,18 @@
 - Changed router suggestions to appear only for an Agent with a provider error or one that has finished its turn or waits on you, so a running Agent no longer shows a chip.
 - Changed deleting a Workspace to ask in a small popover next to the row instead of a block under it.
 - Fixed `ui.font_size` leaving parts of the interface at their old size: session rows, the title bar, session header buttons, the new session form, badges, diagrams and line heights now follow it too.
+- Added a new Claude session with a starting prompt opens on an Agent prestarted while the New Session form was open, from the desktop app, the web client and a phone, so the prompt is taken in under a second instead of about 3 seconds.
+- Changed the daemon to keep one prestarted Agent in total instead of one per project and agent kind; one `daemon.prewarm` setting (`prewarm` in `config.json`) replaces prewarming Agents and prewarming Sessions.
+- Changed `sessions.archiveOnMerge`, `connectors.trackerWriteBack` and Watch on a merge request to work with no desktop window open and under `berth-server`, once per machine, and a restart no longer repeats or misses a wake (#23).
+- Removed the toast that announced a wake from Watch on a merge request; the Watch strip shows the last one.
+- Fixed `Unload idle sessions after` showing 1 hour in Settings while the daemon used 5 minutes.
+- Fixed the default session kind from Settings being replaced by Claude the first time the New Session form opens, and `Open in session` failing when the default agent is off or set to Terminal.
+- Fixed `berth worktree` without `--base` starting the new branch from the checkout's HEAD instead of the base set in `sessions.worktreeBase`, or develop, main or master.
+- Fixed session status animations not playing in the project tree, and their ripple and spinner styles not showing on tabs.
+- Fixed terminal text in some ANSI colors, white and bright yellow among them, being unreadable on the light theme.
+- Fixed the sidebar, dock, messages, toggles and the Confluence outline still animating with `ui.animations` off.
+- Fixed switching the language not updating dates, times, sorting, list and dialog texts, menus and tab titles until a restart.
+- Fixed the compare view, math errors and the splash screen not following the light, dark and system theme.
 - Fixed Hot sessions cards saying No activity yet for an Agent that waits for you or is working: a card now shows the permission or question it waits on, its provider error or its last reply, and the window is only as tall as its cards.
 - Added Settings → Providers: Claude, Codex and Grok are on by default, and Cursor, OpenCode, Antigravity, Gemini, Kiro and Pi can be turned on to run over ACP in the chat view, with permission requests answered from a card; the terminal Cursor and OpenCode stay on where you already use them.
 - Added resume for ACP agents: after an idle reap or a daemon restart the next prompt continues the same conversation, an agent that needs sign-in shows a card that starts its own sign-in, and restoring a checkpoint says in the chat that the conversation was not rewound.
