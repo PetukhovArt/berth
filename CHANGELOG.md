@@ -53,7 +53,7 @@
 - Added a way to start the same prompt in several Agents from the New Session dialog in the desktop app, each in its own Session and, with a new branch, its own worktree (#22).
 - Added a `Reviewed` mark on each file in the desktop app's diff view, kept across restarts per merge request or worktree and cleared when the file changes (#44).
 - Added `Open Repository` to a project's menu in the desktop app: it opens the repository page on the git host for the `origin` remote, without the credentials in the URL (#45).
-- Added a badge on the desktop app's taskbar icon with the number of sessions waiting for an answer; the icon flashes when a new one starts waiting while the window is in the background.
+- Added a flash of the desktop app's taskbar icon when a new session starts waiting for an answer while the window is in the background.
 - Added a toast in the desktop app when an agent starts waiting, finishes or stops with an error, and an OS notification when the window is in the background; clicking either opens the session (#25).
 - Added Grok as a session type: `grok` runs in a berth session with status updates, auto titles and resume, through hooks berth writes to `~/.grok/hooks/berth.json`.
 - Added OpenCode as a session type: `opencode` runs in a berth session with status updates, auto titles and resume, through a plugin berth writes to `~/.config/opencode/plugin/berth.js`.
