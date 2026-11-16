@@ -27,7 +27,7 @@
     content: '';
     position: absolute;
     inset: 2px;
-    border: 1.5px solid var(--vr-color-success);
+    border: 1.5px solid var(--vr-status-unseen);
     border-radius: 50%;
     animation: status-ripple 1.6s ease-out infinite;
   }
@@ -59,7 +59,7 @@
     bottom: 4px;
     left: 0;
     width: 3px;
-    background: var(--vr-color-success);
+    background: var(--vr-status-unseen);
     border-radius: var(--vr-radius-sm);
     animation: status-blink 1.6s steps(1) infinite;
   }
