@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, shallowRef, useTemplateRef } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 import { ChevronRight, FileText, GitPullRequest, MessageSquare, Search, Ticket, Zap } from '../../../shared/ui/icons';
 import { subsequenceScore } from '../../../shared/lib/fuzzy';
 import { usePickerList } from '../../../shared/lib/usePickerList';
 import { pipelineTone } from '../../../entities/merge-request';
-import { t } from '../../../shared/lib/i18n/i18n';
+import { t, useI18n } from '../../../shared/lib/i18n/i18n';
 import BackBar from '../../../shared/ui/BackBar.vue';
 import type { QuickItem, WorkNode } from '../../../features/work-tree';
 import { externalDot, HarnessIcon, openChannel, StatusIcon, useLoadedChannelMessages, type LoadedChannelMessage } from '../../../entities/session';
@@ -35,6 +35,9 @@ const GROUP_LABELS = {
   actions: 'files.switcher.groups.actions',
   messages: 'files.switcher.groups.messages',
 } as const;
+
+const { formatRelative } = useI18n();
+const metaOf =(entry: QuickItem) => [entry.agent, entry.at ? formatRelative(entry.at) : null].filter(Boolean).join(' · ');
 
 function groupOf(item: Item): Group {
   if (item.kind === 'file') return 'files';
@@ -102,7 +105,28 @@ function choose(item: Item | undefined) {
 
 const { index, onKey } = usePickerList({ results, query, list, choose, close: () => emit('close') });
 
-onMounted(() => input.value?.focus());
+function fitList() {
+  const el = list.value;
+  if (!el) return;
+  el.style.removeProperty('--qs-list-max');
+  if (el.scrollHeight <= el.clientHeight) return;
+  const padding = parseFloat(getComputedStyle(el).paddingBottom) || 0;
+  const limit = el.clientHeight - padding;
+  let fit = 0;
+  for (const row of el.querySelectorAll<HTMLElement>(':scope > .item')) {
+    const bottom = row.offsetTop + row.offsetHeight;
+    if (bottom <= limit) fit = bottom;
+  }
+  if (fit > 0) el.style.setProperty('--qs-list-max', `${fit + padding}px`);
+}
+
+watch(results, () => void nextTick(fitList), { flush: 'post' });
+onMounted(() => {
+  input.value?.focus();
+  fitList();
+  window.addEventListener('resize', fitList);
+});
+onBeforeUnmount(() => window.removeEventListener('resize', fitList));
 </script>
 
 <template>
@@ -148,12 +172,13 @@ onMounted(() => input.value?.focus());
               <span class="text">
                 <span class="session">{{ item.entry.node.label }}</span>
                 <span v-if="item.entry.crumbs.length" class="sub">
-                  <template v-for="crumb in item.entry.crumbs" :key="crumb">
+                  <template v-for="(crumb, at) in item.entry.crumbs" :key="crumb">
+                    <ChevronRight v-if="at > 0" :size="11" />
                     <span class="path">{{ crumb }}</span>
-                    <ChevronRight :size="11" />
                   </template>
                 </span>
               </span>
+              <span v-if="item.entry.agent || item.entry.at" class="meta">{{ metaOf(item.entry) }}</span>
               <StatusIcon v-if="item.entry.node.data?.item && item.entry.node.data.item.pipeline !== 'none'" :tone="pipelineTone(item.entry.node.data.item.pipeline)" />
             </template>
             <template v-else-if="item.kind === 'message'">
@@ -257,7 +282,8 @@ onMounted(() => input.value?.focus());
 }
 
 .results {
-  max-height: 50vh;
+  position: relative;
+  max-height: var(--qs-list-max, 50vh);
   margin: 0;
   padding: var(--vr-space-1);
   overflow-y: auto;
@@ -308,6 +334,12 @@ onMounted(() => input.value?.focus());
 .path {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.meta {
+  flex: none;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-subtle);
 }
 
 .mono {

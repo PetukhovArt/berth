@@ -4,6 +4,9 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { limitUntil, watchUsageLimits } from './limits';
 
 export type AgentKind = 'claude' | 'codex' | 'cursor' | 'opencode' | 'grok' | 'acp';
+export const AGENT_KIND_LABEL: Readonly<Record<AgentKind, string>> = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode', grok: 'Grok', acp: 'ACP' };
+const SECONDS_LIMIT = 1e11;
+const toMillis = (value: number) => (value < SECONDS_LIMIT ? value * 1000 : value);
 type AgentStatus = 'fresh' | 'running' | 'finished' | 'needs_feedback' | 'terminated' | 'disconnected';
 export type SessionRef = { Agent: string } | { Terminal: string };
 type ConnectionState = 'connecting' | 'connected' | 'offline' | 'incompatible';
@@ -75,7 +78,7 @@ export function onAcpItem(listener: (agent: string, item: AcpItemAt) => void): (
 export type SessionEvent = { type: 'reset'; data: string } | { type: 'output'; data: string } | { type: 'exited'; exit_code: number | null };
 
 export type SessionStatus = AgentStatus | 'shell' | 'closed' | 'limit';
-export type SessionNode = { key: string; id: string; ref: SessionRef; name: string; status: SessionStatus; unseen: boolean; alive: boolean; limitUntil?: number; providerError?: ProviderError; suggestion?: RouteSuggestion };
+export type SessionNode = { key: string; id: string; ref: SessionRef; name: string; status: SessionStatus; unseen: boolean; alive: boolean; kind?: AgentKind; changedAt?: number; limitUntil?: number; providerError?: ProviderError; suggestion?: RouteSuggestion };
 export type WorktreeNode = { id: string; path: string; branch: string; main: boolean; sessions: SessionNode[]; archived: SessionNode[] };
 type ProjectNode = { id: string; name: string; worktrees: WorktreeNode[] };
 type WorkspaceNode = { id: string; name: string; projects: ProjectNode[] };
@@ -164,7 +167,8 @@ export function isSessionRef(value: unknown): value is SessionRef {
 function agentNode(agent: Agent): SessionNode {
   const ref = { Agent: agent.id };
   const until = agent.status === 'finished' && agent.alive ? limitUntil(agent.kind) : null;
-  const node: SessionNode = { key: sessionKey(ref), id: agent.id, ref, name: agent.name, status: agent.status, unseen: agent.unseen, alive: agent.alive };
+  const node: SessionNode = { key: sessionKey(ref), id: agent.id, ref, name: agent.name, status: agent.status, unseen: agent.unseen, alive: agent.alive, kind: agent.kind };
+  if (agent.status_changed_at > 0) node.changedAt = toMillis(agent.status_changed_at);
   if (agent.route_suggestion) node.suggestion = agent.route_suggestion;
   if (agent.provider_error) return { ...node, status: 'limit', providerError: agent.provider_error, limitUntil: agent.provider_error.resets_at_ms ?? undefined };
   return until === null ? node : { ...node, status: 'limit', limitUntil: until };

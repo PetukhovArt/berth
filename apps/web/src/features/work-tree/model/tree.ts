@@ -1,5 +1,5 @@
 import { Archive, Eye, EyeOff, Folder, FolderGit2, FolderOpen, FolderSearch, GitBranch, History, House, Inbox, Layers, Pin, UserRound } from '../../../shared/ui/icons';
-import { pinnedFirst, externalDot, externalKey, placeExternal, splitEarlier, type ExternalSession, worktreesOfProject, type Entities, type SessionNode, type WorktreeNode, rollupOf, type Rollup, type WorkspaceNode } from '../../../entities/session';
+import { AGENT_KIND_LABEL, pinnedFirst, externalDot, externalKey, placeExternal, splitEarlier, type ExternalSession, worktreesOfProject, type Entities, type SessionNode, type WorktreeNode, rollupOf, type Rollup, type WorkspaceNode } from '../../../entities/session';
 import type { ConnectorView, InboxItem, JiraIssueSummary, PipelineStatus } from '../../../shared/api/connectors/api';
 import { numberLabel, itemId, pipelineRollup } from '../../../entities/merge-request';
 import { t, compareText } from '../../../shared/lib/i18n/i18n';
@@ -453,20 +453,31 @@ export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly 
   return mrNodes();
 }
 
-export type QuickItem = { key: string; node: WorkNode; crumbs: string[]; search: string };
+export type QuickItem = { key: string; node: WorkNode; crumbs: string[]; search: string; agent: string | null; at: number | null };
 
 const CRUMB_KINDS = new Set(['workspace', 'project', 'worktree', 'orphans', 'repo', 'folder', 'folders']);
 const QUICK_KINDS = new Set(['session', 'external', 'mr', 'issue']);
 const QUICK_RANK: Readonly<Record<string, number>> = { session: 0, external: 1, mr: 2 };
 
+const quickAgent = (node: WorkNode): Pick<QuickItem, 'agent' | 'at'> => {
+  const { session, external } = node.data ?? {};
+  if (session?.kind) return { agent: AGENT_KIND_LABEL[session.kind], at: session.changedAt ?? null };
+  if (external) return { agent: null, at: external.updated_at > 0 ? external.updated_at : null };
+  return { agent: null, at: null };
+};
+
 export function quickItems(nodes: readonly WorkNode[]): QuickItem[] {
   const out: QuickItem[] = [];
+  const seen = new Set<string>();
   const walk = (list: readonly WorkNode[], crumbs: string[]) => {
     for (const node of list) {
       if (node.children) walk(node.children, CRUMB_KINDS.has(node.kind) ? [...crumbs, node.label] : crumbs);
       else if (QUICK_KINDS.has(node.kind)) {
+        const identity = node.data?.session?.key ?? (node.data?.external ? externalKey(node.data.external) : node.id);
+        if (seen.has(identity)) continue;
+        seen.add(identity);
         const extra = node.data?.item ? ` ${mrText(node.data.item)} ${node.data.review?.refs.join(' ') ?? ''}` : node.data?.external ? ` ${externalText(node.data.external)}` : node.data?.linked ? ` ${externalText(node.data.linked)}` : '';
-        out.push({ key: node.id, node, crumbs, search: `${crumbs.join(' › ')} › ${node.label}${extra}`.toLowerCase() });
+        out.push({ key: node.id, node, crumbs, search: `${crumbs.join(' › ')} › ${node.label}${extra}`.toLowerCase(), ...quickAgent(node) });
       }
     }
   };
