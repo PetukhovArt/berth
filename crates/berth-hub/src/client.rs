@@ -103,8 +103,16 @@ impl HubClient {
     }
 
     pub async fn agent(&self, name: &str) -> Result<String> {
+        self.register_agent(name, None).await
+    }
+
+    pub async fn register_agent(&self, name: &str, display: Option<&str>) -> Result<String> {
         let v = self
-            .call("POST", "/agents", Some(json!({ "name": name })))
+            .call(
+                "POST",
+                "/agents",
+                Some(json!({ "name": name, "display": display })),
+            )
             .await?;
         Ok(v["id"].as_str().unwrap_or("").into())
     }

@@ -33,6 +33,7 @@ pub mod store;
 pub mod subagents;
 pub mod task_notes;
 pub mod team;
+mod team_members;
 pub mod triggers;
 pub mod usage;
 pub mod usage_limits;

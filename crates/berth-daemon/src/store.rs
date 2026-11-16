@@ -326,6 +326,12 @@ const MIGRATIONS: &[&str] = &[
       routed_from TEXT NOT NULL
     );
     ",
+    "
+    CREATE TABLE hub_mention_cursor (
+      hub_url TEXT PRIMARY KEY,
+      seq     INTEGER NOT NULL
+    );
+    ",
 ];
 
 pub struct Store {
@@ -800,6 +806,28 @@ impl Store {
                 params![worktree.as_str(), text],
             )?;
         }
+        Ok(())
+    }
+
+    pub fn mention_cursor(&self, hub_url: &str) -> Result<Option<i64>> {
+        Ok(self
+            .conn
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT seq FROM hub_mention_cursor WHERE hub_url = ?1",
+                params![hub_url],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
+    pub fn set_mention_cursor(&self, hub_url: &str, seq: i64) -> Result<()> {
+        self.conn.lock().unwrap().execute(
+            "INSERT INTO hub_mention_cursor (hub_url, seq) VALUES (?1, ?2)
+             ON CONFLICT(hub_url) DO UPDATE SET seq = excluded.seq",
+            params![hub_url, seq],
+        )?;
         Ok(())
     }
 
