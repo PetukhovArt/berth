@@ -4,23 +4,7 @@
     position: relative;
   }
 
-  :root[data-status-animation='blink'] .status-dot[data-unseen='true'],
-  :root[data-status-animation='ripple'] .status-dot[data-unseen='true'] {
-    box-shadow: none;
-    outline: none;
-  }
-
   :root[data-status-animation='blink'] .status-dot[data-status='running'] {
-    background: none;
-  }
-
-  :root[data-status-animation='blink'] .status-dot[data-status='running']::before {
-    content: '';
-    position: absolute;
-    inset: -2px;
-    border: 2px solid var(--vr-color-conflict);
-    border-right-color: transparent;
-    border-radius: 50%;
     animation: status-spin 1s linear infinite;
   }
 
@@ -42,7 +26,7 @@
   :root[data-status-animation='ripple'] .status-dot[data-status='needs_feedback']::after {
     content: '';
     position: absolute;
-    inset: 0;
+    inset: 2px;
     border: 1.5px solid var(--vr-color-success);
     border-radius: 50%;
     animation: status-ripple 1.6s ease-out infinite;

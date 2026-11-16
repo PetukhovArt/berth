@@ -4,7 +4,7 @@ import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
 import { VButton, VContextMenu, VInputText } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
-import { externalStatusLabel, sessionDot, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, type SessionStatus, useAction, StatusIcon } from '../../../entities/session';
+import { externalStatusLabel, sessionDot, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, type SessionStatus, useAction, StatusDot } from '../../../entities/session';
 import { MoveAgentDialog } from '../../../features/move-agent';
 
 import { UiButton } from '../../../shared/ui/UiButton';
@@ -123,7 +123,7 @@ async function confirmDelete() {
         @click="emit('open', primaryPressed($event))"
         @contextmenu.prevent="showMenu"
       >
-        <StatusIcon :status="sessionDot(session, linked)" :unseen="session.unseen" />
+        <StatusDot :status="sessionDot(session, linked)" :unseen="session.unseen" />
         <span class="name">{{ session.name }}</span>
         <span class="label">{{ linked ? externalStatusLabel(linked) : statusLabel(session.status) }}</span>
       </UiButton>
