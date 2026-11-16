@@ -113,6 +113,40 @@ other app, and updated only when you ask.
 powershell -ExecutionPolicy Bypass -File scripts\install-app.ps1 -Launch
 ```
 
+The app builds without anything beyond what the `berth` command needs. The local speech engine (the
+`voice` cargo feature, off by default) is optional: without it, voice input uses the speech recognition
+of the app's webview. The engine compiles whisper.cpp and generates its bindings with bindgen, so it
+needs two more tools:
+
+- CMake on `PATH` (`winget install Kitware.CMake`). The copy inside Visual Studio works too when it is on
+  `PATH`, but a CMake older than 3.21 does not know the Visual Studio 2022 generator: with such a CMake
+  and Build Tools 2019, set `CMAKE_GENERATOR` to `Visual Studio 16 2019`.
+- LLVM for `libclang` (`winget install LLVM.LLVM`). The build finds it in `C:\Program Files\LLVM` or in
+  the "C++ Clang tools" component of Visual Studio on its own; anywhere else, set `LIBCLANG_PATH` to the
+  folder that holds `libclang.dll`. A bare `libclang.dll` without the clang headers (the PyPI `libclang`
+  wheel, for one) also needs `BINDGEN_EXTRA_CLANG_ARGS` with `-isystem` for the MSVC and Windows SDK
+  include folders.
+
+The install script looks for both before it builds. When it finds them it builds with `--features voice`;
+when it does not, it builds without the engine and prints one line saying what to install.
+`install-app.ps1 -CheckVoice` prints that verdict, with any variables it would set, and exits without
+building. By hand, add `--features voice` to `cargo build -p berth-desktop` or to
+`pnpm --filter @berth/desktop exec tauri dev`, and set what the script would:
+
+- `CLANG_PATH` to LLVM's `clang.exe` when LLVM's `bin` is not on `PATH` (the winget install leaves it
+  off). bindgen asks `clang.exe` for its include folders; without it the bindings stop at `'stdbool.h'
+  file not found`.
+- When the newest Visual Studio on the machine has no C++ workload (a Visual Studio 2022 IDE beside Build
+  Tools 2019, say), CMake and clang both pick it and fail with `could not find any instance of Visual
+  Studio` and `'stdio.h' file not found`. Point them at the one that has it: `CMAKE_GENERATOR` to
+  `Visual Studio 16 2019` and `VCToolsInstallDir` to its `VC\Tools\MSVC\<version>\` folder.
+
+With the engine, the build downloads the sherpa-onnx libraries from their GitHub releases and puts
+`sherpa-onnx-c-api.dll` and `onnxruntime.dll` next to `berth-desktop.exe`, and the install script copies
+both into the working copy. The wake word needs them there, while dictation and the rest of the app
+start without them. `berth-desktop.exe` then also needs `MSVCP140.dll` from the Visual C++ runtime, which
+Visual Studio Build Tools installs.
+
 The script reads `main` from the checkout it sits in, never the files in the working tree, and builds it
 in `%LOCALAPPDATA%\Berth\build` (`src` for the exported tree, `target` for an incremental cargo cache,
 `logs` for one log per build). The result goes to `app\<build-id>`, `app\current` points at it, `app\previous`

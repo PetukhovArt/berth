@@ -3,10 +3,14 @@ import { computed } from 'vue';
 import { Mic } from '../../../shared/ui/icons';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { pushHolding, pushSession, stopWakeWord, voiceNotice, voiceTranscript, wakeArmed, wakePhrase, wakeSession } from '../model/voiceInput';
+import { voiceDownload } from '../../../shared/lib/nativeVoice';
+import { pushHolding, pushRecognising, pushSession, stopWakeWord, voiceNotice, voiceTranscript, wakeArmed, wakePhrase, wakeSession } from '../model/voiceInput';
 
 const status = computed(() => {
+  const download = voiceDownload.value;
+  if (download) return t('voice.downloading', { percent: download.percent, total: download.totalMb });
   if (pushHolding.value) return t('voice.holding', { name: pushSession.value?.name ?? '' });
+  if (pushRecognising.value) return t('voice.recognising');
   const session = wakeSession.value;
   if (!session) return '';
   return wakeArmed.value ? t('voice.armed', { name: session.name }) : t('voice.wake', { phrase: wakePhrase.value, name: session.name });
@@ -14,7 +18,7 @@ const status = computed(() => {
 </script>
 
 <template>
-  <div v-if="status || voiceNotice" class="voice" role="status" data-testid="voice-indicator" :data-mode="pushHolding ? 'push' : wakeSession ? 'wake' : undefined">
+  <div v-if="status || voiceNotice" class="voice" role="status" data-testid="voice-indicator" :data-mode="voiceDownload ? 'download' : pushHolding ? 'push' : wakeSession ? 'wake' : undefined">
     <template v-if="status">
       <Mic class="mic" :size="14" />
       <span class="status" data-testid="voice-status">{{ status }}</span>

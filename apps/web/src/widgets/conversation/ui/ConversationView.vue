@@ -10,6 +10,7 @@ import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { readAcpAgentLog } from '../../../shared/api/providers';
 import { speechLang, useHoldToTalk, type HoldToTalkIssue } from '../../../shared/lib/dictation';
+import type { PlainKey } from '../../../shared/lib/i18n/translate';
 import { useVoiceLoop } from '../model/useVoiceLoop';
 
 const TAIL = 200;
@@ -173,7 +174,15 @@ async function sendToAcp(text: string) {
   else await submitPrompt({ Agent: props.sessionId }, text);
 }
 
-const ISSUES: Record<HoldToTalkIssue, 'chatTalkDenied' | 'chatTalkShort' | 'chatTalkEmpty' | 'chatTalkFailed'> = { denied: 'chatTalkDenied', short: 'chatTalkShort', empty: 'chatTalkEmpty', failed: 'chatTalkFailed' };
+const ISSUES: Record<HoldToTalkIssue, PlainKey> = {
+  denied: 'agents.sessionView.chatTalkDenied',
+  short: 'agents.sessionView.chatTalkShort',
+  empty: 'agents.sessionView.chatTalkEmpty',
+  failed: 'agents.sessionView.chatTalkFailed',
+  offline: 'voice.issue.offline',
+  loading: 'voice.issue.loading',
+  phrase: 'voice.issue.phrase',
+};
 const voice = useVoiceLoop({
   messages: () => messages.value,
   lang: speechLang,
@@ -189,8 +198,8 @@ const talk = useHoldToTalk({
   onSpeech: () => voice.onSpeech(),
   onSettled: () => voice.onSettled(),
   onIssue: (issue) => {
-    if (voice.active.value && (issue === 'denied' || issue === 'failed')) voice.end();
-    notice.value = t(`agents.sessionView.${ISSUES[issue]}`);
+    if (voice.active.value && issue !== 'short' && issue !== 'empty') voice.end();
+    notice.value = t(ISSUES[issue]);
     clearTimeout(noticeTimer);
     noticeTimer = setTimeout(() => (notice.value = ''), NOTICE_MS);
   },
@@ -314,7 +323,7 @@ onBeforeUnmount(() => {
         <UiButton type="button" class="voice-action" data-testid="chat-voice-mute" @click="voice.toggleMute">{{ voice.muted.value ? t('agents.sessionView.chatVoiceUnmute') : t('agents.sessionView.chatVoiceMute') }}</UiButton>
         <UiButton type="button" class="voice-action voice-end" data-testid="chat-voice-end" @click="voice.end">{{ t('agents.sessionView.chatVoiceEnd') }}</UiButton>
       </div>
-      <p v-else-if="talk.holding.value || notice" class="talk-note" :data-cancelling="talk.cancelling.value || undefined" data-testid="chat-talk-note" role="status">{{ talk.holding.value ? talk.transcript.value || t('agents.sessionView.chatTalkListening') : notice }}{{ talk.holding.value ? ' ' + t('agents.sessionView.chatTalkHint') : '' }}</p>
+      <p v-else-if="talk.holding.value || talk.recognising.value || notice" class="talk-note" :data-cancelling="talk.cancelling.value || undefined" data-testid="chat-talk-note" role="status">{{ talk.holding.value ? talk.transcript.value || t('agents.sessionView.chatTalkListening') : talk.recognising.value ? t('voice.recognising') : notice }}{{ talk.holding.value ? ' ' + t('agents.sessionView.chatTalkHint') : '' }}</p>
       <UiButton v-if="suggestion && !voice.active.value" type="button" class="suggestion" :title="t('agents.sessionView.chatSuggestion')" data-testid="chat-suggestion" @click="acceptSuggestion">{{ suggestion }}</UiButton>
       <UiTextarea v-if="!voice.active.value" v-model="draft" class="input" rows="2" :placeholder="t('agents.sessionView.chatPlaceholder')" :aria-label="t('agents.sessionView.chatPlaceholder')" data-testid="chat-input" @keydown="onKey" />
       <VButton v-if="!voice.active.value" size="small" type="submit" :disabled="!draft.trim()" :loading="sending" data-testid="chat-send">{{ t('agents.sessionView.chatSend') }}</VButton>

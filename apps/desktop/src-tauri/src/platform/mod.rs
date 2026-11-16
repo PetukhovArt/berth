@@ -109,6 +109,11 @@ pub fn cli_search_dirs() -> Vec<PathBuf> {
     imp::cli_search_dirs()
 }
 
+#[cfg(all(feature = "voice", any(windows, target_os = "macos")))]
+pub fn speech_engine_loads() -> bool {
+    imp::speech_engine_loads()
+}
+
 pub async fn open_login_console(command: &[&str]) -> Result<(), String> {
     imp::open_login_console(command).await
 }

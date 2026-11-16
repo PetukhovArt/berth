@@ -19,6 +19,7 @@ FORCE=0
 LAUNCH=0
 ROLLBACK=0
 UPDATE_DAEMON=0
+CHECK_VOICE=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -29,6 +30,7 @@ while [ $# -gt 0 ]; do
         -Launch | --launch) LAUNCH=1 ;;
         -Rollback | --rollback) ROLLBACK=1 ;;
         -UpdateDaemon | --update-daemon) UPDATE_DAEMON=1 ;;
+        -CheckVoice | --check-voice) CHECK_VOICE=1 ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
     shift
@@ -91,6 +93,34 @@ link_applications() {
     fi
     ln -sfn "$CURRENT/$BUNDLE" "$entry"
 }
+
+libclang_found() {
+    if [ -n "${LIBCLANG_PATH:-}" ]; then
+        [ -f "$LIBCLANG_PATH" ] || [ -f "$LIBCLANG_PATH/libclang.dylib" ]
+        return
+    fi
+    local developer dir
+    developer=$(xcode-select -p 2>/dev/null)
+    for dir in "$developer/usr/lib" "$developer/Toolchains/XcodeDefault.xctoolchain/usr/lib" \
+        /Library/Developer/CommandLineTools/usr/lib /usr/local/opt/llvm/lib; do
+        [ -f "$dir/libclang.dylib" ] && return 0
+    done
+    return 1
+}
+
+voice_fallback() {
+    local missing=''
+    libclang_found || missing='the Xcode Command Line Tools (xcode-select --install)'
+    command -v cmake >/dev/null 2>&1 || missing="${missing:+$missing and }CMake (brew install cmake)"
+    [ -z "$missing" ] && return 0
+    printf "voice input: building without the local speech engine, so the app uses the browser's speech recognition; install %s to get it" "$missing"
+}
+
+if [ "$CHECK_VOICE" = 1 ]; then
+    fallback=$(voice_fallback)
+    echo "${fallback:-voice input: libclang and CMake found, building with the local speech engine}"
+    exit 0
+fi
 
 if [ "$ROLLBACK" = 1 ]; then
     was=$(link_target "$CURRENT")
@@ -244,7 +274,14 @@ run pnpm install --frozen-lockfile --config.confirmModulesPurge=false
 set_step tokens
 run pnpm build:tokens
 set_step app
-run pnpm --filter @berth/desktop exec tauri build --bundles app
+VOICE_FALLBACK=$(voice_fallback)
+if [ -n "$VOICE_FALLBACK" ]; then
+    add_log "$VOICE_FALLBACK"
+    echo "$VOICE_FALLBACK"
+    run pnpm --filter @berth/desktop exec tauri build --bundles app
+else
+    run pnpm --filter @berth/desktop exec tauri build --bundles app --features voice
+fi
 if [ "$DAEMON_EXE" = "$CURRENT/berth" ]; then
     add_log "daemon sources unchanged since $INSTALLED_COMMIT, reusing $DAEMON_EXE"
 else

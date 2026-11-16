@@ -6,7 +6,8 @@ param(
     [switch]$Force,
     [switch]$Launch,
     [switch]$Rollback,
-    [switch]$UpdateDaemon
+    [switch]$UpdateDaemon,
+    [switch]$CheckVoice
 )
 
 $ErrorActionPreference = 'Stop'
@@ -52,6 +53,70 @@ function Set-Shortcut {
 
 function Start-Berth {
     Start-Process -FilePath (Join-Path $current $exeName) -WorkingDirectory $current
+}
+
+function Find-Libclang {
+    $names = 'libclang.dll', 'clang.dll'
+    if ($env:LIBCLANG_PATH) {
+        if (Test-Path -LiteralPath $env:LIBCLANG_PATH -PathType Leaf) { return Split-Path -Parent $env:LIBCLANG_PATH }
+        if ($names | Where-Object { Test-Path -LiteralPath (Join-Path $env:LIBCLANG_PATH $_) }) { return $env:LIBCLANG_PATH }
+        return $null
+    }
+    $dirs = @('C:\Program Files\LLVM\bin', 'C:\Program Files (x86)\LLVM\bin', 'C:\LLVM\bin', (Join-Path $HOME 'scoop\apps\llvm\current\bin'))
+    $dirs += @(Get-ChildItem -Path 'C:\Program Files*\Microsoft Visual Studio\*\*\VC\Tools\Llvm' -Directory -ErrorAction SilentlyContinue |
+        ForEach-Object { (Join-Path $_.FullName 'bin'), (Join-Path $_.FullName 'x64\bin') })
+    $dirs | Where-Object { Test-Path -LiteralPath (Join-Path $_ 'libclang.dll') } | Select-Object -First 1
+}
+
+function Find-CppVisualStudio {
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+    if (-not (Test-Path -LiteralPath $vswhere)) { return $null }
+    $cppTools = 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64'
+    $path = @(& $vswhere -latest -products * -requires $cppTools -property installationPath)[0]
+    if (-not $path) { return $null }
+    $version = @(& $vswhere -latest -products * -requires $cppTools -property installationVersion)[0]
+    $newest = @(& $vswhere -latest -products * -property installationPath)[0]
+    [pscustomobject]@{ Path = $path; Major = [int]("$version" -split '\.')[0]; Newest = $path -eq $newest }
+}
+
+function Get-VoiceSetup {
+    $missing = @()
+    $buildEnv = [ordered]@{}
+    $libclang = Find-Libclang
+    if (-not $libclang) {
+        $missing += 'LLVM (winget install LLVM.LLVM)'
+    } elseif (-not $env:CLANG_PATH -and -not (Get-Command clang -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath (Join-Path $libclang 'clang.exe'))) {
+        $buildEnv.CLANG_PATH = Join-Path $libclang 'clang.exe'
+    }
+    $cmake = Get-Command cmake -ErrorAction SilentlyContinue
+    if (-not $cmake) { $missing += 'CMake (winget install Kitware.CMake)' }
+    $vs = Find-CppVisualStudio
+    if (-not $vs) { $missing += 'the C++ workload of Visual Studio Build Tools' }
+    if ($cmake -and $vs -and -not $env:CMAKE_GENERATOR) {
+        $generator = @{ 16 = 'Visual Studio 16 2019'; 17 = 'Visual Studio 17 2022' }[$vs.Major]
+        $first = @(& $cmake.Source --version 2>$null)[0]
+        $oldCmake = ("$first" -match '(\d+)\.(\d+)') -and ([version]"$($Matches[1]).$($Matches[2])" -lt [version]'3.21')
+        if ($oldCmake -and $vs.Major -ge 17) { $missing += 'CMake 3.21 or newer (winget install Kitware.CMake)' }
+        elseif (($oldCmake -or -not $vs.Newest) -and $generator) { $buildEnv.CMAKE_GENERATOR = $generator }
+    }
+    if ($vs -and -not $vs.Newest -and -not $env:VCToolsInstallDir) {
+        $msvc = Get-ChildItem -LiteralPath (Join-Path $vs.Path 'VC\Tools\MSVC') -Directory -ErrorAction SilentlyContinue |
+            Sort-Object { [version]$_.Name } | Select-Object -Last 1
+        if ($msvc) { $buildEnv.VCToolsInstallDir = "$($msvc.FullName)\" }
+    }
+    $fallback = if ($missing.Count) { "voice input: building without the local speech engine, so the app uses the browser's speech recognition; install $($missing -join ' and ') to get it" }
+    [pscustomobject]@{ Fallback = $fallback; Env = $buildEnv }
+}
+
+function Format-BuildEnv($buildEnv) {
+    ($buildEnv.Keys | ForEach-Object { "$_=$($buildEnv[$_])" }) -join ', '
+}
+
+if ($CheckVoice) {
+    $setup = Get-VoiceSetup
+    if ($setup.Fallback) { Write-Host $setup.Fallback }
+    else { Write-Host "voice input: libclang, CMake and MSVC found, building with the local speech engine$(if ($setup.Env.Count) { " ($(Format-BuildEnv $setup.Env))" })" }
+    exit 0
 }
 
 if ($Rollback) {
@@ -184,7 +249,18 @@ try {
         Set-Step 'tokens'
         Invoke-Logged 'pnpm' @('build:tokens')
         Set-Step 'app'
-        Invoke-Logged 'pnpm' @('--filter', '@berth/desktop', 'exec', 'tauri', 'build', '--no-bundle')
+        $voiceSetup = Get-VoiceSetup
+        $voiceFallback = $voiceSetup.Fallback
+        $appBuild = @('--filter', '@berth/desktop', 'exec', 'tauri', 'build', '--no-bundle')
+        if ($voiceFallback) {
+            Add-Log $voiceFallback
+            Write-Host $voiceFallback
+        } else {
+            $appBuild += @('--features', 'voice')
+            foreach ($name in $voiceSetup.Env.Keys) { Set-Item -Path "Env:$name" -Value $voiceSetup.Env[$name] }
+            if ($voiceSetup.Env.Count) { Add-Log "voice build environment: $(Format-BuildEnv $voiceSetup.Env)" }
+        }
+        Invoke-Logged 'pnpm' $appBuild
         if ($daemonExe -eq $installedDaemon) {
             Add-Log "daemon sources unchanged since $($installedBuild.commit), reusing $installedDaemon"
         } else {
@@ -205,6 +281,9 @@ try {
     if (Test-Path -LiteralPath $staging) { Remove-Item -Recurse -Force -LiteralPath $staging }
     New-Item -ItemType Directory -Force -Path $staging | Out-Null
     Copy-Item -LiteralPath (Join-Path $release $exeName) -Destination $staging
+    if (-not $voiceFallback) {
+        foreach ($dll in 'sherpa-onnx-c-api.dll', 'onnxruntime.dll') { Copy-Item -LiteralPath (Join-Path $release $dll) -Destination $staging }
+    }
     Copy-Item -LiteralPath $daemonExe -Destination $staging
     Copy-Item -LiteralPath (Join-Path $src 'scripts\install-app.ps1') -Destination $staging
     $build = [ordered]@{ buildId = $buildId; commit = $commit; subject = $subject; sourceRepo = $Repo; builtAt = (Get-Date).ToString('o'); protocol = $protocol }

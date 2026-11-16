@@ -268,9 +268,24 @@ your editor; hand edits apply while the app runs. `BERTH_HOME` moves the directo
 
 ### Voice
 
-Voice input uses the speech recognition built into the browser engine the app runs in, so it works
-only where that engine offers it (Chrome, Edge and Safari do; some desktop webviews do not, and then
-the voice controls stay hidden or report that speech recognition is unavailable).
+The desktop app on Windows and macOS, when it was built with the local speech engine (the install script
+does that when it finds LLVM and CMake, see [windows.md](windows.md#desktop-working-copy) and
+[macos.md](macos.md)), recognises speech on your computer: dictation runs
+[whisper.cpp](https://github.com/ggml-org/whisper.cpp) with the multilingual `base` model and detects
+the language on its own, and the wake word runs a
+[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) keyword spotter. Nothing you say leaves the
+machine. The models are not part of the app: the first time you dictate, the app downloads the
+dictation model (about 148 MB) into `%LOCALAPPDATA%\dev.berth.desktop\voice` on Windows or
+`~/Library/Application Support/dev.berth.desktop/voice` on macOS, and the first time you turn the wake word on
+it also downloads the keyword model (about 18 MB). The bar at the bottom of the window shows the
+download progress, and without a connection you get an error instead. Settings, `Sessions`, `Speech
+models` shows what is downloaded and where, and `Remove` deletes it; the next dictation downloads it
+again. The macOS app asks for microphone access the first time.
+
+The phone client in a browser, the Linux desktop app, and a desktop app built without the engine use the speech recognition built into the
+browser engine instead, so voice input works there only where that engine offers it (Chrome, Edge and
+Safari do; some webviews do not, and then the voice controls stay hidden or report that speech
+recognition is unavailable).
 
 - Hold `mod-shift-space` (the `voice.pushToTalk` action) to dictate: what you say while the key is
   down is sent as a prompt to the Session in view when you release it.
@@ -280,7 +295,8 @@ the voice controls stay hidden or report that speech recognition is unavailable)
   Session: say the wake phrase (setting `voice.wakePhrase`, default `hey berth`) and then your
   prompt, and it is sent when you pause. A bar at the bottom of the window shows that the microphone
   is listening; its `Turn off` button, or the same command again, stops it. It does not survive an
-  app restart.
+  app restart. The desktop app's keyword spotter knows English words only, so there the wake phrase
+  has to be English; the prompt after it can be in any language.
 
 ## Environment
 
