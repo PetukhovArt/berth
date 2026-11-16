@@ -76,7 +76,7 @@ onBeforeUnmount(() => {
 <template>
   <section class="channel" data-testid="channel-view">
     <header class="head">{{ t('attention.channel.messages', { key: channel }) }}</header>
-    <p v-if="present.length" class="presence" data-testid="channel-presence">{{ t('attention.channel.present', { who: present.map((p) => `${p.name} (${p.agents.join(', ')})`).join('; ') }) }}</p>
+    <p v-if="present.length" class="presence" data-testid="channel-presence">{{ t('attention.channel.present', { who: present.map((p) => (p.agents.length ? `${p.name} (${p.agents.join(', ')})` : p.name)).join('; ') }) }}</p>
     <ol ref="list" class="messages" data-testid="channel-messages">
       <li v-if="!messages.length" class="empty" data-testid="channel-empty">{{ t('attention.channel.empty') }}</li>
       <li v-for="message in messages" :key="message.seq" class="message" :data-author-kind="message.authorKind" data-testid="channel-message">

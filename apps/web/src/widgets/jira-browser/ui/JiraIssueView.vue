@@ -8,6 +8,7 @@ import ErrorInline from '../../../shared/ui/ErrorInline.vue';
 import { PersonAvatar, PriorityMark, StatusChip, TypeIcon } from '../../../entities/jira-issue';
 import Skeleton from '../../../shared/ui/Skeleton.vue';
 import { copyText } from '../../../shared/lib/atlassian';
+import { OpenChannelAction } from '../../../features/attention';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const { formatRelative, formatDate } = useI18n();
@@ -70,6 +71,7 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
           <span class="type">{{ issue.issue_type }}</span>
           <span class="spacer" />
           <VButton :label="copied ? t('jira.issue.copied') : t('jira.issue.copyKey')" size="small" severity="secondary" text @click="copyKey" />
+          <OpenChannelAction :channel-key="issue.key" />
           <VButton :label="t('common.openInBrowser')" size="small" severity="secondary" @click="openUrl(issue.url)" />
         </div>
         <h1 class="title">{{ issue.summary }}</h1>

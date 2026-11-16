@@ -25,9 +25,11 @@ async fn call(request: ClientRequest) -> Result<ServerEvent> {
                 req_id: Some(ONE_SHOT_REQ_ID),
                 message,
             }) => bail!("{message}"),
-            Some(event @ (ServerEvent::Channels { .. } | ServerEvent::ChannelEvents { .. })) => {
-                return Ok(event)
-            }
+            Some(
+                event @ (ServerEvent::Channels { .. }
+                | ServerEvent::ChannelEvents { .. }
+                | ServerEvent::ChannelOpened { .. }),
+            ) => return Ok(event),
             Some(_) => continue,
             None => bail!("the daemon closed the connection before it answered"),
         }
@@ -46,6 +48,25 @@ pub fn run_list() -> Result<()> {
         println!(
             "{}",
             serde_json::to_string_pretty(&json!({ "ok": true, "channels": channels }))?
+        );
+        Ok(())
+    })
+}
+
+pub fn run_open(key: Option<String>) -> Result<()> {
+    runtime()?.block_on(async {
+        let ServerEvent::ChannelOpened { key, .. } = call(ClientRequest::OpenChannel {
+            req_id: ONE_SHOT_REQ_ID,
+            key,
+            agent: own_agent(),
+        })
+        .await?
+        else {
+            bail!("unexpected reply");
+        };
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({ "ok": true, "channel": key }))?
         );
         Ok(())
     })

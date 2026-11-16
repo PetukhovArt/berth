@@ -16,7 +16,7 @@ export { saveTaskNote, useTaskNote } from './model/taskNote';
 export { loadProjectSetup, saveProjectSetup } from './model/projectSetup';
 export { listCheckpoints, restoreCheckpoint } from './model/checkpoints';
 export type { Checkpoint } from './model/checkpoints';
-export { isAgentMessage, openChannel, postToChannel, readChannel, readPresence, refreshChannels, useChannelUnread, useLoadedChannelMessages } from './model/channels';
+export { isAgentMessage, openChannel, openChannelFor, postToChannel, readChannel, readPresence, refreshChannels, useChannelUnread, useLoadedChannelMessages } from './model/channels';
 export type { ChannelMessage, ChannelPresent, LoadedChannelMessage } from './model/channels';
 export { getMetrics } from './model/metrics';
 export type { MetricsSnapshot, SessionMetrics } from './model/metrics';

@@ -9,6 +9,8 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { useScope, visibleInterval } from '../../../shared/lib/scope';
 import { ArchitectureAction } from '../../../features/architecture';
 import { MrSessionNotice, OpenInSessionAction, mrRuns } from '../../../features/open-in-session';
+import { OpenChannelAction } from '../../../features/attention';
+import { channelKeyOf } from '../../../entities/jira-issue';
 import { WatchAction, WatchStrip, isWatching } from '../../../features/watch-merge-request';
 import { RepoActions } from '../../../features/manage-workspace';
 import { itemId, fullDate, numberLabel, pipelineLabel, relativeTime } from '../../../entities/merge-request';
@@ -96,6 +98,7 @@ onMounted(() => {
               <template #icon><ExternalLink :size="14" /></template>
             </VButton>
             <OpenInSessionAction :item="cr" />
+            <OpenChannelAction :channel-key="channelKeyOf(cr.source_branch, cr.title)" />
             <WatchAction v-if="cr.state === 'open'" :target="target" />
             <ArchitectureAction :item="cr" />
           </div>

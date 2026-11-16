@@ -41,6 +41,8 @@ export const attention = {
     send: 'Отправить',
     agent: 'Агент',
     person: 'Человек',
-    present: 'Запущены Сессии по этой задаче: {who}',
+    present: 'Сейчас здесь: {who}',
+    open: 'Открыть Канал',
+    openTitle: 'Открыть Канал {key}; создаётся, если его ещё нет',
   },
 } as const;

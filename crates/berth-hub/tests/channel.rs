@@ -236,6 +236,13 @@ async fn presence_shows_who_runs_sessions_on_a_task_and_expires() {
     assert!(carol.presence("PROJ-12").await.is_err());
 
     ann.report_presence(&on(&[])).await.unwrap();
+    let here = bob.presence("PROJ-12").await.unwrap();
+    assert_eq!(here.len(), 1);
+    assert!(here[0].agents.is_empty());
+
+    ann.report_presence(&std::collections::HashMap::new())
+        .await
+        .unwrap();
     assert!(bob.presence("PROJ-12").await.unwrap().is_empty());
 
     ann.report_presence(&on(&["agent-1"])).await.unwrap();
