@@ -150,17 +150,71 @@
     "dim": {
       "$value": "#6e7781"
     },
-    "accent": {
-      "$value": "#b4532a"
+    "black": {
+      "$value": "#24292f"
     },
-    "blue": {
-      "$value": "#0b5cd5"
+    "red": {
+      "$value": "#cf222e"
     },
     "green": {
       "$value": "#1a7f37"
     },
-    "red": {
-      "$value": "#cf222e"
+    "yellow": {
+      "$value": "#8a5a00"
+    },
+    "blue": {
+      "$value": "#0b5cd5"
+    },
+    "magenta": {
+      "$value": "#8250df"
+    },
+    "cyan": {
+      "$value": "#0f6f80"
+    },
+    "white": {
+      "$value": "#747c86"
+    },
+    "bright-black": {
+      "$value": "#656d76"
+    },
+    "bright-red": {
+      "$value": "#a40e26"
+    },
+    "bright-green": {
+      "$value": "#116329"
+    },
+    "bright-yellow": {
+      "$value": "#6f4a00"
+    },
+    "bright-blue": {
+      "$value": "#0a4aa8"
+    },
+    "bright-magenta": {
+      "$value": "#6639ba"
+    },
+    "bright-cyan": {
+      "$value": "#0b5664"
+    },
+    "bright-white": {
+      "$value": "#868e98"
+    },
+    "selection": {
+      "$value": "rgba(11, 92, 213, 0.2)"
+    },
+    "selection-inactive": {
+      "$value": "rgba(0, 0, 0, 0.08)"
+    },
+    "selection-fg": {
+      "$value": "#24292f"
+    },
+    "scrollbar": {
+      "$value": "rgba(0, 0, 0, 0.14)"
+    },
+    "scrollbar-hover": {
+      "$value": "rgba(0, 0, 0, 0.22)"
+    },
+    "scrollbar-active": {
+      "$value": "rgba(0, 0, 0, 0.3)"
     }
   },
   "shadow": {
