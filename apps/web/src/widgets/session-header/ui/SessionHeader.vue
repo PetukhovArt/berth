@@ -110,7 +110,59 @@ watch(
   border-bottom: 1px solid var(--vr-color-border);
 }
 
+:root[data-vr-viewport='phone'] .session-header {
+  flex-wrap: wrap;
+  gap: var(--vr-space-2) 10px;
+  padding: var(--vr-space-2) var(--vr-space-3);
+}
+
 :root[data-vr-viewport='phone'] .session-header .title {
+  display: none;
+}
+
+:root[data-vr-viewport='phone'] .session-header .identity {
+  flex-basis: 100%;
+}
+
+:root[data-vr-viewport='phone'] .session-header .title-row {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step .hint) {
+  display: none;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step) {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step > .run) {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.modes) {
+  display: flex;
+  flex-basis: 100%;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.modes .mode) {
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+  height: 32px;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.modes .name) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.modes .key) {
   display: none;
 }
 
