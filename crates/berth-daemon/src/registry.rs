@@ -4514,6 +4514,24 @@ pub(crate) mod tests {
         }
     }
 
+    #[test]
+    fn saved_session_id_is_broadcast_with_the_row() {
+        let daemon = test_daemon();
+        seed_projects(&daemon, &["p"]);
+        seed_worktree(&daemon, "p", "root", "/berth-test/p", true);
+        seed_agent(&daemon, "a1", "root", None);
+        let id = AgentId("a1".into());
+        let mut rx = daemon.events.subscribe();
+
+        daemon.apply_status_effects(&id, vec![Effect::SaveSessionId("s9".into())]);
+        match rx.try_recv().unwrap() {
+            ServerEvent::EntityUpserted {
+                entity: Entity::Agent(a),
+            } => assert_eq!(a.session_id.as_deref(), Some("s9")),
+            other => panic!("expected agent upsert, got {other:?}"),
+        }
+    }
+
     /// `mark_agent_seen` clears the flag and hands every subscriber the row
     /// — once. Marking a row already read sends nothing.
     #[test]
