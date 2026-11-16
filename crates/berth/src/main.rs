@@ -238,6 +238,14 @@ enum ChannelCommand {
         #[arg(required = true, num_args = 1.., help = "The message; multiple words need no quotes")]
         message: Vec<String>,
     },
+    #[command(
+        about = "Set the note of a channel's task: every member's Agent that starts a session on the task gets it. The latest note wins; no text clears it"
+    )]
+    Note {
+        channel: String,
+        #[arg(num_args = 0.., help = "The note; multiple words need no quotes")]
+        text: Vec<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -346,6 +354,7 @@ fn main() -> Result<()> {
             ChannelCommand::Post { channel, message } => {
                 channel::run_post(channel, message.join(" "))
             }
+            ChannelCommand::Note { channel, text } => channel::run_note(channel, text.join(" ")),
         },
         Some(Command::Hub { command }) => match command {
             HubCommand::Serve {

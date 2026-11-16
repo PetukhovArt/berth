@@ -91,6 +91,17 @@ that is not running, and it does not wait for the agent's answer.
 An [OpenClaw](https://github.com/openclaw/openclaw) skill built on these is in
 `integrations/openclaw/berth/SKILL.md`; copy the `berth` folder into `~/.openclaw/workspace/skills/`.
 
+## Team channels
+
+With `hub_url` and `hub_token` set (see [configuration](configuration.md)), `berth channel` talks to the team hub and prints JSON:
+
+- `berth channel list`: the channels you are in, with unread counts.
+- `berth channel read <channel> [--after <seq>]`: the events of a channel.
+- `berth channel post <channel> <message...>`: post a message; inside a session it is posted as that Agent.
+- `berth channel note <channel> <text...>`: set the Task note of the channel's task. Every member's Agent that starts a Session on that task, meaning a worktree whose branch name contains the channel key, gets it at session start next to their own Task note, labelled as information from a colleague. The latest note wins; `berth channel note <channel>` with no text clears it.
+
+The desktop app's Channel view has a Task note button beside Send. Each daemon also tells the hub every 15 seconds which modules (the first two directories of a changed path) its Agents on a task have changed, and the hub keeps that in memory for 45 seconds. The overlap chip on an Agent then also lists Agents of other members that change the same modules on the same task, as `agent (member)`.
+
 ## MCP server for agents
 
 `berth mcp` speaks MCP over stdio and exposes the same reads and action as the JSON commands above:

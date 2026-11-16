@@ -5,14 +5,22 @@ use crate::registry::Daemon;
 
 pub const TASK_NOTE_MAX_BYTES: usize = 16 * 1024;
 
-pub fn task_note_injection(text: &str) -> String {
+pub fn task_note_line(text: &str) -> String {
+    format!("[berth] Task note: {text}")
+}
+
+pub fn session_start_context(context: &str) -> String {
     serde_json::json!({
         "hookSpecificOutput": {
             "hookEventName": "SessionStart",
-            "additionalContext": format!("[berth] Task note: {text}"),
+            "additionalContext": context,
         }
     })
     .to_string()
+}
+
+pub fn task_note_injection(text: &str) -> String {
+    session_start_context(&task_note_line(text))
 }
 
 impl Daemon {

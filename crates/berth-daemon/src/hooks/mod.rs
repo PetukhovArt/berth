@@ -323,11 +323,8 @@ async fn receive_hook(
             .store
             .task_note_for_agent(&agent_id)
             .unwrap_or_default();
-        let body = if note.is_empty() {
-            String::new()
-        } else {
-            crate::task_notes::task_note_injection(&note)
-        };
+        let shared = crate::shared_notes::for_agent(&state.store, &agent_id).await;
+        let body = crate::shared_notes::session_start_injection(&note, &shared);
         return (StatusCode::OK, body);
     }
     if injectable {

@@ -88,7 +88,11 @@ pub(crate) fn fail(status: StatusCode, e: impl std::fmt::Display) -> (StatusCode
     (status, e.to_string())
 }
 
-pub(crate) fn member(store: &Store, headers: &HeaderMap, scope: &str) -> Result<Member, (StatusCode, String)> {
+pub(crate) fn member(
+    store: &Store,
+    headers: &HeaderMap,
+    scope: &str,
+) -> Result<Member, (StatusCode, String)> {
     let m = store
         .member_by_token(bearer(headers))
         .map_err(|e| fail(StatusCode::INTERNAL_SERVER_ERROR, e))?
