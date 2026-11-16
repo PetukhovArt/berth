@@ -12,11 +12,6 @@ export const attention = {
     idle: 'Berth types into the Agent when the pipeline fails, a thread opens or the target branch conflicts',
     sent: 'Sent to the Agent: {text}',
     stop: 'Stop',
-    toast: {
-      pipeline: '{name} was told that the pipeline of {label} failed',
-      thread: '{name} was told about a new thread in {label}',
-      conflicts: '{name} was told that {label} has conflicts',
-    },
   },
   inbox: {
     title: 'Inbox',

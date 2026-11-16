@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use berth_core::{AgentId, Entity, SessionRef};
+use berth_core::{AgentId, AgentKind, Entity, SessionRef, WorktreeId};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -18,7 +18,7 @@ use crate::files::{self, FileWatches};
 use crate::settings::{self, ConfigFile, SettingsWatch};
 use crate::sink::{BoxSink, Sink};
 
-const GUARDED: [(&str, &str); 17] = [
+const GUARDED: [(&str, &str); 16] = [
     ("review_queue", "repo"),
     ("review_adapter", "repo"),
     ("fs_read_text", "path"),
@@ -34,7 +34,6 @@ const GUARDED: [(&str, &str); 17] = [
     ("worktree_git_state", "path"),
     ("worktree_git_step", "path"),
     ("forge_create_change_request", "path"),
-    ("tracker_comment", "path"),
     ("project_repo_url", "path"),
 ];
 
@@ -326,6 +325,23 @@ impl Client {
                 }
                 let Args { agent } = parse(args)?;
                 berth::berth_mark_seen(&self.berth, agent);
+                Ok(Value::Null)
+            }
+            "berth_prewarm" => {
+                #[derive(Deserialize)]
+                struct Args {
+                    worktree: WorktreeId,
+                    kind: AgentKind,
+                    model: Option<String>,
+                    effort: Option<String>,
+                }
+                let Args {
+                    worktree,
+                    kind,
+                    model,
+                    effort,
+                } = parse(args)?;
+                berth::berth_prewarm(&self.berth, worktree, kind, model, effort);
                 Ok(Value::Null)
             }
             "berth_call" => {

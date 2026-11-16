@@ -28,7 +28,7 @@ const POLL_MS = 2000;
 const COPIED_MS = 1500;
 const TAILSCALE_DOWNLOAD_URL = 'https://tailscale.com/download';
 
-const { t } = useI18n();
+const { t, formatDate } = useI18n();
 const settings = useSettings();
 const status = shallowRef<RemoteStatus | null>(null);
 const failure = shallowRef<string | null>(null);
@@ -97,7 +97,7 @@ function problemText(problem: Problem): string {
   return t(`remote.panel.problem.${problem.kind}`, { message: problem.message });
 }
 
-const since = (ms: number) => t('remote.panel.connectedAt', { time: new Date(ms).toLocaleTimeString() });
+const since = (ms: number) => t('remote.panel.connectedAt', { time: formatDate(ms, { timeStyle: 'medium' }) });
 
 onMounted(() => {
   if (!isDesktop) return;

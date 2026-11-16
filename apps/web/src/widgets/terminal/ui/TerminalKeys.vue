@@ -68,4 +68,10 @@ function press(data: string) {
   color: var(--vr-color-surface);
   background: var(--vr-color-text);
 }
+
+:root[data-vr-viewport='phone'] .key {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0;
+}
 </style>

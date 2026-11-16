@@ -7,12 +7,13 @@ import './app/styles/app.css';
 import './shared/ui/motion/statusAnimation.css';
 import './app/actions';
 import { initApp } from './app/init';
+import { kitLocale } from './app/kitLocale';
 import { initBrowserLocale } from './app/locale';
 import WorkspaceView from './app/ui/WorkspaceView.vue';
 
 function mount(root: Component) {
   const app = createApp(root);
-  installUiKit(app);
+  installUiKit(app, kitLocale);
   app.mount('#app');
 }
 

@@ -215,6 +215,11 @@ export const agents: Translation<typeof en> = {
     chatVoiceMuted: 'Микрофон выключен, berth не слушает',
     chatVoiceWaiting: 'Жду ответ агента…',
     chatVoiceSpeaking: 'Читаю ответ вслух, скажите что-нибудь, чтобы прервать',
+    toolStatus: {
+      pending: 'ожидает',
+      in_progress: 'выполняется',
+      failed: 'ошибка',
+    },
     mr: 'Merge request',
     diff: 'Изменения',
     withShortcut: '{name} ({shortcut})',

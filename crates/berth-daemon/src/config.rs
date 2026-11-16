@@ -3,6 +3,7 @@
 //! unknown fields fall back to defaults; a malformed file is logged and
 //! ignored rather than failing the operation that read it.
 
+use berth_core::daemon_defaults::daemon_defaults;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -11,20 +12,15 @@ pub struct Config {
     /// Run `git init` after AddProject creates a missing directory.
     pub git_init_on_create: bool,
     /// Pre-spawn agent CLIs while the user is still naming the session so
-    /// creation feels instant. Costs one idle CLI process per warm slot.
-    pub prewarm_agents: bool,
-    /// Pre-spawn a worktree's dead sessions when the user's selection rests
-    /// on it, so attaching shows an already-booted screen instead of a
-    /// booting shell. Costs idle shell/CLI processes for sessions the user
-    /// may never open.
-    pub prewarm_sessions: bool,
+    /// creation feels instant. Costs one idle CLI process.
+    pub prewarm: bool,
     /// Kill idle session PTYs in worktrees no client is looking at once
     /// they've gone unwatched this long: "1m" | "5m" | "15m" | "30m" | "1h"
     /// ("off" disables reaping entirely; any `<n>s`/`<n>m`/`<n>h` works).
     /// Bounds what prewarming and walked-away-from sessions cost. Pinned
     /// agents, running or feedback-waiting agents, and terminals with a
     /// command running are spared; a reaped session revives on the next
-    /// attach or prewarm (agents resume their conversation). Malformed
+    /// attach (agents resume their conversation). Malformed
     /// values fall back to the 5m default.
     pub session_idle_timeout: String,
     /// Spawn the sessions that were live when the daemon stopped again when
@@ -42,19 +38,20 @@ pub struct Config {
     pub messenger_telegram_token: Option<String>,
     pub messenger_telegram_chat: Option<serde_json::Value>,
     pub messenger_webhook_url: Option<String>,
+    pub worktree_base: std::collections::BTreeMap<String, String>,
     pub providers: crate::acp::providers::ProvidersConfig,
     pub shared_setup: Option<String>,
 }
 
 impl Default for Config {
     fn default() -> Self {
+        let shared = daemon_defaults();
         Self {
-            git_init_on_create: true,
-            prewarm_agents: true,
-            prewarm_sessions: true,
-            session_idle_timeout: DEFAULT_SESSION_IDLE_TIMEOUT.into(),
-            restore_sessions: true,
-            claude_limits: false,
+            git_init_on_create: shared.git_init_on_create,
+            prewarm: shared.prewarm,
+            session_idle_timeout: shared.session_idle_timeout.clone(),
+            restore_sessions: shared.restore_sessions,
+            claude_limits: shared.claude_limits,
             webhooks: false,
             webhook_port: DEFAULT_WEBHOOK_PORT,
             webhook_expose: false,
@@ -62,7 +59,8 @@ impl Default for Config {
             hub_token: None,
             hub_ca: None,
             channel_chain_limit: 4,
-            checkpoints_claude: false,
+            checkpoints_claude: shared.checkpoints_claude,
+            worktree_base: shared.worktree_base.clone(),
             messenger_telegram_token: None,
             messenger_telegram_chat: None,
             messenger_webhook_url: None,
@@ -71,9 +69,6 @@ impl Default for Config {
         }
     }
 }
-
-/// Fallback for `session_idle_timeout` when the value is malformed.
-pub const DEFAULT_SESSION_IDLE_TIMEOUT: &str = "5m";
 
 pub const DEFAULT_WEBHOOK_PORT: u16 = 47821;
 
@@ -91,9 +86,41 @@ impl Config {
 
     /// `session_idle_timeout` parsed to a duration; None = reaping disabled.
     pub fn session_idle_timeout(&self) -> Option<std::time::Duration> {
-        parse_timeout(&self.session_idle_timeout)
-            .unwrap_or_else(|| parse_timeout(DEFAULT_SESSION_IDLE_TIMEOUT).expect("default parses"))
+        parse_timeout(&self.session_idle_timeout).unwrap_or_else(|| {
+            parse_timeout(&daemon_defaults().session_idle_timeout).expect("default parses")
+        })
     }
+}
+
+const RENAMED_KEYS: [(&str, &str); 1] = [("prewarm_agents", "prewarm")];
+const RETIRED_KEYS: [&str; 1] = ["prewarm_sessions"];
+
+pub fn adopt_renamed_keys(path: &std::path::Path) -> anyhow::Result<()> {
+    let raw = match std::fs::read_to_string(path) {
+        Ok(raw) if !raw.trim().is_empty() => raw,
+        Ok(_) => return Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(e.into()),
+    };
+    let serde_json::Value::Object(mut map) = serde_json::from_str(&raw)? else {
+        return Ok(());
+    };
+    let mut changed = false;
+    for (old, new) in RENAMED_KEYS {
+        if let Some(value) = map.remove(old) {
+            map.entry(new).or_insert(value);
+            changed = true;
+        }
+    }
+    for key in RETIRED_KEYS {
+        changed |= map.remove(key).is_some();
+    }
+    if changed {
+        let temp = path.with_extension("json.berth-tmp");
+        std::fs::write(&temp, serde_json::to_string_pretty(&map)? + "\n")?;
+        std::fs::rename(&temp, path)?;
+    }
+    Ok(())
 }
 
 /// "off"/"0" → Some(None); "<n>s"/"<n>m"/"<n>h" → Some(Some(d));
@@ -133,11 +160,35 @@ mod tests {
 
     #[test]
     fn defaults_enable_prewarm_and_allow_opt_out() {
-        assert!(Config::default().prewarm_agents);
+        assert!(Config::default().prewarm);
         let cfg: Config = serde_json::from_str("{}").unwrap();
-        assert!(cfg.prewarm_agents);
-        let cfg: Config = serde_json::from_str(r#"{"prewarm_agents": false}"#).unwrap();
-        assert!(!cfg.prewarm_agents);
+        assert!(cfg.prewarm);
+        let cfg: Config = serde_json::from_str(r#"{"prewarm": false}"#).unwrap();
+        assert!(!cfg.prewarm);
+    }
+
+    fn adopted(json: &str) -> serde_json::Value {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        std::fs::write(&path, json).unwrap();
+        adopt_renamed_keys(&path).unwrap();
+        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn a_prewarm_turned_off_under_its_old_name_stays_off() {
+        let cfg = adopted(
+            r#"{"prewarm_agents": false, "prewarm_sessions": true, "session_idle_timeout": "1m"}"#,
+        );
+        assert_eq!(
+            cfg,
+            serde_json::json!({"prewarm": false, "session_idle_timeout": "1m"})
+        );
+        assert!(!serde_json::from_value::<Config>(cfg).unwrap().prewarm);
+        assert_eq!(
+            adopted(r#"{"prewarm": true, "prewarm_agents": false}"#),
+            serde_json::json!({"prewarm": true})
+        );
     }
 
     #[test]
@@ -166,14 +217,5 @@ mod tests {
             Config::default().session_idle_timeout(),
             Some(Duration::from_secs(300))
         );
-    }
-
-    #[test]
-    fn defaults_enable_session_prewarm_and_allow_opt_out() {
-        assert!(Config::default().prewarm_sessions);
-        let cfg: Config = serde_json::from_str("{}").unwrap();
-        assert!(cfg.prewarm_sessions);
-        let cfg: Config = serde_json::from_str(r#"{"prewarm_sessions": false}"#).unwrap();
-        assert!(!cfg.prewarm_sessions);
     }
 }

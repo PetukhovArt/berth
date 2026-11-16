@@ -195,7 +195,7 @@ _Avoid_: first prompt
 ## Daemon mechanisms
 
 **Prewarm Pool**
-Pre-booted agent CLIs that get adopted when an Agent is created, so Attach lands on a booted screen.
+The one pre-booted agent CLI a daemon keeps for the open new-session form, adopted when an Agent is created on its target, so Attach lands on a booted screen.
 _Avoid_: warm spares as "sub agents" (they are not subagents)
 
 **Warm Spare**

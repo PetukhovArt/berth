@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { allowRequest, chooseOption, denyRequest, StatusIcon, useFeedbackRequest, type SessionRef } from '../../../entities/session';
+import { allowRequest, chooseOption, denyRequest, feedbackText, StatusIcon, useFeedbackRequest, type SessionRef } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { UiButton } from '../../../shared/ui/UiButton';
 
 const props = defineProps<{ session: SessionRef }>();
 const request = useFeedbackRequest(props.session);
-const text = computed(() => (request.value?.kind === 'Permission' ? t('feedback.permission', { tool: request.value.title }) : request.value?.title));
+const text = computed(() => (request.value ? feedbackText(request.value) : ''));
 </script>
 
 <template>
@@ -27,6 +27,7 @@ const text = computed(() => (request.value?.kind === 'Permission' ? t('feedback.
 .strip {
   display: flex;
   flex: none;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   min-height: 46px;
@@ -47,13 +48,17 @@ const text = computed(() => (request.value?.kind === 'Permission' ? t('feedback.
 }
 
 .detail {
+  box-sizing: border-box;
   min-width: 0;
+  max-width: 100%;
+  max-height: min(30dvh, 10em);
   padding: 1px 6px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
   font-family: var(--vr-font-mono);
   font-size: var(--vr-font-size-xs);
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  white-space: pre-wrap;
   background: var(--vr-color-surface-muted);
   border-radius: var(--vr-radius-sm);
 }
@@ -79,6 +84,11 @@ const text = computed(() => (request.value?.kind === 'Permission' ? t('feedback.
   background: var(--vr-color-surface-muted);
   border: 0;
   border-radius: var(--vr-radius-md);
+}
+
+:global(:root[data-vr-viewport='phone']) .detail {
+  flex: 1 1 100%;
+  padding: 6px 8px;
 }
 
 .action.primary {

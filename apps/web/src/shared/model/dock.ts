@@ -1,7 +1,16 @@
-import { onActivated, onBeforeUnmount, onDeactivated, shallowRef } from 'vue';
+import { computed, onActivated, onBeforeUnmount, onDeactivated, shallowRef } from 'vue';
 import type { DockviewApi, DockviewReadyEvent } from 'dockview-vue';
 import { useIsPhone } from '../ui/kit';
+import { t } from '../lib/i18n/i18n';
+import type { PlainKey } from '../lib/i18n/translate';
+import type { Params } from '../lib/i18n/types';
 import { navigate, view } from './nav';
+
+export const titleKey = (key: PlainKey, params?: Params) => ({ titleKey: key, titleParams: params });
+
+export function panelTitle(title: string | undefined, params: Record<string, unknown> | undefined): string {
+  return typeof params?.titleKey === 'string' ? t(params.titleKey as PlainKey, params.titleParams as Params | undefined) : (title ?? '');
+}
 
 export type PanelSpec = { id: string; component: string; title: string; params?: Record<string, unknown>; renderer?: 'always' };
 export type PanelPosition = { referencePanel: string; direction: 'within' | 'right' | 'below' | 'left' };
@@ -21,7 +30,8 @@ function createDock() {
   const mobile = useIsPhone();
   const api = shallowRef<DockviewApi | null>(null);
   const activeKey = shallowRef<string | null>(null);
-  const activeTitle = shallowRef('');
+  const activeLabel = shallowRef<{ title?: string; params?: Record<string, unknown> }>({});
+  const activeTitle = computed(() => panelTitle(activeLabel.value.title, activeLabel.value.params));
   const visible = shallowRef(false);
   const detail = shallowRef(false);
   const switching = shallowRef(false);
@@ -101,7 +111,7 @@ function createDock() {
       listeners = [
         dock.onDidActivePanelChange(({ panel }) => {
           activeKey.value = panel?.id ?? null;
-          activeTitle.value = panel?.title ?? '';
+          activeLabel.value = { title: panel?.title, params: panel?.params };
           changed(dock);
         }),
         dock.onDidAddPanel(() => changed(dock)),

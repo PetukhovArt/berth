@@ -3,8 +3,9 @@ import { computed, shallowRef, watch } from 'vue';
 import { VButton, VDialog, VInputText, VMessage, VSelect, VTextarea } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
+import { invoke } from '../../../bridge';
 import { acpPrompt, createAcpAgent, createAgent, createTerminal, entitySessionRef, type AgentKind, type SessionRef, useAction } from '../../../entities/session';
-import { useProviders } from '../../../shared/api/providers';
+import { enabledNativeAgent, useProviders } from '../../../shared/api/providers';
 import { useSessionTarget } from '../model/sessionTarget';
 import { deletePreset, presets, savePreset, withPromptFrame, type AgentPreset } from '../model/presets';
 import NewSessionTarget from './NewSessionTarget.vue';
@@ -40,9 +41,15 @@ function generatedName(kind: Kind): string {
 }
 
 const { values } = useSettings();
-const initialKind = KINDS.value.find((option) => option.value === values.value['sessions.default_kind'])?.value ?? 'claude';
-const kind = shallowRef<Kind>(initialKind);
-const name = shallowRef(generatedName(initialKind));
+const defaultKind = computed<Kind>(() => {
+  const chosen = values.value['sessions.default_kind'];
+  if (chosen === 'terminal') return 'terminal';
+  if (!providers.value.length) return ON_BEFORE_PROVIDERS_LOAD.find((option) => option.value === chosen)?.value ?? 'claude';
+  return (enabledNativeAgent(chosen, providers.value) as Kind | null) ?? 'terminal';
+});
+const picked = shallowRef<Kind | null>(null);
+const kind = computed<Kind>(() => picked.value ?? defaultKind.value);
+const name = shallowRef(generatedName(kind.value));
 const model = shallowRef(values.value['sessions.default_model']);
 const effort = shallowRef(values.value['sessions.default_effort']);
 const prompt = shallowRef('');
@@ -79,7 +86,7 @@ function pickKind(value: unknown) {
   const next = KINDS.value.find((option) => option.value === value);
   if (!next) return;
   if (name.value.trim() === defaultName.value || !name.value.trim()) name.value = generatedName(next.value);
-  kind.value = next.value;
+  picked.value = next.value;
 }
 
 function applyPreset(preset: AgentPreset) {
@@ -110,6 +117,17 @@ function removePreset(name: string) {
 }
 
 const optional = (text: string) => text.trim() || null;
+
+const warmWorktree = computed(() => (location.plan.value.kind === 'use' && providers.value.length ? location.plan.value.worktree.id : null));
+
+watch(
+  [warmWorktree, kind],
+  ([worktree, chosen]) => {
+    if (!worktree || chosen === 'terminal' || acpProviderOf(chosen)) return;
+    invoke<void>('berth_prewarm', { worktree, kind: chosen, model: optional(model.value), effort: optional(effort.value) }).catch(() => undefined);
+  },
+  { immediate: true },
+);
 
 async function submit() {
   const chosen = kinds.value;

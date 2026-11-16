@@ -2491,28 +2491,83 @@ async fn archive_sigkills_an_agent_that_ignores_sighup() {
     wait_for_exit(&mut daemon);
 }
 
-/// One PrewarmWorktreeSessions must revive every dead session under the
-/// worktree — no Attach involved — so the TUI can boot a worktree's
-/// sessions the moment the user's selection rests on it. Archived agents
-/// stay dead.
 #[tokio::test]
-async fn prewarm_worktree_sessions_boots_dead_sessions() {
+async fn one_warm_spare_per_daemon_and_the_create_on_its_target_adopts_it() {
     let env = TestEnv::new();
     let repo = env.make_repo();
-    let mut daemon = env.spawn_daemon();
+    let pid_dir = env.tmp.path().join("spares");
+    std::fs::create_dir_all(&pid_dir).unwrap();
+    let script = env.tmp.path().join("spare-agent.sh");
+    std::fs::write(
+        &script,
+        format!(
+            "#!/bin/sh\necho $$ > '{d}'/$BERTH_AGENT_ID.tmp\n\
+             mv '{d}'/$BERTH_AGENT_ID.tmp '{d}'/$BERTH_AGENT_ID.pid\nexec sleep 600\n",
+            d = pid_dir.display()
+        ),
+    )
+    .unwrap();
+    make_executable(&script);
+    let mut daemon = env.spawn_daemon_with_agent_cmd(script.to_str().unwrap());
+
     let mut c = connect(&env.sock()).await;
     handshake(&mut c).await;
     let worktree = add_project_get_main_worktree(&mut c, &repo).await;
 
-    // One agent, one terminal, one archived agent — every PTY dies with the
-    // daemon below.
+    let booted = |dir: &Path| -> Vec<(String, i32)> {
+        std::fs::read_dir(dir)
+            .unwrap()
+            .filter_map(|entry| {
+                let path = entry.ok()?.path();
+                let id = path
+                    .file_name()?
+                    .to_str()?
+                    .strip_suffix(".pid")?
+                    .to_string();
+                let pid = std::fs::read_to_string(&path).ok()?.trim().parse().ok()?;
+                Some((id, pid))
+            })
+            .collect()
+    };
+    let mut spares: Vec<(String, i32)> = Vec::new();
+    for kind in [AgentKind::Claude, AgentKind::Codex] {
+        write_frame(
+            &mut c,
+            &ClientRequest::PrewarmAgent {
+                worktree: worktree.id.clone(),
+                kind,
+                model: None,
+                effort: None,
+            },
+        )
+        .await
+        .unwrap();
+        let deadline = tokio::time::Instant::now() + EVENT_TIMEOUT;
+        loop {
+            let now = booted(&pid_dir);
+            if let Some(new) = now.into_iter().find(|b| !spares.contains(b)) {
+                spares.push(new);
+                break;
+            }
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "{kind:?} spare never booted"
+            );
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    }
+    let (_, replaced_pid) = spares[0].clone();
+    let (warm_id, warm_pid) = spares[1].clone();
+    wait_pid_dead(replaced_pid, EVENT_TIMEOUT, "the replaced Claude spare").await;
+    assert!(pid_alive(warm_pid), "the Codex spare is the one left");
+
     write_frame(
         &mut c,
         &ClientRequest::CreateAgent {
             req_id: 2,
             worktree: worktree.id.clone(),
-            name: "warmed".into(),
-            kind: AgentKind::Claude,
+            name: "warm-codex".into(),
+            kind: AgentKind::Codex,
             model: None,
             effort: None,
             auto_title: false,
@@ -2523,134 +2578,22 @@ async fn prewarm_worktree_sessions_boots_dead_sessions() {
     .await
     .unwrap();
     let events = read_events_until(&mut c, EVENT_TIMEOUT, |evs| find_ack(evs, 2).is_some()).await;
-    let ServerEvent::Ack {
+    let Some(ServerEvent::Ack {
         created: Some(EntityId::Agent(agent_id)),
         ..
-    } = find_ack(&events, 2).unwrap()
+    }) = find_ack(&events, 2)
     else {
         panic!("CreateAgent failed: {events:#?}");
     };
-    let agent_id = agent_id.clone();
+    assert_eq!(agent_id.0, warm_id, "the create took the spare's id");
+    assert!(
+        pid_alive(warm_pid),
+        "the spare's process became the session"
+    );
+    assert_eq!(booted(&pid_dir).len(), 2, "no cold spawn");
 
-    write_frame(
-        &mut c,
-        &ClientRequest::CreateTerminal {
-            req_id: 3,
-            worktree: worktree.id.clone(),
-            name: None,
-        },
-    )
-    .await
-    .unwrap();
-    let events = read_events_until(&mut c, EVENT_TIMEOUT, |evs| find_ack(evs, 3).is_some()).await;
-    let ServerEvent::Ack {
-        created: Some(EntityId::Terminal(term_id)),
-        ..
-    } = find_ack(&events, 3).unwrap()
-    else {
-        panic!("CreateTerminal failed: {events:#?}");
-    };
-    let term_id = term_id.clone();
-
-    write_frame(
-        &mut c,
-        &ClientRequest::CreateAgent {
-            req_id: 4,
-            worktree: worktree.id.clone(),
-            name: "shelved".into(),
-            kind: AgentKind::Claude,
-            model: None,
-            effort: None,
-            auto_title: false,
-            cloud_prompt: None,
-            starting_prompt: None,
-        },
-    )
-    .await
-    .unwrap();
-    let events = read_events_until(&mut c, EVENT_TIMEOUT, |evs| find_ack(evs, 4).is_some()).await;
-    let ServerEvent::Ack {
-        created: Some(EntityId::Agent(archived_id)),
-        ..
-    } = find_ack(&events, 4).unwrap()
-    else {
-        panic!("CreateAgent failed: {events:#?}");
-    };
-    let archived_id = archived_id.clone();
-    write_frame(
-        &mut c,
-        &ClientRequest::ArchiveAgent {
-            req_id: 5,
-            id: archived_id.clone(),
-        },
-    )
-    .await
-    .unwrap();
-    read_events_until(&mut c, EVENT_TIMEOUT, |evs| find_ack(evs, 5).is_some()).await;
-
-    // Restart: rows persist, every PTY is dead.
     write_frame(&mut c, &ClientRequest::Shutdown).await.unwrap();
     wait_for_exit(&mut daemon);
-    env.forget_live_sessions();
-    let mut daemon2 = env.spawn_daemon();
-    let mut c2 = connect(&env.sock()).await;
-    handshake(&mut c2).await;
-    write_frame(&mut c2, &ClientRequest::Subscribe)
-        .await
-        .unwrap();
-    let events = read_events_until(&mut c2, EVENT_TIMEOUT, |evs| {
-        evs.iter()
-            .any(|e| matches!(e, ServerEvent::Snapshot { .. }))
-    })
-    .await;
-    let ServerEvent::Snapshot {
-        agents, terminals, ..
-    } = &events[0]
-    else {
-        panic!("expected snapshot");
-    };
-    assert!(agents.iter().all(|a| !a.alive), "agents dead after restart");
-    assert!(
-        terminals.iter().all(|t| !t.alive),
-        "terminals dead after restart"
-    );
-
-    // One prewarm revives the agent and the terminal (upserts flip alive)…
-    write_frame(
-        &mut c2,
-        &ClientRequest::PrewarmWorktreeSessions {
-            worktree: worktree.id.clone(),
-            cols: 80,
-            rows: 24,
-        },
-    )
-    .await
-    .unwrap();
-    let events = read_events_until(&mut c2, SLOW_TIMEOUT, |evs| {
-        let agent_alive = evs.iter().any(|e| {
-            matches!(e, ServerEvent::EntityUpserted { entity: Entity::Agent(a) }
-                if a.id == agent_id && a.alive)
-        });
-        let term_alive = evs.iter().any(|e| {
-            matches!(e, ServerEvent::EntityUpserted { entity: Entity::Terminal(t) }
-                if t.id == term_id && t.alive)
-        });
-        agent_alive && term_alive
-    })
-    .await;
-    // …and never touches the archived agent.
-    assert!(
-        !events.iter().any(|e| {
-            matches!(e, ServerEvent::EntityUpserted { entity: Entity::Agent(a) }
-                if a.id == archived_id && a.alive)
-        }),
-        "archived agent stayed dead: {events:#?}"
-    );
-
-    write_frame(&mut c2, &ClientRequest::Shutdown)
-        .await
-        .unwrap();
-    wait_for_exit(&mut daemon2);
 }
 
 /// The idle reaper kills sessions in worktrees no client is looking at once

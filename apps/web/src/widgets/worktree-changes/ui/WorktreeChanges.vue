@@ -144,4 +144,8 @@ watch(
     animation: none;
   }
 }
+
+:root.vr-reduce-motion .spin {
+  animation: none;
+}
 </style>

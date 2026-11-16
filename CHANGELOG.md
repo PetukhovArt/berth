@@ -27,6 +27,21 @@
 - Changed router suggestions to appear only for an Agent with a provider error or one that has finished its turn or waits on you, so a running Agent no longer shows a chip.
 - Changed deleting a Workspace to ask in a small popover next to the row instead of a block under it.
 - Fixed `ui.font_size` leaving parts of the interface at their old size: session rows, the title bar, session header buttons, the new session form, badges, diagrams and line heights now follow it too.
+- Added a new Claude session with a starting prompt opens on an Agent prestarted while the New Session form was open, from the desktop app, the web client and a phone, so the prompt is taken in under a second instead of about 3 seconds.
+- Changed the daemon to keep one prestarted Agent in total instead of one per project and agent kind; one `daemon.prewarm` setting (`prewarm` in `config.json`) replaces prewarming Agents and prewarming Sessions.
+- Changed `sessions.archiveOnMerge`, `connectors.trackerWriteBack` and Watch on a merge request to work with no desktop window open and under `berth-server`, once per machine, and a restart no longer repeats or misses a wake (#23).
+- Removed the toast that announced a wake from Watch on a merge request; the Watch strip shows the last one.
+- Fixed `Unload idle sessions after` showing 1 hour in Settings while the daemon used 5 minutes.
+- Fixed the default session kind from Settings being replaced by Claude the first time the New Session form opens, and `Open in session` failing when the default agent is off or set to Terminal.
+- Fixed `berth worktree` without `--base` starting the new branch from the checkout's HEAD instead of the base set in `sessions.worktreeBase`, or develop, main or master.
+- Fixed session status animations not playing in the project tree, and their ripple and spinner styles not showing on tabs.
+- Fixed terminal text in some ANSI colors, white and bright yellow among them, being unreadable on the light theme.
+- Fixed the sidebar, dock, messages, toggles and the Confluence outline still animating with `ui.animations` off.
+- Fixed switching the language not updating dates, times, sorting, list and dialog texts, menus and tab titles until a restart.
+- Fixed the compare view, math errors and the splash screen not following the light, dark and system theme.
+- Windows: Fixed Codex and other npm-installed agents failing to start with `not a valid Win32 application` when npm's POSIX script sits beside its `.cmd` shim on `PATH`.
+- Fixed Hot sessions cards saying No activity yet for an Agent that waits for you or is working: a card now shows the permission or question it waits on, its provider error or its last reply, and the window is only as tall as its cards.
+- Fixed Hot sessions cards showing "No activity yet" for a live Agent when many sessions are open: the window now reads the previews of the first 12 cards in the order it lists them, not of the first 12 sessions in the order they were opened.
 - Added Settings → Providers: Claude, Codex and Grok are on by default, and Cursor, OpenCode, Antigravity, Gemini, Kiro and Pi can be turned on to run over ACP in the chat view, with permission requests answered from a card; the terminal Cursor and OpenCode stay on where you already use them.
 - Added resume for ACP agents: after an idle reap or a daemon restart the next prompt continues the same conversation, an agent that needs sign-in shows a card that starts its own sign-in, and restoring a checkpoint says in the chat that the conversation was not rewound.
 - Added command and argument editing for ACP agents in Settings → Providers, Add ACP agent for any other agent that speaks ACP, an Agent log button in the chat of an ACP agent, and presets for ACP agents in New Session.
@@ -70,7 +85,7 @@
 - Added a way to start the same prompt in several Agents from the New Session dialog in the desktop app, each in its own Session and, with a new branch, its own worktree (#22).
 - Added a `Reviewed` mark on each file in the desktop app's diff view, kept across restarts per merge request or worktree and cleared when the file changes (#44).
 - Added `Open Repository` to a project's menu in the desktop app: it opens the repository page on the git host for the `origin` remote, without the credentials in the URL (#45).
-- Added a badge on the desktop app's taskbar icon with the number of sessions waiting for an answer; the icon flashes when a new one starts waiting while the window is in the background.
+- Added a flash of the desktop app's taskbar icon when a new session starts waiting for an answer while the window is in the background.
 - Added a toast in the desktop app when an agent starts waiting, finishes or stops with an error, and an OS notification when the window is in the background; clicking either opens the session (#25).
 - Added Grok as a session type: `grok` runs in a berth session with status updates, auto titles and resume, through hooks berth writes to `~/.grok/hooks/berth.json`.
 - Added OpenCode as a session type: `opencode` runs in a berth session with status updates, auto titles and resume, through a plugin berth writes to `~/.config/opencode/plugin/berth.js`.

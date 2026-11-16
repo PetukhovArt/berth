@@ -63,6 +63,8 @@ macro_rules! plain_commands {
             free berth_flag_write(key: String, value: bool) = $crate::settings::berth_flag_write;
             free chat_bridge_read() = $crate::chat_bridge::chat_bridge_read;
             free chat_bridge_write(telegram_token: String, telegram_chat: String, webhook_url: String) = $crate::chat_bridge::chat_bridge_write;
+            free berth_worktree_base_read() = $crate::settings::berth_worktree_base_read;
+            free berth_worktree_base_write(value: std::collections::BTreeMap<String, String>) = $crate::settings::berth_worktree_base_write;
             free providers_read() = $crate::providers::providers_read;
             free providers_write(id: String, acp: bool, enabled: bool) = $crate::providers::providers_write;
             free providers_save_acp(id: String, name: String, command: String, args: Vec<String>) = $crate::providers::providers_save_acp;
@@ -83,8 +85,9 @@ macro_rules! plain_commands {
             free worktree_git_state(path: String) = $crate::git_step::worktree_git_state;
             free worktree_git_step(path: String, step: String, message: Option<String>) = $crate::git_step::worktree_git_step;
             state forge_create_change_request(path: String, branch: String, target: String, title: String, description: String) = $crate::connectors::forge::forge_create_change_request;
-            state tracker_comment(path: String, branch: String, body: String) = $crate::connectors::tracker::tracker_comment;
             free project_repo_url(path: String) = $crate::connectors::forge::project_repo_url;
+            free merge_watch_list() = $crate::merge_watch::merge_watch_list;
+            free merge_watch_set(connector: String, project: String, number: u64, on: bool) = $crate::merge_watch::merge_watch_set;
             local_free settings_open_external(file: Option<$crate::settings::ConfigFile>) = $crate::settings::settings_open_external;
             local_free fs_open_external(path: String) = $crate::files::fs_open_external;
             local_free stratum_probe(repo: String, target: String) = $crate::stratum::stratum_probe;

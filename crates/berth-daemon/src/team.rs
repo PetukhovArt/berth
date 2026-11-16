@@ -12,7 +12,7 @@ use crate::pty::{DEFAULT_COLS, DEFAULT_ROWS};
 use crate::registry::Daemon;
 use crate::team_members::{MentionCursor, RegisteredAgents};
 use crate::team_pending::{self, Pending};
-use crate::triggers::{paste, BOOT_GRACE, PASTE_GAP};
+use crate::triggers::{type_prompt, BOOT_GRACE, PASTE_GAP};
 
 const POLL: Duration = Duration::from_secs(5);
 
@@ -87,11 +87,10 @@ impl Daemon {
         }
         if as_keys {
             session.write_input(text.as_bytes())?;
-        } else {
-            session.write_input(&paste(text))?;
+            tokio::time::sleep(PASTE_GAP).await;
+            return session.write_input(b"\r");
         }
-        tokio::time::sleep(PASTE_GAP).await;
-        session.write_input(b"\r")
+        type_prompt(&session, text).await
     }
 
     async fn deliver_pending(self: &Arc<Self>, hub_url: &str, limit: u32) {

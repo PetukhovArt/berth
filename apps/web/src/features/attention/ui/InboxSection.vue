@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { shallowRef, useTemplateRef } from 'vue';
+import { computed, shallowRef, useTemplateRef } from 'vue';
 import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
 import { VContextMenu } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { allowRequest, chooseOption, denyRequest, openChannel, StatusIcon, useBerth, useChannelUnread, useSessionDock } from '../../../entities/session';
-import { t } from '../../../shared/lib/i18n/i18n';
+import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { settleInbox, snoozeInbox, useInbox, type InboxEntry } from '../model/inbox';
 
+const { t, formatTime } = useI18n();
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
@@ -19,11 +20,11 @@ const requestOf = (entry: InboxEntry) => berth?.feedback.value.get(entry.node.id
 const menu = useTemplateRef<InstanceType<typeof VContextMenu>>('menu');
 const target = shallowRef<InboxEntry | null>(null);
 
-const menuItems = [
+const menuItems = computed(() => [
   { key: 'snooze-hour', label: t('attention.inbox.snoozeHour'), command: () => target.value && snoozeInbox(target.value, HOUR) },
   { key: 'snooze-day', label: t('attention.inbox.snoozeDay'), command: () => target.value && snoozeInbox(target.value, untilTomorrow()) },
   { key: 'settle', label: t('attention.inbox.settle'), command: () => target.value && settleInbox(target.value) },
-];
+]);
 
 function untilTomorrow(): number {
   const morning = new Date();
@@ -41,7 +42,7 @@ function age(since: number): string {
 }
 
 function resetTime(until: number | undefined): string {
-  return until ? new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+  return until ? formatTime(until) : '';
 }
 
 function showMenu(event: MouseEvent, entry: InboxEntry) {
@@ -225,12 +226,14 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
 }
 
 .detail {
+  max-height: min(30dvh, 10em);
   padding: 6px 8px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
   font-family: var(--vr-font-mono);
   font-size: var(--vr-font-size-xs);
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  white-space: pre-wrap;
   background: var(--vr-color-surface-sunken);
   border-radius: var(--vr-radius-md);
 }

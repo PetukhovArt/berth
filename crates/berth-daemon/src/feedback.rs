@@ -5,7 +5,9 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 const DETAIL_KEYS: [&str; 5] = ["command", "file_path", "path", "url", "pattern"];
-const MAX_DETAIL_CHARS: usize = 400;
+const MAX_DETAIL_CHARS: usize = 64 * 1024;
+const MAX_PREVIEW_CHARS: usize = 400;
+const CUT_NOTE: &str = "\n[cut: the text is too long to show in full]";
 pub(crate) const MAX_OPTIONS: usize = 9;
 
 #[derive(Default)]
@@ -93,10 +95,26 @@ fn question(input: &Value) -> Option<FeedbackRequest> {
 }
 
 pub(crate) fn detail(input: &Value) -> Option<String> {
-    let text = DETAIL_KEYS
+    let text = detail_text(input)?;
+    match text.char_indices().nth(MAX_DETAIL_CHARS) {
+        None => Some(text.to_string()),
+        Some((end, _)) => Some(format!("{}{CUT_NOTE}", &text[..end])),
+    }
+}
+
+pub(crate) fn preview(input: &Value) -> Option<String> {
+    Some(
+        detail_text(input)?
+            .chars()
+            .take(MAX_PREVIEW_CHARS)
+            .collect(),
+    )
+}
+
+fn detail_text(input: &Value) -> Option<&str> {
+    DETAIL_KEYS
         .iter()
-        .find_map(|key| input.get(key).and_then(Value::as_str))?;
-    Some(text.chars().take(MAX_DETAIL_CHARS).collect())
+        .find_map(|key| input.get(key).and_then(Value::as_str))
 }
 
 #[cfg(test)]
@@ -111,6 +129,23 @@ mod tests {
         assert_eq!(request.kind, FeedbackKind::Permission);
         assert_eq!(request.title, "Bash");
         assert_eq!(request.detail.as_deref(), Some("pnpm test coupons"));
+    }
+
+    #[test]
+    fn a_long_command_reaches_the_approval_whole() {
+        let command = format!("echo {}", "x".repeat(995));
+        let input = json!({ "command": command });
+        let request = from_hook("PermissionRequest", Some("Bash"), Some(&input)).unwrap();
+        assert_eq!(request.detail.as_deref(), Some(command.as_str()));
+    }
+
+    #[test]
+    fn an_absurd_command_is_cut_and_says_so() {
+        let input = json!({ "command": "y".repeat(MAX_DETAIL_CHARS + 5) });
+        let request = from_hook("PermissionRequest", Some("Bash"), Some(&input)).unwrap();
+        let detail = request.detail.unwrap();
+        assert!(detail.starts_with(&"y".repeat(MAX_DETAIL_CHARS)));
+        assert!(detail.ends_with(CUT_NOTE));
     }
 
     #[test]

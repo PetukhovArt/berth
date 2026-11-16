@@ -16,14 +16,14 @@ const busy = shallowRef(false);
 const justSaved = shallowRef(false);
 
 const dirty = computed(() => (draft.value ? draftJson(draft.value) !== saved.value : false));
-const modeOptions = [
+const modeOptions = computed(() => [
   { value: 'suggest', label: t('router.modeSuggest') },
   { value: 'auto', label: t('router.modeAuto') },
-];
+]);
 const kindOptions = ROUTE_KINDS.map((value) => ({ value, label: value }));
 type ActionKey = 'next_in_chain' | 'switch_model' | 'continue_in';
 const ACTIONS: ActionKey[] = ['next_in_chain', 'switch_model', 'continue_in'];
-const actionOptions = ACTIONS.map((value) => ({ value, label: t(`router.action.${value}`) }));
+const actionOptions = computed(() => ACTIONS.map((value) => ({ value, label: t(`router.action.${value}`) })));
 
 async function run(work: () => Promise<{ draft: RouterDraft; path: string }>) {
   busy.value = true;

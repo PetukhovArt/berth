@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, shallowRef, watch } from 'vue';
 import type { DockviewApi, IDockviewPanel } from 'dockview-vue';
 import { Plus } from '../../../shared/ui/icons';
-import { t } from '../../../shared/lib/i18n/i18n';
+import { t, compareText } from '../../../shared/lib/i18n/i18n';
 import { useSessionDock, useBerth, worktreesOfProject, placeExternal, useExternalSessions } from '../../../entities/session';
 import { startCreate } from '../../../features/new-session';
 import DockTab from './DockTab.vue';
@@ -73,7 +73,7 @@ const rows = computed(() => {
   const projects = berth?.entities.value.projects;
   const pin = (id?: string) => projects?.get(id ?? '')?.pin_order ?? Infinity;
   return [...byProject.entries()]
-    .sort(([a, rowA], [b, rowB]) => Number(a === null) - Number(b === null) || Math.sign(pin(rowA.id) - pin(rowB.id)) || (a ?? '').localeCompare(b ?? ''))
+    .sort(([a, rowA], [b, rowB]) => Number(a === null) - Number(b === null) || Math.sign(pin(rowA.id) - pin(rowB.id)) || compareText(a ?? '', b ?? ''))
     .map(([project, row]) => ({ key: project ?? '', label: project ?? t('workbench.notInProject'), projectId: row.id, items: row.items, current: row.items.some((panel) => panel.id === activeId.value) }));
 });
 

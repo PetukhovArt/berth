@@ -132,7 +132,7 @@ onMounted(() => {
           <PipelineJobs />
         </div>
         <p v-if="sideFailure" class="side-failure" role="alert">{{ sideFailure }}</p>
-        <WatchStrip v-if="watching" :target="target" :url="cr.url" />
+        <WatchStrip v-if="watching && cr.state === 'open'" :target="target" :url="cr.url" />
         <MrSessionNotice v-if="sessionRun" :run="sessionRun">
           <template #project="{ repo }"><RepoActions :repo="repo" /></template>
         </MrSessionNotice>

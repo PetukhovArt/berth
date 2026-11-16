@@ -259,7 +259,7 @@ onUnmounted(() => {
   padding: var(--vr-space-2) var(--vr-space-2) 0;
   overflow: hidden;
   color: var(--vr-color-text);
-  transition: width 0.18s ease;
+  transition: width var(--vr-motion-base) ease;
 }
 
 .sidebar.dragging {
@@ -323,7 +323,7 @@ onUnmounted(() => {
   bottom: 0;
   width: 2px;
   background: transparent;
-  transition: background 0.12s ease;
+  transition: background var(--vr-motion-fast) ease;
 }
 
 .resize-handle:hover::after,

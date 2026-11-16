@@ -193,8 +193,8 @@ pub enum ClientRequest {
         pr_url: String,
     },
     /// Fire-and-forget: pre-spawn an agent CLI for this (worktree, kind) so
-    /// the next CreateAgent adopts an already-booted session. Sent the
-    /// moment the user picks the kind, before they type the name. No reply;
+    /// the next CreateAgent adopts an already-booted session.
+    /// No reply;
     /// a missing CLI or failed spawn silently degrades to a cold spawn.
     PrewarmAgent {
         worktree: WorktreeId,
@@ -203,19 +203,6 @@ pub enum ClientRequest {
         /// discarded (a CLI booted with the wrong model can't be adopted).
         model: Option<String>,
         effort: Option<String>,
-    },
-    /// Fire-and-forget: pre-spawn every dead (non-archived) session under a
-    /// worktree so attaching later replays an already-booted screen instead
-    /// of watching a login shell + CLI boot. Sent once the worktree
-    /// selection has rested (debounced client-side); already-alive sessions
-    /// are untouched. No reply; a failed spawn degrades to today's lazy
-    /// spawn-on-attach.
-    PrewarmWorktreeSessions {
-        worktree: WorktreeId,
-        /// Pane size the sessions boot at, so the later Attach resizes to
-        /// the same grid and full-screen apps need no reflow.
-        cols: u16,
-        rows: u16,
     },
     RenameAgent {
         req_id: u64,

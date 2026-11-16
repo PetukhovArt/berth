@@ -52,8 +52,7 @@ file or a missing key means the default.
 |---|---|---|
 | `session_idle_timeout` | `5m` | how long an unwatched idle session keeps its terminal before it is released (`off` never releases). The desktop app sets it in its settings |
 | `restore_sessions` | `true` | start the sessions that were running when the daemon stopped again when it starts (agents resume their conversation). The desktop app's `sessions.restoreOnRestart` sets it |
-| `prewarm_agents` | `true` | let a client have an agent CLI started ahead of time so a new session opens instantly; each idle one costs a few hundred MB |
-| `prewarm_sessions` | `true` | let a client have a worktree's closed sessions booted ahead of time so they open on a booted screen |
+| `prewarm` | `true` | while a new session form is open, start the agent it targets ahead of time so the session opens instantly. The daemon keeps one such agent at most, a few hundred MB for Claude, and stops it after 15 minutes if no session takes it. Older configs spell it `prewarm_agents`; the daemon renames the key on start. The desktop app's `daemon.prewarm` sets it |
 | `claude_limits` | `false` | let the daemon read Claude Code's sign-in and ask Anthropic for your 5-hour and weekly usage every minute; off means no file read and no network call |
 | `checkpoints_claude` | `false` | take Checkpoints for Claude agents too; Claude Code has its own `/rewind`, so they are off by default. Other agents always take them, and Checkpoints already taken stay listed and restorable. The desktop app's `daemon.checkpointsClaude` sets it |
 | `webhooks` | `false` | listen for webhook prompts (`berth webhook`); read when the daemon starts |
@@ -67,6 +66,7 @@ file or a missing key means the default.
 | `channel_chain_limit` | `4` | how many Agent-authored messages in a row a channel delivers to Sessions before it stops, so two Agents cannot loop |
 | `git_init_on_create` | `true` | `git init` a directory that `Add Project` creates because it did not exist |
 | `shared_setup` | none | a directory, or a git URL, holding the skills, MCP servers, hooks, Claude plugins and instructions berth installs into every project (see below) |
+| `worktree_base` | `{}` | project name (or repo folder name) to the branch a new worktree starts from, like `{"web-client": "develop"}`. A project not listed starts from `develop`, `main` or `master`, the first one it has. The branch is fetched from `origin` first; when the fetch fails the local branch is used. Applies to `berth worktree` without `--base` and to `New worktree…` in the desktop app, whose `sessions.worktreeBase` sets it |
 
 ## Shared setup
 

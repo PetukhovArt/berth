@@ -108,8 +108,11 @@ enum Command {
         /// Branch name; several words are joined with hyphens, none at all
         /// gets a random `<adj>-<noun>-<verb>` one.
         name: Vec<String>,
-        /// Start point for a new branch (default: the checkout's HEAD).
-        #[arg(long, value_name = "REF")]
+        #[arg(
+            long,
+            value_name = "REF",
+            help = "Start point for a new branch (default: worktree_base in config.json, else develop, main or master)"
+        )]
         base: Option<String>,
     },
     /// Move this session into another project (run from inside a berth

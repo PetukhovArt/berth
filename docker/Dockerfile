@@ -13,6 +13,7 @@ COPY apps/desktop/package.json apps/desktop/
 COPY apps/web/package.json apps/web/
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
 COPY apps/web apps/web
+COPY crates/berth-core/daemon-defaults.json crates/berth-core/
 RUN pnpm build:tokens && pnpm --filter @berth/web build
 
 FROM rust:${RUST_VERSION}-${DEBIAN} AS core

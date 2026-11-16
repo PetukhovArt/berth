@@ -1,10 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, Once, OnceLock};
 use std::time::{Duration, SystemTime};
 
+use berth_core::daemon_defaults::daemon_defaults;
 use serde::{Deserialize, Serialize};
 use tokio::task::JoinHandle;
 
@@ -150,7 +151,6 @@ pub async fn settings_write(text: String, file: Option<ConfigFile>) -> Result<()
 }
 
 const IDLE_KEY: &str = "session_idle_timeout";
-const IDLE_DEFAULT: &str = "5m";
 const IDLE_CHOICES: [&str; 6] = ["off", "1m", "5m", "15m", "30m", "1h"];
 
 pub(crate) fn berth_config_object(
@@ -173,7 +173,7 @@ pub async fn berth_idle_timeout_read() -> Result<String, String> {
     Ok(map
         .get(IDLE_KEY)
         .and_then(|value| value.as_str())
-        .unwrap_or(IDLE_DEFAULT)
+        .unwrap_or(&daemon_defaults().session_idle_timeout)
         .to_owned())
 }
 
@@ -191,27 +191,24 @@ pub async fn berth_restore_sessions_read() -> Result<bool, String> {
     Ok(map
         .get(RESTORE_KEY)
         .and_then(|value| value.as_bool())
-        .unwrap_or(true))
+        .unwrap_or(daemon_defaults().restore_sessions))
 }
 
 pub async fn berth_restore_sessions_write(value: bool) -> Result<(), String> {
     berth_config_write(RESTORE_KEY, serde_json::Value::Bool(value))
 }
 
-const DAEMON_FLAGS: [(&str, bool); 5] = [
-    ("git_init_on_create", true),
-    ("prewarm_agents", true),
-    ("prewarm_sessions", true),
-    ("claude_limits", false),
-    ("checkpoints_claude", false),
-];
-
 fn daemon_flag(key: &str) -> Result<(&'static str, bool), String> {
-    DAEMON_FLAGS
-        .iter()
-        .copied()
-        .find(|(flag, _)| *flag == key)
-        .ok_or_else(|| format!("неизвестная настройка {key}"))
+    let shared = daemon_defaults();
+    [
+        ("git_init_on_create", shared.git_init_on_create),
+        ("prewarm", shared.prewarm),
+        ("claude_limits", shared.claude_limits),
+        ("checkpoints_claude", shared.checkpoints_claude),
+    ]
+    .into_iter()
+    .find(|(flag, _)| *flag == key)
+    .ok_or_else(|| format!("неизвестная настройка {key}"))
 }
 
 pub async fn berth_flag_read(key: String) -> Result<bool, String> {
@@ -225,6 +222,20 @@ pub async fn berth_flag_read(key: String) -> Result<bool, String> {
 
 pub async fn berth_flag_write(key: String, value: bool) -> Result<(), String> {
     berth_config_write(daemon_flag(&key)?.0, serde_json::Value::Bool(value))
+}
+
+const WORKTREE_BASE_KEY: &str = "worktree_base";
+
+pub async fn berth_worktree_base_read() -> Result<Option<BTreeMap<String, String>>, String> {
+    let map = berth_config_object(&berth_core::paths::config_path())?;
+    Ok(map
+        .get(WORKTREE_BASE_KEY)
+        .and_then(|value| serde_json::from_value(value.clone()).ok()))
+}
+
+pub async fn berth_worktree_base_write(value: BTreeMap<String, String>) -> Result<(), String> {
+    let value = serde_json::to_value(value).map_err(|e| e.to_string())?;
+    berth_config_write(WORKTREE_BASE_KEY, value)
 }
 
 pub(crate) fn berth_config_write(key: &str, value: serde_json::Value) -> Result<(), String> {

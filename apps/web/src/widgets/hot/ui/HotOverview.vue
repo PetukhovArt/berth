@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplate
 import { SquareTerminal, X } from '../../../shared/ui/icons';
 import { HarnessIcon } from '../../../entities/session';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
-import { useHot, type HotItem } from '../model/hot';
+import { useHot, waitingFirst, type HotItem } from '../model/hot';
 import { hotOverviewOpen } from '../model/view';
 
 import { UiButton } from '../../../shared/ui/UiButton';
@@ -17,7 +17,7 @@ let ticker: ReturnType<typeof setInterval> | undefined;
 
 const tiles = computed<{ item: HotItem; number: number }[]>(() => {
   const numbered = hot.items.value.map((item, position) => ({ item, number: position + 1 }));
-  return [...numbered.filter((tile) => tile.item.status === 'waiting'), ...numbered.filter((tile) => tile.item.status !== 'waiting')];
+  return waitingFirst(numbered, (tile) => tile.item.status);
 });
 
 function close() {
@@ -157,7 +157,7 @@ function crumb(item: HotItem): string {
               <span class="title">{{ tile.item.title }}</span>
             </span>
             <span class="crumb">{{ crumb(tile.item) || ' ' }}</span>
-            <span class="preview" :data-empty="!tile.item.preview">{{ tile.item.preview ?? t('hot.overview.noPreview') }}</span>
+            <span class="preview" :data-empty="!tile.item.preview" :title="tile.item.preview ?? undefined">{{ tile.item.preview ?? t('hot.overview.noPreview') }}</span>
             <span class="foot">
               <span class="dot" :data-status="tile.item.status" />
               <span class="state">{{ t(`hot.status.${tile.item.status}`) }}</span>
@@ -209,10 +209,9 @@ function crumb(item: HotItem): string {
   display: flex;
   flex: 0 1 1040px;
   flex-direction: column;
-  align-self: stretch;
   min-width: 0;
   min-height: 0;
-  max-height: 740px;
+  max-height: min(740px, 100%);
   overflow: hidden;
   background: var(--vr-color-surface);
   border-radius: var(--vr-radius-xl);

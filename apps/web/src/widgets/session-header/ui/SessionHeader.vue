@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
-import { t } from '../../../shared/lib/i18n/i18n';
+import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { sessionDot, StatusIcon, useBerth, useExternalSessions, type AgentKind, type SessionStatus } from '../../../entities/session';
 import { knownMr, lookupMr, numberLabel } from '../../../entities/merge-request';
 import { SessionViewSwitch } from '../../../features/session-view-switch';
@@ -14,6 +14,7 @@ import { ShareButton } from '../../../features/share-session';
 import { isDesktop } from '../../../bridge';
 
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
+const { t, formatTime } = useI18n();
 
 const KIND_LABEL: Record<AgentKind, string> = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode', grok: 'Grok', acp: 'ACP' };
 
@@ -50,7 +51,7 @@ const statusText = computed(() => {
   const failure = node.value?.providerError;
   const label = failure ? t(`agents.route.errorKind.${failure.kind}`) : t(`agents.status.${status.value}`);
   const until = status.value === 'limit' ? node.value?.limitUntil : undefined;
-  return until ? `${label} · ${t('agents.metrics.resets', { time: new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}` : label;
+  return until ? `${label} · ${t('agents.metrics.resets', { time: formatTime(until) })}` : label;
 });
 
 const place = computed(() => [project.value, worktree.value?.branch].filter(Boolean).join(' › '));
@@ -113,7 +114,68 @@ watch(
   border-bottom: 1px solid var(--vr-color-border);
 }
 
+:root[data-vr-viewport='phone'] .session-header {
+  flex-wrap: wrap;
+  gap: var(--vr-space-2) 10px;
+  padding: var(--vr-space-2) var(--vr-space-3);
+}
+
 :root[data-vr-viewport='phone'] .session-header .title {
+  display: none;
+}
+
+:root[data-vr-viewport='phone'] .session-header .identity {
+  flex-basis: 100%;
+}
+
+:root[data-vr-viewport='phone'] .session-header .title-row {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step) {
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  row-gap: 6px;
+  min-width: 0;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step > .hint),
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step > .error) {
+  flex-basis: 100%;
+  white-space: normal;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step > .error) {
+  position: static;
+  max-width: none;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step > .run) {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.modes) {
+  display: flex;
+  flex-basis: 100%;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.modes .mode) {
+  flex: 1 1 auto;
+  justify-content: center;
+  min-width: 0;
+  height: 32px;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.modes .name) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.modes .key) {
   display: none;
 }
 
@@ -122,7 +184,7 @@ watch(
   flex: 1;
   flex-direction: column;
   gap: 2px;
-  min-width: 0;
+  min-width: 12rem;
 }
 
 .title-row {

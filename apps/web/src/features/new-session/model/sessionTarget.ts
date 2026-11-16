@@ -1,4 +1,5 @@
 import { computed, shallowRef, watch, type ComputedRef, type ShallowRef } from 'vue';
+import DAEMON_DEFAULTS from '../../../../../../crates/berth-core/daemon-defaults.json';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { mrFetchSource } from '../../../shared/api/connectors/api';
 import { useSettings } from '../../../shared/config/settings/store';
@@ -37,7 +38,7 @@ async function listBranches(project: string): Promise<Branch[]> {
 const isDetached = (branch: string) => branch.startsWith('detached');
 
 const NEW_WORKTREE = ':new-worktree';
-const DEFAULT_BASES = ['develop', 'main', 'master'];
+const DEFAULT_BASES = DAEMON_DEFAULTS.worktree_default_bases;
 
 export function useSessionTarget(initialWorktree: string | null): SessionTarget {
   const berth = useBerth();

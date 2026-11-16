@@ -737,48 +737,52 @@ async fn handle_client(
                         (None, Some(_)) => Some("preset"),
                         (None, None) => None,
                     };
-                    let providers = crate::config::Config::load().providers;
-                    let result =
-                        match crate::acp::providers::ensure_native_enabled(&providers, kind) {
-                            Err(off) => Err(off),
-                            Ok(()) => {
-                                daemon
-                                    .create_agent(CreateAgentSpec {
-                                        worktree: worktree.clone(),
-                                        name,
-                                        kind,
-                                        model,
-                                        effort,
-                                        auto_title,
-                                        cloud_prompt,
-                                        starting_prompt,
-                                        pr_url: None,
-                                    })
-                                    .await
+                    let daemon = daemon.clone();
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let providers = crate::config::Config::load().providers;
+                        let result =
+                            match crate::acp::providers::ensure_native_enabled(&providers, kind) {
+                                Err(off) => Err(off),
+                                Ok(()) => {
+                                    daemon
+                                        .create_agent(CreateAgentSpec {
+                                            worktree: worktree.clone(),
+                                            name,
+                                            kind,
+                                            model,
+                                            effort,
+                                            auto_title,
+                                            cloud_prompt,
+                                            starting_prompt,
+                                            pr_url: None,
+                                        })
+                                        .await
+                                }
+                            };
+                        if let Some(launch_mode) = launch_mode {
+                            match &result {
+                                Ok(berth_core::EntityId::Agent(agent)) => tracing::info!(
+                                    req_id,
+                                    agent = %agent,
+                                    kind = kind.as_str(),
+                                    worktree = %worktree,
+                                    launch_mode,
+                                    "agent session spawned"
+                                ),
+                                Err(error) => tracing::warn!(
+                                    req_id,
+                                    error = %error,
+                                    kind = kind.as_str(),
+                                    worktree = %worktree,
+                                    launch_mode,
+                                    "agent session spawn failed"
+                                ),
+                                Ok(_) => unreachable!("CreateAgent returned a non-agent id"),
                             }
-                        };
-                    if let Some(launch_mode) = launch_mode {
-                        match &result {
-                            Ok(berth_core::EntityId::Agent(agent)) => tracing::info!(
-                                req_id,
-                                agent = %agent,
-                                kind = kind.as_str(),
-                                worktree = %worktree,
-                                launch_mode,
-                                "agent session spawned"
-                            ),
-                            Err(error) => tracing::warn!(
-                                req_id,
-                                error = %error,
-                                kind = kind.as_str(),
-                                worktree = %worktree,
-                                launch_mode,
-                                "agent session spawn failed"
-                            ),
-                            Ok(_) => unreachable!("CreateAgent returned a non-agent id"),
                         }
-                    }
-                    reply(&out_tx, req_id, result.map(Some)).await;
+                        reply(&out_tx, req_id, result.map(Some)).await;
+                    });
                 }
                 ClientRequest::CreatePrAgent {
                     req_id,
@@ -832,24 +836,16 @@ async fn handle_client(
                     // Fire-and-forget: boot the CLI while the user is still
                     // typing the session name; CreateAgent adopts it. Runs
                     // off the request loop (the CLI probe can take a bit).
+                    let ticket = daemon.prewarm.ticket();
                     let daemon = daemon.clone();
                     tokio::spawn(async move {
-                        if let Err(e) = daemon.prewarm_agent(&worktree, kind, model, effort).await {
+                        if let Err(e) = daemon
+                            .prewarm_agent(ticket, &worktree, kind, model, effort)
+                            .await
+                        {
                             tracing::debug!(error = %e, "prewarm failed");
                         }
                     });
-                }
-                ClientRequest::PrewarmWorktreeSessions {
-                    worktree,
-                    cols,
-                    rows,
-                } => {
-                    // Returns at once: the sweep boots the worktree's dead
-                    // sessions on its own task, staggered, skipping the one
-                    // the Attach above already spawned. Racing that Attach is
-                    // safe — ensure_session's spawn gate makes the
-                    // check-and-spawn atomic, so neither can double-fork.
-                    daemon.prewarm_worktree_sessions(&worktree, cols, rows);
                 }
                 ClientRequest::RenameAgent { req_id, id, name } => {
                     reply_done(&out_tx, req_id, daemon.rename_agent(&id, &name)).await;

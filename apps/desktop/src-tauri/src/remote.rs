@@ -41,13 +41,14 @@ const AUTH_TIMEOUT: Duration = Duration::from_secs(10);
 const FAIL_WINDOW: Duration = Duration::from_secs(60);
 const FAIL_LIMIT: u32 = 5;
 const DEFAULT_PORT: u16 = 4477;
-const INLINE: [&str; 9] = [
+const INLINE: [&str; 10] = [
     "berth_watch",
     "berth_attach",
     "berth_input",
     "berth_resize",
     "berth_detach",
     "berth_mark_seen",
+    "berth_prewarm",
     "settings_watch",
     "fs_watch",
     "fs_unwatch",

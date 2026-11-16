@@ -312,11 +312,7 @@ mod resolve {
         std::env::var("PATHEXT").unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".into())
     }
 
-    /// `base` itself if it is a file, else `base` + each `PATHEXT` entry.
     fn first_existing(base: &Path, extensions: &str) -> Option<PathBuf> {
-        if base.is_file() {
-            return Some(base.to_path_buf());
-        }
         extensions
             .split(';')
             .map(str::trim)
@@ -326,6 +322,7 @@ mod resolve {
             // `cursor.exe` on a name that already contains a dot.
             .map(|ext| PathBuf::from(format!("{}{ext}", base.display())))
             .find(|candidate| candidate.is_file())
+            .or_else(|| base.is_file().then(|| base.to_path_buf()))
     }
 
     #[cfg(test)]
@@ -368,6 +365,19 @@ mod resolve {
                 Some(&dir.join("plain-tool")),
             );
             assert_resolves(&dir.join("absent"), extensions, None);
+        }
+
+        #[test]
+        fn an_npm_cmd_shim_wins_over_the_posix_script_beside_it() {
+            let tmp = tempfile::tempdir().unwrap();
+            let dir = tmp.path();
+            std::fs::write(dir.join("codex"), b"#!/bin/sh\n").unwrap();
+            std::fs::write(dir.join("codex.cmd"), b"@echo off\n").unwrap();
+            assert_resolves(
+                &dir.join("codex"),
+                ".COM;.EXE;.BAT;.CMD",
+                Some(&dir.join("codex.cmd")),
+            );
         }
 
         /// A name that already contains a dot must gain the extension, not

@@ -19,6 +19,7 @@ pub mod metrics;
 pub mod orphans;
 pub mod pacer_migration;
 pub mod presence;
+pub mod prewarm;
 pub mod project_pins;
 pub mod pty;
 pub mod registry;
@@ -43,6 +44,7 @@ mod team_pending;
 pub mod triggers;
 pub mod usage;
 pub mod usage_limits;
+pub mod worktree_base;
 pub mod worktree_seed;
 pub mod worktree_setup;
 
@@ -86,6 +88,9 @@ async fn serve() -> Result<()> {
     // Record which build this daemon runs so installers can tell an
     // up-to-date daemon from a stale one (`berth _stale-daemon-note`).
     lifecycle::write_buildstamp();
+    if let Err(e) = config::adopt_renamed_keys(&paths::config_path()) {
+        tracing::warn!(error = %e, "could not rename old keys in the config");
+    }
 
     let endpoint = transport::endpoint_description();
     let listener = transport::bind()

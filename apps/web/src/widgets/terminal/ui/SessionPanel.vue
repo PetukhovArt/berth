@@ -55,12 +55,28 @@ function themeFromTokens(): ITheme {
     foreground: term('fg'),
     cursor: term('fg'),
     cursorAccent: token('surface-sunken'),
-    selectionBackground: token('nav-active'),
-    brightBlack: term('dim'),
+    selectionBackground: term('selection'),
+    selectionInactiveBackground: term('selection-inactive'),
+    selectionForeground: term('selection-fg'),
+    scrollbarSliderBackground: term('scrollbar'),
+    scrollbarSliderHoverBackground: term('scrollbar-hover'),
+    scrollbarSliderActiveBackground: term('scrollbar-active'),
+    black: term('black'),
     red: term('red'),
     green: term('green'),
-    yellow: term('accent'),
+    yellow: term('yellow'),
     blue: term('blue'),
+    magenta: term('magenta'),
+    cyan: term('cyan'),
+    white: term('white'),
+    brightBlack: term('bright-black'),
+    brightRed: term('bright-red'),
+    brightGreen: term('bright-green'),
+    brightYellow: term('bright-yellow'),
+    brightBlue: term('bright-blue'),
+    brightMagenta: term('bright-magenta'),
+    brightCyan: term('bright-cyan'),
+    brightWhite: term('bright-white'),
   };
 }
 
@@ -317,6 +333,11 @@ onBeforeUnmount(() => {
   min-height: 0;
   padding: var(--vr-space-1) 0 0 var(--vr-space-2);
   overflow: hidden;
+}
+
+.terminal :deep(.composition-view) {
+  color: var(--vr-term-fg);
+  background: var(--vr-color-surface-raised);
 }
 
 .released {

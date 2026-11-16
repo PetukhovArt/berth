@@ -115,8 +115,8 @@ onUnmounted(() => stopResize?.());
   border-radius: 5px;
   font-size: var(--vr-font-size-xs);
   font-weight: 700;
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-accent);
+  color: var(--vr-color-brand-contrast);
+  background: var(--vr-color-brand);
 }
 
 .search {
