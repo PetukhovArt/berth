@@ -13,6 +13,8 @@ import { KeymapPanel } from '../../../features/keymap-editor';
 import { RemotePanel } from '../../../features/remote-access';
 import { ProvidersPanel } from '../../../features/manage-providers';
 import { PushToggle } from '../../../features/web-push';
+import { VoiceModelsRow } from '../../../features/voice-input';
+import { voiceModels } from '../../../shared/lib/nativeVoice';
 import { isDesktop } from '../../../bridge';
 import SettingsJsonEditor from '../../../shared/ui/SettingsJsonEditor.vue';
 import { CATEGORIES, SETTINGS, SETTING_KEYS } from '../../../shared/config/settings/schema';
@@ -51,6 +53,7 @@ function panelShown(id: CategoryId, keywords: string) {
 const showRouter = computed(() => panelShown('router', `${t('settings.category.router').toLowerCase()} ${t('settings.routerKeywords')}`));
 const showProviders = computed(() => panelShown('providers', `${t('settings.category.providers').toLowerCase()} ${t('settings.providerKeywords')}`));
 const showConnectors = computed(() => panelShown('connectors', t('settings.connectorKeywords')));
+const showVoiceModels = computed(() => Boolean(voiceModels.value?.supported) && panelShown('sessions', t('voice.models.keywords')));
 const groups = computed(() =>
   CATEGORIES.map((entry) => ({
     ...entry,
@@ -180,7 +183,10 @@ function onSearchKey(event: KeyboardEvent) {
             <h2 v-if="normalizedQuery">{{ t(group.label) }}</h2>
             <SettingRow v-for="key in group.keys" :key="key" :setting-key="key" />
           </section>
-          <p v-if="!groups.length && !showConnectors && !showProviders && !showRouter" class="empty" data-testid="settings-empty">{{ t('settings.empty') }}</p>
+          <section v-if="showVoiceModels" class="group" data-testid="settings-voice-models">
+            <VoiceModelsRow />
+          </section>
+          <p v-if="!groups.length && !showConnectors && !showProviders && !showRouter && !showVoiceModels" class="empty" data-testid="settings-empty">{{ t('settings.empty') }}</p>
         </div>
       </div>
     </div>

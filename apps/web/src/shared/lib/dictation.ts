@@ -1,4 +1,6 @@
 import { onBeforeUnmount, shallowRef } from 'vue';
+import { nativeEngine } from './nativeVoice';
+import type { DictationEngine, HoldToTalkIssue, Take } from './speechEngine';
 
 interface RecognitionResult {
   readonly isFinal: boolean;
@@ -30,13 +32,86 @@ function recognitionCtor(): RecognitionCtor | null {
   return scope.SpeechRecognition ?? scope.webkitSpeechRecognition ?? null;
 }
 
-export type HoldToTalkIssue = 'denied' | 'short' | 'empty' | 'failed';
+export type { HoldToTalkIssue };
 
-type DictationOptions = { onSend: (text: string) => void | Promise<void>; onIssue: (issue: HoldToTalkIssue) => void; onSpeech?: () => void; onSettled?: () => void };
+type DictationOptions = {
+  onSend: (text: string) => void | Promise<void>;
+  onIssue: (issue: HoldToTalkIssue) => void;
+  onSpeech?: () => void;
+  onWoke?: () => void;
+  onSettled?: () => void;
+  wakePhrase?: () => string;
+};
 
 export function speechLang(): string {
   return document.documentElement.lang === 'ru' ? 'ru-RU' : 'en-US';
 }
+
+const browserEngine: DictationEngine = {
+  supported: recognitionCtor() !== null,
+  open(options, events) {
+    const Ctor = recognitionCtor();
+    if (!Ctor) {
+      queueMicrotask(() => events.end('', 'failed'));
+      return { stop: () => undefined, abort: () => undefined };
+    }
+    const recognition = new Ctor();
+    let finalText = '';
+    let interim = '';
+    let stopped = false;
+    let failure: HoldToTalkIssue | null = null;
+    let pauseTimer: ReturnType<typeof setTimeout> | undefined;
+    recognition.lang = speechLang();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.onresult = (e) => {
+      events.speech();
+      let next = '';
+      for (let i = e.resultIndex; i < e.results.length; i += 1) {
+        const result = e.results[i]!;
+        if (result.isFinal) finalText = (finalText + ' ' + result[0].transcript).trim();
+        else next += result[0].transcript;
+      }
+      interim = next;
+      events.interim(next);
+      if (!options.handsFree) return;
+      clearTimeout(pauseTimer);
+      pauseTimer = setTimeout(() => {
+        if (stopped || !(finalText || interim)) return;
+        stopped = true;
+        recognition.stop();
+      }, PAUSE_MS);
+    };
+    recognition.onerror = (e) => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') failure = 'denied';
+      else if (e.error !== 'no-speech' && e.error !== 'aborted') failure = 'failed';
+    };
+    recognition.onend = () => {
+      if (!stopped && !failure) return recognition.start();
+      clearTimeout(pauseTimer);
+      events.end((finalText + ' ' + interim).trim(), failure);
+    };
+    try {
+      recognition.start();
+    } catch {
+      recognition.onend = null;
+      queueMicrotask(() => events.end('', 'failed'));
+    }
+    return {
+      stop: () => {
+        stopped = true;
+        recognition.stop();
+      },
+      abort: () => {
+        clearTimeout(pauseTimer);
+        recognition.onend = null;
+        recognition.abort();
+      },
+    };
+  },
+};
+
+const engine: DictationEngine = nativeEngine ?? browserEngine;
 
 export function useHoldToTalk(options: DictationOptions) {
   const dictation = createDictation(options);
@@ -45,36 +120,30 @@ export function useHoldToTalk(options: DictationOptions) {
 }
 
 export function createDictation(options: DictationOptions) {
-  const supported = recognitionCtor() !== null;
+  const supported = engine.supported;
   const holding = shallowRef(false);
+  const recognising = shallowRef(false);
   const cancelling = shallowRef(false);
   const transcript = shallowRef('');
-  let recognition: Recognition | null = null;
+  let take: Take | null = null;
+  let owner: object | null = null;
   let origin = { x: 0, y: 0 };
   let startedAt = 0;
-  let finalText = '';
-  let released = false;
-  let aborted = false;
-  let failure: HoldToTalkIssue | null = null;
   let handsFree = false;
-  let pauseTimer: ReturnType<typeof setTimeout> | undefined;
 
   function reset() {
-    clearTimeout(pauseTimer);
+    owner = null;
+    take = null;
     holding.value = false;
+    recognising.value = false;
     cancelling.value = false;
     transcript.value = '';
-    recognition = null;
   }
 
-  function finish() {
-    const text = (finalText + ' ' + transcript.value).trim();
-    const issue = failure;
-    const cancel = aborted;
+  function finish(text: string, issue: HoldToTalkIssue | null) {
     const heldFor = Date.now() - startedAt;
     const free = handsFree;
     reset();
-    if (cancel) return;
     if (issue) options.onIssue(issue);
     else if (!text) {
       if (!free) options.onIssue(heldFor < MIN_HOLD_MS ? 'short' : 'empty');
@@ -83,59 +152,48 @@ export function createDictation(options: DictationOptions) {
   }
 
   function begin(free: boolean) {
-    const Ctor = recognitionCtor();
-    if (!Ctor || holding.value) return;
+    if (!supported || owner) return;
     handsFree = free;
     startedAt = Date.now();
-    finalText = '';
-    released = false;
-    aborted = false;
-    failure = null;
     transcript.value = '';
     holding.value = true;
-    const next = new Ctor();
-    next.lang = speechLang();
-    next.continuous = true;
-    next.interimResults = true;
-    next.onresult = (e) => {
-      options.onSpeech?.();
-      let interim = '';
-      for (let i = e.resultIndex; i < e.results.length; i += 1) {
-        const result = e.results[i]!;
-        if (result.isFinal) finalText = (finalText + ' ' + result[0].transcript).trim();
-        else interim += result[0].transcript;
-      }
-      transcript.value = interim;
-      if (handsFree) {
-        clearTimeout(pauseTimer);
-        pauseTimer = setTimeout(() => {
-          if (recognition !== next || !(finalText || transcript.value)) return;
-          released = true;
-          holding.value = false;
-          next.stop();
-        }, PAUSE_MS);
-      }
-    };
-    next.onerror = (e) => {
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') failure = 'denied';
-      else if (e.error !== 'no-speech' && e.error !== 'aborted') failure = 'failed';
-    };
-    next.onend = () => {
-      if (recognition !== next) return;
-      if (released || failure) finish();
-      else if (holding.value) next.start();
-    };
-    recognition = next;
-    try {
-      next.start();
-    } catch {
-      failure = 'failed';
-      finish();
-    }
+    const token = {};
+    owner = token;
+    const opened = engine.open(
+      { handsFree: free, wakePhrase: free ? (options.wakePhrase?.() ?? '') : '' },
+      {
+        woke: () => {
+          if (owner === token) options.onWoke?.();
+        },
+        speech: () => {
+          if (owner === token) options.onSpeech?.();
+        },
+        interim: (text) => {
+          if (owner === token) transcript.value = text;
+        },
+        end: (text, issue) => {
+          if (owner === token) finish(text, issue);
+        },
+      },
+    );
+    if (owner === token) take = opened;
+  }
+
+  function abort() {
+    const current = take;
+    reset();
+    current?.abort();
+  }
+
+  function settle() {
+    if (!holding.value || !take) return;
+    holding.value = false;
+    recognising.value = true;
+    take.stop();
   }
 
   function start(event: PointerEvent) {
-    if (!recognitionCtor() || holding.value) return;
+    if (!supported || owner) return;
     event.preventDefault();
     (event.currentTarget as HTMLElement | null)?.setPointerCapture(event.pointerId);
     origin = { x: event.clientX, y: event.clientY };
@@ -147,10 +205,7 @@ export function createDictation(options: DictationOptions) {
   }
 
   function stopListening() {
-    if (!recognition) return;
-    aborted = true;
-    recognition.abort();
-    finish();
+    if (owner) abort();
   }
 
   function move(event: PointerEvent) {
@@ -159,16 +214,10 @@ export function createDictation(options: DictationOptions) {
   }
 
   function release(event: PointerEvent) {
-    if (!holding.value || !recognition) return;
+    if (!holding.value || !take) return;
     (event.currentTarget as HTMLElement | null)?.releasePointerCapture?.(event.pointerId);
-    released = true;
-    holding.value = false;
-    if (event.type === 'pointercancel' || cancelling.value) {
-      aborted = true;
-      recognition.abort();
-      return finish();
-    }
-    recognition.stop();
+    if (event.type === 'pointercancel' || cancelling.value) return abort();
+    settle();
   }
 
   function hold() {
@@ -176,11 +225,8 @@ export function createDictation(options: DictationOptions) {
   }
 
   function letGo() {
-    if (!holding.value || !recognition) return;
-    released = true;
-    holding.value = false;
-    recognition.stop();
+    settle();
   }
 
-  return { supported, holding, cancelling, transcript, start, move, release, hold, letGo, listen, stopListening };
+  return { supported, holding, recognising, cancelling, transcript, start, move, release, hold, letGo, listen, stopListening };
 }

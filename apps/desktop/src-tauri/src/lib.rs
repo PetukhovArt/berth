@@ -31,6 +31,8 @@ mod taskbar;
 #[cfg(feature = "desktop")]
 mod tray;
 #[cfg(feature = "desktop")]
+mod voice;
+#[cfg(feature = "desktop")]
 mod working_copy;
 
 #[cfg(feature = "desktop")]

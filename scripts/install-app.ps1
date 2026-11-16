@@ -205,6 +205,10 @@ try {
     if (Test-Path -LiteralPath $staging) { Remove-Item -Recurse -Force -LiteralPath $staging }
     New-Item -ItemType Directory -Force -Path $staging | Out-Null
     Copy-Item -LiteralPath (Join-Path $release $exeName) -Destination $staging
+    foreach ($dll in 'sherpa-onnx-c-api.dll', 'onnxruntime.dll') {
+        $runtimeDll = Join-Path $release $dll
+        if (Test-Path -LiteralPath $runtimeDll) { Copy-Item -LiteralPath $runtimeDll -Destination $staging }
+    }
     Copy-Item -LiteralPath $daemonExe -Destination $staging
     Copy-Item -LiteralPath (Join-Path $src 'scripts\install-app.ps1') -Destination $staging
     $build = [ordered]@{ buildId = $buildId; commit = $commit; subject = $subject; sourceRepo = $Repo; builtAt = (Get-Date).ToString('o'); protocol = $protocol }

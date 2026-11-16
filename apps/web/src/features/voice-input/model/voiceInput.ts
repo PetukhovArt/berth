@@ -7,11 +7,20 @@ import { describeError, enqueuePrompt, submitPrompt, useBerth, type SessionNode 
 
 const NOTICE_MS = 3000;
 const ARMED_MS = 10_000;
-const ISSUES: Record<HoldToTalkIssue, PlainKey> = { denied: 'agents.sessionView.chatTalkDenied', short: 'voice.short', empty: 'agents.sessionView.chatTalkEmpty', failed: 'agents.sessionView.chatTalkFailed' };
+const ISSUES: Record<HoldToTalkIssue, PlainKey> = {
+  denied: 'agents.sessionView.chatTalkDenied',
+  short: 'voice.short',
+  empty: 'agents.sessionView.chatTalkEmpty',
+  failed: 'agents.sessionView.chatTalkFailed',
+  offline: 'voice.issue.offline',
+  loading: 'voice.issue.loading',
+  phrase: 'voice.issue.phrase',
+};
 
 const { values } = useSettings();
 const wakeKey = shallowRef<string | null>(null);
 const armedAt = shallowRef(0);
+const wakeHeard = shallowRef(false);
 let pushKey: string | null = null;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -22,7 +31,7 @@ const sessionOf = (key: string | null): SessionNode | undefined => (key ? useBer
 
 export const pushSession = shallowRef<SessionNode | null>(null);
 export const wakeSession = computed(() => sessionOf(wakeKey.value) ?? null);
-export const wakeArmed = computed(() => armedAt.value > 0);
+export const wakeArmed = computed(() => armedAt.value > 0 || wakeHeard.value);
 
 function notify(text: string) {
   voiceNotice.value = text;
@@ -69,17 +78,29 @@ const push = createDictation({
   onSettled: resumeWake,
 });
 
+function listenFor(): string {
+  if (armedAt.value && Date.now() - armedAt.value < ARMED_MS) return '';
+  armedAt.value = 0;
+  return wakePhrase.value;
+}
+
 const wake = createDictation({
   onSend: heard,
+  wakePhrase: listenFor,
   onIssue: (issue) => {
-    if (issue !== 'denied' && issue !== 'failed') return;
+    if (issue === 'short' || issue === 'empty') return;
     stopWakeWord();
     notify(tr(ISSUES[issue]));
   },
-  onSettled: resumeWake,
+  onWoke: () => (wakeHeard.value = true),
+  onSettled: () => {
+    wakeHeard.value = false;
+    resumeWake();
+  },
 });
 
 export const pushHolding = push.holding;
+export const pushRecognising = push.recognising;
 export const voiceTranscript = computed(() => (push.holding.value ? push.transcript.value : wake.transcript.value));
 
 function heard(text: string) {
@@ -96,7 +117,7 @@ function heard(text: string) {
 }
 
 function resumeWake() {
-  if (wakeKey.value && !push.holding.value && !wake.holding.value) wake.listen();
+  if (wakeKey.value && !push.holding.value && !push.recognising.value && !wake.holding.value) wake.listen();
 }
 
 function sessionInView(): string | null {
@@ -117,6 +138,7 @@ export function holdToTalk() {
   if (!key) return notify(tr('voice.noSession'));
   pushKey = key;
   pushSession.value = sessionOf(key) ?? null;
+  wakeHeard.value = false;
   wake.stopListening();
   window.addEventListener('keyup', release, true);
   window.addEventListener('blur', release);
@@ -126,6 +148,7 @@ export function holdToTalk() {
 export function stopWakeWord() {
   wakeKey.value = null;
   armedAt.value = 0;
+  wakeHeard.value = false;
   wake.stopListening();
 }
 
