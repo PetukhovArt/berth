@@ -114,19 +114,27 @@ function fitList() {
   const limit = el.clientHeight - padding;
   let fit = 0;
   for (const row of el.querySelectorAll<HTMLElement>(':scope > .item')) {
+    if (getComputedStyle(row).position === 'absolute') continue;
     const bottom = row.offsetTop + row.offsetHeight;
     if (bottom <= limit) fit = bottom;
   }
   if (fit > 0) el.style.setProperty('--qs-list-max', `${fit + padding}px`);
 }
 
+const refit = () => requestAnimationFrame(fitList);
+const rowsChanged = new MutationObserver(refit);
+
 watch(results, () => void nextTick(fitList), { flush: 'post' });
 onMounted(() => {
   input.value?.focus();
   fitList();
   window.addEventListener('resize', fitList);
+  if (list.value) rowsChanged.observe(list.value, { childList: true });
 });
-onBeforeUnmount(() => window.removeEventListener('resize', fitList));
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', fitList);
+  rowsChanged.disconnect();
+});
 </script>
 
 <template>
