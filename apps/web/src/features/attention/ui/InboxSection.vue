@@ -125,7 +125,7 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
   width: 100%;
   padding: 4px var(--vr-space-2);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--vr-font-size-label);
   text-align: left;
   color: inherit;
   background: none;
@@ -169,12 +169,12 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
 
 .age {
   flex: none;
-  font-size: 11.5px;
+  font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
 }
 
 .reason {
-  font-size: 11.5px;
+  font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
 }
 

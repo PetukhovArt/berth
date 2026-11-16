@@ -17,6 +17,9 @@ identifier). Rules there differ from the Rust crates:
   `checks.mjs` on staged files under `apps/`, `packages/` and `docker/` only.
 - The app's "What's new" dialog lists `feat`/`perf`/`fix` commit subjects since the previous build. Commit
   messages are English only, conventional commits, no translation trailers; a Russian UI shows the English subject.
+- Text sizes come from `var(--vr-font-size-…)` and `var(--vr-font-leading-…)`, or `em`/`%` and unitless
+  line heights relative to them; a raw `px` font size or line height ignores the `ui.font_size` setting
+  (GOTCHAS `TYPE SCALE`).
 - Colors come from `packages/ui-tokens` through `var(--vr-…)`; the web side reaches Rust only through
   `apps/web/src/bridge.ts`.
 - Dev run on Windows, isolated from your real daemon and your real `~/.berth` and keychain:

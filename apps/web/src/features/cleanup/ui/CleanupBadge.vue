@@ -20,7 +20,7 @@ const label = computed(() => (kind.value ? t(`cleanup.badge.${kind.value}`) : ''
   padding: 0 var(--vr-space-1);
   font: inherit;
   font-size: var(--vr-font-size-2xs);
-  line-height: 16px;
+  line-height: 1.45;
   color: var(--vr-color-text-muted);
   background: var(--vr-color-chip-bg);
   border: none;

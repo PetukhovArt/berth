@@ -65,7 +65,7 @@ function open() {
   padding: 0 5px;
   color: var(--vr-color-text-muted);
   font-family: var(--vr-font-mono);
-  font-size: 10.5px;
+  font-size: var(--vr-font-size-2xs);
   line-height: 1;
   background: var(--vr-color-surface-muted);
   border: none;

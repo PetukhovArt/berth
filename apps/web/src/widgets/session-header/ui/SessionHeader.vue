@@ -131,7 +131,7 @@ watch(
 
 .title {
   overflow: hidden;
-  font-size: 15px;
+  font-size: var(--vr-font-size-title);
   font-weight: 600;
   white-space: nowrap;
   text-overflow: ellipsis;

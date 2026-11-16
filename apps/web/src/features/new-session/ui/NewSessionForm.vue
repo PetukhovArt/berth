@@ -282,8 +282,8 @@ function onVisible(visible: boolean) {
   border-radius: 12px;
   background: var(--vr-color-surface-sunken);
   box-shadow: none;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: var(--vr-font-size-sm);
+  line-height: 1.57;
   resize: none;
 }
 
@@ -294,7 +294,7 @@ function onVisible(visible: boolean) {
   border-radius: 7px;
   background: var(--vr-color-surface-muted);
   box-shadow: none;
-  font-size: 12.5px;
+  font-size: var(--vr-font-size-label);
 }
 
 .chip :deep(.p-select-label) {
@@ -347,7 +347,7 @@ function onVisible(visible: boolean) {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
 }
 

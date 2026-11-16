@@ -373,7 +373,7 @@ function onKey(event: KeyboardEvent) {
   min-height: 28px;
   padding: 0 4px 0 calc(var(--depth) * var(--indent) + 6px);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--vr-font-size-label);
   text-align: left;
   color: var(--vr-color-text);
   background: none;
@@ -429,7 +429,7 @@ function onKey(event: KeyboardEvent) {
 .count {
   flex: none;
   padding: 0 0 0 var(--vr-space-1);
-  font-size: 11.5px;
+  font-size: var(--vr-font-size-xs);
   font-variant-numeric: tabular-nums;
   color: var(--vr-color-text-muted);
 }

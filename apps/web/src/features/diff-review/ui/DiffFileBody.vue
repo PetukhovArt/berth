@@ -140,7 +140,7 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
   min-width: max-content;
   font-family: var(--vr-font-mono);
   font-size: var(--vr-font-size-xs);
-  line-height: 21px;
+  line-height: 1.75;
   background: var(--vr-color-surface-sunken);
 }
 

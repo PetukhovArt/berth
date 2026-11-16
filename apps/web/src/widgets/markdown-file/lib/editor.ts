@@ -41,7 +41,7 @@ const theme = EditorView.theme({
     fontSize: 'var(--vr-font-size-xs)',
   },
   '&.cm-focused': { outline: 'none' },
-  '.cm-scroller': { fontFamily: 'var(--vr-font-mono)', lineHeight: '20px', overflow: 'auto' },
+  '.cm-scroller': { fontFamily: 'var(--vr-font-mono)', lineHeight: '1.67', overflow: 'auto' },
   '.cm-content': { caretColor: 'var(--vr-color-text)', padding: '0 0 var(--vr-space-4)' },
   '.cm-line': { padding: '0 var(--vr-space-3) 0 var(--vr-space-2)' },
   '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--vr-color-text)' },

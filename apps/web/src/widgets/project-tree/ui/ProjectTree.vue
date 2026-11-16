@@ -242,7 +242,7 @@ function toggleFilter() {
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  font-size: 13px;
+  font-size: var(--vr-font-size-label);
 }
 
 .filter {
@@ -333,7 +333,7 @@ function toggleFilter() {
 
 .badge {
   flex: none;
-  font-size: 11px;
+  font-size: var(--vr-font-size-2xs);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--vr-color-text-muted);
@@ -398,12 +398,12 @@ function toggleFilter() {
   position: absolute;
   top: -3px;
   right: -4px;
-  min-width: 12px;
-  height: 12px;
+  min-width: 1.333em;
+  height: 1.333em;
   padding: 0 2px;
-  font-size: 9px;
+  font-size: var(--vr-font-size-3xs);
   font-variant-numeric: tabular-nums;
-  line-height: 12px;
+  line-height: 1.333;
   text-align: center;
   color: var(--vr-color-accent-contrast);
   background: var(--vr-color-accent);

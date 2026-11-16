@@ -1,5 +1,9 @@
 @import '../../shared/ui/motion/motion.css';
 
+html {
+  font-size: calc(16px * var(--vr-font-scale));
+}
+
 html,
 #app {
   height: 100%;
@@ -99,7 +103,7 @@ summary,
   padding: 1px 4px;
   border-radius: var(--vr-radius-sm);
   font-weight: 500;
-  line-height: 18px;
+  line-height: 1.5;
   color: var(--vr-color-accent);
   background: var(--vr-color-chip-bg);
 }

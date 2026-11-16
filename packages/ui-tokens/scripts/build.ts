@@ -6,12 +6,21 @@ const themes = [
   { name: 'dark', selector: '.vr-dark' },
 ] as const;
 
+const FONT_SCALED = new Set(['size', 'leading']);
+
+StyleDictionary.registerTransform({
+  name: 'vr/font-scale',
+  type: 'value',
+  filter: (token) => token.path[0] === 'font' && FONT_SCALED.has(token.path[1] ?? ''),
+  transform: (token) => `calc(${String(token.$value ?? token.value)} * var(--vr-font-scale))`,
+});
+
 const config = (source: string[], destination: string, selector: string) => ({
   source,
   log: { verbosity: 'silent' as const },
   platforms: {
     css: {
-      transformGroup: 'css',
+      transforms: [...StyleDictionary.hooks.transformGroups.css, 'vr/font-scale'],
       prefix: 'vr',
       buildPath: 'generated/',
       files: [{ destination, format: 'css/variables', options: { selector, outputReferences: false } }],

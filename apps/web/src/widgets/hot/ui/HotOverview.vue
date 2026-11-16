@@ -242,7 +242,7 @@ function crumb(item: HotItem): string {
 
 .heading {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--vr-font-size-title);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -374,8 +374,8 @@ function crumb(item: HotItem): string {
   overflow: hidden;
   padding: 8px 10px;
   font-family: var(--vr-font-mono);
-  font-size: 11.5px;
-  line-height: 17px;
+  font-size: var(--vr-font-size-xs);
+  line-height: 1.42;
   color: var(--vr-term-fg);
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -392,7 +392,7 @@ function crumb(item: HotItem): string {
   display: flex;
   gap: 6px;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--vr-font-size-xs);
   white-space: nowrap;
 }
 

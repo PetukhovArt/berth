@@ -222,7 +222,7 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
 .fields dt {
   color: var(--vr-color-text-muted);
   font-size: var(--vr-font-size-xs);
-  line-height: 24px;
+  line-height: 2;
 }
 
 .fields dd {

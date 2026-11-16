@@ -214,7 +214,7 @@ watch(
   height: 28px;
   padding: 0 11px;
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--vr-font-size-label);
   border: 0;
   border-radius: 7px;
   cursor: pointer;

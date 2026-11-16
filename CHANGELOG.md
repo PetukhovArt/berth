@@ -8,6 +8,7 @@
 - Added a router editor in Settings → Sessions: the fallback chain, and each rule's conditions as rows with and, or, not and groups, saved to `router.toml` by the daemon with unknown conditions kept as written.
 - Changed router suggestions to appear only for an Agent with a provider error or one that has finished its turn or waits on you, so a running Agent no longer shows a chip.
 - Changed deleting a Workspace to ask in a small popover next to the row instead of a block under it.
+- Fixed `ui.font_size` leaving parts of the interface at their old size: session rows, the title bar, session header buttons, the new session form, badges, diagrams and line heights now follow it too.
 - Added Settings → Providers: Claude, Codex and Grok are on by default, and Cursor, OpenCode, Antigravity, Gemini, Kiro and Pi can be turned on to run over ACP in the chat view, with permission requests answered from a card; the terminal Cursor and OpenCode stay on where you already use them.
 - Added resume for ACP agents: after an idle reap or a daemon restart the next prompt continues the same conversation, an agent that needs sign-in shows a card that starts its own sign-in, and restoring a checkpoint says in the chat that the conversation was not rewound.
 - Added command and argument editing for ACP agents in Settings → Providers, Add ACP agent for any other agent that speaks ACP, an Agent log button in the chat of an ACP agent, and presets for ACP agents in New Session.

@@ -454,7 +454,7 @@ onBeforeUnmount(() => {
   padding: 0 var(--vr-space-2);
   overflow: hidden;
   font-size: var(--vr-font-size-2xs);
-  line-height: 20px;
+  line-height: 1.8;
   color: var(--vr-color-text-muted);
   white-space: nowrap;
   text-overflow: ellipsis;

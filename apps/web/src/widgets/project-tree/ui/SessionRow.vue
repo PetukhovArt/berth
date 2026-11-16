@@ -171,7 +171,7 @@ async function confirmDelete() {
   height: 28px;
   padding: 0 4px 0 var(--vr-space-5);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--vr-font-size-label);
   text-align: left;
   color: inherit;
   background: none;
@@ -197,7 +197,7 @@ async function confirmDelete() {
 
 .label {
   flex: none;
-  font-size: 11.5px;
+  font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
 }
 

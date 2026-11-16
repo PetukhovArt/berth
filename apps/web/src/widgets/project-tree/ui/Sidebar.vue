@@ -392,12 +392,12 @@ kbd {
 }
 
 .count {
-  min-width: 16px;
+  min-width: 1.45em;
   padding: 0 var(--vr-space-1);
   margin-left: auto;
   font-size: var(--vr-font-size-2xs);
   font-weight: 600;
-  line-height: 16px;
+  line-height: 1.45;
   text-align: center;
   color: var(--vr-color-accent-contrast);
   background: var(--vr-color-accent);

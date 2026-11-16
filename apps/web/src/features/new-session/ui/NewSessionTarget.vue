@@ -99,7 +99,7 @@ const summary = computed(() => {
   border-radius: 7px;
   background: var(--vr-color-surface-muted);
   box-shadow: none;
-  font-size: 12.5px;
+  font-size: var(--vr-font-size-label);
 }
 
 .chip :deep(.p-select-label) {
@@ -116,7 +116,7 @@ const summary = computed(() => {
 .row-label {
   width: 90px;
   flex: none;
-  font-size: 12px;
+  font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
 }
 
@@ -127,21 +127,21 @@ const summary = computed(() => {
 
 .mono {
   font-family: var(--vr-font-mono);
-  font-size: 12.5px;
+  font-size: var(--vr-font-size-label);
 }
 
 .summary {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  font-size: 12.5px;
-  line-height: 18px;
+  font-size: var(--vr-font-size-label);
+  line-height: 1.4;
   color: var(--vr-color-text-muted);
 }
 
 .setup {
   font-family: var(--vr-font-mono);
-  font-size: 12px;
+  font-size: var(--vr-font-size-xs);
 }
 
 .arrow {
