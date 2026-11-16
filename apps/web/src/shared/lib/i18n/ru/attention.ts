@@ -42,5 +42,11 @@ export const attention = {
     agent: 'Агент',
     person: 'Человек',
     present: 'Запущены Сессии по этой задаче: {who}',
+    request: {
+      answeredLocally: 'Ответ дан в berth',
+      answeredBy: '{who} ответил(а): {answer}',
+      sent: 'Ответ отправлен, ждём Агента',
+      ownerOnly: 'Ответить может только владелец Агента',
+    },
   },
 } as const;

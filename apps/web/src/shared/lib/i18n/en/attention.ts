@@ -42,5 +42,11 @@ export const attention = {
     agent: 'Agent',
     person: 'Person',
     present: 'Running Sessions on this task: {who}',
+    request: {
+      answeredLocally: 'Answered in berth',
+      answeredBy: '{who} answered: {answer}',
+      sent: 'Answer sent, waiting for the Agent',
+      ownerOnly: "Only the Agent's owner can answer",
+    },
   },
 } as const;
