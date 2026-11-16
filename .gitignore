@@ -33,3 +33,4 @@ apps/desktop/src-tauri/gen/
 /.jig/*
 !/.jig/config.jsonc
 .agent-view/
+.ui-council/
