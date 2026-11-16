@@ -264,6 +264,7 @@ pub fn run() {
         .manage(AgentSessionWatch::default())
         .setup(move |app| {
             tauri::async_runtime::spawn(monitor::run(connectors.clone()));
+            tauri::async_runtime::spawn(crate::merge_watch::run(connectors.clone()));
             tauri::async_runtime::spawn(crate::stratum::sweep_once());
             let remote = Remote::new(connectors, web_source(app.handle()));
             let watcher = remote.clone();
@@ -339,7 +340,6 @@ pub fn run() {
             worktree_git_state,
             worktree_git_step,
             forge_create_change_request,
-            tracker_comment,
             project_repo_url,
             fs_open_external,
             stratum_probe,

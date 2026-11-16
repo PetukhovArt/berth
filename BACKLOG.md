@@ -20,7 +20,6 @@ Source paths are in [`pingdotgg/t3code`](https://github.com/pingdotgg/t3code).
 - Checkpoints on hidden refs: a snapshot of the Worktree at each prompt, restorable without commits
   on the branch. Files only: the native TUI gives no way to roll the conversation back. Source:
   `apps/server/src/orchestration-v2/CheckpointService.ts`, `apps/server/src/vcs/GitVcsDriver.ts`.
-- Archive after merge: a Session whose merge request merged settles by itself, opt-in.
 - Watch a merge request: wake the Agent with input when its pipeline fails or a new thread arrives.
   Source: `docs/user/source-control.md:324-333` (`watch_pull_request`).
 - Subscription limits: 5-hour and weekly windows with reset times for Claude, Codex and Cursor.
@@ -80,8 +79,6 @@ shared server:
 - Overlaps: warn when two Agents in different Worktrees of one Project touch the same module, before
   they produce conflicting merge requests. A module is the first one or two directories of a changed
   path; an overlap is a module touched by more than one Agent.
-- Tracker write-back, off by default: when an Agent finishes, post its status and branch as a comment
-  on the Jira or GitLab issue, so colleagues see progress without berth.
 - A small MCP server for Agents: read task notes and overlaps, post a message to another Agent of the
   same task. It shares its commands with a JSON-emitting `berth` CLI, which voice control and
   messenger bots would use too.

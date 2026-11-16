@@ -40,7 +40,9 @@ In the daemon (`crates/berth-daemon/src`): cloud sessions (`claude --cloud` / `-
 prewarm pool, the idle reaper, restoring live sessions after a restart (`restore.rs`), and the metrics
 sampler (`sampler.rs`) behind the desktop app's metrics panel. In the desktop app
 (`apps/desktop/src-tauri/src`): remote access (`remote.rs`), connectors, worktree cleanup
-(`cleanup.rs`) and the working-copy updater (`working_copy.rs`).
+(`cleanup.rs`), the working-copy updater (`working_copy.rs`) and the merge-request watcher
+(`merge_watch.rs`, decisions in `berth-core/src/merge_watch.rs`) behind archive on merge and
+tracker write-back, which the desktop app and `berth-server` both run, one at a time per daemon.
 
 ## Crate layout
 

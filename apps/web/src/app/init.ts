@@ -10,8 +10,6 @@ import { useSettings } from '../shared/config/settings/store';
 import { announceAttention, initAttention, onAttention } from '../features/attention';
 import { pushToPhones } from '../features/web-push';
 import { initWatchMergeRequest } from '../features/watch-merge-request';
-import { initTrackerWriteBack } from '../features/tracker-write-back';
-import { initArchiveOnMerge } from '../features/archive-on-merge';
 import { initOverlaps } from '../features/overlaps';
 import { initCleanup } from '../features/cleanup';
 import { initAutoUpdate, initUpdate } from '../features/update';
@@ -34,8 +32,6 @@ export function initApp(): () => void {
   disposers.push(initTray());
   disposers.push(initAttention());
   disposers.push(onAttention((event) => (event.kind === 'waiting' || event.kind === 'finished') && pushToPhones(event, event.kind, event.text)));
-  disposers.push(initTrackerWriteBack());
-  disposers.push(initArchiveOnMerge());
   disposers.push(initWatchMergeRequest(announceAttention));
   disposers.push(initOverlaps());
   disposers.push(initCleanup());

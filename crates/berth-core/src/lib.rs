@@ -10,6 +10,7 @@ pub mod env;
 pub mod host;
 pub mod ids;
 pub mod legacy;
+pub mod merge_watch;
 pub mod paths;
 pub mod platform;
 pub mod protocol;

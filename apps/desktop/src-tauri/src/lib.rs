@@ -13,6 +13,7 @@ pub mod files;
 mod git_step;
 mod history_projects;
 pub mod legacy;
+pub mod merge_watch;
 mod mr_checkout;
 pub mod platform;
 mod providers;

@@ -2,7 +2,6 @@ import type { Translation } from '../types';
 import type { connectors as en } from '../en/connectors';
 
 export const connectors: Translation<typeof en> = {
-  writeBack: 'Berth: агент «{name}» закончил работу в ветке {branch}.',
   panel: {
     title: 'Коннекторы',
     checkAll: 'Проверить все',

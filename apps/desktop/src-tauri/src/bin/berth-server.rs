@@ -7,6 +7,7 @@ use berth_desktop_lib::connectors::monitor;
 use berth_desktop_lib::connectors::secrets::{self, FileStore};
 use berth_desktop_lib::connectors::Connectors;
 use berth_desktop_lib::legacy;
+use berth_desktop_lib::merge_watch;
 use berth_desktop_lib::remote::{Pinned, Remote, WebAsset, WebSource};
 use berth_desktop_lib::settings;
 use qrcode::render::unicode::Dense1x2;
@@ -223,6 +224,7 @@ async fn serve(options: Options, token_note: String) -> ExitCode {
     }
     let connectors = Arc::new(Connectors::load());
     tokio::spawn(monitor::run(connectors.clone()));
+    tokio::spawn(merge_watch::run(connectors.clone()));
     tokio::spawn(berth_desktop_lib::stratum::sweep_once());
     let remote = Remote::pinned(
         connectors,
