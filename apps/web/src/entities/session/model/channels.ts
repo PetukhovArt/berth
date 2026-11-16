@@ -1,7 +1,9 @@
 import { computed, shallowRef } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
-import { BerthCallError, call, onChannelAppended } from './berth';
+import { BerthCallError, call, onChannelAppended, useBerth } from './berth';
+
+export const agentName = (agent: string) => useBerth()?.entities.value.agents.get(agent)?.name ?? agent;
 
 export { onChannelAppended };
 

@@ -4,7 +4,7 @@ import { UiButton } from '../../../shared/ui/UiButton';
 import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { Bot, UserRound } from '../../../shared/ui/icons';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
-import { answerInChannel, channelRequestOf, describeError, isAgentMessage, isChannelReply, isNoteMessage, isOwnAgentRequest, onChannelAppended, postNote, postToChannel, promoteChannelMessage, readChannel, readChannelGrants, readPresence, refreshChannels, revokeChannelGrant, settlementOf, type ChannelGrant, type ChannelMessage, type ChannelPresent, type ChannelRequest, type ChannelSettlement } from '../../../entities/session';
+import { agentName, answerInChannel, channelRequestOf, describeError, isAgentMessage, isChannelReply, isNoteMessage, isOwnAgentRequest, onChannelAppended, postNote, postToChannel, promoteChannelMessage, readChannel, readChannelGrants, readPresence, refreshChannels, revokeChannelGrant, settlementOf, type ChannelGrant, type ChannelMessage, type ChannelPresent, type ChannelRequest, type ChannelSettlement } from '../../../entities/session';
 
 const POLL_MS = 4000;
 
@@ -166,8 +166,8 @@ onBeforeUnmount(() => {
     <p v-if="grants.length" class="grants" data-testid="channel-grants">
       <span>{{ t('attention.channel.grants') }}</span>
       <span v-for="grant in grants" :key="`${grant.agent}:${grant.member}`" class="grant" data-testid="channel-grant">
-        {{ t('attention.channel.grant', { member: grant.member_name, agent: grant.agent }) }}
-        <UiButton type="button" class="link" :aria-label="t('attention.channel.revokeLabel', { member: grant.member_name, agent: grant.agent })" data-testid="channel-grant-revoke" @click="revoke(grant)">{{ t('attention.channel.revoke') }}</UiButton>
+        {{ t('attention.channel.grant', { member: grant.member_name, agent: agentName(grant.agent) }) }}
+        <UiButton type="button" class="link" :aria-label="t('attention.channel.revokeLabel', { member: grant.member_name, agent: agentName(grant.agent) })" data-testid="channel-grant-revoke" @click="revoke(grant)">{{ t('attention.channel.revoke') }}</UiButton>
       </span>
     </p>
     <ol ref="list" class="messages" data-testid="channel-messages">
