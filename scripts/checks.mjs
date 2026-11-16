@@ -79,6 +79,14 @@ const rawColors = (file, text) => {
   return css.flatMap(([offset, body]) => [...body.matchAll(DECLARATION)].filter((m) => COLOR.test(m[1])).map((m) => [offset + m.index, m[0].trim()]));
 };
 
+const TYPE_CSS = /([\w-]*(?:font-size|line-height)|(?<![\w-])font)\s*:([^;{}"'\n]+)/g;
+const TYPE_SCRIPT = /(?:\bfontSize|\blineHeight|['"](?:font-size|line-height)['"])\s*:\s*['"`]([^'"`]+)/g;
+const ABSOLUTE_LENGTH = /(?<![\w.-])\d*\.?\d+(?:px|pt|rem)\b/;
+const rawType = (file, text) =>
+  /^(apps\/web|packages\/ui-kit)\/.*\.(vue|css|[cm]?[jt]s)$/.test(file)
+    ? [...text.matchAll(TYPE_CSS), ...text.matchAll(TYPE_SCRIPT)].filter((m) => ABSOLUTE_LENGTH.test(m.at(-1).replace(/max\([^)]*\)/g, ''))).map((m) => [m.index, m[0].trim()])
+    : [];
+
 const RUST_TEST = /#\[(?:cfg\(test\)|test|[\w:]*::test(?:\([^)\]]*\))?)\]/g;
 const SCRIPT_TEST = /\bfrom\s+['"](?:vitest|@playwright\/test|node:test|@vue\/test-utils)['"]/g;
 const testsOf = (file, text) => {
@@ -121,6 +129,7 @@ const checks = [
   ['new-files', 'не добавляй .md, *.test.*, *.spec.* и __tests__/: правда живёт в коде, тестов в проекте нет', async () => added.filter((file) => /\.md$|\.(test|spec)\.|(^|\/)__tests__\//i.test(file))],
   ['tests', 'не пиши тесты в apps/, packages/ и docker/: тесты живут только в crates/', async () => scan(() => true, testsOf)],
   ['raw-elements', 'бери кнопки и поля из apps/web/src/shared/ui (UiButton, UiInput, UiTextarea): сырые button, input и textarea живут только там', async () => scan(() => true, rawElements)],
+  ['raw-type', 'размер текста бери из var(--vr-font-size-…)/var(--vr-font-leading-…), em/% или безразмерный line-height: сырые px не масштабируются', async () => scan(() => true, rawType)],
   ['stratum', 'исправь нарушение слоёв: stratum-lint explain <rule> подскажет как, правило не глуши', async () => (lintable.some((file) => file.startsWith('apps/web/')) ? run(`stratum-lint lint --format agent --files ${quoted(lintable)}`) : [])],
   ['oxlint', 'исправь предупреждения oxlint, не отключай правило', async () => (lintable.length ? run(`oxlint --deny-warnings ${quoted(lintable)}`) : [])],
   ['knip', 'удали неиспользуемый export, файл или зависимость', () => run('knip')],
@@ -129,7 +138,7 @@ const checks = [
   ['clippy', 'исправь замечания clippy, не глуши их через allow', async () => (tauriTouched ? run('cargo clippy -p berth-desktop --all-targets -j 4 -- -D warnings') : [])],
 ];
 
-const RULES = new Set(['comments', 'raw-colors', 'new-files', 'tests', 'raw-elements']);
+const RULES = new Set(['comments', 'raw-colors', 'new-files', 'tests', 'raw-elements', 'raw-type']);
 const results = await Promise.all(checks.filter(([name]) => !rulesOnly || RULES.has(name)).map(async ([name, fix, check]) => [name, fix, await check()]));
 for (const [name, fix, found] of results) {
   console.log(found.length ? `✗ ${name}: ${found.length} — ${fix}` : `✓ ${name}`);

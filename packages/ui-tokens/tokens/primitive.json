@@ -44,7 +44,7 @@
     "mono": { "$type": "fontFamily", "$value": "'JetBrains Mono Variable', 'JetBrains Mono', Consolas, monospace" },
     "size": {
       "$type": "dimension",
-      "3xs": { "$value": "9px" }, "2xs": { "$value": "11px" }, "xs": { "$value": "12px" }, "label": { "$value": "13px" }, "sm": { "$value": "14px" }, "title": { "$value": "15px" }, "base": { "$value": "16px" }, "lg": { "$value": "18px" }, "xl": { "$value": "20px" }, "display": { "$value": "26px" }
+      "3xs": { "$value": "9px" }, "2xs": { "$value": "11px" }, "xs": { "$value": "12px" }, "label": { "$value": "13px" }, "sm": { "$value": "14px" }, "title": { "$value": "15px" }, "base": { "$value": "16px" }, "lg": { "$value": "18px" }, "xl": { "$value": "20px" }, "display": { "$value": "26px" }, "root": { "$value": "16px" }
     },
     "leading": {
       "message": { "$value": "20px" }, "author": { "$value": "16px" }

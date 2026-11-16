@@ -1,7 +1,7 @@
 @import '../../shared/ui/motion/motion.css';
 
 html {
-  font-size: calc(16px * var(--vr-font-scale));
+  font-size: var(--vr-font-size-root);
 }
 
 html,
