@@ -129,8 +129,17 @@ needs two more tools:
 
 The install script looks for both before it builds. When it finds them it builds with `--features voice`;
 when it does not, it builds without the engine and prints one line saying what to install.
-`install-app.ps1 -CheckVoice` prints that verdict and exits without building. By hand, add
-`--features voice` to `cargo build -p berth-desktop` or to `pnpm --filter @berth/desktop exec tauri dev`.
+`install-app.ps1 -CheckVoice` prints that verdict, with any variables it would set, and exits without
+building. By hand, add `--features voice` to `cargo build -p berth-desktop` or to
+`pnpm --filter @berth/desktop exec tauri dev`, and set what the script would:
+
+- `CLANG_PATH` to LLVM's `clang.exe` when LLVM's `bin` is not on `PATH` (the winget install leaves it
+  off). bindgen asks `clang.exe` for its include folders; without it the bindings stop at `'stdbool.h'
+  file not found`.
+- When the newest Visual Studio on the machine has no C++ workload (a Visual Studio 2022 IDE beside Build
+  Tools 2019, say), CMake and clang both pick it and fail with `could not find any instance of Visual
+  Studio` and `'stdio.h' file not found`. Point them at the one that has it: `CMAKE_GENERATOR` to
+  `Visual Studio 16 2019` and `VCToolsInstallDir` to its `VC\Tools\MSVC\<version>\` folder.
 
 With the engine, the build downloads the sherpa-onnx libraries from their GitHub releases and puts
 `sherpa-onnx-c-api.dll` and `onnxruntime.dll` next to `berth-desktop.exe`, and the install script copies
