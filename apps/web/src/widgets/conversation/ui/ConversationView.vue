@@ -4,12 +4,12 @@ import { Bot, Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, Triangle
 import { VButton, VMessage } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
-import { AGENT_KIND_LABEL, continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, listCheckpoints, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, sendInput, useFeedbackRequest, allowRequest, alwaysAllowRequest, offersAlways, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, submitPrompt, useAcpChat, useQueuedPrompts, type SessionRef } from '../../../entities/session';
+import { AGENT_KIND_LABEL, continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, sendInput, useFeedbackRequest, allowRequest, alwaysAllowRequest, offersAlways, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, submitPrompt, useAcpChat, useQueuedPrompts, type SessionRef } from '../../../entities/session';
 import { worktreeOf } from '../../../features/session-view-switch';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { readAcpAgentLog } from '../../../shared/api/providers';
-import { chatBlocks, checkpointsByPrompt, modelLabel } from '../model/chatBlocks';
+import { chatBlocks } from '../model/chatBlocks';
 import { durationLabel } from '../model/duration';
 import ToolGroup from './ToolGroup.vue';
 import TurnFiles from './TurnFiles.vue';

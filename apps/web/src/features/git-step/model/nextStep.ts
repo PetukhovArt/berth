@@ -14,6 +14,12 @@ export function nextStep(state: GitState, hasRequest: boolean): NextStep {
   return { kind: 'run', commit, push, create };
 }
 
+export function stepShortLabelKey(step: NextStep) {
+  if (step.kind === 'run' && !step.commit && step.create) return step.push ? ('gitStep.pushCreateShort' as const) : ('gitStep.createShort' as const);
+  if (step.kind === 'run' && step.commit && step.create) return 'gitStep.commitPushCreateShort' as const;
+  return stepLabelKey(step);
+}
+
 export function stepLabelKey(step: NextStep) {
   if (step.kind === 'pull') return 'gitStep.pull' as const;
   if (step.kind === 'idle') return 'gitStep.commitAndPush' as const;

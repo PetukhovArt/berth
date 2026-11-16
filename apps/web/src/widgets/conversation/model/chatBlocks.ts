@@ -1,4 +1,4 @@
-import type { Checkpoint, FileEdit, TranscriptMessage } from '../../../entities/session';
+import { isPrompt, type FileEdit, type TranscriptMessage } from '../../../entities/session';
 
 export type ToolCategory = 'read' | 'edit' | 'run' | 'search' | 'fetch' | 'other';
 export type ToolCall = { message: TranscriptMessage; category: ToolCategory; details: TranscriptMessage[] };
@@ -47,8 +47,6 @@ const CATEGORY_BY_KIND: Readonly<Record<string, ToolCategory>> = {
 
 const TOOL_CATEGORIES: readonly ToolCategory[] = ['read', 'edit', 'run', 'search', 'fetch', 'other'];
 
-const CHECKPOINT_SLACK_MS = 120_000;
-
 function categoryOf(message: TranscriptMessage): ToolCategory {
   if (message.edits?.length) return 'edit';
   return CATEGORY_BY_TOOL[message.tool ?? ''] ?? CATEGORY_BY_KIND[message.toolKind ?? ''] ?? 'other';
@@ -61,8 +59,6 @@ function secondsBetween(first: TranscriptMessage | undefined, last: TranscriptMe
   const span = timeOf(last) - timeOf(first);
   return Number.isFinite(span) && span >= 1000 ? Math.round(span / 1000) : null;
 }
-
-const isPrompt = (message: TranscriptMessage) => message.role === 'user' && message.tool === null && !message.shell;
 
 function changedFiles(messages: readonly TranscriptMessage[]): ChangedFile[] {
   const byPath = new Map<string, ChangedFile>();
@@ -133,41 +129,3 @@ export function toolCounts(calls: readonly ToolCall[]): [ToolCategory, number][]
   return TOOL_CATEGORIES.filter((category) => counts.has(category)).map((category) => [category, counts.get(category)!]);
 }
 
-export function checkpointsByPrompt(messages: readonly TranscriptMessage[], checkpoints: readonly Checkpoint[]): Map<string, Checkpoint> {
-  const prompts = messages.filter(isPrompt);
-  const taken = checkpoints.filter((checkpoint) => !checkpoint.before_restore).sort((a, b) => a.created_at - b.created_at);
-  const out = new Map<string, Checkpoint>();
-  if (!prompts.length || !taken.length) return out;
-  if (prompts.every((message) => Number.isNaN(timeOf(message)))) {
-    const count = Math.min(prompts.length, taken.length);
-    for (let i = 1; i <= count; i++) out.set(prompts[prompts.length - i]!.key, taken[taken.length - i]!);
-    return out;
-  }
-  for (const checkpoint of taken) {
-    const at = checkpoint.created_at * 1000;
-    let best: TranscriptMessage | null = null;
-    let bestGap = CHECKPOINT_SLACK_MS;
-    for (const message of prompts) {
-      const gap = Math.abs(timeOf(message) - at);
-      if (gap <= bestGap) {
-        best = message;
-        bestGap = gap;
-      }
-    }
-    if (best) out.set(best.key, checkpoint);
-  }
-  return out;
-}
-
-export function modelLabel(id: string): string {
-  const trimmed = id.trim();
-  const capital = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
-  if (/^(opus|sonnet|haiku)$/i.test(trimmed)) return capital(trimmed.toLowerCase());
-  const match = /^claude-(.+?)(?:-\d{8})?(\[1m\])?$/i.exec(trimmed);
-  if (!match) return trimmed;
-  const parts = match[1]!.split('-');
-  const family = parts.find((part) => /^[a-z]+$/i.test(part));
-  if (!family) return trimmed;
-  const version = parts.filter((part) => /^\d+$/.test(part)).join('.');
-  return [capital(family.toLowerCase()), version].filter(Boolean).join(' ') + (match[2] ? ' (1M)' : '');
-}

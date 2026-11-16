@@ -6,7 +6,9 @@ import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { forgeCreateChangeRequest, worktreeGitState, worktreeGitStep, type GitState } from '../../../shared/api/git';
 import { rememberMr } from '../../../entities/merge-request';
-import { nextStep, stepLabelKey } from '../model/nextStep';
+import { GitBranch } from '../../../shared/ui/icons';
+import { createRequested } from '../model/createRequest';
+import { nextStep, stepLabelKey, stepShortLabelKey } from '../model/nextStep';
 
 const props = defineProps<{ path: string; branch: string; hasRequest: boolean; refreshKey?: string }>();
 
@@ -21,6 +23,7 @@ const description = ref('');
 const step = computed(() => (state.value ? nextStep(state.value, props.hasRequest) : null));
 const runnable = computed(() => step.value && step.value.kind !== 'idle');
 const label = computed(() => (step.value ? t(stepLabelKey(step.value)) : ''));
+const shortLabel = computed(() => (step.value ? t(stepShortLabelKey(step.value)) : ''));
 const needsForm = computed(() => step.value?.kind === 'run' && (step.value.commit || step.value.create));
 const hint = computed(() => {
   const current = step.value;
@@ -96,6 +99,12 @@ watch(
   () => props.hasRequest,
   () => void refresh(),
 );
+watch(createRequested, async (request) => {
+  if (!request || request.path !== props.path) return;
+  await refresh();
+  const current = step.value;
+  if (current?.kind === 'run' && current.create && !busy.value) open.value = true;
+});
 
 onMounted(() => window.addEventListener('focus', refresh));
 onBeforeUnmount(() => window.removeEventListener('focus', refresh));
@@ -104,8 +113,10 @@ onBeforeUnmount(() => window.removeEventListener('focus', refresh));
 <template>
   <div v-if="step" class="git-step" data-testid="git-step">
     <span v-if="hint" class="hint" :title="hint" data-testid="git-step-hint">{{ hint }}</span>
-    <UiButton type="button" class="run" :disabled="!runnable || busy" :aria-busy="busy" data-testid="git-step-run" @click="click">
-      {{ busy ? t('gitStep.working') : label }}
+    <UiButton type="button" class="run" :disabled="!runnable || busy" :aria-busy="busy" :aria-label="busy ? t('gitStep.working') : label" :title="[label, hint].filter(Boolean).join('\n')" data-testid="git-step-run" @click="click">
+      <GitBranch class="glyph" :size="14" aria-hidden="true" />
+      <span class="full">{{ busy ? t('gitStep.working') : label }}</span>
+      <span class="short">{{ busy ? t('gitStep.working') : shortLabel }}</span>
     </UiButton>
     <form v-if="open && step.kind === 'run'" class="form vr-sheet" data-testid="git-step-form" @submit.prevent="valid && perform()">
       <label v-if="step.commit" class="field">
@@ -178,6 +189,11 @@ onBeforeUnmount(() => window.removeEventListener('focus', refresh));
   border: 0;
   border-radius: 7px;
   cursor: pointer;
+}
+
+.glyph,
+.short {
+  display: none;
 }
 
 .run:disabled {
