@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 56;
+pub const PROTOCOL_VERSION: u32 = 57;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -498,6 +498,26 @@ pub enum ClientRequest {
         channel: String,
     },
 
+    PromoteChannelMessage {
+        req_id: u64,
+        channel: String,
+        seq: i64,
+        agent: Option<AgentId>,
+    },
+
+    SetChannelGrant {
+        req_id: u64,
+        channel: String,
+        agent: AgentId,
+        member: String,
+        granted: bool,
+    },
+
+    ListChannelGrants {
+        req_id: u64,
+        channel: Option<String>,
+    },
+
     CreateAcpAgent {
         req_id: u64,
         worktree: WorktreeId,
@@ -922,6 +942,11 @@ pub enum ServerEvent {
         here: Vec<ChannelPresent>,
     },
 
+    ChannelGrants {
+        req_id: u64,
+        grants: Vec<ChannelGrant>,
+    },
+
     AcpTranscript {
         req_id: u64,
         agent: AgentId,
@@ -940,6 +965,14 @@ pub struct ChannelPresent {
     pub member: String,
     pub name: String,
     pub agents: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChannelGrant {
+    pub channel: String,
+    pub agent: AgentId,
+    pub member: String,
+    pub member_name: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

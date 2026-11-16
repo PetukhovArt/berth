@@ -80,7 +80,8 @@ impl Daemon {
     async fn deliver_pending(self: &Arc<Self>, pending: &mut VecDeque<Mention>, limit: u32) {
         let mut served: Vec<String> = Vec::new();
         let mut keep = VecDeque::new();
-        while let Some(m) = pending.pop_front() {
+        while let Some(mut m) = pending.pop_front() {
+            m.from_owner = m.from_owner || crate::team_access::may_instruct(&self.store, &m);
             let id = AgentId(m.agent_name.clone());
             let Some(idle) = self.agent_is_idle(&id) else {
                 continue;
@@ -129,6 +130,7 @@ impl Daemon {
                     }
                 }
             }
+            crate::team_access::take_promoted(&mut pending);
             if !pending.is_empty() {
                 let limit = Config::load().channel_chain_limit;
                 self.deliver_pending(&mut pending, limit).await;

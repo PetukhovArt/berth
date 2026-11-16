@@ -66,6 +66,37 @@ has its own secret. Call it with `POST /hooks/<id>` and the header `X-Berth-Secr
 of the same delivery a no-op, and a hook runs at most once every 5 seconds. The request body is
 ignored: a hook only ever sends the prompt you saved, and never runs a command.
 
+## Team channels
+
+The channel commands talk to the team hub set by `hub_url` and `hub_token` (see
+[configuration](configuration.md)) and print JSON.
+
+```sh
+berth channel list                   # the channels you are in, with unread counts
+berth channel read <channel> [--after <seq>]
+berth channel post <channel> <message>
+berth channel promote <channel> <seq> [--agent <id>]
+                                     # deliver a colleague's message to your Agent as an instruction
+berth channel grant <channel> <agent> <colleague>
+berth channel revoke <channel> <agent> <colleague>
+berth channel grants [<channel>]
+```
+
+A message that writes `@<agent id>` reaches that Agent once it is idle. Only your own messages arrive
+as instructions; a colleague's message, or another Agent's, arrives as quoted information that the
+Agent is told not to follow.
+
+`promote` changes that for one message: it delivers message `<seq>` (the number `read` prints) to your
+Agent as an instruction. Without `--agent` it goes to each of your Agents the message mentions. The
+Channel view has a Promote button on every message that mentions an Agent.
+
+`grant` lets one colleague instruct one of your Agents in one channel: while the grant stands, their
+messages there that mention the Agent arrive as instructions. Name the colleague by their hub member
+id or by the name they write under; they must have written in the channel. `revoke` takes it back,
+and the Channel view lists the grants of the channel with a Revoke button. Grants live in your own
+daemon, not on the hub. Promote, grant and revoke refuse to run from inside a Session: they are for
+you, not for your Agents.
+
 ## JSON for scripts and chat bots
 
 ```sh

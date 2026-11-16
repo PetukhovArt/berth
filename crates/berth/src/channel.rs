@@ -25,9 +25,15 @@ async fn call(request: ClientRequest) -> Result<ServerEvent> {
                 req_id: Some(ONE_SHOT_REQ_ID),
                 message,
             }) => bail!("{message}"),
-            Some(event @ (ServerEvent::Channels { .. } | ServerEvent::ChannelEvents { .. })) => {
-                return Ok(event)
-            }
+            Some(
+                event @ (ServerEvent::Channels { .. }
+                | ServerEvent::ChannelEvents { .. }
+                | ServerEvent::ChannelGrants { .. }
+                | ServerEvent::Ack {
+                    req_id: ONE_SHOT_REQ_ID,
+                    ..
+                }),
+            ) => return Ok(event),
             Some(_) => continue,
             None => bail!("the daemon closed the connection before it answered"),
         }
@@ -88,6 +94,67 @@ pub fn run_post(channel: String, content: String) -> Result<()> {
             serde_json::to_string_pretty(&json!({ "ok": true, "event": events.first() }))?
         );
         Ok(())
+    })
+}
+
+fn owner_only(verb: &str) -> Result<()> {
+    if own_agent().is_some() {
+        bail!("berth channel {verb} is for the owner: an Agent cannot run it from its session");
+    }
+    Ok(())
+}
+
+fn print_grants(event: ServerEvent) -> Result<()> {
+    let ServerEvent::ChannelGrants { grants, .. } = event else {
+        bail!("unexpected reply");
+    };
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&json!({ "ok": true, "grants": grants }))?
+    );
+    Ok(())
+}
+
+pub fn run_promote(channel: String, seq: i64, agent: Option<String>) -> Result<()> {
+    owner_only("promote")?;
+    runtime()?.block_on(async {
+        call(ClientRequest::PromoteChannelMessage {
+            req_id: ONE_SHOT_REQ_ID,
+            channel,
+            seq,
+            agent: agent.map(AgentId),
+        })
+        .await?;
+        println!("{}", serde_json::to_string_pretty(&json!({ "ok": true }))?);
+        Ok(())
+    })
+}
+
+pub fn run_grant(channel: String, agent: String, colleague: String, granted: bool) -> Result<()> {
+    owner_only(if granted { "grant" } else { "revoke" })?;
+    runtime()?.block_on(async {
+        print_grants(
+            call(ClientRequest::SetChannelGrant {
+                req_id: ONE_SHOT_REQ_ID,
+                channel,
+                agent: AgentId(agent),
+                member: colleague,
+                granted,
+            })
+            .await?,
+        )
+    })
+}
+
+pub fn run_grants(channel: Option<String>) -> Result<()> {
+    runtime()?.block_on(async {
+        print_grants(
+            call(ClientRequest::ListChannelGrants {
+                req_id: ONE_SHOT_REQ_ID,
+                channel,
+            })
+            .await?,
+        )
     })
 }
 
