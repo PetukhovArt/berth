@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, useTemplateRef } from 'vue';
-import { Activity, Eye, GitPullRequest, ListTodo, MessageSquare, Plus, Radio, RefreshCw, Search, SlidersHorizontal, SquareTerminal, TriangleAlert, Trash2, LoaderCircle } from '../../../shared/ui/icons';
+import { Activity, ChevronRight, Eye, GitPullRequest, ListTodo, MessageSquare, Plus, Radio, RefreshCw, Search, SlidersHorizontal, SquareTerminal, TriangleAlert, Trash2, LoaderCircle } from '../../../shared/ui/icons';
 import { VContextMenu } from '../../../shared/ui/kit';
 import ArchivedExternalRow from './ArchivedExternalRow.vue';
 import ArchivedRow from './ArchivedRow.vue';
@@ -21,7 +21,7 @@ import ExplorerTree from '../../../shared/ui/explorer-tree/ExplorerTree.vue';
 import { useDock } from '../../../shared/model/dock';
 import { InboxSection } from '../../../features/attention';
 import { startCreate } from '../../../features/new-session';
-import { openLeaf, type ReviewMeta, type WorkNode, treeLiveOnly, treeQuery, treeTab, useWorkTree } from '../../../features/work-tree';
+import { openLeaf, type ReviewMeta, type WorkNode, treeLiveOnly, treeProjectsCollapsed, treeQuery, treeTab, useWorkTree } from '../../../features/work-tree';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiInput from '../../../shared/ui/UiInput.vue';
@@ -33,6 +33,7 @@ const { berth, nodes, tabs, activeTab, errors } = useWorkTree();
 const tabIcons = { sessions: SquareTerminal, mrs: GitPullRequest, reviews: Eye, tasks: ListTodo, all: SquareTerminal };
 
 const filtering = computed(() => treeQuery.value.trim().length > 0);
+const projectsOpen = computed(() => !treeProjectsCollapsed.value || filtering.value);
 const liveShown = computed(() => activeTab.value === 'sessions' && treeLiveOnly.value);
 const external = useExternalSessions();
 const selected = computed(() => {
@@ -135,7 +136,10 @@ function toggleFilter() {
       <p v-for="error in errors" :key="`${error.connector}:${error.message}`" class="strip" role="alert" data-testid="tree-error" :title="error.message">{{ error.connector }}: {{ error.message }}</p>
       <InboxSection v-if="activeTab === 'sessions' && !filtering" />
       <div v-if="activeTab === 'sessions'" class="section-head" data-testid="project-tree-head">
-        <span class="section-title">{{ t('workbench.tree') }}</span>
+        <UiButton class="section-toggle" :aria-expanded="projectsOpen" data-testid="project-tree-toggle" @click="treeProjectsCollapsed = !treeProjectsCollapsed">
+          <ChevronRight :size="14" class="chevron vr-chevron" />
+          <span class="section-title">{{ t('workbench.tree') }}</span>
+        </UiButton>
         <span class="section-actions">
           <UiButton v-if="!withFilter" class="icon" :title="t('workbench.filter')" :aria-label="t('workbench.filter')" :aria-pressed="showFilter" data-testid="tree-filter-toggle" @click="toggleFilter"><SlidersHorizontal :size="14" /></UiButton>
           <UiButton v-if="addWorkspaceId" class="icon" :title="t('agents.project.add')" :aria-label="t('agents.project.add')" data-testid="project-add" @click="projectAdd?.openAdd()"><Plus :size="14" /></UiButton>
@@ -143,6 +147,7 @@ function toggleFilter() {
       </div>
       <ProjectActions v-if="activeTab === 'sessions' && addWorkspaceId" ref="projectAdd" :workspace-id="addWorkspaceId" bare />
       <ExplorerTree
+        v-show="activeTab !== 'sessions' || projectsOpen"
         :nodes="nodes"
         :storage-key="`berth.tree.expanded.${activeTab}`"
         :label="t('workbench.tree')"
@@ -501,7 +506,35 @@ function toggleFilter() {
   justify-content: space-between;
   gap: var(--vr-space-1);
   height: 28px;
-  padding-left: var(--vr-space-2);
+  padding-left: 0;
+}
+
+.section-toggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  height: 28px;
+  padding: 0 4px 0 6px;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: var(--vr-radius-md);
+  cursor: pointer;
+}
+
+.section-toggle:hover {
+  background: var(--vr-color-nav-hover);
+}
+
+.section-toggle .chevron {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  color: var(--vr-color-text-subtle);
 }
 
 .section-title {

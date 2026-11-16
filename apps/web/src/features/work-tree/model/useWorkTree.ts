@@ -53,6 +53,10 @@ const LIVE_KEY = 'berth.tree.liveOnly';
 export const treeLiveOnly = shallowRef(localStorage.getItem(LIVE_KEY) === '1');
 watch(treeLiveOnly, (on) => localStorage.setItem(LIVE_KEY, on ? '1' : '0'));
 
+const PROJECTS_KEY = 'berth.tree.projectsCollapsed';
+export const treeProjectsCollapsed = shallowRef(localStorage.getItem(PROJECTS_KEY) === '1');
+watch(treeProjectsCollapsed, (on) => localStorage.setItem(PROJECTS_KEY, on ? '1' : '0'));
+
 type TabInfo = { id: TreeTab; label: string; count: number | undefined; tone: 'alert' | 'accent' | 'muted'; title: string };
 
 function createWorkTree(scope: Scope) {
