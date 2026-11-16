@@ -119,6 +119,26 @@ export function showView(panelId: string, view: SessionView): void {
   chosen.value = next;
 }
 
+const changeFocus = shallowRef<ReadonlyMap<string, string>>(new Map());
+
+export function showChangeIn(panelId: string, file: string): void {
+  const worktree = worktreeOf(panelId);
+  if (!worktree || !isAvailable(panelId, 'diff')) return;
+  changeFocus.value = new Map(changeFocus.value).set(worktree.path, file);
+  if (viewOf(panelId) !== 'diff') showView(panelId, 'diff');
+}
+
+export function focusedChange(worktreePath: string): string | null {
+  return changeFocus.value.get(worktreePath) ?? null;
+}
+
+export function clearChangeFocus(worktreePath: string): void {
+  if (!changeFocus.value.has(worktreePath)) return;
+  const next = new Map(changeFocus.value);
+  next.delete(worktreePath);
+  changeFocus.value = next;
+}
+
 export function showViewInActivePanel(view: SessionView): void {
   const panelId = useDock().activeKey.value;
   if (panelId) showView(panelId, view);

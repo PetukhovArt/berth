@@ -7,6 +7,7 @@ export type { ExternalSession, Harness, TranscriptMessage } from './model/extern
 export { derivePlan } from './model/plan';
 export { acpMessages, useAcpChat } from './model/acpChat';
 export { withShellBlocks } from './model/shellTags';
+export type { FileEdit } from './model/shellTags';
 export { useLinkedPlan } from './model/linkedPlan';
 export { ALLOW, DENY, allowRequest, chooseOption, denyRequest, feedbackText, useFeedbackRequest } from './model/feedback';
 export { enqueuePrompt, removeQueuedPrompt, submitPrompt, useQueuedPrompts } from './model/promptQueue';
@@ -14,7 +15,7 @@ export { isFiveHourWindow, useUsageLimits } from './model/limits';
 export type { UsageWindow } from './model/limits';
 export { saveTaskNote, useTaskNote } from './model/taskNote';
 export { loadProjectSetup, saveProjectSetup } from './model/projectSetup';
-export { useCheckpoints } from './model/checkpoints';
+export { listCheckpoints, restoreCheckpoint, useCheckpoints } from './model/checkpoints';
 export type { Checkpoint } from './model/checkpoints';
 export { agentName, answerInChannel, channelKeys, channelRequestOf, grantChannelAccess, isAgentMessage, isChannelReply, isNoteMessage, isOwnAgentRequest, onChannelAppended, openChannel, openChannelFor, ownAgentsFor, postNote, postToChannel, promoteChannelMessage, readChannel, readChannelGrants, readPresence, readTouched, refreshChannels, revokeChannelGrant, settlementOf, useChannelUnread, useLoadedChannelMessages } from './model/channels';
 export type { ChannelGrant, ChannelMessage, ChannelPresent, ChannelRequest, ChannelSettlement, ChannelTouching, LoadedChannelMessage } from './model/channels';

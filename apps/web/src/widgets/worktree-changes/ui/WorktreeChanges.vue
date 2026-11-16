@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { shallowRef, watch } from 'vue';
+import { nextTick, shallowRef, useTemplateRef, watch } from 'vue';
 import { RefreshCw } from '../../../shared/ui/icons';
 import { VButton } from '../../../shared/ui/kit';
 import type { SessionRef, SessionStatus } from '../../../entities/session';
-import { quoteToPrompt } from '../../../features/session-view-switch';
+import { clearChangeFocus, focusedChange, quoteToPrompt } from '../../../features/session-view-switch';
+import { worktreeRelative } from '../../../shared/lib/worktreePath';
 import { describeError, type DiffFile, type Discussion } from '../../../shared/api/connectors/api';
 import { worktreeChanges, type ChangesScope } from '../../../shared/api/fs';
 import { t } from '../../../shared/lib/i18n/i18n';
@@ -58,6 +59,21 @@ watch(scope, () => {
   void load();
 });
 
+const diff = useTemplateRef<{ focusFile: (path: string) => boolean }>('diff');
+
+watch(
+  [() => focusedChange(props.path), changes],
+  async ([file, current]) => {
+    if (!file || current.kind !== 'ready') return;
+    await nextTick();
+    const wanted = worktreeRelative(file, props.path);
+    const match = current.files.find((entry) => entry.new_path === wanted || entry.old_path === wanted) ?? current.files.find((entry) => wanted.endsWith(`/${entry.new_path}`) || entry.new_path.endsWith(`/${wanted}`));
+    if (match) diff.value?.focusFile(match.new_path);
+    clearChangeFocus(props.path);
+  },
+  { immediate: true },
+);
+
 watch(
   () => props.status,
   (status) => {
@@ -80,7 +96,7 @@ watch(
       <p>{{ scope === 'uncommitted' ? t('agents.changes.emptyUncommitted') : t('agents.changes.empty') }}</p>
       <VButton size="small" severity="secondary" :label="t('agents.changes.refresh')" :loading="refreshing" data-testid="worktree-changes-refresh" @click="load" />
     </div>
-    <DiffView v-else :files="changes.files" :discussions="NO_DISCUSSIONS" :root="path" :quotable="!!session" @quote="quote">
+    <DiffView v-else ref="diff" :files="changes.files" :discussions="NO_DISCUSSIONS" :root="path" :quotable="!!session" @quote="quote">
       <template #scope>
         <ChangesScopePicker v-model="scope" :path="path" />
       </template>

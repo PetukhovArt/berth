@@ -1,5 +1,19 @@
 type ShellKind = 'command' | 'output';
-export type ShellMessage = { key: string; role: 'user' | 'assistant'; text: string; tool: string | null; at: string | null; input?: unknown; shell?: ShellKind; markdown?: string };
+export type FileEdit = { path: string; additions: number; deletions: number };
+export type ShellMessage = {
+  key: string;
+  role: 'user' | 'assistant';
+  text: string;
+  tool: string | null;
+  at: string | null;
+  input?: unknown;
+  shell?: ShellKind;
+  markdown?: string;
+  model?: string | null;
+  edits?: FileEdit[];
+  toolKind?: string;
+  callOf?: string;
+};
 
 const TAGS = ['bash-input', 'bash-stdout', 'bash-stderr', 'local-command-stdout', 'local-command-stderr', 'local-command-caveat', 'command-name', 'command-message', 'command-args'] as const;
 const WRAPPER = new RegExp(`<(${TAGS.join('|')})>([\\s\\S]*?)</\\1>`, 'g');
