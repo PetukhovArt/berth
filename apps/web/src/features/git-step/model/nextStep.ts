@@ -19,6 +19,7 @@ export function nextStep(state: GitState, hasRequest: boolean): NextStep {
 export function stepShortLabelKey(step: NextStep) {
   if (step.kind === 'run' && !step.commit && step.create) return step.push ? ('gitStep.pushCreateShort' as const) : ('gitStep.createShort' as const);
   if (step.kind === 'run' && step.commit && step.create) return 'gitStep.commitPushCreateShort' as const;
+  if (step.kind === 'run' && step.commit && step.push) return 'gitStep.commitPushShort' as const;
   return stepLabelKey(step);
 }
 

@@ -5,6 +5,7 @@ export const gitStep = {
   push: 'Отправить',
   pushCreate: 'Отправить и создать merge request',
   create: 'Создать merge request',
+  commitPushShort: 'Коммит, отправка',
   commitPushCreateShort: 'Коммит, отправка, MR',
   pushCreateShort: 'Отправка, MR',
   createShort: 'Создать MR',
