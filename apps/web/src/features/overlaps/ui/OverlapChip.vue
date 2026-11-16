@@ -29,11 +29,11 @@ const title = computed(() => (overlap.value ? t('agents.overlap.title', { names:
   height: 22px;
   padding: 0 8px;
   overflow: hidden;
-  color: var(--vr-status-feedback);
+  color: var(--vr-color-text-muted);
   font-size: var(--vr-font-size-xs);
   white-space: nowrap;
   text-overflow: ellipsis;
-  background: var(--vr-tint-feedback);
+  background: var(--vr-color-surface-muted);
   border-radius: var(--vr-radius-full);
 }
 

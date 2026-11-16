@@ -13,7 +13,7 @@
   }
 
   :root[data-status-animation='blink'] .status-dot[data-status='needs_feedback'] {
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--vr-color-danger) 35%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--vr-status-feedback) 35%, transparent);
     animation: status-blink 0.8s steps(1) infinite;
   }
 
@@ -34,7 +34,7 @@
 
   :root[data-status-animation='ripple'] .status-dot[data-status='needs_feedback']::before,
   :root[data-status-animation='ripple'] .status-dot[data-status='needs_feedback']::after {
-    border-color: var(--vr-color-danger);
+    border-color: var(--vr-status-feedback);
     animation-duration: 0.8s;
   }
 
@@ -73,7 +73,7 @@
     position: absolute;
     inset: 0;
     z-index: -1;
-    background: color-mix(in srgb, var(--vr-color-danger) 22%, transparent);
+    background: color-mix(in srgb, var(--vr-status-feedback) 22%, transparent);
     border-radius: inherit;
     opacity: 0;
     pointer-events: none;
@@ -82,7 +82,7 @@
 
   :root[data-status-animation='row'] .status-host:has(> .status-dot[data-status='needs_feedback']) > .name {
     font-weight: 600;
-    color: var(--vr-color-danger);
+    color: var(--vr-status-feedback);
   }
 }
 
