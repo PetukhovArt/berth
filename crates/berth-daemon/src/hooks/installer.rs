@@ -74,11 +74,12 @@ const CLAUDE_EVENTS: &[(&str, Option<&str>)] = &[
     // Not a status signal — a position one. Claude reports the session's
     // working directory on every hook payload, and these are the tools that
     // change it: EnterWorktree/ExitWorktree relocate the whole session (what
-    // "do this in a worktree" actually runs).
+    // "do this in a worktree" actually runs), and a Bash `cd` moves it too.
     // Hooking them re-homes the row seconds after the session moves instead
-    // of at the turn's Stop, which can be many minutes later.
+    // of at the turn's Stop, which can be many minutes later. Matchers are
+    // regexes, so one group covers all three.
     // See registry::reparent_agent_by_cwd.
-    ("PostToolUse", Some("EnterWorktree|ExitWorktree")),
+    ("PostToolUse", Some("Bash|EnterWorktree|ExitWorktree")),
     ("SubagentStart", None),
     ("SubagentStop", None),
 ];
@@ -605,7 +606,7 @@ mod tests {
             .collect();
         assert_eq!(
             matchers,
-            vec!["AskUserQuestion", "EnterWorktree|ExitWorktree"]
+            vec!["AskUserQuestion", "Bash|EnterWorktree|ExitWorktree"]
         );
         assert!(groups.iter().all(|g| g["_berthManaged"] == json!(true)));
     }
