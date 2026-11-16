@@ -9,7 +9,7 @@ export { acpMessages, useAcpChat } from './model/acpChat';
 export { withShellBlocks } from './model/shellTags';
 export type { FileEdit } from './model/shellTags';
 export { useLinkedPlan } from './model/linkedPlan';
-export { ALLOW, DENY, allowRequest, chooseOption, denyRequest, feedbackText, useFeedbackRequest } from './model/feedback';
+export { ALLOW, ALWAYS_ALLOW, DENY, allowRequest, alwaysAllowRequest, chooseOption, denyRequest, feedbackText, isYesNoPermission, offersAlways, useFeedbackRequest } from './model/feedback';
 export { enqueuePrompt, removeQueuedPrompt, submitPrompt, useQueuedPrompts } from './model/promptQueue';
 export { isFiveHourWindow, useUsageLimits } from './model/limits';
 export type { UsageWindow } from './model/limits';

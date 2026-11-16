@@ -245,6 +245,7 @@ impl Daemon {
                     "The agent opens its own sign-in flow, usually in the browser.".into(),
                 ),
                 options: names,
+                always_allow: false,
             },
         );
     }

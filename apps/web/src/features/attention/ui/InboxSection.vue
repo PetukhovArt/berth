@@ -3,7 +3,7 @@ import { computed, shallowRef, useTemplateRef } from 'vue';
 import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
 import { VContextMenu } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
-import { allowRequest, chooseOption, denyRequest, openChannel, StatusIcon, useBerth, useChannelUnread, useSessionDock } from '../../../entities/session';
+import { allowRequest, alwaysAllowRequest, chooseOption, denyRequest, isYesNoPermission, offersAlways, openChannel, restartAgent, StatusIcon, useAction, useBerth, useChannelUnread, useSessionDock } from '../../../entities/session';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { shortcutLabel } from '../../../shared/lib/commands/keymap';
 import { openNextWaiting, settleInbox, snoozeInbox, useInbox, type InboxEntry } from '../model/inbox';
@@ -19,6 +19,23 @@ const { unread: channels } = useChannelUnread();
 const dock = useSessionDock();
 const berth = useBerth();
 const requestOf = (entry: InboxEntry) => berth?.feedback.value.get(entry.node.id);
+const yesNo = (entry: InboxEntry) => {
+  const request = requestOf(entry);
+  return request ? isYesNoPermission(request) : false;
+};
+const always = (entry: InboxEntry) => {
+  const request = requestOf(entry);
+  return request ? offersAlways(request) : false;
+};
+const resuming = useAction();
+const resumeFailed = shallowRef<string | null>(null);
+
+async function resume(entry: InboxEntry) {
+  const ref = entry.node.ref;
+  if (!('Agent' in ref)) return;
+  resumeFailed.value = entry.key;
+  if (await resuming.run(() => restartAgent(ref.Agent))) resumeFailed.value = null;
+}
 const menu = useTemplateRef<InstanceType<typeof VContextMenu>>('menu');
 const target = shallowRef<InboxEntry | null>(null);
 
@@ -77,12 +94,20 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
       <div v-if="requestOf(entry)" class="card vr-phone-only" data-testid="inbox-request">
         <code v-if="requestOf(entry)?.detail" class="detail">{{ requestOf(entry)?.detail }}</code>
         <div class="actions">
-          <template v-if="requestOf(entry)?.kind === 'Permission'">
+          <template v-if="yesNo(entry)">
             <UiButton type="button" class="action primary" data-testid="inbox-allow" @click="allowRequest(entry.node.ref)">{{ t('feedback.allow') }}</UiButton>
+            <UiButton v-if="always(entry)" type="button" class="action" :title="t('feedback.alwaysTitle')" data-testid="inbox-always" @click="alwaysAllowRequest(entry.node.ref)">{{ t('feedback.always') }}</UiButton>
             <UiButton type="button" class="action" data-testid="inbox-deny" @click="denyRequest(entry.node.ref)">{{ t('feedback.deny') }}</UiButton>
           </template>
           <UiButton v-for="(option, index) in requestOf(entry)?.options" v-else :key="index" type="button" class="action" :class="{ primary: index === 0 }" data-testid="inbox-option" @click="chooseOption(entry.node.ref, index)">{{ option }}</UiButton>
         </div>
+      </div>
+      <div v-else-if="entry.kind === 'crashed' && 'Agent' in entry.node.ref" class="card vr-phone-only" data-testid="inbox-crashed">
+        <div class="actions">
+          <UiButton type="button" class="action primary" :title="t('attention.inbox.resumeTitle')" :disabled="resuming.busy.value" data-testid="inbox-resume" @click="resume(entry)">{{ t('attention.inbox.resume') }}</UiButton>
+          <UiButton type="button" class="action" data-testid="inbox-open" @click="dock.openSession(entry.node)">{{ t('attention.inbox.open') }}</UiButton>
+        </div>
+        <p v-if="resumeFailed === entry.key && resuming.error.value" class="error" role="alert" data-testid="inbox-resume-error">{{ resuming.error.value }}</p>
       </div>
       <UiButton class="more" :title="t('attention.inbox.actions')" :aria-label="t('attention.inbox.actions')" aria-haspopup="menu" data-testid="inbox-menu" @click="showMenu($event, entry)"><Ellipsis :size="14" /></UiButton>
     </div>
@@ -277,9 +302,10 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
 }
 
 .action {
-  flex: 1;
+  flex: 0 1 auto;
+  min-width: 5.5em;
   min-height: var(--vr-size-touch);
-  padding: 0 var(--vr-space-3);
+  padding: 0 var(--vr-space-4);
   font: inherit;
   font-size: var(--vr-font-size-sm);
   color: var(--vr-color-text);
@@ -307,5 +333,20 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
 
 :global(:root[data-vr-viewport='phone']) .more {
   opacity: 1;
+}
+
+:global(:root[data-vr-viewport='phone']) .head {
+  display: none;
+}
+
+.action:disabled {
+  opacity: 0.6;
+}
+
+.error {
+  margin: 0;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-danger);
+  overflow-wrap: anywhere;
 }
 </style>

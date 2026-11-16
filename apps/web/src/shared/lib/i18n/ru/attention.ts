@@ -29,6 +29,9 @@ export const attention = {
     hours: '{count} ч',
     days: '{count} д',
     channelUnread: 'Непрочитано в Канале: {count}',
+    resume: 'Продолжить',
+    resumeTitle: 'Запустить Агента снова и продолжить его разговор',
+    open: 'Открыть',
   },
   channel: {
     messages: 'Канал {key}',

@@ -53,7 +53,7 @@ onUnmounted(() => stopResize?.());
     </div>
     <UiButton
       type="button"
-      class="search"
+      class="search vr-wide-only"
       data-testid="titlebar-search"
       :aria-label="t('common.search')"
       :title="t('common.search')"
@@ -242,6 +242,7 @@ onUnmounted(() => stopResize?.());
 
 .end {
   display: flex;
+  grid-column: 3;
   align-items: center;
   justify-content: flex-end;
   height: 100%;

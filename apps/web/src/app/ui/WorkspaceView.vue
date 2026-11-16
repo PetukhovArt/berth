@@ -9,7 +9,7 @@ import { paletteOpen } from '../../shared/lib/commands/context';
 import { UnsavedDialog } from '../../features/unsaved-changes';
 import { HotHost } from '../../widgets/hot';
 import { AttentionToasts } from '../../features/attention';
-import { MobileNav } from '../../widgets/mobile-nav';
+import { MobileNav, PhoneHeader } from '../../widgets/mobile-nav';
 import { useIsPhone } from '../../shared/ui/kit';
 import { Sidebar } from '../../widgets/project-tree';
 import { TitleBar } from '../../widgets/title-bar';
@@ -58,6 +58,7 @@ watch(
     <div class="body" :data-mobile="mobile" :data-first-run="firstRun">
       <Sidebar v-if="!mobile && !firstRun" :dark="isDark" @theme="toggleTheme" />
       <main class="pane vt-main">
+        <PhoneHeader v-if="mobile" />
         <KeepAlive include="AgentsView">
           <AgentsView v-if="view.kind === 'agents'" />
           <JiraView v-else-if="view.kind === 'jira'" />

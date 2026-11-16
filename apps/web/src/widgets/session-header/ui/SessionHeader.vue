@@ -125,8 +125,9 @@ watch(
   display: none;
 }
 
-:root[data-vr-viewport='phone'] .session-header .identity {
-  flex-basis: 100%;
+:root[data-vr-viewport='phone'] .session-header .identity,
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step) {
+  display: none;
 }
 
 :root[data-vr-viewport='phone'] .session-header .title-row {

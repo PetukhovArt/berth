@@ -753,6 +753,8 @@ pub struct FeedbackRequest {
     pub title: String,
     pub detail: Option<String>,
     pub options: Vec<String>,
+    #[serde(default)]
+    pub always_allow: bool,
 }
 
 /// One local branch of a project, as `ListBranches` reports it.

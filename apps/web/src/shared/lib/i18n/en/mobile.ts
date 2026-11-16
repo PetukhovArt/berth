@@ -2,6 +2,20 @@ export const mobile = {
   back: 'Back',
   navLabel: 'Sections',
   commands: 'Commands',
+  section: {
+    inbox: 'Inbox',
+    sessions: 'Sessions',
+    reviews: 'Reviews',
+    settings: 'Settings',
+  },
+  summary: {
+    needYou: '{count} need you',
+    running: '{count} running',
+    reviews: '{count} waiting for your review',
+    quiet: 'Nothing needs you',
+  },
+  connected: 'Connected to berth',
+  inboxEmpty: 'Nothing needs you right now.',
   keysLabel: 'Terminal keys',
   key: {
     esc: 'Esc',

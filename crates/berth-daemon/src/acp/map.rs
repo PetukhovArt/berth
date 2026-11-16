@@ -82,6 +82,7 @@ pub fn permission(params: &Value) -> Permission {
                 .or(patch.detail)
                 .or(patch.diff.map(|d| d.path)),
             options: names,
+            always_allow: false,
         },
         option_ids,
     }
