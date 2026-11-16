@@ -148,17 +148,26 @@ fn hook_command(endpoint: &str, event: &str) -> String {
     // reaches the agent. The daemon keeps that body empty except when an
     // instruction is due. Every other event stays fully silent.
     // Grok discards a UserPromptSubmit hook's stdout instead, so it stays silent.
-    let silence = if matches!(event, "UserPromptSubmit" | "SessionStart") && endpoint != "grok" {
-        "2>/dev/null"
+    let tail = if matches!(event, "UserPromptSubmit" | "SessionStart") && endpoint != "grok" {
+        "2>/dev/null || true"
+    } else if EVENTS_THE_DAEMON_MUST_SEE_IN_ORDER.contains(&event) {
+        ">/dev/null 2>&1 || true"
     } else {
-        ">/dev/null 2>&1"
+        "<&0 >/dev/null 2>&1 &"
     };
     format!(
-        "if {}; then exit 0; fi; {} {silence} || true",
+        "if {}; then exit 0; fi; {} {tail}",
         env_guard(),
         hook_curl(endpoint, event)
     )
 }
+
+const EVENTS_THE_DAEMON_MUST_SEE_IN_ORDER: &[&str] = &[
+    "UserPromptSubmit",
+    "SessionStart",
+    "SubagentStart",
+    "SubagentStop",
+];
 
 /// Permission rules letting Claude Code run berth's own commands without a
 /// permission prompt: the auto-title `berth rename`, and the `berth
@@ -548,6 +557,14 @@ mod tests {
              curl -sS -m 3 --noproxy '*' -X POST -H \"Authorization: Bearer $BERTH_API_TOKEN\" \
              -H \"Content-Type: application/json\" --data-binary @- \
              \"$BERTH_API_URL/api/hooks/codex?agentId=$BERTH_AGENT_ID&hookEvent=Stop\" \
+             <&0 >/dev/null 2>&1 &"
+        );
+        assert_eq!(
+            hook_command("claude", "SubagentStop"),
+            "if [ -z \"$BERTH_AGENT_ID\" ] || [ -z \"$BERTH_API_URL\" ]; then exit 0; fi; \
+             curl -sS -m 3 --noproxy '*' -X POST -H \"Authorization: Bearer $BERTH_API_TOKEN\" \
+             -H \"Content-Type: application/json\" --data-binary @- \
+             \"$BERTH_API_URL/api/hooks/claude?agentId=$BERTH_AGENT_ID&hookEvent=SubagentStop\" \
              >/dev/null 2>&1 || true"
         );
         assert_eq!(
