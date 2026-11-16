@@ -7,6 +7,8 @@ export const push = {
   enable: 'Enable notifications',
   disable: 'Disable notifications',
   allow: 'Allow',
+  always: 'Always allow',
   deny: 'Deny',
+  open: 'Open',
   failed: 'Could not reach Berth. Open the app to answer.',
 } as const;

@@ -66,9 +66,21 @@ pub fn from_hook(
             title: tool.to_string(),
             detail: tool_input.and_then(detail),
             options: Vec::new(),
+            always_allow: false,
         }),
         _ => None,
     }
+}
+
+pub fn with_permission_suggestions(
+    mut request: FeedbackRequest,
+    suggestions: Option<&Value>,
+) -> FeedbackRequest {
+    request.always_allow = request.kind == FeedbackKind::Permission
+        && suggestions
+            .and_then(Value::as_array)
+            .is_some_and(|list| !list.is_empty());
+    request
 }
 
 fn question(input: &Value) -> Option<FeedbackRequest> {
@@ -91,6 +103,7 @@ fn question(input: &Value) -> Option<FeedbackRequest> {
         title,
         detail: None,
         options,
+        always_allow: false,
     })
 }
 

@@ -492,6 +492,7 @@ mod tests {
             title: "Bash".into(),
             detail: Some("pnpm test".into()),
             options: vec![],
+            always_allow: false,
         }
     }
 
@@ -566,6 +567,7 @@ mod tests {
             title: "Which rounding?".into(),
             detail: None,
             options: vec!["Half up".into(), "Half even".into()],
+            always_allow: false,
         };
         assert!(Answer::parse("2").unwrap().fits(&question));
         assert!(!Answer::parse("3").unwrap().fits(&question));

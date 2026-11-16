@@ -120,6 +120,7 @@ pub struct HookPayload {
     pub workspace_roots: Option<Vec<String>>,
     pub transcript_path: Option<String>,
     pub tool_input: Option<serde_json::Value>,
+    pub permission_suggestions: Option<serde_json::Value>,
     pub error: Option<serde_json::Value>,
     #[serde(alias = "errorDetails")]
     pub error_details: Option<serde_json::Value>,
@@ -301,6 +302,12 @@ async fn receive_hook(
         payload.tool_name.as_deref(),
         payload.tool_input.as_ref(),
     )
+    .map(|request| {
+        crate::feedback::with_permission_suggestions(
+            request,
+            payload.permission_suggestions.as_ref(),
+        )
+    })
     .filter(|_| foreground);
     let provider_error = (query.hook_event == "StopFailure")
         .then(|| crate::router::detect::from_stop_failure(&payload))

@@ -46,7 +46,7 @@ type Terminal = { id: string; worktree_id: string; name: string; sort_order: num
 type Entity = { Workspace: Workspace } | { Project: Project } | { Worktree: Worktree } | { Agent: Agent } | { Terminal: Terminal } | { Link: unknown };
 type EntityId = { Workspace: string } | { Project: string } | { Worktree: string } | { Agent: string } | { Terminal: string } | { Link: string };
 
-export type FeedbackRequest = { kind: 'Permission' | 'Question'; title: string; detail: string | null; options: string[] };
+export type FeedbackRequest = { kind: 'Permission' | 'Question'; title: string; detail: string | null; options: string[]; always_allow?: boolean };
 
 type ArchivedExternal = { kind: AgentKind; session_id: string; archived_at: number };
 

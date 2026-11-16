@@ -13,12 +13,14 @@ self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim(
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
   const actions = Array.isArray(data.actions) ? data.actions : [];
+  const room = typeof Notification !== 'undefined' && Notification.maxActions ? Notification.maxActions : actions.length;
+  const shown = actions.length <= room ? actions : actions.filter((entry) => entry.action === 'allow' || entry.action === 'deny').slice(0, room);
   event.waitUntil(
     self.registration.showNotification(data.title || 'Berth', {
       body: data.body,
       tag: data.tag,
       renotify: true,
-      actions: actions.map(({ action, title }) => ({ action, title })),
+      actions: shown.map(({ action, title }) => ({ action, title })),
       data: { session: data.session, actions, failed: data.failed, tag: data.tag },
     }),
   );
@@ -28,7 +30,7 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const { session, actions = [], failed, tag } = event.notification.data || {};
   const chosen = actions.find((entry) => entry.action === event.action);
-  if (!chosen) {
+  if (!chosen || typeof chosen.data !== 'string') {
     event.waitUntil(openApp());
     return;
   }
