@@ -32,6 +32,7 @@ export const attention = {
     resume: 'Продолжить',
     resumeTitle: 'Запустить Агента снова и продолжить его разговор',
     open: 'Открыть',
+    crashedDetail: 'Завершилась неожиданно',
   },
   channel: {
     messages: 'Канал {key}',
