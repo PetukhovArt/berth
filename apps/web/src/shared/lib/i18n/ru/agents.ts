@@ -9,12 +9,12 @@ export const agents: Translation<typeof en> = {
   status: {
     fresh: 'новая',
     running: 'работает',
-    needs_feedback: 'ждёт меня',
-    finished: 'закончил',
-    terminated: 'упал',
+    needs_feedback: 'ждёт вас',
+    finished: 'закончила',
+    terminated: 'упала',
     disconnected: 'отключена',
     shell: 'терминал',
-    closed: 'закрыт',
+    closed: 'закрыта',
     limit: 'лимит',
   },
   route: {

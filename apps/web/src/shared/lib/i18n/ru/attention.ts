@@ -1,7 +1,7 @@
 export const attention = {
   waiting: '{name} ждёт вас',
   finished: '{name} закончила работу',
-  crashed: '{name} остановилась с ошибкой',
+  crashed: '{name} упала',
   limited: '{name} упёрлась в лимит',
   dismiss: 'Закрыть',
   watch: {
@@ -17,7 +17,7 @@ export const attention = {
     title: 'Входящие',
     waiting: 'ждёт вас',
     finished: 'закончила, не просмотрено',
-    crashed: 'остановилась с ошибкой',
+    crashed: 'упала',
     limited: 'лимит · сброс в {time}',
     next: 'Следующая ждущая',
     actions:'Действия с входящим',
