@@ -9,6 +9,7 @@ import { requestSidebarSearch, toggleSidebar } from '../shared/model/sidebar';
 import { openUpdate } from '../features/update';
 import { toggleMaximizedGroup, toggleQuickOpen } from '../shared/model/dock';
 import { startNewSession } from '../features/new-session';
+import { openNextWaiting } from '../features/attention';
 import { holdToTalk, toggleWakeWord } from '../features/voice-input';
 import { paletteOpen } from '../shared/lib/commands/context';
 import { openKeymapExternal } from '../shared/lib/commands/keymap';
@@ -38,6 +39,7 @@ defineAction({ id: 'terminal.zoomReset', title: 'commands.action.terminalZoomRes
 
 defineAction({ id: 'agents.quickOpen', title: 'commands.action.agentsQuickOpen', category: NAVIGATION, run: toggleQuickOpen });
 defineAction({ id: 'hot.overview', title: 'hot.overview.title', category: NAVIGATION, run: () => hotEnabled.value && toggleHotOverview() });
+defineAction({ id: 'inbox.nextWaiting', title: 'commands.action.inboxNextWaiting', category: NAVIGATION, run: openNextWaiting });
 defineAction({ id: 'agents.newSession', title: 'commands.action.agentsNewSession', category: NAVIGATION, run: startNewSession });
 defineAction({ id: 'session.view.terminal', title: 'agents.sessionView.action.terminal', category: VIEW, run: () => showViewInActivePanel('terminal') });
 defineAction({ id: 'session.view.chat', title: 'agents.sessionView.action.chat', category: VIEW, run: () => showViewInActivePanel('chat') });

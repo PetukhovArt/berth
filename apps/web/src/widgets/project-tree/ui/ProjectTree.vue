@@ -91,7 +91,7 @@ function toggleFilter() {
             role="tab"
             :aria-selected="activeTab === tab.id"
             :aria-label="tab.label"
-            :title="tab.title"
+            :title="tab.count ? `${tab.label} · ${tab.title}` : tab.label"
             :data-testid="`tree-tab-${tab.id}`"
             @click="treeTab = tab.id"
           >
@@ -193,7 +193,7 @@ function toggleFilter() {
             @open-conversation="node.data.linked && sessions.openLinkedConversation(node.data.session, node.data.linked)"
           />
           <ExternalSessionRow v-else-if="node.kind === 'external' && node.data?.external" :session="node.data.external" :active="node.id === dock.activeKey.value" @open="(split) => node.data?.external && sessions.openExternal(node.data.external, split)" />
-          <ArchivedRow v-else-if="node.kind === 'archived' && node.data?.session" :session="node.data.session" />
+          <ArchivedRow v-else-if="node.kind === 'archived' && node.data?.session" :session="node.data.session" :where="node.data.where" />
           <ArchivedExternalRow v-else-if="node.kind === 'archived-external' && node.data?.external" :session="node.data.external" @open="(split) => node.data?.external && sessions.openExternal(node.data.external, split)" />
           <div v-else-if="node.kind === 'review-state' && node.data?.reviewState" class="review-state" :data-error="!!node.data.reviewState.error" :title="node.data.reviewState.error ?? undefined" role="status" data-testid="review-state">
             <template v-if="node.data.reviewState.error"><TriangleAlert :size="12" /><span class="review-text">{{ node.data.reviewState.error }}</span></template>
@@ -353,7 +353,7 @@ function toggleFilter() {
   color: var(--vr-status-feedback);
 }
 
-@container tabs (max-width: 214px) {
+@container tabs (max-width: 232px) {
   .tab-label {
     display: none;
   }
@@ -363,7 +363,7 @@ function toggleFilter() {
   }
 }
 
-@container tabs (max-width: 262px) {
+@container tabs (max-width: 272px) {
   .tabs[data-n='4'] .tab-label {
     display: none;
   }

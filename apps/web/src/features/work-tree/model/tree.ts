@@ -25,6 +25,7 @@ type NodeData = {
   review?: ReviewMeta;
   notes?: ReviewNoteView[];
   reviewState?: ReviewState;
+  where?: string;
 };
 
 export type WorkNode = TreeNode<NodeData>;
@@ -126,7 +127,7 @@ const sessionLeaf =
     const link = linked.get(session.key);
     return { id: session.key, kind: 'session', label: session.name, custom: true, data: link ? { session, linked: link } : { session } };
   };
-const archivedLeaf = (session: SessionNode): WorkNode => ({ id: `arch:${session.key}`, kind: 'archived', label: session.name, custom: true, data: { session } });
+const archivedLeaf = (session: SessionNode, where: string): WorkNode => ({ id: `arch:${session.key}`, kind: 'archived', label: session.name, custom: true, data: { session, where } });
 const archivedExternalLeaf = (session: ExternalSession): WorkNode => ({ id: `arch:${externalKey(session)}`, kind: 'archived-external', label: session.title, title: session.cwd, custom: true, data: { external: session } });
 const archiveGroup = (id: string, children: WorkNode[]): WorkNode[] =>
   children.length ? [{ id, kind: 'archive', label: t('agents.layouts.archive'), icon: Archive, children, count: children.length, countTitle: t('agents.layouts.archivedCount'), defaultExpanded: false, forgetExpanded: true }] : [];
@@ -150,7 +151,6 @@ type Placed = {
   byProject: Map<string, ExternalSession[]>;
   ofProject: Map<string, ExternalSession[]>;
   loose: Map<string, ExternalSession[]>;
-  archived: Spread;
 };
 
 type Spread = { byWorktree: Map<string, ExternalSession[]>; byProject: Map<string, ExternalSession[]>; ofProject: Map<string, ExternalSession[]>; loose: Map<string, ExternalSession[]> };
@@ -171,7 +171,7 @@ function spread(sessions: readonly ExternalSession[], entities: Entities | undef
 }
 
 function place(sources: Sources): Placed {
-  return { now: Date.now(), entities: sources.entities, linked: sources.linked, ...spread(sources.external, sources.entities), archived: spread(sources.archivedExternal, sources.entities) };
+  return { now: Date.now(), entities: sources.entities, linked: sources.linked, ...spread(sources.external, sources.entities) };
 }
 
 const externalText = (session: ExternalSession) => `${session.title} ${session.branch ?? ''} ${session.cwd} ${session.harness}`;
@@ -185,7 +185,7 @@ const liveRollup = (sessions: readonly SessionNode[], external: readonly Externa
     ...external.filter((session) => session.running).map((session) => ({ status: externalDot(session), unseen: false })),
   ]);
 
-function externalChildren(prefix: string, sessions: readonly ExternalSession[], now: number, archived: readonly ExternalSession[] = []): WorkNode[] {
+function externalChildren(prefix: string, sessions: readonly ExternalSession[], now: number): WorkNode[] {
   const { recent, earlier } = splitEarlier(sessions, now);
   const children = recent.map(externalLeaf);
   if (earlier.length)
@@ -200,7 +200,6 @@ function externalChildren(prefix: string, sessions: readonly ExternalSession[], 
       defaultExpanded: false,
       forgetExpanded: true,
     });
-  children.push(...archiveGroup(`${prefix}|archive`, archived.map(archivedExternalLeaf)));
   return children;
 }
 
@@ -210,30 +209,27 @@ function projectWorktrees(project: ProjectNode, placed: Placed): WorktreeNode[] 
   return worktreesOfProject(placed.entities, project.id).flatMap((worktree) => {
     const node = known.get(worktree.id);
     if (node) return [node];
-    return placed.byWorktree.has(worktree.id) || placed.archived.byWorktree.has(worktree.id) ? [{ id: worktree.id, path: worktree.path, branch: worktree.branch, main: worktree.is_main, sessions: [], archived: [] }] : [];
+    return placed.byWorktree.has(worktree.id) ? [{ id: worktree.id, path: worktree.path, branch: worktree.branch, main: worktree.is_main, sessions: [], archived: [] }] : [];
   });
 }
 
 function otherFolders(prefix: string, project: ProjectNode, placed: Placed, match: (text: string) => boolean): WorkNode[] {
   const matches = (session: ExternalSession) => match(`${externalText(session)} ${project.name}`);
   const list = (placed.byProject.get(project.id) ?? []).filter(matches);
-  const archived = (placed.archived.byProject.get(project.id) ?? []).filter(matches);
-  if (!list.length && !archived.length) return [];
+  if (!list.length) return [];
   const id = `${prefix}of:${project.id}`;
-  return [group(id, 'folders', t('workbench.external.otherFolders'), externalChildren(id, list, placed.now, archived), { icon: FolderSearch, data: { rollup: liveRollup([], list) } })];
+  return [group(id, 'folders', t('workbench.external.otherFolders'), externalChildren(id, list, placed.now), { icon: FolderSearch, data: { rollup: liveRollup([], list) } })];
 }
 
 function looseFolders(prefix: string, placed: Placed, match: (text: string) => boolean): WorkNode[] {
-  const folders = new Set([...placed.loose.keys(), ...placed.archived.loose.keys()]);
-  return [...folders].flatMap((folder) => {
+  return [...placed.loose.keys()].flatMap((folder) => {
     const shown = (placed.loose.get(folder) ?? []).filter((session) => match(externalText(session)));
-    const archived = (placed.archived.loose.get(folder) ?? []).filter((session) => match(externalText(session)));
-    const first = shown[0] ?? archived[0];
+    const first = shown[0];
     if (!first) return [];
     const cwd = first.cwd.replaceAll('\\', '/').replace(/\/+$/, '');
     const cut = cwd.lastIndexOf('/');
     const id = `${prefix}|dir:${folder}`;
-    return [group(id, 'folder', cwd.slice(cut + 1) || cwd, externalChildren(id, shown, placed.now, archived), { icon: Folder, iconOpen: FolderOpen, detail: cut > 0 ? cwd.slice(0, cut) : undefined, title: cwd, data: { rollup: liveRollup([], shown) } })];
+    return [group(id, 'folder', cwd.slice(cut + 1) || cwd, externalChildren(id, shown, placed.now), { icon: Folder, iconOpen: FolderOpen, detail: cut > 0 ? cwd.slice(0, cut) : undefined, title: cwd, data: { rollup: liveRollup([], shown) } })];
   });
 }
 
@@ -244,16 +240,10 @@ function worktreeNodes(prefix: string, project: ProjectNode, links: Links, place
       return link ? externalText(link) : '';
     };
     const sessions = worktree.sessions.filter((session) => match(`${session.name} ${linkedText(session)} ${worktree.branch} ${project.name}`));
-    const archived = worktree.archived.filter((session) => match(`${session.name} ${worktree.branch} ${project.name}`));
     const placedHere = placed.byWorktree.get(worktree.id) ?? [];
     const external = placedHere.filter((session) => match(`${externalText(session)} ${worktree.branch} ${project.name}`));
-    const archivedExternal = (placed.archived.byWorktree.get(worktree.id) ?? []).filter((session) => match(`${externalText(session)} ${worktree.branch} ${project.name}`));
-    if (filtering && !sessions.length && !archived.length && !external.length && !archivedExternal.length) return [];
-    const children = [
-      ...sessions.map(sessionLeaf(placed.linked)),
-      ...externalChildren(`${prefix}ex:${worktree.id}`, external, placed.now),
-      ...archiveGroup(`${prefix}ar:${worktree.id}`, [...archived.map(archivedLeaf), ...archivedExternal.map(archivedExternalLeaf)]),
-    ];
+    if (filtering && !sessions.length && !external.length) return [];
+    const children = [...sessions.map(sessionLeaf(placed.linked)), ...externalChildren(`${prefix}ex:${worktree.id}`, external, placed.now)];
     const rollup = liveRollup(worktree.sessions, placedHere, placed.linked);
     return [
       {
@@ -387,7 +377,7 @@ export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly 
         if (pruned && !worktrees.length) return [];
         const rollup = projectRollup(project);
         const pin = (sources.entities?.projects.get(project.id)?.pin_order ?? null) !== null;
-        return [{ id: `s|pr:${project.id}`, kind: 'project', label: project.name, icon: pin ? Pin : Folder, iconOpen: pin ? Pin : FolderOpen, children: worktrees, ...sessionsCount(rollup), data: { projectId: project.id, rollup } }];
+        return [{ id: `s|pr:${project.id}`, kind: 'project', label: project.name, icon: pin ? Pin : Folder, iconOpen: pin ? Pin : FolderOpen, children: worktrees, ...sessionsCount(rollup), countAlways: true, data: { projectId: project.id, rollup } }];
       });
       if (pruned && !children.length) return [];
       if (sources.workspaces.length === 1) return children;
@@ -399,7 +389,15 @@ export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly 
       return [{ id: `ws:${workspace.id}`, kind: 'workspace', label: workspace.name, icon: Layers, children, ...sessionsCount(rollup), data: { workspaceId: workspace.id, rollup } }];
     });
     const loose = looseFolders('s|orphans', placed, match);
-    return [...workspaceNodes, ...(loose.length ? [group('s|orphans', 'orphans', t('workbench.notInProject'), loose, { icon: Inbox, data: { rollup: liveRollup([], [...placed.loose.values()].flat()) } })] : [])];
+    const archived = pruned
+      ? []
+      : archiveGroup('s|archive', [
+          ...sources.workspaces.flatMap((workspace) =>
+            workspace.projects.flatMap((project) => project.worktrees.flatMap((worktree) => worktree.archived.map((session) => archivedLeaf(session, `${project.name} › ${worktree.branch}`)))),
+          ),
+          ...sources.archivedExternal.map(archivedExternalLeaf),
+        ]);
+    return [...workspaceNodes, ...(loose.length ? [group('s|orphans', 'orphans', t('workbench.notInProject'), loose, { icon: Inbox, data: { rollup: liveRollup([], [...placed.loose.values()].flat()) } })] : []), ...archived];
   };
 
   const mrNodes = (): WorkNode[] => {

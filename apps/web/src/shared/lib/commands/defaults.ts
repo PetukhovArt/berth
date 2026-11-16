@@ -9,6 +9,7 @@ export const DEFAULT_KEYMAP: readonly KeymapEntry[] = [
       'mod-shift-m': 'dock.toggleMaximize',
       'mod-shift-n': 'agents.newSession',
       'mod-shift-o': 'hot.overview',
+      'alt-j': 'inbox.nextWaiting',
       'ctrl-space t': 'session.view.terminal',
       'ctrl-space c': 'session.view.chat',
       'ctrl-space m': 'session.view.mr',
