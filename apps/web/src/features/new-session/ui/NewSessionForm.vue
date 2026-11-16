@@ -3,6 +3,7 @@ import { computed, shallowRef, watch } from 'vue';
 import { VButton, VDialog, VInputText, VMessage, VSelect, VTextarea } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
+import { invoke } from '../../../bridge';
 import { acpPrompt, createAcpAgent, createAgent, createTerminal, entitySessionRef, type AgentKind, type SessionRef, useAction } from '../../../entities/session';
 import { useProviders } from '../../../shared/api/providers';
 import { useSessionTarget } from '../model/sessionTarget';
@@ -110,6 +111,17 @@ function removePreset(name: string) {
 }
 
 const optional = (text: string) => text.trim() || null;
+
+const warmWorktree = computed(() => (location.plan.value.kind === 'use' ? location.plan.value.worktree.id : null));
+
+watch(
+  [warmWorktree, kind],
+  ([worktree, chosen]) => {
+    if (!worktree || chosen === 'terminal' || acpProviderOf(chosen)) return;
+    invoke<void>('berth_prewarm', { worktree, kind: chosen, model: optional(model.value), effort: optional(effort.value) }).catch(() => undefined);
+  },
+  { immediate: true },
+);
 
 async function submit() {
   const chosen = kinds.value;

@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use berth_core::{AgentId, Entity, SessionRef};
+use berth_core::{AgentId, AgentKind, Entity, SessionRef, WorktreeId};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -326,6 +326,23 @@ impl Client {
                 }
                 let Args { agent } = parse(args)?;
                 berth::berth_mark_seen(&self.berth, agent);
+                Ok(Value::Null)
+            }
+            "berth_prewarm" => {
+                #[derive(Deserialize)]
+                struct Args {
+                    worktree: WorktreeId,
+                    kind: AgentKind,
+                    model: Option<String>,
+                    effort: Option<String>,
+                }
+                let Args {
+                    worktree,
+                    kind,
+                    model,
+                    effort,
+                } = parse(args)?;
+                berth::berth_prewarm(&self.berth, worktree, kind, model, effort);
                 Ok(Value::Null)
             }
             "berth_call" => {

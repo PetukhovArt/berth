@@ -101,8 +101,6 @@ What the terminal UI did that the desktop app does not, worth keeping once the T
 - Mark a file reviewed in a diff, kept per merge request. Source: `crates/berth-tui/src/review.rs`.
 - Open a Project's repository page on its git host from the Project menu, the `origin` URL made
   browsable with credentials stripped.
-- Daemon settings the desktop Settings do not show yet: run `git init` for a new folder, prewarm
-  Agents, prewarm Sessions. Read by `crates/berth-daemon/src/config.rs`.
 - A Linux build of the desktop app, since the TUI was the only interface on Linux.
 
 ## Team

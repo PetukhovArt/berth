@@ -249,18 +249,11 @@ export const SETTINGS = {
     description: 'settings.def.daemonGitInitOnCreate.description',
     category: 'sessions',
   },
-  'daemon.prewarmAgents': {
+  'daemon.prewarm': {
     type: 'boolean',
     default: true,
-    label: 'settings.def.daemonPrewarmAgents.label',
-    description: 'settings.def.daemonPrewarmAgents.description',
-    category: 'sessions',
-  },
-  'daemon.prewarmSessions': {
-    type: 'boolean',
-    default: true,
-    label: 'settings.def.daemonPrewarmSessions.label',
-    description: 'settings.def.daemonPrewarmSessions.description',
+    label: 'settings.def.daemonPrewarm.label',
+    description: 'settings.def.daemonPrewarm.description',
     category: 'sessions',
   },
   'daemon.claudeLimits': {

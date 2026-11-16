@@ -198,10 +198,9 @@ pub async fn berth_restore_sessions_write(value: bool) -> Result<(), String> {
     berth_config_write(RESTORE_KEY, serde_json::Value::Bool(value))
 }
 
-const DAEMON_FLAGS: [(&str, bool); 5] = [
+const DAEMON_FLAGS: [(&str, bool); 4] = [
     ("git_init_on_create", true),
-    ("prewarm_agents", true),
-    ("prewarm_sessions", true),
+    ("prewarm", true),
     ("claude_limits", false),
     ("checkpoints_claude", false),
 ];

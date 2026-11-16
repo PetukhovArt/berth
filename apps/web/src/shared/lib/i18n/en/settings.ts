@@ -156,13 +156,9 @@ export const settings = {
       label: 'Run git init for a new folder',
       description: 'When you add a project by creating a folder that does not exist yet, run git init in it. Stored in the berth config, so it applies to every client.',
     },
-    daemonPrewarmAgents: {
-      label: 'Prewarm agents',
-      description: 'Start the agent CLI in the background while you name a new session, so it opens instantly. Costs one idle process per warm slot. Stored in the berth config.',
-    },
-    daemonPrewarmSessions: {
-      label: 'Prewarm sessions',
-      description: 'Start the stopped sessions of a worktree when you select it, so attaching shows a screen that is already booted. Costs idle processes for sessions you may never open. Stored in the berth config.',
+    daemonPrewarm: {
+      label: 'Start the next agent ahead of time',
+      description: 'While the new session form is open, the agent it targets starts in the background, so the session opens instantly. Costs one idle agent process, a few hundred MB for Claude, which stops after 15 minutes if no session takes it. Stored in the berth config, so it applies to every client.',
     },
     daemonClaudeLimits: {
       label: 'Show Claude subscription limits',

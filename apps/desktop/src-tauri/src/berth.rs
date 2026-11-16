@@ -175,6 +175,21 @@ pub fn berth_mark_seen(berth: &Berth, agent: AgentId) {
     berth.send(Command::MarkSeen { agent });
 }
 
+pub fn berth_prewarm(
+    berth: &Berth,
+    worktree: WorktreeId,
+    kind: AgentKind,
+    model: Option<String>,
+    effort: Option<String>,
+) {
+    berth.send(Command::Prewarm(ClientRequest::PrewarmAgent {
+        worktree,
+        kind,
+        model,
+        effort,
+    }));
+}
+
 pub async fn berth_call(berth: &Berth, mut request: serde_json::Value) -> CallResult {
     if let Some(serde_json::Value::Object(fields)) = request
         .as_object_mut()
@@ -219,6 +234,7 @@ enum Command {
     MarkSeen {
         agent: AgentId,
     },
+    Prewarm(ClientRequest),
     Call {
         request: ClientRequest,
         reply: oneshot::Sender<CallResult>,
@@ -430,6 +446,7 @@ impl Actor {
                 self.write(ClientRequest::Detach { session });
             }
             Command::MarkSeen { agent } => self.write(ClientRequest::MarkAgentSeen { id: agent }),
+            Command::Prewarm(request) => self.write(request),
             Command::Call { request, reply } => self.call(request, reply),
         }
     }
@@ -781,7 +798,6 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::Input { .. }
         | ClientRequest::Resize { .. }
         | ClientRequest::PrewarmAgent { .. }
-        | ClientRequest::PrewarmWorktreeSessions { .. }
         | ClientRequest::SaveUiState { .. }
         | ClientRequest::MarkPrSeen { .. }
         | ClientRequest::MarkAgentSeen { .. }

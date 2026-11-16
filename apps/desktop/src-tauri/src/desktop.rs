@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use berth_core::{AgentId, SessionRef};
+use berth_core::{AgentId, AgentKind, SessionRef, WorktreeId};
 use serde_json::Value;
 use tauri::ipc::{Channel, IpcResponse};
 use tauri::{AppHandle, Manager, Runtime, State};
@@ -88,6 +88,17 @@ pub fn berth_detach(berth: State<'_, Berth>, session: SessionRef) {
 #[tauri::command]
 pub fn berth_mark_seen(berth: State<'_, Berth>, agent: AgentId) {
     berth::berth_mark_seen(&berth, agent);
+}
+
+#[tauri::command]
+pub fn berth_prewarm(
+    berth: State<'_, Berth>,
+    worktree: WorktreeId,
+    kind: AgentKind,
+    model: Option<String>,
+    effort: Option<String>,
+) {
+    berth::berth_prewarm(&berth, worktree, kind, model, effort);
 }
 
 #[tauri::command]
@@ -275,6 +286,7 @@ pub fn run() {
             berth_resize,
             berth_detach,
             berth_mark_seen,
+            berth_prewarm,
             berth_call,
             platform_info,
             settings_read,

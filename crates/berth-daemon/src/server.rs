@@ -702,24 +702,16 @@ async fn handle_client(
                     // Fire-and-forget: boot the CLI while the user is still
                     // typing the session name; CreateAgent adopts it. Runs
                     // off the request loop (the CLI probe can take a bit).
+                    let ticket = daemon.prewarm.ticket();
                     let daemon = daemon.clone();
                     tokio::spawn(async move {
-                        if let Err(e) = daemon.prewarm_agent(&worktree, kind, model, effort).await {
+                        if let Err(e) = daemon
+                            .prewarm_agent(ticket, &worktree, kind, model, effort)
+                            .await
+                        {
                             tracing::debug!(error = %e, "prewarm failed");
                         }
                     });
-                }
-                ClientRequest::PrewarmWorktreeSessions {
-                    worktree,
-                    cols,
-                    rows,
-                } => {
-                    // Returns at once: the sweep boots the worktree's dead
-                    // sessions on its own task, staggered, skipping the one
-                    // the Attach above already spawned. Racing that Attach is
-                    // safe — ensure_session's spawn gate makes the
-                    // check-and-spawn atomic, so neither can double-fork.
-                    daemon.prewarm_worktree_sessions(&worktree, cols, rows);
                 }
                 ClientRequest::RenameAgent { req_id, id, name } => {
                     reply_done(&out_tx, req_id, daemon.rename_agent(&id, &name)).await;
