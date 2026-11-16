@@ -1,5 +1,6 @@
 pub mod acp;
 pub mod branches;
+pub mod channel_requests;
 pub mod channels;
 pub mod checkpoints;
 pub mod cli_title;
@@ -25,8 +26,8 @@ pub mod resume_check;
 pub mod router;
 pub mod sampler;
 pub mod server;
-pub mod shared_setup;
 pub mod shared_notes;
+pub mod shared_setup;
 pub mod sibling;
 pub mod status;
 pub mod stop_agent;
@@ -186,6 +187,7 @@ async fn serve() -> Result<()> {
     tokio::spawn(daemon.clone().run_presence_report());
     tokio::spawn(daemon.clone().run_messenger_bridge());
     tokio::spawn(daemon.clone().run_touched_report());
+    tokio::spawn(daemon.clone().run_channel_requests());
     if let Err(e) = triggers::start_webhooks(daemon.clone(), &config::Config::load()).await {
         tracing::warn!(error = %e, "webhook listener not started");
     }

@@ -258,6 +258,13 @@ enum ChannelCommand {
         #[arg(num_args = 0.., help = "The note; multiple words need no quotes")]
         text: Vec<String>,
     },
+    #[command(about = "Answer your Agent's request in a channel: allow, deny or an option number")]
+    Answer {
+        channel: String,
+        #[arg(help = "The seq of the request event, as `berth channel read` prints it")]
+        request: i64,
+        answer: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -394,6 +401,11 @@ fn main() -> Result<()> {
                 channel::run_post(channel, message.join(" "))
             }
             ChannelCommand::Note { channel, text } => channel::run_note(channel, text.join(" ")),
+            ChannelCommand::Answer {
+                channel,
+                request,
+                answer,
+            } => channel::run_answer(channel, request, answer),
         },
         Some(Command::Hub { command }) => match command {
             HubCommand::Serve {

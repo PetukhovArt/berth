@@ -50,5 +50,11 @@ export const attention = {
     noteCleared: 'Заметка задачи снята',
     noteBy: 'Заметка задачи от {name}: {text}',
     noteClear: 'Снять',
+    request: {
+      answeredLocally: 'Ответ дан в berth',
+      answeredBy: '{who} ответил(а): {answer}',
+      sent: 'Ответ отправлен, ждём Агента',
+      ownerOnly: 'Ответить может только владелец Агента',
+    },
   },
 } as const;

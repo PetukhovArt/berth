@@ -542,6 +542,14 @@ pub enum ClientRequest {
         option: u8,
     },
 
+    AnswerInChannel {
+        req_id: u64,
+        channel: String,
+        request: i64,
+        answer: String,
+        agent: Option<AgentId>,
+    },
+
     Shutdown,
 }
 

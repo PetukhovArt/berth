@@ -50,5 +50,11 @@ export const attention = {
     noteCleared: 'Task note cleared',
     noteBy: 'Task note from {name}: {text}',
     noteClear: 'Clear',
+    request: {
+      answeredLocally: 'Answered in berth',
+      answeredBy: '{who} answered: {answer}',
+      sent: 'Answer sent, waiting for the Agent',
+      ownerOnly: "Only the Agent's owner can answer",
+    },
   },
 } as const;

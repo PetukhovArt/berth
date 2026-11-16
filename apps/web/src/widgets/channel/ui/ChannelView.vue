@@ -4,7 +4,7 @@ import { UiButton } from '../../../shared/ui/UiButton';
 import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { Bot, UserRound } from '../../../shared/ui/icons';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
-import { describeError, isAgentMessage, isNoteMessage, postNote, postToChannel, readChannel, readPresence, refreshChannels, type ChannelMessage, type ChannelPresent } from '../../../entities/session';
+import { answerInChannel, channelRequestOf, describeError, isAgentMessage, isChannelReply, isNoteMessage, isOwnAgentRequest, postNote, postToChannel, readChannel, readPresence, refreshChannels, settlementOf, type ChannelMessage, type ChannelPresent, type ChannelRequest, type ChannelSettlement } from '../../../entities/session';
 
 const POLL_MS = 4000;
 
@@ -16,6 +16,39 @@ const draft = shallowRef('');
 const error = shallowRef<string | null>(null);
 const present = shallowRef<ChannelPresent[]>([]);
 const busy = shallowRef(false);
+const sent = shallowRef<ReadonlySet<number>>(new Set());
+const rows = computed(() =>
+  messages.value
+    .filter((message) => !isChannelReply(message))
+    .map((message) => {
+      const request = channelRequestOf(message);
+      return { message, request, settled: request ? settlementOf(messages.value, message) : null, own: request ? isOwnAgentRequest(message) : false };
+    }),
+);
+
+function requestText(request: ChannelRequest): string {
+  return request.kind === 'permission' ? t('feedback.permission', { tool: request.title }) : request.title;
+}
+
+function settledText(request: ChannelRequest, settlement: ChannelSettlement): string {
+  if (settlement.answer === 'local') return t('attention.channel.request.answeredLocally');
+  const answer = settlement.answer === 'allow' ? t('feedback.allow') : settlement.answer === 'deny' ? t('feedback.deny') : (request.options[Number(settlement.answer) - 1] ?? settlement.answer);
+  return t('attention.channel.request.answeredBy', { who: settlement.by ?? '', answer });
+}
+
+async function answer(seq: number, token: string) {
+  if (busy.value) return;
+  busy.value = true;
+  try {
+    await append(await answerInChannel(props.channel, seq, token));
+    sent.value = new Set(sent.value).add(seq);
+    error.value = null;
+  } catch (failure) {
+    error.value = describeError(failure);
+  } finally {
+    busy.value = false;
+  }
+}
 const list = useTemplateRef<HTMLElement>('list');
 let timer: ReturnType<typeof setTimeout> | undefined;
 let stopped = false;
@@ -100,19 +133,33 @@ onBeforeUnmount(() => {
       <UiButton type="button" class="note-clear" :disabled="busy" data-testid="channel-note-clear" @click="clearNote">{{ t('attention.channel.noteClear') }}</UiButton>
     </p>
     <ol ref="list" class="messages" data-testid="channel-messages">
-      <li v-if="!messages.length" class="empty" data-testid="channel-empty">{{ t('attention.channel.empty') }}</li>
-      <li v-for="message in messages" :key="message.seq" class="message" :data-author-kind="message.authorKind" data-testid="channel-message">
-        <span class="marker" :title="isAgentMessage(message) ? t('attention.channel.agent') : t('attention.channel.person')" :aria-label="isAgentMessage(message) ? t('attention.channel.agent') : t('attention.channel.person')">
-          <Bot v-if="isAgentMessage(message)" :size="14" />
+      <li v-if="!rows.length" class="empty" data-testid="channel-empty">{{ t('attention.channel.empty') }}</li>
+      <li v-for="row in rows" :key="row.message.seq" class="message" :data-author-kind="row.message.authorKind" data-testid="channel-message">
+        <span class="marker" :title="isAgentMessage(row.message) ? t('attention.channel.agent') : t('attention.channel.person')" :aria-label="isAgentMessage(row.message) ? t('attention.channel.agent') : t('attention.channel.person')">
+          <Bot v-if="isAgentMessage(row.message)" :size="14" />
           <UserRound v-else :size="14" />
         </span>
         <div class="body">
           <div class="meta">
-            <span class="author" data-testid="channel-author">{{ message.authorName }}</span>
-            <span class="time">{{ formatDate(message.createdAt, { timeStyle: 'short' }) }}</span>
-            <span v-if="isNoteMessage(message)" class="tag" data-testid="channel-note-tag">{{ t('attention.channel.noteTag') }}</span>
+            <span class="author" data-testid="channel-author">{{ row.message.authorName }}</span>
+            <span class="time">{{ formatDate(row.message.createdAt, { timeStyle: 'short' }) }}</span>
+            <span v-if="isNoteMessage(row.message)" class="tag" data-testid="channel-note-tag">{{ t('attention.channel.noteTag') }}</span>
           </div>
-          <p class="content">{{ isNoteMessage(message) && !message.content ? t('attention.channel.noteCleared') : message.content }}</p>
+          <div v-if="row.request" class="request" data-testid="channel-request" :data-settled="row.settled ? 'true' : 'false'">
+            <p class="content">{{ requestText(row.request) }}</p>
+            <code v-if="row.request.detail" class="detail" data-testid="channel-request-detail">{{ row.request.detail }}</code>
+            <p v-if="row.settled" class="request-state" data-testid="channel-request-settled">{{ settledText(row.request, row.settled) }}</p>
+            <p v-else-if="!row.own" class="request-state" data-testid="channel-request-owner-only">{{ t('attention.channel.request.ownerOnly') }}</p>
+            <p v-else-if="sent.has(row.message.seq)" class="request-state" data-testid="channel-request-sent">{{ t('attention.channel.request.sent') }}</p>
+            <div v-else class="actions">
+              <template v-if="row.request.kind === 'permission' && !row.request.options.length">
+                <UiButton type="button" class="action primary" :disabled="busy" data-testid="channel-request-allow" @click="answer(row.message.seq, 'allow')">{{ t('feedback.allow') }}</UiButton>
+                <UiButton type="button" class="action" :disabled="busy" data-testid="channel-request-deny" @click="answer(row.message.seq, 'deny')">{{ t('feedback.deny') }}</UiButton>
+              </template>
+              <UiButton v-for="(option, index) in row.request.options" v-else :key="index" type="button" class="action" :class="{ primary: index === 0 }" :disabled="busy" data-testid="channel-request-option" @click="answer(row.message.seq, String(index + 1))">{{ option }}</UiButton>
+            </div>
+          </div>
+          <p v-else class="content">{{ isNoteMessage(row.message) && !row.message.content ? t('attention.channel.noteCleared') : row.message.content }}</p>
         </div>
       </li>
     </ol>
@@ -243,6 +290,62 @@ onBeforeUnmount(() => {
   font-size: var(--vr-font-size-sm);
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+.request {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vr-space-1);
+  align-items: flex-start;
+  padding: var(--vr-space-2);
+  margin-top: 2px;
+  background: var(--vr-tint-feedback);
+  border-radius: var(--vr-radius-md);
+}
+
+.request[data-settled='true'] {
+  background: var(--vr-color-surface-muted);
+}
+
+.detail {
+  max-width: 100%;
+  padding: 1px 6px;
+  overflow: hidden;
+  font-family: var(--vr-font-mono);
+  font-size: var(--vr-font-size-xs);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: var(--vr-color-surface-muted);
+  border-radius: var(--vr-radius-sm);
+}
+
+.request-state {
+  margin: 0;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vr-space-2);
+}
+
+.action {
+  height: 28px;
+  padding: 0 12px;
+  font-size: var(--vr-font-size-sm);
+  font-weight: 500;
+  color: var(--vr-color-text);
+  cursor: pointer;
+  background: var(--vr-color-surface-muted);
+  border: 0;
+  border-radius: var(--vr-radius-md);
+}
+
+.action.primary {
+  color: var(--vr-color-accent-contrast);
+  background: var(--vr-color-accent);
 }
 
 .error {

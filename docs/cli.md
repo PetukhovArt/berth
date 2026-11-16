@@ -99,6 +99,7 @@ With `hub_url` and `hub_token` set (see [configuration](configuration.md)), `ber
 - `berth channel read <channel> [--after <seq>]`: the events of a channel.
 - `berth channel post <channel> <message...>`: post a message; inside a session it is posted as that Agent.
 - `berth channel note <channel> <text...>`: set the Task note of the channel's task. Every member's Agent that starts a Session on that task, meaning a worktree whose branch name contains the channel key, gets it at session start next to their own Task note, labelled as information from a colleague. The latest note wins; `berth channel note <channel>` with no text clears it.
+- `berth channel answer <channel> <seq> allow|deny|N`: answer your Agent's request in the channel (below).
 
 The desktop app's Channel view has a Task note button beside Send. Each daemon also tells the hub every 15 seconds which modules (the first two directories of a changed path) its Agents on a task have changed, and the hub keeps that in memory for 45 seconds. The overlap chip on an Agent then also lists Agents of other members that change the same modules on the same task, as `agent (member)`.
 
@@ -114,6 +115,22 @@ opens the Channel.
 
 A Channel shows who is here: people who have the app open, and the Sessions that run on the task. A
 Session counts as on the task when the Channel key appears in its Worktree's branch name or Task note.
+
+When one of your Agents waits on a permission prompt or a question and its Worktree's branch names a
+channel you are in, the daemon posts the request into that channel as the Agent. It carries what the
+request card in berth shows: the tool and its command or path, or the question and its options. The
+Channel view shows it with buttons, and from a terminal you answer it with:
+
+```sh
+berth channel read <channel>                      # the request is the event with "kind": 2
+berth channel answer <channel> <seq> allow|deny|N # N is an option number, starting at 1
+```
+
+Only the Agent's owner can answer: the daemon that runs the Agent acts on an answer only when the hub
+says it came from the same device that owns the Agent, and ignores everyone else's. An Agent cannot
+answer requests itself. The answer is typed into the Agent the same way the request card in berth
+does it. A request you answer in berth, or one the Agent stops waiting on, is marked answered in the
+channel.
 
 ## MCP server for agents
 

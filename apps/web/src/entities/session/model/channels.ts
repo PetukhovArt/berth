@@ -1,14 +1,41 @@
 import { computed, shallowRef } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
-import { BerthCallError, call } from './berth';
+import { BerthCallError, call, useBerth } from './berth';
 
 type ChannelSummary = { key: string; head: number; unread: number };
-export type ChannelMessage = { seq: number; kind: number; author: string; authorName: string; authorKind: string; content: string; createdAt: number };
+export type ChannelMessage = { seq: number; kind: number; author: string; authorName: string; authorKind: string; tags: string[][]; content: string; createdAt: number };
 export type ChannelTouching = { member: string; name: string; agent: string; modules: string[] };
 
-const SUMMARY_POLL_MS = 30_000;
+const KIND_REQUEST = 2;
+const KIND_ANSWER = 3;
+const KIND_SETTLED = 4;
 const NOTE_KIND = 5;
+
+export type ChannelRequest = { kind: 'permission' | 'question'; title: string; detail: string | null; options: string[] };
+export type ChannelSettlement = { answer: string; by: string | null };
+
+const tagValues = (message: ChannelMessage, name: string) => message.tags.filter((tag) => tag[0] === name && tag.length === 2).map((tag) => tag[1] ?? '');
+
+export const isChannelReply = (message: ChannelMessage) => message.kind === KIND_ANSWER || message.kind === KIND_SETTLED;
+
+export function channelRequestOf(message: ChannelMessage): ChannelRequest | null {
+  if (message.kind !== KIND_REQUEST) return null;
+  const kind = tagValues(message, 'request')[0];
+  if (kind !== 'permission' && kind !== 'question') return null;
+  return { kind, title: tagValues(message, 'title')[0] ?? '', detail: tagValues(message, 'detail')[0] ?? null, options: tagValues(message, 'option') };
+}
+
+export function settlementOf(messages: readonly ChannelMessage[], request: ChannelMessage): ChannelSettlement | null {
+  const seq = String(request.seq);
+  const settled = messages.find((message) => message.kind === KIND_SETTLED && message.author === request.author && tagValues(message, 'e').includes(seq));
+  if (!settled) return null;
+  return { answer: tagValues(settled, 'answer')[0] ?? '', by: tagValues(settled, 'by')[0] ?? null };
+}
+
+export const isOwnAgentRequest = (message: ChannelMessage) => useBerth()?.entities.value.agents.has(message.authorName) ?? false;
+
+const SUMMARY_POLL_MS = 30_000;
 
 const channelPanelId = (key: string) => `channel:${key}`;
 
@@ -31,6 +58,7 @@ function messages(reply: Awaited<ReturnType<typeof call>>): ChannelMessage[] {
     author: event.author,
     authorName: event.author_name,
     authorKind: event.author_kind,
+    tags: event.tags,
     content: event.content,
     createdAt: event.created_at,
   }));
@@ -51,7 +79,7 @@ function remember(channel: string, fresh: ChannelMessage[]): ChannelMessage[] {
 export type LoadedChannelMessage = ChannelMessage & { channel: string };
 
 export function useLoadedChannelMessages() {
-  return computed<LoadedChannelMessage[]>(() => [...loaded.value].flatMap(([channel, list]) => list.map((message) => ({ ...message, channel }))));
+  return computed<LoadedChannelMessage[]>(() => [...loaded.value].flatMap(([channel, list]) => list.filter((message) => !isChannelReply(message)).map((message) => ({ ...message, channel }))));
 }
 
 export async function readChannel(channel: string, after: number): Promise<ChannelMessage[]> {
@@ -80,6 +108,10 @@ export async function readTouched(channel: string): Promise<ChannelTouching[]> {
 
 export async function channelKeys(): Promise<string[]> {
   return (await listChannels()).map((channel) => channel.key);
+}
+
+export async function answerInChannel(channel: string, request: number, answer: string): Promise<ChannelMessage[]> {
+  return remember(channel, messages(await call({ AnswerInChannel: { channel, request, answer, agent: null } })));
 }
 
 export function openChannel(key: string, split = false): void {

@@ -376,11 +376,7 @@ async fn handle_client(
                         let _ = out_tx.send(ev).await;
                     });
                 }
-                ClientRequest::OpenChannel {
-                    req_id,
-                    key,
-                    agent,
-                } => {
+                ClientRequest::OpenChannel { req_id, key, agent } => {
                     let out_tx = out_tx.clone();
                     let daemon = daemon.clone();
                     tokio::spawn(async move {
@@ -483,6 +479,32 @@ async fn handle_client(
                         daemon.answer_feedback(&agent, option).await,
                     )
                     .await;
+                }
+                ClientRequest::AnswerInChannel {
+                    req_id,
+                    channel,
+                    request,
+                    answer,
+                    agent,
+                } => {
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let ev = match crate::channel_requests::answer_in_channel(
+                            &channel, request, &answer, &agent,
+                        )
+                        .await
+                        {
+                            Ok(event) => ServerEvent::ChannelEvents {
+                                req_id,
+                                events: vec![event],
+                            },
+                            Err(e) => ServerEvent::Error {
+                                req_id: Some(req_id),
+                                message: format!("{e:#}"),
+                            },
+                        };
+                        let _ = out_tx.send(ev).await;
+                    });
                 }
                 ClientRequest::ReadChannel {
                     req_id,

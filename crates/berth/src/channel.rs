@@ -123,6 +123,16 @@ pub fn run_note(channel: String, content: String) -> Result<()> {
     })
 }
 
+pub fn run_answer(channel: String, request: i64, answer: String) -> Result<()> {
+    print_posted(ClientRequest::AnswerInChannel {
+        req_id: ONE_SHOT_REQ_ID,
+        channel,
+        request,
+        answer,
+        agent: own_agent(),
+    })
+}
+
 pub fn run_hub_serve(
     bind: SocketAddr,
     db: Option<PathBuf>,

@@ -83,7 +83,10 @@ mod tests {
 
     #[test]
     fn a_task_note_key_puts_the_agent_on_the_channel() {
-        let running = vec![("agent-1".to_string(), "main\nfinish PROJ-7 first".to_string())];
+        let running = vec![(
+            "agent-1".to_string(),
+            "main\nfinish PROJ-7 first".to_string(),
+        )];
         let keys = vec!["PROJ-7".to_string()];
         let found = on_tasks(&running, &keys, false);
         assert_eq!(found.get("PROJ-7"), Some(&vec!["agent-1".to_string()]));

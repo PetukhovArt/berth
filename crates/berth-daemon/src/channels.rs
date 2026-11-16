@@ -16,7 +16,7 @@ pub(crate) fn hub() -> Result<HubClient> {
     HubClient::new(&url, &token)
 }
 
-fn convert<T: Serialize, U: DeserializeOwned>(value: T) -> Result<U> {
+pub(crate) fn convert<T: Serialize, U: DeserializeOwned>(value: T) -> Result<U> {
     Ok(serde_json::from_value(serde_json::to_value(value)?)?)
 }
 
@@ -82,15 +82,20 @@ pub fn issue_key_in(text: &str) -> Option<String> {
                 .iter()
                 .take_while(|b| b.is_ascii_uppercase() || b.is_ascii_digit())
                 .count();
-        let digits = bytes[word_end..]
-            .strip_prefix(b"-")
-            .map_or(0, |rest| rest.iter().take_while(|b| b.is_ascii_digit()).count());
-        (word_end > start + 1 && digits > 0).then(|| upper[start..word_end + 1 + digits].to_string())
+        let digits = bytes[word_end..].strip_prefix(b"-").map_or(0, |rest| {
+            rest.iter().take_while(|b| b.is_ascii_digit()).count()
+        });
+        (word_end > start + 1 && digits > 0)
+            .then(|| upper[start..word_end + 1 + digits].to_string())
     })
 }
 
 impl Daemon {
-    pub async fn open_channel(&self, key: Option<String>, agent: Option<AgentId>) -> Result<String> {
+    pub async fn open_channel(
+        &self,
+        key: Option<String>,
+        agent: Option<AgentId>,
+    ) -> Result<String> {
         let key = match (key, agent) {
             (Some(key), _) => key,
             (None, Some(agent)) => {

@@ -1,6 +1,6 @@
 use crate::context::Touching;
 use crate::presence::Present;
-use crate::store::{ChannelSummary, Device, Event, Mention};
+use crate::store::{ChannelSummary, Device, Event, Mention, KIND_MESSAGE};
 use anyhow::{anyhow, bail, Context, Result};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};
@@ -146,14 +146,40 @@ impl HubClient {
         content: &str,
         as_agent: Option<&str>,
     ) -> Result<Event> {
+        self.publish(channel, KIND_MESSAGE, content, &[], as_agent)
+            .await
+    }
+
+    pub async fn publish(
+        &self,
+        channel: &str,
+        kind: u32,
+        content: &str,
+        tags: &[Vec<String>],
+        as_agent: Option<&str>,
+    ) -> Result<Event> {
         let v = self
             .call(
                 "POST",
                 "/events",
-                Some(json!({ "channel": channel, "content": content, "as_agent": as_agent })),
+                Some(json!({
+                    "channel": channel,
+                    "kind": kind,
+                    "content": content,
+                    "tags": tags,
+                    "as_agent": as_agent,
+                })),
             )
             .await?;
         Ok(serde_json::from_value(v)?)
+    }
+
+    pub async fn me(&self) -> Result<String> {
+        let v = self.call("GET", "/me", None).await?;
+        v["id"]
+            .as_str()
+            .map(str::to_string)
+            .ok_or_else(|| anyhow!("the hub did not say who this device is"))
     }
 
     pub async fn mentions(&self, after: i64) -> Result<Vec<Mention>> {
