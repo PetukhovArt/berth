@@ -1,24 +1,35 @@
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
 use berth_core::ServerEvent;
-use tokio::sync::Notify;
+use tokio::sync::{watch, Notify};
 
 use crate::channels::hub;
 use crate::registry::Daemon;
 
 const RETRY: Duration = Duration::from_secs(5);
 
-#[derive(Default)]
 pub(crate) struct HubPush {
     appended: Notify,
-    live: AtomicBool,
+    live: watch::Sender<bool>,
+}
+
+impl Default for HubPush {
+    fn default() -> Self {
+        Self {
+            appended: Notify::new(),
+            live: watch::channel(false).0,
+        }
+    }
 }
 
 impl HubPush {
     pub(crate) fn is_live(&self) -> bool {
-        self.live.load(Ordering::Relaxed)
+        *self.live.borrow()
+    }
+
+    pub(crate) fn watch_live(&self) -> watch::Receiver<bool> {
+        self.live.subscribe()
     }
 
     pub(crate) async fn appended(&self) {
@@ -26,7 +37,7 @@ impl HubPush {
     }
 
     fn set_live(&self, live: bool) {
-        self.live.store(live, Ordering::Relaxed);
+        self.live.send_replace(live);
         self.appended.notify_one();
     }
 }

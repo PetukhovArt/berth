@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use berth_core::AgentId;
 use berth_hub::client::HubClient;
+use berth_hub::Mention;
 
 use crate::config::Config;
 use crate::registry::Daemon;
@@ -37,13 +38,15 @@ impl MentionCursor {
         self.seq
     }
 
-    pub(crate) fn advance(&mut self, store: &Store, seq: i64) {
-        if self.seq.is_some_and(|s| s >= seq) {
-            return;
-        }
-        self.seq = Some(seq);
-        if let Err(e) = store.set_mention_cursor(&self.hub_url, seq) {
-            tracing::warn!(error = %e, "saving the mention cursor failed");
+    pub(crate) fn hub_url(&self) -> &str {
+        &self.hub_url
+    }
+
+    pub(crate) fn queue(&mut self, store: &Store, found: &[Mention], seq: i64) {
+        let seq = self.seq.map_or(seq, |s| s.max(seq));
+        match crate::team_pending::queue_and_advance(store, &self.hub_url, found, seq) {
+            Ok(()) => self.seq = Some(seq),
+            Err(e) => tracing::warn!(error = %e, "queueing fetched mentions failed"),
         }
     }
 }

@@ -175,7 +175,8 @@ the author's own Agent if the author has one. The Agent gets the message when it
 message as an instruction, anyone else's as quoted information. Your own message that starts with
 `/` once the mention is taken out, like `@fix-login-redirect /compact`, is typed as that command.
 The daemon remembers the last mention it fetched, so mentions made while it was stopped arrive when
-it starts again.
+it starts again. Mentions and promoted messages still waiting for a busy Agent are kept in the
+daemon's database too: a restart delivers them once the Agent is idle, and never twice.
 
 ## Router rules
 
