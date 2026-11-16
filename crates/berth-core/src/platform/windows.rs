@@ -87,6 +87,32 @@ pub fn play_sound_file(_path: &Path) -> bool {
     false
 }
 
+const SAPI_SCRIPT: &str = "Add-Type -AssemblyName System.Speech; \
+$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; \
+$v = $s.GetInstalledVoices() | Where-Object { $_.Enabled -and $_.VoiceInfo.Culture.TwoLetterISOLanguageName -eq $env:BERTH_SPEECH_LANGUAGE } | Select-Object -First 1; \
+if ($v) { $s.SelectVoice($v.VoiceInfo.Name) }; \
+$s.SetOutputToWaveFile($env:BERTH_SPEECH_OUT); \
+$s.Speak([IO.File]::ReadAllText($env:BERTH_SPEECH_IN, [Text.Encoding]::UTF8)); \
+$s.Dispose()";
+
+pub fn speech_to_file(text_file: &Path, language: &str) -> Option<(Command, PathBuf)> {
+    let out = text_file.with_extension("wav");
+    let mut command = Command::new("powershell.exe");
+    command
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            SAPI_SCRIPT,
+        ])
+        .env("BERTH_SPEECH_IN", text_file)
+        .env("BERTH_SPEECH_OUT", &out)
+        .env("BERTH_SPEECH_LANGUAGE", language);
+    Some((command, out))
+}
+
 /// The working set is Windows' name for the resident set: the process's
 /// pages currently in physical memory, which is the number the metrics modal
 /// means by RSS everywhere else.

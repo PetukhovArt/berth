@@ -15,7 +15,10 @@ mod engine;
 #[path = "unsupported.rs"]
 mod engine;
 
+mod transcripts;
+
 pub use engine::Engine as Voice;
+pub use transcripts::serve as serve_transcripts;
 
 pub const MODELS_EVENT: &str = "voice-models";
 

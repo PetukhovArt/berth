@@ -5,12 +5,14 @@ use crate::settings::{berth_config_object, berth_config_update};
 
 const TOKEN_KEY: &str = "messenger_telegram_token";
 const CHAT_KEY: &str = "messenger_telegram_chat";
+const OWNER_KEY: &str = "messenger_telegram_owner";
 const URL_KEY: &str = "messenger_webhook_url";
 
 #[derive(Debug, Serialize)]
 pub struct ChatBridge {
     telegram_token: String,
     telegram_chat: String,
+    telegram_owner: String,
     webhook_url: String,
 }
 
@@ -35,6 +37,7 @@ pub async fn chat_bridge_read() -> Result<ChatBridge, String> {
     Ok(ChatBridge {
         telegram_token: text_of(&map, TOKEN_KEY),
         telegram_chat: text_of(&map, CHAT_KEY),
+        telegram_owner: text_of(&map, OWNER_KEY),
         webhook_url: text_of(&map, URL_KEY),
     })
 }
@@ -42,15 +45,21 @@ pub async fn chat_bridge_read() -> Result<ChatBridge, String> {
 pub async fn chat_bridge_write(
     telegram_token: String,
     telegram_chat: String,
+    telegram_owner: String,
     webhook_url: String,
 ) -> Result<(), String> {
     let url = webhook_url.trim();
     if !url.is_empty() && !url.starts_with("http://") && !url.starts_with("https://") {
         return Err("адрес вебхука должен начинаться с http:// или https://".to_owned());
     }
+    let owner = telegram_owner.trim();
+    if !owner.is_empty() && owner.parse::<i64>().is_err() {
+        return Err("идентификатор владельца в Telegram должен быть числом".to_owned());
+    }
     berth_config_update(&[
         entry(TOKEN_KEY, &telegram_token),
         entry(CHAT_KEY, &telegram_chat),
+        entry(OWNER_KEY, owner),
         entry(URL_KEY, &webhook_url),
     ])
 }

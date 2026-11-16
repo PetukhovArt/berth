@@ -187,6 +187,13 @@ pub fn play_sound_file(path: &Path) -> bool {
     imp::play_sound_file(path)
 }
 
+pub fn speech_to_file(
+    text_file: &Path,
+    language: &str,
+) -> Option<(std::process::Command, PathBuf)> {
+    imp::speech_to_file(text_file, language)
+}
+
 /// Resident set size of one process, bytes.
 pub fn process_rss_bytes(pid: u32) -> Option<u64> {
     imp::process_rss_bytes(pid)

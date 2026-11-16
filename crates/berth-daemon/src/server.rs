@@ -78,6 +78,7 @@ async fn handle_client(
     // Subscribe only for connections that never subscribe: the one-shot
     // `berth add`, whose workspace genuinely is the current default.
     let mut workspace: Option<WorkspaceId> = None;
+    let mut _transcription_offer: Option<crate::messenger::transcribers::Offer> = None;
 
     let result: Result<()> = async {
         while let Some(req) = read_frame::<ClientRequest, _>(&mut reader).await? {
@@ -328,6 +329,20 @@ async fn handle_client(
                     tokio::spawn(async move {
                         reply_done(&out_tx, req_id, crate::messenger::send_test().await).await;
                     });
+                }
+                ClientRequest::OfferTranscription => {
+                    _transcription_offer =
+                        Some(crate::messenger::transcribers::offer(out_tx.clone()));
+                }
+                ClientRequest::VoiceTranscribed {
+                    request,
+                    text,
+                    error,
+                } => {
+                    crate::messenger::transcribers::answer(
+                        request,
+                        text.ok_or_else(|| error.unwrap_or_default()),
+                    );
                 }
                 ClientRequest::ListTriggers { req_id } => {
                     let ev = match daemon.store.list_triggers() {

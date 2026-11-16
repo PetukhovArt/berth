@@ -565,6 +565,14 @@ pub enum ClientRequest {
     },
 
     Shutdown,
+
+    OfferTranscription,
+
+    VoiceTranscribed {
+        request: u64,
+        text: Option<String>,
+        error: Option<String>,
+    },
 }
 
 /// How much of a pull request's conversation the user had already seen the
@@ -992,6 +1000,11 @@ pub enum ServerEvent {
     ChannelAppended {
         channel: String,
         seq: i64,
+    },
+
+    TranscribeVoice {
+        request: u64,
+        pcm_path: String,
     },
 }
 

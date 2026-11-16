@@ -819,6 +819,8 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::SaveUiState { .. }
         | ClientRequest::MarkPrSeen { .. }
         | ClientRequest::MarkAgentSeen { .. }
+        | ClientRequest::OfferTranscription
+        | ClientRequest::VoiceTranscribed { .. }
         | ClientRequest::Shutdown => None,
     }
 }

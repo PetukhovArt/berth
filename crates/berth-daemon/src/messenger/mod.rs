@@ -1,6 +1,15 @@
+mod answer;
+mod inbound;
+pub(crate) mod route;
+mod speech;
+mod state;
+mod telegram;
+pub(crate) mod transcribers;
+
 use std::collections::HashMap;
 use std::process::Stdio;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
 use berth_core::platform::NoWindow;
@@ -12,9 +21,13 @@ use tokio::sync::broadcast::error::RecvError;
 
 use crate::config::Config;
 use crate::registry::Daemon;
+use speech::Scratch;
+use state::{Awaiting, Bridge};
+use telegram::Link;
 
-const SEND_TIMEOUT_SECS: &str = "15";
+const SEND_TIMEOUT_SECS: u64 = 15;
 const NOTE_MAX_CHARS: usize = 300;
+const ANSWER_SETTLE: Duration = Duration::from_millis(1500);
 const TEST_TEXT: &str =
     "Berth chat bridge test: this chat gets a message when an Agent needs feedback or finishes.";
 
@@ -24,6 +37,8 @@ struct Post {
     body: Value,
 }
 
+const TELEGRAM: &str = "Telegram";
+
 fn posts(config: &Config, text: &str) -> Vec<Post> {
     let mut out = Vec::new();
     if let (Some(token), Some(chat)) = (
@@ -31,7 +46,7 @@ fn posts(config: &Config, text: &str) -> Vec<Post> {
         &config.messenger_telegram_chat,
     ) {
         out.push(Post {
-            route: "Telegram",
+            route: TELEGRAM,
             url: format!("https://api.telegram.org/bot{token}/sendMessage"),
             body: json!({ "chat_id": chat, "text": text }),
         });
@@ -50,21 +65,21 @@ fn quote(value: &str) -> String {
     value.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
-async fn send(post: &Post) -> Result<()> {
+pub(crate) fn curl_line(key: &str, value: &str) -> String {
+    format!("{key} = \"{}\"\n", quote(value))
+}
+
+pub(crate) async fn curl(config: &str, max_secs: u64) -> Result<Vec<u8>> {
+    let max_time = max_secs.to_string();
     let mut child = Command::new("curl")
-        .args(["-sS", "--fail", "--max-time", SEND_TIMEOUT_SECS, "-K", "-"])
+        .args(["-sS", "--fail", "--max-time", max_time.as_str(), "-K", "-"])
         .stdin(Stdio::piped())
-        .stdout(Stdio::null())
+        .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true)
         .no_window()
         .spawn()
         .context("run curl")?;
-    let config = format!(
-        "url = \"{}\"\nheader = \"Content-Type: application/json\"\ndata = \"{}\"\n",
-        quote(&post.url),
-        quote(&post.body.to_string())
-    );
     let mut stdin = child.stdin.take().context("curl stdin")?;
     stdin.write_all(config.as_bytes()).await?;
     drop(stdin);
@@ -72,7 +87,14 @@ async fn send(post: &Post) -> Result<()> {
     if !output.status.success() {
         bail!("{}", String::from_utf8_lossy(&output.stderr).trim());
     }
-    Ok(())
+    Ok(output.stdout)
+}
+
+async fn send(post: &Post) -> Result<Vec<u8>> {
+    let config = curl_line("url", &post.url)
+        + &curl_line("header", "Content-Type: application/json")
+        + &curl_line("data", &post.body.to_string());
+    curl(&config, SEND_TIMEOUT_SECS).await
 }
 
 pub async fn send_test() -> Result<()> {
@@ -82,6 +104,7 @@ pub async fn send_test() -> Result<()> {
             tokio::spawn(async move {
                 send(&post)
                     .await
+                    .map(drop)
                     .map_err(|error| format!("{}: {error}", post.route))
             })
         })
@@ -118,6 +141,10 @@ fn turned_to(
     }
 }
 
+fn sent_message_id(body: &[u8]) -> Option<i64> {
+    serde_json::from_slice::<Value>(body).ok()?["result"]["message_id"].as_i64()
+}
+
 impl Daemon {
     fn agent_line(&self, agent: &AgentId, label: &str) -> Option<String> {
         let agent = self.store.get_agent(agent).ok()??;
@@ -142,7 +169,68 @@ impl Daemon {
         Some(self.store.get_project(&worktree.project_id).ok()??.name)
     }
 
+    async fn send_answer(
+        self: Arc<Self>,
+        bridge: Arc<Bridge>,
+        agent: AgentId,
+        status: AgentStatus,
+        awaiting: Awaiting,
+    ) {
+        tokio::time::sleep(ANSWER_SETTLE).await;
+        let Some(link) = Link::from_config(&Config::load()) else {
+            return;
+        };
+        let last = match status {
+            AgentStatus::Finished => self
+                .store
+                .get_agent(&agent)
+                .ok()
+                .flatten()
+                .and_then(|row| self.last_answer(&row)),
+            _ => None,
+        };
+        let label = self.agent_label(&agent);
+        let text = match (status, &last) {
+            (AgentStatus::NeedsFeedback, _) => format!(
+                "{}\nReply to this message to answer.",
+                self.feedback_note(&agent)
+            ),
+            (_, Some(last)) => format!("{label} finished:\n{}", answer::summary(last)),
+            (_, None) => format!("{label} finished. Open berth to read the answer."),
+        };
+        match link.send_text(&text, None).await {
+            Ok(id) => bridge.remember(id, &agent),
+            Err(e) => tracing::warn!(error = %e, "chat bridge could not send an answer"),
+        }
+        if let (true, Some(last)) = (awaiting.voice, &last) {
+            self.send_spoken(&link, &bridge, &agent, last).await;
+        }
+    }
+
+    async fn send_spoken(&self, link: &Link, bridge: &Bridge, agent: &AgentId, last: &str) {
+        let spoken = answer::spoken(last);
+        if spoken.is_empty() {
+            return;
+        }
+        let scratch = match Scratch::new(&format!("reply-{agent}")) {
+            Ok(scratch) => scratch,
+            Err(e) => {
+                tracing::warn!(error = %e, "chat bridge could not make a scratch dir");
+                return;
+            }
+        };
+        let Some(upload) = speech::speak(&spoken, &scratch).await else {
+            return;
+        };
+        match link.send_upload(&upload, None).await {
+            Ok(id) => bridge.remember(id, agent),
+            Err(e) => tracing::warn!(error = %e, "chat bridge could not send a voice answer"),
+        }
+    }
+
     pub async fn run_messenger_bridge(self: Arc<Self>) {
+        let bridge = Arc::new(Bridge::default());
+        tokio::spawn(self.clone().run_chat_inbound(bridge.clone()));
         let mut events = self.events.subscribe();
         let mut last: HashMap<AgentId, AgentStatus> = HashMap::new();
         loop {
@@ -150,29 +238,80 @@ impl Daemon {
                 _ = self.shutdown.cancelled() => break,
                 event = events.recv() => event,
             };
-            let text = match event {
+            let (text, about, answered) = match event {
                 Ok(ServerEvent::StatusChanged {
                     agent,
                     status,
                     unseen,
                     ..
-                }) => turned_to(last.insert(agent.clone(), status), status, unseen)
-                    .and_then(|label| self.agent_line(&agent, label)),
-                Ok(ServerEvent::TaskNoteChanged { worktree, text }) if !text.is_empty() => {
-                    self.note_line(&worktree, &text)
+                }) => {
+                    let previous = last.insert(agent.clone(), status);
+                    let answered = self.follow_up(&bridge, &agent, previous, status);
+                    let text = turned_to(previous, status, unseen)
+                        .and_then(|label| self.agent_line(&agent, label));
+                    (text, Some(agent), answered)
                 }
-                Ok(_) | Err(RecvError::Lagged(_)) => None,
+                Ok(ServerEvent::TaskNoteChanged { worktree, text }) if !text.is_empty() => {
+                    (self.note_line(&worktree, &text), None, false)
+                }
+                Ok(_) | Err(RecvError::Lagged(_)) => (None, None, false),
                 Err(RecvError::Closed) => break,
             };
             let Some(text) = text else { continue };
             for post in posts(&Config::load(), &text) {
+                let telegram = post.route == TELEGRAM;
+                if telegram && answered {
+                    continue;
+                }
+                let bridge = bridge.clone();
+                let about = about.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = send(&post).await {
-                        tracing::warn!(error = %e, "messenger post failed");
+                    match send(&post).await {
+                        Ok(body) => {
+                            if let (true, Some(agent), Some(id)) =
+                                (telegram, about, sent_message_id(&body))
+                            {
+                                bridge.remember(id, &agent);
+                            }
+                        }
+                        Err(e) => tracing::warn!(error = %e, "messenger post failed"),
                     }
                 });
             }
         }
+    }
+
+    fn follow_up(
+        self: &Arc<Self>,
+        bridge: &Arc<Bridge>,
+        agent: &AgentId,
+        previous: Option<AgentStatus>,
+        status: AgentStatus,
+    ) -> bool {
+        if previous == Some(status)
+            || !matches!(status, AgentStatus::Finished | AgentStatus::NeedsFeedback)
+        {
+            return false;
+        }
+        let awaiting = bridge.awaiting(agent);
+        if status == AgentStatus::Finished {
+            bridge.answered(agent);
+        }
+        let daemon = self.clone();
+        let bridge = bridge.clone();
+        let agent = agent.clone();
+        tokio::spawn(async move {
+            if let Some(awaiting) = awaiting {
+                daemon
+                    .clone()
+                    .send_answer(bridge.clone(), agent.clone(), status, awaiting)
+                    .await;
+            }
+            if status == AgentStatus::Finished {
+                daemon.deliver_queued(&bridge, &agent).await;
+            }
+        });
+        awaiting.is_some()
     }
 }
 

@@ -62,7 +62,7 @@ macro_rules! plain_commands {
             free berth_flag_read(key: String) = $crate::settings::berth_flag_read;
             free berth_flag_write(key: String, value: bool) = $crate::settings::berth_flag_write;
             free chat_bridge_read() = $crate::chat_bridge::chat_bridge_read;
-            free chat_bridge_write(telegram_token: String, telegram_chat: String, webhook_url: String) = $crate::chat_bridge::chat_bridge_write;
+            free chat_bridge_write(telegram_token: String, telegram_chat: String, telegram_owner: String, webhook_url: String) = $crate::chat_bridge::chat_bridge_write;
             free berth_worktree_base_read() = $crate::settings::berth_worktree_base_read;
             free berth_worktree_base_write(value: std::collections::BTreeMap<String, String>) = $crate::settings::berth_worktree_base_write;
             free providers_read() = $crate::providers::providers_read;

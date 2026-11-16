@@ -8,16 +8,18 @@ import { readChatBridge, sendChatBridgeTest, writeChatBridge, type ChatBridge } 
 const { t } = useI18n();
 
 const loaded = shallowRef(false);
-const saved = shallowRef<ChatBridge>({ telegram_token: '', telegram_chat: '', webhook_url: '' });
+const saved = shallowRef<ChatBridge>({ telegram_token: '', telegram_chat: '', telegram_owner: '', webhook_url: '' });
 const token = shallowRef('');
 const chat = shallowRef('');
+const owner = shallowRef('');
 const url = shallowRef('');
 const busy = shallowRef<'save' | 'test' | null>(null);
 const error = shallowRef<string | null>(null);
 const sent = shallowRef(false);
 
-const draft = computed<ChatBridge>(() => ({ telegram_token: token.value.trim(), telegram_chat: chat.value.trim(), webhook_url: url.value.trim() }));
-const dirty = computed(() => draft.value.telegram_token !== saved.value.telegram_token || draft.value.telegram_chat !== saved.value.telegram_chat || draft.value.webhook_url !== saved.value.webhook_url);
+const draft = computed<ChatBridge>(() => ({ telegram_token: token.value.trim(), telegram_chat: chat.value.trim(), telegram_owner: owner.value.trim(), webhook_url: url.value.trim() }));
+const dirty = computed(() => draft.value.telegram_token !== saved.value.telegram_token || draft.value.telegram_chat !== saved.value.telegram_chat || draft.value.telegram_owner !== saved.value.telegram_owner || draft.value.webhook_url !== saved.value.webhook_url);
+const ownerInvalid = computed(() => draft.value.telegram_owner !== '' && !/^-?\d+$/.test(draft.value.telegram_owner));
 const telegramHalf = computed(() => Boolean(draft.value.telegram_token) !== Boolean(draft.value.telegram_chat));
 const configured = computed(() => (draft.value.telegram_token && draft.value.telegram_chat) || draft.value.webhook_url);
 
@@ -25,6 +27,7 @@ function show(bridge: ChatBridge) {
   saved.value = bridge;
   token.value = bridge.telegram_token;
   chat.value = bridge.telegram_chat;
+  owner.value = bridge.telegram_owner;
   url.value = bridge.webhook_url;
 }
 
@@ -84,6 +87,12 @@ onMounted(load);
       </label>
       <p class="hint">{{ t('settings.chatBridge.telegramHint') }}</p>
       <label class="field">
+        <span>{{ t('settings.chatBridge.telegramOwner') }}</span>
+        <VInputText v-model="owner" size="small" inputmode="numeric" autocomplete="off" :invalid="ownerInvalid" :disabled="!loaded" data-testid="chat-bridge-owner" />
+      </label>
+      <p class="hint">{{ t('settings.chatBridge.ownerHint') }}</p>
+      <VMessage v-if="ownerInvalid" severity="warn" size="small" data-testid="chat-bridge-owner-invalid">{{ t('settings.chatBridge.ownerInvalid') }}</VMessage>
+      <label class="field">
         <span>{{ t('settings.chatBridge.webhookUrl') }}</span>
         <VInputText v-model="url" size="small" type="url" autocomplete="off" placeholder="https://" :disabled="!loaded" data-testid="chat-bridge-webhook" />
       </label>
@@ -92,7 +101,7 @@ onMounted(load);
       <VMessage v-if="error" severity="error" size="small" data-testid="chat-bridge-error">{{ error }}</VMessage>
       <VMessage v-if="sent" severity="success" size="small" data-testid="chat-bridge-sent">{{ t('settings.chatBridge.sent') }}</VMessage>
       <div class="row-actions">
-        <VButton type="submit" :label="t('settings.chatBridge.save')" size="small" :loading="busy === 'save'" :disabled="!loaded || !dirty || busy !== null" data-testid="chat-bridge-save" />
+        <VButton type="submit" :label="t('settings.chatBridge.save')" size="small" :loading="busy === 'save'" :disabled="!loaded || !dirty || ownerInvalid || busy !== null" data-testid="chat-bridge-save" />
         <VButton :label="t('settings.chatBridge.test')" size="small" severity="secondary" outlined :loading="busy === 'test'" :disabled="!loaded || !configured || busy !== null" data-testid="chat-bridge-test" @click="test" />
       </div>
     </form>
