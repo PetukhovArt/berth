@@ -19,7 +19,10 @@ fn lines(text: &str) -> Vec<&str> {
     if text.is_empty() {
         return Vec::new();
     }
-    text.strip_suffix('\n').unwrap_or(text).split('\n').collect()
+    text.strip_suffix('\n')
+        .unwrap_or(text)
+        .split('\n')
+        .collect()
 }
 
 fn count(old: &str, new: &str) -> (u32, u32) {
@@ -129,7 +132,9 @@ pub fn file_edits(name: Option<&str>, input: &Value) -> Vec<FileEdit> {
 pub fn line_model(harness: Harness, line: &Value) -> Option<String> {
     let model = match harness {
         Harness::Claude if line["type"].as_str() == Some("assistant") => &line["message"]["model"],
-        Harness::Codex if line["type"].as_str() == Some("turn_context") => &line["payload"]["model"],
+        Harness::Codex if line["type"].as_str() == Some("turn_context") => {
+            &line["payload"]["model"]
+        }
         _ => return None,
     };
     model
