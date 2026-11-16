@@ -504,6 +504,18 @@ pub enum ClientRequest {
         agent: Option<AgentId>,
     },
 
+    PostChannelNote {
+        req_id: u64,
+        channel: String,
+        content: String,
+        agent: Option<AgentId>,
+    },
+
+    GetChannelTouched {
+        req_id: u64,
+        channel: String,
+    },
+
     CreateAcpAgent {
         req_id: u64,
         worktree: WorktreeId,
@@ -933,6 +945,11 @@ pub enum ServerEvent {
         key: String,
     },
 
+    ChannelTouched {
+        req_id: u64,
+        touched: Vec<ChannelTouching>,
+    },
+
     AcpTranscript {
         req_id: u64,
         agent: AgentId,
@@ -951,6 +968,14 @@ pub struct ChannelPresent {
     pub member: String,
     pub name: String,
     pub agents: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChannelTouching {
+    pub member: String,
+    pub name: String,
+    pub agent: String,
+    pub modules: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

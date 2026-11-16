@@ -44,5 +44,11 @@ export const attention = {
     present: 'Here now: {who}',
     open: 'Open Channel',
     openTitle: 'Open the Channel {key}, created if it does not exist yet',
+    note: 'Task note',
+    noteHint: 'Send as the Task note: the Agents of every member who starts a Session on this task get it',
+    noteTag: 'Task note',
+    noteCleared: 'Task note cleared',
+    noteBy: 'Task note from {name}: {text}',
+    noteClear: 'Clear',
   },
 } as const;

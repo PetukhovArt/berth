@@ -4,15 +4,18 @@ import { useDock } from '../../../shared/model/dock';
 import { BerthCallError, call } from './berth';
 
 type ChannelSummary = { key: string; head: number; unread: number };
-export type ChannelMessage = { seq: number; author: string; authorName: string; authorKind: string; content: string; createdAt: number };
+export type ChannelMessage = { seq: number; kind: number; author: string; authorName: string; authorKind: string; content: string; createdAt: number };
+export type ChannelTouching = { member: string; name: string; agent: string; modules: string[] };
 
 const SUMMARY_POLL_MS = 30_000;
+const NOTE_KIND = 5;
 
 const channelPanelId = (key: string) => `channel:${key}`;
 
 export type ChannelPresent = { member: string; name: string; agents: string[] };
 
 export const isAgentMessage = (message: ChannelMessage) => message.authorKind === 'agent';
+export const isNoteMessage = (message: ChannelMessage) => message.kind === NOTE_KIND;
 
 async function listChannels(): Promise<ChannelSummary[]> {
   const reply = await call({ ListChannels: {} });
@@ -24,6 +27,7 @@ function messages(reply: Awaited<ReturnType<typeof call>>): ChannelMessage[] {
   if (!('ChannelEvents' in reply)) throw new BerthCallError(t('agents.errors.unexpectedReply', { reply: Object.keys(reply).join('') }));
   return reply.ChannelEvents.events.map((event) => ({
     seq: event.seq,
+    kind: event.kind,
     author: event.author,
     authorName: event.author_name,
     authorKind: event.author_kind,
@@ -62,6 +66,20 @@ export async function readPresence(channel: string): Promise<ChannelPresent[]> {
 
 export async function postToChannel(channel: string, content: string): Promise<ChannelMessage[]> {
   return remember(channel, messages(await call({ PostToChannel: { channel, content, agent: null } })));
+}
+
+export async function postNote(channel: string, content: string): Promise<ChannelMessage[]> {
+  return remember(channel, messages(await call({ PostChannelNote: { channel, content, agent: null } })));
+}
+
+export async function readTouched(channel: string): Promise<ChannelTouching[]> {
+  const reply = await call({ GetChannelTouched: { channel } });
+  if (!('ChannelTouched' in reply)) throw new BerthCallError(t('agents.errors.unexpectedReply', { reply: Object.keys(reply).join('') }));
+  return reply.ChannelTouched.touched;
+}
+
+export async function channelKeys(): Promise<string[]> {
+  return (await listChannels()).map((channel) => channel.key);
 }
 
 export function openChannel(key: string, split = false): void {

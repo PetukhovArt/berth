@@ -26,6 +26,7 @@ pub mod router;
 pub mod sampler;
 pub mod server;
 pub mod shared_setup;
+pub mod shared_notes;
 pub mod sibling;
 pub mod status;
 pub mod stop_agent;
@@ -34,6 +35,7 @@ pub mod subagents;
 pub mod task_notes;
 pub mod team;
 mod team_members;
+pub mod team_overlaps;
 pub mod triggers;
 pub mod usage;
 pub mod usage_limits;
@@ -183,6 +185,7 @@ async fn serve() -> Result<()> {
     tokio::spawn(daemon.clone().run_channel_delivery());
     tokio::spawn(daemon.clone().run_presence_report());
     tokio::spawn(daemon.clone().run_messenger_bridge());
+    tokio::spawn(daemon.clone().run_touched_report());
     if let Err(e) = triggers::start_webhooks(daemon.clone(), &config::Config::load()).await {
         tracing::warn!(error = %e, "webhook listener not started");
     }

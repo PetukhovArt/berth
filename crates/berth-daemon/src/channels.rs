@@ -1,7 +1,7 @@
 use crate::config::Config;
 use crate::registry::Daemon;
 use anyhow::{anyhow, bail, Result};
-use berth_core::{AgentId, ChannelEvent, ChannelPresent, ChannelSummary};
+use berth_core::{AgentId, ChannelEvent, ChannelPresent, ChannelSummary, ChannelTouching};
 use berth_hub::client::HubClient;
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -49,6 +49,20 @@ pub async fn post_to_channel(
     let hub = hub()?;
     let member = agent_member(&hub, agent).await?;
     convert(hub.post(channel, content, member.as_deref()).await?)
+}
+
+pub async fn post_channel_note(
+    channel: &str,
+    content: &str,
+    agent: &Option<AgentId>,
+) -> Result<ChannelEvent> {
+    let hub = hub()?;
+    let member = agent_member(&hub, agent).await?;
+    convert(hub.post_note(channel, content, member.as_deref()).await?)
+}
+
+pub async fn channel_touched(channel: &str) -> Result<Vec<ChannelTouching>> {
+    convert(hub()?.touched(channel).await?)
 }
 
 pub async fn channel_presence(channel: &str) -> Result<Vec<ChannelPresent>> {

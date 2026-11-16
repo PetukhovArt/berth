@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue';
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { Bot, UserRound } from '../../../shared/ui/icons';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
-import { describeError, isAgentMessage, postToChannel, readChannel, readPresence, refreshChannels, type ChannelMessage, type ChannelPresent } from '../../../entities/session';
+import { describeError, isAgentMessage, isNoteMessage, postNote, postToChannel, readChannel, readPresence, refreshChannels, type ChannelMessage, type ChannelPresent } from '../../../entities/session';
 
 const POLL_MS = 4000;
 
@@ -45,13 +45,17 @@ async function poll() {
   if (!stopped) timer = setTimeout(() => void poll(), POLL_MS);
 }
 
-async function send() {
-  const content = draft.value.trim();
-  if (!content || busy.value) return;
+const activeNote = computed(() => {
+  const last = messages.value.filter(isNoteMessage).at(-1);
+  return last?.content ? last : null;
+});
+
+async function run(action: () => Promise<ChannelMessage[]>, clearDraft: boolean) {
+  if (busy.value) return;
   busy.value = true;
   try {
-    await append(await postToChannel(props.channel, content));
-    draft.value = '';
+    await append(await action());
+    if (clearDraft) draft.value = '';
     error.value = null;
   } catch (failure) {
     error.value = describeError(failure);
@@ -60,10 +64,24 @@ async function send() {
   }
 }
 
+function send() {
+  const content = draft.value.trim();
+  if (content) void run(() => postToChannel(props.channel, content), true);
+}
+
+function sendNote() {
+  const content = draft.value.trim();
+  if (content) void run(() => postNote(props.channel, content), true);
+}
+
+function clearNote() {
+  void run(() => postNote(props.channel, ''), false);
+}
+
 function onKeydown(event: KeyboardEvent) {
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
   event.preventDefault();
-  void send();
+  send();
 }
 
 onMounted(() => void poll());
@@ -77,6 +95,10 @@ onBeforeUnmount(() => {
   <section class="channel" data-testid="channel-view">
     <header class="head">{{ t('attention.channel.messages', { key: channel }) }}</header>
     <p v-if="present.length" class="presence" data-testid="channel-presence">{{ t('attention.channel.present', { who: present.map((p) => (p.agents.length ? `${p.name} (${p.agents.join(', ')})` : p.name)).join('; ') }) }}</p>
+    <p v-if="activeNote" class="note" data-testid="channel-note">
+      <span class="note-text">{{ t('attention.channel.noteBy', { name: activeNote.authorName, text: activeNote.content }) }}</span>
+      <UiButton type="button" class="note-clear" :disabled="busy" data-testid="channel-note-clear" @click="clearNote">{{ t('attention.channel.noteClear') }}</UiButton>
+    </p>
     <ol ref="list" class="messages" data-testid="channel-messages">
       <li v-if="!messages.length" class="empty" data-testid="channel-empty">{{ t('attention.channel.empty') }}</li>
       <li v-for="message in messages" :key="message.seq" class="message" :data-author-kind="message.authorKind" data-testid="channel-message">
@@ -88,14 +110,16 @@ onBeforeUnmount(() => {
           <div class="meta">
             <span class="author" data-testid="channel-author">{{ message.authorName }}</span>
             <span class="time">{{ formatDate(message.createdAt, { timeStyle: 'short' }) }}</span>
+            <span v-if="isNoteMessage(message)" class="tag" data-testid="channel-note-tag">{{ t('attention.channel.noteTag') }}</span>
           </div>
-          <p class="content">{{ message.content }}</p>
+          <p class="content">{{ isNoteMessage(message) && !message.content ? t('attention.channel.noteCleared') : message.content }}</p>
         </div>
       </li>
     </ol>
     <span v-if="error" class="error" role="alert" data-testid="channel-error">{{ error }}</span>
     <form class="post" @submit.prevent="send">
       <UiTextarea v-model="draft" class="input" rows="2" :placeholder="t('attention.channel.placeholder')" :aria-label="t('attention.channel.placeholder')" data-testid="channel-input" @keydown="onKeydown" />
+      <UiButton type="button" class="send" :disabled="busy || !draft.trim()" :title="t('attention.channel.noteHint')" data-testid="channel-note-send" @click="sendNote">{{ t('attention.channel.note') }}</UiButton>
       <UiButton type="submit" class="send" :disabled="busy || !draft.trim()" data-testid="channel-send">{{ t('attention.channel.send') }}</UiButton>
     </form>
   </section>
@@ -115,6 +139,37 @@ onBeforeUnmount(() => {
   font-size: var(--vr-font-size-sm);
   font-weight: 600;
   border-bottom: 1px solid var(--vr-color-border);
+}
+
+.note {
+  display: flex;
+  gap: var(--vr-space-2);
+  align-items: baseline;
+  justify-content: space-between;
+  padding: var(--vr-space-1) var(--vr-space-3);
+  margin: 0;
+  font-size: var(--vr-font-size-xs);
+  border-bottom: 1px solid var(--vr-color-border);
+}
+
+.note-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.note-clear {
+  flex: none;
+  padding: 0;
+  font: inherit;
+  color: var(--vr-color-text-muted);
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.tag {
+  color: var(--vr-color-text-muted);
 }
 
 .presence {

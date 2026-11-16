@@ -707,6 +707,7 @@ fn reply_req_id(event: &ServerEvent) -> Option<u64> {
         | ServerEvent::ChannelEvents { req_id, .. }
         | ServerEvent::ChannelPresence { req_id, .. }
         | ServerEvent::ChannelOpened { req_id, .. }
+        | ServerEvent::ChannelTouched { req_id, .. }
         | ServerEvent::AcpTranscript { req_id, .. }
         | ServerEvent::Metrics { req_id, .. } => Some(*req_id),
         ServerEvent::Error { req_id, .. } => *req_id,
@@ -770,6 +771,8 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::PostToChannel { req_id, .. }
         | ClientRequest::GetChannelPresence { req_id, .. }
         | ClientRequest::OpenChannel { req_id, .. }
+        | ClientRequest::PostChannelNote { req_id, .. }
+        | ClientRequest::GetChannelTouched { req_id, .. }
         | ClientRequest::CreateAcpAgent { req_id, .. }
         | ClientRequest::AcpPrompt { req_id, .. }
         | ClientRequest::AcpTranscript { req_id, .. }

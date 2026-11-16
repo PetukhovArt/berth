@@ -339,11 +339,12 @@ export type BerthReply =
   | { ChannelEvents: { req_id: number; events: { seq: number; kind: number; author: string; author_name: string; author_kind: string; channel: string; tags: string[][]; content: string; created_at: number }[] } }
   | { ChannelPresence: { req_id: number; here: { member: string; name: string; agents: string[] }[] } }
   | { ChannelOpened: { req_id: number; key: string } }
+  | { ChannelTouched: { req_id: number; touched: { member: string; name: string; agent: string; modules: string[] }[] } }
   | { AcpTranscript: { req_id: number; agent: string; items: AcpItemAt[] } };
 
 export class BerthCallError extends Error {}
 
-const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote', 'RouterConfig', 'ProjectSetup', 'Checkpoints', 'Channels', 'ChannelEvents', 'ChannelPresence', 'ChannelOpened', 'AcpTranscript']);
+const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote', 'RouterConfig', 'ProjectSetup', 'Checkpoints', 'Channels', 'ChannelEvents', 'ChannelPresence', 'ChannelOpened', 'ChannelTouched', 'AcpTranscript']);
 
 function isBerthReply(value: unknown): value is BerthReply {
   if (typeof value !== 'object' || value === null) return false;

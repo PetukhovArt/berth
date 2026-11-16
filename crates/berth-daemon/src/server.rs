@@ -394,6 +394,43 @@ async fn handle_client(
                         let _ = out_tx.send(ev).await;
                     });
                 }
+                ClientRequest::GetChannelTouched { req_id, channel } => {
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let ev = match crate::channels::channel_touched(&channel).await {
+                            Ok(touched) => ServerEvent::ChannelTouched { req_id, touched },
+                            Err(e) => ServerEvent::Error {
+                                req_id: Some(req_id),
+                                message: format!("{e:#}"),
+                            },
+                        };
+                        let _ = out_tx.send(ev).await;
+                    });
+                }
+                ClientRequest::PostChannelNote {
+                    req_id,
+                    channel,
+                    content,
+                    agent,
+                } => {
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let ev =
+                            match crate::channels::post_channel_note(&channel, &content, &agent)
+                                .await
+                            {
+                                Ok(event) => ServerEvent::ChannelEvents {
+                                    req_id,
+                                    events: vec![event],
+                                },
+                                Err(e) => ServerEvent::Error {
+                                    req_id: Some(req_id),
+                                    message: format!("{e:#}"),
+                                },
+                            };
+                        let _ = out_tx.send(ev).await;
+                    });
+                }
                 ClientRequest::CreateAcpAgent {
                     req_id,
                     worktree,

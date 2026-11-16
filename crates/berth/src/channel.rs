@@ -92,16 +92,9 @@ pub fn run_read(channel: String, after: i64) -> Result<()> {
     })
 }
 
-pub fn run_post(channel: String, content: String) -> Result<()> {
+fn print_posted(request: ClientRequest) -> Result<()> {
     runtime()?.block_on(async {
-        let ServerEvent::ChannelEvents { events, .. } = call(ClientRequest::PostToChannel {
-            req_id: ONE_SHOT_REQ_ID,
-            channel,
-            content,
-            agent: own_agent(),
-        })
-        .await?
-        else {
+        let ServerEvent::ChannelEvents { events, .. } = call(request).await? else {
             bail!("unexpected reply");
         };
         println!(
@@ -109,6 +102,24 @@ pub fn run_post(channel: String, content: String) -> Result<()> {
             serde_json::to_string_pretty(&json!({ "ok": true, "event": events.first() }))?
         );
         Ok(())
+    })
+}
+
+pub fn run_post(channel: String, content: String) -> Result<()> {
+    print_posted(ClientRequest::PostToChannel {
+        req_id: ONE_SHOT_REQ_ID,
+        channel,
+        content,
+        agent: own_agent(),
+    })
+}
+
+pub fn run_note(channel: String, content: String) -> Result<()> {
+    print_posted(ClientRequest::PostChannelNote {
+        req_id: ONE_SHOT_REQ_ID,
+        channel,
+        content,
+        agent: own_agent(),
     })
 }
 

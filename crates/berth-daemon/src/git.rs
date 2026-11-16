@@ -31,7 +31,7 @@ fn spawn_err(e: std::io::Error) -> anyhow::Error {
     }
 }
 
-async fn git(repo: &Path, args: &[&str]) -> Result<String> {
+pub(crate) async fn git(repo: &Path, args: &[&str]) -> Result<String> {
     let output = Command::new("git")
         .arg("-C")
         .arg(repo)
