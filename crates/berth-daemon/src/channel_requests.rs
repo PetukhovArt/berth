@@ -7,8 +7,9 @@ use berth_core::{AgentId, ChannelEvent, FeedbackKind, FeedbackRequest, SessionRe
 use berth_hub::client::HubClient;
 use berth_hub::{Event, EVENT_TAG, KIND_ANSWER, KIND_REQUEST, KIND_SETTLED};
 
-use crate::channels::{convert, hub};
+use crate::channels::{hub, mark, own};
 use crate::registry::Daemon;
+use crate::store::Store;
 
 const POLL: Duration = Duration::from_secs(3);
 const ANSWERED_LOCALLY: &str = "local";
@@ -120,6 +121,7 @@ pub fn owner_answer(
 }
 
 pub async fn answer_in_channel(
+    store: &Store,
     channel: &str,
     request: i64,
     answer: &str,
@@ -129,7 +131,8 @@ pub async fn answer_in_channel(
         bail!("an Agent cannot answer a request in the Channel; its owner does");
     }
     let answer = Answer::parse(answer).context("answer with allow, deny or an option number")?;
-    let event = hub()?
+    let hub = hub()?;
+    let event = hub
         .publish(
             channel,
             KIND_ANSWER,
@@ -138,7 +141,7 @@ pub async fn answer_in_channel(
             None,
         )
         .await?;
-    convert(event)
+    mark(event, &own(store, &hub).await)
 }
 
 struct Posted {

@@ -1,12 +1,12 @@
 import { computed, shallowRef } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
-import { BerthCallError, call, onChannelAppended, useBerth } from './berth';
+import { BerthCallError, call, onChannelAppended } from './berth';
 
 export { onChannelAppended };
 
 type ChannelSummary = { key: string; head: number; unread: number };
-export type ChannelMessage = { seq: number; kind: number; author: string; authorName: string; authorKind: string; tags: string[][]; content: string; createdAt: number; mentionsAgent: boolean };
+export type ChannelMessage = { seq: number; kind: number; author: string; authorName: string; authorKind: string; tags: string[][]; content: string; createdAt: number; authorAgent: string | null; promotable: boolean };
 export type ChannelTouching = { member: string; name: string; agent: string; modules: string[] };
 export type ChannelGrant = { channel: string; agent: string; member: string; member_name: string };
 
@@ -37,7 +37,7 @@ export function settlementOf(messages: readonly ChannelMessage[], request: Chann
   return { answer: tagValues(settled, 'answer')[0] ?? '', by: tagValues(settled, 'by')[0] ?? null };
 }
 
-export const isOwnAgentRequest = (message: ChannelMessage) => useBerth()?.entities.value.agents.has(message.authorName) ?? false;
+export const isOwnAgentRequest = (message: ChannelMessage) => message.authorAgent !== null;
 
 const SUMMARY_POLL_MS = 30_000;
 
@@ -65,7 +65,8 @@ function messages(reply: Awaited<ReturnType<typeof call>>): ChannelMessage[] {
     tags: event.tags,
     content: event.content,
     createdAt: event.created_at,
-    mentionsAgent: event.kind === KIND_MESSAGE && event.tags.some((tag) => tag[0] === 'p'),
+    authorAgent: event.author_agent,
+    promotable: event.kind === KIND_MESSAGE && !event.from_me && event.mentioned_agents.length > 0,
   }));
 }
 

@@ -183,7 +183,7 @@ onBeforeUnmount(() => {
             <span class="time">{{ formatDate(row.message.createdAt, { timeStyle: 'short' }) }}</span>
             <span v-if="isNoteMessage(row.message)" class="tag" data-testid="channel-note-tag">{{ t('attention.channel.noteTag') }}</span>
             <span v-if="promoted.has(row.message.seq)" class="time" data-testid="channel-promoted">{{ t('attention.channel.promoted') }}</span>
-            <UiButton v-else-if="row.message.mentionsAgent" type="button" class="link" :title="t('attention.channel.promoteHint')" data-testid="channel-promote" @click="promote(row.message)">{{ t('attention.channel.promote') }}</UiButton>
+            <UiButton v-else-if="row.message.promotable" type="button" class="link" :title="t('attention.channel.promoteHint')" data-testid="channel-promote" @click="promote(row.message)">{{ t('attention.channel.promote') }}</UiButton>
           </div>
           <div v-if="row.request" class="request" data-testid="channel-request" :data-settled="row.settled ? 'true' : 'false'">
             <p class="content">{{ requestText(row.request) }}</p>

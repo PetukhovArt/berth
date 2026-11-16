@@ -1042,6 +1042,12 @@ pub struct ChannelEvent {
     pub tags: Vec<Vec<String>>,
     pub content: String,
     pub created_at: i64,
+    #[serde(default)]
+    pub from_me: bool,
+    #[serde(default)]
+    pub author_agent: Option<AgentId>,
+    #[serde(default)]
+    pub mentioned_agents: Vec<AgentId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

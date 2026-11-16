@@ -409,21 +409,23 @@ async fn handle_client(
                     content,
                     agent,
                 } => {
+                    let store = daemon.store.clone();
                     let out_tx = out_tx.clone();
                     tokio::spawn(async move {
-                        let ev =
-                            match crate::channels::post_channel_note(&channel, &content, &agent)
-                                .await
-                            {
-                                Ok(event) => ServerEvent::ChannelEvents {
-                                    req_id,
-                                    events: vec![event],
-                                },
-                                Err(e) => ServerEvent::Error {
-                                    req_id: Some(req_id),
-                                    message: format!("{e:#}"),
-                                },
-                            };
+                        let ev = match crate::channels::post_channel_note(
+                            &store, &channel, &content, &agent,
+                        )
+                        .await
+                        {
+                            Ok(event) => ServerEvent::ChannelEvents {
+                                req_id,
+                                events: vec![event],
+                            },
+                            Err(e) => ServerEvent::Error {
+                                req_id: Some(req_id),
+                                message: format!("{e:#}"),
+                            },
+                        };
                         let _ = out_tx.send(ev).await;
                     });
                 }
@@ -525,10 +527,11 @@ async fn handle_client(
                     answer,
                     agent,
                 } => {
+                    let store = daemon.store.clone();
                     let out_tx = out_tx.clone();
                     tokio::spawn(async move {
                         let ev = match crate::channel_requests::answer_in_channel(
-                            &channel, request, &answer, &agent,
+                            &store, &channel, request, &answer, &agent,
                         )
                         .await
                         {
@@ -550,16 +553,19 @@ async fn handle_client(
                     after,
                     agent,
                 } => {
+                    let store = daemon.store.clone();
                     let out_tx = out_tx.clone();
                     tokio::spawn(async move {
-                        let ev = match crate::channels::read_channel(&channel, after, &agent).await
-                        {
-                            Ok(events) => ServerEvent::ChannelEvents { req_id, events },
-                            Err(e) => ServerEvent::Error {
-                                req_id: Some(req_id),
-                                message: format!("{e:#}"),
-                            },
-                        };
+                        let ev =
+                            match crate::channels::read_channel(&store, &channel, after, &agent)
+                                .await
+                            {
+                                Ok(events) => ServerEvent::ChannelEvents { req_id, events },
+                                Err(e) => ServerEvent::Error {
+                                    req_id: Some(req_id),
+                                    message: format!("{e:#}"),
+                                },
+                            };
                         let _ = out_tx.send(ev).await;
                     });
                 }
@@ -569,10 +575,13 @@ async fn handle_client(
                     content,
                     agent,
                 } => {
+                    let store = daemon.store.clone();
                     let out_tx = out_tx.clone();
                     tokio::spawn(async move {
-                        let ev = match crate::channels::post_to_channel(&channel, &content, &agent)
-                            .await
+                        let ev = match crate::channels::post_to_channel(
+                            &store, &channel, &content, &agent,
+                        )
+                        .await
                         {
                             Ok(event) => ServerEvent::ChannelEvents {
                                 req_id,
