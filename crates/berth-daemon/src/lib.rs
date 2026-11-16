@@ -16,6 +16,7 @@ pub mod metrics;
 pub mod orphans;
 pub mod pacer_migration;
 pub mod presence;
+pub mod prewarm_prompt;
 pub mod project_pins;
 pub mod pty;
 pub mod registry;

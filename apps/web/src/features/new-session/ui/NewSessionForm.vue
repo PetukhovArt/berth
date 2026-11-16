@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, shallowRef, watch } from 'vue';
+import { computed, onBeforeUnmount, shallowRef, watch } from 'vue';
 import { VButton, VDialog, VInputText, VMessage, VSelect, VTextarea } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
-import { acpPrompt, createAcpAgent, createAgent, createTerminal, entitySessionRef, type AgentKind, type SessionRef, useAction } from '../../../entities/session';
+import { acpPrompt, createAcpAgent, createAgent, createTerminal, entitySessionRef, prewarmAgent, type AgentKind, type SessionRef, useAction } from '../../../entities/session';
 import { useProviders } from '../../../shared/api/providers';
 import { useSessionTarget } from '../model/sessionTarget';
 import { deletePreset, presets, savePreset, withPromptFrame, type AgentPreset } from '../model/presets';
@@ -71,6 +71,27 @@ watch(
   { immediate: true },
 );
 
+const optional = (text: string) => text.trim() || null;
+
+const prewarmTarget = computed(() => {
+  const plan = location.plan.value;
+  if (plan.kind !== 'use' || many.value || kind.value === 'terminal' || acpProviderOf(kind.value)) return null;
+  return { worktree: plan.worktree.id, kind: kind.value as AgentKind, model: optional(model.value), effort: optional(effort.value) };
+});
+
+let prewarmTimer: ReturnType<typeof setTimeout> | undefined;
+watch(
+  () => JSON.stringify(prewarmTarget.value),
+  () => {
+    clearTimeout(prewarmTimer);
+    const target = prewarmTarget.value;
+    if (!target) return;
+    prewarmTimer = setTimeout(() => prewarmAgent(target.worktree, target.kind, target.model, target.effort), 150);
+  },
+  { immediate: true },
+);
+onBeforeUnmount(() => clearTimeout(prewarmTimer));
+
 function toggleExtra(value: Kind) {
   extras.value = extras.value.includes(value) ? extras.value.filter((extra) => extra !== value) : [...extras.value, value];
 }
@@ -109,7 +130,6 @@ function removePreset(name: string) {
   if (activePreset.value === name) activePreset.value = null;
 }
 
-const optional = (text: string) => text.trim() || null;
 
 async function submit() {
   const chosen = kinds.value;

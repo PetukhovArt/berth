@@ -366,6 +366,11 @@ export async function acknowledged(request: BerthRequest): Promise<EntityId | nu
 
 export type NewAgent = { worktree: string; name: string; kind: AgentKind; model: string | null; effort: string | null; autoTitle: boolean; startingPrompt: string | null };
 
+export function prewarmAgent(worktree: string, kind: AgentKind, model: string | null, effort: string | null): void {
+  if (!hasBackend) return;
+  void invoke<null>('berth_call', { request: { PrewarmAgent: { worktree, kind, model, effort } } }).catch(() => {});
+}
+
 export function createAgent(agent: NewAgent): Promise<EntityId | null> {
   return acknowledged({
     CreateAgent: {

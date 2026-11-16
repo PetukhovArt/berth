@@ -1215,11 +1215,15 @@ impl Daemon {
             .context("worktree not found")?;
         // A warm session for this (worktree, kind) hands over its PTY and
         // its pre-generated id — the CLI booted while the user typed the
-        // name, so the create feels instant. A starting prompt rides the
-        // CLI's argv, and a spare already booted bare cannot be handed one.
-        let adopted = (cloud_prompt.is_none() && pr_url.is_none() && starting_prompt.is_none())
+        // name, so the create feels instant.
+        let prompt_fits_warm_cli = starting_prompt.as_deref().is_none_or(|prompt| {
+            crate::prewarm_prompt::pasteable_into_warm_cli(kind, prompt)
+                && self.warm_cli_booted(&worktree_id, kind)
+        });
+        let adopted = (cloud_prompt.is_none() && pr_url.is_none() && prompt_fits_warm_cli)
             .then(|| self.take_prewarmed(&worktree_id, kind, model.as_deref(), effort.as_deref()))
             .flatten();
+        let prompt_for_warm_cli = adopted.as_ref().and(starting_prompt.clone());
         // Only the cold path needs asking: an adopted warm session is proof
         // the CLI runs. Without this, a missing CLI still "succeeds" — the
         // login shell prints `command not found` into a PTY that dies at
@@ -1282,6 +1286,9 @@ impl Daemon {
             for (event, sid) in entry.buffered_hooks {
                 self.apply_hook_event(&agent.id, event, sid);
             }
+        }
+        if let Some(prompt) = prompt_for_warm_cli {
+            self.type_starting_prompt(&agent.id, prompt);
         }
         Ok(EntityId::Agent(agent.id))
     }
@@ -1390,6 +1397,14 @@ impl Daemon {
     /// and it booted with the requested model/effort. A dead entry (CLI
     /// missing/crashed while warm) is dropped, a wrong-spec one is killed;
     /// either way the caller falls back to a cold spawn.
+    fn warm_cli_booted(&self, worktree_id: &WorktreeId, kind: AgentKind) -> bool {
+        self.prewarmed
+            .lock()
+            .unwrap()
+            .get(&(worktree_id.clone(), kind))
+            .is_some_and(|entry| crate::prewarm_prompt::warm_cli_booted(&entry.buffered_hooks))
+    }
+
     fn take_prewarmed(
         &self,
         worktree_id: &WorktreeId,

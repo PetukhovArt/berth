@@ -435,6 +435,11 @@ impl Actor {
     }
 
     fn call(&mut self, mut request: ClientRequest, reply: oneshot::Sender<CallResult>) {
+        if matches!(request, ClientRequest::PrewarmAgent { .. }) {
+            self.write(request);
+            let _ = reply.send(Ok(serde_json::Value::Null));
+            return;
+        }
         let Some(slot) = rpc_req_id(&mut request) else {
             let _ = reply.send(Err(
                 "berth_call принимает только RPC-запросы с req_id".into()
