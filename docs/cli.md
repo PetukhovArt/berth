@@ -150,7 +150,9 @@ Only the Agent's owner can answer: the daemon that runs the Agent acts on an ans
 says it came from the same device that owns the Agent, and ignores everyone else's. An Agent cannot
 answer requests itself. The answer is typed into the Agent the same way the request card in berth
 does it. A request you answer in berth, or one the Agent stops waiting on, is marked answered in the
-channel.
+channel, also when the daemon restarted in between. A request whose branch names no channel yet is
+posted once that channel is opened. Answers arrive over the daemon's open connection to the hub;
+while that connection is down the daemon checks for them every 15 seconds.
 
 ## MCP server for agents
 

@@ -3,15 +3,20 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
-use berth_core::{AgentId, ChannelEvent, FeedbackKind, FeedbackRequest, SessionRef};
+use berth_core::{AgentId, ChannelEvent, FeedbackKind, FeedbackRequest, ServerEvent, SessionRef};
 use berth_hub::client::HubClient;
 use berth_hub::{Event, EVENT_TAG, KIND_ANSWER, KIND_REQUEST, KIND_SETTLED};
 
+use rusqlite::params;
+use tokio::sync::broadcast;
+
 use crate::channels::{hub, mark, own};
+use crate::config::Config;
+use crate::hub_stream::HubPush;
 use crate::registry::Daemon;
 use crate::store::Store;
 
-const POLL: Duration = Duration::from_secs(3);
+const FALLBACK_POLL: Duration = Duration::from_secs(15);
 const ANSWERED_LOCALLY: &str = "local";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -153,13 +158,13 @@ struct Posted {
 }
 
 impl Posted {
-    async fn settle(&self, hub: &HubClient, answer: &str, by: Option<&str>, content: &str) {
+    async fn settle(&self, hub: &HubClient, answer: &str, by: Option<&str>, content: &str) -> bool {
         let mut tags = refers(self.seq);
         tags.push(vec!["answer".to_string(), answer.to_string()]);
         if let Some(by) = by {
             tags.push(vec!["by".to_string(), by.to_string()]);
         }
-        if let Err(e) = hub
+        match hub
             .publish(
                 &self.channel,
                 KIND_SETTLED,
@@ -169,12 +174,113 @@ impl Posted {
             )
             .await
         {
-            tracing::warn!(channel = %self.channel, error = %e, "settling a channel request failed");
+            Ok(_) => true,
+            Err(e) => {
+                tracing::warn!(channel = %self.channel, error = %e, "settling a channel request failed");
+                false
+            }
         }
     }
 }
 
+fn save_posted(store: &Store, hub_url: &str, agent: &AgentId, p: &Posted) -> Result<()> {
+    store.conn().execute(
+        "INSERT OR REPLACE INTO channel_requests_posted
+         (agent_id, hub_url, channel, seq, member, request) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![
+            agent.as_str(),
+            hub_url,
+            p.channel,
+            p.seq,
+            p.member,
+            serde_json::to_string(&p.request)?
+        ],
+    )?;
+    Ok(())
+}
+
+fn forget_posted(store: &Store, agent: &AgentId) {
+    if let Err(e) = store.conn().execute(
+        "DELETE FROM channel_requests_posted WHERE agent_id = ?1",
+        params![agent.as_str()],
+    ) {
+        tracing::warn!(agent = %agent.0, error = %e, "forgetting a posted request failed");
+    }
+}
+
+fn load_posted(store: &Store, hub_url: &str) -> Result<HashMap<AgentId, Posted>> {
+    let conn = store.conn();
+    let mut st = conn.prepare(
+        "SELECT agent_id, channel, seq, member, request FROM channel_requests_posted
+         WHERE hub_url = ?1",
+    )?;
+    let rows = st.query_map(params![hub_url], |r| {
+        Ok((
+            AgentId(r.get(0)?),
+            r.get::<_, String>(1)?,
+            r.get::<_, i64>(2)?,
+            r.get::<_, String>(3)?,
+            r.get::<_, String>(4)?,
+        ))
+    })?;
+    let mut posted = HashMap::new();
+    for row in rows {
+        let (agent, channel, seq, member, request) = row?;
+        let Ok(request) = serde_json::from_str(&request) else {
+            continue;
+        };
+        posted.insert(
+            agent,
+            Posted {
+                channel,
+                seq,
+                member,
+                request,
+                read_after: seq,
+            },
+        );
+    }
+    Ok(posted)
+}
+
 type Requests = HashMap<AgentId, FeedbackRequest>;
+
+#[derive(Default)]
+struct Tracked {
+    hub_url: Option<String>,
+    posted: HashMap<AgentId, Posted>,
+    quiet: Requests,
+}
+
+impl Tracked {
+    fn follow_hub(&mut self, store: &Store) {
+        let url = Config::load().hub_url.unwrap_or_default();
+        if self.hub_url.as_deref() == Some(url.as_str()) {
+            return;
+        }
+        match load_posted(store, &url) {
+            Ok(posted) => self.posted = posted,
+            Err(e) => {
+                tracing::warn!(error = %e, "reading posted requests failed");
+                self.posted.clear();
+            }
+        }
+        self.hub_url = Some(url);
+    }
+
+    fn remember(&mut self, store: &Store, agent: AgentId, p: Posted) {
+        let url = self.hub_url.as_deref().unwrap_or_default();
+        if let Err(e) = save_posted(store, url, &agent, &p) {
+            tracing::warn!(agent = %agent.0, error = %e, "saving a posted request failed");
+        }
+        self.posted.insert(agent, p);
+    }
+
+    fn forget(&mut self, store: &Store, agent: &AgentId) -> Option<Posted> {
+        forget_posted(store, agent);
+        self.posted.remove(agent)
+    }
+}
 
 impl Daemon {
     fn request_channel(&self, agent: &AgentId, keys: &[String]) -> Option<String> {
@@ -206,17 +312,22 @@ impl Daemon {
         &self,
         hub: &HubClient,
         pending: &Requests,
-        posted: &mut HashMap<AgentId, Posted>,
+        tracked: &mut Tracked,
     ) {
-        let gone: Vec<AgentId> = posted
+        let gone: Vec<AgentId> = tracked
+            .posted
             .iter()
             .filter(|(agent, p)| pending.get(*agent) != Some(&p.request))
             .map(|(agent, _)| agent.clone())
             .collect();
         for agent in gone {
-            if let Some(p) = posted.remove(&agent) {
-                p.settle(hub, ANSWERED_LOCALLY, None, "Answered in berth")
-                    .await;
+            let Some(p) = tracked.posted.get(&agent) else {
+                continue;
+            };
+            if p.settle(hub, ANSWERED_LOCALLY, None, "Answered in berth")
+                .await
+            {
+                tracked.forget(&self.store, &agent);
             }
         }
     }
@@ -225,11 +336,10 @@ impl Daemon {
         self: &Arc<Self>,
         hub: &HubClient,
         owner: &str,
-        posted: &mut HashMap<AgentId, Posted>,
-        quiet: &mut Requests,
+        tracked: &mut Tracked,
     ) {
         let mut answered = Vec::new();
-        for (agent, p) in posted.iter_mut() {
+        for (agent, p) in tracked.posted.iter_mut() {
             let Ok(events) = hub.read(&p.channel, p.read_after, Some(&p.member)).await else {
                 continue;
             };
@@ -256,8 +366,8 @@ impl Daemon {
             }
         }
         for agent in answered {
-            if let Some(p) = posted.remove(&agent) {
-                quiet.insert(agent, p.request);
+            if let Some(p) = tracked.forget(&self.store, &agent) {
+                tracked.quiet.insert(agent, p.request);
             }
         }
     }
@@ -266,8 +376,7 @@ impl Daemon {
         &self,
         hub: &HubClient,
         fresh: Vec<(AgentId, FeedbackRequest)>,
-        posted: &mut HashMap<AgentId, Posted>,
-        quiet: &mut Requests,
+        tracked: &mut Tracked,
     ) {
         let Ok(channels) = hub.channels().await else {
             return;
@@ -275,7 +384,6 @@ impl Daemon {
         let keys: Vec<String> = channels.into_iter().map(|c| c.key).collect();
         for (agent, request) in fresh {
             let Some(channel) = self.request_channel(&agent, &keys) else {
-                quiet.insert(agent, request);
                 continue;
             };
             let Ok(member) = hub.agent(agent.as_str()).await else {
@@ -287,56 +395,89 @@ impl Daemon {
                 .await
             {
                 Ok(event) => {
-                    posted.insert(
-                        agent,
-                        Posted {
-                            channel,
-                            seq: event.seq,
-                            member,
-                            request,
-                            read_after: event.seq,
-                        },
-                    );
+                    let posted = Posted {
+                        channel,
+                        seq: event.seq,
+                        member,
+                        request,
+                        read_after: event.seq,
+                    };
+                    tracked.remember(&self.store, agent, posted);
                 }
                 Err(e) => tracing::warn!(agent = %agent.0, error = %e, "posting a request failed"),
             }
         }
     }
 
-    pub async fn run_channel_requests(self: Arc<Self>) {
-        let mut interval = tokio::time::interval(POLL);
-        let mut posted: HashMap<AgentId, Posted> = HashMap::new();
-        let mut quiet: Requests = HashMap::new();
+    async fn requests_pass(self: &Arc<Self>, tracked: &mut Tracked) -> bool {
+        let pending: Requests = self.feedback.all().into_iter().collect();
+        tracked
+            .quiet
+            .retain(|agent, request| pending.get(agent) == Some(request));
+        let unposted = |tracked: &Tracked| {
+            pending
+                .iter()
+                .filter(|(agent, request)| {
+                    !tracked.posted.contains_key(*agent)
+                        && tracked.quiet.get(*agent) != Some(request)
+                })
+                .map(|(agent, request)| (agent.clone(), request.clone()))
+                .collect::<Vec<_>>()
+        };
+        let idle = |tracked: &Tracked| tracked.posted.is_empty() && unposted(tracked).is_empty();
+        if tracked.hub_url.is_some() && idle(tracked) {
+            return false;
+        }
+        let Ok(hub) = hub() else { return true };
+        tracked.follow_hub(&self.store);
+        if idle(tracked) {
+            return false;
+        }
+        let Ok(owner) = hub.me().await else {
+            return true;
+        };
+        self.settle_answered_locally(&hub, &pending, tracked).await;
+        self.take_owner_answers(&hub, &owner, tracked).await;
+        let fresh = unposted(tracked);
+        if !fresh.is_empty() {
+            self.post_new_requests(&hub, fresh, tracked).await;
+        }
+        !unposted(tracked).is_empty()
+    }
+
+    pub(crate) async fn run_channel_requests(self: Arc<Self>, push: Arc<HubPush>) {
+        let mut events = self.events.subscribe();
+        let mut live = push.watch_live();
+        let mut tracked = Tracked::default();
         loop {
+            let unrouted = self.requests_pass(&mut tracked).await;
+            let streamed = *live.borrow_and_update() && !unrouted;
+            let fallback = async move {
+                if streamed {
+                    std::future::pending::<()>().await
+                } else {
+                    tokio::time::sleep(FALLBACK_POLL).await
+                }
+            };
             tokio::select! {
                 _ = self.shutdown.cancelled() => break,
-                _ = interval.tick() => {}
+                _ = fallback => {}
+                _ = live.changed() => {}
+                woke = wake_event(&mut events) => if !woke { break },
             }
-            let pending: Requests = self.feedback.all().into_iter().collect();
-            quiet.retain(|agent, request| pending.get(agent) == Some(request));
-            let unposted = |posted: &HashMap<AgentId, Posted>, quiet: &Requests| {
-                pending
-                    .iter()
-                    .filter(|(agent, request)| {
-                        !posted.contains_key(*agent) && quiet.get(*agent) != Some(request)
-                    })
-                    .map(|(agent, request)| (agent.clone(), request.clone()))
-                    .collect::<Vec<_>>()
-            };
-            if posted.is_empty() && unposted(&posted, &quiet).is_empty() {
-                continue;
-            }
-            let Ok(hub) = hub() else { continue };
-            let Ok(owner) = hub.me().await else { continue };
-            self.settle_answered_locally(&hub, &pending, &mut posted)
-                .await;
-            self.take_owner_answers(&hub, &owner, &mut posted, &mut quiet)
-                .await;
-            let fresh = unposted(&posted, &quiet);
-            if !fresh.is_empty() {
-                self.post_new_requests(&hub, fresh, &mut posted, &mut quiet)
-                    .await;
-            }
+        }
+    }
+}
+
+async fn wake_event(events: &mut broadcast::Receiver<ServerEvent>) -> bool {
+    loop {
+        match events.recv().await {
+            Ok(
+                ServerEvent::ChannelAppended { .. } | ServerEvent::FeedbackRequestChanged { .. },
+            ) => return true,
+            Ok(_) => {}
+            Err(broadcast::error::RecvError::Lagged(_)) => return true,
+            Err(broadcast::error::RecvError::Closed) => return false,
         }
     }
 }
@@ -382,6 +523,40 @@ mod tests {
             Some((Answer::Deny, "m-ann-name".into()))
         );
         assert_eq!(owner_answer(&events[..3], 10, "m-ann", &request), None);
+    }
+
+    #[test]
+    fn a_posted_request_is_still_known_after_a_restart_until_it_is_settled() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("berth.db");
+        let agent = AgentId("agent-1".into());
+        {
+            let store = Store::open(&path).unwrap();
+            let posted = Posted {
+                channel: "PROJ-1".into(),
+                seq: 10,
+                member: "a-1".into(),
+                request: permission(),
+                read_after: 10,
+            };
+            save_posted(&store, "https://hub.example", &agent, &posted).unwrap();
+        }
+        let store = Store::open(&path).unwrap();
+        assert!(load_posted(&store, "https://other.example")
+            .unwrap()
+            .is_empty());
+        let restored = load_posted(&store, "https://hub.example").unwrap();
+        let p = &restored[&agent];
+        assert_eq!(
+            (p.channel.as_str(), p.seq, p.member.as_str(), &p.request),
+            ("PROJ-1", 10, "a-1", &permission())
+        );
+        forget_posted(&store, &agent);
+        drop(store);
+        let store = Store::open(&path).unwrap();
+        assert!(load_posted(&store, "https://hub.example")
+            .unwrap()
+            .is_empty());
     }
 
     #[test]

@@ -39,6 +39,7 @@ pub mod team;
 pub mod team_access;
 mod team_members;
 pub mod team_overlaps;
+mod team_pending;
 pub mod triggers;
 pub mod usage;
 pub mod usage_limits;
@@ -185,11 +186,13 @@ async fn serve() -> Result<()> {
     }
 
     tokio::spawn(daemon.clone().run_scheduler());
-    tokio::spawn(daemon.clone().run_channel_delivery());
+    let hub_push = std::sync::Arc::new(hub_stream::HubPush::default());
+    tokio::spawn(daemon.clone().run_hub_stream(hub_push.clone()));
+    tokio::spawn(daemon.clone().run_channel_delivery(hub_push.clone()));
     tokio::spawn(daemon.clone().run_presence_report());
     tokio::spawn(daemon.clone().run_messenger_bridge());
     tokio::spawn(daemon.clone().run_touched_report());
-    tokio::spawn(daemon.clone().run_channel_requests());
+    tokio::spawn(daemon.clone().run_channel_requests(hub_push));
     if let Err(e) = triggers::start_webhooks(daemon.clone(), &config::Config::load()).await {
         tracing::warn!(error = %e, "webhook listener not started");
     }

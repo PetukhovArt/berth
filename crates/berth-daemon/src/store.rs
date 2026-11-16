@@ -341,6 +341,24 @@ const MIGRATIONS: &[&str] = &[
       PRIMARY KEY (channel, agent_id, member)
     );
     ",
+    "
+    CREATE TABLE hub_mention_pending (
+      hub_url  TEXT NOT NULL,
+      seq      INTEGER NOT NULL,
+      member   TEXT NOT NULL,
+      mention  TEXT NOT NULL,
+      promoted INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (hub_url, seq, member)
+    );
+    CREATE TABLE channel_requests_posted (
+      agent_id TEXT PRIMARY KEY,
+      hub_url  TEXT NOT NULL,
+      channel  TEXT NOT NULL,
+      seq      INTEGER NOT NULL,
+      member   TEXT NOT NULL,
+      request  TEXT NOT NULL
+    );
+    ",
 ];
 
 pub struct Store {

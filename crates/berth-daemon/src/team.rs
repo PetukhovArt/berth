@@ -1,4 +1,3 @@
-use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -12,10 +11,10 @@ use crate::hub_stream::HubPush;
 use crate::pty::{DEFAULT_COLS, DEFAULT_ROWS};
 use crate::registry::Daemon;
 use crate::team_members::{MentionCursor, RegisteredAgents};
+use crate::team_pending::{self, Pending};
 use crate::triggers::{paste, BOOT_GRACE, PASTE_GAP};
 
 const POLL: Duration = Duration::from_secs(5);
-const PENDING_MAX: usize = 64;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Decision {
@@ -95,44 +94,57 @@ impl Daemon {
         session.write_input(b"\r")
     }
 
-    async fn deliver_pending(self: &Arc<Self>, pending: &mut VecDeque<Mention>, limit: u32) {
+    async fn deliver_pending(self: &Arc<Self>, hub_url: &str, limit: u32) {
+        let pending = match team_pending::load(&self.store, hub_url) {
+            Ok(pending) => pending,
+            Err(e) => {
+                tracing::warn!(error = %e, "reading pending mentions failed");
+                return;
+            }
+        };
         let mut served: Vec<String> = Vec::new();
-        let mut keep = VecDeque::new();
-        while let Some(mut m) = pending.pop_front() {
+        for Pending {
+            mention: mut m,
+            promoted,
+        } in pending
+        {
             let id = AgentId(m.agent_name.clone());
-            let Some(agent) = self.store.get_agent(&id).ok().flatten() else {
-                continue;
-            };
-            let names = [id.as_str(), agent.name.as_str()];
-            m.from_owner = instructs(&m, &names, || {
-                crate::team_access::may_instruct(&self.store, &m)
-            });
-            let idle = matches!(agent.status, AgentStatus::Finished | AgentStatus::Fresh)
-                && !served.contains(&m.agent);
-            let typed = match decide(&m, &names, limit, idle) {
-                Decision::Drop => continue,
-                Decision::Wait => {
-                    keep.push_back(m);
-                    continue;
+            let agent = self.store.get_agent(&id).ok().flatten();
+            let decision = match &agent {
+                None => Decision::Drop,
+                Some(agent) => {
+                    let names = [id.as_str(), agent.name.as_str()];
+                    m.from_owner = instructs(&m, &names, || {
+                        promoted || crate::team_access::may_instruct(&self.store, &m)
+                    });
+                    let idle = matches!(agent.status, AgentStatus::Finished | AgentStatus::Fresh)
+                        && !served.contains(&m.agent);
+                    decide(&m, &names, limit, idle)
                 }
+            };
+            if decision == Decision::Wait {
+                continue;
+            }
+            if let Err(e) = team_pending::remove(&self.store, hub_url, &m) {
+                tracing::warn!(error = %e, "removing a pending mention failed");
+                continue;
+            }
+            let typed = match decision {
                 Decision::Deliver(text) => self.type_into(&id, &text, false).await,
                 Decision::Command(command) => self.type_into(&id, &command, true).await,
+                Decision::Drop | Decision::Wait => continue,
             };
             served.push(m.agent.clone());
             if let Err(e) = typed {
                 tracing::warn!(agent = %id.0, error = %e, "channel delivery failed");
             }
         }
-        *pending = keep;
     }
 
-    pub async fn run_channel_delivery(self: Arc<Self>) {
+    pub(crate) async fn run_channel_delivery(self: Arc<Self>, push: Arc<HubPush>) {
         let mut interval = tokio::time::interval(POLL);
         let mut cursor = MentionCursor::default();
         let mut registered = RegisteredAgents::default();
-        let mut pending: VecDeque<Mention> = VecDeque::new();
-        let push = Arc::new(HubPush::default());
-        tokio::spawn(self.clone().run_hub_stream(push.clone()));
         loop {
             let pushed = tokio::select! {
                 _ = self.shutdown.cancelled() => break,
@@ -147,19 +159,11 @@ impl Daemon {
             if pushed || !push.is_live() {
                 if let Ok(found) = hub.mentions(after).await {
                     let next = found.iter().map(|m| m.event.seq).max().unwrap_or(after);
-                    for m in found {
-                        if pending.len() < PENDING_MAX {
-                            pending.push_back(m);
-                        }
-                    }
-                    cursor.advance(&self.store, next);
+                    cursor.queue(&self.store, &found, next);
                 }
             }
-            crate::team_access::take_promoted(&mut pending);
-            if !pending.is_empty() {
-                let limit = Config::load().channel_chain_limit;
-                self.deliver_pending(&mut pending, limit).await;
-            }
+            let limit = Config::load().channel_chain_limit;
+            self.deliver_pending(cursor.hub_url(), limit).await;
         }
     }
 }

@@ -1,33 +1,13 @@
-use std::collections::{BTreeSet, VecDeque};
-use std::sync::Mutex;
-
 use anyhow::{anyhow, bail, Result};
 use berth_core::{AgentId, ChannelGrant, ServerEvent};
 use berth_hub::{Event, Mention, KIND_MESSAGE};
 use rusqlite::{params, OptionalExtension};
 
 use crate::channels::hub;
+use crate::config::Config;
 use crate::store::Store;
 
-struct Promoted {
-    queue: Vec<Mention>,
-    marked: BTreeSet<(i64, String)>,
-}
-
-static PROMOTED: Mutex<Promoted> = Mutex::new(Promoted {
-    queue: Vec::new(),
-    marked: BTreeSet::new(),
-});
-
 pub(crate) fn may_instruct(store: &Store, m: &Mention) -> bool {
-    if PROMOTED
-        .lock()
-        .unwrap()
-        .marked
-        .contains(&(m.event.seq, m.agent.clone()))
-    {
-        return true;
-    }
     store
         .conn()
         .query_row(
@@ -39,26 +19,6 @@ pub(crate) fn may_instruct(store: &Store, m: &Mention) -> bool {
         .ok()
         .flatten()
         .is_some()
-}
-
-pub(crate) fn take_promoted(pending: &mut VecDeque<Mention>) {
-    let mut promoted = PROMOTED.lock().unwrap();
-    for m in promoted.queue.drain(..) {
-        let queued = pending
-            .iter()
-            .any(|p| p.event.seq == m.event.seq && p.agent == m.agent);
-        if !queued {
-            pending.push_back(m);
-        }
-    }
-}
-
-fn promote_mentions(mentions: Vec<Mention>) {
-    let mut promoted = PROMOTED.lock().unwrap();
-    for m in mentions {
-        promoted.marked.insert((m.event.seq, m.agent.clone()));
-        promoted.queue.push(m);
-    }
 }
 
 fn own_agent(store: &Store, agent: &AgentId) -> Result<()> {
@@ -101,8 +61,8 @@ pub async fn promote(store: &Store, channel: &str, seq: i64, agent: Option<Agent
             found
         }
     };
-    promote_mentions(mentions);
-    Ok(())
+    let hub_url = Config::load().hub_url.unwrap_or_default();
+    crate::team_pending::promote(store, &hub_url, &mentions)
 }
 
 fn colleague(events: &[Event], who: &str) -> Result<(String, String)> {
@@ -263,17 +223,5 @@ mod tests {
             &mention(event(8, "m-bob", "bob", "person", "PROJ-1"))
         ));
         assert!(list_grants(&store, None).unwrap().is_empty());
-    }
-
-    #[test]
-    fn a_promoted_message_instructs_once_queued_without_a_duplicate() {
-        let store = Store::open_in_memory().unwrap();
-        let m = mention(event(40, "m-bob", "bob", "person", "PROJ-1"));
-        assert!(!may_instruct(&store, &m));
-        let mut pending = VecDeque::from([m.clone()]);
-        promote_mentions(vec![m.clone()]);
-        take_promoted(&mut pending);
-        assert_eq!(pending.len(), 1);
-        assert!(may_instruct(&store, &m));
     }
 }
