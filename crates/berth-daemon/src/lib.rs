@@ -36,6 +36,7 @@ pub mod store;
 pub mod subagents;
 pub mod task_notes;
 pub mod team;
+pub mod team_access;
 mod team_members;
 pub mod team_overlaps;
 pub mod triggers;

@@ -41,6 +41,10 @@ fn as_command(content: &str, agent_names: &[&str]) -> Option<String> {
     command.starts_with('/').then_some(command)
 }
 
+fn instructs(m: &Mention, agent_names: &[&str], granted: impl FnOnce() -> bool) -> bool {
+    m.from_owner || (as_command(&m.event.content, agent_names).is_none() && granted())
+}
+
 pub fn decide(m: &Mention, agent_names: &[&str], chain_limit: u32, idle: bool) -> Decision {
     if m.event.author == m.agent || m.chain > chain_limit {
         return Decision::Drop;
@@ -94,14 +98,18 @@ impl Daemon {
     async fn deliver_pending(self: &Arc<Self>, pending: &mut VecDeque<Mention>, limit: u32) {
         let mut served: Vec<String> = Vec::new();
         let mut keep = VecDeque::new();
-        while let Some(m) = pending.pop_front() {
+        while let Some(mut m) = pending.pop_front() {
             let id = AgentId(m.agent_name.clone());
             let Some(agent) = self.store.get_agent(&id).ok().flatten() else {
                 continue;
             };
+            let names = [id.as_str(), agent.name.as_str()];
+            m.from_owner = instructs(&m, &names, || {
+                crate::team_access::may_instruct(&self.store, &m)
+            });
             let idle = matches!(agent.status, AgentStatus::Finished | AgentStatus::Fresh)
                 && !served.contains(&m.agent);
-            let typed = match decide(&m, &[id.as_str(), &agent.name], limit, idle) {
+            let typed = match decide(&m, &names, limit, idle) {
                 Decision::Drop => continue,
                 Decision::Wait => {
                     keep.push_back(m);
@@ -147,6 +155,7 @@ impl Daemon {
                     cursor.advance(&self.store, next);
                 }
             }
+            crate::team_access::take_promoted(&mut pending);
             if !pending.is_empty() {
                 let limit = Config::load().channel_chain_limit;
                 self.deliver_pending(&mut pending, limit).await;
@@ -185,6 +194,17 @@ mod tests {
             decide(&other, NAMES, 4, true),
             Decision::Deliver(t) if t.starts_with("Message from bob")
         ));
+    }
+
+    #[test]
+    fn a_granted_colleague_instructs_but_a_slash_command_stays_the_owners() {
+        let granted = mention("bob", "person", false, 0, "@agent-1 use the v2 api");
+        assert!(instructs(&granted, NAMES, || true));
+        assert!(!instructs(&granted, NAMES, || false));
+        let command = mention("bob", "person", false, 0, "@agent-1 /clear");
+        assert!(!instructs(&command, NAMES, || true));
+        let own = mention("ann", "person", true, 0, "@agent-1 /clear");
+        assert!(instructs(&own, NAMES, || false));
     }
 
     fn mention(author: &str, kind: &str, from_owner: bool, chain: u32, content: &str) -> Mention {

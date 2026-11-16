@@ -6,9 +6,11 @@ import { BerthCallError, call, onChannelAppended, useBerth } from './berth';
 export { onChannelAppended };
 
 type ChannelSummary = { key: string; head: number; unread: number };
-export type ChannelMessage = { seq: number; kind: number; author: string; authorName: string; authorKind: string; tags: string[][]; content: string; createdAt: number };
+export type ChannelMessage = { seq: number; kind: number; author: string; authorName: string; authorKind: string; tags: string[][]; content: string; createdAt: number; mentionsAgent: boolean };
 export type ChannelTouching = { member: string; name: string; agent: string; modules: string[] };
+export type ChannelGrant = { channel: string; agent: string; member: string; member_name: string };
 
+const KIND_MESSAGE = 1;
 const KIND_REQUEST = 2;
 const KIND_ANSWER = 3;
 const KIND_SETTLED = 4;
@@ -63,6 +65,7 @@ function messages(reply: Awaited<ReturnType<typeof call>>): ChannelMessage[] {
     tags: event.tags,
     content: event.content,
     createdAt: event.created_at,
+    mentionsAgent: event.kind === KIND_MESSAGE && event.tags.some((tag) => tag[0] === 'p'),
   }));
 }
 
@@ -114,6 +117,24 @@ export async function channelKeys(): Promise<string[]> {
 
 export async function answerInChannel(channel: string, request: number, answer: string): Promise<ChannelMessage[]> {
   return remember(channel, messages(await call({ AnswerInChannel: { channel, request, answer, agent: null } })));
+}
+
+export async function promoteChannelMessage(channel: string, seq: number): Promise<void> {
+  const reply = await call({ PromoteChannelMessage: { channel, seq, agent: null } });
+  if (!('Ack' in reply)) throw new BerthCallError(t('agents.errors.unexpectedReply', { reply: Object.keys(reply).join('') }));
+}
+
+function grants(reply: Awaited<ReturnType<typeof call>>): ChannelGrant[] {
+  if (!('ChannelGrants' in reply)) throw new BerthCallError(t('agents.errors.unexpectedReply', { reply: Object.keys(reply).join('') }));
+  return reply.ChannelGrants.grants;
+}
+
+export async function readChannelGrants(channel: string): Promise<ChannelGrant[]> {
+  return grants(await call({ ListChannelGrants: { channel } }));
+}
+
+export async function revokeChannelGrant(grant: ChannelGrant): Promise<ChannelGrant[]> {
+  return grants(await call({ SetChannelGrant: { channel: grant.channel, agent: grant.agent, member: grant.member, granted: false } }));
 }
 
 export function openChannel(key: string, split = false): void {

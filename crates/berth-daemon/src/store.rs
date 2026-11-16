@@ -332,6 +332,15 @@ const MIGRATIONS: &[&str] = &[
       seq     INTEGER NOT NULL
     );
     ",
+    "
+    CREATE TABLE channel_grants (
+      channel     TEXT NOT NULL,
+      agent_id    TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+      member      TEXT NOT NULL,
+      member_name TEXT NOT NULL,
+      PRIMARY KEY (channel, agent_id, member)
+    );
+    ",
 ];
 
 pub struct Store {
@@ -392,6 +401,10 @@ impl Store {
         }
         conn.pragma_update(None, "foreign_keys", "ON")?;
         Ok(())
+    }
+
+    pub(crate) fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
+        self.conn.lock().unwrap()
     }
 
     // ---- workspaces ----

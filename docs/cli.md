@@ -100,6 +100,26 @@ With `hub_url` and `hub_token` set (see [configuration](configuration.md)), `ber
 - `berth channel post <channel> <message...>`: post a message; inside a session it is posted as that Agent.
 - `berth channel note <channel> <text...>`: set the Task note of the channel's task. Every member's Agent that starts a Session on that task, meaning a worktree whose branch name contains the channel key, gets it at session start next to their own Task note, labelled as information from a colleague. The latest note wins; `berth channel note <channel>` with no text clears it.
 - `berth channel answer <channel> <seq> allow|deny|N`: answer your Agent's request in the channel (below).
+- `berth channel promote <channel> <seq> [--agent <id>]`: deliver a colleague's message to your Agent as an instruction.
+- `berth channel grant <channel> <agent> <colleague>` and `berth channel revoke <channel> <agent> <colleague>`: let a colleague instruct one of your Agents in one channel, or take it back.
+- `berth channel grants [<channel>]`: list your grants.
+
+A message that mentions an Agent with `@` reaches that Agent once it is idle. Only your own messages
+arrive as instructions; a colleague's message, or another Agent's, arrives as quoted information that
+the Agent is told not to follow. A slash command such as `/compact` is typed as a command only when
+it comes from you.
+
+`promote` changes that for one message: it delivers message `<seq>` (the number `read` prints) to your
+Agent as an instruction. Without `--agent` it goes to each of your Agents the message mentions. The
+Channel view has a Promote button on every message that mentions an Agent.
+
+`grant` lets one colleague instruct one of your Agents in one channel: while the grant stands, their
+messages there that mention the Agent arrive as instructions. Name the colleague by their hub member
+id or by the name they write under; they must have written in the channel. `revoke` takes it back,
+and the Channel view lists the grants of the channel with a Revoke button. Grants live in your own
+daemon, not on the hub. Promote, grant and revoke refuse to run from inside a Session: they are for
+you, not for your Agents. A promoted or granted message that is a slash command still arrives as
+quoted information.
 
 The desktop app's Channel view has a Task note button beside Send. Each daemon also tells the hub every 15 seconds which modules (the first two directories of a changed path) its Agents on a task have changed, and the hub keeps that in memory for 45 seconds. The overlap chip on an Agent then also lists Agents of other members that change the same modules on the same task, as `agent (member)`.
 

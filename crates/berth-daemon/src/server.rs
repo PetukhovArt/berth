@@ -427,6 +427,44 @@ async fn handle_client(
                         let _ = out_tx.send(ev).await;
                     });
                 }
+                ClientRequest::PromoteChannelMessage {
+                    req_id,
+                    channel,
+                    seq,
+                    agent,
+                } => {
+                    let store = daemon.store.clone();
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let done = crate::team_access::promote(&store, &channel, seq, agent).await;
+                        reply_done(&out_tx, req_id, done).await;
+                    });
+                }
+                ClientRequest::SetChannelGrant {
+                    req_id,
+                    channel,
+                    agent,
+                    member,
+                    granted,
+                } => {
+                    let store = daemon.store.clone();
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let result = crate::team_access::set_grant(
+                            &store, &channel, &agent, &member, granted,
+                        )
+                        .await;
+                        let _ = out_tx
+                            .send(crate::team_access::grants_reply(req_id, result))
+                            .await;
+                    });
+                }
+                ClientRequest::ListChannelGrants { req_id, channel } => {
+                    let result = crate::team_access::list_grants(&daemon.store, channel.as_deref());
+                    let _ = out_tx
+                        .send(crate::team_access::grants_reply(req_id, result))
+                        .await;
+                }
                 ClientRequest::CreateAcpAgent {
                     req_id,
                     worktree,

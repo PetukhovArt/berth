@@ -4,7 +4,7 @@ import { UiButton } from '../../../shared/ui/UiButton';
 import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { Bot, UserRound } from '../../../shared/ui/icons';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
-import { answerInChannel, channelRequestOf, describeError, isAgentMessage, isChannelReply, isNoteMessage, isOwnAgentRequest, onChannelAppended, postNote, postToChannel, readChannel, readPresence, refreshChannels, settlementOf, type ChannelMessage, type ChannelPresent, type ChannelRequest, type ChannelSettlement } from '../../../entities/session';
+import { answerInChannel, channelRequestOf, describeError, isAgentMessage, isChannelReply, isNoteMessage, isOwnAgentRequest, onChannelAppended, postNote, postToChannel, promoteChannelMessage, readChannel, readChannelGrants, readPresence, refreshChannels, revokeChannelGrant, settlementOf, type ChannelGrant, type ChannelMessage, type ChannelPresent, type ChannelRequest, type ChannelSettlement } from '../../../entities/session';
 
 const POLL_MS = 4000;
 
@@ -49,6 +49,8 @@ async function answer(seq: number, token: string) {
     busy.value = false;
   }
 }
+const grants = shallowRef<ChannelGrant[]>([]);
+const promoted = shallowRef<ReadonlySet<number>>(new Set());
 const list = useTemplateRef<HTMLElement>('list');
 let timer: ReturnType<typeof setTimeout> | undefined;
 let stopped = false;
@@ -76,6 +78,7 @@ async function poll() {
     await readNew();
     void refreshChannels();
     present.value = await readPresence(props.channel).catch(() => []);
+    grants.value = await readChannelGrants(props.channel).catch(() => []);
   } catch (failure) {
     error.value = describeError(failure);
   }
@@ -119,6 +122,25 @@ function clearNote() {
   void run(() => postNote(props.channel, ''), false);
 }
 
+async function promote(message: ChannelMessage) {
+  try {
+    await promoteChannelMessage(props.channel, message.seq);
+    promoted.value = new Set(promoted.value).add(message.seq);
+    error.value = null;
+  } catch (failure) {
+    error.value = describeError(failure);
+  }
+}
+
+async function revoke(grant: ChannelGrant) {
+  try {
+    grants.value = await revokeChannelGrant(grant);
+    error.value = null;
+  } catch (failure) {
+    error.value = describeError(failure);
+  }
+}
+
 function onKeydown(event: KeyboardEvent) {
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
   event.preventDefault();
@@ -141,6 +163,13 @@ onBeforeUnmount(() => {
       <span class="note-text">{{ t('attention.channel.noteBy', { name: activeNote.authorName, text: activeNote.content }) }}</span>
       <UiButton type="button" class="note-clear" :disabled="busy" data-testid="channel-note-clear" @click="clearNote">{{ t('attention.channel.noteClear') }}</UiButton>
     </p>
+    <p v-if="grants.length" class="grants" data-testid="channel-grants">
+      <span>{{ t('attention.channel.grants') }}</span>
+      <span v-for="grant in grants" :key="`${grant.agent}:${grant.member}`" class="grant" data-testid="channel-grant">
+        {{ t('attention.channel.grant', { member: grant.member_name, agent: grant.agent }) }}
+        <UiButton type="button" class="link" :aria-label="t('attention.channel.revokeLabel', { member: grant.member_name, agent: grant.agent })" data-testid="channel-grant-revoke" @click="revoke(grant)">{{ t('attention.channel.revoke') }}</UiButton>
+      </span>
+    </p>
     <ol ref="list" class="messages" data-testid="channel-messages">
       <li v-if="!rows.length" class="empty" data-testid="channel-empty">{{ t('attention.channel.empty') }}</li>
       <li v-for="row in rows" :key="row.message.seq" class="message" :data-author-kind="row.message.authorKind" data-testid="channel-message">
@@ -153,6 +182,8 @@ onBeforeUnmount(() => {
             <span class="author" data-testid="channel-author">{{ row.message.authorName }}</span>
             <span class="time">{{ formatDate(row.message.createdAt, { timeStyle: 'short' }) }}</span>
             <span v-if="isNoteMessage(row.message)" class="tag" data-testid="channel-note-tag">{{ t('attention.channel.noteTag') }}</span>
+            <span v-if="promoted.has(row.message.seq)" class="time" data-testid="channel-promoted">{{ t('attention.channel.promoted') }}</span>
+            <UiButton v-else-if="row.message.mentionsAgent" type="button" class="link" :title="t('attention.channel.promoteHint')" data-testid="channel-promote" @click="promote(row.message)">{{ t('attention.channel.promote') }}</UiButton>
           </div>
           <div v-if="row.request" class="request" data-testid="channel-request" :data-settled="row.settled ? 'true' : 'false'">
             <p class="content">{{ requestText(row.request) }}</p>
@@ -234,6 +265,31 @@ onBeforeUnmount(() => {
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
   border-bottom: 1px solid var(--vr-color-border);
+}
+
+.grants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vr-space-2);
+  padding: var(--vr-space-1) var(--vr-space-3);
+  margin: 0;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-muted);
+  border-bottom: 1px solid var(--vr-color-border);
+}
+
+.grant {
+  color: var(--vr-color-text);
+}
+
+.link {
+  padding: 0;
+  font: inherit;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-accent);
+  cursor: pointer;
+  background: none;
+  border: 0;
 }
 
 .messages {

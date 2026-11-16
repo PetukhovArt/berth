@@ -265,6 +265,33 @@ enum ChannelCommand {
         request: i64,
         answer: String,
     },
+    #[command(
+        about = "Deliver a colleague's message to your Agent as an instruction; without --agent, to each of your Agents it mentions"
+    )]
+    Promote {
+        channel: String,
+        #[arg(help = "The message's sequence number, as `berth channel read` prints it")]
+        seq: i64,
+        #[arg(long, value_name = "AGENT_ID")]
+        agent: Option<String>,
+    },
+    #[command(
+        about = "Let a colleague instruct one of your Agents in a channel: their mentions of it arrive as instructions"
+    )]
+    Grant {
+        channel: String,
+        agent: String,
+        #[arg(help = "The colleague's hub member id, or their name as it shows in the channel")]
+        colleague: String,
+    },
+    #[command(about = "Take back a grant")]
+    Revoke {
+        channel: String,
+        agent: String,
+        colleague: String,
+    },
+    #[command(about = "List your grants, in one channel or in all")]
+    Grants { channel: Option<String> },
 }
 
 #[derive(Subcommand)]
@@ -420,6 +447,22 @@ fn main() -> Result<()> {
                 request,
                 answer,
             } => channel::run_answer(channel, request, answer),
+            ChannelCommand::Promote {
+                channel,
+                seq,
+                agent,
+            } => channel::run_promote(channel, seq, agent),
+            ChannelCommand::Grant {
+                channel,
+                agent,
+                colleague,
+            } => channel::run_grant(channel, agent, colleague, true),
+            ChannelCommand::Revoke {
+                channel,
+                agent,
+                colleague,
+            } => channel::run_grant(channel, agent, colleague, false),
+            ChannelCommand::Grants { channel } => channel::run_grants(channel),
         },
         Some(Command::Hub { command }) => match command {
             HubCommand::Serve {

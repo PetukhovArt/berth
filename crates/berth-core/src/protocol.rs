@@ -516,6 +516,26 @@ pub enum ClientRequest {
         channel: String,
     },
 
+    PromoteChannelMessage {
+        req_id: u64,
+        channel: String,
+        seq: i64,
+        agent: Option<AgentId>,
+    },
+
+    SetChannelGrant {
+        req_id: u64,
+        channel: String,
+        agent: AgentId,
+        member: String,
+        granted: bool,
+    },
+
+    ListChannelGrants {
+        req_id: u64,
+        channel: Option<String>,
+    },
+
     CreateAcpAgent {
         req_id: u64,
         worktree: WorktreeId,
@@ -958,6 +978,11 @@ pub enum ServerEvent {
         touched: Vec<ChannelTouching>,
     },
 
+    ChannelGrants {
+        req_id: u64,
+        grants: Vec<ChannelGrant>,
+    },
+
     AcpTranscript {
         req_id: u64,
         agent: AgentId,
@@ -989,6 +1014,14 @@ pub struct ChannelTouching {
     pub name: String,
     pub agent: String,
     pub modules: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChannelGrant {
+    pub channel: String,
+    pub agent: AgentId,
+    pub member: String,
+    pub member_name: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

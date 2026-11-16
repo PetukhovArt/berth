@@ -56,5 +56,12 @@ export const attention = {
       sent: 'Answer sent, waiting for the Agent',
       ownerOnly: "Only the Agent's owner can answer",
     },
+    promote: 'Promote',
+    promoteHint: 'Deliver this message to your mentioned Agent as an instruction',
+    promoted: 'Promoted',
+    grants: 'May instruct here:',
+    grant: '{member} instructs {agent}',
+    revoke: 'Revoke',
+    revokeLabel: 'Revoke the grant for {member} to instruct {agent}',
   },
 } as const;
