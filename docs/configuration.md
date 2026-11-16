@@ -227,7 +227,9 @@ your editor; hand edits apply while the app runs. `BERTH_HOME` moves the directo
 
 ### Voice
 
-The desktop app on Windows and macOS recognises speech on your computer: dictation runs
+The desktop app on Windows and macOS, when it was built with the local speech engine (the install script
+does that when it finds LLVM and CMake, see [windows.md](windows.md#desktop-working-copy) and
+[macos.md](macos.md)), recognises speech on your computer: dictation runs
 [whisper.cpp](https://github.com/ggml-org/whisper.cpp) with the multilingual `base` model and detects
 the language on its own, and the wake word runs a
 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) keyword spotter. Nothing you say leaves the
@@ -239,7 +241,7 @@ download progress, and without a connection you get an error instead. Settings, 
 models` shows what is downloaded and where, and `Remove` deletes it; the next dictation downloads it
 again. The macOS app asks for microphone access the first time.
 
-The phone client in a browser, and the Linux desktop app, use the speech recognition built into the
+The phone client in a browser, the Linux desktop app, and a desktop app built without the engine use the speech recognition built into the
 browser engine instead, so voice input works there only where that engine offers it (Chrome, Edge and
 Safari do; some webviews do not, and then the voice controls stay hidden or report that speech
 recognition is unavailable).

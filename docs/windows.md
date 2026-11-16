@@ -113,10 +113,11 @@ other app, and updated only when you ask.
 powershell -ExecutionPolicy Bypass -File scripts\install-app.ps1 -Launch
 ```
 
-Building the desktop app needs more than the `berth` command does, because voice input compiles
-whisper.cpp and generates its bindings with bindgen:
+The app builds without anything beyond what the `berth` command needs. The local speech engine (the
+`voice` cargo feature, off by default) is optional: without it, voice input uses the speech recognition
+of the app's webview. The engine compiles whisper.cpp and generates its bindings with bindgen, so it
+needs two more tools:
 
-- Visual Studio Build Tools with the C++ workload (MSVC), which Rust needs anyway.
 - CMake on `PATH` (`winget install Kitware.CMake`). The copy inside Visual Studio works too when it is on
   `PATH`, but a CMake older than 3.21 does not know the Visual Studio 2022 generator: with such a CMake
   and Build Tools 2019, set `CMAKE_GENERATOR` to `Visual Studio 16 2019`.
@@ -126,14 +127,15 @@ whisper.cpp and generates its bindings with bindgen:
   wheel, for one) also needs `BINDGEN_EXTRA_CLANG_ARGS` with `-isystem` for the MSVC and Windows SDK
   include folders.
 
-The same applies to every cargo command that covers the whole workspace, `cargo check --workspace`
-included, since `berth-desktop` is a workspace member. `cargo build -p berth` and the CI jobs, which
-exclude `berth-desktop`, need none of it.
+The install script looks for both before it builds. When it finds them it builds with `--features voice`;
+when it does not, it builds without the engine and prints one line saying what to install.
+`install-app.ps1 -CheckVoice` prints that verdict and exits without building. By hand, add
+`--features voice` to `cargo build -p berth-desktop` or to `pnpm --filter @berth/desktop exec tauri dev`.
 
-The build also downloads the sherpa-onnx libraries from their GitHub releases and puts
+With the engine, the build downloads the sherpa-onnx libraries from their GitHub releases and puts
 `sherpa-onnx-c-api.dll` and `onnxruntime.dll` next to `berth-desktop.exe`, and the install script copies
 both into the working copy. The wake word needs them there, while dictation and the rest of the app
-start without them. `berth-desktop.exe` also needs `MSVCP140.dll` from the Visual C++ runtime, which
+start without them. `berth-desktop.exe` then also needs `MSVCP140.dll` from the Visual C++ runtime, which
 Visual Studio Build Tools installs.
 
 The script reads `main` from the checkout it sits in, never the files in the working tree, and builds it

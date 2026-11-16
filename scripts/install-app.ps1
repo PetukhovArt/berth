@@ -6,7 +6,8 @@ param(
     [switch]$Force,
     [switch]$Launch,
     [switch]$Rollback,
-    [switch]$UpdateDaemon
+    [switch]$UpdateDaemon,
+    [switch]$CheckVoice
 )
 
 $ErrorActionPreference = 'Stop'
@@ -52,6 +53,41 @@ function Set-Shortcut {
 
 function Start-Berth {
     Start-Process -FilePath (Join-Path $current $exeName) -WorkingDirectory $current
+}
+
+function Test-Libclang {
+    $names = 'libclang.dll', 'clang.dll'
+    if ($env:LIBCLANG_PATH) {
+        if (Test-Path -LiteralPath $env:LIBCLANG_PATH -PathType Leaf) { return $true }
+        return [bool]($names | Where-Object { Test-Path -LiteralPath (Join-Path $env:LIBCLANG_PATH $_) })
+    }
+    $dirs = @('C:\Program Files\LLVM\bin', 'C:\Program Files (x86)\LLVM\bin', 'C:\LLVM\bin', (Join-Path $HOME 'scoop\apps\llvm\current\bin'))
+    $dirs += @(Get-ChildItem -Path 'C:\Program Files*\Microsoft Visual Studio\*\*\VC\Tools\Llvm' -Directory -ErrorAction SilentlyContinue |
+        ForEach-Object { (Join-Path $_.FullName 'bin'), (Join-Path $_.FullName 'x64\bin') })
+    [bool]($dirs | Where-Object { Test-Path -LiteralPath (Join-Path $_ 'libclang.dll') })
+}
+
+function Test-Cmake {
+    $cmake = Get-Command cmake -ErrorAction SilentlyContinue
+    if (-not $cmake) { return $false }
+    if ($env:CMAKE_GENERATOR) { return $true }
+    $first = @(& $cmake.Source --version 2>$null)[0]
+    if ("$first" -notmatch '(\d+)\.(\d+)') { return $false }
+    [version]"$($Matches[1]).$($Matches[2])" -ge [version]'3.21'
+}
+
+function Get-VoiceFallback {
+    $missing = @()
+    if (-not (Test-Libclang)) { $missing += 'LLVM (winget install LLVM.LLVM)' }
+    if (-not (Test-Cmake)) { $missing += 'CMake 3.21 or newer (winget install Kitware.CMake)' }
+    if ($missing.Count -eq 0) { return $null }
+    "voice input: building without the local speech engine, so the app uses the browser's speech recognition; install $($missing -join ' and ') to get it"
+}
+
+if ($CheckVoice) {
+    $fallback = Get-VoiceFallback
+    if ($fallback) { Write-Host $fallback } else { Write-Host 'voice input: libclang and CMake found, building with the local speech engine' }
+    exit 0
 }
 
 if ($Rollback) {
@@ -184,7 +220,15 @@ try {
         Set-Step 'tokens'
         Invoke-Logged 'pnpm' @('build:tokens')
         Set-Step 'app'
-        Invoke-Logged 'pnpm' @('--filter', '@berth/desktop', 'exec', 'tauri', 'build', '--no-bundle')
+        $voiceFallback = Get-VoiceFallback
+        $appBuild = @('--filter', '@berth/desktop', 'exec', 'tauri', 'build', '--no-bundle')
+        if ($voiceFallback) {
+            Add-Log $voiceFallback
+            Write-Host $voiceFallback
+        } else {
+            $appBuild += @('--features', 'voice')
+        }
+        Invoke-Logged 'pnpm' $appBuild
         if ($daemonExe -eq $installedDaemon) {
             Add-Log "daemon sources unchanged since $($installedBuild.commit), reusing $installedDaemon"
         } else {
@@ -205,9 +249,8 @@ try {
     if (Test-Path -LiteralPath $staging) { Remove-Item -Recurse -Force -LiteralPath $staging }
     New-Item -ItemType Directory -Force -Path $staging | Out-Null
     Copy-Item -LiteralPath (Join-Path $release $exeName) -Destination $staging
-    foreach ($dll in 'sherpa-onnx-c-api.dll', 'onnxruntime.dll') {
-        $runtimeDll = Join-Path $release $dll
-        if (Test-Path -LiteralPath $runtimeDll) { Copy-Item -LiteralPath $runtimeDll -Destination $staging }
+    if (-not $voiceFallback) {
+        foreach ($dll in 'sherpa-onnx-c-api.dll', 'onnxruntime.dll') { Copy-Item -LiteralPath (Join-Path $release $dll) -Destination $staging }
     }
     Copy-Item -LiteralPath $daemonExe -Destination $staging
     Copy-Item -LiteralPath (Join-Path $src 'scripts\install-app.ps1') -Destination $staging

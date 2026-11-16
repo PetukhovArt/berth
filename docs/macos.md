@@ -9,9 +9,11 @@ The desktop app you use all day should not be the one agents are rebuilding. Ins
 release build of the committed `main` under `~/Library/Application Support/Berth`, launched like any
 other app and updated only when you ask.
 
-You need Xcode Command Line Tools (`xcode-select --install`), CMake (`brew install cmake`), Node 22, pnpm
-and a Rust toolchain. CMake builds whisper.cpp for voice input; the build also downloads the sherpa-onnx
-libraries from its GitHub releases. From the checkout:
+You need Xcode Command Line Tools (`xcode-select --install`), Node 22, pnpm and a Rust toolchain. With
+CMake (`brew install cmake`) as well, the script builds the local speech engine in: whisper.cpp, and the
+sherpa-onnx libraries it downloads from their GitHub releases. Without CMake it builds the app without
+the engine, voice input uses the webview's speech recognition, and the script prints one line saying so.
+From the checkout:
 
 ```sh
 bash scripts/install-app.sh -Launch

@@ -111,7 +111,7 @@ const browserEngine: DictationEngine = {
   },
 };
 
-const engine: DictationEngine = nativeEngine ?? browserEngine;
+const engine = (): DictationEngine => (nativeEngine?.supported ? nativeEngine : browserEngine);
 
 export function useHoldToTalk(options: DictationOptions) {
   const dictation = createDictation(options);
@@ -120,7 +120,7 @@ export function useHoldToTalk(options: DictationOptions) {
 }
 
 export function createDictation(options: DictationOptions) {
-  const supported = engine.supported;
+  const supported = nativeEngine !== null || browserEngine.supported;
   const holding = shallowRef(false);
   const recognising = shallowRef(false);
   const cancelling = shallowRef(false);
@@ -159,7 +159,7 @@ export function createDictation(options: DictationOptions) {
     holding.value = true;
     const token = {};
     owner = token;
-    const opened = engine.open(
+    const opened = engine().open(
       { handsFree: free, wakePhrase: free ? (options.wakePhrase?.() ?? '') : '' },
       {
         woke: () => {

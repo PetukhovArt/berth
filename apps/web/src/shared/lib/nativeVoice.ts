@@ -80,4 +80,11 @@ function open(options: TakeOptions, events: TakeEvents): Take {
   };
 }
 
-export const nativeEngine: DictationEngine | null = available ? { supported: true, open } : null;
+export const nativeEngine: DictationEngine | null = available
+  ? {
+      get supported() {
+        return voiceModels.value?.supported === true;
+      },
+      open,
+    }
+  : null;

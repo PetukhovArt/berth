@@ -19,7 +19,7 @@ name = "berth-server"
 path = "src/bin/berth-server.rs"
 
 [features]
-default = ["desktop", "voice"]
+default = ["desktop"]
 desktop = ["dep:tauri", "dep:tauri-build", "dep:tauri-plugin-opener"]
 voice = ["desktop", "dep:whisper-rs", "dep:cpal", "dep:sherpa-onnx", "dep:sha2", "dep:bzip2", "dep:tar"]
 
