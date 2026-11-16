@@ -203,7 +203,7 @@ export const SETTINGS = {
   },
   'sessions.worktreeBase': {
     type: 'map',
-    default: {},
+    default: DAEMON_DEFAULTS.worktree_base,
     label: 'settings.def.sessionsWorktreeBase.label',
     description: 'settings.def.sessionsWorktreeBase.description',
     category: 'sessions',

@@ -35,6 +35,7 @@ pub mod team;
 pub mod triggers;
 pub mod usage;
 pub mod usage_limits;
+pub mod worktree_base;
 pub mod worktree_seed;
 pub mod worktree_setup;
 

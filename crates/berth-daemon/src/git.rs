@@ -5,6 +5,7 @@
 use anyhow::{anyhow, bail, Result};
 use berth_core::platform::NoWindow;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 use tokio::process::Command;
 
 /// Shown when the `git` binary itself is missing. Every other git failure
@@ -89,6 +90,26 @@ pub async fn list_branches(repo: &Path) -> Result<Vec<String>> {
         .filter(|name| !name.is_empty())
         .map(str::to_string)
         .collect())
+}
+
+pub async fn fetch_origin_branch(repo: &Path, branch: &str, limit: Duration) -> Result<String> {
+    let refspec = format!("+refs/heads/{branch}:refs/remotes/origin/{branch}");
+    let run = Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(["fetch", "--no-tags", "origin", &refspec])
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .kill_on_drop(true)
+        .no_window()
+        .output();
+    let output = tokio::time::timeout(limit, run)
+        .await
+        .map_err(|_| anyhow!("git fetch origin {branch} timed out"))?
+        .map_err(spawn_err)?;
+    if !output.status.success() {
+        bail!("{}", String::from_utf8_lossy(&output.stderr).trim());
+    }
+    Ok(format!("refs/remotes/origin/{branch}"))
 }
 
 #[derive(Debug, Clone)]

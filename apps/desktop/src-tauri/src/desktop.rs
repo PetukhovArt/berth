@@ -298,6 +298,8 @@ pub fn run() {
             berth_restore_sessions_write,
             berth_flag_read,
             berth_flag_write,
+            berth_worktree_base_read,
+            berth_worktree_base_write,
             providers_read,
             providers_write,
             providers_save_acp,

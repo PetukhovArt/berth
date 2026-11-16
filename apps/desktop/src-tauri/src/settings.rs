@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -222,6 +222,20 @@ pub async fn berth_flag_read(key: String) -> Result<bool, String> {
 
 pub async fn berth_flag_write(key: String, value: bool) -> Result<(), String> {
     berth_config_write(daemon_flag(&key)?.0, serde_json::Value::Bool(value))
+}
+
+const WORKTREE_BASE_KEY: &str = "worktree_base";
+
+pub async fn berth_worktree_base_read() -> Result<Option<BTreeMap<String, String>>, String> {
+    let map = berth_config_object(&berth_core::paths::config_path())?;
+    Ok(map
+        .get(WORKTREE_BASE_KEY)
+        .and_then(|value| serde_json::from_value(value.clone()).ok()))
+}
+
+pub async fn berth_worktree_base_write(value: BTreeMap<String, String>) -> Result<(), String> {
+    let value = serde_json::to_value(value).map_err(|e| e.to_string())?;
+    berth_config_write(WORKTREE_BASE_KEY, value)
 }
 
 pub(crate) fn berth_config_write(key: &str, value: serde_json::Value) -> Result<(), String> {

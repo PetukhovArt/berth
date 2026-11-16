@@ -1438,8 +1438,14 @@ impl Daemon {
         let target = match existing {
             Some(w) => w,
             None => {
+                let project = self
+                    .store
+                    .get_project(&current.project_id)?
+                    .context("project not found")?;
+                let configured = crate::config::Config::load().worktree_base;
+                let base = crate::worktree_base::choose(base, &project, branch, &configured).await;
                 let created = self
-                    .create_worktree(&current.project_id, branch, base)
+                    .create_worktree(&current.project_id, branch, base.as_deref())
                     .await?;
                 let EntityId::Worktree(new_id) = created else {
                     bail!("worktree creation returned a non-worktree entity");

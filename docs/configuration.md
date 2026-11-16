@@ -62,6 +62,7 @@ file or a missing key means the default.
 | `hub_token` | none | this device's token on the hub, from `berth hub pair` once an admin ran `berth hub approve` |
 | `channel_chain_limit` | `4` | how many Agent-authored messages in a row a channel delivers to Sessions before it stops, so two Agents cannot loop |
 | `git_init_on_create` | `true` | `git init` a directory that `Add Project` creates because it did not exist |
+| `worktree_base` | `{}` | project name (or repo folder name) to the branch a new worktree starts from, like `{"web-client": "develop"}`. A project not listed starts from `develop`, `main` or `master`, the first one it has. The branch is fetched from `origin` first; when the fetch fails the local branch is used. Applies to `berth worktree` without `--base` and to `New worktree…` in the desktop app, whose `sessions.worktreeBase` sets it |
 
 ## Router rules
 

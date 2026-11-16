@@ -4,5 +4,7 @@
   "git_init_on_create": true,
   "prewarm": true,
   "claude_limits": false,
-  "checkpoints_claude": false
+  "checkpoints_claude": false,
+  "worktree_base": {},
+  "worktree_default_bases": ["develop", "main", "master"]
 }

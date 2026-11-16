@@ -121,6 +121,7 @@ const READ_ONLY_COMMANDS: &[&str] = &[
     "berth_idle_timeout_read",
     "berth_restore_sessions_read",
     "berth_flag_read",
+    "berth_worktree_base_read",
     "providers_read",
     "acp_agent_log",
     "agent_sessions_list",

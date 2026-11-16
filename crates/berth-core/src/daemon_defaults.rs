@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
 use serde::Deserialize;
@@ -11,6 +12,8 @@ pub struct DaemonDefaults {
     pub prewarm: bool,
     pub claude_limits: bool,
     pub checkpoints_claude: bool,
+    pub worktree_base: BTreeMap<String, String>,
+    pub worktree_default_bases: Vec<String>,
 }
 
 pub fn daemon_defaults() -> &'static DaemonDefaults {

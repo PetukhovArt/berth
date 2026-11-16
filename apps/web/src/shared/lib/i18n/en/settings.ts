@@ -133,7 +133,7 @@ export const settings = {
     },
     sessionsWorktreeBase: {
       label: 'Base branch for new worktrees',
-      description: 'The branch New worktree… starts from, fetched from origin first. Pairs of project name and branch: web-client=develop. A project not listed starts from develop, main or master, the first one it has.',
+      description: 'The branch New worktree… and berth worktree start from, fetched from origin first. Pairs of project name and branch: web-client=develop. A project not listed starts from develop, main or master, the first one it has.',
       placeholder: 'web-client=develop',
     },
     sessionsMrPrompt: {
