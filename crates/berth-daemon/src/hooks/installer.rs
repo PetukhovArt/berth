@@ -1167,6 +1167,15 @@ mod tests {
     fn a_settings_file_the_user_had_is_not_excluded() {
         let tmp = tempfile::tempdir().unwrap();
         git_in(tmp.path(), &["init", "-b", "main"]);
+        let no_global_ignore = tmp.path().join("no-global-ignore");
+        git_in(
+            tmp.path(),
+            &[
+                "config",
+                "core.excludesFile",
+                no_global_ignore.to_str().unwrap(),
+            ],
+        );
         std::fs::create_dir(tmp.path().join(".claude")).unwrap();
         std::fs::write(tmp.path().join(".claude/settings.local.json"), "{}").unwrap();
 
