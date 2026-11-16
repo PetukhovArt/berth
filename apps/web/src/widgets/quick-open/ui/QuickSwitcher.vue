@@ -1,18 +1,23 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 import { ChevronRight, FileText, GitPullRequest, MessageSquare, Search, Ticket, Zap } from '../../../shared/ui/icons';
-import { subsequenceScore } from '../../../shared/lib/fuzzy';
+import { wordScore } from '../../../shared/lib/fuzzy';
 import { usePickerList } from '../../../shared/lib/usePickerList';
 import { pipelineTone } from '../../../entities/merge-request';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
 import BackBar from '../../../shared/ui/BackBar.vue';
 import type { QuickItem, WorkNode } from '../../../features/work-tree';
-import { externalDot, HarnessIcon, openChannel, StatusIcon, useLoadedChannelMessages, type LoadedChannelMessage } from '../../../entities/session';
+import { externalDot, HarnessIcon, openChannel, searchSessionText, StatusIcon, useLoadedChannelMessages, type LoadedChannelMessage, type SessionTextCandidate } from '../../../entities/session';
 import type { MarkdownEntry } from '../../../shared/lib/markdownFiles';
 
 import UiInput from '../../../shared/ui/UiInput.vue';
 type QuickAction = { key: string; label: string };
-type Item = { kind: 'leaf'; key: string; entry: QuickItem } | { kind: 'file'; key: string; file: MarkdownEntry } | { kind: 'action'; key: string; action: QuickAction } | { kind: 'message'; key: string; message: LoadedChannelMessage };
+type Item =
+  | { kind: 'leaf'; key: string; entry: QuickItem }
+  | { kind: 'file'; key: string; file: MarkdownEntry }
+  | { kind: 'action'; key: string; action: QuickAction }
+  | { kind: 'message'; key: string; message: LoadedChannelMessage }
+  | { kind: 'transcript'; key: string; entry: QuickItem; text: string };
 type Group = 'sessions' | 'mr' | 'issue' | 'files' | 'actions' | 'messages';
 
 const props = withDefaults(defineProps<{ entries: readonly QuickItem[]; files?: readonly MarkdownEntry[]; fileScope?: string; actions?: readonly QuickAction[] }>(), { files: () => [], fileScope: '', actions: () => [] });
@@ -23,9 +28,18 @@ const list = useTemplateRef<HTMLElement>('list');
 const query = shallowRef('');
 const loadedMessages = useLoadedChannelMessages();
 const MAX_MESSAGE_HITS = 20;
+const MIN_CONTENT_QUERY = 3;
+const CONTENT_DEBOUNCE_MS = 200;
+const TRANSCRIPT_SCORE = 100;
+const sessionHits = shallowRef<ReadonlyMap<string, string>>(new Map());
+let hitsQuery = '';
+let contentRun = 0;
+let contentTimer: ReturnType<typeof setTimeout> | undefined;
 
 const ICONS = { mr: GitPullRequest, issue: Ticket } as const;
 const iconOf = (kind: string) => (kind in ICONS ? ICONS[kind as keyof typeof ICONS] : undefined);
+
+const TESTIDS = { leaf: 'quick-switcher-item', file: 'quick-switcher-file', message: 'quick-switcher-message', action: 'quick-switcher-action', transcript: 'quick-switcher-transcript' } as const;
 
 const GROUP_LABELS = {
   sessions: 'files.switcher.groups.sessions',
@@ -42,7 +56,7 @@ const metaOf =(entry: QuickItem) => [entry.agent, entry.at ? formatRelative(entr
 function groupOf(item: Item): Group {
   if (item.kind === 'file') return 'files';
   if (item.kind === 'action') return 'actions';
-  if (item.kind === 'message') return 'messages';
+  if (item.kind === 'message' || item.kind === 'transcript') return 'messages';
   const kind = item.entry.node.kind;
   if (kind === 'session' || kind === 'external') return 'sessions';
   return kind === 'mr' ? 'mr' : 'issue';
@@ -64,12 +78,17 @@ const results = computed<Item[]>(() => {
   const files: Item[] = props.files.map((file) => ({ kind: 'file', key: file.path, file }));
   const actions: Item[] = props.actions.map((action) => ({ kind: 'action', key: `action:${action.key}`, action }));
   const messages: Item[] = loadedMessages.value.map((message) => ({ kind: 'message', key: `message:${message.channel}:${message.seq}`, message }));
-  const sorted = [...leaves, ...files, ...actions, ...messages]
-    .map((item, order) => {
+  const transcripts: Item[] = props.entries.flatMap((entry): Item[] => {
+    const text = sessionHits.value.get(entry.key);
+    return text ? [{ kind: 'transcript', key: `transcript:${entry.key}`, entry, text }] : [];
+  });
+  const sorted = [...leaves, ...files, ...actions, ...messages, ...transcripts]
+    .map((item, order): { item: Item; order: number; total: number } | null => {
+      if (item.kind === 'transcript') return { item, order, total: TRANSCRIPT_SCORE * words.length };
       const text = item.kind === 'leaf' ? item.entry.search : item.kind === 'file' ? item.file.rel.toLowerCase() : item.kind === 'message' ? item.message.content.toLowerCase() : item.action.label.toLowerCase();
       let total = 0;
       for (const word of words) {
-        const score = subsequenceScore(word, text);
+        const score = wordScore(word, text);
         if (score === null) return null;
         total += score;
       }
@@ -79,8 +98,33 @@ const results = computed<Item[]>(() => {
     .sort((a, b) => b.total - a.total || a.order - b.order)
     .map((match) => match.item);
   let hits = 0;
-  return groupItems(sorted.filter((item) => item.kind !== 'message' || ++hits <= MAX_MESSAGE_HITS));
+  return groupItems(sorted.filter((item) => groupOf(item) !== 'messages' || ++hits <= MAX_MESSAGE_HITS));
 });
+
+function searchContent(value: string) {
+  clearTimeout(contentTimer);
+  const words = value.toLowerCase().split(/\s+/).filter(Boolean);
+  if (value.trim().length < MIN_CONTENT_QUERY) {
+    contentRun++;
+    sessionHits.value = new Map();
+    hitsQuery = '';
+    return;
+  }
+  if (!value.toLowerCase().startsWith(hitsQuery)) sessionHits.value = new Map();
+  const run = ++contentRun;
+  contentTimer = setTimeout(async () => {
+    const candidates: SessionTextCandidate[] = props.entries.flatMap((entry) => {
+      const { session, external, linked } = entry.node.data ?? {};
+      return entry.node.kind === 'session' || entry.node.kind === 'external' ? [{ key: entry.key, stamp: entry.at ?? 0, session, external, linked }] : [];
+    });
+    const found = await searchSessionText(candidates, words);
+    if (run !== contentRun) return;
+    sessionHits.value = new Map(found.map((hit) => [hit.key, hit.text]));
+    hitsQuery = value.toLowerCase();
+  }, CONTENT_DEBOUNCE_MS);
+}
+
+watch(query, searchContent);
 
 const groups = computed(() => {
   const out: { key: Group; items: { item: Item; position: number }[] }[] = [];
@@ -95,7 +139,7 @@ const groups = computed(() => {
 
 function choose(item: Item | undefined) {
   if (!item) return;
-  if (item.kind === 'leaf') emit('select', item.entry.node);
+  if (item.kind === 'leaf' || item.kind === 'transcript') emit('select', item.entry.node);
   else if (item.kind === 'file') emit('select-file', item.file.path);
   else if (item.kind === 'message') {
     openChannel(item.message.channel);
@@ -132,6 +176,8 @@ onMounted(() => {
   if (list.value) rowsChanged.observe(list.value, { childList: true });
 });
 onBeforeUnmount(() => {
+  clearTimeout(contentTimer);
+  contentRun++;
   window.removeEventListener('resize', fitList);
   rowsChanged.disconnect();
 });
@@ -164,7 +210,7 @@ onBeforeUnmount(() => {
             role="option"
             :aria-selected="position === index"
             :data-current="position === index"
-            :data-testid="item.kind === 'leaf' ? 'quick-switcher-item' : item.kind === 'file' ? 'quick-switcher-file' : item.kind === 'message' ? 'quick-switcher-message' : 'quick-switcher-action'"
+            :data-testid="TESTIDS[item.kind]"
             :data-kind="item.kind === 'leaf' ? item.entry.node.kind : item.kind"
             :data-session-id="item.kind === 'leaf' ? item.entry.node.data?.session?.id : undefined"
             @pointermove="index = position"
@@ -177,7 +223,11 @@ onBeforeUnmount(() => {
                 <HarnessIcon :harness="item.entry.node.data.external.harness" />
               </template>
               <component :is="iconOf(item.entry.node.kind)" v-else-if="iconOf(item.entry.node.kind)" :size="14" class="file-icon" />
-              <span class="text">
+              <span v-if="item.entry.node.data?.issue" class="text">
+                <span class="session">{{ item.entry.node.data.issue.key }}</span>
+                <span class="sub"><span class="path">{{ item.entry.node.data.issue.summary }}</span></span>
+              </span>
+              <span v-else class="text">
                 <span class="session">{{ item.entry.node.label }}</span>
                 <span v-if="item.entry.crumbs.length" class="sub">
                   <template v-for="(crumb, at) in item.entry.crumbs" :key="crumb">
@@ -188,6 +238,13 @@ onBeforeUnmount(() => {
               </span>
               <span v-if="item.entry.agent || item.entry.at" class="meta">{{ metaOf(item.entry) }}</span>
               <StatusIcon v-if="item.entry.node.data?.item && item.entry.node.data.item.pipeline !== 'none'" :tone="pipelineTone(item.entry.node.data.item.pipeline)" />
+            </template>
+            <template v-else-if="item.kind === 'transcript'">
+              <MessageSquare :size="14" class="file-icon" />
+              <span class="text">
+                <span class="session">{{ item.entry.node.label }} · {{ item.text }}</span>
+              </span>
+              <span v-if="item.entry.at" class="meta">{{ formatRelative(item.entry.at) }}</span>
             </template>
             <template v-else-if="item.kind === 'message'">
               <MessageSquare :size="14" class="file-icon" />
