@@ -1,4 +1,5 @@
 export const gitStep = {
+  commit: 'Закоммитить',
   commitAndPush: 'Закоммитить и отправить',
   commitPushCreate: 'Закоммитить, отправить и создать merge request',
   push: 'Отправить',
@@ -7,6 +8,7 @@ export const gitStep = {
   pull: 'Забрать изменения',
   upToDate: 'Ветка актуальна, действий не нужно.',
   defaultBranch: 'Незакоммиченные изменения в основной ветке. Сначала перенесите их в отдельную ветку.',
+  detached: 'Незакоммиченные изменения вне ветки. Сначала создайте ветку.',
   behind: 'Отстаёт от origin на {count} коммитов',
   commitMessage: 'Сообщение коммита',
   requestTitle: 'Заголовок merge request',

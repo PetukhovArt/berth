@@ -6,7 +6,7 @@ import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { forgeCreateChangeRequest, worktreeGitState, worktreeGitStep, type GitState } from '../../../shared/api/git';
 import { rememberMr } from '../../../entities/merge-request';
-import { nextStep, stepLabelKey } from '../model/nextStep';
+import { idleHintKey, nextStep, stepLabelKey } from '../model/nextStep';
 
 const props = defineProps<{ path: string; branch: string; hasRequest: boolean; refreshKey?: string }>();
 
@@ -25,7 +25,7 @@ const needsForm = computed(() => step.value?.kind === 'run' && (step.value.commi
 const hint = computed(() => {
   const current = step.value;
   if (!current || !state.value) return '';
-  if (current.kind === 'idle') return t(current.reason === 'defaultBranch' ? 'gitStep.defaultBranch' : 'gitStep.upToDate');
+  if (current.kind === 'idle') return t(idleHintKey(current.reason));
   if (current.kind === 'pull') return t('gitStep.behind', { count: state.value.behind });
   return '';
 });

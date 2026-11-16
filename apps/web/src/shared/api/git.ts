@@ -6,6 +6,7 @@ export type GitState = {
   base: string | null;
   dirty: boolean;
   upstream: boolean;
+  remote: boolean;
   ahead: number;
   behind: number;
   ahead_of_base: number;

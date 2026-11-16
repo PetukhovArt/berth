@@ -33,7 +33,7 @@ async function refresh() {
 const base = computed(() => (state.value?.base && state.value.base !== props.branch ? state.value.base : null));
 const ahead = computed(() => state.value?.ahead_of_base ?? 0);
 const behind = computed(() => state.value?.behind ?? 0);
-const unpublished = computed(() => !!base.value && !!state.value && !state.value.upstream && ahead.value > 0);
+const unpublished = computed(() => !!base.value && !!state.value && state.value.remote && !state.value.upstream && ahead.value > 0);
 
 watch(
   () => [props.path, props.refreshKey] as const,

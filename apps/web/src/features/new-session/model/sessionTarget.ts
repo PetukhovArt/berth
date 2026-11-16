@@ -184,11 +184,11 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
     const row = entities()?.projects.get(id);
     if (!row) throw new BerthCallError(t('agents.newSession.noTarget'));
     const fetched = await mrFetchSource(row.repo_path, branch, '', null);
-    if (fetched.problem || !fetched.base) {
-      const detail = (fetched.detail ?? fetched.problem ?? '').split(/\r?\n/).filter(Boolean).at(-1) ?? '';
-      throw new BerthCallError(t('agents.newSession.baseFetchFailed', { branch, detail }));
-    }
-    return `${fetched.base}^0`;
+    if (!fetched.problem && fetched.base) return `${fetched.base}^0`;
+    const local = branches.value?.some((known) => known.name === branch) ?? false;
+    if (fetched.problem === 'no_remote' || (fetched.problem === 'branch_missing' && local)) return branch;
+    const detail = (fetched.detail ?? fetched.problem ?? '').split(/\r?\n/).map((part) => part.trim()).filter(Boolean).join(' ');
+    throw new BerthCallError(t('agents.newSession.baseFetchFailed', { branch, detail }));
   }
 
   const sharesBranch = computed(() => {
