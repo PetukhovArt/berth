@@ -129,13 +129,22 @@ watch(
   row-gap: 4px;
 }
 
-:root[data-vr-viewport='phone'] .session-header :deep(.git-step .hint) {
-  display: none;
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step) {
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  row-gap: 6px;
+  min-width: 0;
 }
 
-:root[data-vr-viewport='phone'] .session-header :deep(.git-step) {
-  flex: 0 1 auto;
-  min-width: 0;
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step > .hint),
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step > .error) {
+  flex-basis: 100%;
+  white-space: normal;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step > .error) {
+  position: static;
+  max-width: none;
 }
 
 :root[data-vr-viewport='phone'] .session-header :deep(.git-step > .run) {
