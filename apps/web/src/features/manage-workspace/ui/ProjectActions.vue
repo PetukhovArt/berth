@@ -11,7 +11,7 @@ import OrphansDialog from './OrphansDialog.vue';
 const MISSING_FOLDER = /не существует|не найден|not exist|no such|not found/i;
 
 const props = defineProps<{ projectId?: string; workspaceId?: string; bare?: boolean; hint?: string; primary?: boolean }>();
-const emit = defineEmits<{ resumed: [agent: string]; create: [worktree: string] }>();
+const emit = defineEmits<{ resumed: [agent: string]; create: [worktree: string]; added: [] }>();
 
 type Mode = 'idle' | 'adding' | 'renaming' | 'removing';
 
@@ -118,7 +118,9 @@ async function submitAdd(createMissing: boolean) {
   if (!target || !workspace || busy.value) return;
   refusedPath.value = target;
   const ok = await run(() => addProject(workspace, { path: target, name: name.value.trim() || null, createMissing }));
-  if (ok) mode.value = 'idle';
+  if (!ok) return;
+  mode.value = 'idle';
+  emit('added');
 }
 
 async function submitRename() {

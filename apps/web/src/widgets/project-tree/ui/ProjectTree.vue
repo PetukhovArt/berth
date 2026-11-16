@@ -136,7 +136,7 @@ function toggleFilter() {
       <p v-for="error in errors" :key="`${error.connector}:${error.message}`" class="strip" role="alert" data-testid="tree-error" :title="error.message">{{ error.connector }}: {{ error.message }}</p>
       <InboxSection v-if="activeTab === 'sessions' && !filtering" />
       <div v-if="activeTab === 'sessions'" class="section-head" data-testid="project-tree-head">
-        <UiButton class="section-toggle" :aria-expanded="projectsOpen" data-testid="project-tree-toggle" @click="treeProjectsCollapsed = !treeProjectsCollapsed">
+        <UiButton class="section-toggle" :aria-expanded="projectsOpen" :disabled="filtering" data-testid="project-tree-toggle" @click="treeProjectsCollapsed = !treeProjectsCollapsed">
           <ChevronRight :size="14" class="chevron vr-chevron" />
           <span class="section-title">{{ t('workbench.tree') }}</span>
         </UiButton>
@@ -145,7 +145,7 @@ function toggleFilter() {
           <UiButton v-if="addWorkspaceId" class="icon" :title="t('agents.project.add')" :aria-label="t('agents.project.add')" data-testid="project-add" @click="projectAdd?.openAdd()"><Plus :size="14" /></UiButton>
         </span>
       </div>
-      <ProjectActions v-if="activeTab === 'sessions' && addWorkspaceId" ref="projectAdd" :workspace-id="addWorkspaceId" bare />
+      <ProjectActions v-if="activeTab === 'sessions' && addWorkspaceId" ref="projectAdd" :workspace-id="addWorkspaceId" bare @added="treeProjectsCollapsed = false" />
       <ExplorerTree
         v-show="activeTab !== 'sessions' || projectsOpen"
         :nodes="nodes"
@@ -526,8 +526,12 @@ function toggleFilter() {
   cursor: pointer;
 }
 
-.section-toggle:hover {
+.section-toggle:hover:enabled {
   background: var(--vr-color-nav-hover);
+}
+
+.section-toggle:disabled {
+  cursor: default;
 }
 
 .section-toggle .chevron {
