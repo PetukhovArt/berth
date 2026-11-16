@@ -1,19 +1,151 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Agent, AgentId, AgentStatus, EntityId, Worktree, WorktreeId};
+use crate::{Agent, AgentId, AgentKind, AgentStatus, EntityId, Worktree, WorktreeId};
 
 pub const CHECK_EVERY: Duration = Duration::from_secs(5 * 60);
+pub const WATCH_EVERY: Duration = Duration::from_secs(60);
 pub const MAX_BACKOFF: Duration = Duration::from_secs(60 * 60);
+pub const WATCHED_LIMIT: usize = 50;
 const ARCHIVED_LIMIT: usize = 500;
+const SNIPPET_LIMIT: usize = 200;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Memory {
     #[serde(default)]
     pub archived_after_merge: VecDeque<AgentId>,
+    #[serde(default)]
+    pub watched: BTreeMap<String, Seen>,
+    #[serde(default)]
+    pub queued: BTreeMap<AgentId, String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct MergeRequestRef {
+    pub connector: String,
+    pub project: String,
+    pub number: u64,
+}
+
+impl MergeRequestRef {
+    pub fn key(&self) -> String {
+        format!("{}/{}/{}", self.connector, self.project, self.number)
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Seen {
+    #[serde(default)]
+    pub failed_pipeline: Option<String>,
+    #[serde(default)]
+    pub threads: BTreeSet<String>,
+    #[serde(default)]
+    pub conflicts: bool,
+    #[serde(default)]
+    pub last_wake: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Observation {
+    pub state: MergeRequestState,
+    pub label: String,
+    pub source_branch: String,
+    pub target_branch: String,
+    pub conflicts: bool,
+    pub pipeline: Option<PipelineRun>,
+    pub threads: Vec<Thread>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PipelineRun {
+    pub id: String,
+    pub failed: bool,
+    pub failed_jobs: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Thread {
+    pub id: String,
+    pub resolved: bool,
+    pub opener: Option<ThreadNote>,
+    pub path: Option<String>,
+    pub line: Option<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ThreadNote {
+    pub author: String,
+    pub body: String,
+}
+
+pub type WatchAnswer = Result<Observation, String>;
+
+impl Memory {
+    pub fn last_wake(&self, target: &MergeRequestRef) -> Option<&str> {
+        self.watched.get(&target.key())?.last_wake.as_deref()
+    }
+}
+
+fn open_threads(observed: &Observation) -> impl Iterator<Item = &Thread> {
+    observed
+        .threads
+        .iter()
+        .filter(|thread| !thread.resolved && thread.opener.is_some())
+}
+
+fn wakes(observed: &Observation, before: &Seen) -> Vec<String> {
+    let label = &observed.label;
+    let mut found = Vec::new();
+    if let Some(run) = observed.pipeline.as_ref().filter(|run| run.failed) {
+        if before.failed_pipeline.as_ref() != Some(&run.id) {
+            let jobs = if run.failed_jobs.is_empty() {
+                String::new()
+            } else {
+                format!(" in {}", run.failed_jobs.join(", "))
+            };
+            found.push(format!(
+                "Pipeline #{} of {label} failed{jobs}. Read its log, fix the cause and push.",
+                run.id
+            ));
+        }
+    }
+    for thread in open_threads(observed) {
+        let Some(note) = thread.opener.as_ref() else {
+            continue;
+        };
+        if before.threads.contains(&thread.id) {
+            continue;
+        }
+        let place = match (&thread.path, thread.line) {
+            (Some(path), Some(line)) if line > 0 => format!(" on {path}:{line}"),
+            (Some(path), _) => format!(" on {path}"),
+            (None, _) => String::new(),
+        };
+        found.push(format!(
+            "{} opened a thread{place} in {label}: \"{}\". Answer it or fix it and push.",
+            note.author,
+            snippet(&note.body)
+        ));
+    }
+    if observed.conflicts && !before.conflicts {
+        let target = &observed.target_branch;
+        found.push(format!(
+            "{label} now conflicts with {target}. Rebase on {target}, resolve the conflicts and push."
+        ));
+    }
+    found
+}
+
+fn snippet(text: &str) -> String {
+    let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    if flat.chars().count() <= SNIPPET_LIMIT {
+        return flat;
+    }
+    let cut: String = flat.chars().take(SNIPPET_LIMIT).collect();
+    format!("{}…", cut.trim_end())
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -63,14 +195,41 @@ pub struct FinishedTurn {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Effect {
-    SaveBeforeArchiving(Memory),
+    Save(Memory),
     Archive(AgentId),
     Comment(FinishedTurn),
+    Prompt(Prompt),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Prompt {
+    pub agent: AgentId,
+    pub acp: bool,
+    pub text: String,
 }
 
 struct Poll {
     next: Instant,
     backoff: Duration,
+}
+
+impl Poll {
+    fn due(now: Instant) -> Self {
+        Poll {
+            next: now,
+            backoff: Duration::ZERO,
+        }
+    }
+
+    fn answered(&mut self, ok: bool, now: Instant, every: Duration) {
+        if ok {
+            self.backoff = Duration::ZERO;
+            self.next = now + every;
+        } else {
+            self.backoff = (self.backoff.max(every / 2) * 2).min(MAX_BACKOFF);
+            self.next = now + self.backoff;
+        }
+    }
 }
 
 pub struct MergeWatch {
@@ -79,6 +238,8 @@ pub struct MergeWatch {
     agents: HashMap<AgentId, Agent>,
     baseline_taken: bool,
     polls: HashMap<WorktreeId, Poll>,
+    watching: Vec<MergeRequestRef>,
+    watch_polls: HashMap<MergeRequestRef, Poll>,
 }
 
 impl MergeWatch {
@@ -89,6 +250,8 @@ impl MergeWatch {
             agents: HashMap::new(),
             baseline_taken: false,
             polls: HashMap::new(),
+            watching: Vec::new(),
+            watch_polls: HashMap::new(),
         }
     }
 
@@ -107,6 +270,7 @@ impl MergeWatch {
                             effects.extend(self.finished_turn(before.status, &agent, settings));
                         }
                     }
+                    effects.extend(self.release(&agent));
                     self.agents.insert(agent.id.clone(), agent);
                 }
                 let worktrees = &self.worktrees;
@@ -120,10 +284,12 @@ impl MergeWatch {
                 if let Some(before) = self.agents.get(&agent.id) {
                     effects.extend(self.finished_turn(before.status, &agent, settings));
                 }
+                effects.extend(self.release(&agent));
                 self.agents.insert(agent.id.clone(), *agent);
             }
             Event::Removed(EntityId::Agent(id)) => {
                 self.agents.remove(&id);
+                self.memory.queued.remove(&id);
             }
             Event::Removed(EntityId::Worktree(id)) => {
                 self.worktrees.remove(&id);
@@ -135,6 +301,7 @@ impl MergeWatch {
                     let before = updated.status;
                     updated.status = status;
                     effects.extend(self.finished_turn(before, &updated, settings));
+                    effects.extend(self.release(&updated));
                     self.agents.insert(agent, updated);
                 }
             }
@@ -156,10 +323,7 @@ impl MergeWatch {
             .collect();
         let mut lookups = Vec::new();
         for id in candidates {
-            let poll = self.polls.entry(id.clone()).or_insert(Poll {
-                next: now,
-                backoff: Duration::ZERO,
-            });
+            let poll = self.polls.entry(id.clone()).or_insert(Poll::due(now));
             if poll.next > now {
                 continue;
             }
@@ -182,13 +346,7 @@ impl MergeWatch {
         settings: Settings,
     ) -> Vec<Effect> {
         if let Some(poll) = self.polls.get_mut(worktree) {
-            if answer.is_ok() {
-                poll.backoff = Duration::ZERO;
-                poll.next = now + CHECK_EVERY;
-            } else {
-                poll.backoff = (poll.backoff.max(CHECK_EVERY / 2) * 2).min(MAX_BACKOFF);
-                poll.next = now + poll.backoff;
-            }
+            poll.answered(answer.is_ok(), now, CHECK_EVERY);
         }
         if !settings.archive_on_merge || answer != Ok(Some(MergeRequestState::Merged)) {
             return Vec::new();
@@ -202,9 +360,135 @@ impl MergeWatch {
         while archived.len() > ARCHIVED_LIMIT {
             archived.pop_front();
         }
-        let mut effects = vec![Effect::SaveBeforeArchiving(self.memory.clone())];
+        let mut effects = vec![Effect::Save(self.memory.clone())];
         effects.extend(agents.into_iter().map(Effect::Archive));
         effects
+    }
+
+    pub fn watches_due(
+        &mut self,
+        now: Instant,
+        watched: &[MergeRequestRef],
+    ) -> Vec<MergeRequestRef> {
+        self.watching = watched.to_vec();
+        let keys: BTreeSet<String> = watched.iter().map(MergeRequestRef::key).collect();
+        self.memory.watched.retain(|key, _| keys.contains(key));
+        self.watch_polls
+            .retain(|target, _| watched.contains(target));
+        let mut due = Vec::new();
+        for target in watched {
+            let poll = self
+                .watch_polls
+                .entry(target.clone())
+                .or_insert(Poll::due(now));
+            if poll.next > now {
+                continue;
+            }
+            poll.next = now + WATCH_EVERY;
+            due.push(target.clone());
+        }
+        due
+    }
+
+    pub fn watched_merge_request(
+        &mut self,
+        target: &MergeRequestRef,
+        answer: WatchAnswer,
+        now: Instant,
+    ) -> Vec<Effect> {
+        if !self.watching.contains(target) {
+            return Vec::new();
+        }
+        if let Some(poll) = self.watch_polls.get_mut(target) {
+            match &answer {
+                Ok(seen) if seen.state != MergeRequestState::Open => {
+                    poll.answered(true, now, MAX_BACKOFF)
+                }
+                other => poll.answered(other.is_ok(), now, WATCH_EVERY),
+            }
+        }
+        let Ok(observed) = answer else {
+            return Vec::new();
+        };
+        if observed.state != MergeRequestState::Open {
+            return Vec::new();
+        }
+        let key = target.key();
+        let mut next = Seen {
+            failed_pipeline: observed
+                .pipeline
+                .as_ref()
+                .filter(|run| run.failed)
+                .map(|run| run.id.clone()),
+            threads: open_threads(&observed)
+                .map(|thread| thread.id.clone())
+                .collect(),
+            conflicts: observed.conflicts,
+            last_wake: None,
+        };
+        let Some(before) = self.memory.watched.get(&key) else {
+            self.memory.watched.insert(key, next);
+            return vec![Effect::Save(self.memory.clone())];
+        };
+        next.last_wake = before.last_wake.clone();
+        let wakes = wakes(&observed, before);
+        if wakes.is_empty() {
+            if &next == before {
+                return Vec::new();
+            }
+            self.memory.watched.insert(key, next);
+            return vec![Effect::Save(self.memory.clone())];
+        }
+        let Some(agent) = self.agent_on(&observed.source_branch) else {
+            return Vec::new();
+        };
+        let (agent, running, acp) = (
+            agent.id.clone(),
+            agent.status == AgentStatus::Running,
+            agent.kind == AgentKind::Acp,
+        );
+        let text = wakes.join(" ");
+        next.last_wake = Some(text.clone());
+        self.memory.watched.insert(key, next);
+        if running {
+            let queued = self.memory.queued.entry(agent).or_default();
+            if !queued.is_empty() {
+                queued.push(' ');
+            }
+            queued.push_str(&text);
+            return vec![Effect::Save(self.memory.clone())];
+        }
+        let prompt = Prompt { agent, acp, text };
+        vec![Effect::Save(self.memory.clone()), Effect::Prompt(prompt)]
+    }
+
+    fn agent_on(&self, branch: &str) -> Option<&Agent> {
+        let worktrees: BTreeSet<&WorktreeId> = self
+            .worktrees
+            .values()
+            .filter(|worktree| worktree.branch == branch)
+            .map(|worktree| &worktree.id)
+            .collect();
+        self.agents
+            .values()
+            .filter(|agent| worktrees.contains(&agent.worktree_id))
+            .filter(|agent| !agent.archived && agent.alive)
+            .max_by_key(|agent| agent.status_changed_at)
+    }
+
+    fn release(&mut self, agent: &Agent) -> Vec<Effect> {
+        if agent.status != AgentStatus::Finished || agent.archived || !agent.alive {
+            return Vec::new();
+        }
+        let Some(text) = self.memory.queued.remove(&agent.id) else {
+            return Vec::new();
+        };
+        let prompt = Prompt {
+            agent: agent.id.clone(),
+            acp: agent.kind == AgentKind::Acp,
+            text,
+        };
+        vec![Effect::Save(self.memory.clone()), Effect::Prompt(prompt)]
     }
 
     fn idle_agents(&self, worktree: &WorktreeId) -> Vec<AgentId> {
@@ -300,6 +584,9 @@ mod tests {
         archived: Vec<AgentId>,
         comments: Vec<FinishedTurn>,
         lookups: usize,
+        watched: Vec<MergeRequestRef>,
+        observed: Option<Observation>,
+        prompts: Vec<Prompt>,
     }
 
     impl FakeWorld {
@@ -315,6 +602,9 @@ mod tests {
                 archived: Vec::new(),
                 comments: Vec::new(),
                 lookups: 0,
+                watched: Vec::new(),
+                observed: None,
+                prompts: Vec::new(),
             };
             world.connect();
             world
@@ -341,7 +631,8 @@ mod tests {
         fn carry_out(&mut self, effects: Vec<Effect>) {
             for effect in effects {
                 match effect {
-                    Effect::SaveBeforeArchiving(memory) => self.disk = Some(memory),
+                    Effect::Save(memory) => self.disk = Some(memory),
+                    Effect::Prompt(prompt) => self.prompts.push(prompt),
                     Effect::Archive(id) => {
                         self.archived.push(id.clone());
                         let agent = self.set_archived(&id, true);
@@ -390,6 +681,11 @@ mod tests {
                 let effects =
                     self.watch
                         .merge_request(&lookup.worktree, answer, self.now, self.settings);
+                self.carry_out(effects);
+            }
+            for target in self.watch.watches_due(self.now, &self.watched) {
+                let answer = self.observed.clone().ok_or_else(|| "offline".to_string());
+                let effects = self.watch.watched_merge_request(&target, answer, self.now);
                 self.carry_out(effects);
             }
         }
@@ -500,6 +796,158 @@ mod tests {
         assert!(world.comments.is_empty());
         assert_eq!(world.lookups, 0);
         assert_eq!(world.disk, None);
+    }
+
+    fn watched_mr() -> MergeRequestRef {
+        MergeRequestRef {
+            connector: "gitlab".into(),
+            project: "group/app".into(),
+            number: 7,
+        }
+    }
+
+    fn open_mr() -> Observation {
+        Observation {
+            state: MergeRequestState::Open,
+            label: "!7".into(),
+            source_branch: "feat".into(),
+            target_branch: "main".into(),
+            conflicts: false,
+            pipeline: Some(PipelineRun {
+                id: "100".into(),
+                failed: false,
+                failed_jobs: Vec::new(),
+            }),
+            threads: Vec::new(),
+        }
+    }
+
+    fn failed_pipeline(id: &str) -> Option<PipelineRun> {
+        Some(PipelineRun {
+            id: id.into(),
+            failed: true,
+            failed_jobs: vec!["test".into()],
+        })
+    }
+
+    fn watching(status: AgentStatus) -> FakeWorld {
+        let mut world = FakeWorld::new(
+            Settings::default(),
+            vec![worktree("w", "feat")],
+            vec![agent("a", "w", status)],
+        );
+        world.watched = vec![watched_mr()];
+        world.observed = Some(open_mr());
+        world.poll();
+        world
+    }
+
+    fn texts(world: &FakeWorld) -> Vec<&str> {
+        world
+            .prompts
+            .iter()
+            .map(|prompt| prompt.text.as_str())
+            .collect()
+    }
+
+    const PIPELINE_101: &str =
+        "Pipeline #101 of !7 failed in test. Read its log, fix the cause and push.";
+
+    #[test]
+    fn a_failed_pipeline_wakes_the_agent_once() {
+        let mut world = watching(AgentStatus::Finished);
+        assert!(world.prompts.is_empty(), "turning a watch on is a baseline");
+        world.observed.as_mut().unwrap().pipeline = failed_pipeline("101");
+        world.later(WATCH_EVERY);
+        world.poll();
+        world.later(WATCH_EVERY);
+        world.poll();
+        assert_eq!(texts(&world), [PIPELINE_101]);
+        assert_eq!(world.prompts[0].agent, AgentId("a".into()));
+    }
+
+    #[test]
+    fn a_new_thread_wakes_the_agent_once() {
+        let mut world = watching(AgentStatus::Finished);
+        world.observed.as_mut().unwrap().threads = vec![
+            Thread {
+                id: "t1".into(),
+                resolved: false,
+                opener: Some(ThreadNote {
+                    author: "Ann".into(),
+                    body: "Please   rename\n this".into(),
+                }),
+                path: Some("src/a.rs".into()),
+                line: Some(12),
+            },
+            Thread {
+                id: "t2".into(),
+                resolved: true,
+                opener: Some(ThreadNote {
+                    author: "Bob".into(),
+                    body: "done".into(),
+                }),
+                path: None,
+                line: None,
+            },
+        ];
+        world.later(WATCH_EVERY);
+        world.poll();
+        world.later(WATCH_EVERY);
+        world.poll();
+        assert_eq!(
+            texts(&world),
+            ["Ann opened a thread on src/a.rs:12 in !7: \"Please rename this\". Answer it or fix it and push."]
+        );
+    }
+
+    #[test]
+    fn with_the_watch_off_nothing_is_typed() {
+        let mut world = watching(AgentStatus::Finished);
+        world.watched.clear();
+        world.observed.as_mut().unwrap().pipeline = failed_pipeline("101");
+        world.observed.as_mut().unwrap().conflicts = true;
+        world.later(WATCH_EVERY);
+        world.poll();
+        assert!(world.prompts.is_empty());
+    }
+
+    #[test]
+    fn a_restart_from_saved_state_does_not_wake_again() {
+        let mut world = watching(AgentStatus::Finished);
+        world.observed.as_mut().unwrap().pipeline = failed_pipeline("101");
+        world.later(WATCH_EVERY);
+        world.poll();
+        world.restart_from_disk();
+        world.poll();
+        assert_eq!(texts(&world), [PIPELINE_101]);
+    }
+
+    #[test]
+    fn a_failure_while_the_watcher_was_down_wakes_after_restart() {
+        let mut world = watching(AgentStatus::Finished);
+        world.observed.as_mut().unwrap().pipeline = failed_pipeline("101");
+        world.restart_from_disk();
+        world.poll();
+        assert_eq!(texts(&world), [PIPELINE_101]);
+    }
+
+    #[test]
+    fn a_busy_agent_is_woken_when_its_turn_finishes() {
+        let mut world = watching(AgentStatus::Running);
+        world.observed.as_mut().unwrap().pipeline = failed_pipeline("101");
+        world.later(WATCH_EVERY);
+        world.poll();
+        assert!(world.prompts.is_empty(), "no typing into a running turn");
+        assert_eq!(
+            world.disk.as_ref().unwrap().last_wake(&watched_mr()),
+            Some(PIPELINE_101)
+        );
+        world.restart_from_disk();
+        world.status("a", AgentStatus::Finished);
+        world.status("a", AgentStatus::Running);
+        world.status("a", AgentStatus::Finished);
+        assert_eq!(texts(&world), [PIPELINE_101]);
     }
 
     #[test]

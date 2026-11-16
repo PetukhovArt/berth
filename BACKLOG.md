@@ -20,8 +20,6 @@ Source paths are in [`pingdotgg/t3code`](https://github.com/pingdotgg/t3code).
 - Checkpoints on hidden refs: a snapshot of the Worktree at each prompt, restorable without commits
   on the branch. Files only: the native TUI gives no way to roll the conversation back. Source:
   `apps/server/src/orchestration-v2/CheckpointService.ts`, `apps/server/src/vcs/GitVcsDriver.ts`.
-- Watch a merge request: wake the Agent with input when its pipeline fails or a new thread arrives.
-  Source: `docs/user/source-control.md:324-333` (`watch_pull_request`).
 - Subscription limits: 5-hour and weekly windows with reset times for Claude, Codex and Cursor.
   Source: `docs/user/usage.md:113-129`.
 - Worktree setup scripts: a command per Project that runs after a Worktree is created, such as

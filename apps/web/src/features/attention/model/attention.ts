@@ -6,7 +6,7 @@ import { useDock } from '../../../shared/model/dock';
 
 export type AttentionKind = 'waiting' | 'finished' | 'crashed' | 'limited';
 type Kind = AttentionKind;
-export type AttentionToast = { id: number; key: string; kind: Kind | 'watch'; text: string };
+export type AttentionToast = { id: number; key: string; kind: Kind; text: string };
 
 const TOAST_MS = 8000;
 const TOAST_LIMIT = 4;
@@ -19,12 +19,6 @@ export function onAttention(listen: (event: { key: string; id: string; kind: Kin
   return () => listeners.delete(listen);
 }
 let counter = 0;
-
-export function announceAttention(key: string, text: string): void {
-  const toast: AttentionToast = { id: ++counter, key, kind: 'watch', text };
-  attentionToasts.value = [...attentionToasts.value.filter((entry) => entry.key !== key), toast].slice(-TOAST_LIMIT);
-  setTimeout(() => dismissAttention(toast.id), TOAST_MS);
-}
 
 export function dismissAttention(id: number): void {
   attentionToasts.value = attentionToasts.value.filter((toast) => toast.id !== id);

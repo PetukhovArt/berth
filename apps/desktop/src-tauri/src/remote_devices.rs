@@ -111,6 +111,7 @@ const READ_ONLY_COMMANDS: &[&str] = &[
     "forge_file",
     "forge_source",
     "project_repo_url",
+    "merge_watch_list",
     "jira_search",
     "jira_issue",
     "confluence_search",

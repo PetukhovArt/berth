@@ -323,6 +323,8 @@ pub fn run() {
             forge_comment,
             forge_resolve,
             forge_pipeline,
+            merge_watch_list,
+            merge_watch_set,
             forge_file,
             forge_source,
             mr_fetch_source,

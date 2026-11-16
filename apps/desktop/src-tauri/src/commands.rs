@@ -82,6 +82,8 @@ macro_rules! plain_commands {
             free worktree_git_step(path: String, step: String, message: Option<String>) = $crate::git_step::worktree_git_step;
             state forge_create_change_request(path: String, branch: String, target: String, title: String, description: String) = $crate::connectors::forge::forge_create_change_request;
             free project_repo_url(path: String) = $crate::connectors::forge::project_repo_url;
+            free merge_watch_list() = $crate::merge_watch::merge_watch_list;
+            free merge_watch_set(connector: String, project: String, number: u64, on: bool) = $crate::merge_watch::merge_watch_set;
             local_free settings_open_external(file: Option<$crate::settings::ConfigFile>) = $crate::settings::settings_open_external;
             local_free fs_open_external(path: String) = $crate::files::fs_open_external;
             local_free stratum_probe(repo: String, target: String) = $crate::stratum::stratum_probe;

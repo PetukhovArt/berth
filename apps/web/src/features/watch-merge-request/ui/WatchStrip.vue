@@ -1,13 +1,22 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { Eye } from '../../../shared/ui/icons';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { itemId, numberLabel } from '../../../entities/merge-request';
 import type { ChangeRequestRef } from '../../../shared/api/connectors/api';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { lastWake, stopWatching } from '../model/watch';
+import { useScope, visibleInterval } from '../../../shared/lib/scope';
+import { lastWake, refreshWatches, stopWatching } from '../model/watch';
+
+const REFRESH_MS = 30_000;
 
 const props = defineProps<{ target: ChangeRequestRef; url: string }>();
+const scope = useScope();
+const refresh = () => void refreshWatches().catch(() => undefined);
+onMounted(() => {
+  refresh();
+  visibleInterval(scope, REFRESH_MS, refresh);
+});
 const text = computed(() => {
   const wake = lastWake(props.target);
   return wake ? t('attention.watch.sent', { text: wake }) : t('attention.watch.idle');
