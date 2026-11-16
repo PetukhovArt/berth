@@ -49,6 +49,10 @@ export function hotDotOf(item: Pick<HotItem, 'status' | 'harness'>): SessionStat
   return item.harness === 'shell' ? 'shell' : 'finished';
 }
 
+export function waitingFirst<T>(list: readonly T[], statusOf: (entry: T) => HotStatus): T[] {
+  return [...list.filter((entry) => statusOf(entry) === 'waiting'), ...list.filter((entry) => statusOf(entry) !== 'waiting')];
+}
+
 const toMillis = (value: number) => (value > 0 && value < SECONDS_LIMIT ? value * 1000 : value);
 
 function fromExternal(status: ExternalSession['status']): HotStatus {
@@ -214,6 +218,16 @@ function create() {
     return [...recent, ...items.value.map((item) => item.key).filter((key) => !known.has(key))];
   });
 
+  const previewTargets = computed(() => {
+    const byKey = new Map(raw.value.map((entry) => [entry.key, entry]));
+    return waitingFirst(items.value, (item) => item.status)
+      .flatMap((item) => {
+        const entry = byKey.get(item.key);
+        return entry?.source ? [entry] : [];
+      })
+      .slice(0, PREVIEW_LIMIT);
+  });
+
   const fetched = new Map<string, string>();
   let previewTimer: ReturnType<typeof setTimeout> | undefined;
   let previewRun = 0;
@@ -223,8 +237,7 @@ function create() {
     const present = new Set(raw.value.map((entry) => entry.key));
     for (const key of fetched.keys()) if (!present.has(key)) fetched.delete(key);
     if ([...previews.value.keys()].some((key) => !present.has(key))) previews.value = new Map([...previews.value].filter(([key]) => present.has(key)));
-    const wanted = raw.value.filter((entry) => entry.live && entry.source).slice(0, PREVIEW_LIMIT);
-    for (const entry of wanted) {
+    for (const entry of previewTargets.value) {
       if (run !== previewRun) return;
       const source = entry.source;
       if (!source) continue;
@@ -238,7 +251,7 @@ function create() {
   }
 
   watch(
-    () => raw.value.map((entry) => `${entry.key}@${entry.stamp}|${entry.status}|${entry.live}|${entry.source?.id ?? ''}`).join(','),
+    () => `${raw.value.map((entry) => `${entry.key}@${entry.stamp}|${entry.status}|${entry.live}|${entry.source?.id ?? ''}`).join(',')}#${previewTargets.value.map((entry) => entry.key).join(',')}`,
     () => {
       clearTimeout(previewTimer);
       previewTimer = setTimeout(() => void refreshPreviews(), PREVIEW_DEBOUNCE_MS);

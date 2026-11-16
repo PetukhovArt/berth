@@ -24,6 +24,7 @@
 - Fixed the compare view, math errors and the splash screen not following the light, dark and system theme.
 - Windows: Fixed Codex and other npm-installed agents failing to start with `not a valid Win32 application` when npm's POSIX script sits beside its `.cmd` shim on `PATH`.
 - Fixed Hot sessions cards saying No activity yet for an Agent that waits for you or is working: a card now shows the permission or question it waits on, its provider error or its last reply, and the window is only as tall as its cards.
+- Fixed Hot sessions cards showing "No activity yet" for a live Agent when many sessions are open: the window now reads the previews of the first 12 cards in the order it lists them, not of the first 12 sessions in the order they were opened.
 - Added Settings → Providers: Claude, Codex and Grok are on by default, and Cursor, OpenCode, Antigravity, Gemini, Kiro and Pi can be turned on to run over ACP in the chat view, with permission requests answered from a card; the terminal Cursor and OpenCode stay on where you already use them.
 - Added resume for ACP agents: after an idle reap or a daemon restart the next prompt continues the same conversation, an agent that needs sign-in shows a card that starts its own sign-in, and restoring a checkpoint says in the chat that the conversation was not rewound.
 - Added command and argument editing for ACP agents in Settings → Providers, Add ACP agent for any other agent that speaks ACP, an Agent log button in the chat of an ACP agent, and presets for ACP agents in New Session.
