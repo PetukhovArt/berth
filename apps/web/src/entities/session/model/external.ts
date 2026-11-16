@@ -145,7 +145,7 @@ export async function continueInBerth(session: ExternalSession, target: External
     if (orphans.some((orphan) => orphan.session_id === session.id)) return { Agent: await resumeOrphan(session.id, target.worktreeId) };
   }
   const host = closedHost(session, useBerth()?.entities.value);
-  if (host) {
+  if (host && !useExternalSessions()?.linked.value.get(sessionKey({ Terminal: host }))?.running) {
     const closed = { Terminal: host };
     void whenAlive(host).then((alive) => (alive ? sendInput(closed, `${resumeCommand(session)}\r`) : undefined));
     return closed;
@@ -160,7 +160,7 @@ export async function continueInBerth(session: ExternalSession, target: External
 function closedHost(session: ExternalSession, entities: Entities | undefined): string | null {
   if (session.running || session.harness !== 'claude') return null;
   for (const terminal of entities?.terminals.values() ?? []) {
-    if (!terminal.alive && terminal.session_id === session.id) return terminal.id;
+    if (terminal.session_id === session.id) return terminal.id;
   }
   return null;
 }
@@ -168,6 +168,7 @@ function closedHost(session: ExternalSession, entities: Entities | undefined): s
 function whenAlive(id: string): Promise<boolean> {
   const berth = useBerth();
   if (!berth) return Promise.resolve(false);
+  if (berth.entities.value.terminals.get(id)?.alive) return Promise.resolve(true);
   return new Promise((resolve) => {
     const finish = (alive: boolean) => {
       clearTimeout(timer);
@@ -291,7 +292,8 @@ function createStore(): Store {
     const entities = berth?.entities.value;
     for (const session of raw.value) {
       const host = berthIds.value.has(session.id) ? null : closedHost(session, entities);
-      if (host) map.set(sessionKey({ Terminal: host }), session);
+      const key = host ? sessionKey({ Terminal: host }) : null;
+      if (key && !map.has(key)) map.set(key, session);
     }
     return map;
   });

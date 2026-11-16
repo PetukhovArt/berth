@@ -43,7 +43,7 @@ function chatOf(panelId: string): { harness: Harness | 'acp'; sessionId: string;
   const session = berth?.sessions.value.get(panelId);
   if (!session) return null;
   const linked = external?.linked.value.get(panelId);
-  if (linked) return { harness: linked.harness, sessionId: linked.id, terminal: session.ref };
+  if (linked?.running) return { harness: linked.harness, sessionId: linked.id, terminal: session.ref };
   if (!('Agent' in session.ref)) return null;
   const agent = berth?.entities.value.agents.get(session.ref.Agent);
   if (agent?.kind !== 'claude' || !agent.session_id) return null;

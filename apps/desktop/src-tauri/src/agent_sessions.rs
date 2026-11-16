@@ -944,7 +944,8 @@ fn claim(candidates: &[&Entry], procs: &[Proc]) -> HashMap<usize, Claim> {
                     berth_pids: proc.berth_pids.clone(),
                 });
             }
-            None => pending.push(proc),
+            None if proc.resume.is_none() => pending.push(proc),
+            None => {}
         }
     }
     pending.sort_by_key(|proc| proc.cwd.is_none());
