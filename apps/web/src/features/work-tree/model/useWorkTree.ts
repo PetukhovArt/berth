@@ -1,5 +1,5 @@
 import { computed, effectScope, shallowRef, watch } from 'vue';
-import { useExternalSessions, useBerth } from '../../../entities/session';
+import { useExternalSessions, useBerth, useOpenWorkspace } from '../../../entities/session';
 import { createMyIssues } from '../../../entities/jira-issue';
 import { useConnectors, type ChangeRequestRef, type InboxItem } from '../../../shared/api/connectors/api';
 import { itemId, useForgeInbox } from '../../../entities/merge-request';
@@ -62,6 +62,7 @@ type TabInfo = { id: TreeTab; label: string; count: number | undefined; tone: 'a
 function createWorkTree(scope: Scope) {
   const berth = useBerth();
   const external = useExternalSessions();
+  const openWorkspace = useOpenWorkspace();
   const { connectors } = useConnectors();
   const inbox = useForgeInbox();
   const jira = createMyIssues(scope);
@@ -179,7 +180,7 @@ function createWorkTree(scope: Scope) {
 
   const sources = computed<Sources>(() => ({
     berth: berth !== null,
-    workspaces: berth?.tree.value ?? [],
+    workspaces: (berth?.tree.value ?? []).filter((workspace) => !openWorkspace.value || workspace.id === openWorkspace.value),
     entities: berth?.entities.value,
     external: external?.sessions.value ?? [],
     archivedExternal: external?.archived.value ?? [],

@@ -1,18 +1,32 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { Copy, Minus, Search, Square, X } from '../../../shared/ui/icons';
+import { Copy, LayoutGrid, Minus, PanelRight, Search, Square, X } from '../../../shared/ui/icons';
 import { hostWindow as win } from '../../../bridge';
 import { settleAll } from '../../../entities/document';
 import { shortcutLabel } from '../../../shared/lib/commands/keymap';
+import { runAction } from '../../../shared/lib/commands/registry';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { hostPlatform } from '../../../shared/lib/platform';
 import { toggleQuickOpen } from '../../../shared/model/dock';
+import { inspectorOpen } from '../../../shared/model/inspector';
+import { view } from '../../../shared/model/nav';
+import { useSettings } from '../../../shared/config/settings/store';
 import { UpdateChip } from '../../../features/update';
+import { WorkspaceSwitcher } from '../../../features/manage-workspace';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const { t } = useI18n();
+const { values } = useSettings();
 const maximized = ref(false);
 const nativeControls = computed(() => hostPlatform.value.windowChrome.nativeDecorations);
+const hotOn = computed(() => (values.value as Record<string, unknown>)['workbench.hot'] !== 'off');
+const hotKey = computed(() => shortcutLabel('hot.overview'));
+const inspectorLabel = computed(() => (inspectorOpen.value ? t('inspector.hide') : t('inspector.show')));
+
+function withShortcut(label: string, actionId: string) {
+  const shortcut = shortcutLabel(actionId);
+  return shortcut ? `${label} (${shortcut})` : label;
+}
 let stopResize: (() => void) | undefined;
 
 async function closeWindow() {
@@ -35,6 +49,7 @@ onUnmounted(() => stopResize?.());
   <header class="titlebar" data-tauri-drag-region data-testid="titlebar" :data-native-controls="nativeControls">
     <div class="start" data-tauri-drag-region>
       <div class="mark" data-tauri-drag-region aria-hidden="true">b</div>
+      <WorkspaceSwitcher />
     </div>
     <UiButton
       type="button"
@@ -50,6 +65,33 @@ onUnmounted(() => stopResize?.());
     </UiButton>
     <div class="end">
       <div class="update" data-tauri-drag-region><UpdateChip /></div>
+      <div class="tools">
+        <UiButton
+          v-if="hotOn"
+          type="button"
+          class="tool"
+          data-testid="titlebar-hot"
+          :aria-label="t('titleBar.hot')"
+          :title="withShortcut(t('titleBar.hot'), 'hot.overview')"
+          @click="runAction('hot.overview')"
+        >
+          <LayoutGrid :size="14" :stroke-width="1.6" />
+          <kbd v-if="hotKey">{{ hotKey }}</kbd>
+        </UiButton>
+        <UiButton
+          v-if="view.kind === 'agents'"
+          type="button"
+          class="tool"
+          data-testid="titlebar-inspector"
+          :aria-label="inspectorLabel"
+          :aria-pressed="inspectorOpen"
+          :data-active="inspectorOpen"
+          :title="withShortcut(inspectorLabel, 'inspector.toggle')"
+          @click="runAction('inspector.toggle')"
+        >
+          <PanelRight :size="15" :stroke-width="1.6" />
+        </UiButton>
+      </div>
       <div v-if="!nativeControls" class="controls">
         <UiButton type="button" class="ctl" data-testid="titlebar-minimize" :aria-label="t('shell.window.minimize')" :title="t('shell.window.minimize')" @click="win.minimize()">
           <Minus :size="16" :stroke-width="1.5" />
@@ -101,8 +143,48 @@ onUnmounted(() => stopResize?.());
 .start {
   display: flex;
   align-items: center;
+  gap: var(--vr-space-2);
   height: 100%;
   min-width: 0;
+}
+
+.tools {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding-right: var(--vr-space-2);
+}
+
+.tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  min-width: 28px;
+  padding: 0 6px;
+  justify-content: center;
+  color: var(--vr-color-text-subtle);
+  background: none;
+  border: 0;
+  border-radius: var(--vr-radius-md);
+  cursor: pointer;
+}
+
+.tool:hover,
+.tool:focus-visible {
+  color: var(--vr-color-text);
+  background: var(--vr-color-nav-hover);
+}
+
+.tool[data-active='true'] {
+  color: var(--vr-color-text);
+}
+
+.tool kbd {
+  font-family: var(--vr-font-mono);
+  font-size: var(--vr-font-size-2xs);
+  color: var(--vr-color-text-muted);
 }
 
 .mark {

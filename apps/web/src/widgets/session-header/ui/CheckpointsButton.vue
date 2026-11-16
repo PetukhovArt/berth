@@ -1,32 +1,23 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
-import { useSettings } from '../../../shared/config/settings/store';
+import { ref, watch } from 'vue';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { History } from '../../../shared/ui/icons';
 import { useSheetClamp } from '../../../shared/lib/useSheetClamp';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
-import { describeError, listCheckpoints, restoreCheckpoint, type AgentKind, type Checkpoint } from '../../../entities/session';
+import { useCheckpoints, type AgentKind, type Checkpoint } from '../../../entities/session';
 
 const props = defineProps<{ agentId: string; name: string; kind: AgentKind; refreshKey?: unknown }>();
 
 const { formatDate } = useI18n();
-const settings = useSettings();
-const visible = computed(() => props.kind !== 'claude' || settings.values.value['daemon.checkpointsClaude'] === true || items.value.length > 0);
+const { items, busy, error, available: visible, load, restore: restoreAt } = useCheckpoints(
+  () => props.agentId,
+  () => props.kind,
+  () => props.refreshKey,
+);
 const open = ref(false);
 const sheet = ref<HTMLElement | null>(null);
 useSheetClamp(sheet, open);
-const items = ref<Checkpoint[]>([]);
 const pending = ref<number | null>(null);
-const busy = ref(false);
-const error = ref<string | null>(null);
-
-async function load() {
-  try {
-    items.value = await listCheckpoints(props.agentId);
-  } catch (failure) {
-    error.value = describeError(failure);
-  }
-}
 
 function toggle() {
   open.value = !open.value;
@@ -36,18 +27,7 @@ function toggle() {
 }
 
 async function restore(number: number) {
-  if (busy.value) return;
-  busy.value = true;
-  error.value = null;
-  try {
-    await restoreCheckpoint(props.agentId, number);
-    pending.value = null;
-    await load();
-  } catch (failure) {
-    error.value = describeError(failure);
-  } finally {
-    busy.value = false;
-  }
+  if (await restoreAt(number)) pending.value = null;
 }
 
 function label(item: Checkpoint): string {
@@ -58,19 +38,10 @@ function time(item: Checkpoint): string {
   return formatDate(item.created_at * 1000, { timeStyle: 'short' });
 }
 
-onMounted(() => void load());
-
-watch(
-  () => props.refreshKey,
-  () => void load(),
-);
-
 watch(
   () => props.agentId,
   () => {
     open.value = false;
-    items.value = [];
-    void load();
   },
 );
 </script>
