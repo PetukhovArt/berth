@@ -3,6 +3,7 @@
 //! unknown fields fall back to defaults; a malformed file is logged and
 //! ignored rather than failing the operation that read it.
 
+use berth_core::daemon_defaults::daemon_defaults;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -38,26 +39,24 @@ pub struct Config {
 
 impl Default for Config {
     fn default() -> Self {
+        let shared = daemon_defaults();
         Self {
-            git_init_on_create: true,
-            prewarm: true,
-            session_idle_timeout: DEFAULT_SESSION_IDLE_TIMEOUT.into(),
-            restore_sessions: true,
-            claude_limits: false,
+            git_init_on_create: shared.git_init_on_create,
+            prewarm: shared.prewarm,
+            session_idle_timeout: shared.session_idle_timeout.clone(),
+            restore_sessions: shared.restore_sessions,
+            claude_limits: shared.claude_limits,
             webhooks: false,
             webhook_port: DEFAULT_WEBHOOK_PORT,
             webhook_expose: false,
             hub_url: None,
             hub_token: None,
             channel_chain_limit: 4,
-            checkpoints_claude: false,
+            checkpoints_claude: shared.checkpoints_claude,
             providers: Default::default(),
         }
     }
 }
-
-/// Fallback for `session_idle_timeout` when the value is malformed.
-pub const DEFAULT_SESSION_IDLE_TIMEOUT: &str = "5m";
 
 pub const DEFAULT_WEBHOOK_PORT: u16 = 47821;
 
@@ -75,8 +74,9 @@ impl Config {
 
     /// `session_idle_timeout` parsed to a duration; None = reaping disabled.
     pub fn session_idle_timeout(&self) -> Option<std::time::Duration> {
-        parse_timeout(&self.session_idle_timeout)
-            .unwrap_or_else(|| parse_timeout(DEFAULT_SESSION_IDLE_TIMEOUT).expect("default parses"))
+        parse_timeout(&self.session_idle_timeout).unwrap_or_else(|| {
+            parse_timeout(&daemon_defaults().session_idle_timeout).expect("default parses")
+        })
     }
 }
 

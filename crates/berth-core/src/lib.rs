@@ -3,6 +3,7 @@ pub mod branch_name;
 pub mod claude_store;
 pub mod codec;
 pub mod crashlog;
+pub mod daemon_defaults;
 pub mod dsr;
 pub mod entities;
 pub mod env;

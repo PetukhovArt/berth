@@ -1,0 +1,8 @@
+{
+  "session_idle_timeout": "5m",
+  "restore_sessions": true,
+  "git_init_on_create": true,
+  "prewarm": true,
+  "claude_limits": false,
+  "checkpoints_claude": false
+}

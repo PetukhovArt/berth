@@ -1,3 +1,4 @@
+import DAEMON_DEFAULTS from '../../../../../../crates/berth-core/daemon-defaults.json';
 import type { MessageKey } from '../../lib/i18n/i18n';
 import { isMac } from '../../lib/platform';
 import { tr } from '../../lib/i18n/translate';
@@ -237,42 +238,42 @@ export const SETTINGS = {
   },
   'sessions.restoreOnRestart': {
     type: 'boolean',
-    default: true,
+    default: DAEMON_DEFAULTS.restore_sessions,
     label: 'settings.def.sessionsRestoreOnRestart.label',
     description: 'settings.def.sessionsRestoreOnRestart.description',
     category: 'sessions',
   },
   'daemon.gitInitOnCreate': {
     type: 'boolean',
-    default: true,
+    default: DAEMON_DEFAULTS.git_init_on_create,
     label: 'settings.def.daemonGitInitOnCreate.label',
     description: 'settings.def.daemonGitInitOnCreate.description',
     category: 'sessions',
   },
   'daemon.prewarm': {
     type: 'boolean',
-    default: true,
+    default: DAEMON_DEFAULTS.prewarm,
     label: 'settings.def.daemonPrewarm.label',
     description: 'settings.def.daemonPrewarm.description',
     category: 'sessions',
   },
   'daemon.claudeLimits': {
     type: 'boolean',
-    default: false,
+    default: DAEMON_DEFAULTS.claude_limits,
     label: 'settings.def.daemonClaudeLimits.label',
     description: 'settings.def.daemonClaudeLimits.description',
     category: 'sessions',
   },
   'daemon.checkpointsClaude': {
     type: 'boolean',
-    default: false,
+    default: DAEMON_DEFAULTS.checkpoints_claude,
     label: 'settings.def.daemonCheckpointsClaude.label',
     description: 'settings.def.daemonCheckpointsClaude.description',
     category: 'sessions',
   },
   'sessions.unloadIdleAfter': {
     type: 'enum',
-    default: '1h',
+    default: DAEMON_DEFAULTS.session_idle_timeout,
     label: 'settings.def.sessionsUnloadIdleAfter.label',
     description: 'settings.def.sessionsUnloadIdleAfter.description',
     category: 'sessions',
