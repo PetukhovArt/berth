@@ -9,6 +9,7 @@ import { requestSidebarSearch, toggleSidebar } from '../shared/model/sidebar';
 import { openUpdate } from '../features/update';
 import { toggleMaximizedGroup, toggleQuickOpen } from '../shared/model/dock';
 import { startNewSession } from '../features/new-session';
+import { holdToTalk, toggleWakeWord } from '../features/voice-input';
 import { paletteOpen } from '../shared/lib/commands/context';
 import { openKeymapExternal } from '../shared/lib/commands/keymap';
 import { defineAction } from '../shared/lib/commands/registry';
@@ -43,6 +44,9 @@ defineAction({ id: 'session.view.chat', title: 'agents.sessionView.action.chat',
 defineAction({ id: 'session.view.mr', title: 'agents.sessionView.action.mr', category: VIEW, run: () => showViewInActivePanel('mr') });
 defineAction({ id: 'session.view.diff', title: 'agents.sessionView.action.diff', category: VIEW, run: () => showViewInActivePanel('diff') });
 defineAction({ id: 'dock.toggleMaximize', title: 'commands.action.dockToggleMaximize', category: VIEW, run: toggleMaximizedGroup });
+
+defineAction({ id: 'voice.pushToTalk', title: 'voice.action.pushToTalk', category: 'voice.category', run: holdToTalk });
+defineAction({ id: 'voice.wakeWord', title: 'voice.action.wakeWord', category: 'voice.category', run: toggleWakeWord });
 
 defineAction({ id: 'keymap.openSettings', title: 'commands.action.keymapOpenSettings', category: KEYS, run: () => openSettings('keymap') });
 if (isDesktop) {

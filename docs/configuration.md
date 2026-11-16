@@ -112,6 +112,22 @@ The desktop app keeps its own settings in `~/.berth/settings.json` and its key b
 `~/.berth/keymap.json`. Both are edited from the app's Settings, which can also open either file in
 your editor; hand edits apply while the app runs. `BERTH_HOME` moves the directory.
 
+### Voice
+
+Voice input uses the speech recognition built into the browser engine the app runs in, so it works
+only where that engine offers it (Chrome, Edge and Safari do; some desktop webviews do not, and then
+the voice controls stay hidden or report that speech recognition is unavailable).
+
+- Hold `mod-shift-space` (the `voice.pushToTalk` action) to dictate: what you say while the key is
+  down is sent as a prompt to the Session in view when you release it.
+- The Chat view of a Session has a microphone button that works the same way while you hold it.
+- The wake word is off until you run `Wake word: listen for the wake phrase for the Session in
+  view` from the command palette (`voice.wakeWord`). The microphone then stays on for that one
+  Session: say the wake phrase (setting `voice.wakePhrase`, default `hey berth`) and then your
+  prompt, and it is sent when you pause. A bar at the bottom of the window shows that the microphone
+  is listening; its `Turn off` button, or the same command again, stops it. It does not survive an
+  app restart.
+
 ## Environment
 
 | Variable | Effect |

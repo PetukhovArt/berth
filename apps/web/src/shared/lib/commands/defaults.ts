@@ -13,6 +13,7 @@ export const DEFAULT_KEYMAP: readonly KeymapEntry[] = [
       'ctrl-space c': 'session.view.chat',
       'ctrl-space m': 'session.view.mr',
       'ctrl-space d': 'session.view.diff',
+      'mod-shift-space': 'voice.pushToTalk',
     },
   },
   {
