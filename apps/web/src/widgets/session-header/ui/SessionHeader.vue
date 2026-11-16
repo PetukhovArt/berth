@@ -148,8 +148,8 @@ watch(
 }
 
 :root[data-vr-viewport='phone'] .session-header {
-  flex-wrap: wrap;
-  gap: var(--vr-space-2) 10px;
+  flex-wrap: nowrap;
+  gap: var(--vr-space-1);
   padding: var(--vr-space-2) var(--vr-space-3);
 }
 
@@ -194,7 +194,9 @@ watch(
 
 :root[data-vr-viewport='phone'] .session-header :deep(.modes) {
   display: flex;
-  flex-basis: 100%;
+  flex: 1 1 0;
+  order: -1;
+  min-width: 0;
 }
 
 :root[data-vr-viewport='phone'] .session-header :deep(.modes .mode) {
@@ -202,6 +204,7 @@ watch(
   justify-content: center;
   min-width: 0;
   height: 32px;
+  padding: 0 var(--vr-space-1);
 }
 
 :root[data-vr-viewport='phone'] .session-header :deep(.modes .name) {

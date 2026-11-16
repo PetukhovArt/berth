@@ -824,7 +824,32 @@ defineExpose({ focusThread, focusFile, root });
   min-height: 0;
 }
 
+@container diff-toolbar (max-width: 700px) {
+  :root:not([data-vr-viewport='phone']) .toolbar :deep(.git-step .full) {
+    display: none;
+  }
+
+  :root:not([data-vr-viewport='phone']) .toolbar :deep(.git-step .short) {
+    display: inline;
+  }
+}
+
+@container diff-toolbar (max-width: 600px) {
+  :root:not([data-vr-viewport='phone']) .toolbar :deep(.git-step .short) {
+    display: none;
+  }
+
+  :root:not([data-vr-viewport='phone']) .toolbar :deep(.git-step .glyph) {
+    display: block;
+  }
+
+  :root:not([data-vr-viewport='phone']) .toolbar :deep(.git-step > .run) {
+    padding: 0 8px;
+  }
+}
+
 .toolbar {
+  container: diff-toolbar / inline-size;
   display: flex;
   flex: none;
   flex-wrap: nowrap;

@@ -99,6 +99,7 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
         </div>
       </div>
       <div v-else-if="entry.kind === 'crashed' && 'Agent' in entry.node.ref" class="card vr-phone-only" data-testid="inbox-crashed">
+        <code class="detail" data-testid="inbox-crashed-detail">{{ t('attention.inbox.crashedDetail') }}</code>
         <div class="actions">
           <UiButton type="button" class="action primary" :title="t('attention.inbox.resumeTitle')" :disabled="resuming.busy.value" data-testid="inbox-resume" @click="resume(entry)">{{ t('attention.inbox.resume') }}</UiButton>
           <UiButton type="button" class="action" data-testid="inbox-open" @click="dock.openSession(entry.node)">{{ t('attention.inbox.open') }}</UiButton>
@@ -327,8 +328,43 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
   border-color: var(--vr-status-feedback);
 }
 
+:root[data-vr-viewport='phone'] .item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+:root[data-vr-viewport='phone'] .item > .row {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+
+:root[data-vr-viewport='phone'] .item > .card {
+  grid-column: 1;
+  grid-row: 2;
+}
+
 :root[data-vr-viewport='phone'] .more {
+  position: static;
+  grid-column: 2;
+  grid-row: 2;
+  margin: 0 var(--vr-space-2) var(--vr-space-2) 0;
   opacity: 1;
+}
+
+:root[data-vr-viewport='phone'] .item:not(:has(.card)) > .row {
+  grid-column: 1;
+}
+
+:root[data-vr-viewport='phone'] .item:not(:has(.card)) > .more {
+  grid-row: 1;
+  align-self: center;
+  margin-bottom: 0;
+}
+
+:root[data-vr-viewport='phone'] .item:hover .age,
+:root[data-vr-viewport='phone'] .item:focus-within .age {
+  visibility: visible;
 }
 
 :root[data-vr-viewport='phone'] .head {
