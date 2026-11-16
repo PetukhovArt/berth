@@ -10,7 +10,7 @@ import { openIssue } from '../../../entities/jira-issue';
 import { ProjectTree } from '../../../widgets/project-tree';
 import { NewSessionForm, cancelCreate, creatingIn, onCreated } from '../../../features/new-session';
 import { ArchitectureView } from '../../../features/architecture';
-import { SessionViews } from '../../../features/session-view-switch';
+import { SessionViews, viewOf } from '../../../features/session-view-switch';
 import { DockArea } from '../../../widgets/dock';
 import { SessionHeader } from '../../../widgets/session-header';
 import { FirstRun, isFirstRun } from '../../../widgets/first-run';
@@ -49,7 +49,7 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
           <SessionHeader :panel="api" :active="activeKey === api.id" />
           <SessionViews class="body" :panel-id="api.id">
             <template #terminal><SessionPanel v-if="isSessionRef(params.session)" class="vr-fade-in" :session="params.session" :panel="api" /></template>
-            <template #chat="{ harness, sessionId, terminal }"><ConversationView class="pane" :harness="harness" :session-id="sessionId" :terminal="terminal" data-testid="session-chat-view" /></template>
+            <template #chat="{ harness, sessionId, terminal }"><ConversationView class="pane" :harness="harness" :session-id="sessionId" :terminal="terminal" :panel-id="api.id" data-testid="session-chat-view" /></template>
             <template #mr="{ mr }"><ChangeRequestView class="pane vr-fade-in" :connector="mr.connector" :project="mr.project" :number="mr.number" :panel="api" data-testid="session-mr-view" /></template>
             <template #diff="{ path, status, session }"><WorktreeChanges class="pane" :path="path" :status="status" :session="session" data-testid="session-diff-view" /></template>
           </SessionViews>
@@ -74,7 +74,7 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
       </template>
       <template #panel-conversation="{ params, api }">
         <SessionViews :panel-id="api.id">
-          <template #terminal><ConversationView v-if="isHarness(params.harness) && typeof params.id === 'string'" class="vr-fade-in" :harness="params.harness" :session-id="params.id" /></template>
+          <template #terminal><ConversationView v-if="isHarness(params.harness) && typeof params.id === 'string'" class="vr-fade-in" :harness="params.harness" :session-id="params.id" :panel-id="api.id" /></template>
           <template #mr="{ mr }"><ChangeRequestView class="pane vr-fade-in" :connector="mr.connector" :project="mr.project" :number="mr.number" :panel="api" data-testid="session-mr-view" /></template>
           <template #diff="{ path, status, session }"><WorktreeChanges class="pane" :path="path" :status="status" :session="session" data-testid="session-diff-view" /></template>
         </SessionViews>
@@ -89,7 +89,7 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
         <MarkdownFile v-if="typeof params.path === 'string'" class="vr-fade-in" :path="params.path" :hash="typeof params.hash === 'string' ? params.hash : ''" @open-file="(path, hash) => sessions.openFile(path, { hash, from: api.id })" />
       </template>
     </DockArea>
-    <TerminalKeys v-if="mobile && detail && activeSession" :session="activeSession.ref" />
+    <TerminalKeys v-if="mobile && detail && activeSession && !(activeKey && viewOf(activeKey) === 'chat')" :session="activeSession.ref" />
     <NewSessionForm v-if="creatingIn" :key="creatingIn.worktree ?? ''" :worktree="creatingIn.worktree" @close="cancelCreate" @created="onCreated" />
   </div>
 </template>

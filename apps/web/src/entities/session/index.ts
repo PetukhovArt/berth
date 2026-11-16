@@ -7,6 +7,7 @@ export type { ExternalSession, Harness, TranscriptMessage } from './model/extern
 export { derivePlan } from './model/plan';
 export { acpMessages, useAcpChat } from './model/acpChat';
 export { withShellBlocks } from './model/shellTags';
+export type { FileEdit } from './model/shellTags';
 export { useLinkedPlan } from './model/linkedPlan';
 export { ALLOW, DENY, allowRequest, chooseOption, denyRequest, feedbackText, useFeedbackRequest } from './model/feedback';
 export { enqueuePrompt, removeQueuedPrompt, submitPrompt, useQueuedPrompts } from './model/promptQueue';

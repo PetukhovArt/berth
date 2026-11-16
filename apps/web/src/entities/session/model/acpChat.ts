@@ -32,6 +32,18 @@ function diffText(diff: { path: string; old: string | null; new: string }): stri
   return [`--- ${diff.path}`, `+++ ${diff.path}`, ...removed.map((line) => `-${line}`), ...added.map((line) => `+${line}`)].join('\n');
 }
 
+const splitLines = (text: string) => (text ? text.replace(/\n$/, '').split('\n') : []);
+
+function lineDelta(before: string, after: string): { additions: number; deletions: number } {
+  const old = splitLines(before);
+  const next = splitLines(after);
+  let head = 0;
+  while (head < old.length && head < next.length && old[head] === next[head]) head++;
+  let tail = 0;
+  while (tail < old.length - head && tail < next.length - head && old[old.length - 1 - tail] === next[next.length - 1 - tail]) tail++;
+  return { additions: next.length - head - tail, deletions: old.length - head - tail };
+}
+
 function toMessages(seq: number, item: AcpItem): TranscriptMessage[] {
   const key = `acp:${seq}`;
   const base = { key, at: null, tool: null };
@@ -42,9 +54,10 @@ function toMessages(seq: number, item: AcpItem): TranscriptMessage[] {
   if ('Plan' in item) return [];
   const tool = item.Tool;
   const label = [tool.detail, tool.status === 'completed' ? '' : toolStatus(tool.status)].filter(Boolean).join(' · ');
-  const out: TranscriptMessage[] = [{ ...base, role: 'assistant', tool: tool.title || tool.kind, text: label }];
-  if (tool.diff) out.push({ ...base, key: `${key}:diff`, role: 'assistant', text: tool.diff.path, shell: 'output', markdown: fenced(diffText(tool.diff), 'diff') });
-  if (tool.output) out.push({ ...base, key: `${key}:output`, role: 'assistant', text: tool.output, shell: 'output', markdown: fenced(tool.output, '') });
+  const edits = tool.diff ? [{ path: tool.diff.path, ...lineDelta(tool.diff.old ?? '', tool.diff.new) }] : [];
+  const out: TranscriptMessage[] = [{ ...base, role: 'assistant', tool: tool.title || tool.kind, text: label, toolKind: tool.kind, edits }];
+  if (tool.diff) out.push({ ...base, key: `${key}:diff`, role: 'assistant', text: tool.diff.path, shell: 'output', markdown: fenced(diffText(tool.diff), 'diff'), callOf: key });
+  if (tool.output) out.push({ ...base, key: `${key}:output`, role: 'assistant', text: tool.output, shell: 'output', markdown: fenced(tool.output, ''), callOf: key });
   return out;
 }
 

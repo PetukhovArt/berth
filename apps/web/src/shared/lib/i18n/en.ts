@@ -25,5 +25,6 @@ import { remote } from './en/remote';
 import { push } from './en/push';
 import { update } from './en/update';
 import { voice } from './en/voice';
+import { chat } from './en/chat';
 
-export const en = { common, shell, settings, commands, agents, connectors, atlassian, jira, confluence, reviews, forge, content, files, remote, push, mobile, workbench, hot, update, cleanup, attention, feedback, gitStep, taskNote, checkpoints, router, voice } as const;
+export const en = { common, shell, settings, commands, agents, connectors, atlassian, jira, confluence, reviews, forge, content, files, remote, push, mobile, workbench, hot, update, cleanup, attention, feedback, gitStep, taskNote, checkpoints, router, voice, chat } as const;

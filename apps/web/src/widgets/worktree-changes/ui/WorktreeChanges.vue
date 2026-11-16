@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { shallowRef, watch } from 'vue';
+import { nextTick, shallowRef, useTemplateRef, watch } from 'vue';
 import { RefreshCw } from '../../../shared/ui/icons';
 import { VButton } from '../../../shared/ui/kit';
 import { sendInput, type SessionRef, type SessionStatus } from '../../../entities/session';
-import { showViewInActivePanel } from '../../../features/session-view-switch';
+import { clearChangeFocus, focusedChange, showViewInActivePanel } from '../../../features/session-view-switch';
+import { worktreeRelative } from '../../../shared/lib/worktreePath';
 import { describeError, type DiffFile, type Discussion } from '../../../shared/api/connectors/api';
 import { worktreeChanges } from '../../../shared/api/fs';
 import { t } from '../../../shared/lib/i18n/i18n';
@@ -52,6 +53,21 @@ watch(
   { immediate: true },
 );
 
+const diff = useTemplateRef<{ focusFile: (path: string) => boolean }>('diff');
+
+watch(
+  [() => focusedChange(props.path), changes],
+  async ([file, current]) => {
+    if (!file || current.kind !== 'ready') return;
+    await nextTick();
+    const wanted = worktreeRelative(file, props.path);
+    const match = current.files.find((entry) => entry.new_path === wanted || entry.old_path === wanted) ?? current.files.find((entry) => wanted.endsWith(`/${entry.new_path}`) || entry.new_path.endsWith(`/${wanted}`));
+    if (match) diff.value?.focusFile(match.new_path);
+    clearChangeFocus(props.path);
+  },
+  { immediate: true },
+);
+
 watch(
   () => props.status,
   (status) => {
@@ -71,7 +87,7 @@ watch(
       <p>{{ t('agents.changes.empty') }}</p>
       <VButton size="small" severity="secondary" :label="t('agents.changes.refresh')" :loading="refreshing" data-testid="worktree-changes-refresh" @click="load" />
     </div>
-    <DiffView v-else :files="changes.files" :discussions="NO_DISCUSSIONS" :root="path" :quotable="!!session" @quote="quote">
+    <DiffView v-else ref="diff" :files="changes.files" :discussions="NO_DISCUSSIONS" :root="path" :quotable="!!session" @quote="quote">
       <template #actions>
         <UiButton class="refresh" :disabled="refreshing" :aria-busy="refreshing" :title="t('agents.changes.refresh')" :aria-label="t('agents.changes.refresh')" data-testid="worktree-changes-refresh" @click="load">
           <RefreshCw :size="14" :class="{ spin: refreshing }" />

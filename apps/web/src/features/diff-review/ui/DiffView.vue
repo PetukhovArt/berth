@@ -511,7 +511,14 @@ onBeforeUnmount(() => {
   if (frame) cancelAnimationFrame(frame);
 });
 
-defineExpose({ focusThread, root });
+function focusFile(path: string): boolean {
+  const index = props.files.findIndex((file) => file.new_path === path || file.old_path === path);
+  if (index < 0) return false;
+  pickFile(index);
+  return true;
+}
+
+defineExpose({ focusThread, focusFile, root });
 </script>
 
 <template>
