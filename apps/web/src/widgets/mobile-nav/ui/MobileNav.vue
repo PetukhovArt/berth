@@ -1,36 +1,32 @@
 <script setup lang="ts">
-import { Command, LayoutPanelLeft, Settings } from '../../../shared/ui/icons';
-import { paletteOpen } from '../../../shared/lib/commands/context';
+import { Eye, Inbox, Settings, SquareTerminal } from '../../../shared/ui/icons';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { navigate, view, type View } from '../../../shared/model/nav';
-import { useDock } from '../../../shared/model/dock';
-
 import { UiButton } from '../../../shared/ui/UiButton';
+import { openPhoneSection, phoneSection, type PhoneSection } from '../model/section';
+
 const { t } = useI18n();
-const { detail } = useDock();
 
 const ITEMS = [
-  { kind: 'agents', label: 'shell.nav.agents', icon: LayoutPanelLeft },
-  { kind: 'settings', label: 'shell.settings', icon: Settings },
-] as const satisfies readonly { kind: View['kind']; label: string; icon: unknown }[];
-
-const isActive = (kind: View['kind']) => view.value.kind === kind;
-
-function go(kind: (typeof ITEMS)[number]['kind']) {
-  if (kind === 'agents' && view.value.kind === 'agents') detail.value = false;
-  else void navigate({ kind });
-}
+  { section: 'inbox', icon: Inbox },
+  { section: 'sessions', icon: SquareTerminal },
+  { section: 'reviews', icon: Eye },
+  { section: 'settings', icon: Settings },
+] as const satisfies readonly { section: PhoneSection; icon: unknown }[];
 </script>
 
 <template>
   <nav class="nav" :aria-label="t('mobile.navLabel')" data-testid="mobile-nav">
-    <UiButton v-for="item in ITEMS" :key="item.kind" class="item" :data-active="isActive(item.kind)" :data-testid="`mobile-nav-${item.kind}`" @click="go(item.kind)">
+    <UiButton
+      v-for="item in ITEMS"
+      :key="item.section"
+      class="item"
+      :data-active="phoneSection === item.section"
+      :aria-current="phoneSection === item.section ? 'page' : undefined"
+      :data-testid="`mobile-nav-${item.section}`"
+      @click="openPhoneSection(item.section)"
+    >
       <component :is="item.icon" :size="20" />
-      <span>{{ t(item.label) }}</span>
-    </UiButton>
-    <UiButton class="item" :data-active="paletteOpen" data-testid="mobile-nav-commands" @click="paletteOpen = !paletteOpen">
-      <Command :size="20" />
-      <span>{{ t('mobile.commands') }}</span>
+      <span>{{ t(`mobile.section.${item.section}`) }}</span>
     </UiButton>
   </nav>
 </template>
@@ -40,6 +36,7 @@ function go(kind: (typeof ITEMS)[number]['kind']) {
   display: flex;
   flex: none;
   padding: var(--vr-space-1) var(--vr-space-1) calc(var(--vr-space-1) + var(--vr-safe-bottom));
+  background: var(--vr-color-surface);
   border-top: 1px solid var(--vr-color-border);
 }
 
@@ -77,6 +74,5 @@ function go(kind: (typeof ITEMS)[number]['kind']) {
 
 .item[data-active='true'] {
   color: var(--vr-color-text);
-  background: var(--vr-color-nav-active);
 }
 </style>

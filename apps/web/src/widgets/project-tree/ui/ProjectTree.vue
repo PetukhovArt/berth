@@ -25,12 +25,13 @@ import { openLeaf, type ReviewMeta, type WorkNode, treeLiveOnly, treeProjectsCol
 
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiInput from '../../../shared/ui/UiInput.vue';
-withDefaults(defineProps<{ withFilter?: boolean }>(), { withFilter: false });
+const props = withDefaults(defineProps<{ withFilter?: boolean; tabsShown?: readonly string[]; withInbox?: boolean }>(), { withFilter: false, tabsShown: undefined, withInbox: true });
 
 const dock = useDock();
 const sessions = useSessionDock();
 const { berth, nodes, tabs, activeTab, errors } = useWorkTree();
 const tabIcons = { sessions: SquareTerminal, mrs: GitPullRequest, reviews: Eye, tasks: ListTodo, all: SquareTerminal };
+const shownTabs = computed(() => (props.tabsShown ? tabs.value.filter((tab) => props.tabsShown?.includes(tab.id)) : tabs.value));
 
 const filtering = computed(() => treeQuery.value.trim().length > 0);
 const projectsOpen = computed(() => !treeProjectsCollapsed.value || filtering.value);
@@ -83,9 +84,9 @@ function toggleFilter() {
     </label>
     <div class="head">
       <div class="tabs-box">
-        <div class="tabs" role="tablist" :aria-label="t('workbench.tabs')" :data-n="tabs.length">
+        <div v-if="shownTabs.length > 1" class="tabs" role="tablist" :aria-label="t('workbench.tabs')" :data-n="shownTabs.length">
           <UiButton
-            v-for="tab in tabs"
+            v-for="tab in shownTabs"
             :key="tab.id"
             class="tab"
             role="tab"
@@ -134,7 +135,7 @@ function toggleFilter() {
         <template #project="{ repo }"><RepoActions :repo="repo" /></template>
       </MrSessionNotice>
       <p v-for="error in errors" :key="`${error.connector}:${error.message}`" class="strip" role="alert" data-testid="tree-error" :title="error.message">{{ error.connector }}: {{ error.message }}</p>
-      <InboxSection v-if="activeTab === 'sessions' && !filtering" />
+      <InboxSection v-if="withInbox && activeTab === 'sessions' && !filtering" />
       <div v-if="activeTab === 'sessions'" class="section-head" data-testid="project-tree-head">
         <UiButton class="section-toggle" :aria-expanded="projectsOpen" :disabled="filtering" data-testid="project-tree-toggle" @click="treeProjectsCollapsed = !treeProjectsCollapsed">
           <ChevronRight :size="14" class="chevron vr-chevron" />

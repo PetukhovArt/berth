@@ -223,6 +223,10 @@ h1 {
   font-weight: 600;
 }
 
+:root[data-vr-viewport='phone'] h1 {
+  display: none;
+}
+
 .search {
   position: relative;
   display: flex;
