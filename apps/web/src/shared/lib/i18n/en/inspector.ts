@@ -1,0 +1,61 @@
+export const inspector = {
+  label: 'Session details',
+  empty: 'Open a Session to see its worktree, merge request and usage here.',
+  resize: 'Resize the session details',
+  show: 'Show session details',
+  hide: 'Hide session details',
+  action: {
+    toggle: 'Show or hide session details',
+  },
+  worktree: {
+    title: 'Worktree',
+    from: 'from {base}',
+    files: { one: '{count} file changed', other: '{count} files changed' },
+    clean: 'No changes against {base}',
+    ahead: '{count} ahead',
+    behind: '{count} behind',
+    unpublished: 'Not pushed yet',
+    path: 'Path',
+  },
+  mr: {
+    title: 'Merge request',
+    state: {
+      open: 'Open',
+      draft: 'Draft',
+      merged: 'Merged',
+      closed: 'Closed',
+    },
+    pipeline: 'Pipeline',
+    threads: 'Threads',
+    unresolved: { one: '{count} unresolved', other: '{count} unresolved' },
+    resolved: 'All resolved',
+    open: 'Show the merge request',
+  },
+  usage: {
+    title: 'Usage',
+    tokens: '{tokens} tokens',
+    session: 'This session',
+    none: 'No usage reported yet',
+    resets: '{percent}% · {time}',
+  },
+  checkpoints: {
+    title: 'Checkpoints',
+  },
+  taskNote: {
+    title: 'Task note',
+    empty: 'No note yet. Every new Agent in this worktree gets the note at start.',
+    edit: 'Edit',
+    add: 'Add a note',
+  },
+  overlaps: {
+    title: 'Overlaps',
+    none: 'No other Agent is changing the same modules',
+    modules: 'Also changing {modules}',
+  },
+  people: {
+    title: 'People',
+    none: 'Nobody else is on this task right now',
+    agents: 'with {agents}',
+    channel: 'Open the channel',
+  },
+} as const;

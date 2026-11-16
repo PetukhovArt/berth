@@ -13,6 +13,7 @@ import { ArchitectureView } from '../../../features/architecture';
 import { SessionViews } from '../../../features/session-view-switch';
 import { DockArea } from '../../../widgets/dock';
 import { SessionHeader } from '../../../widgets/session-header';
+import { SessionInspector } from '../../../widgets/session-inspector';
 import { FirstRun, isFirstRun } from '../../../widgets/first-run';
 
 const ChangeRequestView = defineAsyncComponent(() => import('../../../widgets/change-request').then((m) => m.ChangeRequestView));
@@ -89,6 +90,7 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
         <MarkdownFile v-if="typeof params.path === 'string'" class="vr-fade-in" :path="params.path" :hash="typeof params.hash === 'string' ? params.hash : ''" @open-file="(path, hash) => sessions.openFile(path, { hash, from: api.id })" />
       </template>
     </DockArea>
+    <SessionInspector v-if="!mobile" />
     <TerminalKeys v-if="mobile && detail && activeSession" :session="activeSession.ref" />
     <NewSessionForm v-if="creatingIn" :key="creatingIn.worktree ?? ''" :worktree="creatingIn.worktree" @close="cancelCreate" @created="onCreated" />
   </div>

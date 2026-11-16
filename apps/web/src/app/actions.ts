@@ -6,6 +6,7 @@ import { navigate, openSettings } from '../shared/model/nav';
 import { hotEnabled, toggleHotOverview } from '../widgets/hot';
 import { toggleTheme } from '../shared/ui/appearance';
 import { requestSidebarSearch, toggleSidebar } from '../shared/model/sidebar';
+import { toggleInspector } from '../shared/model/inspector';
 import { openUpdate } from '../features/update';
 import { toggleMaximizedGroup, toggleQuickOpen } from '../shared/model/dock';
 import { startNewSession } from '../features/new-session';
@@ -29,6 +30,7 @@ defineAction({ id: 'nav.confluence', title: 'commands.action.navConfluence', cat
 defineAction({ id: 'nav.settings', title: 'commands.action.navSettings', category: VIEW, run: () => openSettings() });
 
 defineAction({ id: 'sidebar.toggle', title: 'commands.action.sidebarToggle', category: VIEW, run: toggleSidebar });
+defineAction({ id: 'inspector.toggle', title: 'inspector.action.toggle', category: VIEW, run: toggleInspector });
 defineAction({ id: 'sidebar.search', title: 'commands.action.sidebarSearch', category: NAVIGATION, run: requestSidebarSearch });
 defineAction({ id: 'theme.toggle', title: 'commands.action.themeToggle', category: VIEW, run: toggleTheme });
 

@@ -1,2 +1,2 @@
-export { initOverlaps } from './model/overlaps';
+export { initOverlaps, useOverlaps } from './model/overlaps';
 export { default as OverlapChip } from './ui/OverlapChip.vue';

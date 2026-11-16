@@ -7,7 +7,7 @@ import ArchivedRow from './ArchivedRow.vue';
 import ExternalSessionRow from './ExternalSessionRow.vue';
 import MarkdownPicker from './MarkdownPicker.vue';
 import SessionRow from './SessionRow.vue';
-import { useExternalSessions, NavNotices, openChannelFor, StatusIcon, useSessionDock } from '../../../entities/session';
+import { useExternalSessions, NavNotices, openChannelFor, StatusIcon, useOpenWorkspace, useSessionDock } from '../../../entities/session';
 import { ProjectActions, WorkspaceActions, RepoActions } from '../../../features/manage-workspace';
 import { channelKeyOf, TypeIcon } from '../../../entities/jira-issue';
 import { isDesktop } from '../../../bridge';
@@ -67,7 +67,8 @@ const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft
 
 const showFilter = shallowRef(false);
 const projectAdd = useTemplateRef<InstanceType<typeof ProjectActions>>('projectAdd');
-const addWorkspaceId = computed(() => berth?.tree.value[0]?.id);
+const openWorkspace = useOpenWorkspace();
+const addWorkspaceId = computed(() => openWorkspace.value ?? berth?.tree.value[0]?.id);
 
 function toggleFilter() {
   if (showFilter.value) treeQuery.value = '';
