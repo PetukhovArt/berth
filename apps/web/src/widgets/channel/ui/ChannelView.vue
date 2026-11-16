@@ -4,7 +4,7 @@ import { UiButton } from '../../../shared/ui/UiButton';
 import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { Bot, UserRound } from '../../../shared/ui/icons';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
-import { describeError, isAgentMessage, postToChannel, readChannel, readPresence, refreshChannels, type ChannelMessage, type ChannelPresent } from '../../../entities/session';
+import { describeError, isAgentMessage, postToChannel, promoteChannelMessage, readChannel, readChannelGrants, readPresence, refreshChannels, revokeChannelGrant, type ChannelGrant, type ChannelMessage, type ChannelPresent } from '../../../entities/session';
 
 const POLL_MS = 4000;
 
@@ -16,6 +16,8 @@ const draft = shallowRef('');
 const error = shallowRef<string | null>(null);
 const present = shallowRef<ChannelPresent[]>([]);
 const busy = shallowRef(false);
+const grants = shallowRef<ChannelGrant[]>([]);
+const promoted = shallowRef<ReadonlySet<number>>(new Set());
 const list = useTemplateRef<HTMLElement>('list');
 let timer: ReturnType<typeof setTimeout> | undefined;
 let stopped = false;
@@ -39,6 +41,7 @@ async function poll() {
     error.value = null;
     void refreshChannels();
     present.value = await readPresence(props.channel).catch(() => []);
+    grants.value = await readChannelGrants(props.channel).catch(() => []);
   } catch (failure) {
     error.value = describeError(failure);
   }
@@ -60,6 +63,25 @@ async function send() {
   }
 }
 
+async function promote(message: ChannelMessage) {
+  try {
+    await promoteChannelMessage(props.channel, message.seq);
+    promoted.value = new Set(promoted.value).add(message.seq);
+    error.value = null;
+  } catch (failure) {
+    error.value = describeError(failure);
+  }
+}
+
+async function revoke(grant: ChannelGrant) {
+  try {
+    grants.value = await revokeChannelGrant(grant);
+    error.value = null;
+  } catch (failure) {
+    error.value = describeError(failure);
+  }
+}
+
 function onKeydown(event: KeyboardEvent) {
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
   event.preventDefault();
@@ -77,6 +99,13 @@ onBeforeUnmount(() => {
   <section class="channel" data-testid="channel-view">
     <header class="head">{{ t('attention.channel.messages', { key: channel }) }}</header>
     <p v-if="present.length" class="presence" data-testid="channel-presence">{{ t('attention.channel.present', { who: present.map((p) => `${p.name} (${p.agents.join(', ')})`).join('; ') }) }}</p>
+    <p v-if="grants.length" class="grants" data-testid="channel-grants">
+      <span>{{ t('attention.channel.grants') }}</span>
+      <span v-for="grant in grants" :key="`${grant.agent}:${grant.member}`" class="grant" data-testid="channel-grant">
+        {{ t('attention.channel.grant', { member: grant.member_name, agent: grant.agent }) }}
+        <UiButton type="button" class="link" :aria-label="t('attention.channel.revokeLabel', { member: grant.member_name, agent: grant.agent })" data-testid="channel-grant-revoke" @click="revoke(grant)">{{ t('attention.channel.revoke') }}</UiButton>
+      </span>
+    </p>
     <ol ref="list" class="messages" data-testid="channel-messages">
       <li v-if="!messages.length" class="empty" data-testid="channel-empty">{{ t('attention.channel.empty') }}</li>
       <li v-for="message in messages" :key="message.seq" class="message" :data-author-kind="message.authorKind" data-testid="channel-message">
@@ -88,6 +117,8 @@ onBeforeUnmount(() => {
           <div class="meta">
             <span class="author" data-testid="channel-author">{{ message.authorName }}</span>
             <span class="time">{{ formatDate(message.createdAt, { timeStyle: 'short' }) }}</span>
+            <span v-if="promoted.has(message.seq)" class="time" data-testid="channel-promoted">{{ t('attention.channel.promoted') }}</span>
+            <UiButton v-else-if="message.mentionsAgent" type="button" class="link" :title="t('attention.channel.promoteHint')" data-testid="channel-promote" @click="promote(message)">{{ t('attention.channel.promote') }}</UiButton>
           </div>
           <p class="content">{{ message.content }}</p>
         </div>
@@ -123,6 +154,31 @@ onBeforeUnmount(() => {
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
   border-bottom: 1px solid var(--vr-color-border);
+}
+
+.grants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vr-space-2);
+  padding: var(--vr-space-1) var(--vr-space-3);
+  margin: 0;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-muted);
+  border-bottom: 1px solid var(--vr-color-border);
+}
+
+.grant {
+  color: var(--vr-color-text);
+}
+
+.link {
+  padding: 0;
+  font: inherit;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-accent);
+  cursor: pointer;
+  background: none;
+  border: 0;
 }
 
 .messages {

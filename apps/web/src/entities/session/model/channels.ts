@@ -4,7 +4,8 @@ import { useDock } from '../../../shared/model/dock';
 import { BerthCallError, call } from './berth';
 
 type ChannelSummary = { key: string; head: number; unread: number };
-export type ChannelMessage = { seq: number; author: string; authorName: string; authorKind: string; content: string; createdAt: number };
+export type ChannelMessage = { seq: number; author: string; authorName: string; authorKind: string; content: string; createdAt: number; mentionsAgent: boolean };
+export type ChannelGrant = { channel: string; agent: string; member: string; member_name: string };
 
 const SUMMARY_POLL_MS = 30_000;
 
@@ -29,6 +30,7 @@ function messages(reply: Awaited<ReturnType<typeof call>>): ChannelMessage[] {
     authorKind: event.author_kind,
     content: event.content,
     createdAt: event.created_at,
+    mentionsAgent: event.tags.some((tag) => tag[0] === 'p'),
   }));
 }
 
@@ -62,6 +64,24 @@ export async function readPresence(channel: string): Promise<ChannelPresent[]> {
 
 export async function postToChannel(channel: string, content: string): Promise<ChannelMessage[]> {
   return remember(channel, messages(await call({ PostToChannel: { channel, content, agent: null } })));
+}
+
+export async function promoteChannelMessage(channel: string, seq: number): Promise<void> {
+  const reply = await call({ PromoteChannelMessage: { channel, seq, agent: null } });
+  if (!('Ack' in reply)) throw new BerthCallError(t('agents.errors.unexpectedReply', { reply: Object.keys(reply).join('') }));
+}
+
+function grants(reply: Awaited<ReturnType<typeof call>>): ChannelGrant[] {
+  if (!('ChannelGrants' in reply)) throw new BerthCallError(t('agents.errors.unexpectedReply', { reply: Object.keys(reply).join('') }));
+  return reply.ChannelGrants.grants;
+}
+
+export async function readChannelGrants(channel: string): Promise<ChannelGrant[]> {
+  return grants(await call({ ListChannelGrants: { channel } }));
+}
+
+export async function revokeChannelGrant(grant: ChannelGrant): Promise<ChannelGrant[]> {
+  return grants(await call({ SetChannelGrant: { channel: grant.channel, agent: grant.agent, member: grant.member, granted: false } }));
 }
 
 export function openChannel(key: string, split = false): void {

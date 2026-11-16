@@ -42,5 +42,12 @@ export const attention = {
     agent: 'Agent',
     person: 'Person',
     present: 'Running Sessions on this task: {who}',
+    promote: 'Promote',
+    promoteHint: 'Deliver this message to your mentioned Agent as an instruction',
+    promoted: 'Promoted',
+    grants: 'May instruct here:',
+    grant: '{member} instructs {agent}',
+    revoke: 'Revoke',
+    revokeLabel: 'Revoke the grant for {member} to instruct {agent}',
   },
 } as const;
