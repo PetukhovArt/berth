@@ -1,7 +1,7 @@
 import { shallowRef } from 'vue';
 import { useDock } from '../../../shared/model/dock';
 import { useHot } from './hot';
-import { hotEnabled } from './view';
+import { hotEnabled, hotOverviewOpen } from './view';
 
 export const switcher = shallowRef<{ keys: readonly string[]; index: number } | null>(null);
 
@@ -73,7 +73,10 @@ function onKeyDown(event: KeyboardEvent): void {
   if (digit && event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
     swallow(event);
     const item = useHot().items.value[Number(digit[1]) - 1];
-    if (item) useHot().open(item.key);
+    if (item) {
+      hotOverviewOpen.value = false;
+      useHot().open(item.key);
+    }
   }
 }
 
