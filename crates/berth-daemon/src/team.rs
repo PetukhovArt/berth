@@ -8,6 +8,7 @@ use berth_hub::{mention_key, mentions_in, Mention};
 
 use crate::channels::hub;
 use crate::config::Config;
+use crate::hub_stream::HubPush;
 use crate::pty::{DEFAULT_COLS, DEFAULT_ROWS};
 use crate::registry::Daemon;
 use crate::team_members::{MentionCursor, RegisteredAgents};
@@ -122,24 +123,29 @@ impl Daemon {
         let mut cursor = MentionCursor::default();
         let mut registered = RegisteredAgents::default();
         let mut pending: VecDeque<Mention> = VecDeque::new();
+        let push = Arc::new(HubPush::default());
+        tokio::spawn(self.clone().run_hub_stream(push.clone()));
         loop {
-            tokio::select! {
+            let pushed = tokio::select! {
                 _ = self.shutdown.cancelled() => break,
-                _ = interval.tick() => {}
-            }
+                _ = interval.tick() => false,
+                _ = push.appended() => true,
+            };
             let Ok(hub) = hub() else { continue };
             self.register_agents(&hub, &mut registered).await;
             let Some(after) = cursor.after(&self.store, &hub).await else {
                 continue;
             };
-            if let Ok(found) = hub.mentions(after).await {
-                let next = found.iter().map(|m| m.event.seq).max().unwrap_or(after);
-                for m in found {
-                    if pending.len() < PENDING_MAX {
-                        pending.push_back(m);
+            if pushed || !push.is_live() {
+                if let Ok(found) = hub.mentions(after).await {
+                    let next = found.iter().map(|m| m.event.seq).max().unwrap_or(after);
+                    for m in found {
+                        if pending.len() < PENDING_MAX {
+                            pending.push_back(m);
+                        }
                     }
+                    cursor.advance(&self.store, next);
                 }
-                cursor.advance(&self.store, next);
             }
             if !pending.is_empty() {
                 let limit = Config::load().channel_chain_limit;

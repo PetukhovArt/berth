@@ -92,6 +92,10 @@ pub enum WatchEvent {
         seq: u64,
         item: Box<berth_core::acp::AcpItem>,
     },
+    ChannelAppended {
+        channel: String,
+        seq: i64,
+    },
     Error {
         message: String,
     },
@@ -599,6 +603,9 @@ impl Actor {
                 WatchEvent::TaskNote { worktree, text }
             }
             ServerEvent::AcpItem { agent, seq, item } => WatchEvent::AcpItem { agent, seq, item },
+            ServerEvent::ChannelAppended { channel, seq } => {
+                WatchEvent::ChannelAppended { channel, seq }
+            }
             ServerEvent::Error { message, .. } => WatchEvent::Error { message },
             ServerEvent::Scrollback {
                 session,

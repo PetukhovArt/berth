@@ -4,7 +4,7 @@ import { UiButton } from '../../../shared/ui/UiButton';
 import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { Bot, UserRound } from '../../../shared/ui/icons';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
-import { answerInChannel, channelRequestOf, describeError, isAgentMessage, isChannelReply, isNoteMessage, isOwnAgentRequest, postNote, postToChannel, readChannel, readPresence, refreshChannels, settlementOf, type ChannelMessage, type ChannelPresent, type ChannelRequest, type ChannelSettlement } from '../../../entities/session';
+import { answerInChannel, channelRequestOf, describeError, isAgentMessage, isChannelReply, isNoteMessage, isOwnAgentRequest, onChannelAppended, postNote, postToChannel, readChannel, readPresence, refreshChannels, settlementOf, type ChannelMessage, type ChannelPresent, type ChannelRequest, type ChannelSettlement } from '../../../entities/session';
 
 const POLL_MS = 4000;
 
@@ -66,10 +66,14 @@ async function append(incoming: ChannelMessage[]) {
   }
 }
 
+async function readNew() {
+  await append(await readChannel(props.channel, messages.value.at(-1)?.seq ?? 0));
+  error.value = null;
+}
+
 async function poll() {
   try {
-    await append(await readChannel(props.channel, messages.value.at(-1)?.seq ?? 0));
-    error.value = null;
+    await readNew();
     void refreshChannels();
     present.value = await readPresence(props.channel).catch(() => []);
   } catch (failure) {
@@ -77,6 +81,10 @@ async function poll() {
   }
   if (!stopped) timer = setTimeout(() => void poll(), POLL_MS);
 }
+
+const stopPush = onChannelAppended((channel) => {
+  if (channel === props.channel) void readNew().catch((failure) => (error.value = describeError(failure)));
+});
 
 const activeNote = computed(() => {
   const last = messages.value.filter(isNoteMessage).at(-1);
@@ -121,6 +129,7 @@ onMounted(() => void poll());
 onBeforeUnmount(() => {
   stopped = true;
   clearTimeout(timer);
+  stopPush();
 });
 </script>
 

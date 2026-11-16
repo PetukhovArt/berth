@@ -18,6 +18,7 @@ async fn a_request_is_posted_by_an_agent_answered_by_a_person_and_settled_by_the
         &dir.path().join("hub.db"),
         "127.0.0.1:0".parse().unwrap(),
         Some("admin-secret".into()),
+        None,
     )
     .await
     .unwrap();

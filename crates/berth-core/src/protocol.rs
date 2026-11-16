@@ -969,6 +969,11 @@ pub enum ServerEvent {
         seq: u64,
         item: Box<AcpItem>,
     },
+
+    ChannelAppended {
+        channel: String,
+        seq: i64,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

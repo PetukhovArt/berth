@@ -1,6 +1,7 @@
 use crate::context::{self, Touched};
 use crate::presence::{Presence, Present, PRESENCE_TTL};
-use crate::store::{Member, Store, KIND_ANSWER, KIND_MESSAGE, KIND_REQUEST, KIND_SETTLED};
+use crate::store::{Event, Member, Store, KIND_ANSWER, KIND_MESSAGE, KIND_REQUEST, KIND_SETTLED};
+use crate::tls::{acceptor, TlsFiles, TlsListener};
 use anyhow::Result;
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -14,11 +15,16 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+const APPENDED_BACKLOG: usize = 256;
+const REVOKED_BACKLOG: usize = 16;
+
 #[derive(Clone)]
 pub(crate) struct Shared {
     pub(crate) store: Arc<Mutex<Store>>,
     presence: Arc<Mutex<Presence>>,
     pub(crate) touched: Arc<Mutex<Touched>>,
+    pub(crate) appended: tokio::sync::broadcast::Sender<Event>,
+    pub(crate) revoked: tokio::sync::broadcast::Sender<String>,
 }
 
 pub(crate) type Reply = Result<Json<Value>, (StatusCode, String)>;
@@ -29,8 +35,13 @@ pub struct Hub {
     pub task: tokio::task::JoinHandle<()>,
 }
 
-pub async fn serve(db: &Path, bind: SocketAddr, admin_token: Option<String>) -> Result<Hub> {
-    serve_with_ttl(db, bind, admin_token, PRESENCE_TTL).await
+pub async fn serve(
+    db: &Path,
+    bind: SocketAddr,
+    admin_token: Option<String>,
+    tls: Option<TlsFiles>,
+) -> Result<Hub> {
+    start(db, bind, admin_token, PRESENCE_TTL, tls).await
 }
 
 pub async fn serve_with_ttl(
@@ -39,12 +50,25 @@ pub async fn serve_with_ttl(
     admin_token: Option<String>,
     presence_ttl: Duration,
 ) -> Result<Hub> {
+    start(db, bind, admin_token, presence_ttl, None).await
+}
+
+async fn start(
+    db: &Path,
+    bind: SocketAddr,
+    admin_token: Option<String>,
+    presence_ttl: Duration,
+    tls: Option<TlsFiles>,
+) -> Result<Hub> {
+    let acceptor = tls.as_ref().map(acceptor).transpose()?;
     let store = Store::open(db)?;
     let admin_token = store.admin_token(admin_token)?;
     let state = Shared {
         store: Arc::new(Mutex::new(store)),
         presence: Arc::new(Mutex::new(Presence::new(presence_ttl))),
         touched: Arc::new(Mutex::new(Touched::new(presence_ttl))),
+        appended: tokio::sync::broadcast::channel(APPENDED_BACKLOG).0,
+        revoked: tokio::sync::broadcast::channel(REVOKED_BACKLOG).0,
     };
     let app = Router::new()
         .route("/pair", post(pair))
@@ -64,14 +88,25 @@ pub async fn serve_with_ttl(
             "/touched",
             get(context::touched).post(context::report_touched),
         )
+        .route("/stream", get(crate::stream::stream))
         .with_state(state);
     let listener = tokio::net::TcpListener::bind(bind).await?;
     let addr = listener.local_addr()?;
-    let task = tokio::spawn(async move {
-        if let Err(e) = axum::serve(listener, app).await {
-            tracing::error!("hub stopped: {e}");
+    let task = match acceptor {
+        Some(acceptor) => {
+            let listener = TlsListener::new(listener, acceptor)?;
+            tokio::spawn(async move {
+                if let Err(e) = axum::serve(listener, app).await {
+                    tracing::error!("hub stopped: {e}");
+                }
+            })
         }
-    });
+        None => tokio::spawn(async move {
+            if let Err(e) = axum::serve(listener, app).await {
+                tracing::error!("hub stopped: {e}");
+            }
+        }),
+    };
     Ok(Hub {
         addr,
         admin_token,
@@ -184,6 +219,7 @@ async fn revoke(State(s): State<Shared>, headers: HeaderMap, Json(b): Json<Revok
             .map_err(|e| fail(StatusCode::NOT_FOUND, e))?;
     }
     s.presence.lock().unwrap().report(&b.id, HashMap::new());
+    let _ = s.revoked.send(b.id);
     Ok(Json(json!({ "ok": true })))
 }
 
@@ -296,6 +332,7 @@ async fn post_event(State(s): State<Shared>, headers: HeaderMap, Json(b): Json<P
     let event = store
         .post(&b.channel, &author, b.kind, &b.content, &tags)
         .map_err(denied)?;
+    let _ = s.appended.send(event.clone());
     Ok(Json(json!(event)))
 }
 

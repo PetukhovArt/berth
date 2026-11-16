@@ -1,7 +1,9 @@
 import { computed, shallowRef } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
-import { BerthCallError, call, useBerth } from './berth';
+import { BerthCallError, call, onChannelAppended, useBerth } from './berth';
+
+export { onChannelAppended };
 
 type ChannelSummary = { key: string; head: number; unread: number };
 export type ChannelMessage = { seq: number; kind: number; author: string; authorName: string; authorKind: string; tags: string[][]; content: string; createdAt: number };
@@ -144,6 +146,7 @@ export function useChannelUnread() {
     started = true;
     void refreshChannels();
     setInterval(() => void refreshChannels(), SUMMARY_POLL_MS);
+    onChannelAppended(() => void refreshChannels());
   }
   return { unread: computed(() => channels.value.filter((channel) => channel.unread > 0)) };
 }

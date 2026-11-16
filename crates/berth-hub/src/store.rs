@@ -52,6 +52,8 @@ pub struct Device {
 
 pub const MENTION_TAG: &str = "p";
 const CHAIN_SCAN: i64 = 100;
+const CHANNELS_SEEN_BY: &str = "SELECT channel FROM channel_members WHERE member = ?1
+     OR member IN (SELECT id FROM members WHERE kind='agent' AND status='agent' AND owner = ?1)";
 
 #[derive(Debug, Clone)]
 pub struct Member {
@@ -534,6 +536,21 @@ impl Store {
             })
         })?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    pub fn sees(&self, member: &str, channel: &str) -> Result<bool> {
+        Ok(self.db.query_row(
+            &format!("SELECT ?2 IN ({CHANNELS_SEEN_BY})"),
+            params![member, channel],
+            |r| r.get(0),
+        )?)
+    }
+
+    pub fn seen_after(&self, member: &str, after: i64) -> Result<Vec<Event>> {
+        self.events_where(
+            &format!("e.seq > ?2 AND e.channel IN ({CHANNELS_SEEN_BY})"),
+            params![member, after],
+        )
     }
 
     pub fn member_name(&self, id: &str) -> Result<String> {

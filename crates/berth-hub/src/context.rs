@@ -95,6 +95,7 @@ pub(crate) async fn post_note(
     let event = store
         .post(&b.channel, &author, KIND_NOTE, content, &[])
         .map_err(denied)?;
+    let _ = s.appended.send(event.clone());
     Ok(Json(json!(event)))
 }
 

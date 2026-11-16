@@ -137,15 +137,17 @@ pub fn run_hub_serve(
     bind: SocketAddr,
     db: Option<PathBuf>,
     admin_token: Option<String>,
+    tls: Option<berth_hub::TlsFiles>,
 ) -> Result<()> {
     let db = db.unwrap_or_else(|| berth_core::paths::data_dir().join("hub.db"));
+    let scheme = if tls.is_some() { "https" } else { "http" };
     runtime()?.block_on(async {
-        let hub = berth_hub::serve(&db, bind, admin_token).await?;
+        let hub = berth_hub::serve(&db, bind, admin_token, tls).await?;
         println!(
             "{}",
             serde_json::to_string_pretty(&json!({
                 "ok": true,
-                "url": format!("http://{}", hub.addr),
+                "url": format!("{scheme}://{}", hub.addr),
                 "admin_token": hub.admin_token,
             }))?
         );

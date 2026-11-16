@@ -4,6 +4,8 @@ mod mention;
 mod presence;
 mod server;
 mod store;
+mod stream;
+mod tls;
 
 pub use context::{Touching, NOTE_MAX_BYTES};
 pub use mention::{mention_key, mentions_in};
@@ -13,3 +15,5 @@ pub use store::{
     ChannelSummary, Device, Event, Mention, EVENT_TAG, KIND_ANSWER, KIND_MESSAGE, KIND_NOTE,
     KIND_REQUEST, KIND_SETTLED,
 };
+pub use stream::Subscription;
+pub use tls::TlsFiles;
