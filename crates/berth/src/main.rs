@@ -250,6 +250,10 @@ enum HubCommand {
         db: Option<std::path::PathBuf>,
         #[arg(long)]
         admin_token: Option<String>,
+        #[arg(long, value_name = "PEM", requires = "key", help = "Serve HTTPS with this certificate chain")]
+        cert: Option<std::path::PathBuf>,
+        #[arg(long, value_name = "PEM", requires = "cert", help = "The private key of --cert")]
+        key: Option<std::path::PathBuf>,
     },
     #[command(about = "Step one: admit this device; prints its token, which opens nothing yet")]
     Pair { url: String, name: String },
@@ -352,7 +356,14 @@ fn main() -> Result<()> {
                 bind,
                 db,
                 admin_token,
-            } => channel::run_hub_serve(bind, db, admin_token),
+                cert,
+                key,
+            } => {
+                let tls = cert
+                    .zip(key)
+                    .map(|(cert, key)| berth_hub::TlsFiles { cert, key });
+                channel::run_hub_serve(bind, db, admin_token, tls)
+            }
             HubCommand::Pair { url, name } => channel::run_hub_pair(url, name),
             HubCommand::Approve {
                 url,

@@ -8,6 +8,7 @@ use berth_hub::Mention;
 
 use crate::channels::hub;
 use crate::config::Config;
+use crate::hub_stream::HubPush;
 use crate::pty::{DEFAULT_COLS, DEFAULT_ROWS};
 use crate::registry::Daemon;
 use crate::triggers::{paste, BOOT_GRACE, PASTE_GAP};
@@ -100,34 +101,38 @@ impl Daemon {
         *pending = keep;
     }
 
+    async fn fetch_mentions(&self, cursor: &mut Option<i64>, pending: &mut VecDeque<Mention>) {
+        let Ok(hub) = hub() else { return };
+        let Some(after) = *cursor else {
+            if let Ok(chs) = hub.channels().await {
+                *cursor = Some(chs.iter().map(|c| c.head).max().unwrap_or(0));
+            }
+            return;
+        };
+        if let Ok(found) = hub.mentions(after).await {
+            for m in found {
+                *cursor = Some(cursor.unwrap_or(0).max(m.event.seq));
+                if pending.len() < PENDING_MAX {
+                    pending.push_back(m);
+                }
+            }
+        }
+    }
+
     pub async fn run_channel_delivery(self: Arc<Self>) {
         let mut interval = tokio::time::interval(POLL);
         let mut cursor: Option<i64> = None;
         let mut pending: VecDeque<Mention> = VecDeque::new();
+        let push = Arc::new(HubPush::default());
+        tokio::spawn(self.clone().run_hub_stream(push.clone()));
         loop {
-            tokio::select! {
+            let pushed = tokio::select! {
                 _ = self.shutdown.cancelled() => break,
-                _ = interval.tick() => {}
-            }
-            let Ok(hub) = hub() else { continue };
-            let after = match cursor {
-                Some(c) => c,
-                None => match hub.channels().await {
-                    Ok(chs) => {
-                        let head = chs.iter().map(|c| c.head).max().unwrap_or(0);
-                        cursor = Some(head);
-                        continue;
-                    }
-                    Err(_) => continue,
-                },
+                _ = interval.tick() => false,
+                _ = push.appended() => true,
             };
-            if let Ok(found) = hub.mentions(after).await {
-                for m in found {
-                    cursor = Some(cursor.unwrap_or(0).max(m.event.seq));
-                    if pending.len() < PENDING_MAX {
-                        pending.push_back(m);
-                    }
-                }
+            if pushed || !push.is_live() || cursor.is_none() {
+                self.fetch_mentions(&mut cursor, &mut pending).await;
             }
             if !pending.is_empty() {
                 let limit = Config::load().channel_chain_limit;

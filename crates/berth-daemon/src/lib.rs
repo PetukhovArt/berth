@@ -10,6 +10,7 @@ pub mod feedback;
 pub mod git;
 pub mod grok;
 pub mod hooks;
+mod hub_stream;
 pub mod launch;
 pub mod lifecycle;
 pub mod metrics;

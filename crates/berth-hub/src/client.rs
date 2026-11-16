@@ -1,14 +1,15 @@
 use crate::presence::Present;
 use crate::store::{ChannelSummary, Event, Mention};
-use anyhow::{anyhow, bail, Context, Result};
+use crate::stream::Subscription;
+use crate::tls::Endpoint;
+use anyhow::{anyhow, bail, Result};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
 
 #[derive(Clone)]
 pub struct HubClient {
-    authority: String,
+    endpoint: Endpoint,
     token: String,
 }
 
@@ -25,32 +26,30 @@ fn percent_encode(s: &str) -> String {
 
 impl HubClient {
     pub fn new(url: &str, token: &str) -> Result<Self> {
-        let authority = url
-            .strip_prefix("http://")
-            .ok_or_else(|| anyhow!("the hub url must start with http://"))?
-            .trim_end_matches('/')
-            .to_string();
         Ok(Self {
-            authority,
+            endpoint: Endpoint::parse(url)?,
             token: token.to_string(),
         })
     }
 
     async fn call(&self, method: &str, path: &str, body: Option<Value>) -> Result<Value> {
-        let mut stream = TcpStream::connect(&self.authority)
-            .await
-            .with_context(|| format!("cannot reach the hub at {}", self.authority))?;
+        let mut stream = self.endpoint.connect().await?;
         let payload = body.map(|b| b.to_string()).unwrap_or_default();
         let request = format!(
             "{method} {path} HTTP/1.1\r\nHost: {}\r\nAuthorization: Bearer {}\r\n\
              Content-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
-            self.authority,
+            self.endpoint.authority,
             self.token,
             payload.len()
         );
         stream.write_all(request.as_bytes()).await?;
         let mut raw = Vec::new();
-        stream.read_to_end(&mut raw).await?;
+        if let Err(e) = stream.read_to_end(&mut raw).await {
+            let closed_without_tls_goodbye = e.kind() == std::io::ErrorKind::UnexpectedEof;
+            if !closed_without_tls_goodbye || raw.is_empty() {
+                return Err(e.into());
+            }
+        }
         let text = String::from_utf8_lossy(&raw);
         let (head, body) = text
             .split_once("\r\n\r\n")
@@ -155,6 +154,10 @@ impl HubClient {
         Ok(serde_json::from_value(
             self.call("GET", &path, None).await?,
         )?)
+    }
+
+    pub async fn subscribe(&self, after: Option<i64>) -> Result<Subscription> {
+        Subscription::open(&self.endpoint, &self.token, after).await
     }
 
     pub async fn report_presence(&self, channels: &HashMap<String, Vec<String>>) -> Result<()> {

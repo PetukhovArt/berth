@@ -127,6 +127,26 @@ berth workspace rename <a> <b> # rename a workspace
 berth workspace delete <name>  # delete an empty workspace
 ```
 
+## Team hub
+
+```sh
+berth hub serve [--bind <addr:port>] [--db <file>] [--cert <pem> --key <pem>]
+                         # serve the hub; with --cert and --key it serves HTTPS
+berth hub pair <url> <name>    # admit this device; prints a token that opens nothing yet
+berth hub approve <url> <id> --admin-token <t> [--scopes read,post,create]
+```
+
+The hub binds `127.0.0.1:7843` unless `--bind` says otherwise. To reach it across the company network,
+pass `--bind 0.0.0.0:7843` with a certificate and key in PEM files. berth does not make certificates;
+use the ones your company already issues, or make your own and add its CA to the trusted certificates of
+every machine that connects. Clients then set `hub_url` to `https://...` (see
+[configuration](configuration.md)).
+
+The daemon keeps one connection open to the hub and gets each new message as it is posted, so a
+mention reaches its Agent and an open Channel view shows the message without waiting for the next
+poll. When that connection drops, the daemon reconnects and asks for everything after the last
+message it saw, and polls every 5 seconds until it is back.
+
 ## Upgrade
 
 ```sh

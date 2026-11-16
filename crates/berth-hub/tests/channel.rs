@@ -6,6 +6,7 @@ async fn start(dir: &std::path::Path) -> (Hub, String) {
         &dir.join("hub.db"),
         "127.0.0.1:0".parse().unwrap(),
         Some("admin-secret".into()),
+        None,
     )
     .await
     .unwrap();

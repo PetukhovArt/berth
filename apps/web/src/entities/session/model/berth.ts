@@ -58,6 +58,7 @@ type WatchEvent =
   | { type: 'feedback_request'; agent: string; request: FeedbackRequest | null }
   | { type: 'task_note'; worktree: string; text: string }
   | { type: 'acp_item'; agent: string; seq: number; item: AcpItem }
+  | { type: 'channel_appended'; channel: string; seq: number }
   | { type: 'error'; message: string };
 
 type AcpTool = { id: string; title: string; kind: string; status: string; detail: string | null; diff: { path: string; old: string | null; new: string } | null; output: string | null };
@@ -70,6 +71,13 @@ const acpListeners = new Set<(agent: string, item: AcpItemAt) => void>();
 export function onAcpItem(listener: (agent: string, item: AcpItemAt) => void): () => void {
   acpListeners.add(listener);
   return () => acpListeners.delete(listener);
+}
+
+const channelListeners = new Set<(channel: string) => void>();
+
+export function onChannelAppended(listener: (channel: string) => void): () => void {
+  channelListeners.add(listener);
+  return () => channelListeners.delete(listener);
 }
 
 export type SessionEvent = { type: 'reset'; data: string } | { type: 'output'; data: string } | { type: 'exited'; exit_code: number | null };
@@ -255,6 +263,9 @@ function createStore(): BerthStore {
         return;
       case 'acp_item':
         for (const listener of acpListeners) listener(event.agent, { seq: event.seq, item: event.item });
+        return;
+      case 'channel_appended':
+        for (const listener of channelListeners) listener(event.channel);
         return;
       case 'error':
         error.value = event.message;

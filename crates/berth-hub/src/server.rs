@@ -1,5 +1,6 @@
 use crate::presence::{Presence, Present, PRESENCE_TTL};
-use crate::store::{Member, Store, KIND_MESSAGE};
+use crate::store::{Event, Member, Store, KIND_MESSAGE};
+use crate::tls::{acceptor, TlsFiles, TlsListener};
 use anyhow::Result;
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -13,10 +14,13 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+const APPENDED_BACKLOG: usize = 256;
+
 #[derive(Clone)]
-struct Shared {
-    store: Arc<Mutex<Store>>,
+pub(crate) struct Shared {
+    pub(crate) store: Arc<Mutex<Store>>,
     presence: Arc<Mutex<Presence>>,
+    pub(crate) appended: tokio::sync::broadcast::Sender<Event>,
 }
 
 type Reply = Result<Json<Value>, (StatusCode, String)>;
@@ -27,8 +31,13 @@ pub struct Hub {
     pub task: tokio::task::JoinHandle<()>,
 }
 
-pub async fn serve(db: &Path, bind: SocketAddr, admin_token: Option<String>) -> Result<Hub> {
-    serve_with_ttl(db, bind, admin_token, PRESENCE_TTL).await
+pub async fn serve(
+    db: &Path,
+    bind: SocketAddr,
+    admin_token: Option<String>,
+    tls: Option<TlsFiles>,
+) -> Result<Hub> {
+    start(db, bind, admin_token, PRESENCE_TTL, tls).await
 }
 
 pub async fn serve_with_ttl(
@@ -37,11 +46,23 @@ pub async fn serve_with_ttl(
     admin_token: Option<String>,
     presence_ttl: Duration,
 ) -> Result<Hub> {
+    start(db, bind, admin_token, presence_ttl, None).await
+}
+
+async fn start(
+    db: &Path,
+    bind: SocketAddr,
+    admin_token: Option<String>,
+    presence_ttl: Duration,
+    tls: Option<TlsFiles>,
+) -> Result<Hub> {
+    let acceptor = tls.as_ref().map(acceptor).transpose()?;
     let store = Store::open(db)?;
     let admin_token = store.admin_token(admin_token)?;
     let state = Shared {
         store: Arc::new(Mutex::new(store)),
         presence: Arc::new(Mutex::new(Presence::new(presence_ttl))),
+        appended: tokio::sync::broadcast::channel(APPENDED_BACKLOG).0,
     };
     let app = Router::new()
         .route("/pair", post(pair))
@@ -53,14 +74,25 @@ pub async fn serve_with_ttl(
         .route("/events", get(read).post(post_event))
         .route("/mentions", get(mentions))
         .route("/presence", get(presence).post(report_presence))
+        .route("/stream", get(crate::stream::stream))
         .with_state(state);
     let listener = tokio::net::TcpListener::bind(bind).await?;
     let addr = listener.local_addr()?;
-    let task = tokio::spawn(async move {
-        if let Err(e) = axum::serve(listener, app).await {
-            tracing::error!("hub stopped: {e}");
+    let task = match acceptor {
+        Some(acceptor) => {
+            let listener = TlsListener::new(listener, acceptor)?;
+            tokio::spawn(async move {
+                if let Err(e) = axum::serve(listener, app).await {
+                    tracing::error!("hub stopped: {e}");
+                }
+            })
         }
-    });
+        None => tokio::spawn(async move {
+            if let Err(e) = axum::serve(listener, app).await {
+                tracing::error!("hub stopped: {e}");
+            }
+        }),
+    };
     Ok(Hub {
         addr,
         admin_token,
@@ -80,7 +112,11 @@ fn fail(status: StatusCode, e: impl std::fmt::Display) -> (StatusCode, String) {
     (status, e.to_string())
 }
 
-fn member(store: &Store, headers: &HeaderMap, scope: &str) -> Result<Member, (StatusCode, String)> {
+pub(crate) fn member(
+    store: &Store,
+    headers: &HeaderMap,
+    scope: &str,
+) -> Result<Member, (StatusCode, String)> {
     let m = store
         .member_by_token(bearer(headers))
         .map_err(|e| fail(StatusCode::INTERNAL_SERVER_ERROR, e))?
@@ -227,6 +263,7 @@ async fn post_event(State(s): State<Shared>, headers: HeaderMap, Json(b): Json<P
     let event = store
         .post(&b.channel, &author, KIND_MESSAGE, &b.content, &tags)
         .map_err(denied)?;
+    let _ = s.appended.send(event.clone());
     Ok(Json(json!(event)))
 }
 
