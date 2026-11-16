@@ -59,7 +59,8 @@ file or a missing key means the default.
 | `webhooks` | `false` | listen for webhook prompts (`berth webhook`); read when the daemon starts |
 | `webhook_port` | `47821` | the port the webhook listener uses |
 | `webhook_expose` | `false` | listen on all interfaces instead of `127.0.0.1` only; put it behind something you trust, since the secret is the only check |
-| `hub_url` | none | the team hub the `berth channel` commands talk to, like `http://hub.example:7843`, or `https://hub.example:7843` for a hub started with `--cert` and `--key`. The certificate must be trusted by the operating system, so install your company CA there for a self-signed one |
+| `hub_url` | none | the team hub the `berth channel` commands talk to, like `http://hub.example:7843`, or `https://hub.example:7843` for a hub started with `--cert` and `--key`. The certificate must be trusted by the operating system or by `hub_ca` |
+| `hub_ca` | none | path to a PEM file with the CA certificate (or the self-signed certificate itself) of an `https://` hub. berth trusts it in addition to the operating system's certificates, so a hub with a company-made certificate works without installing anything system-wide. `berth hub pair`, `devices`, `approve` and `revoke` read it too |
 | `hub_token` | none | this device's token on the hub, from `berth hub pair` once an admin ran `berth hub approve` |
 | `messenger_telegram_token`, `messenger_telegram_chat` | none | a Telegram bot token and the chat id to post to; both set turns the chat bridge on (see below) |
 | `messenger_webhook_url` | none | an incoming-webhook URL to post `{"text": "..."}` to; set turns the chat bridge on |

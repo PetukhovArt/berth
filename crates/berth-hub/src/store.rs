@@ -299,14 +299,6 @@ impl Store {
         if key.trim().is_empty() {
             bail!("empty channel key");
         }
-        let taken: bool = self.db.query_row(
-            "SELECT EXISTS(SELECT 1 FROM channels WHERE key=?1)",
-            [key],
-            |r| r.get(0),
-        )?;
-        if taken && !self.is_member(key, &creator.id)? {
-            bail!("channel exists and you are not in it");
-        }
         self.db.execute(
             "INSERT OR IGNORE INTO channels (key, created_at) VALUES (?1, ?2)",
             params![key, now_ms()],

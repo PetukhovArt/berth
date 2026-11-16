@@ -116,7 +116,7 @@ Channel view has a Promote button on every message that mentions an Agent.
 `grant` lets one colleague instruct one of your Agents in one channel: while the grant stands, their
 messages there that mention the Agent arrive as instructions. Name the colleague by their hub member
 id or by the name they write under; they must have written in the channel. `revoke` takes it back,
-and the Channel view lists the grants of the channel with a Revoke button. Grants live in your own
+and the Channel view lists the grants of the channel with a Revoke button. The same view grants too: a colleague's message has a "Let <name> instruct" action that lists your Agents in the channel. Grants live in your own
 daemon, not on the hub. Promote, grant and revoke refuse to run from inside a Session: they are for
 you, not for your Agents. A promoted or granted message that is a slash command still arrives as
 quoted information.
@@ -124,10 +124,10 @@ quoted information.
 The desktop app's Channel view has a Task note button beside Send. Each daemon also tells the hub every 15 seconds which modules (the first two directories of a changed path) its Agents on a task have changed, and the hub keeps that in memory for 45 seconds. The overlap chip on an Agent then also lists Agents of other members that change the same modules on the same task, as `agent (member)`.
 
 ```sh
-berth channel open [<key>]  # create the channel for a task, or open it when it exists
+berth channel open [<key>]  # create the channel for a task, or join it when it exists
 ```
 
-It needs the `create` scope on the hub. The key is a Jira issue key such as `PROJ-12`, or a branch name when the
+It needs the `create` scope on the hub. When the channel already exists without you, `open` adds your device to it and you read its whole history. The key is a Jira issue key such as `PROJ-12`, or a branch name when the
 task has no issue. Inside a session, with no key, it uses the issue key in the session's branch name,
 else the branch name. It prints `{"ok": true, "channel": "<key>"}`. The desktop app does the same from
 the Worktree row in the tree, the merge request menu and view, and the Jira issue view, and then
@@ -196,8 +196,9 @@ Put the device's token in `hub_token` and the URL in `hub_url` (see [configurati
 
 The hub binds `127.0.0.1:7843` unless `--bind` says otherwise. To reach it across the company network,
 pass `--bind 0.0.0.0:7843` with a certificate and key in PEM files, and it serves HTTPS. berth does not
-make certificates; use the ones your company already issues, or make your own and add its CA to the
-trusted certificates of every machine that connects. Clients then set `hub_url` to `https://...`.
+make certificates; use the ones your company already issues, or make your own and either add its CA to the
+trusted certificates of every machine that connects or point `hub_ca` at its PEM file. Clients then set
+`hub_url` to `https://...`.
 
 The scopes are `read`, `post` and `create`. Running `approve` again on an approved device replaces
 its scopes, narrower or wider, and the change applies to its next request. `devices` shows each

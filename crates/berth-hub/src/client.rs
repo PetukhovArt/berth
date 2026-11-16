@@ -6,6 +6,7 @@ use crate::tls::Endpoint;
 use anyhow::{anyhow, bail, Result};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};
+use std::path::Path;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[derive(Clone)]
@@ -27,8 +28,12 @@ fn percent_encode(s: &str) -> String {
 
 impl HubClient {
     pub fn new(url: &str, token: &str) -> Result<Self> {
+        Self::trusting(url, token, None)
+    }
+
+    pub fn trusting(url: &str, token: &str, extra_ca: Option<&Path>) -> Result<Self> {
         Ok(Self {
-            endpoint: Endpoint::parse(url)?,
+            endpoint: Endpoint::parse(url, extra_ca)?,
             token: token.to_string(),
         })
     }
@@ -67,7 +72,11 @@ impl HubClient {
     }
 
     pub async fn pair(url: &str, name: &str) -> Result<(String, String)> {
-        let v = Self::new(url, "")?
+        Self::new(url, "")?.pair_device(name).await
+    }
+
+    pub async fn pair_device(&self, name: &str) -> Result<(String, String)> {
+        let v = self
             .call("POST", "/pair", Some(json!({ "name": name })))
             .await?;
         Ok((
