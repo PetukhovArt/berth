@@ -303,6 +303,13 @@ export const SETTINGS = {
       { value: 'off', label: 'hot.mode.off' },
     ],
   },
+  'voice.wakePhrase': {
+    type: 'string',
+    default: 'hey berth',
+    label: 'voice.setting.label',
+    description: 'voice.setting.description',
+    category: 'sessions',
+  },
   'files.autoSave': {
     type: 'enum',
     default: 'off',

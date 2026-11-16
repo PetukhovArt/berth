@@ -17,6 +17,7 @@ import { isDark, toggleTheme } from '../../shared/ui/appearance';
 import { openReview, reviveReview } from '../../entities/merge-request';
 import { useDock } from '../../shared/model/dock';
 import { QuickOpen } from '../../widgets/quick-open';
+import { VoiceIndicator } from '../../features/voice-input';
 
 const SettingsView = defineAsyncComponent(() => import('../../pages/settings').then((m) => m.SettingsView));
 const ConfluenceView = defineAsyncComponent(() => import('../../pages/confluence').then((m) => m.ConfluenceView));
@@ -69,6 +70,7 @@ watch(
     <CleanupDialog v-if="inTauri" />
     <HotHost />
     <AttentionToasts v-if="inTauri" />
+    <VoiceIndicator />
     <Transition name="palette">
       <CommandPalette v-if="paletteOpen" />
     </Transition>

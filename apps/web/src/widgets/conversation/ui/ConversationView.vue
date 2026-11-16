@@ -9,7 +9,7 @@ import { UiButton } from '../../../shared/ui/UiButton';
 import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { readAcpAgentLog } from '../../../shared/api/providers';
-import { useHoldToTalk, type HoldToTalkIssue } from '../model/useHoldToTalk';
+import { speechLang, useHoldToTalk, type HoldToTalkIssue } from '../../../shared/lib/dictation';
 import { useVoiceLoop } from '../model/useVoiceLoop';
 
 const TAIL = 200;
@@ -176,13 +176,12 @@ async function sendToAcp(text: string) {
 const ISSUES: Record<HoldToTalkIssue, 'chatTalkDenied' | 'chatTalkShort' | 'chatTalkEmpty' | 'chatTalkFailed'> = { denied: 'chatTalkDenied', short: 'chatTalkShort', empty: 'chatTalkEmpty', failed: 'chatTalkFailed' };
 const voice = useVoiceLoop({
   messages: () => messages.value,
-  lang: () => (document.documentElement.lang === 'ru' ? 'ru-RU' : 'en-US'),
+  lang: speechLang,
   listen: () => talk.listen(),
   stop: () => talk.stopListening(),
   listening: () => talk.holding.value,
 });
 const talk = useHoldToTalk({
-  lang: () => (document.documentElement.lang === 'ru' ? 'ru-RU' : 'en-US'),
   onSend: async (text) => {
     voice.sent();
     if (!(await submit(text, false))) voice.unsent();
@@ -196,8 +195,8 @@ const talk = useHoldToTalk({
     noticeTimer = setTimeout(() => (notice.value = ''), NOTICE_MS);
   },
 });
-const showTalk = computed(() => phone.value && talk.supported);
-const showVoice = computed(() => showTalk.value && voice.supported);
+const showTalk = talk.supported;
+const showVoice = computed(() => phone.value && showTalk && voice.supported);
 const voiceStatus = computed(() => {
   if (voice.phase.value === 'wait') return t('agents.sessionView.chatVoiceWaiting');
   if (voice.phase.value === 'speak') return t('agents.sessionView.chatVoiceSpeaking');
