@@ -28,10 +28,8 @@ impl Presence {
         self.seen.retain(|(_, m), _| m != member);
         let now = Instant::now();
         for (channel, agents) in channels {
-            if !agents.is_empty() {
-                self.seen
-                    .insert((channel, member.to_string()), (agents, now));
-            }
+            self.seen
+                .insert((channel, member.to_string()), (agents, now));
         }
     }
 
