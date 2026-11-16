@@ -144,16 +144,7 @@ pub(crate) fn claude_projects_dir() -> Option<PathBuf> {
 /// are worth opening; what a transcript actually ran in is read back out of
 /// the transcript itself.
 pub(crate) fn slug(path: &Path) -> String {
-    path.to_string_lossy()
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '-' {
-                c
-            } else {
-                '-'
-            }
-        })
-        .collect()
+    berth_core::claude_store::slug(path)
 }
 
 /// Where Claude would keep `session_id`'s transcript for a session running
@@ -380,7 +371,10 @@ fn scan_claude_transcripts(
             let Some(head) = read_head(&path) else {
                 continue;
             };
-            let cwd = paths::canonical_or_raw(Path::new(head.cwd.as_deref().unwrap_or_default()));
+            let recorded = head.cwd.as_deref().unwrap_or_default();
+            let cwd = berth_core::claude_store::local_cwd(recorded, &path)
+                .unwrap_or_else(|| PathBuf::from(recorded));
+            let cwd = paths::canonical_or_raw(&cwd);
             if !home.iter().any(|dir| paths::contains(dir, &cwd)) {
                 continue;
             }

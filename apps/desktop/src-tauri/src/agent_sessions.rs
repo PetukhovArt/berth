@@ -312,7 +312,7 @@ fn subdirs(dir: &Path) -> Vec<(String, PathBuf)> {
     };
     entries
         .flatten()
-        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
+        .filter(|entry| entry.path().is_dir())
         .filter_map(|entry| Some((entry.file_name().into_string().ok()?, entry.path())))
         .collect()
 }
@@ -681,6 +681,16 @@ fn id_of(harness: Harness, path: &Path, head: &Head) -> String {
     }
 }
 
+fn localize_cwd(head: &mut Head, transcript: &Path) {
+    let local = head
+        .cwd
+        .as_deref()
+        .and_then(|cwd| berth_core::claude_store::local_cwd(cwd, transcript));
+    if let Some(local) = local {
+        head.cwd = Some(local.to_string_lossy().into_owned());
+    }
+}
+
 fn refresh_entry(cache: &mut HashMap<PathBuf, Entry>, found: &Found) {
     if let Some(entry) = cache.get_mut(&found.path) {
         if entry.signature != found.signature {
@@ -689,7 +699,10 @@ fn refresh_entry(cache: &mut HashMap<PathBuf, Entry>, found: &Found) {
         }
         return;
     }
-    let head = read_head(&found.path, found.harness);
+    let mut head = read_head(&found.path, found.harness);
+    if found.harness == Harness::Claude {
+        localize_cwd(&mut head, &found.path);
+    }
     let tail = read_tail_facts(&found.path, found.harness);
     cache.insert(
         found.path.clone(),
