@@ -5,6 +5,7 @@ mod transcribe;
 mod wake;
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -22,6 +23,7 @@ use wake::Spotter;
 const MODEL_DIR: &str = "voice";
 const UNLOAD_AFTER: Duration = Duration::from_secs(10 * 60);
 
+#[derive(Clone)]
 pub struct Engine {
     inner: Arc<Inner>,
 }
@@ -94,6 +96,20 @@ impl Engine {
 
     pub fn cancel(&self, run: u32) {
         self.inner.signal(run, Signal::Cancel);
+    }
+
+    pub async fn transcribe_file(&self, pcm: PathBuf) -> Result<String, String> {
+        let id = self.inner.next_run.fetch_add(1, Ordering::Relaxed);
+        let (signal, _rx) = watch::channel(Signal::Go);
+        self.inner
+            .active
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(id, signal);
+        self.inner.idle.fetch_add(1, Ordering::Relaxed);
+        let heard = self.inner.transcribe_file(pcm).await;
+        self.inner.finish(id);
+        heard
     }
 
     pub fn remove_models(&self) -> Result<VoiceModels, String> {
@@ -188,6 +204,24 @@ impl Inner {
         let context = Arc::new(context);
         *self.whisper.lock().unwrap_or_else(|e| e.into_inner()) = Some(context.clone());
         Ok(context)
+    }
+
+    async fn transcribe_file(self: &Arc<Self>, pcm: PathBuf) -> Result<String, String> {
+        self.ensure(ModelId::Dictation)
+            .await
+            .map_err(|(_, message)| message)?;
+        let whisper = self.whisper().await.map_err(|(_, message)| message)?;
+        tokio::task::spawn_blocking(move || {
+            let bytes =
+                std::fs::read(&pcm).map_err(|error| format!("read {}: {error}", pcm.display()))?;
+            let samples: Vec<f32> = bytes
+                .chunks_exact(4)
+                .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+                .collect();
+            transcribe::transcribe(&whisper, &samples, None)
+        })
+        .await
+        .map_err(|error| error.to_string())?
     }
 
     async fn spotter(&self, phrase: &str) -> Result<Arc<Spotter>, Failure> {

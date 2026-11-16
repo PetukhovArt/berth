@@ -37,8 +37,11 @@ one hooks dialect; Cursor speaks its own. The same hook channel powers auto-titl
 ## Side paths
 
 In the daemon (`crates/berth-daemon/src`): cloud sessions (`claude --cloud` / `--teleport`), the
-prewarm pool, the idle reaper, restoring live sessions after a restart (`restore.rs`), and the metrics
-sampler (`sampler.rs`) behind the desktop app's metrics panel. In the desktop app
+prewarm pool, the idle reaper, restoring live sessions after a restart (`restore.rs`), the metrics
+sampler (`sampler.rs`) behind the desktop app's metrics panel, and the chat bridge (`messenger/`):
+notifications to Telegram or a webhook, and prompts the owner sends the Telegram bot, whose voice
+notes the daemon hands to the desktop app's whisper engine over the Daemon Socket
+(`OfferTranscription` / `TranscribeVoice`) so the daemon itself never links it. In the desktop app
 (`apps/desktop/src-tauri/src`): remote access (`remote.rs`), connectors, worktree cleanup
 (`cleanup.rs`), the working-copy updater (`working_copy.rs`) and the merge-request watcher
 (`merge_watch.rs`, decisions in `berth-core/src/merge_watch.rs`) behind archive on merge,

@@ -51,6 +51,13 @@ pub fn play_sound_file(_path: &Path) -> bool {
     false
 }
 
+pub fn speech_to_file(
+    _text_file: &Path,
+    _language: &str,
+) -> Option<(std::process::Command, PathBuf)> {
+    None
+}
+
 pub fn system_total_bytes() -> Option<u64> {
     let text = std::fs::read_to_string("/proc/meminfo").ok()?;
     let line = text.lines().find(|l| l.starts_with("MemTotal:"))?;

@@ -62,6 +62,16 @@ pub fn play_sound_file(path: &Path) -> bool {
     true
 }
 
+pub fn speech_to_file(
+    text_file: &Path,
+    _language: &str,
+) -> Option<(std::process::Command, PathBuf)> {
+    let out = text_file.with_extension("m4a");
+    let mut command = std::process::Command::new("say");
+    command.arg("-f").arg(text_file).arg("-o").arg(&out);
+    Some((command, out))
+}
+
 pub fn system_total_bytes() -> Option<u64> {
     let out = std::process::Command::new("sysctl")
         .args(["-n", "hw.memsize"])

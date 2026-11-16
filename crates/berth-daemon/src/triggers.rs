@@ -7,7 +7,9 @@ use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::post;
 use axum::Router;
-use berth_core::{NewTrigger, PromptTrigger, SessionRef, TriggerId, TriggerTarget, TriggerWhen};
+use berth_core::{
+    AgentId, NewTrigger, PromptTrigger, SessionRef, TriggerId, TriggerTarget, TriggerWhen,
+};
 use subtle::ConstantTimeEq;
 
 use crate::config::Config;
@@ -152,6 +154,20 @@ impl Daemon {
         }
     }
 
+    pub(crate) async fn type_into_agent(
+        self: &Arc<Self>,
+        id: &AgentId,
+        prompt: &str,
+    ) -> Result<()> {
+        let sref = SessionRef::Agent(id.clone());
+        let was_alive = self.is_alive(&sref);
+        let session = self.ensure_session(&sref, DEFAULT_COLS, DEFAULT_ROWS)?;
+        if !was_alive {
+            tokio::time::sleep(BOOT_GRACE).await;
+        }
+        type_prompt(&session, prompt).await
+    }
+
     fn spawn_fire(self: &Arc<Self>, trigger: PromptTrigger) {
         let daemon = self.clone();
         tokio::spawn(async move {
@@ -170,15 +186,7 @@ impl Daemon {
                 }
                 sent
             }
-            TriggerTarget::Agent(id) => {
-                let sref = SessionRef::Agent(id.clone());
-                let was_alive = self.is_alive(&sref);
-                let session = self.ensure_session(&sref, DEFAULT_COLS, DEFAULT_ROWS)?;
-                if !was_alive {
-                    tokio::time::sleep(BOOT_GRACE).await;
-                }
-                type_prompt(&session, &trigger.prompt).await
-            }
+            TriggerTarget::Agent(id) => self.type_into_agent(id, &trigger.prompt).await,
             TriggerTarget::NewAgent { worktree, kind } => {
                 let (_, _, agents, _) = self.store.load_tree()?;
                 let taken = agents

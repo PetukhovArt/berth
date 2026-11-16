@@ -285,7 +285,9 @@ pub fn run() {
             let watcher = remote.clone();
             tauri::async_runtime::spawn(async move { watcher.spawn_watch() });
             app.manage(remote);
-            app.manage(crate::voice::Voice::new(app.handle().clone()));
+            let voice = crate::voice::Voice::new(app.handle().clone());
+            crate::voice::serve_transcripts(voice.clone());
+            app.manage(voice);
             tray::install(app.handle())?;
             crate::app_menu::install(app.handle())?;
             if crate::platform::WINDOW_CHROME.native_decorations {

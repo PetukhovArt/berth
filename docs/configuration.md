@@ -62,6 +62,7 @@ file or a missing key means the default.
 | `hub_ca` | none | path to a PEM file with the CA certificate (or the self-signed certificate itself) of an `https://` hub. berth trusts it in addition to the operating system's certificates, so a hub with a company-made certificate works without installing anything system-wide. `berth hub pair`, `devices`, `approve` and `revoke` read it too |
 | `hub_token` | none | this device's token on the hub, from `berth hub pair` once an admin ran `berth hub approve` |
 | `messenger_telegram_token`, `messenger_telegram_chat` | none | a Telegram bot token and the chat id to post to; both set turns the chat bridge on (see below) |
+| `messenger_telegram_owner` | none | your Telegram user id; set next to the token and chat, text and voice notes you send to the bot become prompts (see below). Nothing is taken while it is unset |
 | `messenger_webhook_url` | none | an incoming-webhook URL to post `{"text": "..."}` to; set turns the chat bridge on |
 | `channel_chain_limit` | `4` | how many Agent-authored messages in a row a channel delivers to Sessions before it stops, so two Agents cannot loop |
 | `git_init_on_create` | `true` | `git init` a directory that `Add Project` creates because it did not exist |
@@ -180,16 +181,17 @@ they stay out of `git status` and out of commits. Remove `shared_setup` and run
 ## Chat bridge
 
 The daemon can post a short message to a chat when an Agent starts waiting on you, when an Agent
-finishes a turn, and when you save a Task note. It is off until you set the
-keys below in `config.json`, and nothing you type in the chat comes back to berth. The desktop app
-writes the same keys: Settings > Chat bridge has a field for each, a `Save` button and a
-`Send test message` button that posts a test text through every route you filled in and shows the
-error if one fails.
+finishes a turn, and when you save a Task note. With Telegram it also works the other way: text and
+voice notes you send to the bot become prompts for your Agents, and the answer comes back to the
+chat. It is all off until you set the keys below in `config.json`. The desktop app writes the same
+keys: Settings > Chat bridge has a field for each, a `Save` button and a `Send test message` button
+that posts a test text through every route you filled in and shows the error if one fails.
 
 ```json
 {
   "messenger_telegram_token": "123456:ABC-your-bot-token",
-  "messenger_telegram_chat": "-1001234567890"
+  "messenger_telegram_chat": "123456789",
+  "messenger_telegram_owner": "123456789"
 }
 ```
 
@@ -200,10 +202,51 @@ the JSON body `{"text": "..."}`. Both can be set at once.
 
 A message carries the Session title, the Project and the status, like `Needs feedback: fix login (api)`
 or `Finished: fix login (api)`. A Task note goes out as its first 300 characters with the Project and
-branch. No code or terminal output is sent. The token and the webhook URL are secrets: they sit in
-`config.json` in plain text like `hub_token`, so keep that file private. The daemon posts through
-`curl`, which must be on `PATH`, and hands it the secret on stdin, not in its arguments. A failed post
-is logged in `daemon.log` and not retried.
+branch. The token and the webhook URL are secrets: they sit in `config.json` in plain text like
+`hub_token`, so keep that file private. The daemon posts through `curl`, which must be on `PATH`, and
+hands it the secret on stdin, not in its arguments. A failed post is logged in `daemon.log` and not
+retried.
+
+### Prompts from Telegram
+
+`messenger_telegram_owner` is your own Telegram user id. Once it is set next to the token and the
+chat, the daemon reads the bot's messages and takes the ones you send in that chat as if you had
+typed them into berth. Messages from anyone else, or from another chat, are ignored and logged in
+`daemon.log`; while the key is empty nothing is taken at all. In a private chat with the bot your
+user id is the same number as the chat id. The daemon asks Telegram for new messages with
+`getUpdates`, so the bot must have no webhook set and no other program may read its updates at the
+same time. In a group, a bot sees only replies to its own messages and commands unless you turn its
+privacy mode off with `/setprivacy` in `@BotFather`; a private chat with the bot has no such limit.
+
+Where a message goes:
+
+- A reply to one of the bot's messages goes to the Session that message was about. When that
+  Session is busy, the message waits in a queue and is typed in when the current turn finishes. The
+  daemon remembers which message belongs to which Session until it restarts; a reply to an older
+  message is refused and nothing is sent.
+- Any other message goes to the Session that most recently started waiting for input (Finished,
+  Needs Feedback or never run). If every Session is busy or there is none, nothing is sent and the
+  bot says so.
+- A Session that waits on a permission or a question with options takes only an option number
+  (`1`, `2`, ...); the bot lists the options when you send anything else.
+
+The bot answers every message with where it went (`Sent to fix login (api).`). When that Session
+finishes its turn the bot sends a summary of its last message, cut to about 700 characters, with
+code blocks replaced by `(code on screen)`; when it waits on you, the bot sends what it asks. A
+message older than 15 minutes, for example one sent while the computer was asleep, is not sent; the
+bot tells you to send it again.
+
+Voice notes need two things on the computer berth runs on: `ffmpeg` on `PATH` (Telegram sends voice
+notes as OGG/Opus) and the desktop app with its local speech engine (see [Voice](#voice)), which
+turns the note into text with the same whisper model as dictation. The bot echoes what it heard
+before the result. When the desktop app is closed, text messages still work and a voice note waits
+for the app to open, for up to an hour. A voice note longer than 3 minutes is refused.
+
+When a prompt came in as a voice note, the answer also comes back as speech, read by the system
+voice: Windows SAPI (a voice for the answer's language when one is installed) or macOS `say`. Code,
+paths in backticks and links are left out of the spoken text. With `ffmpeg` the answer arrives as a
+Telegram voice message; without it, macOS sends it as an audio file and Windows sends the text only.
+Linux sends the text only.
 
 ## Mentions in team channels
 
