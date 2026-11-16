@@ -176,6 +176,7 @@ function onVisible(visible: boolean) {
         rows="4"
         auto-resize
         class="prompt"
+        autofocus
         :aria-label="t('agents.newSession.prompt')"
         :placeholder="t('agents.newSession.optional')"
         data-testid="new-session-prompt"

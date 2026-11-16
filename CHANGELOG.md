@@ -57,6 +57,7 @@
 - Added OpenCode as a session type: `opencode` runs in a berth session with status updates, auto titles and resume, through a plugin berth writes to `~/.config/opencode/plugin/berth.js`.
 - Changed Checkpoints to be off for Claude agents by default, since Claude Code has its own `/rewind`; `daemon.checkpointsClaude` in the desktop app's settings turns them back on (#20).
 - Changed the desktop app to update an older berth daemon on its own after an app update, instead of showing a protocol mismatch.
+- Fixed the New Session dialog moving focus to its close button right after it opens, so the first letters typed into the prompt went nowhere; the prompt now has focus from the start.
 - Fixed Claude conversations missing from the sidebar when their folder under `~/.claude/projects` is a symlink, and conversations synced from another machine (with that machine's path as their cwd) not showing under the project they belong to on this one.
 - Fixed sessions not coming back after `berth kill` stopped a daemon on an older protocol version: the daemon now shuts down cleanly and records them.
 - Changed closing an agent's tab in the desktop app to stop the agent, so it no longer holds memory; the session stays in the tree and `Restart` resumes it.
