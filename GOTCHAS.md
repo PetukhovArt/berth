@@ -153,6 +153,7 @@ history.
 - **HOST AGENT ENV** — A daemon auto-started by a `berth` call from a Claude Code Bash tool keeps that session's `CLAUDE_CODE_CHILD_SESSION` and friends for life, and every `claude` it spawns then turns its transcript off; `env::HOST_AGENT_SESSION_VARS` is scrubbed from `spawn_daemon` and from every PTY child — extend it when Claude Code adds a session var, never strip the whole `CLAUDE_CODE_*` prefix (users set config there).
 
 ## Dev workflow and testing
+- **DEV INSTANCE** — While other agents edit `crates/` in the same checkout, start the dev app with `tauri dev --no-watch`: the watcher sees their edits and rebuilds and restarts the app every few seconds, so a check through agent-view never settles. ⟵ 2026-11-16 design conformance audit
 - **DEV INSTANCE** — Isolation is inherited, not propagated: `BERTH_RUNTIME_DIR`/`BERTH_DATA_DIR` flow make → `berth` → daemon → agent PTY; the daemon adds only `BERTH_AGENT_*`/`BERTH_API_*`, never *which binary*. ⟵ 2026-08-26-nebula-rename-broke-on-a-protocol-skew-the-error-message-mis
 - **E2E PTY** — The e2e files already had `subscribe`-shaped closures that silently shadowed a new free fn — grep for the name before adding a test helper. ⟵ 2026-08-27-workspace-wide-dedup-pass-named-literals-shared-helpers-nebu
 - **E2E PTY** — A spawn's `EntityUpserted{alive:true}` reaches the client before the stub has run a line: don't assert on stub side effects inside the `read_events_until` predicate — wait, then poll the file. ⟵ 2026-08-26-cloud-rows-re-enter-their-session-on-restart
