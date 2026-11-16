@@ -1,8 +1,8 @@
 import { computed, ref } from 'vue';
-import { useBerth, useSessionDock, type SessionNode } from '../../../entities/session';
+import { externalDot, useBerth, useExternalSessions, useSessionDock, type SessionNode, type SessionStatus } from '../../../entities/session';
 import { attentionKindOf, type AttentionKind } from './attention';
 
-export type InboxEntry = { key: string; node: SessionNode; kind: AttentionKind; since: number; place: string; until?: number | undefined };
+export type InboxEntry = { key: string; node: SessionNode; status: SessionStatus; kind: AttentionKind; since: number; place: string; until?: number | undefined };
 
 type Mark = { sig: string; until: number | null };
 
@@ -50,26 +50,43 @@ function hidden(entry: InboxEntry, at: number): boolean {
 
 export function useInbox() {
   const berth = useBerth();
+  const external = useExternalSessions();
   if (!ticking) {
     ticking = true;
     setInterval(() => (now.value = Date.now()), TICK_MS);
   }
   const entries = computed<InboxEntry[]>(() => {
     if (!berth) return [];
-    const { agents, worktrees, projects } = berth.entities.value;
+    const { agents, terminals, worktrees, projects } = berth.entities.value;
+    const linked = external?.linked.value;
     const list: InboxEntry[] = [];
     for (const node of berth.sessions.value.values()) {
-      if (!('Agent' in node.ref)) continue;
-      const agent = agents.get(node.id);
-      if (!agent || agent.archived) continue;
-      const kind = attentionKindOf(node.status, node.unseen);
+      let worktreeId: string;
+      let changedAt: number;
+      let kind: AttentionKind | null;
+      let status: SessionStatus = node.status;
+      if ('Agent' in node.ref) {
+        const agent = agents.get(node.id);
+        if (!agent || agent.archived) continue;
+        worktreeId = agent.worktree_id;
+        changedAt = agent.status_changed_at;
+        kind = attentionKindOf(node.status, node.unseen);
+      } else {
+        const terminal = terminals.get(node.id);
+        const link = linked?.get(node.key);
+        if (!terminal || !link) continue;
+        worktreeId = terminal.worktree_id;
+        changedAt = link.updated_at;
+        status = externalDot(link);
+        kind = attentionKindOf(status, false);
+      }
       if (!kind) continue;
       const known = since.get(node.key);
-      const at = known?.sig === kind ? known.at : known ? Date.now() : agent.status_changed_at ? toMillis(agent.status_changed_at) : Date.now();
+      const at = known?.sig === kind ? known.at : known ? Date.now() : changedAt ? toMillis(changedAt) : Date.now();
       since.set(node.key, { sig: kind, at });
-      const worktree = worktrees.get(agent.worktree_id);
+      const worktree = worktrees.get(worktreeId);
       const project = worktree ? projects.get(worktree.project_id) : undefined;
-      list.push({ key: node.key, node, kind, since: at, place: [project?.name, worktree?.branch].filter(Boolean).join(' › '), until: node.limitUntil });
+      list.push({ key: node.key, node, status, kind, since: at, place: [project?.name, worktree?.branch].filter(Boolean).join(' › '), until: node.limitUntil });
     }
     return list.sort((a, b) => b.since - a.since);
   });

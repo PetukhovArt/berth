@@ -78,7 +78,7 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
     </div>
     <div v-for="entry in items" :key="entry.key" class="item" data-testid="inbox-item" :data-kind="entry.kind" :data-session-id="entry.node.id">
       <UiButton class="row" :title="entry.node.name" @click="dock.openSession(entry.node)" @contextmenu.prevent="showMenu($event, entry)">
-        <StatusIcon :status="entry.node.status" :unseen="entry.node.unseen" />
+        <StatusIcon :status="entry.status" :unseen="entry.node.unseen" />
         <span class="body">
           <span class="line">
             <span class="name">{{ entry.node.name }}</span>
