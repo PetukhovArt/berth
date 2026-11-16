@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { defineAsyncComponent, watch } from 'vue';
+import { computed, defineAsyncComponent, watch } from 'vue';
+import { isFirstRun } from '../../widgets/first-run';
+import { useBerth } from '../../entities/session';
 import { AgentsView } from '../../pages/agents';
 import { CleanupDialog } from '../../features/cleanup';
 import { CommandPalette } from '../../widgets/command-palette';
@@ -25,6 +27,8 @@ const JiraView = defineAsyncComponent(() => import('../../pages/jira').then((m) 
 
 const inTauri = '__TAURI_INTERNALS__' in window;
 const mobile = useIsPhone();
+const berth = useBerth();
+const firstRun = computed(() => view.value.kind === 'agents' && isFirstRun(berth?.entities.value));
 const viewKey = 'berth.view.v2';
 
 useDock().revivable(reviveReview);
@@ -51,8 +55,8 @@ watch(
 <template>
   <div class="shell">
     <TitleBar v-if="inTauri" />
-    <div class="body" :data-mobile="mobile">
-      <Sidebar v-if="!mobile" :dark="isDark" @theme="toggleTheme" />
+    <div class="body" :data-mobile="mobile" :data-first-run="firstRun">
+      <Sidebar v-if="!mobile && !firstRun" :dark="isDark" @theme="toggleTheme" />
       <main class="pane vt-main">
         <KeepAlive include="AgentsView">
           <AgentsView v-if="view.kind === 'agents'" />
@@ -92,6 +96,10 @@ watch(
   grid-template-columns: auto minmax(0, 1fr);
   min-height: 0;
   min-width: 0;
+}
+
+.body[data-first-run='true'] {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .body[data-mobile='true'] {
