@@ -10,7 +10,7 @@ use crate::channels::hub;
 use crate::config::Config;
 use crate::pty::{DEFAULT_COLS, DEFAULT_ROWS};
 use crate::registry::Daemon;
-use crate::triggers::{paste, BOOT_GRACE, PASTE_GAP};
+use crate::triggers::{type_prompt, BOOT_GRACE};
 
 const POLL: Duration = Duration::from_secs(5);
 const PENDING_MAX: usize = 64;
@@ -72,9 +72,7 @@ impl Daemon {
         if !was_alive {
             tokio::time::sleep(BOOT_GRACE).await;
         }
-        session.write_input(&paste(text))?;
-        tokio::time::sleep(PASTE_GAP).await;
-        session.write_input(b"\r")
+        type_prompt(&session, text).await
     }
 
     async fn deliver_pending(self: &Arc<Self>, pending: &mut VecDeque<Mention>, limit: u32) {

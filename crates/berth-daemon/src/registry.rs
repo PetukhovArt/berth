@@ -1144,11 +1144,23 @@ impl Daemon {
             .context("worktree not found")?;
         // A warm session for this (worktree, kind) hands over its PTY and
         // its pre-generated id — the CLI booted while the user typed the
-        // name, so the create feels instant. A starting prompt rides the
-        // CLI's argv, and a spare already booted bare cannot be handed one.
-        let adopted = (cloud_prompt.is_none() && pr_url.is_none() && starting_prompt.is_none())
-            .then(|| self.take_prewarmed(&worktree_id, kind, model.as_deref(), effort.as_deref()))
-            .flatten();
+        // name, so the create feels instant.
+        let adopted = match (&cloud_prompt, &pr_url, &starting_prompt) {
+            (None, None, None) => {
+                self.take_prewarmed(&worktree_id, kind, model.as_deref(), effort.as_deref())
+            }
+            (None, None, Some(prompt)) => {
+                self.take_prewarmed_for_prompt(
+                    &worktree_id,
+                    kind,
+                    model.as_deref(),
+                    effort.as_deref(),
+                    prompt,
+                )
+                .await
+            }
+            _ => None,
+        };
         // Only the cold path needs asking: an adopted warm session is proof
         // the CLI runs. Without this, a missing CLI still "succeeds" — the
         // login shell prints `command not found` into a PTY that dies at
@@ -1210,6 +1222,9 @@ impl Daemon {
             // before adoption (SessionStart stores the resume session id).
             for (event, sid) in entry.hooks_before_adoption {
                 self.apply_hook_event(&agent.id, event, sid);
+            }
+            if let Some(prompt) = starting_prompt {
+                self.type_starting_prompt(&agent.id, prompt);
             }
         }
         Ok(EntityId::Agent(agent.id))

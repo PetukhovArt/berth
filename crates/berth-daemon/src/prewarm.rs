@@ -11,6 +11,7 @@ use crate::status::HookEvent;
 
 const PREWARM_MAX_AGE: Duration = Duration::from_secs(15 * 60);
 const REBOOT_SPARE_OLDER_THAN: Duration = Duration::from_secs(10 * 60);
+const SPARE_BOOT_BOUND: Duration = Duration::from_secs(8);
 const PREWARM_HOOK_BUFFER_CAP: usize = 64;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,6 +27,35 @@ pub(crate) struct WarmSpare {
     target: Target,
     spawned_at: Instant,
     pub(crate) hooks_before_adoption: Vec<(HookEvent, Option<String>)>,
+    input_ready: bool,
+}
+
+fn signals_input_ready(kind: AgentKind) -> bool {
+    kind == AgentKind::Claude
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PromptedAdoption {
+    TypeNow,
+    WaitForReady(Duration),
+    Cold,
+}
+
+fn prompted_adoption(
+    kind: AgentKind,
+    input_ready: bool,
+    age: Duration,
+    prompt: &str,
+) -> PromptedAdoption {
+    if !signals_input_ready(kind) || prompt.contains(['\0', '\x1b']) {
+        PromptedAdoption::Cold
+    } else if input_ready {
+        PromptedAdoption::TypeNow
+    } else if age < SPARE_BOOT_BOUND {
+        PromptedAdoption::WaitForReady(SPARE_BOOT_BOUND - age)
+    } else {
+        PromptedAdoption::Cold
+    }
 }
 
 impl WarmSpare {
@@ -38,6 +68,7 @@ impl WarmSpare {
 pub(crate) struct PrewarmPool {
     spare: Mutex<Option<WarmSpare>>,
     newest_request: AtomicU64,
+    input_ready: tokio::sync::Notify,
 }
 
 impl PrewarmPool {
@@ -80,10 +111,15 @@ impl PrewarmPool {
         let Some(spare) = slot.as_mut().filter(|s| &s.agent_id == agent_id) else {
             return;
         };
+        let session_started = matches!(event, HookEvent::SessionStart { .. });
         if spare.hooks_before_adoption.len() >= PREWARM_HOOK_BUFFER_CAP {
             spare.hooks_before_adoption.remove(0);
         }
         spare.hooks_before_adoption.push((event, session_id));
+        if session_started && signals_input_ready(spare.target.kind) {
+            spare.input_ready = true;
+            self.input_ready.notify_waiters();
+        }
     }
 
     pub(crate) fn info(&self) -> Option<(AgentId, PrewarmInfo)> {
@@ -178,6 +214,7 @@ impl Daemon {
             target,
             spawned_at: Instant::now(),
             hooks_before_adoption: Vec::new(),
+            input_ready: false,
         };
         if let Some(doomed) = self
             .prewarm
@@ -206,6 +243,76 @@ impl Daemon {
             return None;
         }
         Some(spare)
+    }
+
+    pub(crate) async fn take_prewarmed_for_prompt(
+        &self,
+        worktree_id: &WorktreeId,
+        kind: AgentKind,
+        model: Option<&str>,
+        effort: Option<&str>,
+        prompt: &str,
+    ) -> Option<WarmSpare> {
+        let asked_at = Instant::now();
+        loop {
+            let ready = self.prewarm.input_ready.notified();
+            tokio::pin!(ready);
+            ready.as_mut().enable();
+            let decision = {
+                let slot = self.prewarm.spare.lock().unwrap();
+                let spare = slot
+                    .as_ref()
+                    .filter(|s| &s.target.worktree == worktree_id && s.target.kind == kind)?;
+                if spare.target.model.as_deref() != model
+                    || spare.target.effort.as_deref() != effort
+                {
+                    None
+                } else {
+                    Some(prompted_adoption(
+                        kind,
+                        spare.input_ready,
+                        spare.spawned_at.elapsed(),
+                        prompt,
+                    ))
+                }
+            };
+            match decision {
+                None => return self.take_prewarmed(worktree_id, kind, model, effort),
+                Some(PromptedAdoption::TypeNow) => {
+                    let spare = self.take_prewarmed(worktree_id, kind, model, effort)?;
+                    tracing::info!(
+                        agent = %spare.agent_id,
+                        waited_ms = asked_at.elapsed().as_millis() as u64,
+                        "prewarmed agent adopted for a starting prompt"
+                    );
+                    return Some(spare);
+                }
+                Some(PromptedAdoption::Cold) => {
+                    tracing::info!(
+                        kind = kind.as_str(),
+                        waited_ms = asked_at.elapsed().as_millis() as u64,
+                        "starting prompt goes to a cold spawn: the spare cannot take typed input"
+                    );
+                    return None;
+                }
+                Some(PromptedAdoption::WaitForReady(left)) => {
+                    let _ = tokio::time::timeout(left, ready).await;
+                }
+            }
+        }
+    }
+
+    pub(crate) fn type_starting_prompt(&self, id: &AgentId, prompt: String) {
+        let Some(session) = self.session(&SessionRef::Agent(id.clone())) else {
+            tracing::warn!(agent = %id, "adopted spare is gone before its starting prompt was typed");
+            return;
+        };
+        let id = id.clone();
+        tokio::spawn(async move {
+            if let Err(e) = crate::triggers::type_prompt(&session, &prompt).await {
+                tracing::warn!(agent = %id, error = %e, "typing the starting prompt failed");
+            }
+        });
     }
 
     pub fn reap_prewarmed(&self) {
@@ -245,6 +352,7 @@ mod tests {
             },
             spawned_at: Instant::now(),
             hooks_before_adoption: Vec::new(),
+            input_ready: false,
         }
     }
 
@@ -320,6 +428,69 @@ mod tests {
         install(&daemon.prewarm, spare("warm-2", "w1", AgentKind::Claude));
         daemon.reap_prewarmed();
         assert_eq!(spare_id(&daemon.prewarm), None);
+    }
+
+    #[test]
+    fn a_prompt_is_typed_only_into_a_spare_that_signalled_input_ready() {
+        use PromptedAdoption::*;
+        let young = Duration::from_secs(1);
+        let old = SPARE_BOOT_BOUND + Duration::from_secs(1);
+        let claude = AgentKind::Claude;
+        assert_eq!(prompted_adoption(claude, true, old, "fix it"), TypeNow);
+        assert_eq!(
+            prompted_adoption(claude, false, young, "fix it"),
+            WaitForReady(SPARE_BOOT_BOUND - young)
+        );
+        assert_eq!(prompted_adoption(claude, false, old, "fix it"), Cold);
+        assert_eq!(prompted_adoption(claude, true, young, "a\x1b[201~b"), Cold);
+        for kind in [
+            AgentKind::Codex,
+            AgentKind::Cursor,
+            AgentKind::OpenCode,
+            AgentKind::Grok,
+        ] {
+            assert_eq!(prompted_adoption(kind, true, young, "fix it"), Cold);
+        }
+    }
+
+    #[tokio::test]
+    async fn a_prompted_create_waits_for_session_start_and_leaves_a_stuck_spare() {
+        let daemon = test_daemon();
+        let w1 = WorktreeId("w1".into());
+        install(&daemon.prewarm, spare("booting", "w1", AgentKind::Claude));
+        let waiter = {
+            let daemon = daemon.clone();
+            let w1 = w1.clone();
+            tokio::spawn(async move {
+                daemon
+                    .take_prewarmed_for_prompt(&w1, AgentKind::Claude, None, None, "fix it")
+                    .await
+            })
+        };
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert!(!waiter.is_finished());
+        assert_eq!(spare_id(&daemon.prewarm).as_deref(), Some("booting"));
+        daemon.apply_hook_event(
+            &AgentId("booting".into()),
+            HookEvent::SessionStart { source: None },
+            Some("sid".into()),
+        );
+        tokio::time::timeout(Duration::from_secs(1), waiter)
+            .await
+            .expect("the SessionStart woke the waiting create")
+            .unwrap();
+        assert_eq!(spare_id(&daemon.prewarm), None, "the ready spare was taken");
+
+        let mut stuck = spare("stuck", "w1", AgentKind::Claude);
+        stuck.spawned_at = Instant::now() - SPARE_BOOT_BOUND;
+        install(&daemon.prewarm, stuck);
+        let started = Instant::now();
+        assert!(daemon
+            .take_prewarmed_for_prompt(&w1, AgentKind::Claude, None, None, "fix it")
+            .await
+            .is_none());
+        assert!(started.elapsed() < Duration::from_millis(100));
+        assert_eq!(spare_id(&daemon.prewarm).as_deref(), Some("stuck"));
     }
 
     #[test]

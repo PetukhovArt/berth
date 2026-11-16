@@ -607,48 +607,52 @@ async fn handle_client(
                         (None, Some(_)) => Some("preset"),
                         (None, None) => None,
                     };
-                    let providers = crate::config::Config::load().providers;
-                    let result =
-                        match crate::acp::providers::ensure_native_enabled(&providers, kind) {
-                            Err(off) => Err(off),
-                            Ok(()) => {
-                                daemon
-                                    .create_agent(CreateAgentSpec {
-                                        worktree: worktree.clone(),
-                                        name,
-                                        kind,
-                                        model,
-                                        effort,
-                                        auto_title,
-                                        cloud_prompt,
-                                        starting_prompt,
-                                        pr_url: None,
-                                    })
-                                    .await
+                    let daemon = daemon.clone();
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let providers = crate::config::Config::load().providers;
+                        let result =
+                            match crate::acp::providers::ensure_native_enabled(&providers, kind) {
+                                Err(off) => Err(off),
+                                Ok(()) => {
+                                    daemon
+                                        .create_agent(CreateAgentSpec {
+                                            worktree: worktree.clone(),
+                                            name,
+                                            kind,
+                                            model,
+                                            effort,
+                                            auto_title,
+                                            cloud_prompt,
+                                            starting_prompt,
+                                            pr_url: None,
+                                        })
+                                        .await
+                                }
+                            };
+                        if let Some(launch_mode) = launch_mode {
+                            match &result {
+                                Ok(berth_core::EntityId::Agent(agent)) => tracing::info!(
+                                    req_id,
+                                    agent = %agent,
+                                    kind = kind.as_str(),
+                                    worktree = %worktree,
+                                    launch_mode,
+                                    "agent session spawned"
+                                ),
+                                Err(error) => tracing::warn!(
+                                    req_id,
+                                    error = %error,
+                                    kind = kind.as_str(),
+                                    worktree = %worktree,
+                                    launch_mode,
+                                    "agent session spawn failed"
+                                ),
+                                Ok(_) => unreachable!("CreateAgent returned a non-agent id"),
                             }
-                        };
-                    if let Some(launch_mode) = launch_mode {
-                        match &result {
-                            Ok(berth_core::EntityId::Agent(agent)) => tracing::info!(
-                                req_id,
-                                agent = %agent,
-                                kind = kind.as_str(),
-                                worktree = %worktree,
-                                launch_mode,
-                                "agent session spawned"
-                            ),
-                            Err(error) => tracing::warn!(
-                                req_id,
-                                error = %error,
-                                kind = kind.as_str(),
-                                worktree = %worktree,
-                                launch_mode,
-                                "agent session spawn failed"
-                            ),
-                            Ok(_) => unreachable!("CreateAgent returned a non-agent id"),
                         }
-                    }
-                    reply(&out_tx, req_id, result.map(Some)).await;
+                        reply(&out_tx, req_id, result.map(Some)).await;
+                    });
                 }
                 ClientRequest::CreatePrAgent {
                     req_id,
