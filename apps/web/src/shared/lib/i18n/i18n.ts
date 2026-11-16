@@ -94,6 +94,14 @@ function formatDate(value: Date | string | number, options: Intl.DateTimeFormatO
   return new Intl.DateTimeFormat(INTL_TAG[locale.value], options).format(time);
 }
 
+function formatTime(value: Date | string | number): string {
+  return formatDate(value, { hour: '2-digit', minute: '2-digit' });
+}
+
+export function compareText(a: string, b: string): number {
+  return a.localeCompare(b, INTL_TAG[locale.value]);
+}
+
 function formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
   return new Intl.NumberFormat(INTL_TAG[locale.value], options).format(value);
 }
@@ -109,7 +117,7 @@ function formatBytes(bytes: number): string {
   }).format(gigabyte ? megabytes / 1024 : megabytes);
 }
 
-const api = { t, locale, setLocale, formatRelative, formatDate, formatNumber, formatBytes };
+const api = { t, locale, setLocale, formatRelative, formatDate, formatTime, formatNumber, formatBytes };
 
 export function useI18n(): typeof api {
   return api;

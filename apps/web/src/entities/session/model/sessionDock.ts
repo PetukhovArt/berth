@@ -1,6 +1,6 @@
 import { computed, shallowRef, watch } from 'vue';
 import type { DockviewApi } from 'dockview-vue';
-import { splitPosition, useDock, type PanelPosition, type PanelSpec } from '../../../shared/model/dock';
+import { splitPosition, titleKey, useDock, type PanelPosition, type PanelSpec } from '../../../shared/model/dock';
 import { FILE_PANEL_PREFIX, fileNameOf, filePanelId, isFilePanel, normalizePath } from '../../../shared/lib/markdownFiles';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
@@ -22,7 +22,7 @@ const reviveFile = (id: string) => (isFilePanel(id) ? filePanel(id.slice(FILE_PA
 function createSessionDock() {
   const berth = useBerth();
   const dock = useDock();
-  const { activeKey, activeTitle, visible, withDock, openPanel } = dock;
+  const { activeKey, visible, withDock, openPanel } = dock;
   const openingKey = shallowRef<string | null>(null);
   let openingBeside: string | undefined;
   let openingReplace = false;
@@ -41,7 +41,6 @@ function createSessionDock() {
         const panel = api.getPanel(key);
         if (!panel || panel.title === name) continue;
         panel.api.setTitle(name);
-        if (key === activeKey.value) activeTitle.value = name;
       }
     },
   );
@@ -164,7 +163,7 @@ function createSessionDock() {
   }
 
   function openMetrics() {
-    openPanel({ id: METRICS_PANEL, component: 'metrics', title: t('agents.metrics.title') });
+    openPanel({ id: METRICS_PANEL, component: 'metrics', title: t('agents.metrics.title'), params: titleKey('agents.metrics.title') });
   }
 
   function openWhenListed(session: SessionRef, beside?: string, replace = false) {

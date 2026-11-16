@@ -212,6 +212,11 @@ export const agents = {
     chatVoiceMuted: 'Muted, berth is not listening',
     chatVoiceWaiting: 'Waiting for the Agent…',
     chatVoiceSpeaking: 'Reading the answer aloud, speak to interrupt',
+    toolStatus: {
+      pending: 'pending',
+      in_progress: 'in progress',
+      failed: 'failed',
+    },
     mr: 'Merge request',
     diff: 'Changes',
     withShortcut: '{name} ({shortcut})',

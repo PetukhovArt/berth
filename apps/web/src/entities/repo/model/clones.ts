@@ -1,5 +1,6 @@
 import { fsListDirs } from '../../../shared/api/fs';
 import { inspectClone } from './remotes';
+import { compareText } from '../../../shared/lib/i18n/i18n';
 
 export type RepoRef = { key: string; host: string; path: string };
 export type KnownProject = { repoPath: string; workspaceId: string };
@@ -42,5 +43,5 @@ export async function findClones(repo: RepoRef, projects: readonly KnownProject[
       if (candidate && remote && remote.host === repo.host && remote.path.toLowerCase() === wanted) found.push({ ...candidate, main });
     });
   }
-  return found.sort((a, b) => Number(b.main) - Number(a.main) || a.name.localeCompare(b.name));
+  return found.sort((a, b) => Number(b.main) - Number(a.main) || compareText(a.name, b.name));
 }

@@ -17,7 +17,7 @@ export const connectors: Translation<typeof en> = {
     signInGh: 'Через gh (CLI)',
     signInGlab: 'Через glab (CLI)',
     token: 'Токен',
-    tokenPlaceholder: 'Personal access token',
+    tokenPlaceholder: 'Персональный токен доступа',
     howToGetToken: 'как получить токен',
     atlassianEmail: 'Email Atlassian',
     name: 'Название',

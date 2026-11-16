@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { Plus, Trash2 } from '../../../shared/ui/icons';
 import { VButton, VInputText, VSelect } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
@@ -8,8 +9,8 @@ import { ERROR_KINDS, ROUTE_KINDS, STATUSES, closeOf, conditionRow, depthOf, new
 const list = defineModel<ConditionList>({ required: true });
 
 const TYPES: ConditionType[] = ['provider_error', 'limit_used', 'status', 'kind', 'model'];
-const typeOptions = TYPES.map((value) => ({ value, label: t(`router.condition.${value}`) }));
-const joinOptions = (['all', 'any'] as GroupOp[]).map((value) => ({ value, label: t(`router.join.${value}`) }));
+const typeOptions = computed(() => TYPES.map((value) => ({ value, label: t(`router.condition.${value}`) })));
+const joinOptions = computed(() => (['all', 'any'] as GroupOp[]).map((value) => ({ value, label: t(`router.join.${value}`) })));
 
 function setRows(rows: Row[]) {
   list.value = { ...list.value, rows };

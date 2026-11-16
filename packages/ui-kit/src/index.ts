@@ -1,5 +1,5 @@
-import type { App } from 'vue';
-import PrimeVue from 'primevue/config';
+import { watchEffect, type App } from 'vue';
+import PrimeVue, { usePrimeVue, type PrimeVueLocaleAriaOptions, type PrimeVueLocaleOptions } from 'primevue/config';
 import Aura from '@primeuix/themes/aura';
 import { definePreset } from '@primeuix/themes';
 import { inkScale } from '@ui/tokens';
@@ -54,8 +54,17 @@ const BerthPreset = definePreset(Aura, {
   components: { toggleswitch: { root: { slideDuration: v('motion-base') } } },
 });
 
-export function installUiKit(app: App): void {
+export type KitLocale = Partial<Omit<PrimeVueLocaleOptions, 'aria'>> & { aria?: Partial<PrimeVueLocaleAriaOptions> };
+
+export function installUiKit(app: App, locale: () => KitLocale): void {
   app.use(PrimeVue, { theme: { preset: BerthPreset, options: { darkModeSelector: `.${DARK_CLASS}` } } });
+  const { config } = app.runWithContext(usePrimeVue);
+  const defaults = config.locale;
+  if (defaults)
+    watchEffect(() => {
+      const { aria, ...strings } = locale();
+      config.locale = { ...defaults, ...strings, aria: { ...defaults.aria, ...aria } };
+    });
   installMotion(app);
   installViewport();
 }

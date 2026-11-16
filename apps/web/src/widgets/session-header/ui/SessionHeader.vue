@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
-import { t } from '../../../shared/lib/i18n/i18n';
+import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { sessionDot, StatusIcon, useBerth, useExternalSessions, type AgentKind, type SessionStatus } from '../../../entities/session';
 import { knownMr, lookupMr, numberLabel } from '../../../entities/merge-request';
 import { SessionViewSwitch } from '../../../features/session-view-switch';
@@ -12,6 +12,7 @@ import RouteButton from './RouteButton.vue';
 import { OverlapChip } from '../../../features/overlaps';
 
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
+const { t, formatTime } = useI18n();
 
 const KIND_LABEL: Record<AgentKind, string> = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode', grok: 'Grok', acp: 'ACP' };
 
@@ -48,7 +49,7 @@ const statusText = computed(() => {
   const failure = node.value?.providerError;
   const label = failure ? t(`agents.route.errorKind.${failure.kind}`) : t(`agents.status.${status.value}`);
   const until = status.value === 'limit' ? node.value?.limitUntil : undefined;
-  return until ? `${label} · ${t('agents.metrics.resets', { time: new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}` : label;
+  return until ? `${label} · ${t('agents.metrics.resets', { time: formatTime(until) })}` : label;
 });
 
 const place = computed(() => [project.value, worktree.value?.branch].filter(Boolean).join(' › '));
@@ -160,7 +161,7 @@ watch(
 }
 
 :root[data-vr-viewport='phone'] .session-header :deep(.modes .mode) {
-  flex: 1;
+  flex: 1 1 auto;
   justify-content: center;
   min-width: 0;
   height: 32px;

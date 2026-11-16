@@ -21,6 +21,15 @@ export const common = {
   time: {
     justNow: 'just now',
   },
+  kit: {
+    emptyMessage: 'No available options',
+    emptySearchMessage: 'No results found',
+    searchMessage: '{0} results are available',
+    selectionMessage: '{0} items selected',
+    emptySelectionMessage: 'No selected item',
+    selectAll: 'All items selected',
+    unselectAll: 'All items unselected',
+  },
   language: {
     label: 'Language',
     en: 'English',

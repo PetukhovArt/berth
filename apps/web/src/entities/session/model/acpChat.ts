@@ -2,10 +2,15 @@ import { computed, onScopeDispose, shallowRef, type ComputedRef, type ShallowRef
 import { acpTranscript, describeError, onAcpItem, type AcpItem, type AcpPlanEntry } from './berth';
 import type { TranscriptMessage } from './external';
 import type { PlanItem } from './plan';
+import { t } from '../../../shared/lib/i18n/i18n';
 
 const OUTPUT_CHARS = 4000;
 
 const PLAN_STATES: Record<string, PlanItem['state']> = { completed: 'done', in_progress: 'doing', pending: 'todo' };
+const TOOL_STATUSES = ['pending', 'in_progress', 'failed'] as const;
+
+const isKnownStatus = (status: string): status is (typeof TOOL_STATUSES)[number] => (TOOL_STATUSES as readonly string[]).includes(status);
+const toolStatus = (status: string) => (isKnownStatus(status) ? t(`agents.sessionView.toolStatus.${status}`) : status);
 
 type AcpChat = { messages: ComputedRef<TranscriptMessage[]>; plan: ComputedRef<PlanItem[]>; loading: ShallowRef<boolean>; error: ShallowRef<string | null>; reload: () => Promise<void> };
 
@@ -36,7 +41,7 @@ function toMessages(seq: number, item: AcpItem): TranscriptMessage[] {
   if ('Notice' in item) return [{ ...base, role: 'assistant', text: `_${item.Notice.text}_` }];
   if ('Plan' in item) return [];
   const tool = item.Tool;
-  const label = [tool.detail, tool.status === 'completed' ? '' : tool.status].filter(Boolean).join(' · ');
+  const label = [tool.detail, tool.status === 'completed' ? '' : toolStatus(tool.status)].filter(Boolean).join(' · ');
   const out: TranscriptMessage[] = [{ ...base, role: 'assistant', tool: tool.title || tool.kind, text: label }];
   if (tool.diff) out.push({ ...base, key: `${key}:diff`, role: 'assistant', text: tool.diff.path, shell: 'output', markdown: fenced(diffText(tool.diff), 'diff') });
   if (tool.output) out.push({ ...base, key: `${key}:output`, role: 'assistant', text: tool.output, shell: 'output', markdown: fenced(tool.output, '') });

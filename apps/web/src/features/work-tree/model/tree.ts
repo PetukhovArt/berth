@@ -2,7 +2,7 @@ import { Archive, Eye, EyeOff, Folder, FolderGit2, FolderOpen, FolderSearch, Git
 import { pinnedFirst, externalDot, externalKey, placeExternal, splitEarlier, type ExternalSession, worktreesOfProject, type Entities, type SessionNode, type WorktreeNode, rollupOf, type Rollup, type WorkspaceNode } from '../../../entities/session';
 import type { ConnectorView, InboxItem, JiraIssueSummary, PipelineStatus } from '../../../shared/api/connectors/api';
 import { numberLabel, itemId, pipelineRollup } from '../../../entities/merge-request';
-import { t } from '../../../shared/lib/i18n/i18n';
+import { t, compareText } from '../../../shared/lib/i18n/i18n';
 import type { TreeNode } from '../../../shared/ui/explorer-tree/types';
 import { type RepoRef, projectOfRepo, repoRefOf, connectorBase, type Remote } from '../../../entities/repo';
 import { issuePanelId } from '../../../entities/jira-issue';
@@ -293,7 +293,7 @@ function repoNodes(prefix: string, items: readonly InboxItem[], repoOf: Readonly
   }
   const name = (repo: RepoRef) => repo.path.slice(repo.path.lastIndexOf('/') + 1);
   return [...byRepo.values()]
-    .sort((a, b) => name(a.repo).localeCompare(name(b.repo)) || a.repo.key.localeCompare(b.repo.key))
+    .sort((a, b) => compareText(name(a.repo), name(b.repo)) || compareText(a.repo.key, b.repo.key))
     .map(({ repo, items: list }) => {
       const id = `${prefix}|repo:${repo.key}`;
       return group(id, 'repo', name(repo), inner(id, list), { icon: FolderGit2, detail: repo.path.slice(0, Math.max(0, repo.path.lastIndexOf('/'))) || undefined, title: `${repo.host}/${repo.path}`, data: { repo, pipeline: pipelineRollup(list) } });

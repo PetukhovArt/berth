@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplate
 import { Check, ChevronDown, ChevronRight, ChevronUp, Columns2, Folder, FolderOpen, ListTree, MessageSquare, Rows2, Search, WrapText, X } from '../../../shared/ui/icons';
 import { useIsPhone, VInputText } from '../../../shared/ui/kit';
 import type { DiffFile, Discussion } from '../../../shared/api/connectors/api';
-import { t } from '../../../shared/lib/i18n/i18n';
+import { t, compareText } from '../../../shared/lib/i18n/i18n';
 import SidePane from '../../../shared/ui/SidePane.vue';
 import DiffFileBody from './DiffFileBody.vue';
 import { isMarkdownPath, type PreviewSource } from '../lib/fileBase';
@@ -263,7 +263,7 @@ const treeRows = computed<TreeRow[]>(() => {
   }
   const rows: TreeRow[] = [];
   const walk = (node: TreeNode, depth: number) => {
-    for (const dir of [...node.dirs.values()].sort((a, b) => a.name.localeCompare(b.name))) {
+    for (const dir of [...node.dirs.values()].sort((a, b) => compareText(a.name, b.name))) {
       let tail = dir;
       let name = dir.name;
       while (tail.files.length === 0 && tail.dirs.size === 1) {
@@ -275,7 +275,7 @@ const treeRows = computed<TreeRow[]>(() => {
       rows.push({ key: `d${tail.path}`, kind: 'dir', depth, name, path: tail.path, index: -1, additions: sum.additions, deletions: sum.deletions, open });
       if (open) walk(tail, depth + 1);
     }
-    const ordered = [...node.files].sort((a, b) => props.files[a]!.new_path.localeCompare(props.files[b]!.new_path));
+    const ordered = [...node.files].sort((a, b) => compareText(props.files[a]!.new_path, props.files[b]!.new_path));
     for (const index of ordered) {
       const file = props.files[index]!;
       rows.push({ key: `f${index}`, kind: 'file', depth, name: file.new_path.split('/').at(-1)!, path: file.new_path, index, additions: file.additions, deletions: file.deletions, open: false });

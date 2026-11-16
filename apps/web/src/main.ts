@@ -7,9 +7,10 @@ import './app/styles/app.css';
 import './shared/ui/motion/statusAnimation.css';
 import './app/actions';
 import { initApp } from './app/init';
+import { kitLocale } from './app/kitLocale';
 import WorkspaceView from './app/ui/WorkspaceView.vue';
 
 initApp();
 const app = createApp(WorkspaceView);
-installUiKit(app);
+installUiKit(app, kitLocale);
 app.mount('#app');

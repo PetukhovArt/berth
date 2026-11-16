@@ -5,6 +5,7 @@ import { isDirtyPath, settleDirty } from '../../../entities/document';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { METRICS_PANEL, useBerth, externalDot, isExternalPanel, sessionDot, stopAgent, useExternalSessions, type Harness, HarnessIcon, StatusDot } from '../../../entities/session';
 import { FILE_PANEL_PREFIX, isFilePanel } from '../../../shared/lib/markdownFiles';
+import { panelTitle } from '../../../shared/model/dock';
 import { SessionViewSwitch } from '../../../features/session-view-switch';
 
 import { UiButton } from '../../../shared/ui/UiButton';
@@ -57,7 +58,7 @@ async function close() {
       <StatusDot :status="sessionTabDot(panel.id)" :unseen="session(panel.id)?.unseen" data-testid="session-tab-status" />
       <HarnessIcon v-if="linked(panel.id)" :harness="linked(panel.id)?.harness ?? 'claude'" />
     </template>
-    <span class="name">{{ session(panel.id)?.name ?? external?.anyByKey.value.get(panel.id)?.title ?? panel.title }}</span>
+    <span class="name">{{ session(panel.id)?.name ?? external?.anyByKey.value.get(panel.id)?.title ?? panelTitle(panel.title, panel.getParameters()) }}</span>
     <SessionViewSwitch v-if="kindOf(panel.id) === 'conversation'" :panel="panel" :active="active" />
     <span v-if="isFilePanel(panel.id) && isDirtyPath(panel.id.slice(FILE_PANEL_PREFIX.length))" class="dirty" :title="t('files.editor.dirty')" data-testid="file-tab-dirty" />
     <UiButton class="close" :title="t('common.close')" :aria-label="t('common.close')" data-testid="session-tab-close" @pointerdown.stop @click.stop="close"><X :size="12" /></UiButton>
