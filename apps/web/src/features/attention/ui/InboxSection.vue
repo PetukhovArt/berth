@@ -6,13 +6,13 @@ import { UiButton } from '../../../shared/ui/UiButton';
 import { allowRequest, alwaysAllowRequest, chooseOption, denyRequest, isYesNoPermission, offersAlways, openChannel, restartAgent, StatusIcon, useAction, useBerth, useChannelUnread, useSessionDock } from '../../../entities/session';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { shortcutLabel } from '../../../shared/lib/commands/keymap';
+import { shortAge } from '../../../shared/lib/shortAge';
 import { openNextWaiting, settleInbox, snoozeInbox, useInbox, type InboxEntry } from '../model/inbox';
 
 const { t, formatTime } = useI18n();
 const nextShortcut = computed(() => shortcutLabel('inbox.nextWaiting'));
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
 
 const { items, now } = useInbox();
 const { unread: channels } = useChannelUnread();
@@ -53,11 +53,7 @@ function untilTomorrow(): number {
 }
 
 function age(since: number): string {
-  const diff = Math.max(0, now.value - since);
-  if (diff < MINUTE) return t('attention.inbox.now');
-  if (diff < HOUR) return t('attention.inbox.minutes', { count: Math.floor(diff / MINUTE) });
-  if (diff < DAY) return t('attention.inbox.hours', { count: Math.floor(diff / HOUR) });
-  return t('attention.inbox.days', { count: Math.floor(diff / DAY) });
+  return shortAge(now.value, since);
 }
 
 function resetTime(until: number | undefined): string {

@@ -1,24 +1,21 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 import { SquareTerminal, X } from '../../../shared/ui/icons';
-import { HarnessIcon } from '../../../entities/session';
-import { t, useI18n } from '../../../shared/lib/i18n/i18n';
-import { useHot, waitingFirst, type HotItem } from '../model/hot';
+import { HarnessIcon, StatusIcon } from '../../../entities/session';
+import { t } from '../../../shared/lib/i18n/i18n';
+import { shortAge } from '../../../shared/lib/shortAge';
+import { hotDotOf, useHot, type HotItem } from '../model/hot';
 import { hotOverviewOpen } from '../model/view';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const hot = useHot();
-const { formatRelative } = useI18n();
 
 const grid = useTemplateRef<HTMLElement>('grid');
 const index = shallowRef(0);
 const now = shallowRef(Date.now());
 let ticker: ReturnType<typeof setInterval> | undefined;
 
-const tiles = computed<{ item: HotItem; number: number }[]>(() => {
-  const numbered = hot.items.value.map((item, position) => ({ item, number: position + 1 }));
-  return waitingFirst(numbered, (tile) => tile.item.status);
-});
+const tiles = computed<{ item: HotItem; number: number }[]>(() => hot.items.value.map((item, position) => ({ item, number: position + 1 })));
 
 function close() {
   hotOverviewOpen.value = false;
@@ -115,7 +112,7 @@ onBeforeUnmount(() => {
 
 function ago(item: HotItem): string {
   void now.value;
-  return item.lastActivity === null ? '' : formatRelative(item.lastActivity);
+  return item.lastActivity === null ? '' : shortAge(now.value, item.lastActivity);
 }
 
 function crumb(item: HotItem): string {
@@ -159,9 +156,9 @@ function crumb(item: HotItem): string {
             <span class="crumb">{{ crumb(tile.item) || ' ' }}</span>
             <span class="preview" :data-empty="!tile.item.preview" :title="tile.item.preview ?? undefined">{{ tile.item.preview ?? t('hot.overview.noPreview') }}</span>
             <span class="foot">
-              <span class="dot" :data-status="tile.item.status" />
+              <StatusIcon class="status" :status="hotDotOf(tile.item)" :unseen="tile.item.unseen" />
               <span class="state">{{ t(`hot.status.${tile.item.status}`) }}</span>
-              <span class="ago">· {{ ago(tile.item) }}</span>
+              <span v-if="ago(tile.item)" class="ago">· {{ ago(tile.item) }}</span>
             </span>
           </UiButton>
         </div>
@@ -393,26 +390,6 @@ function crumb(item: HotItem): string {
   align-items: center;
   font-size: var(--vr-font-size-xs);
   white-space: nowrap;
-}
-
-.dot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--vr-status-idle);
-}
-
-.dot[data-status='working'] {
-  background: var(--vr-status-running);
-}
-
-.dot[data-status='waiting'] {
-  background: var(--vr-status-feedback);
-}
-
-.dot[data-status='error'] {
-  background: var(--vr-status-crashed);
 }
 
 .state {

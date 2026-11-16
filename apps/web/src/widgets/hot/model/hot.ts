@@ -49,10 +49,6 @@ export function hotDotOf(item: Pick<HotItem, 'status' | 'harness'>): SessionStat
   return item.harness === 'shell' ? 'shell' : 'finished';
 }
 
-export function waitingFirst<T>(list: readonly T[], statusOf: (entry: T) => HotStatus): T[] {
-  return [...list.filter((entry) => statusOf(entry) === 'waiting'), ...list.filter((entry) => statusOf(entry) !== 'waiting')];
-}
-
 const toMillis = (value: number) => (value > 0 && value < SECONDS_LIMIT ? value * 1000 : value);
 
 function fromExternal(status: ExternalSession['status']): HotStatus {
@@ -169,7 +165,7 @@ function create() {
 
   const items = computed<HotItem[]>(() => {
     const meta = tracked.value;
-    const rank = (item: Raw) => (needsYou(item) ? 0 : item.status === 'working' ? 1 : item.status === 'error' ? 2 : 3);
+    const rank = (item: Raw) => (item.status === 'waiting' ? 0 : item.unseen ? 1 : item.status === 'working' ? 2 : item.status === 'error' ? 3 : 4);
     const entries = raw.value
       .filter((entry) => entry.live)
       .map((entry) => {
@@ -190,8 +186,8 @@ function create() {
       });
     entries.sort((a, b) => {
       if (a.rank !== b.rank) return a.rank - b.rank;
-      if (a.rank === 0) return b.since - a.since;
-      if (a.rank === 3) return (b.item.lastActivity ?? 0) - (a.item.lastActivity ?? 0) || a.seq - b.seq;
+      if (a.rank <= 1) return b.since - a.since;
+      if (a.rank === 4) return (b.item.lastActivity ?? 0) - (a.item.lastActivity ?? 0) || a.seq - b.seq;
       return a.seq - b.seq;
     });
     return entries.map((entry) => entry.item);
@@ -220,7 +216,7 @@ function create() {
 
   const previewTargets = computed(() => {
     const byKey = new Map(raw.value.map((entry) => [entry.key, entry]));
-    return waitingFirst(items.value, (item) => item.status)
+    return items.value
       .flatMap((item) => {
         const entry = byKey.get(item.key);
         return entry?.source ? [entry] : [];

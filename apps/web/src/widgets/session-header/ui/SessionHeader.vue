@@ -2,7 +2,7 @@
 import { computed, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { sessionDot, StatusIcon, useBerth, useExternalSessions, type AgentKind, type SessionStatus } from '../../../entities/session';
+import { latestModel, modelLabel, sessionDot, StatusIcon, useAgentMessages, useBerth, useExternalSessions, type AgentKind, type SessionStatus } from '../../../entities/session';
 import { knownMr, lookupMr, numberLabel } from '../../../entities/merge-request';
 import { SessionViewSwitch } from '../../../features/session-view-switch';
 import { GitStepButton } from '../../../features/git-step';
@@ -17,6 +17,7 @@ import { inspectorShown } from '../../../shared/model/inspector';
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
 const { t, formatTime } = useI18n();
 
+const MODEL_TAIL = 40;
 const KIND_LABEL: Record<AgentKind, string> = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode', grok: 'Grok', acp: 'ACP' };
 
 const berth = useBerth();
@@ -69,8 +70,13 @@ const routedFrom = computed(() => {
   }
   return names.length ? t('agents.route.routedFrom', { name: names.join(' ← ') }) : undefined;
 });
+const messages = useAgentMessages(() => agent.value, MODEL_TAIL, () => status.value);
+const modelName = computed(() => {
+  const id = latestModel(messages.value) ?? agent.value?.model;
+  return id ? modelLabel(id) : undefined;
+});
 const meta = computed(() =>
-  [agent.value ? KIND_LABEL[agent.value.kind] : undefined, agent.value?.model, place.value, mr.value ? numberLabel(mr.value) : undefined, routedFrom.value].filter(Boolean).join(' · '),
+  [agent.value ? KIND_LABEL[agent.value.kind] : undefined, modelName.value, place.value, mr.value ? numberLabel(mr.value) : undefined, routedFrom.value].filter(Boolean).join(' · '),
 );
 
 watch(
@@ -105,7 +111,33 @@ watch(
 </template>
 
 <style scoped>
+@container session-header (max-width: 1280px) {
+  .session-header :deep(.git-step .full),
+  .session-header :deep(.git-step > .hint) {
+    display: none;
+  }
+
+  .session-header :deep(.git-step .short) {
+    display: inline;
+  }
+}
+
+@container session-header (max-width: 960px) {
+  .session-header :deep(.git-step .short) {
+    display: none;
+  }
+
+  .session-header :deep(.git-step .glyph) {
+    display: block;
+  }
+
+  .session-header :deep(.git-step > .run) {
+    padding: 0 8px;
+  }
+}
+
 .session-header {
+  container: session-header / inline-size;
   display: flex;
   flex: none;
   align-items: center;

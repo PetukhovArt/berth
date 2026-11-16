@@ -30,6 +30,10 @@ export const inspector = {
     unresolved: { one: '{count} нерешённое', few: '{count} нерешённых', many: '{count} нерешённых', other: '{count} нерешённых' },
     resolved: 'Все решены',
     open: 'Показать merge request',
+    none: 'Merge request пока нет',
+    create: 'Создать',
+    createTitle: 'Закоммитить, отправить и открыть merge request для этой ветки',
+    createBlocked: 'В merge request пока нечего класть, или ветка отстаёт от origin',
   },
   usage: {
     title: 'Расход',

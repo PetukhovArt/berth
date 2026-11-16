@@ -1,7 +1,7 @@
 export const attention = {
   waiting: '{name} is waiting for you',
   finished: '{name} finished',
-  crashed: '{name} stopped with an error',
+  crashed: '{name} crashed',
   limited: '{name} hit the usage limit',
   dismiss: 'Dismiss',
   watch: {
@@ -17,7 +17,7 @@ export const attention = {
     title: 'Inbox',
     waiting: 'waiting for you',
     finished: 'finished, not seen yet',
-    crashed: 'stopped with an error',
+    crashed: 'crashed',
     limited: 'limit · resets at {time}',
     actions: 'Inbox actions',
     next: 'Next waiting',
