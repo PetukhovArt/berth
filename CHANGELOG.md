@@ -12,7 +12,7 @@
 - Added a Task note per Channel that reaches the Agents of every member who starts a Session on that task: set it with `berth channel note <channel> <text>` or the Task note button in the Channel view
 - Added Agents of other team members to the overlap chip when they change the same modules on the same task
 - Added a share button in the Session header that gives a colleague a read-only link to one Session's chat, tool calls and changed files over remote access; `Stop sharing` revokes it
-- Added a chat bridge: set `messenger_telegram_token` and `messenger_telegram_chat`, or `messenger_webhook_url`, in `config.json` and the daemon posts a short message to that chat when an Agent needs feedback or finishes, and when you save a Task note
+- Added a chat bridge: set `messenger_telegram_token` and `messenger_telegram_chat`, or `messenger_webhook_url`, in `config.json` and the daemon posts a short message to that chat when an Agent needs feedback or finishes, and when you save a Session's Task note
 - Added a shared setup: point `shared_setup` in the config at a directory or git repository and berth copies its skills, MCP servers, Claude hooks and instructions into every project and worktree in each agent's format, with `berth shared-setup sync` to update them
 - Added `mod-shift-space` push-to-talk: hold it to dictate a prompt and release to send it to the Session in view
 - Added an opt-in wake word: run `Wake word` from the command palette, then say the `voice.wakePhrase` (default `hey berth`) and a prompt to send it to that Session
