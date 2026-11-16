@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail, Context, Result};
 use std::io;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -98,35 +98,51 @@ impl axum::serve::Listener for TlsListener {
 pub(crate) trait Io: AsyncRead + AsyncWrite + Unpin + Send {}
 impl<T: AsyncRead + AsyncWrite + Unpin + Send> Io for T {}
 
-fn connector() -> TlsConnector {
-    static CONNECTOR: OnceLock<TlsConnector> = OnceLock::new();
-    CONNECTOR
-        .get_or_init(|| {
-            let mut roots = RootCertStore::empty();
-            let found = rustls_native_certs::load_native_certs();
-            for e in found.errors {
-                tracing::debug!("skipped a system certificate: {e}");
-            }
-            roots.add_parsable_certificates(found.certs);
-            let config = ClientConfig::builder_with_provider(provider())
-                .with_safe_default_protocol_versions()
-                .expect("ring supports the default TLS versions")
-                .with_root_certificates(roots)
-                .with_no_client_auth();
-            TlsConnector::from(Arc::new(config))
-        })
-        .clone()
+fn system_roots() -> &'static RootCertStore {
+    static ROOTS: OnceLock<RootCertStore> = OnceLock::new();
+    ROOTS.get_or_init(|| {
+        let mut roots = RootCertStore::empty();
+        let found = rustls_native_certs::load_native_certs();
+        for e in found.errors {
+            tracing::debug!("skipped a system certificate: {e}");
+        }
+        roots.add_parsable_certificates(found.certs);
+        roots
+    })
 }
 
-#[derive(Clone, Debug)]
+fn connector(extra_ca: Option<&Path>) -> Result<TlsConnector> {
+    let mut roots = system_roots().clone();
+    if let Some(path) = extra_ca {
+        let certs = CertificateDer::pem_file_iter(path)
+            .and_then(|certs| certs.collect::<Result<Vec<_>, _>>())
+            .with_context(|| format!("cannot read the CA bundle {}", path.display()))?;
+        if certs.is_empty() {
+            bail!("no certificate in the CA bundle {}", path.display());
+        }
+        for cert in certs {
+            roots
+                .add(cert)
+                .with_context(|| format!("unusable certificate in {}", path.display()))?;
+        }
+    }
+    let config = ClientConfig::builder_with_provider(provider())
+        .with_safe_default_protocol_versions()?
+        .with_root_certificates(roots)
+        .with_no_client_auth();
+    Ok(TlsConnector::from(Arc::new(config)))
+}
+
+#[derive(Clone)]
 pub(crate) struct Endpoint {
     pub(crate) authority: String,
     host: String,
     pub(crate) tls: bool,
+    connector: Option<TlsConnector>,
 }
 
 impl Endpoint {
-    pub(crate) fn parse(url: &str) -> Result<Self> {
+    pub(crate) fn parse(url: &str, extra_ca: Option<&Path>) -> Result<Self> {
         let (tls, rest) = if let Some(rest) = url.strip_prefix("https://") {
             (true, rest)
         } else if let Some(rest) = url.strip_prefix("http://") {
@@ -152,10 +168,12 @@ impl Endpoint {
         if host.is_empty() {
             bail!("the hub url names no host");
         }
+        let connector = if tls { Some(connector(extra_ca)?) } else { None };
         Ok(Self {
             authority,
             host,
             tls,
+            connector,
         })
     }
 
@@ -163,12 +181,12 @@ impl Endpoint {
         let tcp = TcpStream::connect(&self.authority)
             .await
             .with_context(|| format!("cannot reach the hub at {}", self.authority))?;
-        if !self.tls {
+        let Some(connector) = &self.connector else {
             return Ok(Box::new(tcp));
-        }
+        };
         let name = ServerName::try_from(self.host.clone())
             .map_err(|_| anyhow!("{} is not a name a TLS certificate can carry", self.host))?;
-        let stream = connector()
+        let stream = connector
             .connect(name, tcp)
             .await
             .with_context(|| format!("TLS with the hub at {} failed", self.authority))?;

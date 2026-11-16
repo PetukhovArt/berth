@@ -53,6 +53,25 @@ async fn two_people_post_and_read_in_one_channel() {
 }
 
 #[tokio::test]
+async fn a_device_with_the_create_scope_joins_an_existing_channel() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_hub, url) = start(dir.path()).await;
+    let (_a, ann) = person(&url, "ann", &["read", "post", "create"]).await;
+    let (_b, bob) = person(&url, "bob", &["read", "post", "create"]).await;
+    let (_c, cy) = person(&url, "cy", &["read", "post"]).await;
+    ann.create_channel("PROJ-12").await.unwrap();
+    ann.post("PROJ-12", "before bob", None).await.unwrap();
+    assert!(bob.read("PROJ-12", 0, None).await.is_err());
+
+    bob.create_channel("PROJ-12").await.unwrap();
+    let seen = bob.read("PROJ-12", 0, None).await.unwrap();
+    assert_eq!(seen[0].content, "before bob");
+    bob.post("PROJ-12", "joined", None).await.unwrap();
+    assert!(cy.create_channel("PROJ-12").await.is_err());
+    assert!(cy.read("PROJ-12", 0, None).await.is_err());
+}
+
+#[tokio::test]
 async fn unread_counts_follow_the_read_mark() {
     let dir = tempfile::tempdir().unwrap();
     let (_hub, url) = start(dir.path()).await;

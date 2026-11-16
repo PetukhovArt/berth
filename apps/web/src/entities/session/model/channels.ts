@@ -8,7 +8,7 @@ export const agentName = (agent: string) => useBerth()?.entities.value.agents.ge
 export { onChannelAppended };
 
 type ChannelSummary = { key: string; head: number; unread: number };
-export type ChannelMessage = { seq: number; kind: number; author: string; authorName: string; authorKind: string; tags: string[][]; content: string; createdAt: number; authorAgent: string | null; promotable: boolean };
+export type ChannelMessage = { seq: number; kind: number; author: string; authorName: string; authorKind: string; tags: string[][]; content: string; createdAt: number; authorAgent: string | null; mentionedAgents: string[]; promotable: boolean; grantable: boolean };
 export type ChannelTouching = { member: string; name: string; agent: string; modules: string[] };
 export type ChannelGrant = { channel: string; agent: string; member: string; member_name: string };
 
@@ -68,7 +68,9 @@ function messages(reply: Awaited<ReturnType<typeof call>>): ChannelMessage[] {
     content: event.content,
     createdAt: event.created_at,
     authorAgent: event.author_agent,
+    mentionedAgents: event.mentioned_agents,
     promotable: event.kind === KIND_MESSAGE && !event.from_me && event.mentioned_agents.length > 0,
+    grantable: event.kind === KIND_MESSAGE && !event.from_me && event.author_kind === 'person',
   }));
 }
 
@@ -138,6 +140,22 @@ export async function readChannelGrants(channel: string): Promise<ChannelGrant[]
 
 export async function revokeChannelGrant(grant: ChannelGrant): Promise<ChannelGrant[]> {
   return grants(await call({ SetChannelGrant: { channel: grant.channel, agent: grant.agent, member: grant.member, granted: false } }));
+}
+
+export async function grantChannelAccess(channel: string, agent: string, member: string): Promise<ChannelGrant[]> {
+  return grants(await call({ SetChannelGrant: { channel, agent, member, granted: true } }));
+}
+
+export type OwnAgent = { id: string; name: string };
+
+export function ownAgentsFor(channel: string, thread: readonly ChannelMessage[]): OwnAgent[] {
+  const entities = useBerth()?.entities.value;
+  if (!entities) return [];
+  const live = [...entities.agents.values()].filter((agent) => !agent.archived);
+  const seen = new Set(thread.flatMap((message) => [message.authorAgent, ...message.mentionedAgents]));
+  const key = channel.toUpperCase();
+  const here = live.filter((agent) => seen.has(agent.id) || (entities.worktrees.get(agent.worktree_id)?.branch.toUpperCase().includes(key) ?? false));
+  return (here.length ? here : live).map((agent) => ({ id: agent.id, name: agent.name }));
 }
 
 export function openChannel(key: string, split = false): void {

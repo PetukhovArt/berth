@@ -4,7 +4,7 @@ import { UiButton } from '../../../shared/ui/UiButton';
 import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { Bot, UserRound } from '../../../shared/ui/icons';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
-import { agentName, answerInChannel, channelRequestOf, describeError, isAgentMessage, isChannelReply, isNoteMessage, isOwnAgentRequest, onChannelAppended, postNote, postToChannel, promoteChannelMessage, readChannel, readChannelGrants, readPresence, refreshChannels, revokeChannelGrant, settlementOf, type ChannelGrant, type ChannelMessage, type ChannelPresent, type ChannelRequest, type ChannelSettlement } from '../../../entities/session';
+import { agentName, answerInChannel, channelRequestOf, describeError, grantChannelAccess, isAgentMessage, isChannelReply, isNoteMessage, isOwnAgentRequest, onChannelAppended, ownAgentsFor, postNote, postToChannel, promoteChannelMessage, readChannel, readChannelGrants, readPresence, refreshChannels, revokeChannelGrant, settlementOf, type ChannelGrant, type ChannelMessage, type ChannelPresent, type ChannelRequest, type ChannelSettlement } from '../../../entities/session';
 
 const POLL_MS = 4000;
 
@@ -50,6 +50,8 @@ async function answer(seq: number, token: string) {
   }
 }
 const grants = shallowRef<ChannelGrant[]>([]);
+const granting = shallowRef<number | null>(null);
+const ownAgents = computed(() => ownAgentsFor(props.channel, messages.value));
 const promoted = shallowRef<ReadonlySet<number>>(new Set());
 const list = useTemplateRef<HTMLElement>('list');
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -136,6 +138,24 @@ async function promote(message: ChannelMessage) {
   }
 }
 
+function grantChoices(message: ChannelMessage) {
+  return ownAgents.value.filter((agent) => !grants.value.some((grant) => grant.agent === agent.id && grant.member === message.author));
+}
+
+function toggleGrant(message: ChannelMessage) {
+  granting.value = granting.value === message.seq ? null : message.seq;
+}
+
+async function grantTo(message: ChannelMessage, agent: string) {
+  try {
+    grants.value = await grantChannelAccess(props.channel, agent, message.author);
+    granting.value = null;
+    error.value = null;
+  } catch (failure) {
+    error.value = describeError(failure);
+  }
+}
+
 async function revoke(grant: ChannelGrant) {
   try {
     grants.value = await revokeChannelGrant(grant);
@@ -188,6 +208,7 @@ onBeforeUnmount(() => {
             <span v-if="isNoteMessage(row.message)" class="tag" data-testid="channel-note-tag">{{ t('attention.channel.noteTag') }}</span>
             <span v-if="promoted.has(row.message.seq)" class="time" data-testid="channel-promoted">{{ t('attention.channel.promoted') }}</span>
             <UiButton v-else-if="row.message.promotable" type="button" class="link" :title="t('attention.channel.promoteHint')" data-testid="channel-promote" @click="promote(row.message)">{{ t('attention.channel.promote') }}</UiButton>
+            <UiButton v-if="row.message.grantable && grantChoices(row.message).length" type="button" class="link" :title="t('attention.channel.grantOfferHint', { name: row.message.authorName })" :aria-expanded="granting === row.message.seq" data-testid="channel-grant-open" @click="toggleGrant(row.message)">{{ t('attention.channel.grantOffer', { name: row.message.authorName }) }}</UiButton>
           </div>
           <div v-if="row.request" class="request" data-testid="channel-request" :data-settled="row.settled ? 'true' : 'false'">
             <p class="content">{{ requestText(row.request) }}</p>
@@ -204,6 +225,9 @@ onBeforeUnmount(() => {
             </div>
           </div>
           <p v-else class="content">{{ isNoteMessage(row.message) && !row.message.content ? t('attention.channel.noteCleared') : row.message.content }}</p>
+          <div v-if="granting === row.message.seq" class="actions" data-testid="channel-grant-choice">
+            <UiButton v-for="agent in grantChoices(row.message)" :key="agent.id" type="button" class="action" :aria-label="t('attention.channel.grantAgentLabel', { member: row.message.authorName, agent: agent.name })" data-testid="channel-grant-agent" @click="grantTo(row.message, agent.id)">{{ agent.name }}</UiButton>
+          </div>
         </div>
       </li>
     </ol>

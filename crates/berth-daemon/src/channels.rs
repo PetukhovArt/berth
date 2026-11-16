@@ -7,6 +7,7 @@ use berth_hub::client::HubClient;
 use berth_hub::{Event, MENTION_TAG};
 use serde::{de::DeserializeOwned, Serialize};
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Mutex;
 
 pub(crate) fn hub() -> Result<HubClient> {
@@ -17,7 +18,7 @@ pub(crate) fn hub() -> Result<HubClient> {
     let token = config
         .hub_token
         .ok_or_else(|| anyhow!("no hub token: set \"hub_token\" in the config file"))?;
-    HubClient::new(&url, &token)
+    HubClient::trusting(&url, &token, config.hub_ca.as_deref().map(Path::new))
 }
 
 pub(crate) fn convert<T: Serialize, U: DeserializeOwned>(value: T) -> Result<U> {

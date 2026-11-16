@@ -5,7 +5,7 @@ use berth_core::{AgentId, ClientRequest, ServerEvent};
 use berth_hub::client::HubClient;
 use serde_json::{json, Value};
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 fn own_agent() -> Option<AgentId> {
     berth_core::env::non_empty(berth_core::env::AGENT_ID)
@@ -222,9 +222,14 @@ pub fn run_hub_serve(
     })
 }
 
+fn hub_at(url: &str, token: &str) -> Result<HubClient> {
+    let config = berth_daemon::config::Config::load();
+    HubClient::trusting(url, token, config.hub_ca.as_deref().map(Path::new))
+}
+
 pub fn run_hub_pair(url: String, name: String) -> Result<()> {
     runtime()?.block_on(async {
-        let (id, token) = HubClient::pair(&url, &name).await?;
+        let (id, token) = hub_at(&url, "")?.pair_device(&name).await?;
         println!(
             "{}",
             serde_json::to_string_pretty(&json!({ "ok": true, "id": id, "token": token }))?
@@ -235,7 +240,7 @@ pub fn run_hub_pair(url: String, name: String) -> Result<()> {
 
 pub fn run_hub_devices(url: String, admin_token: String) -> Result<()> {
     runtime()?.block_on(async {
-        let devices = HubClient::new(&url, &admin_token)?.devices().await?;
+        let devices = hub_at(&url, &admin_token)?.devices().await?;
         println!(
             "{}",
             serde_json::to_string_pretty(&json!({ "ok": true, "devices": devices }))?
@@ -246,7 +251,7 @@ pub fn run_hub_devices(url: String, admin_token: String) -> Result<()> {
 
 pub fn run_hub_revoke(url: String, admin_token: String, id: String) -> Result<()> {
     runtime()?.block_on(async {
-        HubClient::new(&url, &admin_token)?.revoke(&id).await?;
+        hub_at(&url, &admin_token)?.revoke(&id).await?;
         println!(
             "{}",
             serde_json::to_string_pretty(&json!({ "ok": true, "revoked": id }))?
@@ -262,7 +267,7 @@ pub fn run_hub_approve(
     scopes: Vec<String>,
 ) -> Result<()> {
     runtime()?.block_on(async {
-        let hub = HubClient::new(&url, &admin_token)?;
+        let hub = hub_at(&url, &admin_token)?;
         let scopes: Vec<&str> = scopes.iter().map(String::as_str).collect();
         hub.approve(&id, &scopes).await?;
         let pending: Value = hub.pending().await?;

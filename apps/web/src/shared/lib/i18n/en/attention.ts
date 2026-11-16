@@ -43,7 +43,7 @@ export const attention = {
     person: 'Person',
     present: 'Here now: {who}',
     open: 'Open Channel',
-    openTitle: 'Open the Channel {key}, created if it does not exist yet',
+    openTitle: 'Open the Channel {key}, created if it does not exist yet, joined if it does',
     note: 'Task note',
     noteHint: 'Send as the Task note: the Agents of every member who starts a Session on this task get it',
     noteTag: 'Task note',
@@ -63,5 +63,8 @@ export const attention = {
     grant: '{member} instructs {agent}',
     revoke: 'Revoke',
     revokeLabel: 'Revoke the grant for {member} to instruct {agent}',
+    grantOffer: 'Let {name} instruct\u2026',
+    grantOfferHint: 'Let {name} instruct one of your Agents in this Channel',
+    grantAgentLabel: 'Let {member} instruct {agent}',
   },
 } as const;
