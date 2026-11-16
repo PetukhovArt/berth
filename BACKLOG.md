@@ -30,7 +30,9 @@ Source paths are in [`pingdotgg/t3code`](https://github.com/pingdotgg/t3code).
 - Dictation: speech to text into the input of a Session, from the desktop app and from a phone. T3
   Code offers three engines: on the device, on your own server (transcribe-cpp with Whisper or
   Parakeet models) and in the cloud. Source: `docs/user/voice-input.md`,
-  `apps/server/src/speech/SpeechService.ts`.
+  `apps/server/src/speech/SpeechService.ts`. Built so far: the browser's own speech recognition in
+  the Chat view, push-to-talk and the wake word (`apps/web/src/shared/lib/dictation.ts`). Still
+  missing: an engine of our own, since WebView2 on Windows may refuse the browser one.
 - A screen in the desktop app for scheduled prompts and webhooks, which `berth schedule`,
   `berth webhook` and `berth triggers` cover from the command line today.
 - Chat view of a berth Session, for people who do not want a terminal: messages, grouped tool calls
@@ -52,15 +54,10 @@ Source paths are in [`openclaw/openclaw`](https://github.com/openclaw/openclaw).
 - HTTPS through Tailscale Serve: the remote server stays on loopback and Tailscale terminates TLS, so
   no certificate of our own. A phone browser needs HTTPS for the microphone and for Web Push, so
   this comes before the two items below. Source: `docs/gateway/tailscale.md`.
-- Push when an Agent needs you: a notification on the phone when the Agent Status turns to waiting or
-  Finished. Web Push from the installed web client needs no relay and no Apple or Google keys; a
-  message to Telegram from the Daemon is the fallback. Source: `docs/cli/message.md`.
 - Voice loop: speak a prompt, hear back the status change and a short summary of the answer. Code
   is never read aloud, the summary points to the screen. Speaking over the reply stops it. Speak on
   status changes, not only at the end: OpenClaw without realtime mode stays silent until the whole
   run finishes. Source: `docs/nodes/talk.md`, `docs/tools/tts.md`.
-- Wake word and push-to-talk: a trigger phrase routed to one Session, or a held key that sends on
-  release. Source: `docs/nodes/voicewake.md`.
 - Voice notes over a messenger: an inbound voice message is transcribed into a prompt, the reply
   comes back as a voice message. Voice control from a phone with no app of our own. Source:
   `docs/nodes/audio.md`, `docs/tools/tts.md`.
@@ -143,21 +140,21 @@ First slice, enough to learn whether colleagues read a shared channel:
 Built so far (#49), in `crates/berth-hub` and `crates/berth/src/channel.rs`: the hub over HTTP in
 SQLite with an append-only log, `berth hub serve|pair|approve`, `berth channel list|read|post`
 through the daemon (`hub_url`, `hub_token` in the config), two-step pairing, Agents as members
-marked with their owner. Missing from the first slice: WebSocket push (clients read with
-`after=<seq>` today), creating a channel from a Jira issue, merge request or Worktree key, the
-channel view in desktop and web, unread channels in the Inbox, TLS, token revocation, and
-re-approving or narrowing a device's scopes.
+marked with their owner. Since then: WebSocket push (`GET /stream`, polling as the fallback), TLS
+(`berth hub serve --cert --key`), `berth hub devices|revoke`, re-approving with other scopes, and
+`berth channel open` with an Open Channel action on a Worktree, merge request and Jira issue. Still
+missing: joining a Channel that exists without you, and a `hub_ca` setting for a self-signed hub.
 
 Second slice, Agents take part:
 
 Built so far (#50), in `crates/berth-daemon/src/team.rs` and the hub's `GET /mentions`: delivery
 into the PTY and the Agent-to-agent chain limit (`channel_chain_limit`). A message that writes
 `@<agent id>` tags the Agent; the Daemon polls the hub every 5 seconds, types the message when the
-Agent is Finished or Fresh, and drops a message whose Agent chain is longer than the limit. Still
-missing: Promote, Grant, slash commands, remote approvals, mentioning by an Agent's display name
-rather than its id, registering every local Agent on the hub (an Agent is mentionable only after
-its first `berth channel` call), and mentions made while the Daemon was down (the cursor starts at
-the hub's head).
+Agent is Finished or Fresh, and drops a message whose Agent chain is longer than the limit. Since
+then all items below: Promote and Grant (`team_access.rs`), owner slash commands, remote approvals
+(`channel_requests.rs`), mentions by display name, every local Agent registered, and a saved
+mention cursor. Still missing: Grant from the UI, and promotions and fetched mentions that survive
+a Daemon restart before the Agent goes idle.
 
 - Delivery into the PTY: a message that mentions an Agent is typed into its Session by the Daemon
   when the Agent is idle, as an instruction if the author is the owner and as quoted information
@@ -188,9 +185,11 @@ Third slice, shared context:
 Built so far (#51): presence only. Every 15 seconds the Daemon (`crates/berth-daemon/src/presence.rs`)
 tells the hub which of its running Agents are on which Channel, matched by the Channel key inside the
 Worktree's branch name; the hub keeps that in memory for 45 seconds (`crates/berth-hub/src/presence.rs`,
-`GET /presence`) and the Channel view shows it above the messages. Still missing: the other four
-items above, a presence line for a person who has the app open but no Session, and matching by a
-Task note key rather than the branch name.
+`GET /presence`) and the Channel view shows it above the messages. Since then the other four items:
+a Channel Task note (`shared_notes.rs`), team-wide overlaps (`team_overlaps.rs`), a read-only share
+link to one Session (`apps/desktop/src-tauri/src/remote/share.rs`), and a Telegram or webhook bridge
+(`messenger.rs`); presence also covers a person with the app open and a Task note key. Still
+missing: a bridge setting in desktop Settings, and diffs in the shared Session link.
 
 Keep the event shape close to Buzz (a numeric kind, an author, a channel, tags) so a Buzz relay can
 replace the hub if the team outgrows it.
@@ -202,5 +201,8 @@ person wants; berth installs them into every Project and Worktree and into every
 Codex, Grok, Cursor, ACP agents), translating to each one's format: `.claude/` skills and
 `settings.json`, Codex `config.toml` MCP entries, Cursor rules, `AGENTS.md`. A config in that
 repository says which items go to which Agent kinds and Projects, so a new Project or a new Agent
-kind gets the same setup without copying by hand. Open: link or copy, how a Project overrides an
-item, and keeping in step when the repository changes.
+kind gets the same setup without copying by hand. Built so far (`crates/berth-daemon/src/shared_setup`):
+the `shared_setup` key, `berth-setup.toml`, copies tracked in a manifest, a Project's own file
+wins, sync on Project add, Worktree creation and `berth shared-setup sync`. Still missing: hooks for
+kinds other than Claude, MCP for OpenCode, Grok and ACP agents, plugins, and Worktrees made outside
+berth getting the setup without a manual sync.

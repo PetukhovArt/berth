@@ -2,11 +2,28 @@
 
 ## Unreleased
 
+- Added `berth hub devices` to list the devices paired with a team hub and `berth hub revoke <id>` to cut one off at once, together with its Agents; `berth hub approve` run again changes a device's scopes
+- Added a team hub over HTTPS: `berth hub serve --cert <pem> --key <pem>`, and `hub_url` accepts `https://`
+- Added `berth channel open [<key>]` and an `Open Channel` action on a Worktree, a merge request and a Jira issue: they create the Channel for that task or open it when it exists
+- Added Channel mentions by an Agent's session name (`@fix-login-redirect`): every Agent is mentionable as soon as it exists, mentions made while the daemon was stopped are delivered on start, and an owner's `@agent /command` is typed as that command
+- Added `berth channel promote` and a Promote button in the Channel view: a colleague's message that mentions your Agent reaches it as an instruction instead of quoted information
+- Added `berth channel grant`, `revoke` and `grants`: let one colleague instruct one of your Agents in one Channel until you revoke it, with the grants listed in the Channel view
+- Added a waiting Agent's permission request or question to its team Channel, where its owner answers it with buttons or `berth channel answer`, and a request answered in berth is marked answered there
+- Added a Task note per Channel that reaches the Agents of every member who starts a Session on that task: set it with `berth channel note <channel> <text>` or the Task note button in the Channel view
+- Added Agents of other team members to the overlap chip when they change the same modules on the same task
+- Added a share button in the Session header that gives a colleague a read-only link to one Session's chat, tool calls and changed files over remote access; `Stop sharing` revokes it
+- Added a chat bridge: set `messenger_telegram_token` and `messenger_telegram_chat`, or `messenger_webhook_url`, in `config.json` and the daemon posts a short message to that chat when an Agent needs feedback or finishes, and when you save a Task note
+- Added a shared setup: point `shared_setup` in the config at a directory or git repository and berth copies its skills, MCP servers, Claude hooks and instructions into every project and worktree in each agent's format, with `berth shared-setup sync` to update them
+- Added `mod-shift-space` push-to-talk: hold it to dictate a prompt and release to send it to the Session in view
+- Added an opt-in wake word: run `Wake word` from the command palette, then say the `voice.wakePhrase` (default `hey berth`) and a prompt to send it to that Session
 - Added a collapsible Projects section in the sidebar: click the Projects header to hide or show the project list, and the app remembers it after a restart.
 - Added a draggable edge on the file tree of the Changes view: drag or use the arrow keys to resize it, double-click to reset, and the width is remembered.
 - Added `mode = "auto"` in `router.toml`: berth applies a router suggestion by itself, at most once per turn, no more hops per task than the fallback chain is long, and each rule waits `auto_cooldown_secs` (600 by default) before it switches again.
 - Added a Return chip after a usage limit resets: the Agent that took over offers to go back to the agent or model it came from, once its turn has ended, and never switches back on its own.
 - Added a router editor in Settings → Sessions: the fallback chain, and each rule's conditions as rows with and, or, not and groups, saved to `router.toml` by the daemon with unknown conditions kept as written.
+- Changed Channel messages and Agent mentions to arrive as soon as they are posted instead of on the next 5 second poll
+- Changed a Channel to show people who have the app open, not only those with a Session running, and to count a Session as on the task when its Worktree's Task note names the Channel key
+- Changed the hold-to-talk microphone in a Session's Chat view to work in the desktop app, not only on a phone
 - Changed router suggestions to appear only for an Agent with a provider error or one that has finished its turn or waits on you, so a running Agent no longer shows a chip.
 - Changed deleting a Workspace to ask in a small popover next to the row instead of a block under it.
 - Fixed `ui.font_size` leaving parts of the interface at their old size: session rows, the title bar, session header buttons, the new session form, badges, diagrams and line heights now follow it too.
