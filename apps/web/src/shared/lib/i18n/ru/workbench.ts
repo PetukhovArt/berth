@@ -46,6 +46,7 @@ export const workbench: Translation<typeof en> = {
     signedIn: 'вход выполнен',
   },
   liveOnly: 'Только открытые сессии',
+  more: 'Ещё',
   empty: 'Пока пусто: добавьте проект или подключите GitLab, GitHub или Jira',
   nothingFound: 'Ничего не подходит под фильтр',
   pick: 'Выберите сессию, запрос или задачу в дереве',

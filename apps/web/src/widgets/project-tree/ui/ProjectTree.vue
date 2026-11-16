@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed, shallowRef, useTemplateRef } from 'vue';
-import { Activity, ChevronRight, Eye, GitPullRequest, ListTodo, MessageSquare, Plus, Radio, RefreshCw, Search, SlidersHorizontal, SquareTerminal, TriangleAlert, Trash2, LoaderCircle } from '../../../shared/ui/icons';
+import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
+import { Check, ChevronRight, Ellipsis, Eye, GitPullRequest, ListTodo, MessageSquare, Plus, RefreshCw, Search, SlidersHorizontal, SquareTerminal, TriangleAlert } from '../../../shared/ui/icons';
+import { sidebarSearchRequests } from '../../../shared/model/sidebar';
+import { shortcutLabel } from '../../../shared/lib/commands/keymap';
 import { VContextMenu } from '../../../shared/ui/kit';
 import ArchivedExternalRow from './ArchivedExternalRow.vue';
 import ArchivedRow from './ArchivedRow.vue';
@@ -71,18 +73,46 @@ const projectAdd = useTemplateRef<InstanceType<typeof ProjectActions>>('projectA
 const openWorkspace = useOpenWorkspace();
 const addWorkspaceId = computed(() => openWorkspace.value ?? berth?.tree.value[0]?.id);
 
+const filterTitle = computed(() => {
+  const shortcut = shortcutLabel('sidebar.search');
+  return shortcut ? `${t('workbench.filter')} (${shortcut})` : t('workbench.filter');
+});
+const filterInput = useTemplateRef<InstanceType<typeof UiInput>>('filterInput');
+
 function toggleFilter() {
   if (showFilter.value) treeQuery.value = '';
   showFilter.value = !showFilter.value;
 }
+
+function closeFilter() {
+  treeQuery.value = '';
+  if (!props.withFilter) showFilter.value = false;
+}
+
+watch(sidebarSearchRequests, async () => {
+  showFilter.value = true;
+  await nextTick();
+  filterInput.value?.focus();
+});
+
+const moreMenu = useTemplateRef<InstanceType<typeof VContextMenu>>('moreMenu');
+const moreItems = computed(() => {
+  const items: { key: string; label: string; title?: string; checked?: boolean; command: () => void }[] = [];
+  if (activeTab.value === 'sessions') items.push({ key: 'live-only', label: t('workbench.liveOnly'), checked: treeLiveOnly.value, command: () => (treeLiveOnly.value = !treeLiveOnly.value) });
+  if (berth && isDesktop) {
+    const title = cleanupRemoving.value ? t('cleanup.removing', { name: cleanupRemoving.value.name }) : cleanupCount.value ? t('cleanup.buttonCount', { count: cleanupCount.value }) : t('cleanup.button');
+    items.push({ key: 'cleanup', label: title, command: openCleanup });
+  }
+  if (props.withFilter) {
+    items.push({ key: 'quick-open', label: t('agents.layouts.quickOpen'), title: t('agents.layouts.quickOpenTitle'), command: () => (dock.switching.value = true) });
+    if (berth) items.push({ key: 'metrics', label: t('agents.metrics.title'), title: t('agents.metrics.open'), command: () => sessions.openMetrics() });
+  }
+  return items;
+});
 </script>
 
 <template>
   <section class="project-tree" data-testid="project-tree">
-    <label v-if="withFilter || showFilter" class="filter">
-      <Search :size="14" />
-      <UiInput v-model="treeQuery" :placeholder="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="tree-filter" @keydown.esc="treeQuery = ''" />
-    </label>
     <div class="head">
       <div class="tabs-box">
         <div v-if="shownTabs.length > 1" class="tabs" role="tablist" :aria-label="t('workbench.tabs')" :data-n="shownTabs.length">
@@ -103,33 +133,11 @@ function toggleFilter() {
           </UiButton>
         </div>
       </div>
-      <span class="head-actions">
-        <UiButton
-          v-if="activeTab === 'sessions'"
-          class="icon live"
-          :title="t('workbench.liveOnly')"
-          :aria-label="t('workbench.liveOnly')"
-          :aria-pressed="treeLiveOnly"
-          data-testid="tree-live-only"
-          @click="treeLiveOnly = !treeLiveOnly"
-        >
-          <Radio :size="14" />
-        </UiButton>
-        <UiButton class="icon" :title="t('agents.layouts.quickOpenTitle')" :aria-label="t('agents.layouts.quickOpen')" data-testid="quick-switch-open" @click="dock.switching.value = true"><Search :size="14" /></UiButton>
-        <UiButton
-          v-if="berth && isDesktop"
-          class="icon cleanup"
-          :title="cleanupRemoving ? t('cleanup.removing', { name: cleanupRemoving.name }) : cleanupCount ? t('cleanup.buttonCount', { count: cleanupCount }) : t('cleanup.button')"
-          :aria-label="t('cleanup.button')"
-          data-testid="open-cleanup"
-          @click="openCleanup"
-        >
-          <LoaderCircle v-if="cleanupRemoving" :size="14" class="spin" data-testid="cleanup-removing" />
-          <Trash2 v-else :size="14" />
-          <span v-if="cleanupCount && !cleanupRemoving" class="count" data-testid="cleanup-count">{{ cleanupCount }}</span>
-        </UiButton>
-        <UiButton v-if="berth" class="icon" :title="t('agents.metrics.open')" :aria-label="t('agents.metrics.title')" data-testid="open-metrics" @click="sessions.openMetrics()"><Activity :size="14" /></UiButton>      </span>
     </div>
+    <label v-if="withFilter || showFilter || filtering" class="filter">
+      <Search :size="14" />
+      <UiInput ref="filterInput" v-model="treeQuery" :placeholder="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="tree-filter" @keydown.esc="closeFilter" />
+    </label>
     <div class="scroll">
       <NavNotices />
       <MrSessionNotice v-for="run in mrSession.runs.value.values()" :key="run.id" :run="run">
@@ -143,7 +151,8 @@ function toggleFilter() {
           <span class="section-title">{{ t('workbench.tree') }}</span>
         </UiButton>
         <span class="section-actions">
-          <UiButton v-if="!withFilter" class="icon" :title="t('workbench.filter')" :aria-label="t('workbench.filter')" :aria-pressed="showFilter" data-testid="tree-filter-toggle" @click="toggleFilter"><SlidersHorizontal :size="14" /></UiButton>
+          <UiButton v-if="!withFilter" class="icon" :title="filterTitle" :aria-label="t('workbench.filter')" :aria-pressed="showFilter" data-testid="tree-filter-toggle" @click="toggleFilter"><SlidersHorizontal :size="14" /></UiButton>
+          <UiButton v-if="moreItems.length" class="icon more" :data-active="liveShown" :title="t('workbench.more')" :aria-label="t('workbench.more')" aria-haspopup="menu" data-testid="tree-more" @click="moreMenu?.show($event)"><Ellipsis :size="14" /></UiButton>
           <UiButton v-if="addWorkspaceId" class="icon" :title="t('agents.project.add')" :aria-label="t('agents.project.add')" data-testid="project-add" @click="projectAdd?.openAdd()"><Plus :size="14" /></UiButton>
         </span>
       </div>
@@ -236,6 +245,14 @@ function toggleFilter() {
         </template>
       </ExplorerTree>
     </div>
+    <VContextMenu ref="moreMenu" :model="moreItems">
+      <template #item="{ item, props: itemProps }">
+        <a v-bind="itemProps.action" :title="item.title" :data-testid="`tree-more-${item.key}`">
+          <span class="more-label">{{ item.label }}</span>
+          <Check v-if="item.checked" :size="14" />
+        </a>
+      </template>
+    </VContextMenu>
     <VContextMenu ref="archMenu" :model="archItems">
       <template #item="{ item, props: itemProps }">
         <a v-bind="itemProps.action" :title="item.title" :data-testid="`mr-menu-${item.key}`">{{ item.label }}</a>
@@ -259,7 +276,7 @@ function toggleFilter() {
   align-items: center;
   gap: var(--vr-space-2);
   height: var(--vr-size-row);
-  margin: var(--vr-space-2) var(--vr-space-2) 0;
+  margin: 0 var(--vr-space-1) var(--vr-space-1);
   padding: 0 var(--vr-space-2);
   color: var(--vr-color-nav-muted);
   background: var(--vr-color-nav-hover);
@@ -355,7 +372,7 @@ function toggleFilter() {
   color: var(--vr-status-feedback);
 }
 
-@container tabs (max-width: 232px) {
+@container tabs (max-width: 196px) {
   .tab-label {
     display: none;
   }
@@ -365,7 +382,7 @@ function toggleFilter() {
   }
 }
 
-@container tabs (max-width: 272px) {
+@container tabs (max-width: 248px) {
   .tabs[data-n='4'] .tab-label {
     display: none;
   }
@@ -373,11 +390,6 @@ function toggleFilter() {
   .tabs[data-n='4'] .tab-icon {
     display: block;
   }
-}
-
-.head-actions {
-  display: inline-flex;
-  align-items: center;
 }
 
 .icon {
@@ -394,36 +406,13 @@ function toggleFilter() {
   border-radius: var(--vr-radius-sm);
 }
 
-.head-actions .icon {
-  width: 20px;
-}
-
-.head-actions .icon.cleanup {
-  position: relative;
-}
-
-.count {
-  position: absolute;
-  top: -3px;
-  right: -4px;
-  min-width: 1.333em;
-  height: 1.333em;
-  padding: 0 2px;
-  font-size: var(--vr-font-size-3xs);
-  font-variant-numeric: tabular-nums;
-  line-height: 1.333;
-  text-align: center;
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-accent);
-  border-radius: var(--vr-radius-full);
-}
-
 .icon:hover {
   color: var(--vr-color-text);
   background: var(--vr-color-nav-hover);
 }
 
-.icon.live[aria-pressed='true'] {
+.icon[aria-pressed='true'],
+.icon.more[data-active='true'] {
   color: var(--vr-color-accent);
   background: var(--vr-color-nav-active);
 }

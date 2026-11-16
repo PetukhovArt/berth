@@ -1,22 +1,25 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Component } from 'vue';
-import { BookOpen, LayoutPanelLeft, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, Sun, Ticket } from '../../../shared/ui/icons';
+import { Activity, BookOpen, LayoutPanelLeft, LoaderCircle, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, Sun, Ticket } from '../../../shared/ui/icons';
 import { useConnectors } from '../../../shared/api/connectors/api';
 import { useForgeInbox } from '../../../entities/merge-request';
 import { shortcutLabel } from '../../../shared/lib/commands/keymap';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { navigate, view } from '../../../shared/model/nav';
-import { sidebarCollapsed, sidebarSearchRequests, toggleSidebar } from '../../../shared/model/sidebar';
+import { requestSidebarSearch, sidebarCollapsed, sidebarSearchRequests, toggleSidebar } from '../../../shared/model/sidebar';
 import ProjectTree from './ProjectTree.vue';
-import { treeQuery, useWorkTree } from '../../../features/work-tree';
+import { useWorkTree } from '../../../features/work-tree';
+import { useBerth, useSessionDock } from '../../../entities/session';
+import { cleanupCount, openCleanup, removing as cleanupRemoving } from '../../../features/cleanup';
+import { isDesktop } from '../../../bridge';
 
 import { UiButton } from '../../../shared/ui/UiButton';
-import UiInput from '../../../shared/ui/UiInput.vue';
 defineProps<{ dark: boolean }>();
 const emit = defineEmits<{ theme: [] }>();
 
 const { t, locale, setLocale } = useI18n();
-const searchInput = ref<HTMLInputElement | null>(null);
+const berth = useBerth();
+const sessions = useSessionDock();
 const sidebarEl = ref<HTMLElement | null>(null);
 
 const MIN_WIDTH = 180;
@@ -45,26 +48,18 @@ function readWidth() {
 const width = ref(readWidth());
 const collapsed = sidebarCollapsed;
 const dragging = ref(false);
-const searchOpened = ref(false);
-const searchShown = computed(() => searchOpened.value || treeQuery.value.length > 0);
 const currentWidth = computed(() => (collapsed.value ? RAIL_WIDTH : Math.min(width.value, maxWidth.value)));
 const collapseLabel = computed(() => (collapsed.value ? t('shell.expand') : t('shell.collapse')));
 const nextLocale = computed(() => (locale.value === 'en' ? 'ru' : 'en'));
 
 watch(width, (value) => localStorage.setItem(WIDTH_KEY, String(value)));
 
-async function openSearch() {
-  searchOpened.value = true;
+watch(sidebarSearchRequests, async () => {
+  if (!collapsed.value) return;
   collapsed.value = false;
   await nextTick();
-  searchInput.value?.focus();
-}
-
-function onSearchBlur() {
-  if (!treeQuery.value) searchOpened.value = false;
-}
-
-watch(sidebarSearchRequests, () => void openSearch());
+  requestSidebarSearch();
+});
 
 function shortcutTitle(label: string, actionId: string) {
   const shortcut = shortcutLabel(actionId);
@@ -134,12 +129,6 @@ watch(hasForge, (on) => {
   stopPolling = on ? startPolling() : undefined;
 }, { immediate: true });
 
-function onSearchKey(event: KeyboardEvent) {
-  if (event.key !== 'Escape') return;
-  treeQuery.value = '';
-  searchOpened.value = false;
-}
-
 onMounted(() => {
   void listConnectors();
   window.addEventListener('resize', onWindowResize);
@@ -161,28 +150,9 @@ onUnmounted(() => {
     :data-collapsed="collapsed"
   >
     <slot name="head" />
-    <div class="top">
-      <label v-if="!collapsed && searchShown" class="search">
-        <Search :size="14" />
-        <UiInput ref="searchInput" v-model="treeQuery" :placeholder="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="sidebar-search" @keydown="onSearchKey" @blur="onSearchBlur" />
-        <kbd v-if="shortcutLabel('sidebar.search')">{{ shortcutLabel('sidebar.search') }}</kbd>
-      </label>
-      <UiButton v-else-if="collapsed" class="item rail-item" :title="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="sidebar-search-open" @click="openSearch">
+    <div v-if="collapsed" class="top">
+      <UiButton class="item rail-item" :title="shortcutTitle(t('workbench.filter'), 'sidebar.search')" :aria-label="t('workbench.filter')" data-testid="sidebar-search-open" @click="requestSidebarSearch">
         <Search :size="16" />
-      </UiButton>
-      <UiButton v-else class="icon filter" :title="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="sidebar-search-open" @click="openSearch">
-        <Search :size="14" />
-      </UiButton>
-      <UiButton
-        class="icon toggle"
-        :title="shortcutTitle(collapseLabel, 'sidebar.toggle')"
-        :aria-label="collapseLabel"
-        :aria-expanded="!collapsed"
-        data-testid="sidebar-collapse"
-        @click="toggleSidebar"
-      >
-        <PanelLeftOpen v-if="collapsed" :size="16" />
-        <PanelLeftClose v-else :size="16" />
       </UiButton>
     </div>
 
@@ -219,12 +189,35 @@ onUnmounted(() => {
       >
         <Settings :size="16" />
       </UiButton>
+      <UiButton
+        class="icon"
+        :title="shortcutTitle(collapseLabel, 'sidebar.toggle')"
+        :aria-label="collapseLabel"
+        :aria-expanded="!collapsed"
+        data-testid="sidebar-collapse"
+        @click="toggleSidebar"
+      >
+        <PanelLeftOpen v-if="collapsed" :size="16" />
+        <PanelLeftClose v-else :size="16" />
+      </UiButton>
+      <UiButton v-if="berth" class="icon" :title="t('agents.metrics.open')" :aria-label="t('agents.metrics.title')" data-testid="open-metrics" @click="sessions.openMetrics()"><Activity :size="16" /></UiButton>
       <UiButton v-if="!collapsed" class="icon lang" :title="t(`common.language.${nextLocale}`)" :aria-label="t('common.language.label')" data-testid="toggle-language" @click="setLocale(nextLocale)">
         {{ locale.toUpperCase() }}
       </UiButton>
       <UiButton class="icon" :title="dark ? t('shell.themeLight') : t('shell.themeDark')" :aria-label="dark ? t('shell.themeLight') : t('shell.themeDark')" data-testid="toggle-theme" @click="emit('theme')">
         <Sun v-if="dark" :size="16" />
         <Moon v-else :size="16" />
+      </UiButton>
+      <UiButton
+        v-if="!collapsed && berth && isDesktop && (cleanupCount || cleanupRemoving)"
+        class="cleanup-note"
+        :title="cleanupRemoving ? t('cleanup.removing', { name: cleanupRemoving.name }) : t('cleanup.buttonCount', { count: cleanupCount })"
+        :aria-label="t('cleanup.button')"
+        data-testid="open-cleanup"
+        @click="openCleanup"
+      >
+        <LoaderCircle v-if="cleanupRemoving" :size="12" class="spin" data-testid="cleanup-removing" />
+        <span class="cleanup-text" data-testid="cleanup-count">{{ cleanupRemoving ? t('cleanup.removing', { name: cleanupRemoving.name }) : t('cleanup.buttonCount', { count: cleanupCount }) }}</span>
       </UiButton>
     </footer>
 
@@ -274,22 +267,10 @@ onUnmounted(() => {
   margin-bottom: var(--vr-space-2);
 }
 
-.collapsed .top {
-  flex-direction: column-reverse;
-  align-items: stretch;
-}
-
-.collapsed .top .toggle {
-  align-self: center;
-}
 
 .item.rail-item {
   justify-content: center;
   padding: 0;
-}
-
-.toggle {
-  flex: none;
 }
 
 .collapsed .primary {
@@ -334,42 +315,6 @@ onUnmounted(() => {
 
 .resize-handle:focus-visible {
   outline: none;
-}
-
-.search {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  align-items: center;
-  gap: var(--vr-space-2);
-  height: 26px;
-  padding: 0 var(--vr-space-2);
-  border-radius: var(--vr-radius-md);
-  background: var(--vr-color-surface-muted);
-  color: var(--vr-color-text-subtle);
-}
-
-.icon.filter {
-  margin-right: auto;
-}
-
-.search input {
-  flex: 1;
-  min-width: 0;
-  font: inherit;
-  color: var(--vr-color-text);
-  background: none;
-  border: 0;
-  outline: none;
-}
-
-.search input::placeholder {
-  color: var(--vr-color-nav-muted);
-}
-
-kbd {
-  font: inherit;
-  font-size: var(--vr-font-size-2xs);
 }
 
 .item {
@@ -438,11 +383,52 @@ kbd {
 footer {
   display: flex;
   align-items: center;
-  gap: var(--vr-space-2);
+  gap: var(--vr-space-1);
   padding: var(--vr-space-3) var(--vr-space-1);
 }
 
+.cleanup-note {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--vr-space-1);
+  min-width: 0;
+  height: 28px;
+  padding: 0 var(--vr-space-1);
+  font: inherit;
+  font-size: var(--vr-font-size-2xs);
+  color: var(--vr-color-text-muted);
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--vr-radius-md);
+}
+
+.cleanup-note:hover {
+  color: var(--vr-color-text);
+  background: var(--vr-color-nav-hover);
+}
+
+.cleanup-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.spin {
+  flex: none;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .icon {
+  flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;

@@ -18,6 +18,7 @@ export const workbench = {
   tabOpen: 'Open: {count}',
   tabReviewsPending: 'Waiting for your review: {count}',
   liveOnly: 'Only open sessions',
+  more: 'More',
   firstRun: {
     title: 'Welcome to berth',
     lead: 'We looked at this machine. Check what you want and start.',
