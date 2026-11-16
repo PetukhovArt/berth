@@ -5,9 +5,16 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { useBerth } from '../../../entities/session';
 import type { BranchMode, SessionTarget } from '../model/sessionTarget';
 
-const props = defineProps<{ state: SessionTarget }>();
+const props = defineProps<{ state: SessionTarget; expanded?: boolean }>();
 const berth = useBerth();
-const { project, target, mode, existing, fresh, setup, branches, branchesError, loading, count, sharesBranch, projects, targets, creating, plan } = props.state;
+const { project, target, mode, existing, fresh, setup, base, baseOptions, baseChoice, branches, branchesError, loading, count, sharesBranch, projects, targets, creating, plan } = props.state;
+
+const baseModel = computed({
+  get: () => base.value,
+  set: (value: string | null) => {
+    baseChoice.value = value;
+  },
+});
 
 const MODES = computed<{ label: string; value: BranchMode; disabled?: boolean }[]>(() => [
   { label: t('agents.newSession.branchCurrent'), value: 'current' },
@@ -41,6 +48,20 @@ const summary = computed(() => {
     <div class="chips">
       <VSelect v-model="project" :options="projects" option-label="label" option-value="id" size="small" class="chip" :aria-label="t('agents.newSession.project')" data-testid="new-session-project" />
       <VSelect v-model="target" :options="targets" option-label="label" option-value="id" size="small" class="chip" :aria-label="t('agents.newSession.target')" data-testid="new-session-worktree" />
+      <VSelect
+        v-if="creating && baseOptions.length"
+        v-model="baseModel"
+        :options="baseOptions"
+        option-label="label"
+        option-value="id"
+        filter
+        size="small"
+        class="chip"
+        :aria-label="t('agents.newSession.base')"
+        data-testid="new-session-base"
+      >
+        <template #value="{ value }">{{ t('agents.newSession.branchFrom', { base: value }) }}</template>
+      </VSelect>
       <VSelect v-if="!creating" v-model="mode" :options="MODES" option-label="label" option-value="value" option-disabled="disabled" size="small" class="chip" :aria-label="t('agents.newSession.branch')" data-testid="new-session-branch-mode" />
       <slot name="type" />
     </div>
@@ -64,7 +85,7 @@ const summary = computed(() => {
       <span class="row-label">{{ t('agents.newSession.newBranch') }}</span>
       <VInputText v-model="fresh" size="small" :placeholder="t('agents.newSession.typeBranch')" class="row-input mono" data-testid="new-session-new-branch" />
     </label>
-    <label v-if="plan.kind === 'create'" class="row">
+    <label v-if="expanded && plan.kind === 'create'" class="row">
       <span class="row-label">{{ t('agents.newSession.setupCommand') }}</span>
       <VInputText v-model="setup" size="small" :placeholder="t('agents.newSession.setupPlaceholder')" class="row-input mono" data-testid="new-session-setup" />
     </label>

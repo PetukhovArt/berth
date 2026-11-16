@@ -16,6 +16,9 @@ export type SessionTarget = {
   existing: ShallowRef<string | null>;
   fresh: ShallowRef<string>;
   setup: ShallowRef<string>;
+  base: ComputedRef<string | null>;
+  baseOptions: ComputedRef<Option[]>;
+  baseChoice: ShallowRef<string | null>;
   branches: ShallowRef<Branch[] | null>;
   branchesError: ShallowRef<string | null>;
   loading: ShallowRef<boolean>;
@@ -86,6 +89,18 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
     return DEFAULT_BASES.find((name) => names.has(name)) ?? null;
   });
   const targetWorktree = computed(() => (creating.value ? mainWorktree.value : worktrees.value.find((worktree) => worktree.id === target.value)));
+  const baseChoice = shallowRef<string | null>(null);
+  const base = computed(() => {
+    const chosen = baseChoice.value ?? configuredBase.value;
+    if (chosen) return chosen;
+    const main = mainWorktree.value?.branch;
+    return main && !isDetached(main) ? main : null;
+  });
+  const baseOptions = computed<Option[]>(() => {
+    const names = (branches.value ?? []).map((branch) => branch.name);
+    const current = base.value;
+    return (current && !names.includes(current) ? [current, ...names] : names).map((name) => ({ id: name, label: name }));
+  });
 
   let loadSeq = 0;
   async function load(id: string) {
@@ -109,6 +124,7 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
       if (previous !== undefined) {
         target.value = mainWorktree.value?.id ?? null;
         existing.value = null;
+        baseChoice.value = null;
       }
       if (id) void load(id);
       setup.value = '';
@@ -138,7 +154,8 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
     const known = branches.value?.find((branch) => branch.name === name);
     const holder = known?.worktree ? all?.worktrees.get(known.worktree) : worktrees.value.find((worktree) => worktree.branch === name);
     if (holder) return { kind: 'use', worktree: holder };
-    if (creating.value && !known && configuredBase.value) return { kind: 'create', branch: name, base: configuredBase.value, fetch: true };
+    const chosenBase = baseChoice.value ?? configuredBase.value;
+    if (creating.value && !known && chosenBase) return { kind: 'create', branch: name, base: chosenBase, fetch: baseChoice.value === null };
     const base = branchMode.value === 'new' && !known && targetWorktree.value && !isDetached(targetWorktree.value.branch) ? targetWorktree.value.branch : null;
     return { kind: 'create', branch: name, base, fetch: false };
   }
@@ -208,5 +225,5 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
     return ids;
   }
 
-  return { project, target, mode, existing, fresh, setup, branches, branchesError, loading, count, projects, targets, creating, plan, takenNames, sharesBranch, resolve };
+  return { project, target, mode, existing, fresh, setup, base, baseOptions, baseChoice, branches, branchesError, loading, count, projects, targets, creating, plan, takenNames, sharesBranch, resolve };
 }

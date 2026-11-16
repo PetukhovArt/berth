@@ -3,6 +3,7 @@ import { computed, shallowRef, watch } from 'vue';
 import { VButton, VDialog, VInputText, VMessage, VSelect, VTextarea } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
+import { chordJoiner, modifierGlyphs, onlyPrimaryPressed, primaryModifier, primaryPressed } from '../../../shared/lib/platform';
 import { invoke } from '../../../bridge';
 import { acpPrompt, createAcpAgent, createAgent, createTerminal, entitySessionRef, type AgentKind, type SessionRef, useAction } from '../../../entities/session';
 import { enabledNativeAgent, useProviders } from '../../../shared/api/providers';
@@ -50,14 +51,19 @@ const defaultKind = computed<Kind>(() => {
 const picked = shallowRef<Kind | null>(null);
 const kind = computed<Kind>(() => picked.value ?? defaultKind.value);
 const name = shallowRef(generatedName(kind.value));
-const model = shallowRef(values.value['sessions.default_model']);
-const effort = shallowRef(values.value['sessions.default_effort']);
+const model = shallowRef<string | null>(values.value['sessions.default_model']);
+const effort = shallowRef<string | null>(values.value['sessions.default_effort']);
 const prompt = shallowRef('');
 const before = shallowRef('');
 const after = shallowRef('');
 const activePreset = shallowRef<string | null>(null);
 const presetName = shallowRef('');
 const action = useAction();
+const expanded = shallowRef(false);
+const backgroundKey = `${modifierGlyphs[primaryModifier]}${chordJoiner}Enter`;
+const MODEL_SUGGESTIONS = ['opus', 'sonnet', 'haiku'];
+const EFFORT_SUGGESTIONS = ['low', 'medium', 'high'];
+const modelOptions = computed(() => (kind.value === 'claude' ? MODEL_SUGGESTIONS : []));
 
 const defaultName = computed(() => generatedName(kind.value));
 
@@ -106,7 +112,7 @@ function saveCurrent() {
   const trimmed = presetName.value.trim();
   if (!trimmed || kind.value === 'terminal') return;
   const acp = acpProviderOf(kind.value) !== null;
-  savePreset({ name: trimmed, kind: kind.value, model: acp ? '' : model.value.trim(), effort: acp ? '' : effort.value.trim(), before: before.value, after: after.value });
+  savePreset({ name: trimmed, kind: kind.value, model: acp ? '' : (optional(model.value) ?? ''), effort: acp ? '' : (optional(effort.value) ?? ''), before: before.value, after: after.value });
   activePreset.value = trimmed;
   presetName.value = '';
 }
@@ -116,7 +122,7 @@ function removePreset(name: string) {
   if (activePreset.value === name) activePreset.value = null;
 }
 
-const optional = (text: string) => text.trim() || null;
+const optional = (text: string | null) => text?.trim() || null;
 
 const warmWorktree = computed(() => (location.plan.value.kind === 'use' && providers.value.length ? location.plan.value.worktree.id : null));
 
@@ -129,7 +135,7 @@ watch(
   { immediate: true },
 );
 
-async function submit() {
+async function submit(background = false) {
   const chosen = kinds.value;
   const defaults = chosen.map(generatedName);
   const names = chosen.length > 1 ? defaults : [name.value.trim() || defaults[0]];
@@ -160,16 +166,25 @@ async function submit() {
       if (acpProvider && startingPrompt && created && 'Agent' in created) await acpPrompt(created.Agent, startingPrompt);
       first ??= created;
     }
-    if (first) emit('created', first);
+    if (first && !background) emit('created', first);
     else emit('close');
   });
 }
 
+function startable(): boolean {
+  return location.plan.value.kind !== 'incomplete' && !action.busy.value;
+}
+
 function onPromptKey(event: KeyboardEvent) {
-  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing || primaryPressed(event)) return;
   event.preventDefault();
-  if (location.plan.value.kind === 'incomplete' || action.busy.value) return;
-  void submit();
+  if (startable()) void submit();
+}
+
+function onFormKey(event: KeyboardEvent) {
+  if (event.key !== 'Enter' || event.isComposing || !onlyPrimaryPressed(event)) return;
+  event.preventDefault();
+  if (startable()) void submit(true);
 }
 
 function onVisible(visible: boolean) {
@@ -187,19 +202,19 @@ function onVisible(visible: boolean) {
     :draggable="false"
     @update:visible="onVisible"
   >
-    <form class="form" data-testid="new-session-form" @submit.prevent="submit">
+    <form class="form" data-testid="new-session-form" @submit.prevent="submit()" @keydown="onFormKey">
       <VTextarea
         v-if="kind !== 'terminal'"
         v-model="prompt"
-        rows="4"
+        rows="3"
         auto-resize
         class="prompt"
         :aria-label="t('agents.newSession.prompt')"
-        :placeholder="t('agents.newSession.optional')"
+        :placeholder="t('agents.newSession.promptPlaceholder')"
         data-testid="new-session-prompt"
         @keydown="onPromptKey"
       />
-      <NewSessionTarget :state="location">
+      <NewSessionTarget :state="location" :expanded="expanded">
         <template #type>
           <VSelect
             :model-value="kind"
@@ -214,7 +229,40 @@ function onVisible(visible: boolean) {
           />
         </template>
       </NewSessionTarget>
-      <div v-if="kind !== 'terminal'" class="extras" data-testid="new-session-extras">
+      <div class="chips" data-testid="new-session-options">
+        <template v-if="kind !== 'terminal' && !acpProviderOf(kind)">
+          <VSelect
+            v-model="model"
+            :options="modelOptions"
+            editable
+            size="small"
+            class="chip chip-input"
+            :placeholder="t('agents.newSession.defaultModel')"
+            :aria-label="t('agents.newSession.model')"
+            data-testid="new-session-model"
+          />
+          <VSelect
+            v-model="effort"
+            :options="EFFORT_SUGGESTIONS"
+            editable
+            size="small"
+            class="chip chip-input"
+            :placeholder="t('agents.newSession.defaultEffort')"
+            :aria-label="t('agents.newSession.effort')"
+            data-testid="new-session-effort"
+          />
+        </template>
+        <span class="spacer" />
+        <VButton
+          :label="expanded ? t('agents.newSession.fewer') : t('agents.newSession.more')"
+          size="small"
+          text
+          :aria-expanded="expanded"
+          data-testid="new-session-more"
+          @click="expanded = !expanded"
+        />
+      </div>
+      <div v-if="expanded && kind !== 'terminal'" class="extras" data-testid="new-session-extras">
         <span class="extras-label">{{ t('agents.newSession.alsoStart') }}</span>
         <VButton
           v-for="option in extraOptions"
@@ -227,7 +275,7 @@ function onVisible(visible: boolean) {
           @click="toggleExtra(option.value)"
         />
       </div>
-      <div v-if="presets.length" class="extras" data-testid="new-session-presets">
+      <div v-if="expanded && presets.length" class="extras" data-testid="new-session-presets">
         <span class="extras-label">{{ t('agents.newSession.presets') }}</span>
         <span v-for="preset in presets" :key="preset.name" class="preset">
           <VButton
@@ -248,7 +296,7 @@ function onVisible(visible: boolean) {
           />
         </span>
       </div>
-      <div v-if="kind !== 'terminal'" class="pair">
+      <div v-if="expanded && kind !== 'terminal'" class="pair">
         <label class="field">
           <span>{{ t('agents.newSession.before') }}</span>
           <VInputText v-model="before" size="small" data-testid="new-session-before" />
@@ -258,17 +306,7 @@ function onVisible(visible: boolean) {
           <VInputText v-model="after" size="small" data-testid="new-session-after" />
         </label>
       </div>
-      <div v-if="kind !== 'terminal' && !acpProviderOf(kind)" class="pair">
-        <label class="field">
-          <span>{{ t('agents.newSession.model') }}</span>
-          <VInputText v-model="model" size="small" :placeholder="t('agents.newSession.byDefault')" data-testid="new-session-model" />
-        </label>
-        <label class="field">
-          <span>{{ t('agents.newSession.effort') }}</span>
-          <VInputText v-model="effort" size="small" :placeholder="t('agents.newSession.byDefault')" data-testid="new-session-effort" />
-        </label>
-      </div>
-      <div v-if="kind !== 'terminal'" class="extras">
+      <div v-if="expanded && kind !== 'terminal'" class="extras">
         <VInputText v-model="presetName" size="small" :placeholder="t('agents.newSession.presetName')" data-testid="new-session-preset-name" @keydown.enter.prevent="saveCurrent" />
         <VButton :label="t('agents.newSession.savePreset')" size="small" outlined :disabled="!presetName.trim()" data-testid="new-session-preset-save" @click="saveCurrent" />
       </div>
@@ -279,6 +317,7 @@ function onVisible(visible: boolean) {
           <VInputText v-model="name" size="small" :placeholder="defaultName" data-testid="new-session-name" />
         </label>
         <span class="spacer" />
+        <span class="hint" data-testid="new-session-background-hint">{{ t('agents.newSession.backgroundHint', { key: backgroundKey }) }}</span>
         <VButton :label="t('common.cancel')" size="small" text data-testid="new-session-cancel" @click="emit('close')" />
         <VButton type="submit" :label="many ? t('agents.newSession.startMany', { count: kinds.length }) : t('common.create')" size="small" :loading="action.busy.value" :disabled="location.plan.value.kind === 'incomplete'" data-testid="new-session-submit" />
       </div>
@@ -293,8 +332,24 @@ function onVisible(visible: boolean) {
   gap: var(--vr-space-3);
 }
 
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.chip-input {
+  width: 140px;
+}
+
+.hint {
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-muted);
+}
+
 .prompt {
-  min-height: 120px;
+  min-height: 84px;
   padding: 12px 14px;
   border: 1px solid var(--vr-color-border-strong);
   border-radius: 12px;
