@@ -113,6 +113,29 @@ other app, and updated only when you ask.
 powershell -ExecutionPolicy Bypass -File scripts\install-app.ps1 -Launch
 ```
 
+Building the desktop app needs more than the `berth` command does, because voice input compiles
+whisper.cpp and generates its bindings with bindgen:
+
+- Visual Studio Build Tools with the C++ workload (MSVC), which Rust needs anyway.
+- CMake on `PATH` (`winget install Kitware.CMake`). The copy inside Visual Studio works too when it is on
+  `PATH`, but a CMake older than 3.21 does not know the Visual Studio 2022 generator: with such a CMake
+  and Build Tools 2019, set `CMAKE_GENERATOR` to `Visual Studio 16 2019`.
+- LLVM for `libclang` (`winget install LLVM.LLVM`). The build finds it in `C:\Program Files\LLVM` or in
+  the "C++ Clang tools" component of Visual Studio on its own; anywhere else, set `LIBCLANG_PATH` to the
+  folder that holds `libclang.dll`. A bare `libclang.dll` without the clang headers (the PyPI `libclang`
+  wheel, for one) also needs `BINDGEN_EXTRA_CLANG_ARGS` with `-isystem` for the MSVC and Windows SDK
+  include folders.
+
+The same applies to every cargo command that covers the whole workspace, `cargo check --workspace`
+included, since `berth-desktop` is a workspace member. `cargo build -p berth` and the CI jobs, which
+exclude `berth-desktop`, need none of it.
+
+The build also downloads the sherpa-onnx libraries from their GitHub releases and puts
+`sherpa-onnx-c-api.dll` and `onnxruntime.dll` next to `berth-desktop.exe`, and the install script copies
+both into the working copy. The wake word needs them there, while dictation and the rest of the app
+start without them. `berth-desktop.exe` also needs `MSVCP140.dll` from the Visual C++ runtime, which
+Visual Studio Build Tools installs.
+
 The script reads `main` from the checkout it sits in, never the files in the working tree, and builds it
 in `%LOCALAPPDATA%\Berth\build` (`src` for the exported tree, `target` for an incremental cargo cache,
 `logs` for one log per build). The result goes to `app\<build-id>`, `app\current` points at it, `app\previous`

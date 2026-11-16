@@ -28,6 +28,13 @@ checkout's instance.
 The desktop app is `apps/desktop` (the Tauri shell) and `apps/web` (its Vue UI), with shared UI in
 `packages/`.
 
+On macOS and Windows the desktop app builds local voice input in (the `voice` feature, on by default):
+whisper.cpp through CMake, its bindings through bindgen and libclang, and the sherpa-onnx libraries
+downloaded from their GitHub releases at build time. On macOS that means CMake (`brew install cmake`)
+next to the Xcode Command Line Tools, which carry libclang. Windows needs CMake and LLVM, see
+[windows.md](windows.md#desktop-working-copy). On Linux the app builds without the engine and the
+microphone falls back to the browser's speech recognition.
+
 `vendor/vt100` is a patched copy of the terminal parser, wired in through `[patch.crates-io]`; the
 daemon's ConPTY unicode probe test rebuilds captured output with it. Don't bump or replace it.
 

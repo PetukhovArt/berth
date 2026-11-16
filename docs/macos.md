@@ -9,8 +9,9 @@ The desktop app you use all day should not be the one agents are rebuilding. Ins
 release build of the committed `main` under `~/Library/Application Support/Berth`, launched like any
 other app and updated only when you ask.
 
-You need Xcode Command Line Tools (`xcode-select --install`), Node 22, pnpm and a Rust toolchain. From
-the checkout:
+You need Xcode Command Line Tools (`xcode-select --install`), CMake (`brew install cmake`), Node 22, pnpm
+and a Rust toolchain. CMake builds whisper.cpp for voice input; the build also downloads the sherpa-onnx
+libraries from its GitHub releases. From the checkout:
 
 ```sh
 bash scripts/install-app.sh -Launch
