@@ -14,14 +14,14 @@ const title = computed(() => (overlap.value ? t('agents.overlap.title', { names:
 <template>
   <span v-if="overlap" class="overlap" :class="{ compact }" :title="title" :aria-label="title" data-testid="overlap-chip">
     <TriangleAlert :size="12" />
-    <template v-if="!compact">{{ label }}</template>
+    <span v-if="!compact" class="label">{{ label }}</span>
   </span>
 </template>
 
 <style scoped>
 .overlap {
   display: inline-flex;
-  flex: none;
+  flex: 0 1 auto;
   align-items: center;
   gap: 5px;
   min-width: 0;
@@ -32,9 +32,14 @@ const title = computed(() => (overlap.value ? t('agents.overlap.title', { names:
   color: var(--vr-color-text-muted);
   font-size: var(--vr-font-size-xs);
   white-space: nowrap;
-  text-overflow: ellipsis;
   background: var(--vr-color-surface-muted);
   border-radius: var(--vr-radius-full);
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .overlap.compact {

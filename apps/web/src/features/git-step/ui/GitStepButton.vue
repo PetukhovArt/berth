@@ -103,7 +103,7 @@ onBeforeUnmount(() => window.removeEventListener('focus', refresh));
 
 <template>
   <div v-if="step" class="git-step" data-testid="git-step">
-    <span v-if="hint" class="hint" data-testid="git-step-hint">{{ hint }}</span>
+    <span v-if="hint" class="hint" :title="hint" data-testid="git-step-hint">{{ hint }}</span>
     <UiButton type="button" class="run" :disabled="!runnable || busy" :aria-busy="busy" data-testid="git-step-run" @click="click">
       {{ busy ? t('gitStep.working') : label }}
     </UiButton>
@@ -135,9 +135,10 @@ onBeforeUnmount(() => window.removeEventListener('focus', refresh));
 .git-step {
   position: relative;
   display: flex;
-  flex: none;
+  flex: 0 1 auto;
   align-items: center;
   gap: var(--vr-space-2);
+  min-width: 0;
 }
 
 .hint,
@@ -147,7 +148,10 @@ onBeforeUnmount(() => window.removeEventListener('focus', refresh));
 }
 
 .hint {
+  min-width: 0;
+  overflow: hidden;
   color: var(--vr-color-text-subtle);
+  text-overflow: ellipsis;
 }
 
 .error {
@@ -162,6 +166,7 @@ onBeforeUnmount(() => window.removeEventListener('focus', refresh));
 }
 
 .run {
+  flex: none;
   height: 28px;
   padding: 0 11px;
   color: var(--vr-color-accent-contrast);

@@ -181,7 +181,7 @@ watch(
   flex: 1;
   flex-direction: column;
   gap: 2px;
-  min-width: 0;
+  min-width: 12rem;
 }
 
 .title-row {
