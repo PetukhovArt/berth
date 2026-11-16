@@ -23,8 +23,8 @@ const summary = computed(() => {
 <template>
   <div class="group" :data-open="open" data-testid="chat-tool-group">
     <UiButton type="button" class="head" :aria-expanded="open" :title="t('chat.tools.expand')" data-testid="chat-tool-group-toggle" @click="open = !open">
-      <ChevronDown v-if="open" :size="13" />
-      <ChevronRight v-else :size="13" />
+      <ChevronDown v-if="open" :size="10" />
+      <ChevronRight v-else :size="10" />
       <span class="summary" data-testid="chat-tool-group-summary">{{ summary }}</span>
       <span v-if="seconds !== null" class="time">{{ durationLabel(seconds) }}</span>
     </UiButton>
@@ -33,6 +33,7 @@ const summary = computed(() => {
         <div class="row">
           <span class="name">{{ call.message.tool }}</span>
           <span class="arg mono" :title="call.message.text">{{ withinWorktree(call.message.text, root) }}</span>
+          <span v-if="call.category === 'run' && call.message.exit !== undefined" class="exit mono" :data-failed="call.message.exit !== 0 || undefined" data-testid="chat-tool-exit">{{ t('chat.tools.exit', { code: call.message.exit }) }}</span>
         </div>
         <RichContent v-for="detail in call.details" :key="detail.key" class="detail" :markdown="detail.markdown ?? detail.text" />
       </li>
@@ -43,6 +44,7 @@ const summary = computed(() => {
 <style scoped>
 .group {
   overflow: hidden;
+  background: var(--vr-color-surface);
   border: 1px solid var(--vr-color-border);
   border-radius: var(--vr-radius-lg);
 }
@@ -52,10 +54,10 @@ const summary = computed(() => {
   align-items: center;
   gap: var(--vr-space-2);
   width: 100%;
-  min-height: var(--vr-size-row);
+  min-height: 36px;
   padding: 0 var(--vr-space-3);
   font: inherit;
-  font-size: var(--vr-font-size-sm);
+  font-size: var(--vr-font-size-label);
   color: var(--vr-color-text-muted);
   text-align: left;
   cursor: pointer;
@@ -94,16 +96,16 @@ const summary = computed(() => {
 .row {
   display: flex;
   align-items: center;
-  gap: var(--vr-space-3);
+  gap: 10px;
   min-width: 0;
   min-height: 30px;
-  padding: 0 var(--vr-space-3);
-  font-size: var(--vr-font-size-sm);
+  padding: 0 var(--vr-space-3) 0 30px;
+  font-size: var(--vr-font-size-label);
 }
 
 .name {
   flex: none;
-  min-width: 3.5em;
+  min-width: 40px;
   color: var(--vr-color-text-muted);
 }
 
@@ -117,8 +119,19 @@ const summary = computed(() => {
   text-overflow: ellipsis;
 }
 
+.exit {
+  flex: none;
+  font-size: var(--vr-font-size-2xs);
+  white-space: nowrap;
+  color: var(--vr-color-text-subtle);
+}
+
+.exit[data-failed] {
+  color: var(--vr-color-danger);
+}
+
 .detail {
-  padding: 0 var(--vr-space-3) var(--vr-space-2);
+  padding: 0 var(--vr-space-3) var(--vr-space-2) 30px;
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
 }

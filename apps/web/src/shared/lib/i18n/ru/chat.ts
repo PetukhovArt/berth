@@ -10,6 +10,7 @@ export const chat: Translation<typeof en> = {
     fetch: { one: 'загружена {count} страница', few: 'загружено {count} страницы', many: 'загружено {count} страниц', other: 'загружено {count} страницы' },
     other: { one: '{count} вызов инструмента', few: '{count} вызова инструментов', many: '{count} вызовов инструментов', other: '{count} вызова инструментов' },
     expand: 'Показать вызовы инструментов',
+    exit: 'код {code}',
   },
   seconds: '{count} с',
   minutes: '{minutes} мин {seconds} с',

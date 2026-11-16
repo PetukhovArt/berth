@@ -41,18 +41,19 @@ function open(file: ChangedFile) {
 
 .head {
   display: flex;
-  align-items: baseline;
-  gap: var(--vr-space-2);
-  padding: var(--vr-space-2) var(--vr-space-3);
-  font-size: var(--vr-font-size-sm);
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 0 var(--vr-space-3);
+  font-size: var(--vr-font-size-label);
+  background: var(--vr-color-surface);
 }
 
 .title {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .count {
-  font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
 }
 
@@ -65,10 +66,10 @@ function open(file: ChangedFile) {
 .file {
   display: flex;
   align-items: center;
-  gap: var(--vr-space-2);
+  gap: 10px;
   min-height: 32px;
   padding: 0 var(--vr-space-3);
-  font-size: var(--vr-font-size-sm);
+  font-size: var(--vr-font-size-label);
   border-top: 1px solid var(--vr-color-border);
 }
 
@@ -84,7 +85,7 @@ function open(file: ChangedFile) {
 .added,
 .removed {
   flex: none;
-  font-size: var(--vr-font-size-xs);
+  font-size: var(--vr-font-size-2xs);
 }
 
 .added {
@@ -98,9 +99,9 @@ function open(file: ChangedFile) {
 .open {
   flex: none;
   padding: 0;
-  margin-left: var(--vr-space-1);
   font: inherit;
-  font-size: var(--vr-font-size-sm);
+  font-size: var(--vr-font-size-label);
+  white-space: nowrap;
   color: var(--vr-color-link);
   cursor: pointer;
   background: none;

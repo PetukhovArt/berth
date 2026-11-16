@@ -7,6 +7,7 @@ export const chat = {
     fetch: { one: 'fetched {count} page', other: 'fetched {count} pages' },
     other: { one: 'used {count} tool', other: 'used {count} tools' },
     expand: 'Show the tool calls',
+    exit: 'exit {code}',
   },
   seconds: '{count}s',
   minutes: '{minutes}m {seconds}s',

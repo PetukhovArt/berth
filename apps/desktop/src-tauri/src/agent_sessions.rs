@@ -14,6 +14,7 @@ use tokio::task::{spawn_blocking, JoinHandle};
 use crate::connectors::ai::{claude_dir, codex_home};
 use crate::sink::BoxSink;
 
+mod tool_exit;
 mod turn_files;
 
 use turn_files::{file_edits, line_model, FileEdit};
@@ -139,6 +140,8 @@ pub struct TranscriptMessage {
     input: Option<Value>,
     model: Option<String>,
     edits: Vec<FileEdit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    exit: Option<i32>,
 }
 
 #[derive(Default)]
@@ -1185,6 +1188,7 @@ fn claude_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
                     input: None,
                     model: None,
                     edits: Vec::new(),
+                    exit: None,
                 });
             }
         } else if block["type"].as_str() == Some("tool_use") {
@@ -1197,6 +1201,7 @@ fn claude_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
                 input: plan_input(block["name"].as_str(), &block["input"]),
                 model: None,
                 edits: file_edits(block["name"].as_str(), &block["input"]),
+                exit: None,
             });
         }
     }
@@ -1250,6 +1255,7 @@ fn codex_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
                 input: None,
                 model: None,
                 edits: Vec::new(),
+                exit: None,
             }
         }
         "function_call" | "custom_tool_call" => TranscriptMessage {
@@ -1279,6 +1285,7 @@ fn codex_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
                     &payload["input"]
                 },
             ),
+            exit: None,
         },
         "local_shell_call" => TranscriptMessage {
             key,
@@ -1289,6 +1296,7 @@ fn codex_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
             input: None,
             model: None,
             edits: file_edits(None, &payload["action"]),
+            exit: None,
         },
         _ => return,
     };
@@ -1310,6 +1318,7 @@ fn read_transcript(
             .ok_or_else(|| format!("не удалось прочитать {}", path.display()))?;
         let mut messages: Vec<TranscriptMessage> = Vec::new();
         let mut model: Option<String> = None;
+        let mut calls: HashMap<String, usize> = HashMap::new();
         for line in parse_lines(&buffer) {
             if let Some(next) = line_model(harness, &line) {
                 model = Some(next);
@@ -1322,6 +1331,17 @@ fn read_transcript(
             for message in &mut messages[from..] {
                 if message.role == Role::Assistant {
                     message.model.clone_from(&model);
+                }
+            }
+            let tools = (from..messages.len()).filter(|&index| messages[index].tool.is_some());
+            for (index, id) in tools.zip(tool_exit::call_ids(harness, &line)) {
+                if !id.is_empty() {
+                    calls.insert(id, index);
+                }
+            }
+            for (id, code) in tool_exit::results(harness, &line) {
+                if let Some(&index) = calls.get(&id) {
+                    messages[index].exit = Some(code);
                 }
             }
         }
