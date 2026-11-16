@@ -235,6 +235,13 @@ export const agents = {
     refresh: 'Refresh',
     loading: 'Reading changes…',
     empty: 'No changes in this worktree',
+    emptyUncommitted: 'No uncommitted changes. Pick another range above to see committed work.',
+    scope: {
+      title: 'What the view compares',
+      uncommitted: 'Uncommitted',
+      base: 'Branch vs {base}',
+      commits: 'Commits',
+    },
     failed: 'Could not read the worktree changes: {error}',
     retry: 'Try again',
   },

@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
 
+use serde::Serialize;
 use tokio::process::Command;
 use tokio::task::spawn_blocking;
 
@@ -14,6 +15,8 @@ const MAX_PATCH_LINES: usize = 2000;
 const MAX_PATCH_BYTES: usize = 512 * 1024;
 const BINARY_PROBE: usize = 8000;
 const NO_NEWLINE: &str = "\\ No newline at end of file";
+const EMPTY_TREE: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+const COMMIT_LIMIT: &str = "50";
 
 struct Git {
     root: PathBuf,
@@ -121,11 +124,11 @@ impl Git {
         None
     }
 
-    async fn tracked(&self, base: &str) -> Result<Vec<DiffFile>, String> {
+    async fn tracked(&self, revs: &[&str]) -> Result<Vec<DiffFile>, String> {
         let flags = ["-M", "--no-color", "--no-ext-diff"];
-        let raw_args = [&["diff", base, "--raw", "-z"][..], &flags].concat();
-        let numstat_args = [&["diff", base, "--numstat", "-z"][..], &flags].concat();
-        let patch_args = [&["diff", base][..], &flags].concat();
+        let raw_args = [&["diff"][..], revs, &["--raw", "-z"][..], &flags[..]].concat();
+        let numstat_args = [&["diff"][..], revs, &["--numstat", "-z"][..], &flags[..]].concat();
+        let patch_args = [&["diff"][..], revs, &flags[..]].concat();
         let (raw, numstat, patch) = tokio::join!(
             self.bytes(&raw_args),
             self.bytes(&numstat_args),
@@ -141,7 +144,8 @@ impl Git {
             let block = if aligned {
                 blocks[index].to_owned()
             } else {
-                let mut args = vec!["diff", base];
+                let mut args: Vec<&str> = vec!["diff"];
+                args.extend_from_slice(revs);
                 args.extend(flags);
                 args.extend(["--", entry.old_path.as_str(), entry.new_path.as_str()]);
                 String::from_utf8_lossy(&self.bytes(&args).await.unwrap_or_default()).into_owned()
@@ -354,20 +358,63 @@ fn probe_binary(path: &Path) -> bool {
     head[..read].contains(&0)
 }
 
-pub async fn worktree_changes(path: String) -> Result<Vec<DiffFile>, String> {
+async fn open(path: &str) -> Result<Git, String> {
     let probe = Git {
-        root: PathBuf::from(&path),
+        root: PathBuf::from(path),
     };
     let root = probe
         .line(&["rev-parse", "--show-toplevel"])
         .await
         .ok_or_else(|| format!("не git-репозиторий: {path}"))?;
-    let git = Git {
+    Ok(Git {
         root: PathBuf::from(root),
-    };
-    let mut files = match git.base().await {
-        Some(base) => git.tracked(&base).await?,
-        None => Vec::new(),
+    })
+}
+
+fn is_revision(text: &str) -> bool {
+    (4..=64).contains(&text.len()) && text.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+pub async fn worktree_changes(
+    path: String,
+    scope: Option<String>,
+) -> Result<Vec<DiffFile>, String> {
+    let git = open(&path).await?;
+    let mut files = match scope.as_deref() {
+        None | Some("base") => match git.base().await {
+            Some(base) => git.tracked(&[base.as_str()]).await?,
+            None => Vec::new(),
+        },
+        Some("uncommitted") => {
+            if git
+                .line(&["rev-parse", "--verify", "--quiet", "HEAD"])
+                .await
+                .is_some()
+            {
+                git.tracked(&["HEAD"]).await?
+            } else {
+                Vec::new()
+            }
+        }
+        Some(other) => {
+            let revision = other
+                .strip_prefix("commit:")
+                .filter(|revision| is_revision(revision))
+                .ok_or_else(|| format!("неизвестный охват изменений: {other}"))?;
+            let parent = format!("{revision}^");
+            let has_parent = git
+                .line(&["rev-parse", "--verify", "--quiet", &parent])
+                .await
+                .is_some();
+            let before = if has_parent {
+                parent
+            } else {
+                EMPTY_TREE.to_owned()
+            };
+            let mut in_commit = git.tracked(&[before.as_str(), revision]).await?;
+            in_commit.sort_by(|a, b| a.new_path.cmp(&b.new_path));
+            return Ok(in_commit);
+        }
     };
     let untracked = git.untracked().await?;
     let root = git.root.clone();
@@ -382,4 +429,62 @@ pub async fn worktree_changes(path: String) -> Result<Vec<DiffFile>, String> {
     files.extend(extra);
     files.sort_by(|a, b| a.new_path.cmp(&b.new_path));
     Ok(files)
+}
+
+#[derive(Serialize)]
+pub struct CommitInfo {
+    sha: String,
+    short: String,
+    subject: String,
+    date: String,
+}
+
+#[derive(Serialize)]
+pub struct CommitList {
+    base: Option<String>,
+    commits: Vec<CommitInfo>,
+}
+
+pub async fn worktree_commits(path: String) -> Result<CommitList, String> {
+    let git = open(&path).await?;
+    let base = git
+        .default_branch()
+        .await
+        .map(|name| name.strip_prefix("origin/").unwrap_or(&name).to_owned());
+    let range = match (
+        git.base().await,
+        git.line(&["rev-parse", "--verify", "--quiet", "HEAD"])
+            .await,
+    ) {
+        (_, None) => {
+            return Ok(CommitList {
+                base,
+                commits: Vec::new(),
+            })
+        }
+        (Some(from), Some(head)) if from != head => format!("{from}..HEAD"),
+        _ => "HEAD".to_owned(),
+    };
+    let out = git
+        .bytes(&[
+            "log",
+            &range,
+            "-n",
+            COMMIT_LIMIT,
+            "--format=%H%x1f%h%x1f%s%x1f%cI",
+        ])
+        .await?;
+    let commits = String::from_utf8_lossy(&out)
+        .lines()
+        .filter_map(|line| {
+            let mut parts = line.splitn(4, '\u{1f}');
+            Some(CommitInfo {
+                sha: parts.next()?.to_owned(),
+                short: parts.next()?.to_owned(),
+                subject: parts.next()?.to_owned(),
+                date: parts.next()?.to_owned(),
+            })
+        })
+        .collect();
+    Ok(CommitList { base, commits })
 }

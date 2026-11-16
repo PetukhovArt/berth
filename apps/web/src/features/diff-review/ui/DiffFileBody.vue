@@ -18,7 +18,7 @@ const props = defineProps<{
   pickable?: boolean;
   picked?: { from: number; to: number } | null;
 }>();
-const emit = defineEmits<{ expand: []; pick: [index: number, extend: boolean] }>();
+const emit = defineEmits<{ expand: []; pick: [index: number, extend: boolean]; quote: [text: string] }>();
 
 type Model = { lines: PatchLine[]; rows: SplitRow[]; html: string[]; threads: Map<number, Discussion[]>; orphans: Discussion[] };
 
@@ -92,7 +92,7 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
 <template>
   <div class="body" :data-mode="mode" :data-wrap="wrap">
     <div v-for="d in model.orphans" :key="d.id" class="thread-row" :data-flash="flashId === d.id">
-      <ThreadView :discussion="d" :connector="connector" show-position />
+      <ThreadView :discussion="d" :connector="connector" :quotable="pickable" show-position @quote="emit('quote', $event)" />
     </div>
 
     <div v-if="mode === 'unified'" class="lines">
@@ -106,7 +106,7 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
           <span class="code" v-html="codeOf(line)" />
         </div>
         <div v-for="d in model.threads.get(line.index)" :key="d.id" class="thread-row" :data-flash="flashId === d.id">
-          <ThreadView :discussion="d" :connector="connector" />
+          <ThreadView :discussion="d" :connector="connector" :quotable="pickable" @quote="emit('quote', $event)" />
         </div>
       </template>
     </div>
@@ -121,7 +121,7 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
           <span class="code" :data-kind="row.right?.kind" :data-picked="isPicked(row.right)" v-html="codeOf(row.right)" />
         </div>
         <div v-for="d in rowThreads(row)" :key="d.id" class="thread-row" :data-flash="flashId === d.id">
-          <ThreadView :discussion="d" :connector="connector" />
+          <ThreadView :discussion="d" :connector="connector" :quotable="pickable" @quote="emit('quote', $event)" />
         </div>
       </template>
     </div>

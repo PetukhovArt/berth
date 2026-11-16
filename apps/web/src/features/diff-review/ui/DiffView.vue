@@ -10,6 +10,7 @@ import { isMarkdownPath, type PreviewSource } from '../lib/fileBase';
 import MarkdownPreview from './MarkdownPreview.vue';
 import { fingerprint, loadMarks, saveMarks, type Marks } from '../lib/reviewed';
 import { parsePatch } from '../lib/patch';
+import { flatName, treePlace } from '../lib/treePlace';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ files: DiffFile[]; discussions: Discussion[]; connector?: string; project?: string; headSha?: string; requestUrl?: string; root?: string; quotable?: boolean }>();
@@ -226,7 +227,7 @@ function buildTree(): TreeNode {
   const top: TreeNode = { name: '', path: '', dirs: new Map(), files: [] };
   props.files.forEach((file, index) => {
     let node = top;
-    for (const part of file.new_path.split('/').slice(0, -1)) {
+    for (const part of treePlace(file).dirs) {
       let child = node.dirs.get(part);
       if (!child) {
         child = { name: part, path: node.path ? `${node.path}/${part}` : part, dirs: new Map(), files: [] };
@@ -258,7 +259,7 @@ const treeRows = computed<TreeRow[]>(() => {
   if (query.value) {
     return visible.value.map((index) => {
       const file = props.files[index]!;
-      return { key: `f${index}`, kind: 'file' as const, depth: 0, name: file.new_path, path: file.new_path, index, additions: file.additions, deletions: file.deletions, open: false };
+      return { key: `f${index}`, kind: 'file' as const, depth: 0, name: flatName(file), path: file.new_path, index, additions: file.additions, deletions: file.deletions, open: false };
     });
   }
   const rows: TreeRow[] = [];
@@ -278,7 +279,7 @@ const treeRows = computed<TreeRow[]>(() => {
     const ordered = [...node.files].sort((a, b) => compareText(props.files[a]!.new_path, props.files[b]!.new_path));
     for (const index of ordered) {
       const file = props.files[index]!;
-      rows.push({ key: `f${index}`, kind: 'file', depth, name: file.new_path.split('/').at(-1)!, path: file.new_path, index, additions: file.additions, deletions: file.deletions, open: false });
+      rows.push({ key: `f${index}`, kind: 'file', depth, name: treePlace(file).name, path: file.new_path, index, additions: file.additions, deletions: file.deletions, open: false });
     }
   };
   walk(buildTree(), 0);
@@ -552,6 +553,7 @@ defineExpose({ focusThread, root });
       <header class="toolbar">
         <UiButton class="mode vr-phone-only" data-testid="diff-files-open" @click="filesOpen = true"><ListTree :size="14" />{{ t('forge.diff.files') }}</UiButton>
         <span class="summary">{{ t('forge.diff.fileCount', { count: files.length }) }} <span class="add">+{{ totals.additions }}</span> <span class="del">−{{ totals.deletions }}</span></span>
+        <slot name="scope" />
         <span v-if="scope" class="summary" data-testid="diff-reviewed-count">{{ t('forge.diff.reviewedCount', { done: reviewedCount, total: files.length }) }}</span>
         <span class="spacer" />
         <UiButton v-if="quotable && picked" class="mode" :title="t('forge.diff.quoteTitle')" data-testid="diff-quote" @click="quotePicked"><MessageSquare :size="14" />{{ t('forge.diff.quote', { count: pickedCount }) }}</UiButton>
@@ -611,6 +613,7 @@ defineExpose({ focusThread, root });
               :picked="picked?.file === i ? picked : null"
               @pick="(index, extend) => pickLine(i, index, extend)"
               @expand="expandFile(i)"
+              @quote="emit('quote', $event)"
             />
             <div v-else class="placeholder" :style="{ height: `${estimates[i]}px` }" />
           </template>

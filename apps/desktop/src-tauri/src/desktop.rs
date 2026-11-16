@@ -359,6 +359,7 @@ pub fn run() {
             fs_list_markdown,
             fs_list_dirs,
             worktree_changes,
+            worktree_commits,
             worktree_git_state,
             worktree_git_step,
             forge_create_change_request,

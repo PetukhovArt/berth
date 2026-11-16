@@ -238,6 +238,13 @@ export const agents: Translation<typeof en> = {
     refresh: 'Обновить',
     loading: 'Читаю изменения…',
     empty: 'В этом worktree нет изменений',
+    emptyUncommitted: 'Незакоммиченных изменений нет. Выберите выше другой охват, чтобы увидеть закоммиченную работу.',
+    scope: {
+      title: 'С чем сравнивает вид',
+      uncommitted: 'Не закоммичено',
+      base: 'Ветка против {base}',
+      commits: 'Коммиты',
+    },
     failed: 'Не удалось прочитать изменения worktree: {error}',
     retry: 'Повторить',
   },
