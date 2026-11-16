@@ -7,6 +7,7 @@ import { numberLabel, knownMr, lookupMr } from '../../../entities/merge-request'
 import { lookupChanges } from '../model/worktreeChanged';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useBerth } from '../../../entities/session';
+import { useIsPhone } from '../../../shared/ui/kit';
 import { isAvailable, sessionViewModes, showView, viewOf, worktreeOf, type SessionView, type SessionViewMode } from '../model/sessionView';
 
 import { UiButton } from '../../../shared/ui/UiButton';
@@ -15,7 +16,11 @@ const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
 const berth = useBerth();
 const worktree = computed(() => worktreeOf(props.panel.id));
 const current = computed(() => viewOf(props.panel.id));
-const modes = computed(() => sessionViewModes.filter((mode) => isAvailable(props.panel.id, mode.view)));
+const phone = useIsPhone();
+const modes = computed(() => {
+  const available = sessionViewModes.filter((mode) => isAvailable(props.panel.id, mode.view));
+  return phone.value ? [...available].sort((a, b) => Number(b.view === 'chat') - Number(a.view === 'chat')) : available;
+});
 
 watch(
   () => [worktree.value?.path, worktree.value?.branch, berth?.sessions.value.get(props.panel.id)?.status, props.active] as const,
