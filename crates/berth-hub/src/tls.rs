@@ -168,7 +168,11 @@ impl Endpoint {
         if host.is_empty() {
             bail!("the hub url names no host");
         }
-        let connector = if tls { Some(connector(extra_ca)?) } else { None };
+        let connector = if tls {
+            Some(connector(extra_ca)?)
+        } else {
+            None
+        };
         Ok(Self {
             authority,
             host,
