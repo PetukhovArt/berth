@@ -5,7 +5,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { useBerth } from '../../../entities/session';
 import type { BranchMode, SessionTarget } from '../model/sessionTarget';
 
-const props = defineProps<{ state: SessionTarget; expanded?: boolean }>();
+const props = defineProps<{ state: SessionTarget }>();
 const berth = useBerth();
 const { project, target, mode, existing, fresh, setup, base, baseOptions, baseChoice, branches, branchesError, loading, count, sharesBranch, projects, targets, creating, plan } = props.state;
 
@@ -85,10 +85,6 @@ const summary = computed(() => {
       <span class="row-label">{{ t('agents.newSession.newBranch') }}</span>
       <VInputText v-model="fresh" size="small" :placeholder="t('agents.newSession.typeBranch')" class="row-input mono" data-testid="new-session-new-branch" />
     </label>
-    <label v-if="expanded && plan.kind === 'create'" class="row">
-      <span class="row-label">{{ t('agents.newSession.setupCommand') }}</span>
-      <VInputText v-model="setup" size="small" :placeholder="t('agents.newSession.setupPlaceholder')" class="row-input mono" data-testid="new-session-setup" />
-    </label>
     <VMessage v-if="branchesError" severity="warn" size="small" data-testid="new-session-branches-error">{{ t('agents.newSession.branchesFailed', { error: branchesError }) }}</VMessage>
     <div class="summary" :data-plan="plan.kind" data-testid="new-session-plan">
       <svg class="arrow" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" /></svg>
@@ -128,6 +124,10 @@ const summary = computed(() => {
   white-space: nowrap;
 }
 
+.chip :deep(.p-select-dropdown) {
+  width: 1.6rem;
+}
+
 .row {
   display: flex;
   align-items: center;
@@ -135,8 +135,11 @@ const summary = computed(() => {
 }
 
 .row-label {
-  width: 90px;
+  width: 7.5rem;
   flex: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
 }

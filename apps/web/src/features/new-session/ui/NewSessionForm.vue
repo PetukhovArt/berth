@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue';
 import { VButton, VDialog, VInputText, VMessage, VSelect, VTextarea } from '../../../shared/ui/kit';
+import { UiButton } from '../../../shared/ui/UiButton';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
 import { chordJoiner, modifierGlyphs, onlyPrimaryPressed, primaryModifier, primaryPressed } from '../../../shared/lib/platform';
@@ -196,12 +197,18 @@ function onVisible(visible: boolean) {
   <VDialog
     :visible="true"
     modal
-    :header="t('agents.newSession.title')"
-    :style="{ width: '640px', maxWidth: '95vw' }"
-    :pt="{ mask: { style: { background: 'var(--vr-overlay)' } }, root: { style: { borderRadius: '14px', boxShadow: 'var(--vr-shadow-dialog)' } } }"
+    position="top"
+    :closable="false"
+    :aria-label="t('agents.newSession.title')"
+    :style="{ width: '720px', maxWidth: '95vw' }"
+    :pt="{ mask: { style: { background: 'var(--vr-overlay)', alignItems: 'flex-start', paddingTop: '12vh' } }, root: { style: { borderRadius: '14px', boxShadow: 'var(--vr-shadow-dialog)' } } }"
     :draggable="false"
     @update:visible="onVisible"
   >
+    <template #header>
+      <span class="p-dialog-title">{{ t('agents.newSession.title') }}</span>
+      <UiButton type="button" class="esc" :title="t('common.close')" :aria-label="t('common.close')" data-testid="new-session-close" @click="emit('close')">Esc</UiButton>
+    </template>
     <form class="form" data-testid="new-session-form" @submit.prevent="submit()" @keydown="onFormKey">
       <VTextarea
         v-if="kind !== 'terminal'"
@@ -214,7 +221,7 @@ function onVisible(visible: boolean) {
         data-testid="new-session-prompt"
         @keydown="onPromptKey"
       />
-      <NewSessionTarget :state="location" :expanded="expanded">
+      <NewSessionTarget :state="location">
         <template #type>
           <VSelect
             :model-value="kind"
@@ -262,6 +269,10 @@ function onVisible(visible: boolean) {
           @click="expanded = !expanded"
         />
       </div>
+      <label v-if="expanded && location.plan.value.kind === 'create'" class="row">
+        <span class="row-label">{{ t('agents.newSession.setupCommand') }}</span>
+        <VInputText v-model="location.setup.value" size="small" :placeholder="t('agents.newSession.setupPlaceholder')" class="row-input mono" data-testid="new-session-setup" />
+      </label>
       <div v-if="expanded && kind !== 'terminal'" class="extras" data-testid="new-session-extras">
         <span class="extras-label">{{ t('agents.newSession.alsoStart') }}</span>
         <VButton
@@ -340,7 +351,49 @@ function onVisible(visible: boolean) {
 }
 
 .chip-input {
-  width: 140px;
+  width: 10.5rem;
+}
+
+.esc {
+  margin-left: auto;
+  padding: 1px 6px;
+  font-family: var(--vr-font-mono);
+  font-size: var(--vr-font-size-2xs);
+  color: var(--vr-color-text-muted);
+  cursor: pointer;
+  background: none;
+  border: 1px solid var(--vr-color-border-strong);
+  border-radius: 4px;
+}
+
+.esc:hover {
+  color: var(--vr-color-text);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.row-label {
+  width: 7.5rem;
+  flex: none;
+  overflow: hidden;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.mono {
+  font-family: var(--vr-font-mono);
+  font-size: var(--vr-font-size-label);
 }
 
 .hint {
@@ -373,6 +426,10 @@ function onVisible(visible: boolean) {
 .chip :deep(.p-select-label) {
   padding: 0 9px;
   white-space: nowrap;
+}
+
+.chip :deep(.p-select-dropdown) {
+  width: 1.6rem;
 }
 
 .pair {
