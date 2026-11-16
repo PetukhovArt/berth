@@ -1,10 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::ErrorKind;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+
+use crate::git_exclude::{git_dirs, replace_block, SHARED_SETUP_BLOCK};
 
 use super::hooks::CODEX_GUARD_FILE;
 use super::plan::Plan;
@@ -18,8 +20,6 @@ const CLAUDE_SETTINGS: &str = ".claude/settings.json";
 const CURSOR_HOOKS: &str = ".cursor/hooks.json";
 const CLAUDE_MCP_FILE: &str = ".mcp.json";
 const MCP_APPROVALS: &str = "enabledMcpjsonServers";
-const EXCLUDE_BLOCK_BEGIN: &str = "# berth shared setup (rewritten on every sync)";
-const EXCLUDE_BLOCK_END: &str = "# end berth shared setup";
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct Manifest {
@@ -102,8 +102,9 @@ pub(super) fn apply(checkout: &Path, plan: &Plan) -> Result<Report> {
         std::fs::write(&own_manifest, serde_json::to_string_pretty(&next)?)
             .with_context(|| format!("write {}", own_manifest.display()))?;
     }
-    write_exclude_block(
+    replace_block(
         &common_dir,
+        &SHARED_SETUP_BLOCK,
         plan.whole_files.keys().chain(next.created.iter()),
     )?;
     Ok(report)
@@ -247,28 +248,6 @@ pub(super) fn merge_codex_home(codex_home: &Path, groups: &[(String, Value)]) ->
     Ok(true)
 }
 
-fn git_dirs(checkout: &Path) -> Result<(PathBuf, PathBuf)> {
-    let dot_git = checkout.join(".git");
-    let meta = std::fs::metadata(&dot_git)
-        .with_context(|| format!("{} is not a git checkout", checkout.display()))?;
-    if meta.is_dir() {
-        return Ok((dot_git.clone(), dot_git));
-    }
-    let text =
-        std::fs::read_to_string(&dot_git).with_context(|| format!("read {}", dot_git.display()))?;
-    let linked = text
-        .trim()
-        .strip_prefix("gitdir:")
-        .with_context(|| format!("{} does not name a git dir", dot_git.display()))?
-        .trim();
-    let git_dir = checkout.join(linked);
-    let common_dir = match std::fs::read_to_string(git_dir.join("commondir")) {
-        Ok(common) => git_dir.join(common.trim()),
-        Err(_) => git_dir.clone(),
-    };
-    Ok((git_dir, common_dir))
-}
-
 fn read_manifest(path: &Path) -> Option<Manifest> {
     let text = std::fs::read_to_string(path).ok()?;
     match serde_json::from_str(&text) {
@@ -299,50 +278,4 @@ fn remove_emptied_dirs(mut dir: Option<&Path>, checkout: &Path) {
         }
         dir = current.parent();
     }
-}
-
-fn write_exclude_block<'a>(
-    common_dir: &Path,
-    paths: impl Iterator<Item = &'a String>,
-) -> Result<()> {
-    let exclude = common_dir.join("info").join("exclude");
-    let current = std::fs::read_to_string(&exclude).unwrap_or_default();
-    let mut lines: Vec<String> = Vec::new();
-    let mut inside_block = false;
-    for line in current.lines() {
-        match line {
-            EXCLUDE_BLOCK_BEGIN => inside_block = true,
-            EXCLUDE_BLOCK_END => inside_block = false,
-            _ if !inside_block => lines.push(line.to_string()),
-            _ => {}
-        }
-    }
-    let patterns: BTreeSet<String> = paths.map(|p| format!("/{}", escape_glob(p))).collect();
-    if !patterns.is_empty() {
-        lines.push(EXCLUDE_BLOCK_BEGIN.into());
-        lines.extend(patterns);
-        lines.push(EXCLUDE_BLOCK_END.into());
-    }
-    let mut next = lines.join("\n");
-    if !next.is_empty() {
-        next.push('\n');
-    }
-    if next == current {
-        return Ok(());
-    }
-    if let Some(parent) = exclude.parent() {
-        std::fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
-    }
-    std::fs::write(&exclude, next).with_context(|| format!("write {}", exclude.display()))
-}
-
-fn escape_glob(path: &str) -> String {
-    let mut out = String::with_capacity(path.len());
-    for c in path.chars() {
-        if matches!(c, '\\' | '*' | '?' | '[') {
-            out.push('\\');
-        }
-        out.push(c);
-    }
-    out
 }

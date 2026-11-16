@@ -16,6 +16,7 @@ const REMOTE_TRIES: usize = 5;
 pub enum FetchProblem {
     BranchMissing,
     NoCloneUrl,
+    NoRemote,
     Failed,
 }
 
@@ -173,7 +174,13 @@ pub async fn mr_fetch_source(
             Ok(name) => name,
             Err(failed) => return Ok(failed),
         },
-        None => "origin".to_owned(),
+        None => {
+            if remote_url(&repo, "origin").await?.is_none() {
+                let detail = Some("the repository has no remote named origin".to_owned());
+                return Ok(problem("origin".to_owned(), FetchProblem::NoRemote, detail));
+            }
+            "origin".to_owned()
+        }
     };
     let refspec = format!("+refs/heads/{branch}:refs/remotes/{remote}/{branch}");
     let run = git(
@@ -232,4 +239,38 @@ async fn settle_local(repo: &str, local: &str, base: &str) -> Result<bool, Strin
     )
     .await?;
     Ok(!moved.ok)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn a_repo_without_origin_reports_no_remote() {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let repo =
+            std::env::temp_dir().join(format!("berth-mr-fetch-{}-{nanos}", std::process::id()));
+        std::fs::create_dir_all(&repo).unwrap();
+        let init = std::process::Command::new("git")
+            .arg("-C")
+            .arg(&repo)
+            .args(["init", "-b", "main"])
+            .output()
+            .unwrap();
+        assert!(init.status.success());
+        let fetched = mr_fetch_source(
+            repo.to_string_lossy().into_owned(),
+            "main".to_owned(),
+            String::new(),
+            None,
+        )
+        .await
+        .unwrap();
+        let _ = std::fs::remove_dir_all(&repo);
+        assert!(matches!(fetched.problem, Some(FetchProblem::NoRemote)));
+        assert_eq!(fetched.base, None);
+    }
 }

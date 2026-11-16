@@ -8,7 +8,7 @@ import { forgeCreateChangeRequest, worktreeGitState, worktreeGitStep, type GitSt
 import { rememberMr } from '../../../entities/merge-request';
 import { GitBranch } from '../../../shared/ui/icons';
 import { createRequested } from '../model/createRequest';
-import { nextStep, stepLabelKey, stepShortLabelKey } from '../model/nextStep';
+import { idleHintKey, nextStep, stepLabelKey, stepShortLabelKey } from '../model/nextStep';
 
 const props = withDefaults(defineProps<{ path: string; branch: string; hasRequest: boolean; refreshKey?: string; testid?: string; quiet?: boolean }>(), { testid: 'git-step', refreshKey: undefined });
 
@@ -28,7 +28,7 @@ const needsForm = computed(() => step.value?.kind === 'run' && (step.value.commi
 const hint = computed(() => {
   const current = step.value;
   if (!current || !state.value) return '';
-  if (current.kind === 'idle') return t(current.reason === 'defaultBranch' ? 'gitStep.defaultBranch' : 'gitStep.upToDate');
+  if (current.kind === 'idle') return t(idleHintKey(current.reason));
   if (current.kind === 'pull') return t('gitStep.behind', { count: state.value.behind });
   return '';
 });
