@@ -148,7 +148,7 @@ async fn changed_files(worktree: Option<&Worktree>) -> Vec<DiffFile> {
     let Some(worktree) = worktree else {
         return Vec::new();
     };
-    crate::changes::worktree_changes(worktree.path.to_string_lossy().into_owned())
+    crate::changes::worktree_changes(worktree.path.to_string_lossy().into_owned(), None)
         .await
         .unwrap_or_default()
 }

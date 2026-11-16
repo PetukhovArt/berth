@@ -2,12 +2,13 @@
 import { shallowRef, watch } from 'vue';
 import { RefreshCw } from '../../../shared/ui/icons';
 import { VButton } from '../../../shared/ui/kit';
-import { sendInput, type SessionRef, type SessionStatus } from '../../../entities/session';
-import { showViewInActivePanel } from '../../../features/session-view-switch';
+import type { SessionRef, SessionStatus } from '../../../entities/session';
+import { quoteToPrompt } from '../../../features/session-view-switch';
 import { describeError, type DiffFile, type Discussion } from '../../../shared/api/connectors/api';
-import { worktreeChanges } from '../../../shared/api/fs';
+import { worktreeChanges, type ChangesScope } from '../../../shared/api/fs';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { DiffView } from '../../../features/diff-review';
+import ChangesScopePicker from './ChangesScopePicker.vue';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ path: string; status?: SessionStatus; session?: SessionRef }>();
@@ -18,20 +19,19 @@ const NO_DISCUSSIONS: Discussion[] = [];
 
 const changes = shallowRef<Changes>({ kind: 'loading' });
 const refreshing = shallowRef(false);
+const scope = shallowRef<ChangesScope>('uncommitted');
 
 let generation = 0;
 
 function quote(text: string) {
-  if (!props.session) return;
-  void sendInput(props.session, `\x1b[200~${text}\x1b[201~`);
-  showViewInActivePanel('terminal');
+  if (props.session) quoteToPrompt(props.session, text);
 }
 
 async function load() {
   const ticket = ++generation;
   refreshing.value = true;
   try {
-    const files = await worktreeChanges(props.path);
+    const files = await worktreeChanges(props.path, scope.value);
     if (ticket !== generation) return;
     const signature = JSON.stringify(files);
     const current = changes.value;
@@ -46,11 +46,17 @@ async function load() {
 watch(
   () => props.path,
   () => {
+    scope.value = 'uncommitted';
     changes.value = { kind: 'loading' };
     void load();
   },
   { immediate: true },
 );
+
+watch(scope, () => {
+  changes.value = { kind: 'loading' };
+  void load();
+});
 
 watch(
   () => props.status,
@@ -62,16 +68,22 @@ watch(
 
 <template>
   <div class="changes" data-testid="worktree-changes">
+    <div v-if="changes.kind !== 'ready' || !changes.files.length" class="bar">
+      <ChangesScopePicker v-model="scope" :path="path" />
+    </div>
     <p v-if="changes.kind === 'loading'" class="state" data-testid="worktree-changes-loading">{{ t('agents.changes.loading') }}</p>
     <div v-else-if="changes.kind === 'failed'" class="state" role="alert" data-testid="worktree-changes-error">
       <p class="failure">{{ t('agents.changes.failed', { error: changes.message }) }}</p>
       <VButton size="small" severity="secondary" :label="t('agents.changes.retry')" :loading="refreshing" data-testid="worktree-changes-retry" @click="load" />
     </div>
     <div v-else-if="!changes.files.length" class="state" data-testid="worktree-changes-empty">
-      <p>{{ t('agents.changes.empty') }}</p>
+      <p>{{ scope === 'uncommitted' ? t('agents.changes.emptyUncommitted') : t('agents.changes.empty') }}</p>
       <VButton size="small" severity="secondary" :label="t('agents.changes.refresh')" :loading="refreshing" data-testid="worktree-changes-refresh" @click="load" />
     </div>
     <DiffView v-else :files="changes.files" :discussions="NO_DISCUSSIONS" :root="path" :quotable="!!session" @quote="quote">
+      <template #scope>
+        <ChangesScopePicker v-model="scope" :path="path" />
+      </template>
       <template #actions>
         <UiButton class="refresh" :disabled="refreshing" :aria-busy="refreshing" :title="t('agents.changes.refresh')" :aria-label="t('agents.changes.refresh')" data-testid="worktree-changes-refresh" @click="load">
           <RefreshCw :size="14" :class="{ spin: refreshing }" />
@@ -89,13 +101,22 @@ watch(
   min-height: 0;
 }
 
+.bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  padding: var(--vr-space-2) var(--vr-space-3);
+  border-bottom: 1px solid var(--vr-color-border);
+}
+
 .state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: var(--vr-space-3);
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   margin: 0;
   padding: var(--vr-space-6);
   color: var(--vr-color-text-muted);

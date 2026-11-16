@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ExternalLink } from '../../../shared/ui/icons';
 import { openUrl, type PipelineJob } from '../../../shared/api/connectors/api';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { formatDuration, jobTone } from '../../../entities/merge-request';
@@ -27,13 +26,13 @@ const stages = computed(() => {
     <p v-if="!pipelineJobs.length" class="empty">{{ t('forge.pipelineJobs.empty') }}</p>
     <section v-for="stage in stages" :key="stage.name" class="stage">
       <h4>{{ stage.name }}</h4>
-      <a v-for="job in stage.jobs" :key="job.id" class="job" :href="job.url" :title="job.status" data-testid="pipeline-job" @click.prevent="openUrl(job.url)">
+      <div v-for="job in stage.jobs" :key="job.id" class="job" :title="job.status" data-testid="pipeline-job">
         <StatusIcon :tone="pipelineTone(jobTone(job.status))" />
         <span class="name">{{ job.name }}</span>
         <span class="status">{{ job.status }}</span>
-        <span class="duration">{{ formatDuration(job.duration_s) }}</span>
-        <ExternalLink :size="12" class="open vr-reveal" />
-      </a>
+        <span class="duration">{{ formatDuration(job.duration_s) || '—' }}</span>
+        <a class="open" :href="job.url" data-testid="pipeline-job-open" @click.prevent="openUrl(job.url)">{{ t('common.open') }}</a>
+      </div>
     </section>
   </div>
 </template>
@@ -78,8 +77,6 @@ h4 {
   padding: 0 var(--vr-space-4);
   color: var(--vr-color-text);
   font-size: var(--vr-font-size-sm);
-  text-decoration: none;
-  cursor: pointer;
 }
 
 .job + .job {
@@ -114,11 +111,14 @@ h4 {
 }
 
 .open {
+  flex: none;
   color: var(--vr-color-link);
-  opacity: 0;
+  font-size: var(--vr-font-size-xs);
+  text-decoration: none;
+  cursor: pointer;
 }
 
-.job:hover .open {
-  opacity: 1;
+.open:hover {
+  text-decoration: underline;
 }
 </style>

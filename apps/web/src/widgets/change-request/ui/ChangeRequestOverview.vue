@@ -1,19 +1,26 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { Eye } from '../../../shared/ui/icons';
+import { VButton } from '../../../shared/ui/kit';
 import { openUrl, useConnectors, type ChangeRequest, type Discussion, type PipelineJob } from '../../../shared/api/connectors/api';
 import PersonAvatar from '../../../shared/ui/PersonAvatar.vue';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { CommentComposer, ThreadView } from '../../../features/diff-review';
 import { issueKeyOf, openIssue } from '../../../entities/jira-issue';
-import { jobTone, pipelineLabel } from '../../../entities/merge-request';
-import { StatusIcon } from '../../../entities/session';
+import { jobTone, numberLabel, pipelineLabel } from '../../../entities/merge-request';
+import { StatusIcon, useSessionDock, type SessionNode } from '../../../entities/session';
+import { isWatching, toggleWatch } from '../../../features/watch-merge-request';
 import { useChangeRequest } from '../model/change-request-scope';
 import { pipelineTone } from '../model/pipelineTone';
 
 import { UiButton } from '../../../shared/ui/UiButton';
-const props = defineProps<{ connector: string; request: ChangeRequest }>();
-const emit = defineEmits<{ goto: [discussion: Discussion] }>();
+const props = defineProps<{ connector: string; request: ChangeRequest; session: SessionNode | null }>();
+const emit = defineEmits<{ goto: [discussion: Discussion]; quote: [text: string] }>();
+
+const dock = useSessionDock();
+const watching = computed(() => isWatching(target.value));
+const number = computed(() => numberLabel(props.request));
 
 const { target, discussions, pipeline, commentDraft, commenting, commentError, selectTab, upsertDiscussion, sendComment } = useChangeRequest();
 
@@ -46,7 +53,7 @@ const stages = computed(() => {
           <span v-if="anchored" class="hint vr-key-hint">{{ t('forge.request.keysHint') }}</span>
         </div>
         <div class="threads">
-          <ThreadView v-for="d in conversation" :key="d.id" :discussion="d" :connector="props.connector" :target="target" show-position @goto="emit('goto', $event)" @update="upsertDiscussion" />
+          <ThreadView v-for="d in conversation" :key="d.id" :discussion="d" :connector="props.connector" :target="target" :quotable="!!session" show-position @goto="emit('goto', $event)" @update="upsertDiscussion" @quote="emit('quote', $event)" />
         </div>
         <CommentComposer
           v-model="commentDraft"
@@ -90,6 +97,22 @@ const stages = computed(() => {
           <h3 class="fact-title">{{ t('forge.request.issueHeading') }}</h3>
           <UiButton v-if="jiraConnector" class="status-link issue-key" :title="t('forge.request.openIssue', { key: issueKey })" @click="openIssue(jiraConnector.id, issueKey)">{{ issueKey }}</UiButton>
           <span v-else class="issue-key">{{ issueKey }}</span>
+        </section>
+
+        <section class="fact" data-testid="cr-fact-session">
+          <h3 class="fact-title">{{ t('forge.request.sessionHeading') }}</h3>
+          <UiButton v-if="session" class="status-link session-link" :title="t('forge.request.openSession')" data-testid="cr-fact-session-open" @click="dock.openWhenListed(session.ref)">
+            <StatusIcon :status="session.status" :unseen="session.unseen" />
+            <span class="session-name">{{ session.name }}</span>
+            <span class="pipe-id">{{ t(`agents.status.${session.status}`) }}</span>
+          </UiButton>
+          <span v-else class="pipe-id" data-testid="cr-fact-no-session">{{ t('forge.request.noSession') }}</span>
+          <template v-if="request.state === 'open'">
+            <VButton size="small" severity="secondary" :label="`${watching ? t('attention.watch.actionOn') : t('attention.watch.action')} ${number}`" :aria-pressed="watching" data-testid="cr-fact-watch" @click="toggleWatch(target)">
+              <template #icon><Eye :size="14" /></template>
+            </VButton>
+            <p class="pipe-id hint-text">{{ t('attention.watch.idle') }}</p>
+          </template>
         </section>
       </aside>
     </div>
@@ -211,6 +234,25 @@ const stages = computed(() => {
 .pipe-id {
   color: var(--vr-color-text-muted);
   font-size: var(--vr-font-size-xs);
+}
+
+.hint-text {
+  margin: 0;
+}
+
+.session-link {
+  max-width: 100%;
+}
+
+.session-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fact :deep(button[data-testid='cr-fact-watch']) {
+  align-self: flex-start;
 }
 
 .stage {

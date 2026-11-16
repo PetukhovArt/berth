@@ -141,6 +141,7 @@ const READ_ONLY_COMMANDS: &[&str] = &[
     "fs_list_dirs",
     "history_projects",
     "worktree_changes",
+    "worktree_commits",
     "worktree_git_state",
 ];
 

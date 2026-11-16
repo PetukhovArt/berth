@@ -81,7 +81,8 @@ macro_rules! plain_commands {
             free fs_list_markdown(root: String) = $crate::files::fs_list_markdown;
             free fs_list_dirs(root: String) = $crate::files::fs_list_dirs;
             local_free history_projects() = $crate::history_projects::history_projects;
-            free worktree_changes(path: String) = $crate::changes::worktree_changes;
+            free worktree_changes(path: String, scope: Option<String>) = $crate::changes::worktree_changes;
+            free worktree_commits(path: String) = $crate::changes::worktree_commits;
             free worktree_git_state(path: String) = $crate::git_step::worktree_git_state;
             free worktree_git_step(path: String, step: String, message: Option<String>) = $crate::git_step::worktree_git_step;
             state forge_create_change_request(path: String, branch: String, target: String, title: String, description: String) = $crate::connectors::forge::forge_create_change_request;
