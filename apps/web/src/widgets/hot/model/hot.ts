@@ -111,7 +111,7 @@ function create() {
         harness,
         status,
         unseen: node.unseen,
-        live: node.status !== 'closed' && node.status !== 'disconnected',
+        live: node.alive && node.status !== 'disconnected',
         seed,
         stamp,
         source,
