@@ -1,3 +1,4 @@
+use crate::context::{self, Touched};
 use crate::presence::{Presence, Present, PRESENCE_TTL};
 use crate::store::{Member, Store, KIND_MESSAGE};
 use anyhow::Result;
@@ -14,12 +15,13 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 #[derive(Clone)]
-struct Shared {
-    store: Arc<Mutex<Store>>,
+pub(crate) struct Shared {
+    pub(crate) store: Arc<Mutex<Store>>,
     presence: Arc<Mutex<Presence>>,
+    pub(crate) touched: Arc<Mutex<Touched>>,
 }
 
-type Reply = Result<Json<Value>, (StatusCode, String)>;
+pub(crate) type Reply = Result<Json<Value>, (StatusCode, String)>;
 
 pub struct Hub {
     pub addr: SocketAddr,
@@ -42,6 +44,7 @@ pub async fn serve_with_ttl(
     let state = Shared {
         store: Arc::new(Mutex::new(store)),
         presence: Arc::new(Mutex::new(Presence::new(presence_ttl))),
+        touched: Arc::new(Mutex::new(Touched::new(presence_ttl))),
     };
     let app = Router::new()
         .route("/pair", post(pair))
@@ -53,6 +56,11 @@ pub async fn serve_with_ttl(
         .route("/events", get(read).post(post_event))
         .route("/mentions", get(mentions))
         .route("/presence", get(presence).post(report_presence))
+        .route("/notes", get(context::notes).post(context::post_note))
+        .route(
+            "/touched",
+            get(context::touched).post(context::report_touched),
+        )
         .with_state(state);
     let listener = tokio::net::TcpListener::bind(bind).await?;
     let addr = listener.local_addr()?;
@@ -76,11 +84,11 @@ fn bearer(headers: &HeaderMap) -> &str {
         .unwrap_or("")
 }
 
-fn fail(status: StatusCode, e: impl std::fmt::Display) -> (StatusCode, String) {
+pub(crate) fn fail(status: StatusCode, e: impl std::fmt::Display) -> (StatusCode, String) {
     (status, e.to_string())
 }
 
-fn member(store: &Store, headers: &HeaderMap, scope: &str) -> Result<Member, (StatusCode, String)> {
+pub(crate) fn member(store: &Store, headers: &HeaderMap, scope: &str) -> Result<Member, (StatusCode, String)> {
     let m = store
         .member_by_token(bearer(headers))
         .map_err(|e| fail(StatusCode::INTERNAL_SERVER_ERROR, e))?
@@ -102,7 +110,7 @@ fn admin(store: &Store, headers: &HeaderMap) -> Result<(), (StatusCode, String)>
     }
 }
 
-fn denied(e: anyhow::Error) -> (StatusCode, String) {
+pub(crate) fn denied(e: anyhow::Error) -> (StatusCode, String) {
     fail(StatusCode::FORBIDDEN, e)
 }
 

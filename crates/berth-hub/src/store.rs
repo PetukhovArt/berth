@@ -6,6 +6,7 @@ use std::path::Path;
 use subtle::ConstantTimeEq;
 
 pub const KIND_MESSAGE: u32 = 1;
+pub const KIND_NOTE: u32 = 2;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Event {
@@ -416,6 +417,15 @@ impl Store {
             )?;
         }
         Ok(events)
+    }
+
+    pub fn latest_notes(&self, caller: &Member) -> Result<Vec<Event>> {
+        self.events_where(
+            "e.kind = ?1 AND e.content <> ''
+             AND e.seq = (SELECT MAX(n.seq) FROM events n WHERE n.channel = e.channel AND n.kind = ?1)
+             AND e.channel IN (SELECT channel FROM channel_members WHERE member = ?2)",
+            params![KIND_NOTE, caller.id],
+        )
     }
 
     pub fn channels(&self, member: &Member) -> Result<Vec<ChannelSummary>> {

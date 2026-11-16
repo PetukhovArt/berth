@@ -1,8 +1,9 @@
+use crate::context::Touching;
 use crate::presence::Present;
 use crate::store::{ChannelSummary, Event, Mention};
 use anyhow::{anyhow, bail, Context, Result};
 use serde_json::{json, Value};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
@@ -161,6 +162,44 @@ impl HubClient {
         self.call("POST", "/presence", Some(json!({ "channels": channels })))
             .await?;
         Ok(())
+    }
+
+    pub async fn post_note(
+        &self,
+        channel: &str,
+        content: &str,
+        as_agent: Option<&str>,
+    ) -> Result<Event> {
+        let v = self
+            .call(
+                "POST",
+                "/notes",
+                Some(json!({ "channel": channel, "content": content, "as_agent": as_agent })),
+            )
+            .await?;
+        Ok(serde_json::from_value(v)?)
+    }
+
+    pub async fn notes(&self) -> Result<Vec<Event>> {
+        Ok(serde_json::from_value(
+            self.call("GET", "/notes", None).await?,
+        )?)
+    }
+
+    pub async fn report_touched(
+        &self,
+        channels: &HashMap<String, BTreeMap<String, Vec<String>>>,
+    ) -> Result<()> {
+        self.call("POST", "/touched", Some(json!({ "channels": channels })))
+            .await?;
+        Ok(())
+    }
+
+    pub async fn touched(&self, channel: &str) -> Result<Vec<Touching>> {
+        let path = format!("/touched?channel={}", percent_encode(channel));
+        Ok(serde_json::from_value(
+            self.call("GET", &path, None).await?,
+        )?)
     }
 
     pub async fn presence(&self, channel: &str) -> Result<Vec<Present>> {
