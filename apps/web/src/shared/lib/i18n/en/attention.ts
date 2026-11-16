@@ -42,5 +42,11 @@ export const attention = {
     agent: 'Agent',
     person: 'Person',
     present: 'Running Sessions on this task: {who}',
+    note: 'Task note',
+    noteHint: 'Send as the Task note: the Agents of every member who starts a Session on this task get it',
+    noteTag: 'Task note',
+    noteCleared: 'Task note cleared',
+    noteBy: 'Task note from {name}: {text}',
+    noteClear: 'Clear',
   },
 } as const;
