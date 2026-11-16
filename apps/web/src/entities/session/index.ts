@@ -7,7 +7,7 @@ export type { ExternalSession, Harness, TranscriptMessage } from './model/extern
 export { derivePlan } from './model/plan';
 export { useAcpChat } from './model/acpChat';
 export { useLinkedPlan } from './model/linkedPlan';
-export { ALLOW, DENY, allowRequest, chooseOption, denyRequest, useFeedbackRequest } from './model/feedback';
+export { ALLOW, DENY, allowRequest, chooseOption, denyRequest, feedbackText, useFeedbackRequest } from './model/feedback';
 export { enqueuePrompt, removeQueuedPrompt, submitPrompt, useQueuedPrompts } from './model/promptQueue';
 export { isFiveHourWindow, useUsageLimits } from './model/limits';
 export type { UsageWindow } from './model/limits';

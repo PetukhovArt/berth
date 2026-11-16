@@ -209,10 +209,9 @@ function crumb(item: HotItem): string {
   display: flex;
   flex: 0 1 1040px;
   flex-direction: column;
-  align-self: stretch;
   min-width: 0;
   min-height: 0;
-  max-height: 740px;
+  max-height: min(740px, 100%);
   overflow: hidden;
   background: var(--vr-color-surface);
   border-radius: var(--vr-radius-xl);

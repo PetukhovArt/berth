@@ -1,5 +1,5 @@
 import { computed, shallowRef, watch, type ComputedRef } from 'vue';
-import { externalKey, externalTarget, readTranscript, useExternalSessions, type ExternalSession, useBerth, type SessionNode, type SessionStatus, useSessionDock } from '../../../entities/session';
+import { externalKey, externalTarget, feedbackText, readTranscript, useExternalSessions, type ExternalSession, useBerth, type SessionNode, type SessionStatus, useSessionDock } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
 
@@ -18,7 +18,7 @@ export type HotItem = {
 };
 
 type Source = { harness: 'claude' | 'codex'; id: string };
-type Raw = Omit<HotItem, 'preview' | 'lastActivity'> & { live: boolean; seed: number | null; stamp: number; source: Source | null };
+type Raw = Omit<HotItem, 'preview' | 'lastActivity'> & { live: boolean; seed: number | null; stamp: number; source: Source | null; notice: string | null };
 type Tracked = { seq: number; since: number; sig: string };
 
 const MRU_LIMIT = 50;
@@ -101,6 +101,7 @@ function create() {
         seed = link.updated_at;
         stamp = link.updated_at;
       }
+      const request = agent && status === 'waiting' ? berth?.feedback.value.get(node.id) : undefined;
       out.push({
         key: node.key,
         title: node.name,
@@ -113,6 +114,7 @@ function create() {
         seed,
         stamp,
         source,
+        notice: request ? [feedbackText(request), request.detail].filter(Boolean).join(': ') : (node.providerError?.message ?? null),
       });
     }
     for (const session of external?.anyByKey.value.values() ?? []) {
@@ -131,6 +133,7 @@ function create() {
         seed: session.updated_at,
         stamp: session.updated_at,
         source: { harness: session.harness, id: session.id },
+        notice: null,
       });
     }
     return out;
@@ -176,7 +179,7 @@ function create() {
           status: entry.status,
           unseen: entry.unseen,
           lastActivity,
-          preview: previews.value.get(entry.key) ?? null,
+          preview: entry.notice ?? previews.value.get(entry.key) ?? null,
         };
         return { item, rank: rank(entry), since: info?.since ?? 0, seq: info?.seq ?? 0 };
       });

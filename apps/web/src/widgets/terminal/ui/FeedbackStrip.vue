@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { allowRequest, chooseOption, denyRequest, StatusIcon, useFeedbackRequest, type SessionRef } from '../../../entities/session';
+import { allowRequest, chooseOption, denyRequest, feedbackText, StatusIcon, useFeedbackRequest, type SessionRef } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { UiButton } from '../../../shared/ui/UiButton';
 
 const props = defineProps<{ session: SessionRef }>();
 const request = useFeedbackRequest(props.session);
-const text = computed(() => (request.value?.kind === 'Permission' ? t('feedback.permission', { tool: request.value.title }) : request.value?.title));
+const text = computed(() => (request.value ? feedbackText(request.value) : ''));
 </script>
 
 <template>
