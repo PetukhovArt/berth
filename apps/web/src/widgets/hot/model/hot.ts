@@ -115,7 +115,7 @@ function create() {
         seed,
         stamp,
         source,
-        notice: request ? [feedbackText(request), request.detail].filter(Boolean).join(': ') : node.providerError ? `${t(`agents.route.errorKind.${node.providerError.kind}`)}: ${node.providerError.message}` : null,
+        notice: request ? (request.kind === 'Permission' && request.detail ? `${request.title}: ${request.detail}` : feedbackText(request)) : node.providerError ? `${t(`agents.route.errorKind.${node.providerError.kind}`)}: ${node.providerError.message}` : null,
       });
     }
     for (const session of external?.anyByKey.value.values() ?? []) {
@@ -238,7 +238,7 @@ function create() {
   }
 
   watch(
-    () => raw.value.map((entry) => `${entry.key}@${entry.stamp}|${entry.status}|${entry.live}`).join(','),
+    () => raw.value.map((entry) => `${entry.key}@${entry.stamp}|${entry.status}|${entry.live}|${entry.source?.id ?? ''}`).join(','),
     () => {
       clearTimeout(previewTimer);
       previewTimer = setTimeout(() => void refreshPreviews(), PREVIEW_DEBOUNCE_MS);
