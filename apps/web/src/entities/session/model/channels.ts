@@ -68,6 +68,11 @@ export function openChannel(key: string, split = false): void {
   useDock().openPanel({ id: channelPanelId(key), component: 'channel', title: `# ${key}`, params: { key } }, split);
 }
 
+export async function openChannelFor(key: string): Promise<void> {
+  await call({ OpenChannel: { key, agent: null } }).catch(() => undefined);
+  openChannel(key);
+}
+
 const channels = shallowRef<ChannelSummary[]>([]);
 let started = false;
 let inflight = false;

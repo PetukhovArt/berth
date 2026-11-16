@@ -338,11 +338,12 @@ export type BerthReply =
   | { Channels: { req_id: number; channels: { key: string; head: number; unread: number }[] } }
   | { ChannelEvents: { req_id: number; events: { seq: number; kind: number; author: string; author_name: string; author_kind: string; channel: string; tags: string[][]; content: string; created_at: number }[] } }
   | { ChannelPresence: { req_id: number; here: { member: string; name: string; agents: string[] }[] } }
+  | { ChannelOpened: { req_id: number; key: string } }
   | { AcpTranscript: { req_id: number; agent: string; items: AcpItemAt[] } };
 
 export class BerthCallError extends Error {}
 
-const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote', 'RouterConfig', 'ProjectSetup', 'Checkpoints', 'Channels', 'ChannelEvents', 'ChannelPresence', 'AcpTranscript']);
+const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote', 'RouterConfig', 'ProjectSetup', 'Checkpoints', 'Channels', 'ChannelEvents', 'ChannelPresence', 'ChannelOpened', 'AcpTranscript']);
 
 function isBerthReply(value: unknown): value is BerthReply {
   if (typeof value !== 'object' || value === null) return false;

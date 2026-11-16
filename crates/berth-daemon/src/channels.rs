@@ -1,5 +1,6 @@
 use crate::config::Config;
-use anyhow::{anyhow, Result};
+use crate::registry::Daemon;
+use anyhow::{anyhow, bail, Result};
 use berth_core::{AgentId, ChannelEvent, ChannelPresent, ChannelSummary};
 use berth_hub::client::HubClient;
 use serde::{de::DeserializeOwned, Serialize};
@@ -52,4 +53,66 @@ pub async fn post_to_channel(
 
 pub async fn channel_presence(channel: &str) -> Result<Vec<ChannelPresent>> {
     convert(hub()?.presence(channel).await?)
+}
+
+pub fn issue_key_in(text: &str) -> Option<String> {
+    let upper = text.to_uppercase();
+    let bytes = upper.as_bytes();
+    (0..bytes.len()).find_map(|start| {
+        if !bytes[start].is_ascii_uppercase() {
+            return None;
+        }
+        let word_end = start
+            + 1
+            + bytes[start + 1..]
+                .iter()
+                .take_while(|b| b.is_ascii_uppercase() || b.is_ascii_digit())
+                .count();
+        let digits = bytes[word_end..]
+            .strip_prefix(b"-")
+            .map_or(0, |rest| rest.iter().take_while(|b| b.is_ascii_digit()).count());
+        (word_end > start + 1 && digits > 0).then(|| upper[start..word_end + 1 + digits].to_string())
+    })
+}
+
+impl Daemon {
+    pub async fn open_channel(&self, key: Option<String>, agent: Option<AgentId>) -> Result<String> {
+        let key = match (key, agent) {
+            (Some(key), _) => key,
+            (None, Some(agent)) => {
+                let agent = self
+                    .store
+                    .get_agent(&agent)?
+                    .ok_or_else(|| anyhow!("unknown agent"))?;
+                let branch = self
+                    .store
+                    .get_worktree(&agent.worktree_id)?
+                    .ok_or_else(|| anyhow!("the agent has no worktree"))?
+                    .branch;
+                issue_key_in(&branch).unwrap_or(branch)
+            }
+            (None, None) => bail!("name a channel key, or run this inside a session"),
+        };
+        hub()?.create_channel(&key).await?;
+        Ok(key)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::issue_key_in;
+
+    #[test]
+    fn finds_the_issue_key_the_project_tree_would() {
+        assert_eq!(
+            issue_key_in("feature/proj-12-orders").as_deref(),
+            Some("PROJ-12")
+        );
+        assert_eq!(
+            issue_key_in("fix the A-1 and ABC-34").as_deref(),
+            Some("ABC-34")
+        );
+        assert_eq!(issue_key_in("main"), None);
+        assert_eq!(issue_key_in("feature/login-form"), None);
+    }
 }

@@ -7,3 +7,7 @@ export function issueKeyOf(...texts: readonly string[]): string {
   }
   return '';
 }
+
+export function channelKeyOf(branch: string, ...texts: readonly string[]): string {
+  return issueKeyOf(branch, ...texts) || branch;
+}

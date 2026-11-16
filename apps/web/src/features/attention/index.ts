@@ -1,3 +1,4 @@
 export { announceAttention, initAttention, onAttention } from './model/attention';
 export { default as InboxSection } from './ui/InboxSection.vue';
 export { default as AttentionToasts } from './ui/AttentionToasts.vue';
+export { default as OpenChannelAction } from './ui/OpenChannelAction.vue';

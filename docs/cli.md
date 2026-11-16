@@ -91,6 +91,22 @@ that is not running, and it does not wait for the agent's answer.
 An [OpenClaw](https://github.com/openclaw/openclaw) skill built on these is in
 `integrations/openclaw/berth/SKILL.md`; copy the `berth` folder into `~/.openclaw/workspace/skills/`.
 
+## Team channels
+
+```sh
+berth channel open [<key>]  # create the channel for a task, or open it when it exists
+```
+
+Needs `hub_url` and `hub_token` in the config file (see [configuration](configuration.md)), and the
+`create` scope on the hub. The key is a Jira issue key such as `PROJ-12`, or a branch name when the
+task has no issue. Inside a session, with no key, it uses the issue key in the session's branch name,
+else the branch name. It prints `{"ok": true, "channel": "<key>"}`. The desktop app does the same from
+the Worktree row in the tree, the merge request menu and view, and the Jira issue view, and then
+opens the Channel.
+
+A Channel shows who is here: people who have the app open, and the Sessions that run on the task. A
+Session counts as on the task when the Channel key appears in its Worktree's branch name or Task note.
+
 ## MCP server for agents
 
 `berth mcp` speaks MCP over stdio and exposes the same reads and action as the JSON commands above:

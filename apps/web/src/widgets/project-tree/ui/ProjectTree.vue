@@ -7,9 +7,9 @@ import ArchivedRow from './ArchivedRow.vue';
 import ExternalSessionRow from './ExternalSessionRow.vue';
 import MarkdownPicker from './MarkdownPicker.vue';
 import SessionRow from './SessionRow.vue';
-import { useExternalSessions, NavNotices, StatusIcon, useSessionDock } from '../../../entities/session';
+import { useExternalSessions, NavNotices, openChannelFor, StatusIcon, useSessionDock } from '../../../entities/session';
 import { ProjectActions, WorkspaceActions, RepoActions } from '../../../features/manage-workspace';
-import { TypeIcon } from '../../../entities/jira-issue';
+import { channelKeyOf, TypeIcon } from '../../../entities/jira-issue';
 import { isDesktop } from '../../../bridge';
 import { CleanupBadge, cleanupCount, openCleanup, removing as cleanupRemoving } from '../../../features/cleanup';
 import { openUrl, type InboxItem } from '../../../shared/api/connectors/api';
@@ -19,7 +19,7 @@ import { numberLabel, pipelineLabel, pipelineTone, itemId, WorktreeBadge, openRe
 import { t } from '../../../shared/lib/i18n/i18n';
 import ExplorerTree from '../../../shared/ui/explorer-tree/ExplorerTree.vue';
 import { useDock } from '../../../shared/model/dock';
-import { InboxSection } from '../../../features/attention';
+import { InboxSection, OpenChannelAction } from '../../../features/attention';
 import { startCreate } from '../../../features/new-session';
 import { openLeaf, type ReviewMeta, type WorkNode, treeLiveOnly, treeProjectsCollapsed, treeQuery, treeTab, useWorkTree } from '../../../features/work-tree';
 
@@ -50,7 +50,7 @@ const archItems = computed(() => {
   if (!target) return [];
   const { item, review } = target;
   const state = archState.value;
-  const items = [{ key: 'open-session', label: t('forge.openSession.action'), title: t('forge.openSession.title'), disabled: !berth || (mrSession.runs.value.get(itemId(item))?.busy ?? false), command: () => void mrSession.open(item, review?.refs) }, { key: 'open-browser', label: t('common.openInBrowser'), title: item.url, disabled: false, command: () => void openUrl(item.url) }];
+  const items = [{ key: 'open-session', label: t('forge.openSession.action'), title: t('forge.openSession.title'), disabled: !berth || (mrSession.runs.value.get(itemId(item))?.busy ?? false), command: () => void mrSession.open(item, review?.refs) }, { key: 'open-browser', label: t('common.openInBrowser'), title: item.url, disabled: false, command: () => void openUrl(item.url) }, { key: 'open-channel', label: t('attention.channel.open'), title: t('attention.channel.openTitle', { key: channelKeyOf(item.source_branch, item.title) }), disabled: !berth, command: () => void openChannelFor(channelKeyOf(item.source_branch, item.title)) }];
   if (state.status === 'hidden') return items;
   const reason = state.status === 'disabled' ? state.reason : state.status === 'checking' ? t('forge.stratum.checking') : t('forge.stratum.title');
   return [...items, { key: 'architecture', label: t('forge.stratum.action'), title: reason, disabled: state.status !== 'ready', command: () => state.status === 'ready' && openArchitecture(state.params, numberLabel(item)) }];
@@ -212,6 +212,7 @@ function toggleFilter() {
         </template>
         <template #actions="{ node }">
           <template v-if="node.kind === 'worktree' && node.data?.worktree">
+            <OpenChannelAction v-if="!node.data.worktree.main" :channel-key="channelKeyOf(node.data.worktree.branch)" variant="icon" />
             <MarkdownPicker :root="node.data.worktree.path" @open="sessions.openFile($event, { worktreeId: node.data.worktree.id })" />
             <UiButton class="icon" :title="t('agents.newSession.action')" :aria-label="t('agents.newSession.action')" data-testid="worktree-new-session" @click="startCreate(node.data.worktree.id)"><Plus :size="14" /></UiButton>
           </template>

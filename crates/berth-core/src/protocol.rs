@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 56;
+pub const PROTOCOL_VERSION: u32 = 57;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -498,6 +498,12 @@ pub enum ClientRequest {
         channel: String,
     },
 
+    OpenChannel {
+        req_id: u64,
+        key: Option<String>,
+        agent: Option<AgentId>,
+    },
+
     CreateAcpAgent {
         req_id: u64,
         worktree: WorktreeId,
@@ -920,6 +926,11 @@ pub enum ServerEvent {
     ChannelPresence {
         req_id: u64,
         here: Vec<ChannelPresent>,
+    },
+
+    ChannelOpened {
+        req_id: u64,
+        key: String,
     },
 
     AcpTranscript {

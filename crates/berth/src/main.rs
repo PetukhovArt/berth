@@ -224,6 +224,10 @@ enum Command {
 enum ChannelCommand {
     #[command(about = "List the channels you are in, with their unread counts")]
     List,
+    #[command(
+        about = "Create the channel for a Jira issue key, a merge request branch or a Worktree, or open it when it exists; with no key, inside a session, the key of the session's branch"
+    )]
+    Open { key: Option<String> },
     #[command(about = "Print the events of a channel after a sequence number")]
     Read {
         channel: String,
@@ -342,6 +346,7 @@ fn main() -> Result<()> {
         Some(Command::Triggers { remove }) => triggers::run_triggers(remove),
         Some(Command::Channel { command }) => match command {
             ChannelCommand::List => channel::run_list(),
+            ChannelCommand::Open { key } => channel::run_open(key),
             ChannelCommand::Read { channel, after } => channel::run_read(channel, after),
             ChannelCommand::Post { channel, message } => {
                 channel::run_post(channel, message.join(" "))

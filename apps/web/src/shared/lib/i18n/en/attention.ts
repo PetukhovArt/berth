@@ -41,6 +41,8 @@ export const attention = {
     send: 'Send',
     agent: 'Agent',
     person: 'Person',
-    present: 'Running Sessions on this task: {who}',
+    present: 'Here now: {who}',
+    open: 'Open Channel',
+    openTitle: 'Open the Channel {key}, created if it does not exist yet',
   },
 } as const;
