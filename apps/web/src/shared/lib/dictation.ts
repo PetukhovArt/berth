@@ -32,7 +32,19 @@ function recognitionCtor(): RecognitionCtor | null {
 
 export type HoldToTalkIssue = 'denied' | 'short' | 'empty' | 'failed';
 
-export function useHoldToTalk(options: { lang: () => string; onSend: (text: string) => void | Promise<void>; onIssue: (issue: HoldToTalkIssue) => void; onSpeech?: () => void; onSettled?: () => void }) {
+type DictationOptions = { onSend: (text: string) => void | Promise<void>; onIssue: (issue: HoldToTalkIssue) => void; onSpeech?: () => void; onSettled?: () => void };
+
+export function speechLang(): string {
+  return document.documentElement.lang === 'ru' ? 'ru-RU' : 'en-US';
+}
+
+export function useHoldToTalk(options: DictationOptions) {
+  const dictation = createDictation(options);
+  onBeforeUnmount(dictation.stopListening);
+  return dictation;
+}
+
+export function createDictation(options: DictationOptions) {
   const supported = recognitionCtor() !== null;
   const holding = shallowRef(false);
   const cancelling = shallowRef(false);
@@ -82,7 +94,7 @@ export function useHoldToTalk(options: { lang: () => string; onSend: (text: stri
     transcript.value = '';
     holding.value = true;
     const next = new Ctor();
-    next.lang = options.lang();
+    next.lang = speechLang();
     next.continuous = true;
     next.interimResults = true;
     next.onresult = (e) => {
@@ -159,10 +171,16 @@ export function useHoldToTalk(options: { lang: () => string; onSend: (text: stri
     recognition.stop();
   }
 
-  onBeforeUnmount(() => {
-    aborted = true;
-    recognition?.abort();
-  });
+  function hold() {
+    begin(false);
+  }
 
-  return { supported, holding, cancelling, transcript, start, move, release, listen, stopListening };
+  function letGo() {
+    if (!holding.value || !recognition) return;
+    released = true;
+    holding.value = false;
+    recognition.stop();
+  }
+
+  return { supported, holding, cancelling, transcript, start, move, release, hold, letGo, listen, stopListening };
 }
