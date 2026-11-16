@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { nextTick, shallowRef, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
 import { RefreshCw } from '../../../shared/ui/icons';
 import { VButton } from '../../../shared/ui/kit';
-import type { SessionRef, SessionStatus } from '../../../entities/session';
+import { useBerth, type SessionRef, type SessionStatus } from '../../../entities/session';
+import { knownMr } from '../../../entities/merge-request';
+import { GitStepButton } from '../../../features/git-step';
 import { clearChangeFocus, focusedChange, quoteToPrompt } from '../../../features/session-view-switch';
 import { worktreeRelative } from '../../../shared/lib/worktreePath';
 import { describeError, type DiffFile, type Discussion } from '../../../shared/api/connectors/api';
@@ -23,6 +25,11 @@ const refreshing = shallowRef(false);
 const scope = shallowRef<ChangesScope>('uncommitted');
 
 let generation = 0;
+
+const berth = useBerth();
+const normal = (path: string) => path.replace(/\\/g, '/').replace(/\/+$/, '');
+const worktree = computed(() => [...(berth?.entities.value.worktrees.values() ?? [])].find((entry) => normal(entry.path) === normal(props.path)));
+const request = computed(() => (worktree.value ? knownMr(worktree.value.path, worktree.value.branch) : null));
 
 function quote(text: string) {
   if (props.session) quoteToPrompt(props.session, text);
@@ -104,6 +111,7 @@ watch(
         <UiButton class="refresh" :disabled="refreshing" :aria-busy="refreshing" :title="t('agents.changes.refresh')" :aria-label="t('agents.changes.refresh')" data-testid="worktree-changes-refresh" @click="load">
           <RefreshCw :size="14" :class="{ spin: refreshing }" />
         </UiButton>
+        <GitStepButton v-if="worktree?.branch" quiet testid="changes-git-step" :path="worktree.path" :branch="worktree.branch" :has-request="!!request" :refresh-key="status" />
       </template>
     </DiffView>
   </div>

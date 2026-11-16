@@ -1,8 +1,14 @@
+<script lang="ts">
+import type { WorktreeCommits } from '../../../shared/api/fs';
+
+const listings = new Map<string, WorktreeCommits>();
+</script>
+
 <script setup lang="ts">
 import { computed, onMounted, shallowRef, useTemplateRef } from 'vue';
 import { ChevronDown } from '../../../shared/ui/icons';
 import { VPopover } from '../../../shared/ui/kit';
-import { worktreeCommits, type ChangesScope, type WorktreeCommits } from '../../../shared/api/fs';
+import { worktreeCommits, type ChangesScope } from '../../../shared/api/fs';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { relativeTime } from '../../../entities/merge-request';
 
@@ -11,20 +17,23 @@ const props = defineProps<{ path: string; modelValue: ChangesScope }>();
 const emit = defineEmits<{ 'update:modelValue': [scope: ChangesScope] }>();
 
 const popover = useTemplateRef<InstanceType<typeof VPopover>>('popover');
-const listing = shallowRef<WorktreeCommits>({ base: null, commits: [] });
+const listing =shallowRef<WorktreeCommits>(listings.get(props.path) ?? { base: null, commits: [] });
 
 const baseLabel = computed(() => t('agents.changes.scope.base', { base: listing.value.base ?? 'main' }));
-const label = computed(() => {
+const chosen = computed(() => {
   const scope = props.modelValue;
-  if (scope === 'uncommitted') return t('agents.changes.scope.uncommitted');
-  if (scope === 'base') return baseLabel.value;
+  if (scope === 'uncommitted' || scope === 'base') return null;
   const sha = scope.slice('commit:'.length);
-  return listing.value.commits.find((commit) => commit.sha.startsWith(sha))?.short ?? sha.slice(0, 7);
+  const commit = listing.value.commits.find((entry) => entry.sha.startsWith(sha));
+  return { short: commit?.short ?? sha.slice(0, 7), subject: commit?.subject ?? '' };
 });
+const label = computed(() => (props.modelValue === 'uncommitted' ? t('agents.changes.scope.uncommitted') : baseLabel.value));
 
 async function load() {
   try {
-    listing.value = await worktreeCommits(props.path);
+    const next = await worktreeCommits(props.path);
+    listings.set(props.path, next);
+    listing.value = next;
   } catch {
     return;
   }
@@ -45,7 +54,12 @@ function pick(scope: ChangesScope) {
 
 <template>
   <UiButton class="scope" type="button" aria-haspopup="menu" :title="t('agents.changes.scope.title')" data-testid="changes-scope" @click="open">
-    <span class="scope-label">{{ label }}</span><ChevronDown :size="12" />
+    <template v-if="chosen">
+      <code class="scope-sha">{{ chosen.short }}</code>
+      <span v-if="chosen.subject" class="scope-label">{{ chosen.subject }}</span>
+    </template>
+    <span v-else class="scope-label">{{ label }}</span>
+    <ChevronDown :size="12" />
   </UiButton>
   <VPopover ref="popover">
     <div class="menu" role="menu" data-testid="changes-scope-menu">
@@ -68,7 +82,8 @@ function pick(scope: ChangesScope) {
   display: inline-flex;
   align-items: center;
   gap: var(--vr-space-1);
-  max-width: 14rem;
+  min-width: 0;
+  max-width: 18rem;
   padding: 2px var(--vr-space-2);
   color: var(--vr-color-text);
   font: inherit;
@@ -81,6 +96,12 @@ function pick(scope: ChangesScope) {
 
 .scope:hover {
   background: var(--vr-color-nav-hover);
+}
+
+.scope-sha {
+  flex: none;
+  color: var(--vr-color-text-muted);
+  font-family: var(--vr-font-mono);
 }
 
 .scope-label {
