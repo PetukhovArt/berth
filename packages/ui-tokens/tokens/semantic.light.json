@@ -31,6 +31,12 @@
     "accent-contrast": {
       "$value": "#ffffff"
     },
+    "brand": {
+      "$value": "#2f6feb"
+    },
+    "brand-contrast": {
+      "$value": "#ffffff"
+    },
     "chip-bg": {
       "$value": "rgba(36, 41, 46, 0.15)"
     },
