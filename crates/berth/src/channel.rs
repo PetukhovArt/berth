@@ -91,6 +91,27 @@ pub fn run_post(channel: String, content: String) -> Result<()> {
     })
 }
 
+pub fn run_answer(channel: String, request: i64, answer: String) -> Result<()> {
+    runtime()?.block_on(async {
+        let ServerEvent::ChannelEvents { events, .. } = call(ClientRequest::AnswerInChannel {
+            req_id: ONE_SHOT_REQ_ID,
+            channel,
+            request,
+            answer,
+            agent: own_agent(),
+        })
+        .await?
+        else {
+            bail!("unexpected reply");
+        };
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({ "ok": true, "event": events.first() }))?
+        );
+        Ok(())
+    })
+}
+
 pub fn run_hub_serve(
     bind: SocketAddr,
     db: Option<PathBuf>,

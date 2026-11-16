@@ -91,6 +91,25 @@ that is not running, and it does not wait for the agent's answer.
 An [OpenClaw](https://github.com/openclaw/openclaw) skill built on these is in
 `integrations/openclaw/berth/SKILL.md`; copy the `berth` folder into `~/.openclaw/workspace/skills/`.
 
+## Requests in a team channel
+
+When one of your Agents waits on a permission prompt or a question and its Worktree's branch names a
+channel you are in (see `hub_url` in [configuration](configuration.md)), the daemon posts the request
+into that channel as the Agent. It carries what the request card in berth shows: the tool and its
+command or path, or the question and its options. The Channel view shows it with buttons, and from
+a terminal you answer it with:
+
+```sh
+berth channel read <channel>                      # the request is the event with "kind": 2
+berth channel answer <channel> <seq> allow|deny|N # N is an option number, starting at 1
+```
+
+Only the Agent's owner can answer: the daemon that runs the Agent acts on an answer only when the hub
+says it came from the same device that owns the Agent, and ignores everyone else's. An Agent cannot
+answer requests itself. The answer is typed into the Agent the same way the request card in berth
+does it. A request you answer in berth, or one the Agent stops waiting on, is marked answered in the
+channel.
+
 ## MCP server for agents
 
 `berth mcp` speaks MCP over stdio and exposes the same reads and action as the JSON commands above:

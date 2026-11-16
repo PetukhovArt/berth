@@ -15,7 +15,7 @@ pub(crate) fn hub() -> Result<HubClient> {
     HubClient::new(&url, &token)
 }
 
-fn convert<T: Serialize, U: DeserializeOwned>(value: T) -> Result<U> {
+pub(crate) fn convert<T: Serialize, U: DeserializeOwned>(value: T) -> Result<U> {
     Ok(serde_json::from_value(serde_json::to_value(value)?)?)
 }
 

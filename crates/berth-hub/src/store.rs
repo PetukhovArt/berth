@@ -6,6 +6,10 @@ use std::path::Path;
 use subtle::ConstantTimeEq;
 
 pub const KIND_MESSAGE: u32 = 1;
+pub const KIND_REQUEST: u32 = 2;
+pub const KIND_ANSWER: u32 = 3;
+pub const KIND_SETTLED: u32 = 4;
+pub const EVENT_TAG: &str = "e";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Event {
@@ -357,9 +361,11 @@ impl Store {
     fn agent_chain(&self, channel: &str, seq: i64) -> Result<u32> {
         let mut st = self.db.prepare(
             "SELECT m.kind FROM events e JOIN members m ON m.id = e.author
-             WHERE e.channel = ?1 AND e.seq <= ?2 ORDER BY e.seq DESC LIMIT ?3",
+             WHERE e.channel = ?1 AND e.seq <= ?2 AND e.kind = ?4 ORDER BY e.seq DESC LIMIT ?3",
         )?;
-        let kinds = st.query_map(params![channel, seq, CHAIN_SCAN], |r| r.get::<_, String>(0))?;
+        let kinds = st.query_map(params![channel, seq, CHAIN_SCAN, KIND_MESSAGE], |r| {
+            r.get::<_, String>(0)
+        })?;
         let mut n = 0;
         for kind in kinds {
             if kind? != "agent" {

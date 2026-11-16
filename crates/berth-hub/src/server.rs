@@ -1,5 +1,5 @@
 use crate::presence::{Presence, Present, PRESENCE_TTL};
-use crate::store::{Member, Store, KIND_MESSAGE};
+use crate::store::{Member, Store, KIND_ANSWER, KIND_MESSAGE, KIND_REQUEST, KIND_SETTLED};
 use anyhow::Result;
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -48,6 +48,7 @@ pub async fn serve_with_ttl(
         .route("/admin/pending", get(pending))
         .route("/admin/approve", post(approve))
         .route("/agents", post(agent))
+        .route("/me", get(me))
         .route("/channels", get(channels).post(create_channel))
         .route("/channels/members", post(add_member))
         .route("/events", get(read).post(post_event))
@@ -206,28 +207,60 @@ async fn add_member(
 struct PostBody {
     channel: String,
     content: String,
+    #[serde(default = "message_kind")]
+    kind: u32,
     #[serde(default)]
     tags: Vec<Vec<String>>,
     #[serde(default)]
     as_agent: Option<String>,
 }
 
+fn message_kind() -> u32 {
+    KIND_MESSAGE
+}
+
+fn kind_allowed(kind: u32, as_agent: bool) -> bool {
+    match kind {
+        KIND_MESSAGE => true,
+        KIND_REQUEST | KIND_SETTLED => as_agent,
+        KIND_ANSWER => !as_agent,
+        _ => false,
+    }
+}
+
 async fn post_event(State(s): State<Shared>, headers: HeaderMap, Json(b): Json<PostBody>) -> Reply {
+    if !kind_allowed(b.kind, b.as_agent.is_some()) {
+        return Err(fail(
+            StatusCode::BAD_REQUEST,
+            format!("event kind {} is not allowed here", b.kind),
+        ));
+    }
     let store = s.store.lock().unwrap();
     let m = member(&store, &headers, "post")?;
     let author = store
         .acting_member(&m, b.as_agent.as_deref())
         .map_err(denied)?;
     let mut tags = b.tags.clone();
-    for tag in store.mention_tags(&b.channel, &b.content).map_err(denied)? {
-        if !tags.contains(&tag) {
-            tags.push(tag);
+    if b.kind == KIND_MESSAGE {
+        for tag in store.mention_tags(&b.channel, &b.content).map_err(denied)? {
+            if !tags.contains(&tag) {
+                tags.push(tag);
+            }
         }
     }
     let event = store
-        .post(&b.channel, &author, KIND_MESSAGE, &b.content, &tags)
+        .post(&b.channel, &author, b.kind, &b.content, &tags)
         .map_err(denied)?;
     Ok(Json(json!(event)))
+}
+
+async fn me(State(s): State<Shared>, headers: HeaderMap) -> Reply {
+    let store = s.store.lock().unwrap();
+    let m = member(&store, &headers, "read")?;
+    let name = store
+        .member_name(&m.id)
+        .map_err(|e| fail(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    Ok(Json(json!({ "id": m.id, "name": name })))
 }
 
 #[derive(Deserialize)]
