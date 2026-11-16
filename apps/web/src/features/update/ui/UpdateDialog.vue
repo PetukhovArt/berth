@@ -267,6 +267,11 @@ function onVisible(visible: boolean) {
   }
 }
 
+:root.vr-reduce-motion .stage[data-state='running'] .mark {
+  animation: none;
+  background: var(--vr-color-accent);
+}
+
 .command,
 .path {
   font-family: var(--vr-font-mono);

@@ -51,6 +51,7 @@ const BerthPreset = definePreset(Aura, {
     focusRing: { color: v('color-accent') },
     colorScheme: { light: scheme, dark: scheme },
   },
+  components: { toggleswitch: { root: { slideDuration: v('motion-base') } } },
 });
 
 export function installUiKit(app: App): void {

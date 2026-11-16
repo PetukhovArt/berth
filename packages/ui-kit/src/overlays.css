@@ -62,6 +62,14 @@
   animation: vr-fade-out var(--vr-motion-overlay-out) var(--vr-motion-ease-accelerate) both;
 }
 
+:root .p-message:is(.p-message-enter-active, .p-message-leave-active) {
+  transition-duration: var(--vr-motion-slow);
+}
+
+:root .p-contextmenu-mobile .p-contextmenu-submenu-icon {
+  transition-duration: var(--vr-motion-base);
+}
+
 :root .p-toast-message-enter-active {
   transition: none;
   animation: vr-toast-in var(--vr-motion-overlay-in) var(--vr-motion-ease-emphasized) both;

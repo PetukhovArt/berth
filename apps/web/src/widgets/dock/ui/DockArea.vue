@@ -112,6 +112,17 @@ onBeforeUnmount(() => {
   --dv-drag-over-background-color: var(--vr-color-nav-active);
   --dv-scrollbar-background-color: var(--vr-color-nav-active);
   --dv-tabs-container-scrollbar-color: var(--vr-color-nav-active);
+  --dv-transition-duration: var(--vr-motion-base);
+}
+
+:root.vr-reduce-motion .dock :deep(:is([class^='dv-'], [class*=' dv-'])) {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root .dock :deep(:is([class^='dv-'], [class*=' dv-'])) {
+    transition: none;
+  }
 }
 
 .dock[data-tabs='scroll'] :deep(.dv-scrollable .dv-scrollbar-horizontal) {
