@@ -7,6 +7,7 @@ use berth_core::SessionRef;
 
 use crate::channels::hub;
 use crate::git::git;
+use crate::hooks::installer::WRITTEN_IN_CHECKOUT;
 use crate::presence::on_tasks;
 use crate::registry::Daemon;
 
@@ -38,8 +39,13 @@ pub fn modules_of<'a>(files: impl IntoIterator<Item = &'a str>) -> Vec<String> {
         .collect()
 }
 
+fn written_by_berth(file: &str) -> bool {
+    WRITTEN_IN_CHECKOUT.contains(&file)
+}
+
 fn names(out: &str) -> impl Iterator<Item = &str> {
-    out.split('\0').filter(|f| !f.is_empty())
+    out.split('\0')
+        .filter(|f| !f.is_empty() && !written_by_berth(f))
 }
 
 async fn merge_base(worktree: &Path) -> String {
@@ -137,5 +143,12 @@ mod tests {
             modules_of(["docs/a.md", "docs/b.md", "src/x/y.rs", ""]),
             ["docs", "src/x"]
         );
+    }
+
+    #[test]
+    fn hook_files_berth_writes_are_no_module() {
+        let out =
+            ".claude/settings.local.json\0.cursor/hooks.json\0.claude/skills/x.md\0src/a/b.rs\0";
+        assert_eq!(modules_of(names(out)), [".claude", "src/a"]);
     }
 }

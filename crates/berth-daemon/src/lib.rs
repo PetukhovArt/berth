@@ -9,6 +9,7 @@ pub mod enter_project;
 pub mod external_archive;
 pub mod feedback;
 pub mod git;
+pub mod git_exclude;
 pub mod grok;
 pub mod hooks;
 mod hub_stream;

@@ -10,6 +10,7 @@ type Member = { id: string; name: string; worktree: string; project: string; pat
 
 const REFRESH_MS = 30_000;
 const MODULE_DEPTH = 2;
+const WRITTEN_BY_BERTH = new Set(['.claude/settings.local.json', '.cursor/hooks.json', '.cursor/rules/berth-title.mdc']);
 
 const modulesByPath = shallowRef<ReadonlyMap<string, ReadonlySet<string>>>(new Map());
 const touchedByChannel = shallowRef<ReadonlyMap<string, readonly ChannelTouching[]>>(new Map());
@@ -81,7 +82,8 @@ export function initOverlaps(): () => void {
         paths.map(async (path) => {
           try {
             const files = await worktreeChanges(path);
-            next.set(path, new Set(files.map((file) => moduleOf(file.new_path || file.old_path))));
+            const changed = files.map((file) => file.new_path || file.old_path).filter((file) => !WRITTEN_BY_BERTH.has(file));
+            next.set(path, new Set(changed.map(moduleOf)));
           } catch {
             const known = modulesByPath.value.get(path);
             if (known) next.set(path, known);
