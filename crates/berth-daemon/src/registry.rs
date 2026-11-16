@@ -1140,7 +1140,7 @@ impl Daemon {
                 branch: entry.branch.clone(),
                 sort_order: 0,
             };
-            self.store.insert_worktree(&worktree)?;
+            crate::shared_setup::insert_adopted_worktree(&self.store, project, &worktree)?;
             adopted = true;
             self.broadcast(ServerEvent::EntityUpserted {
                 entity: Entity::Worktree(worktree),

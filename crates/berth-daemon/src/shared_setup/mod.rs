@@ -1,11 +1,18 @@
+mod acp;
 mod apply;
+mod hooks;
+mod mcp;
 mod plan;
+mod settings;
 
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 use berth_core::platform::NoWindow;
-use berth_core::Project;
+use berth_core::{Project, Worktree};
+use serde_json::Value;
+
+use crate::store::Store;
 
 pub use apply::Report;
 pub use plan::{SetupFile, SETUP_FILE};
@@ -91,9 +98,46 @@ impl SharedSetup {
     }
 
     pub fn sync(&self, project: &Project, checkout: &Path) -> Result<Report> {
-        let plan = self.file.plan(&self.root, project)?;
-        apply::apply(checkout, &plan)
+        self.sync_with_codex_home(project, checkout, &crate::hooks::installer::codex_home())
     }
+
+    fn sync_with_codex_home(
+        &self,
+        project: &Project,
+        checkout: &Path,
+        codex_home: &Path,
+    ) -> Result<Report> {
+        let plan = self.file.plan(&self.root, project)?;
+        let mut report = apply::apply(checkout, &plan)?;
+        let codex_groups = self.file.codex_hook_groups_of_every_project(&self.root)?;
+        if apply::merge_codex_home(codex_home, &codex_groups)? {
+            report
+                .written
+                .push(codex_home.join("hooks.json").display().to_string());
+        }
+        Ok(report)
+    }
+}
+
+fn acp_mcp_servers(project: &Project, http: bool) -> Vec<Value> {
+    match SharedSetup::load() {
+        Ok(Some(setup)) => setup.file.acp_servers(project, http),
+        Ok(None) => Vec::new(),
+        Err(e) => {
+            tracing::warn!(error = %format!("{e:#}"), "loading the shared setup failed");
+            Vec::new()
+        }
+    }
+}
+
+pub fn insert_adopted_worktree(
+    store: &Store,
+    project: &Project,
+    worktree: &Worktree,
+) -> Result<()> {
+    store.insert_worktree(worktree)?;
+    sync_checkout(project, &worktree.path);
+    Ok(())
 }
 
 pub fn sync_checkout(project: &Project, checkout: &Path) {
@@ -106,12 +150,22 @@ pub fn sync_checkout(project: &Project, checkout: &Path) {
         }
     };
     match setup.sync(project, checkout) {
-        Ok(report) if !report.kept_as_found.is_empty() => tracing::info!(
-            checkout = %checkout.display(),
-            kept = ?report.kept_as_found,
-            "shared setup kept the checkout's own files"
-        ),
-        Ok(_) => {}
+        Ok(report) => {
+            if !report.kept_as_found.is_empty() {
+                tracing::info!(
+                    checkout = %checkout.display(),
+                    kept = ?report.kept_as_found,
+                    "shared setup kept the checkout's own files"
+                );
+            }
+            if !report.skipped.is_empty() {
+                tracing::debug!(
+                    checkout = %checkout.display(),
+                    skipped = ?report.skipped,
+                    "shared setup items an agent kind cannot take"
+                );
+            }
+        }
         Err(e) => tracing::warn!(
             checkout = %checkout.display(),
             error = %format!("{e:#}"),

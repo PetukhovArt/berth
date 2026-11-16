@@ -65,7 +65,7 @@ file or a missing key means the default.
 | `messenger_webhook_url` | none | an incoming-webhook URL to post `{"text": "..."}` to; set turns the chat bridge on |
 | `channel_chain_limit` | `4` | how many Agent-authored messages in a row a channel delivers to Sessions before it stops, so two Agents cannot loop |
 | `git_init_on_create` | `true` | `git init` a directory that `Add Project` creates because it did not exist |
-| `shared_setup` | none | a directory, or a git URL, holding the skills, MCP servers, hooks and instructions berth installs into every project (see below) |
+| `shared_setup` | none | a directory, or a git URL, holding the skills, MCP servers, hooks, Claude plugins and instructions berth installs into every project (see below) |
 
 ## Shared setup
 
@@ -74,7 +74,8 @@ git repository, and point `shared_setup` in `config.json` at it: a local path li
 `"~/agent-setup"`, or a URL like `"https://github.com/you/agent-setup.git"` or
 `"git@github.com:you/agent-setup.git"`. berth copies it into every checkout of every project,
 translated to what each agent reads. It does so when you add a project, when berth creates a worktree,
-and when you run `berth shared-setup sync`. Only that command fetches a repository (it clones it into
+when berth finds a worktree made outside it (by Claude's `EnterWorktree` or `git worktree add`), and
+when you run `berth shared-setup sync`. Only that command fetches a repository (it clones it into
 `shared-setup/` in the data directory the first time and pulls after that), so run it after you change
 the repository.
 
@@ -100,6 +101,7 @@ mcp = ["context7"]
 kinds = ["claude"]
 projects = ["berth", "web-app"]
 hooks = ["format"]
+plugins = ["superpowers"]
 
 [mcp.context7]
 command = "npx"
@@ -108,37 +110,71 @@ env = { DEBUG = "0" }
 
 [mcp.docs]
 url = "https://example.com/mcp"
+
+[plugins.superpowers]
+marketplace = "superpowers-marketplace"
+source = { source = "github", repo = "obra/superpowers-marketplace" }
 ```
 
 A set says which items go to which agents (`kinds`: `claude`, `codex`, `cursor`, `opencode`, `grok`,
 `acp`) in which projects (`projects`: the name shown in berth or the repository's folder name). Leave
 either out to mean all of them. An item in several sets goes to every agent any of them names. An MCP
-server is a `command` with optional `args` and `env`, or a `url`.
+server is a `command` with optional `args` and `env`, or a `url`. A plugin names a Claude Code plugin
+`marketplace`, the `plugin` in it (the table's name when left out) and, for a marketplace Claude Code
+does not know yet, its `source` as Claude Code writes it in `extraKnownMarketplaces`.
 
 Where each item lands in a checkout:
 
-| Item | Claude | Cursor | Codex | Other agents |
-|---|---|---|---|---|
-| skill | `.claude/skills/<name>/` | `.agents/skills/<name>/` | `.agents/skills/<name>/` | `.agents/skills/<name>/` |
-| instructions | `.claude/rules/<name>.md` | `.cursor/rules/<name>.mdc`, always applied | `AGENTS.md` | `AGENTS.md` |
-| MCP server | `.mcp.json` | `.cursor/mcp.json` | `.codex/config.toml` | not installed |
-| hooks | `.claude/settings.local.json` | not installed | not installed | not installed |
+| Item | Claude | Cursor | Codex | OpenCode | Grok | ACP agents |
+|---|---|---|---|---|---|---|
+| skill | `.claude/skills/<name>/` | `.agents/skills/<name>/` | `.agents/skills/<name>/` | `.agents/skills/<name>/` | `.agents/skills/<name>/` | `.agents/skills/<name>/` |
+| instructions | `.claude/rules/<name>.md` | `.cursor/rules/<name>.mdc`, always applied | `AGENTS.md` | `AGENTS.md` | `AGENTS.md` | `AGENTS.md` |
+| MCP server | `.mcp.json` | `.cursor/mcp.json` | `.codex/config.toml` | `.opencode/opencode.json` | `.grok/config.toml` | passed to the agent when berth opens its session |
+| hooks | `.claude/settings.local.json` | `.cursor/hooks.json` | `hooks.json` in Codex's home | not installed | `.grok/hooks/berth-shared.json` | not installed |
+| plugin | `.claude/settings.json` | not installed | not installed | not installed | not installed | not installed |
 
 `AGENTS.md` joins every instructions item in the order the sets name them. Codex reads
-`.codex/config.toml` only in a folder you trusted, and Claude Code asks once per checkout before it
-starts the servers in `.mcp.json`. Hooks go to Claude only: Codex asks to trust hooks again in every
-worktree, and Cursor's hooks are written differently. Hook commands run in the checkout, so a script
-they call needs an absolute path.
+`.codex/config.toml` only in a folder you trusted. berth adds the servers it writes to `.mcp.json` to
+`enabledMcpjsonServers` in `.claude/settings.local.json`, so Claude Code starts them without asking in
+every checkout. An ACP agent gets its servers in the `session/new` request berth sends, and a `url`
+server only when the agent says it supports HTTP servers.
+
+Hooks are written in Claude Code's format and translated for each agent. An event the agent does not
+have, a handler type it cannot run (Cursor and Codex run only `command` handlers), or a Cursor
+matcher naming only tools Cursor lacks is left out, and `berth shared-setup sync` prints each one it
+skipped. Cursor gets its own camelCase events (`PreToolUse` becomes `preToolUse`, `UserPromptSubmit`
+becomes `beforeSubmitPrompt`) and its own tool names in matchers (`Bash` becomes `Shell`, `Edit`
+becomes `Write`). Cursor and Grok read the hooks in `.claude/settings.local.json` themselves, and
+Grok reads `.cursor/hooks.json` too, so berth writes a hook only once: a hook that goes to Claude is
+not written again for Cursor or Grok, and one that goes to Cursor is not written again for Grok. The
+same reading means a hook given to Claude alone also runs in Cursor and Grok, unless you turn their
+third party imports off.
+
+Codex asks you to trust a hook file again in every folder, so berth puts the Codex hooks in
+`hooks.json` in Codex's home (`$CODEX_HOME`, or `~/.codex`), the file it already uses for its own
+status hooks, and only when that directory exists. Codex then asks once for each hook. Every hook
+there starts with a check that runs it only in a repository whose `.git/berth-shared-hooks` names
+it, which berth writes for the projects the sets give the hook to. Hook commands run in the
+checkout, so a script they call needs an absolute path. OpenCode hooks are JavaScript plugins and
+ACP agents have no hooks file, so neither gets hooks.
+
+A plugin goes to Claude only. berth adds the marketplace to `extraKnownMarketplaces` and the plugin
+to `enabledPlugins` in `.claude/settings.json`; Claude Code installs it when you trust the folder. If
+the project commits `.claude/settings.json`, these keys show up as a change in `git status`.
 
 berth copies files rather than linking them, and it remembers what it wrote in each checkout (in
 `berth-setup.json` inside the checkout's git directory). A sync updates and removes only those files,
 and only while they are still as berth wrote them. A file the project already has, or one you changed
 after berth wrote it, is left alone and the sync names it, so a project overrides an item by keeping
-its own file of the same name. The hooks berth adds to `.claude/settings.local.json` are marked
-`_berthShared` and replaced on every sync; the rest of that file, and the hooks berth installs for its
-own status tracking, stay as they are. berth also lists the files it writes in the repository's
-`.git/info/exclude`, so they stay out of `git status` and out of commits. Remove `shared_setup` and
-run `berth shared-setup sync` to take everything back out.
+its own file of the same name. The hooks berth adds to `.claude/settings.local.json`,
+`.cursor/hooks.json` and Codex's `hooks.json` are marked `_berthShared` and replaced on every sync;
+the rest of those files, and the hooks berth installs for its own status tracking, stay as they are.
+The keys berth adds to `.claude/settings.json` and `.claude/settings.local.json` (`enabledPlugins`,
+`extraKnownMarketplaces`, `enabledMcpjsonServers`) are remembered the same way: a sync removes one
+only while it still holds what berth wrote, and a key you already set differently is left alone and
+named. berth also lists the files it writes or creates in the repository's `.git/info/exclude`, so
+they stay out of `git status` and out of commits. Remove `shared_setup` and run
+`berth shared-setup sync` to take everything back out.
 
 ## Chat bridge
 
