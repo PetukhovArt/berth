@@ -144,7 +144,10 @@ run `berth shared-setup sync` to take everything back out.
 
 The daemon can post a short message to a chat when an Agent starts waiting on you, when an Agent
 finishes a turn, and when you save a Task note. It is off until you set the
-keys below in `config.json`, and nothing you type in the chat comes back to berth.
+keys below in `config.json`, and nothing you type in the chat comes back to berth. The desktop app
+writes the same keys: Settings > Chat bridge has a field for each, a `Save` button and a
+`Send test message` button that posts a test text through every route you filled in and shows the
+error if one fails.
 
 ```json
 {
