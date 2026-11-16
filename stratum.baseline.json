@@ -3,7 +3,5 @@
 "deep-module apps/web/src/entities/session/model/berth.ts 88bf7e9e",
 "deep-module apps/web/src/features/update/model/state.ts 88bf7e9e",
 "deep-module apps/web/src/shared/api/connectors/api.ts 88bf7e9e",
-"deep-module apps/web/src/shared/ui/icons.ts 88bf7e9e",
-"slice-fan-in apps/web/src/entities/merge-request/index.ts 5793d4e2",
-"slice-fan-in apps/web/src/entities/session/index.ts 2553e1a3"
+"deep-module apps/web/src/shared/ui/icons.ts 88bf7e9e"
 ]}
