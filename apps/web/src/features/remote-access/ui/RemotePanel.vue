@@ -11,7 +11,7 @@ import { useScope, visibleInterval } from '../../../shared/lib/scope';
 type Problem = { kind: 'tailscale_missing' } | { kind: 'serve_failed'; message: string } | { kind: 'bind_failed'; message: string } | { kind: 'token_store'; message: string };
 type Scope = 'full' | 'read_only';
 type ClientInfo = { id: number; address: string; agent: string; device: string; connected_at: number };
-type DeviceInfo = { id: number; name: string; scope: Scope; created_at: number };
+type DeviceInfo = { id: number; name: string; scope: Scope | { session: string }; created_at: number };
 type Pairing = { url: string; qr_svg: string | null };
 type RemoteStatus = {
   enabled: boolean;
@@ -157,7 +157,7 @@ onMounted(() => {
           <li v-for="device in status.devices" :key="device.id" :data-testid="`remote-device-${device.id}`">
             <Smartphone :size="14" />
             <span class="agent">{{ device.name }}</span>
-            <span class="muted">{{ t(`remote.panel.scope.${device.scope}`) }}</span>
+            <span class="muted">{{ t(`remote.panel.scope.${typeof device.scope === 'string' ? device.scope : 'session'}`) }}</span>
             <VButton size="small" severity="danger" :label="t('remote.panel.revoke')" :disabled="busy" data-testid="remote-revoke" @click="revokeDevice(device.id)">
               <template #icon><Trash2 :size="14" /></template>
             </VButton>

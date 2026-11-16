@@ -1,5 +1,5 @@
 import { computed, onScopeDispose, shallowRef, type ComputedRef, type ShallowRef } from 'vue';
-import { acpTranscript, describeError, onAcpItem, type AcpItem, type AcpPlanEntry } from './berth';
+import { acpTranscript, describeError, onAcpItem, type AcpItem, type AcpItemAt, type AcpPlanEntry } from './berth';
 import type { TranscriptMessage } from './external';
 import type { PlanItem } from './plan';
 
@@ -42,6 +42,8 @@ function toMessages(seq: number, item: AcpItem): TranscriptMessage[] {
   if (tool.output) out.push({ ...base, key: `${key}:output`, role: 'assistant', text: tool.output, shell: 'output', markdown: fenced(tool.output, '') });
   return out;
 }
+
+export const acpMessages = (items: readonly AcpItemAt[]): TranscriptMessage[] => items.flatMap((at) => toMessages(at.seq, at.item));
 
 const toPlan = (entries: AcpPlanEntry[]): PlanItem[] => entries.map((entry) => ({ text: entry.content, state: PLAN_STATES[entry.status] ?? 'todo' }));
 

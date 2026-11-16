@@ -9,3 +9,8 @@ export function initLocale(): () => void {
   });
   return () => undefined;
 }
+
+export function initBrowserLocale(): void {
+  const locale: Locale = navigator.language.toLowerCase().startsWith('ru') ? 'ru' : 'en';
+  bindLocale({ read: () => locale, write: () => undefined });
+}
