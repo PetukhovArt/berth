@@ -20,6 +20,7 @@ export const attention = {
     crashed: 'stopped with an error',
     limited: 'limit · resets at {time}',
     actions: 'Inbox actions',
+    next: 'Next waiting',
     snoozeHour: 'Snooze for 1 hour',
     snoozeDay: 'Snooze until tomorrow',
     settle: 'Settle',

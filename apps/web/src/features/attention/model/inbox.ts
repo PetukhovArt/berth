@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue';
-import { useBerth, type SessionNode } from '../../../entities/session';
+import { useBerth, useSessionDock, type SessionNode } from '../../../entities/session';
 import { attentionKindOf, type AttentionKind } from './attention';
 
 export type InboxEntry = { key: string; node: SessionNode; kind: AttentionKind; since: number; place: string; until?: number | undefined };
@@ -75,4 +75,13 @@ export function useInbox() {
   });
   const items = computed(() => entries.value.filter((entry) => !hidden(entry, now.value)));
   return { items, now };
+}
+
+export function openNextWaiting(): void {
+  const dock = useSessionDock();
+  const active = dock.activeSession.value?.key;
+  const next = useInbox()
+    .items.value.filter((entry) => entry.kind === 'waiting' && entry.node.key !== active)
+    .sort((a, b) => a.since - b.since)[0];
+  if (next) dock.openSession(next.node);
 }

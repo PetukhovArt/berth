@@ -24,6 +24,7 @@ export const commands: Translation<typeof en> = {
     terminalZoomReset: 'Сбросить размер шрифта терминала',
     agentsQuickOpen: 'Быстрый переход к сессии, запросу или задаче',
     agentsNewSession: 'Новая сессия в активном worktree',
+    inboxNextWaiting: 'Открыть следующую сессию, которая вас ждёт',
     dockToggleMaximize: 'Развернуть или вернуть активную группу панелей',
     keymapOpenSettings: 'Настроить сочетания клавиш',
     keymapOpenFile: 'Открыть keymap.json в редакторе',

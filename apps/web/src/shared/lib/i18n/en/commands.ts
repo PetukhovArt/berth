@@ -21,6 +21,7 @@ export const commands = {
     terminalZoomReset: 'Reset terminal font size',
     agentsQuickOpen: 'Quick switch to a session, request or task',
     agentsNewSession: 'New session in the active worktree',
+    inboxNextWaiting: 'Open the next session waiting for you',
     dockToggleMaximize: 'Maximize or restore the active panel group',
     keymapOpenSettings: 'Customize keyboard shortcuts',
     keymapOpenFile: 'Open keymap.json in the editor',

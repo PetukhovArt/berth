@@ -5,9 +5,11 @@ import { VContextMenu } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { allowRequest, chooseOption, denyRequest, openChannel, StatusIcon, useBerth, useChannelUnread, useSessionDock } from '../../../entities/session';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { settleInbox, snoozeInbox, useInbox, type InboxEntry } from '../model/inbox';
+import { shortcutLabel } from '../../../shared/lib/commands/keymap';
+import { openNextWaiting, settleInbox, snoozeInbox, useInbox, type InboxEntry } from '../model/inbox';
 
 const { t, formatTime } = useI18n();
+const nextShortcut = computed(() => shortcutLabel('inbox.nextWaiting'));
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
@@ -56,6 +58,10 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
     <div class="head">
       <span class="title">{{ t('attention.inbox.title') }}</span>
       <span class="count" data-testid="inbox-count">{{ items.length + channels.length }}</span>
+      <span class="spacer" />
+      <UiButton v-if="nextShortcut" class="next" :title="t('attention.inbox.next')" :aria-label="t('attention.inbox.next')" data-testid="inbox-next-waiting" @click="openNextWaiting">
+        <kbd>{{ nextShortcut }}</kbd>
+      </UiButton>
     </div>
     <div v-for="entry in items" :key="entry.key" class="item" data-testid="inbox-item" :data-kind="entry.kind" :data-session-id="entry.node.id">
       <UiButton class="row" :title="entry.node.name" @click="dock.openSession(entry.node)" @contextmenu.prevent="showMenu($event, entry)">
@@ -113,6 +119,32 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
   font-size: var(--vr-font-size-xs);
   font-weight: 500;
   color: var(--vr-color-text-muted);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.next {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 var(--vr-space-1);
+  margin-right: var(--vr-space-1);
+  color: var(--vr-color-text-muted);
+  background: none;
+  border: 1px solid var(--vr-color-border-strong);
+  border-radius: var(--vr-radius-sm);
+}
+
+.next:hover {
+  color: var(--vr-color-text);
+  background: var(--vr-color-nav-hover);
+}
+
+.next kbd {
+  font-family: var(--vr-font-mono);
+  font-size: var(--vr-font-size-2xs);
 }
 
 .item {
