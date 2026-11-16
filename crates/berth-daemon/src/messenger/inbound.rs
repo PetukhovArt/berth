@@ -158,7 +158,9 @@ impl Daemon {
                     daemon.take_voice(&bridge, &link, &message, &file_id).await;
                 });
             }
-            Body::Other => reply(link, &message, NOT_SUPPORTED).await,
+            Body::Other => {
+                reply(link, &message, NOT_SUPPORTED).await;
+            }
         }
     }
 
