@@ -10,6 +10,7 @@ import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { readAcpAgentLog } from '../../../shared/api/providers';
 import { chatBlocks } from '../model/chatBlocks';
+import { forwardSlashes } from '../../../shared/lib/homePath';
 import { durationLabel } from '../model/duration';
 import ToolGroup from './ToolGroup.vue';
 import TurnFiles from './TurnFiles.vue';
@@ -230,7 +231,7 @@ onBeforeUnmount(() => {
       </div>
       <div class="meta">
         <span v-if="harness" class="chip">{{ t(`workbench.external.harness.${harness}`) }}</span>
-        <span v-if="session" class="chip mono" :title="session.cwd"><FolderOpen :size="12" />{{ session.cwd }}</span>
+        <span v-if="session" class="chip mono" :title="session.cwd"><FolderOpen :size="12" />{{ forwardSlashes(session.cwd) }}</span>
         <span v-if="session?.branch" class="chip mono"><GitBranch :size="12" />{{ session.branch }}</span>
         <span v-if="session" class="chip" :title="formatDate(session.updated_at)">{{ formatRelative(session.updated_at) }}</span>
         <span v-if="session" class="chip" data-testid="conversation-origin"><SquareTerminal :size="12" />{{ externalOrigin(session) }}</span>

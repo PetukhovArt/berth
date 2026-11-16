@@ -53,6 +53,8 @@ const GROUP_LABELS = {
 const { formatRelative } = useI18n();
 const metaOf =(entry: QuickItem) => [entry.agent, entry.at ? formatRelative(entry.at) : null].filter(Boolean).join(' · ');
 
+const transcriptLine = (label: string, text: string) => (text.trim() === '' || text.trim() === label.trim() ? label : `${label} · ${text}`);
+
 function groupOf(item: Item): Group {
   if (item.kind === 'file') return 'files';
   if (item.kind === 'action') return 'actions';
@@ -242,7 +244,7 @@ onBeforeUnmount(() => {
             <template v-else-if="item.kind === 'transcript'">
               <MessageSquare :size="14" class="file-icon" />
               <span class="text">
-                <span class="session">{{ item.entry.node.label }} · {{ item.text }}</span>
+                <span class="session">{{ transcriptLine(item.entry.node.label, item.text) }}</span>
               </span>
               <span v-if="item.entry.at" class="meta">{{ formatRelative(item.entry.at) }}</span>
             </template>
