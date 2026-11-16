@@ -23,11 +23,19 @@ const banner = computed(() => {
     }
   }
 });
+
+const detail = computed(() => {
+  const connection = berth?.connection.value;
+  return connection?.state === 'offline' ? (connection.message ?? null) : null;
+});
 </script>
 
 <template>
   <template v-if="berth">
-    <p v-if="banner" class="banner" role="status" data-testid="berth-banner" :data-state="berth.connection.value.state">{{ banner }}</p>
+    <p v-if="banner" class="banner" role="status" data-testid="berth-banner" :data-state="berth.connection.value.state">
+      {{ banner }}
+      <span v-if="detail" class="detail" data-testid="berth-banner-detail">{{ detail }}</span>
+    </p>
     <p v-if="berth.error.value" class="banner" role="alert" data-testid="berth-error">{{ berth.error.value }}</p>
   </template>
 </template>
@@ -40,6 +48,13 @@ const banner = computed(() => {
   border-radius: var(--vr-radius-md);
   color: var(--vr-color-text);
   background: var(--vr-color-surface-muted);
+}
+
+.detail {
+  display: block;
+  margin-top: var(--vr-space-1);
+  color: var(--vr-color-text-muted);
+  overflow-wrap: anywhere;
 }
 
 .banner[role='alert'],
