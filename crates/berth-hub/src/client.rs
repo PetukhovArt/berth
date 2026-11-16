@@ -1,5 +1,5 @@
 use crate::presence::Present;
-use crate::store::{ChannelSummary, Event, Mention};
+use crate::store::{ChannelSummary, Device, Event, Mention};
 use anyhow::{anyhow, bail, Context, Result};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -87,6 +87,18 @@ impl HubClient {
             Some(json!({ "id": id, "scopes": scopes })),
         )
         .await?;
+        Ok(())
+    }
+
+    pub async fn devices(&self) -> Result<Vec<Device>> {
+        Ok(serde_json::from_value(
+            self.call("GET", "/admin/devices", None).await?,
+        )?)
+    }
+
+    pub async fn revoke(&self, id: &str) -> Result<()> {
+        self.call("POST", "/admin/revoke", Some(json!({ "id": id })))
+            .await?;
         Ok(())
     }
 

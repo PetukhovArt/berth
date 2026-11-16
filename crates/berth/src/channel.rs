@@ -123,6 +123,28 @@ pub fn run_hub_pair(url: String, name: String) -> Result<()> {
     })
 }
 
+pub fn run_hub_devices(url: String, admin_token: String) -> Result<()> {
+    runtime()?.block_on(async {
+        let devices = HubClient::new(&url, &admin_token)?.devices().await?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({ "ok": true, "devices": devices }))?
+        );
+        Ok(())
+    })
+}
+
+pub fn run_hub_revoke(url: String, admin_token: String, id: String) -> Result<()> {
+    runtime()?.block_on(async {
+        HubClient::new(&url, &admin_token)?.revoke(&id).await?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({ "ok": true, "revoked": id }))?
+        );
+        Ok(())
+    })
+}
+
 pub fn run_hub_approve(
     url: String,
     admin_token: String,

@@ -36,6 +36,14 @@ pub struct Mention {
     pub chain: u32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Device {
+    pub id: String,
+    pub name: String,
+    pub status: String,
+    pub scopes: Vec<String>,
+}
+
 pub const MENTION_TAG: &str = "p";
 const CHAIN_SCAN: i64 = 100;
 
@@ -145,14 +153,50 @@ impl Store {
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
+    pub fn devices(&self) -> Result<Vec<Device>> {
+        let mut st = self.db.prepare(
+            "SELECT id, name, status, scopes FROM members WHERE kind='person' ORDER BY created_at",
+        )?;
+        let rows = st.query_map([], |r| {
+            let scopes: String = r.get(3)?;
+            Ok(Device {
+                id: r.get(0)?,
+                name: r.get(1)?,
+                status: r.get(2)?,
+                scopes: scopes
+                    .split(',')
+                    .filter(|s| !s.is_empty())
+                    .map(String::from)
+                    .collect(),
+            })
+        })?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
     pub fn approve_scopes(&self, id: &str, scopes: &[String]) -> Result<()> {
         let n = self.db.execute(
-            "UPDATE members SET status='approved', scopes=?2 WHERE id=?1 AND kind='person'",
+            "UPDATE members SET status='approved', scopes=?2
+             WHERE id=?1 AND kind='person' AND status <> 'revoked'",
             params![id, scopes.join(",")],
+        )?;
+        if n == 0 {
+            bail!("no such device, or it was revoked: pair again");
+        }
+        Ok(())
+    }
+
+    pub fn revoke_device(&self, id: &str) -> Result<()> {
+        let n = self.db.execute(
+            "UPDATE members SET status='revoked' WHERE id=?1 AND kind='person'",
+            [id],
         )?;
         if n == 0 {
             bail!("no such device");
         }
+        self.db.execute(
+            "UPDATE members SET status='revoked' WHERE owner=?1 AND kind='agent'",
+            [id],
+        )?;
         Ok(())
     }
 
@@ -204,7 +248,7 @@ impl Store {
         Ok(self
             .db
             .query_row(
-                "SELECT owner FROM members WHERE id=?1 AND kind='agent'",
+                "SELECT owner FROM members WHERE id=?1 AND kind='agent' AND status='agent'",
                 [agent],
                 |r| r.get(0),
             )
@@ -339,7 +383,7 @@ impl Store {
             let id: Option<String> = self
                 .db
                 .query_row(
-                    "SELECT id FROM members WHERE kind='agent' AND name=?1",
+                    "SELECT id FROM members WHERE kind='agent' AND status='agent' AND name=?1",
                     [&name],
                     |r| r.get(0),
                 )

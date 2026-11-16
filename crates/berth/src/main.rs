@@ -253,7 +253,9 @@ enum HubCommand {
     },
     #[command(about = "Step one: admit this device; prints its token, which opens nothing yet")]
     Pair { url: String, name: String },
-    #[command(about = "Step two: approve an admitted device and what it may do")]
+    #[command(
+        about = "Step two: approve an admitted device and what it may do; run it again to change the scopes"
+    )]
     Approve {
         url: String,
         #[arg(long)]
@@ -261,6 +263,19 @@ enum HubCommand {
         id: String,
         #[arg(long, value_delimiter = ',', default_value = "read,post,create")]
         scopes: Vec<String>,
+    },
+    #[command(about = "List the devices of the hub with their status and scopes")]
+    Devices {
+        url: String,
+        #[arg(long)]
+        admin_token: String,
+    },
+    #[command(about = "Revoke a device: its token and its Agents stop working at once")]
+    Revoke {
+        url: String,
+        #[arg(long)]
+        admin_token: String,
+        id: String,
     },
 }
 
@@ -360,6 +375,12 @@ fn main() -> Result<()> {
                 id,
                 scopes,
             } => channel::run_hub_approve(url, admin_token, id, scopes),
+            HubCommand::Devices { url, admin_token } => channel::run_hub_devices(url, admin_token),
+            HubCommand::Revoke {
+                url,
+                admin_token,
+                id,
+            } => channel::run_hub_revoke(url, admin_token, id),
         },
         Some(Command::Upgrade { force }) => upgrade::run_upgrade(force),
         Some(Command::StaleDaemonNote) => {

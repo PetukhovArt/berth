@@ -205,3 +205,51 @@ async fn presence_shows_who_runs_sessions_on_a_task_and_expires() {
     tokio::time::sleep(std::time::Duration::from_millis(600)).await;
     assert!(bob.presence("PROJ-12").await.unwrap().is_empty());
 }
+
+#[tokio::test]
+async fn an_admin_lists_rescopes_and_revokes_devices() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_hub, url) = start(dir.path()).await;
+    let admin = HubClient::new(&url, "admin-secret").unwrap();
+    let (_ann_id, ann) = person(&url, "ann", &["read", "post", "create"]).await;
+    let (bob_id, bob) = person(&url, "bob", &["read", "post"]).await;
+    let (_eve_id, _) = HubClient::pair(&url, "eve").await.unwrap();
+    assert!(ann.devices().await.is_err());
+    let listed: Vec<_> = admin
+        .devices()
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|d| (d.name, d.status, d.scopes.join(",")))
+        .collect();
+    assert_eq!(
+        listed,
+        [
+            ("ann".into(), "approved".into(), "read,post,create".into()),
+            ("bob".into(), "approved".into(), "read,post".into()),
+            ("eve".into(), "pending".into(), "".into()),
+        ]
+    );
+
+    ann.create_channel("c").await.unwrap();
+    ann.add_member("c", &bob_id).await.unwrap();
+    let agent = bob.agent("agent-b").await.unwrap();
+    bob.post("c", "hello", None).await.unwrap();
+
+    admin.approve(&bob_id, &["read"]).await.unwrap();
+    assert!(bob.post("c", "muted", None).await.is_err());
+    assert_eq!(bob.read("c", 0, None).await.unwrap().len(), 1);
+
+    admin.revoke(&bob_id).await.unwrap();
+    assert!(bob.read("c", 0, None).await.is_err());
+    assert!(bob.post("c", "again", Some(&agent)).await.is_err());
+    assert!(admin.approve(&bob_id, &["read"]).await.is_err());
+    assert!(admin.revoke("m-nobody").await.is_err());
+    assert!(ann
+        .post("c", "@agent-b still there?", None)
+        .await
+        .unwrap()
+        .tags
+        .is_empty());
+    assert_eq!(ann.read("c", 0, None).await.unwrap().len(), 2);
+}

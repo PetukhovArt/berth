@@ -47,6 +47,8 @@ pub async fn serve_with_ttl(
         .route("/pair", post(pair))
         .route("/admin/pending", get(pending))
         .route("/admin/approve", post(approve))
+        .route("/admin/devices", get(devices))
+        .route("/admin/revoke", post(revoke))
         .route("/agents", post(agent))
         .route("/channels", get(channels).post(create_channel))
         .route("/channels/members", post(add_member))
@@ -143,6 +145,32 @@ async fn approve(State(s): State<Shared>, headers: HeaderMap, Json(b): Json<Appr
     store
         .approve_scopes(&b.id, &b.scopes)
         .map_err(|e| fail(StatusCode::NOT_FOUND, e))?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+async fn devices(State(s): State<Shared>, headers: HeaderMap) -> Reply {
+    let store = s.store.lock().unwrap();
+    admin(&store, &headers)?;
+    let rows = store
+        .devices()
+        .map_err(|e| fail(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    Ok(Json(json!(rows)))
+}
+
+#[derive(Deserialize)]
+struct RevokeBody {
+    id: String,
+}
+
+async fn revoke(State(s): State<Shared>, headers: HeaderMap, Json(b): Json<RevokeBody>) -> Reply {
+    {
+        let store = s.store.lock().unwrap();
+        admin(&store, &headers)?;
+        store
+            .revoke_device(&b.id)
+            .map_err(|e| fail(StatusCode::NOT_FOUND, e))?;
+    }
+    s.presence.lock().unwrap().report(&b.id, HashMap::new());
     Ok(Json(json!({ "ok": true })))
 }
 
