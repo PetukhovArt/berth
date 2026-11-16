@@ -157,7 +157,7 @@ function crumb(item: HotItem): string {
               <span class="title">{{ tile.item.title }}</span>
             </span>
             <span class="crumb">{{ crumb(tile.item) || ' ' }}</span>
-            <span class="preview" :data-empty="!tile.item.preview">{{ tile.item.preview ?? t('hot.overview.noPreview') }}</span>
+            <span class="preview" :data-empty="!tile.item.preview" :title="tile.item.preview ?? undefined">{{ tile.item.preview ?? t('hot.overview.noPreview') }}</span>
             <span class="foot">
               <span class="dot" :data-status="tile.item.status" />
               <span class="state">{{ t(`hot.status.${tile.item.status}`) }}</span>

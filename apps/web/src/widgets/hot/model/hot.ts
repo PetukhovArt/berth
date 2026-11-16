@@ -114,7 +114,7 @@ function create() {
         seed,
         stamp,
         source,
-        notice: request ? [feedbackText(request), request.detail].filter(Boolean).join(': ') : (node.providerError?.message ?? null),
+        notice: request ? [feedbackText(request), request.detail].filter(Boolean).join(': ') : node.providerError ? `${t(`agents.route.errorKind.${node.providerError.kind}`)}: ${node.providerError.message}` : null,
       });
     }
     for (const session of external?.anyByKey.value.values() ?? []) {
