@@ -61,8 +61,35 @@ file or a missing key means the default.
 | `webhook_expose` | `false` | listen on all interfaces instead of `127.0.0.1` only; put it behind something you trust, since the secret is the only check |
 | `hub_url` | none | the team hub the `berth channel` commands talk to, like `http://hub.example:7843` |
 | `hub_token` | none | this device's token on the hub, from `berth hub pair` once an admin ran `berth hub approve` |
+| `messenger_telegram_token`, `messenger_telegram_chat` | none | a Telegram bot token and the chat id to post to; both set turns the chat bridge on (see below) |
+| `messenger_webhook_url` | none | an incoming-webhook URL to post `{"text": "..."}` to; set turns the chat bridge on |
 | `channel_chain_limit` | `4` | how many Agent-authored messages in a row a channel delivers to Sessions before it stops, so two Agents cannot loop |
 | `git_init_on_create` | `true` | `git init` a directory that `Add Project` creates because it did not exist |
+
+## Chat bridge
+
+The daemon can post a short message to a chat when an Agent starts waiting on you, when an Agent
+finishes a turn, and when you save a Task note. It is off until you set the
+keys below in `config.json`, and nothing you type in the chat comes back to berth.
+
+```json
+{
+  "messenger_telegram_token": "123456:ABC-your-bot-token",
+  "messenger_telegram_chat": "-1001234567890"
+}
+```
+
+For Telegram, create a bot with `@BotFather`, add it to the chat, and use the chat id (a number,
+negative for a group) as `messenger_telegram_chat`. For a company messenger that offers an incoming
+webhook, such as Slack or Mattermost, set `messenger_webhook_url` instead: berth sends a `POST` with
+the JSON body `{"text": "..."}`. Both can be set at once.
+
+A message carries the Session title, the Project and the status, like `Needs feedback: fix login (api)`
+or `Finished: fix login (api)`. A Task note goes out as its first 300 characters with the Project and
+branch. No code or terminal output is sent. The token and the webhook URL are secrets: they sit in
+`config.json` in plain text like `hub_token`, so keep that file private. The daemon posts through
+`curl`, which must be on `PATH`, and hands it the secret on stdin, not in its arguments. A failed post
+is logged in `daemon.log` and not retried.
 
 ## Router rules
 

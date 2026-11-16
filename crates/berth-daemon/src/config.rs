@@ -38,6 +38,9 @@ pub struct Config {
     pub hub_token: Option<String>,
     pub channel_chain_limit: u32,
     pub checkpoints_claude: bool,
+    pub messenger_telegram_token: Option<String>,
+    pub messenger_telegram_chat: Option<serde_json::Value>,
+    pub messenger_webhook_url: Option<String>,
     pub providers: crate::acp::providers::ProvidersConfig,
 }
 
@@ -57,6 +60,9 @@ impl Default for Config {
             hub_token: None,
             channel_chain_limit: 4,
             checkpoints_claude: false,
+            messenger_telegram_token: None,
+            messenger_telegram_chat: None,
+            messenger_webhook_url: None,
             providers: Default::default(),
         }
     }

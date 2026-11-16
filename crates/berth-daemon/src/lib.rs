@@ -12,6 +12,7 @@ pub mod grok;
 pub mod hooks;
 pub mod launch;
 pub mod lifecycle;
+pub mod messenger;
 pub mod metrics;
 pub mod orphans;
 pub mod pacer_migration;
@@ -179,6 +180,7 @@ async fn serve() -> Result<()> {
     tokio::spawn(daemon.clone().run_scheduler());
     tokio::spawn(daemon.clone().run_channel_delivery());
     tokio::spawn(daemon.clone().run_presence_report());
+    tokio::spawn(daemon.clone().run_messenger_bridge());
     if let Err(e) = triggers::start_webhooks(daemon.clone(), &config::Config::load()).await {
         tracing::warn!(error = %e, "webhook listener not started");
     }
