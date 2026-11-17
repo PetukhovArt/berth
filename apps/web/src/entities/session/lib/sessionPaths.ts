@@ -1,4 +1,6 @@
 import type { SessionNode, SessionStatus, useBerth } from '../model/berth';
+import type { SessionState } from '../model/sessionState';
+import { urgencyOf } from './attention';
 
 type Store = NonNullable<ReturnType<typeof useBerth>>;
 export type WorkspaceNode = Store['tree']['value'][number];
@@ -25,34 +27,18 @@ export function sessionPaths(tree: readonly WorkspaceNode[]): Map<string, Sessio
   return paths;
 }
 
-const URGENCY: Record<SessionStatus, number> = {
-  needs_feedback: 8,
-  terminated: 7,
-  running: 5,
-  limit: 4.5,
-  finished: 4,
-  fresh: 3,
-  shell: 2,
-  disconnected: 1,
-  closed: 0,
-};
-
-const UNSEEN_URGENCY = 6;
-
-const urgency = (session: { status: SessionStatus; unseen: boolean }): number =>
-  session.status === 'finished' && session.unseen ? UNSEEN_URGENCY : URGENCY[session.status];
-
 export type Rollup = { status: SessionStatus | undefined; unseen: boolean; running: number; feedback: number; total: number };
 
-export function rollupOf(sessions: readonly { status: SessionStatus; unseen: boolean }[]): Rollup {
+export function rollupOf(sessions: readonly Pick<SessionState, 'status' | 'unseen' | 'alive'>[]): Rollup {
   let status: SessionStatus | undefined;
-  let top = -1;
+  let top = -Infinity;
   let unseen = false;
   let running = 0;
   let feedback = 0;
   for (const session of sessions) {
-    if (urgency(session) > top) {
-      top = urgency(session);
+    const urgency = urgencyOf(session);
+    if (urgency > top) {
+      top = urgency;
       status = session.status;
     }
     if (session.unseen) unseen = true;

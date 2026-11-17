@@ -7,7 +7,7 @@ import { allowRequest, alwaysAllowRequest, chooseOption, denyRequest, isYesNoPer
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { shortcutLabel } from '../../../shared/lib/commands/keymap';
 import { shortAge } from '../../../shared/lib/shortAge';
-import { openNextWaiting, settleInbox, snoozeInbox, useInbox, type InboxEntry } from '../model/inbox';
+import { openNextNeedingYou, settleInbox, snoozeInbox, useInbox, type InboxEntry } from '../model/inbox';
 
 const { t, formatTime } = useI18n();
 const nextShortcut = computed(() => shortcutLabel('inbox.nextWaiting'));
@@ -80,7 +80,7 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
       <span class="title">{{ t('attention.inbox.title') }}</span>
       <span class="count" data-testid="inbox-count">{{ items.length + channels.length }}</span>
       <span class="spacer" />
-      <UiButton v-if="nextShortcut" class="next" :title="t('attention.inbox.next')" :aria-label="t('attention.inbox.next')" data-testid="inbox-next-waiting" @click="openNextWaiting">
+      <UiButton v-if="nextShortcut" class="next" :title="t('attention.inbox.next')" :aria-label="t('attention.inbox.next')" data-testid="inbox-next-waiting" @click="openNextNeedingYou">
         <kbd>{{ nextShortcut }}</kbd>
       </UiButton>
     </div>
@@ -241,11 +241,11 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
   color: var(--vr-color-text-muted);
 }
 
-.item[data-kind='waiting'] .kind {
+.item[data-kind='needs_feedback'] .kind {
   color: var(--vr-status-feedback);
 }
 
-.item[data-kind='limited'] .kind {
+.item[data-kind='limit'] .kind {
   color: var(--vr-status-limit);
 }
 
@@ -332,7 +332,7 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
   border-radius: var(--vr-radius-lg);
 }
 
-:root[data-vr-viewport='phone'] .item[data-kind='waiting'] {
+:root[data-vr-viewport='phone'] .item[data-kind='needs_feedback'] {
   border-color: var(--vr-status-feedback);
 }
 

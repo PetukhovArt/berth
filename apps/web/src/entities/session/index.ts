@@ -1,4 +1,6 @@
 export { rollupOf } from './lib/sessionPaths';
+export { attentionEdge, attentionOf, urgencyOf } from './lib/attention';
+export type { AttentionKind } from './lib/attention';
 export type { Rollup, WorkspaceNode } from './lib/sessionPaths';
 export { AGENT_KIND_LABEL, acknowledged, acpPrompt, archiveAgent, createAcpAgent, attachSession, BerthCallError, call, closeTerminal, createAgent, createTerminal, deleteAgent, describeError, detachSession, entitySessionRef, isSessionRef, renameSession, resizeSession, restartAgent, sendInput, switchAgentModel, continueAgentIn, applyRouteSuggestion, sessionId, sessionKey, stopAgent, unarchiveAgent, useBerth, worktreesOfProject } from './model/berth';
 export type { AcpItemAt, AgentKind, Branch, Entities, ProviderError, SessionEvent, SessionNode, SessionRef, SessionStatus, Worktree, WorktreeNode } from './model/berth';

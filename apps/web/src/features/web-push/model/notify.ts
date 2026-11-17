@@ -11,7 +11,7 @@ export function pushToPhones(node: PushNode, kind: string, text: string): void {
   if (!isDesktop) return;
   setTimeout(() => {
     const request = useBerth()?.feedback.value.get(node.id);
-    const answerable = kind === 'waiting' && request !== undefined && isYesNoPermission(request);
+    const answerable = kind === 'needs_feedback' && request !== undefined && isYesNoPermission(request);
     const actions = answerable
       ? [
           { action: 'allow', title: t('push.allow'), data: ALLOW },

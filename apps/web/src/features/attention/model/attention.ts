@@ -1,20 +1,18 @@
 import { shallowRef, watch } from 'vue';
-import { useBerth, useSessionDock, useSessionStates } from '../../../entities/session';
+import { attentionEdge, useBerth, useSessionDock, useSessionStates, type AttentionKind, type SessionStatus } from '../../../entities/session';
 import { hostWindow, isDesktop } from '../../../bridge';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
 
-export type AttentionKind = 'waiting' | 'finished' | 'crashed' | 'limited';
-type Kind = AttentionKind;
-export type AttentionToast = { id: number; key: string; kind: Kind; text: string };
+export type AttentionToast = { id: number; key: string; kind: AttentionKind; text: string };
 
 const TOAST_MS = 8000;
 const TOAST_LIMIT = 4;
 
 export const attentionToasts = shallowRef<readonly AttentionToast[]>([]);
-const listeners = new Set<(event: { key: string; agent: string | null; kind: Kind; text: string }) => void>();
+const listeners = new Set<(event: { key: string; agent: string | null; kind: AttentionKind; text: string }) => void>();
 
-export function onAttention(listen: (event: { key: string; agent: string | null; kind: Kind; text: string }) => void): () => void {
+export function onAttention(listen: (event: { key: string; agent: string | null; kind: AttentionKind; text: string }) => void): () => void {
   listeners.add(listen);
   return () => listeners.delete(listen);
 }
@@ -28,20 +26,6 @@ export function openAttention(toast: Pick<AttentionToast, 'id' | 'key'>): void {
   dismissAttention(toast.id);
   useSessionDock().openKey(toast.key);
   void hostWindow.raise().catch(() => undefined);
-}
-
-export function attentionKindOf(status: string, unseen: boolean): Kind | null {
-  if (status === 'needs_feedback') return 'waiting';
-  if (status === 'terminated') return 'crashed';
-  if (status === 'limit') return 'limited';
-  if (status === 'finished' && unseen) return 'finished';
-  return null;
-}
-
-function kindOf(previous: string | undefined, status: string, unseen: boolean): Kind | null {
-  if (previous === status) return null;
-  if (status === 'finished' && previous !== 'running') return null;
-  return attentionKindOf(status, unseen);
 }
 
 function notifyOs(toast: AttentionToast): void {
@@ -62,7 +46,7 @@ export function initAttention(): () => void {
   if (!berth || !isDesktop) return () => undefined;
   const dock = useDock();
   const states = useSessionStates();
-  const seen = new Map<string, string>();
+  const seen = new Map<string, SessionStatus>();
   const stop = watch(
     () => states.value,
     (current) => {
@@ -70,7 +54,7 @@ export function initAttention(): () => void {
         const previous = seen.get(state.key);
         seen.set(state.key, state.status);
         if (previous === undefined) continue;
-        const kind = kindOf(previous, state.status, state.unseen);
+        const kind = attentionEdge(previous, state);
         if (!kind) continue;
         const focused = document.hasFocus();
         if (focused && dock.activeKey.value === state.key) continue;

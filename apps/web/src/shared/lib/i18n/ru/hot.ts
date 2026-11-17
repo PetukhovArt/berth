@@ -18,16 +18,12 @@ export const hot = {
     empty: 'Нет живых сессий',
     noPreview: 'Пока без активности',
   },
-  toast: {
-    waiting: 'Ждут: {count}',
-    nobody: 'Никто не ждёт',
-  },
   mode: {
     titlebar: 'Включено',
     off: 'Выключено',
   },
   setting: {
     label: 'Горячие сессии',
-    description: 'Живые сессии под рукой: обзор по {key:mod-shift-o}, {key:alt-1}..9 открывает N-ю, {key:alt-j} переходит к следующей, которая ждёт вас, {key:ctrl-tab} переключает между недавними.',
+    description: 'Живые сессии под рукой: обзор по {key:mod-shift-o}, {key:alt-1}..9 открывает N-ю, {key:alt-j} переходит к следующей, где нужны вы, {key:ctrl-tab} переключает между недавними.',
   },
 } as const;

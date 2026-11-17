@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue';
-import { externalTarget, useBerth, useExternalSessions, useSessionDock, useSessionStates, type SessionNode, type SessionState } from '../../../entities/session';
-import { attentionKindOf, type AttentionKind } from './attention';
+import { attentionOf, externalTarget, urgencyOf, useBerth, useExternalSessions, useSessionDock, useSessionStates, type AttentionKind, type SessionNode, type SessionState } from '../../../entities/session';
+import { useDock } from '../../../shared/model/dock';
 
 export type InboxEntry = { key: string; state: SessionState; kind: AttentionKind; since: number | null; place: string; node: SessionNode | undefined };
 
@@ -56,7 +56,7 @@ function createInbox() {
   const entries = computed<InboxEntry[]>(() => {
     const list: InboxEntry[] = [];
     for (const state of states.value.values()) {
-      const kind = attentionKindOf(state.status, state.unseen);
+      const kind = attentionOf(state);
       if (!kind) continue;
       const node = berth?.sessions.value.get(state.key);
       const path = paths.value.get(state.key);
@@ -78,11 +78,11 @@ export function useInbox() {
   return inbox;
 }
 
-export function openNextWaiting(): void {
-  const dock = useSessionDock();
-  const active = dock.activeSession.value?.key;
+export function openNextNeedingYou(): void {
+  const active = useDock().activeKey.value;
+  const current = active ? (useExternalSessions()?.terminalOf.value.get(active) ?? active) : null;
   const next = useInbox()
-    .items.value.filter((entry) => entry.kind === 'waiting' && entry.key !== active)
-    .sort((a, b) => (a.since ?? 0) - (b.since ?? 0))[0];
-  if (next) dock.openKey(next.key);
+    .items.value.filter((entry) => entry.key !== current)
+    .sort((a, b) => urgencyOf(b.state) - urgencyOf(a.state) || (a.since ?? 0) - (b.since ?? 0))[0];
+  if (next) useSessionDock().openKey(next.key);
 }

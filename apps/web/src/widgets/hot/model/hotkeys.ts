@@ -64,11 +64,6 @@ function onKeyDown(event: KeyboardEvent): void {
     cycle(event.shiftKey ? -1 : 1);
     return;
   }
-  if (event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && event.code === 'KeyJ') {
-    swallow(event);
-    useHot().next();
-    return;
-  }
   const digit = DIGIT.exec(event.code);
   if (digit && event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
     swallow(event);
