@@ -10,6 +10,7 @@ import { useInbox } from '../../../features/attention';
 import { startNewSession } from '../../../features/new-session';
 import { useWorkTree } from '../../../features/work-tree';
 import { UiButton } from '../../../shared/ui/UiButton';
+import BrandMark from '../../../shared/ui/BrandMark.vue';
 import { phoneSection } from '../model/section';
 
 const { t, formatTime } = useI18n();
@@ -78,7 +79,7 @@ const canCreate = computed(() => !inDetail.value && (phoneSection.value === 'inb
 <template>
   <header class="phone-header" data-testid="phone-header">
     <UiButton v-if="inDetail" type="button" class="icon back" :aria-label="t('mobile.back')" :title="t('mobile.back')" data-testid="mobile-back" @click="detail = false"><ChevronLeft :size="22" /></UiButton>
-    <span v-else class="mark" aria-hidden="true">b</span>
+    <BrandMark v-else size="1.75rem" data-testid="phone-header-mark" />
     <div class="identity">
       <h1 class="title" data-testid="phone-header-title">{{ title }}</h1>
       <p v-if="offline" class="sub" data-tone="offline" role="status" data-testid="phone-header-connection">{{ offline }}</p>
@@ -106,19 +107,6 @@ const canCreate = computed(() => !inDetail.value && (phoneSection.value === 'inb
   border-bottom: 1px solid var(--vr-color-border);
 }
 
-.mark {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  font-size: var(--vr-font-size-sm);
-  font-weight: 700;
-  color: var(--vr-color-brand-contrast);
-  background: var(--vr-color-brand);
-  border-radius: var(--vr-radius-md);
-}
 
 .identity {
   display: flex;

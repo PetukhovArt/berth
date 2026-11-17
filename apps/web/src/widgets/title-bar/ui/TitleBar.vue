@@ -16,6 +16,7 @@ import { UpdateChip } from '../../../features/update';
 import { WorkspaceSwitcher } from '../../../features/manage-workspace';
 
 import { UiButton } from '../../../shared/ui/UiButton';
+import BrandMark from '../../../shared/ui/BrandMark.vue';
 const { t } = useI18n();
 const { values } = useSettings();
 const maximized = ref(false);
@@ -49,7 +50,7 @@ onUnmounted(() => stopResize?.());
 <template>
   <header class="titlebar" data-tauri-drag-region data-testid="titlebar" :data-native-controls="nativeControls">
     <div class="start" data-tauri-drag-region>
-      <div class="mark" data-tauri-drag-region aria-hidden="true">b</div>
+      <BrandMark size="18px" data-testid="titlebar-mark" />
       <WorkspaceSwitcher v-if="!firstRunActive" />
     </div>
     <UiButton
@@ -189,19 +190,6 @@ onUnmounted(() => stopResize?.());
   color: var(--vr-color-text-muted);
 }
 
-.mark {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  font-size: var(--vr-font-size-xs);
-  font-weight: 700;
-  color: var(--vr-color-brand-contrast);
-  background: var(--vr-color-brand);
-}
 
 .search {
   display: flex;
