@@ -20,7 +20,7 @@ Use the `exec` tool to run the `berth` CLI. Every command below prints one JSON 
 
 - `id`, `name`, `kind` (the agent CLI), `model`
 - `status`: `fresh`, `running`, `finished`, `needs_feedback`, `terminated` or `disconnected`
-- `attention`: `"needs_feedback"` when the agent waits on a permission prompt or a question, `"unseen"` when it finished a turn nobody has read, otherwise `null`
+- `attention`: `"needs_feedback"` when the agent waits on a permission prompt or a question, `"unseen"` when it finished a turn nobody has read, `"terminated"` when its process died mid-run, otherwise `null`
 - `alive`: whether the session is running now; `send` only works on a running session
 - `archived`, `status_changed_at` (epoch ms)
 - `workspace`, `project`, `branch`, `path` (the checkout), each `null` when unknown
@@ -30,7 +30,7 @@ Use the `exec` tool to run the `berth` CLI. Every command below prints one JSON 
 ## How to use them
 
 - To answer "what needs me", run `berth attention`. An empty `sessions` array means nothing does.
-- Summarise each session by `project`, `branch` and `name`, and say whether it waits (`needs_feedback`) or finished (`unseen`).
+- Summarise each session by `project`, `branch` and `name`, and say whether it waits (`needs_feedback`), finished (`unseen`) or crashed (`terminated`).
 - Before `berth send`, confirm with the user which session gets which text, unless they already named both. A message goes straight into an agent that can edit code.
 - When two sessions share a `name`, send by `id`.
 - `berth send` does not wait for the agent's reply. Run `berth sessions` later and read `status`.

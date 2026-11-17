@@ -4,9 +4,10 @@
 
 use anyhow::{Context, Result};
 use berth_core::{
-    Agent, AgentId, AgentKind, AgentStatus, ArchivedExternalSession, OrphanedSession, Project,
-    ProjectId, PromptTrigger, TerminalId, TerminalTab, TriggerId, TriggerTarget, TriggerWhen,
-    Workspace, WorkspaceId, Worktree, WorktreeId, DEFAULT_WORKSPACE_ID,
+    Agent, AgentId, AgentKind, AgentStatus, ArchivedExternalSession, AttentionState,
+    OrphanedSession, Project, ProjectId, PromptTrigger, StatusChange, TerminalId, TerminalTab,
+    TriggerId, TriggerTarget, TriggerWhen, Workspace, WorkspaceId, Worktree, WorktreeId,
+    DEFAULT_WORKSPACE_ID,
 };
 use rusqlite::OptionalExtension;
 use rusqlite::{params, Connection};
@@ -1093,36 +1094,52 @@ impl Store {
     /// Returns the epoch-ms stamp written to `status_changed_at` and the
     /// row's `unseen` flag after the change, so the caller can broadcast
     /// exactly what it persisted.
-    ///
-    /// The flag is maintained here, atomically with the status it
-    /// qualifies: a live turn (running or needs-feedback) landing on
-    /// `finished` raises it — that is the yellow-to-green flip nobody may
-    /// have been watching — staying on `finished` keeps it, and leaving
-    /// `finished` (a new prompt, a restart, a disconnect) drops it, since
-    /// there is no finished turn left to read. Archived rows never raise
-    /// it: they are out of sight already.
-    pub fn set_agent_status(&self, id: &AgentId, status: AgentStatus) -> Result<(i64, bool)> {
+    pub fn set_agent_status(
+        &self,
+        id: &AgentId,
+        status: AgentStatus,
+    ) -> Result<(i64, StatusChange)> {
         let stamp = now_ms();
         let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "UPDATE agents SET status = ?2, status_changed_at = ?3,
-                    unseen = CASE
-                      WHEN ?2 = 'finished' THEN
-                        CASE WHEN status IN ('running', 'needs_feedback') AND archived = 0
-                             THEN 1 ELSE unseen END
-                      ELSE 0
-                    END
-             WHERE id = ?1",
-            params![id.as_str(), status.as_str(), stamp],
-        )?;
-        let unseen: i64 = conn
+        let before = conn
             .query_row(
-                "SELECT unseen FROM agents WHERE id = ?1",
+                "SELECT status, unseen, archived FROM agents WHERE id = ?1",
                 params![id.as_str()],
-                |r| r.get(0),
+                |r| {
+                    Ok(AttentionState {
+                        status: AgentStatus::parse(&r.get::<_, String>(0)?)
+                            .unwrap_or(AgentStatus::Fresh),
+                        unseen: r.get::<_, i64>(1)? != 0,
+                        archived: r.get::<_, i64>(2)? != 0,
+                    })
+                },
             )
-            .unwrap_or(0);
-        Ok((stamp, unseen != 0))
+            .optional()?;
+        let Some(before) = before else {
+            let after = AttentionState {
+                status,
+                unseen: false,
+                archived: false,
+            };
+            return Ok((
+                stamp,
+                StatusChange {
+                    after,
+                    raised: None,
+                },
+            ));
+        };
+        let change = before.change(status);
+        conn.execute(
+            "UPDATE agents SET status = ?2, status_changed_at = ?3, unseen = ?4 WHERE id = ?1",
+            params![
+                id.as_str(),
+                status.as_str(),
+                stamp,
+                change.after.unseen as i64
+            ],
+        )?;
+        Ok((stamp, change))
     }
 
     /// The agent's session is on screen: drop its unseen-finish flag.
@@ -2303,8 +2320,9 @@ mod tests {
             agent.id
         };
         let unseen = |id: &AgentId| store.get_agent(id).unwrap().unwrap().unseen;
-        let flip =
-            |id: &AgentId, status: AgentStatus| store.set_agent_status(id, status).unwrap().1;
+        let flip = |id: &AgentId, status: AgentStatus| {
+            store.set_agent_status(id, status).unwrap().1.after.unseen
+        };
 
         let a = seed("a", AgentStatus::Running);
         assert!(!unseen(&a));

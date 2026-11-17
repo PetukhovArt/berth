@@ -4,24 +4,12 @@ use crate::client::{
 use anyhow::{bail, Result};
 use berth_core::codec::{read_frame, write_frame};
 use berth_core::{
-    Agent, AgentId, AgentStatus, ClientRequest, Project, ServerEvent, SessionRef, Workspace,
-    Worktree,
+    Agent, AgentId, Attention, ClientRequest, Project, ServerEvent, SessionRef, Workspace, Worktree,
 };
 use serde_json::{json, Value};
 use std::time::Duration;
 
 const SUBMIT_DELAY: Duration = Duration::from_millis(150);
-
-fn attention(agent: &Agent) -> Option<&'static str> {
-    if agent.archived {
-        return None;
-    }
-    match agent.status {
-        AgentStatus::NeedsFeedback => Some("needs_feedback"),
-        AgentStatus::Finished if agent.unseen => Some("unseen"),
-        _ => None,
-    }
-}
 
 fn session_json(
     agent: &Agent,
@@ -36,7 +24,7 @@ fn session_json(
         "id": agent.id.as_str(),
         "name": agent.name,
         "status": agent.status.as_str(),
-        "attention": attention(agent),
+        "attention": agent.attention().map(Attention::as_str),
         "alive": agent.alive,
         "archived": agent.archived,
         "kind": agent.kind.as_str(),
@@ -60,7 +48,7 @@ pub fn sessions_document(
     let rows: Vec<Value> = agents
         .iter()
         .filter(|a| all || !a.archived)
-        .filter(|a| !only_attention || attention(a).is_some())
+        .filter(|a| !only_attention || a.attention().is_some())
         .map(|a| session_json(a, workspaces, projects, worktrees))
         .collect();
     json!({ "ok": true, "sessions": rows })
@@ -281,7 +269,7 @@ pub fn run_send(session: String, text: String, submit: bool) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use berth_core::{AgentKind, ProjectId, WorkspaceId, WorktreeId};
+    use berth_core::{AgentKind, AgentStatus, ProjectId, WorkspaceId, WorktreeId};
     use std::path::PathBuf;
 
     fn agent(id: &str, name: &str, status: AgentStatus, unseen: bool, archived: bool) -> Agent {
@@ -366,7 +354,7 @@ mod tests {
     }
 
     #[test]
-    fn attention_lists_waiting_and_unseen_but_not_archived_or_seen() {
+    fn attention_lists_waiting_unseen_and_crashed_but_not_archived_or_seen() {
         let (ws, ps, wts) = world();
         let agents = vec![
             agent("a1", "waiting", AgentStatus::NeedsFeedback, false, false),
@@ -374,12 +362,14 @@ mod tests {
             agent("a3", "seen", AgentStatus::Finished, false, false),
             agent("a4", "busy", AgentStatus::Running, false, false),
             agent("a5", "old", AgentStatus::NeedsFeedback, false, true),
+            agent("a6", "crashed", AgentStatus::Terminated, false, false),
         ];
         let doc = sessions_document(&ws, &ps, &wts, &agents, true, true);
         let rows = doc["sessions"].as_array().unwrap();
         let ids: Vec<&str> = rows.iter().map(|r| r["id"].as_str().unwrap()).collect();
-        assert_eq!(ids, ["a1", "a2"]);
+        assert_eq!(ids, ["a1", "a2", "a6"]);
         assert_eq!(rows[1]["attention"], "unseen");
+        assert_eq!(rows[2]["attention"], "terminated");
     }
 
     #[test]

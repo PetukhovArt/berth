@@ -83,7 +83,8 @@ Each prints one JSON object on stdout. On success it holds `"ok": true`. On fail
 `status` (`fresh`, `running`, `finished`, `needs_feedback`, `terminated`, `disconnected`),
 `attention`, `alive`, `archived`, `kind`, `model`, `status_changed_at` (epoch ms), `workspace`,
 `project`, `branch` and `path`. `attention` is `"needs_feedback"` when the agent waits on a
-permission prompt or question, `"unseen"` when it finished a turn nobody has read, else `null`.
+permission prompt or question, `"unseen"` when it finished a turn nobody has read, `"terminated"`
+when its process died mid-run, else `null`.
 
 `<session>` is an id, a unique id prefix or an exact name. `send` returns
 `{"ok": true, "session": {"id", "name"}, "submitted": true, "bytes": N}`. It refuses a session

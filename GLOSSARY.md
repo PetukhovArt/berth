@@ -155,6 +155,10 @@ _Avoid_: unread ≠ done
 **Mark Seen**
 Clearing Unseen — happens on Attach to the session.
 
+**Attention**
+Why an unarchived Agent wants the user: Needs Feedback, Unseen or Terminated. A status change raises Attention when the agent has a reason after it that it did not have before; the Daemon stamps it on the status event as `raised`.
+_Avoid_: needs me, alert
+
 **Rollup**
 Parent rows (Worktree, Project, Workspace) show their children's worst status: red beats yellow; violet whenever anything Unseen is underneath.
 _Avoid_: parent dot

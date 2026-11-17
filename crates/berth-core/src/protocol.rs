@@ -1,4 +1,5 @@
 use crate::acp::{AcpItem, AcpItemAt};
+use crate::attention::Attention;
 use crate::entities::{
     Agent, AgentKind, AgentStatus, Entity, EntityId, OrphanedSession, Project, TerminalTab,
     Workspace, Worktree,
@@ -9,7 +10,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 58;
+pub const PROTOCOL_VERSION: u32 = 59;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -771,6 +772,8 @@ pub enum ServerEvent {
         /// turn just finished, cleared when it left `finished`.
         #[serde(default)]
         unseen: bool,
+        #[serde(default)]
+        raised: Option<Attention>,
     },
 
     // -- PTY plane (only to clients attached to that session) --

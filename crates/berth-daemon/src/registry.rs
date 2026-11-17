@@ -259,18 +259,19 @@ impl Daemon {
                     if status != AgentStatus::NeedsFeedback {
                         self.clear_feedback(agent_id);
                     }
-                    let (changed_at, unseen) = match self.store.set_agent_status(agent_id, status) {
-                        Ok(stamped) => stamped,
+                    let (changed_at, change) = match self.store.set_agent_status(agent_id, status) {
+                        Ok((changed_at, change)) => (changed_at, Some(change)),
                         Err(e) => {
                             tracing::warn!(error = %e, "persist status failed");
-                            (epoch_ms(), false)
+                            (epoch_ms(), None)
                         }
                     };
                     self.broadcast(ServerEvent::StatusChanged {
                         agent: agent_id.clone(),
                         status,
                         changed_at,
-                        unseen,
+                        unseen: change.is_some_and(|c| c.after.unseen),
+                        raised: change.and_then(|c| c.raised),
                     });
                 }
                 Effect::SaveSessionId(sid) => {
@@ -3501,21 +3502,18 @@ pub(crate) mod tests {
         let id = AgentId("a1".into());
         let mut rx = daemon.events.subscribe();
 
-        daemon.apply_status_effects(&id, vec![Effect::SetStatus(AgentStatus::Finished)]);
-        match rx.try_recv().unwrap() {
-            ServerEvent::StatusChanged { status, unseen, .. } => {
-                assert_eq!(status, AgentStatus::Finished);
-                assert!(unseen, "yellow → green with nobody told otherwise");
+        let mut step = |to: AgentStatus| {
+            daemon.apply_status_effects(&id, vec![Effect::SetStatus(to)]);
+            match rx.try_recv().unwrap() {
+                ServerEvent::StatusChanged { unseen, raised, .. } => (unseen, raised),
+                other => panic!("expected a status change, got {other:?}"),
             }
-            other => panic!("expected a status change, got {other:?}"),
-        }
-        daemon.apply_status_effects(&id, vec![Effect::SetStatus(AgentStatus::Running)]);
-        match rx.try_recv().unwrap() {
-            ServerEvent::StatusChanged { unseen, .. } => {
-                assert!(!unseen, "a new turn: nothing finished to read")
-            }
-            other => panic!("expected a status change, got {other:?}"),
-        }
+        };
+        let waiting = Some(berth_core::Attention::NeedsFeedback);
+        assert_eq!(step(AgentStatus::NeedsFeedback), (false, waiting));
+        let unread = Some(berth_core::Attention::Unseen);
+        assert_eq!(step(AgentStatus::Finished), (true, unread), "red → green");
+        assert_eq!(step(AgentStatus::Running), (false, None), "a new turn");
     }
 
     #[test]

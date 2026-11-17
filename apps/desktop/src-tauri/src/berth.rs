@@ -607,6 +607,7 @@ impl Actor {
                 status,
                 changed_at,
                 unseen,
+                ..
             } => WatchEvent::Status {
                 agent,
                 status,

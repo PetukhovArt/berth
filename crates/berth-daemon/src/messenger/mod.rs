@@ -6,14 +6,13 @@ mod state;
 mod telegram;
 pub(crate) mod transcribers;
 
-use std::collections::HashMap;
 use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
 use berth_core::platform::NoWindow;
-use berth_core::{AgentId, AgentStatus, ServerEvent, WorktreeId};
+use berth_core::{AgentId, AgentStatus, Attention, ServerEvent, WorktreeId};
 use serde_json::{json, Value};
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
@@ -127,17 +126,11 @@ pub async fn send_test() -> Result<()> {
     }
 }
 
-fn turned_to(
-    previous: Option<AgentStatus>,
-    status: AgentStatus,
-    unseen: bool,
-) -> Option<&'static str> {
-    match status {
-        AgentStatus::NeedsFeedback if previous != Some(status) => Some("Needs feedback"),
-        AgentStatus::Finished if previous == Some(AgentStatus::Running) && unseen => {
-            Some("Finished")
-        }
-        _ => None,
+fn turned_to(raised: Option<Attention>) -> Option<&'static str> {
+    match raised? {
+        Attention::NeedsFeedback => Some("Needs feedback"),
+        Attention::Unseen => Some("Finished"),
+        Attention::Terminated => None,
     }
 }
 
@@ -232,7 +225,6 @@ impl Daemon {
         let bridge = Arc::new(Bridge::default());
         tokio::spawn(self.clone().run_chat_inbound(bridge.clone()));
         let mut events = self.events.subscribe();
-        let mut last: HashMap<AgentId, AgentStatus> = HashMap::new();
         loop {
             let event = tokio::select! {
                 _ = self.shutdown.cancelled() => break,
@@ -242,13 +234,11 @@ impl Daemon {
                 Ok(ServerEvent::StatusChanged {
                     agent,
                     status,
-                    unseen,
+                    raised,
                     ..
                 }) => {
-                    let previous = last.insert(agent.clone(), status);
-                    let answered = self.follow_up(&bridge, &agent, previous, status);
-                    let text = turned_to(previous, status, unseen)
-                        .and_then(|label| self.agent_line(&agent, label));
+                    let answered = self.follow_up(&bridge, &agent, status);
+                    let text = turned_to(raised).and_then(|label| self.agent_line(&agent, label));
                     (text, Some(agent), answered)
                 }
                 Ok(ServerEvent::TaskNoteChanged { worktree, text }) if !text.is_empty() => {
@@ -285,12 +275,9 @@ impl Daemon {
         self: &Arc<Self>,
         bridge: &Arc<Bridge>,
         agent: &AgentId,
-        previous: Option<AgentStatus>,
         status: AgentStatus,
     ) -> bool {
-        if previous == Some(status)
-            || !matches!(status, AgentStatus::Finished | AgentStatus::NeedsFeedback)
-        {
+        if !matches!(status, AgentStatus::Finished | AgentStatus::NeedsFeedback) {
             return false;
         }
         let awaiting = bridge.awaiting(agent);
@@ -318,19 +305,26 @@ impl Daemon {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use berth_core::AttentionState;
 
     #[test]
     fn a_turn_to_waiting_or_finished_is_worth_a_message_and_a_new_prompt_is_not() {
         use AgentStatus::*;
-        assert_eq!(
-            turned_to(Some(Running), NeedsFeedback, false),
-            Some("Needs feedback")
-        );
-        assert_eq!(turned_to(Some(NeedsFeedback), NeedsFeedback, false), None);
-        assert_eq!(turned_to(Some(Running), Finished, true), Some("Finished"));
-        assert_eq!(turned_to(None, Finished, true), None);
-        assert_eq!(turned_to(Some(Running), Finished, false), None);
-        assert_eq!(turned_to(Some(Finished), Running, false), None);
+        let line = |from: AgentStatus, to: AgentStatus| {
+            let before = AttentionState {
+                status: from,
+                unseen: false,
+                archived: false,
+            };
+            turned_to(before.change(to).raised)
+        };
+        assert_eq!(line(Running, NeedsFeedback), Some("Needs feedback"));
+        assert_eq!(line(NeedsFeedback, NeedsFeedback), None);
+        assert_eq!(line(Running, Finished), Some("Finished"));
+        assert_eq!(line(NeedsFeedback, Finished), Some("Finished"));
+        assert_eq!(line(Fresh, Finished), None);
+        assert_eq!(line(Finished, Running), None);
+        assert_eq!(line(Running, Terminated), None);
     }
 
     #[test]

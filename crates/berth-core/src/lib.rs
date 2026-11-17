@@ -1,4 +1,5 @@
 pub mod acp;
+pub mod attention;
 pub mod branch_name;
 pub mod claude_store;
 pub mod codec;
@@ -15,6 +16,7 @@ pub mod platform;
 pub mod protocol;
 pub mod transport;
 
+pub use attention::{Attention, AttentionState, StatusChange};
 pub use entities::*;
 pub use ids::*;
 pub use protocol::*;

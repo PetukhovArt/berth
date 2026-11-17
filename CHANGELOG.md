@@ -49,6 +49,8 @@
 - Changed on a phone the session view to list Chat first and keep its header buttons on the tab row
 - Changed the Inbox to say a session crashed instead of stopped with an error, and the Russian status words to agree in gender
 - Changed Continue in Berth to run a Claude or Codex conversation as an agent with permission prompts and notifications, instead of typing `claude --resume` into a terminal, and to close the conversation's old idle terminal so it shows as one row
+- Changed `berth attention` to list an Agent whose process died mid-run, with `attention` set to `terminated`
+- Fixed the chat bridge saying nothing when an Agent finished right after you answered its permission request or question
 - Fixed New Session opened from a project's `+` asking for the project again
 - Fixed the Inbox showing minutes for a status that changed seconds ago, and sorting by the old time
 - Fixed `claude --resume` in a berth terminal briefly showing as a second row in the session tree
