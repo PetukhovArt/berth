@@ -69,6 +69,10 @@ pub struct Capabilities {
     /// The pseudo console answers a child's terminal queries (DSR, DA)
     /// itself, so a client's own answer arrives as a duplicate — ConPTY.
     pub pty_answers_terminal_queries: bool,
+    /// The pseudo console keeps U+FE0F (VS16) in a cell of its own, so `⚠️`
+    /// is two columns in the stream it repaints — ConPTY. A terminal that
+    /// folds VS16 into the emoji draws every later glyph a column early.
+    pub pty_gives_vs16_its_own_cell: bool,
     /// One directory may be spelled in any case (`D:\Repo` is `d:\repo`).
     pub paths_case_insensitive: bool,
 }

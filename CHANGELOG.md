@@ -63,6 +63,7 @@
 - Fixed a session whose agent could not start again after a daemon restart showing as disconnected in the tree and crashed in the Inbox; it now shows as crashed everywhere
 - Fixed the Inbox listing sessions newest first instead of waiting for you first, then crashed, then at its limit, then finished and not seen
 - Fixed an Inbox limit entry reading "resets at" with no time after it
+- Windows: Fixed text after an emoji such as ⚠️ shifting one column left in the terminal, which left single letters of old lines behind until a scroll or resize
 - Fixed New Session opened from a project's `+` asking for the project again
 - Fixed the Inbox showing minutes for a status that changed seconds ago, and sorting by the old time
 - Fixed `claude --resume` in a berth terminal briefly showing as a second row in the session tree

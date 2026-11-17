@@ -15,6 +15,7 @@ pub const OS: Os = Os::Windows;
 
 pub const CAPABILITIES: Capabilities = Capabilities {
     pty_answers_terminal_queries: true,
+    pty_gives_vs16_its_own_cell: true,
     paths_case_insensitive: true,
 };
 

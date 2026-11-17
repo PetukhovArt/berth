@@ -17,6 +17,7 @@ pub const OS: Os = Os::Linux;
 
 pub const CAPABILITIES: Capabilities = Capabilities {
     pty_answers_terminal_queries: false,
+    pty_gives_vs16_its_own_cell: false,
     paths_case_insensitive: false,
 };
 

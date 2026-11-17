@@ -3,7 +3,6 @@ import '@xterm/xterm/css/xterm.css';
 import { onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { Terminal, type ITheme } from '@xterm/xterm';
-import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { attachSession, detachSession, resizeSession, PlanStrip, sendInput, sessionId, useLinkedPlan, type SessionEvent, type SessionRef } from '../../../entities/session';
@@ -16,6 +15,7 @@ import { useSettings } from '../../../shared/config/settings/store';
 import { terminalClipboard } from '../lib/terminalClipboard';
 import { fitTerminal } from '../lib/terminalFit';
 import { zoomTerminal } from '../lib/terminalFont';
+import { loadUnicodeWidths } from '../lib/terminalUnicode';
 
 type LiveTerminal = { show: () => void; hide: () => void; dispose: () => void };
 
@@ -99,8 +99,7 @@ function build(element: HTMLElement, session: SessionRef): LiveTerminal {
       allowNonHttpProtocols: true,
     },
   });
-  term.loadAddon(new Unicode11Addon());
-  term.unicode.activeVersion = '11';
+  loadUnicodeWidths(term);
   term.loadAddon(new WebLinksAddon((_event, uri) => void openUrl(uri)));
   term.open(element);
   const clipboard = terminalClipboard(term, element);

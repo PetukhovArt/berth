@@ -7,6 +7,7 @@ type HostPlatform = {
   readonly os: Os;
   readonly capabilities: {
     readonly ptyAnswersTerminalQueries: boolean;
+    readonly ptyGivesVs16ItsOwnCell: boolean;
     readonly pathsCaseInsensitive: boolean;
   };
   readonly selfUpdate: boolean;
@@ -49,6 +50,7 @@ export const hostPlatform = shallowRef<HostPlatform>({
   os: clientOs,
   capabilities: {
     ptyAnswersTerminalQueries: windowsHost,
+    ptyGivesVs16ItsOwnCell: windowsHost,
     pathsCaseInsensitive: windowsHost,
   },
   selfUpdate: false,
