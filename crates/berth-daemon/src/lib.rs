@@ -102,7 +102,7 @@ async fn serve() -> Result<()> {
 
     let store = std::sync::Arc::new(store::Store::open(&paths::db_path())?);
     // Agents persisted as live had their PTYs die with the previous daemon.
-    match store.sweep_disconnected() {
+    match store.sweep_after_boot(status::after_daemon_boot) {
         Ok(swept) if !swept.is_empty() => {
             tracing::info!(
                 count = swept.len(),

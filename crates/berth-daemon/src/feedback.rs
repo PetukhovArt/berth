@@ -1,4 +1,5 @@
 use crate::registry::Daemon;
+use crate::status::HookEvent;
 use berth_core::{AgentId, FeedbackKind, FeedbackRequest, ServerEvent};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -50,6 +51,11 @@ impl Daemon {
                 request: None,
             });
         }
+    }
+
+    pub fn note_session_killed(&self, agent: &AgentId) {
+        self.clear_feedback(agent);
+        self.apply_hook_event(agent, HookEvent::Killed, None);
     }
 }
 

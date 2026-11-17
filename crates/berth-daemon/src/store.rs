@@ -1276,21 +1276,28 @@ impl Store {
     }
 
     /// Boot sweep: agents whose PTYs died with the previous daemon.
-    pub fn sweep_disconnected(&self) -> Result<Vec<AgentId>> {
+    pub fn sweep_after_boot(
+        &self,
+        after_boot: impl Fn(AgentStatus) -> Option<AgentStatus>,
+    ) -> Result<Vec<AgentId>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt =
-            conn.prepare("SELECT id FROM agents WHERE status IN ('running', 'needs_feedback')")?;
-        let ids: Vec<AgentId> = stmt
-            .query_map([], |r| r.get::<_, String>(0))?
+        let mut stmt = conn.prepare("SELECT id, status FROM agents")?;
+        let moved: Vec<(AgentId, AgentStatus)> = stmt
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
             .filter_map(|r| r.ok())
-            .map(AgentId)
+            .filter_map(|(id, status)| {
+                Some((AgentId(id), after_boot(AgentStatus::parse(&status)?)?))
+            })
             .collect();
         drop(stmt);
-        conn.execute(
-            "UPDATE agents SET status = 'disconnected', status_changed_at = ?1 WHERE status IN ('running', 'needs_feedback')",
-            params![now_ms()],
-        )?;
-        Ok(ids)
+        let stamp = now_ms();
+        for (id, status) in &moved {
+            conn.execute(
+                "UPDATE agents SET status = ?2, status_changed_at = ?3 WHERE id = ?1",
+                params![id.as_str(), status.as_str(), stamp],
+            )?;
+        }
+        Ok(moved.into_iter().map(|(id, _)| id).collect())
     }
 
     // ---- terminals ----
@@ -2249,7 +2256,9 @@ mod tests {
                 })
                 .unwrap();
         }
-        let swept = store.sweep_disconnected().unwrap();
+        let swept = store
+            .sweep_after_boot(crate::status::after_daemon_boot)
+            .unwrap();
         assert_eq!(swept.len(), 2);
         let (_, _, agents, _) = store.load_tree().unwrap();
         assert_eq!(
@@ -2368,7 +2377,9 @@ mod tests {
         // A daemon restart disconnects live rows and leaves finished ones alone.
         let c = seed("c", AgentStatus::Running);
         assert!(flip(&c, AgentStatus::Finished));
-        store.sweep_disconnected().unwrap();
+        store
+            .sweep_after_boot(crate::status::after_daemon_boot)
+            .unwrap();
         assert!(unseen(&c), "still waiting to be read after the restart");
     }
 

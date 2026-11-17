@@ -95,6 +95,11 @@ pub enum HookEvent {
     TitleIdle {
         idle: bool,
     },
+    Tick {
+        progress_busy: Option<bool>,
+    },
+    Killed,
+    DaemonBooted,
 }
 
 impl HookEvent {
@@ -172,15 +177,76 @@ impl SubagentSet {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum StopGate {
+    Open,
+    HeldForSubagents,
+    DrainingSince(Instant),
+}
+
+impl StopGate {
+    fn is_held(self) -> bool {
+        self != StopGate::Open
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum State {
+    Fresh,
+    Running(StopGate),
+    NeedsFeedback { gate: StopGate },
+    Finished { finished_at: Option<Instant> },
+    Terminated,
+    Disconnected,
+}
+
+impl State {
+    fn restored(status: AgentStatus) -> Self {
+        match status {
+            AgentStatus::Fresh => State::Fresh,
+            AgentStatus::Running => State::Running(StopGate::Open),
+            AgentStatus::NeedsFeedback => State::NeedsFeedback {
+                gate: StopGate::Open,
+            },
+            AgentStatus::Finished => State::Finished { finished_at: None },
+            AgentStatus::Terminated => State::Terminated,
+            AgentStatus::Disconnected => State::Disconnected,
+        }
+    }
+
+    fn status(&self) -> AgentStatus {
+        match self {
+            State::Fresh => AgentStatus::Fresh,
+            State::Running(_) => AgentStatus::Running,
+            State::NeedsFeedback { .. } => AgentStatus::NeedsFeedback,
+            State::Finished { .. } => AgentStatus::Finished,
+            State::Terminated => AgentStatus::Terminated,
+            State::Disconnected => AgentStatus::Disconnected,
+        }
+    }
+
+    fn gate(&self) -> StopGate {
+        match self {
+            State::Running(gate) | State::NeedsFeedback { gate } => *gate,
+            _ => StopGate::Open,
+        }
+    }
+
+    fn holds_stop(&self) -> bool {
+        matches!(self, State::Running(gate) if gate.is_held())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Delivery {
+    SameSession,
+    AdoptedSession,
+}
+
 pub struct AgentStatusMachine {
-    status: AgentStatus,
+    state: State,
     session_id: Option<String>,
     subagents: SubagentSet,
-    finished_at: Option<Instant>,
-    /// Set while a Stop is being held open because subagents were active.
-    stop_held: bool,
-    /// When the subagent set last became empty during a held Stop.
-    drain_idle_since: Option<Instant>,
     /// The last moment the tracked subagents proved they are alive — a
     /// SubagentStart/Stop or subagent tool traffic — or, failing that, when
     /// the hold began. `tick` gives up on the hold once this is
@@ -196,19 +262,16 @@ pub struct AgentStatusMachine {
 impl AgentStatusMachine {
     pub fn new(status: AgentStatus, session_id: Option<String>) -> Self {
         Self {
-            status,
+            state: State::restored(status),
             session_id,
             subagents: SubagentSet::default(),
-            finished_at: None,
-            stop_held: false,
-            drain_idle_since: None,
             subagent_alive_at: None,
             idle_level_seen: false,
         }
     }
 
     pub fn status(&self) -> AgentStatus {
-        self.status
+        self.state.status()
     }
 
     pub fn handle(
@@ -218,191 +281,227 @@ impl AgentStatusMachine {
         now: Instant,
     ) -> Vec<Effect> {
         let mut effects = Vec::new();
+        let Some(delivery) = self.reconcile_session(&event, payload_session_id, &mut effects)
+        else {
+            return effects; // foreign session — ignore entirely
+        };
+        self.track_subagents(&event, now);
+        if let Some(next) = self.transition(&event, delivery, now) {
+            let before = self.state.status();
+            self.state = next;
+            let after = self.state.status();
+            if after != before {
+                effects.push(Effect::SetStatus(after));
+            }
+        }
+        effects
+    }
 
-        // ---- session reconciliation ----
+    fn reconcile_session(
+        &mut self,
+        event: &HookEvent,
+        payload_session_id: Option<&str>,
+        effects: &mut Vec<Effect>,
+    ) -> Option<Delivery> {
         if event.captures_session() {
             if let Some(sid) = payload_session_id {
                 if self.session_id.as_deref() != Some(sid) {
                     // New claude process (restart / manual relaunch): adopt it
                     // and forget the old session's subagents.
-                    let cleared = matches!(&event, HookEvent::SessionStart { source } if source.as_deref() == Some("clear"));
+                    let cleared =
+                        matches!(event, HookEvent::SessionStart { source } if is_clear(source));
                     if let Some(old) = self.session_id.take().filter(|_| cleared) {
                         effects.push(Effect::ArchiveClearedSession(old));
                     }
                     self.session_id = Some(sid.to_string());
                     self.subagents.clear();
-                    self.stop_held = false;
-                    self.drain_idle_since = None;
                     self.subagent_alive_at = None;
                     effects.push(Effect::SaveSessionId(sid.to_string()));
+                    return Some(Delivery::AdoptedSession);
                 }
             }
         } else if !matches!(event, HookEvent::SessionEnded { .. }) {
             if let (Some(mine), Some(theirs)) = (self.session_id.as_deref(), payload_session_id) {
                 if mine != theirs {
-                    return effects; // foreign session — ignore entirely
+                    return None;
                 }
             }
         }
+        Some(Delivery::SameSession)
+    }
 
+    fn track_subagents(&mut self, event: &HookEvent, now: Instant) {
         match event {
-            HookEvent::UserPromptSubmit => {
-                self.stop_held = false;
-                self.drain_idle_since = None;
+            HookEvent::SessionStart { source } if is_clear(source) => {
+                // /clear killed any live subagents.
+                self.subagents.clear();
                 self.subagent_alive_at = None;
-                self.finished_at = None;
-                self.set_status(AgentStatus::Running, &mut effects);
-            }
-            HookEvent::Stop => self.end_turn(now, &mut effects),
-            HookEvent::SessionStart { source } => {
-                if source.as_deref() == Some("clear") {
-                    // /clear killed any live subagents.
-                    self.subagents.clear();
-                    self.stop_held = false;
-                    self.drain_idle_since = None;
-                    self.subagent_alive_at = None;
-                    // `/clear` itself fired `UserPromptSubmit` but runs no
-                    // turn, so no `Stop` or title edge follows: without this
-                    // the fresh conversation sits on running forever.
-                    self.finished_at = None;
-                    if matches!(
-                        self.status,
-                        AgentStatus::Running | AgentStatus::NeedsFeedback
-                    ) {
-                        self.set_status(AgentStatus::Fresh, &mut effects);
-                    }
-                }
-                if self.status == AgentStatus::Disconnected {
-                    let new_conversation = matches!(source.as_deref(), Some("startup" | "clear"));
-                    let back = if new_conversation {
-                        AgentStatus::Fresh
-                    } else {
-                        AgentStatus::Finished
-                    };
-                    self.set_status(back, &mut effects);
-                }
-            }
-            HookEvent::PermissionRequest => {
-                self.set_status(AgentStatus::NeedsFeedback, &mut effects);
-            }
-            HookEvent::Notification { notification_type } => {
-                match notification_type.as_deref() {
-                    Some("permission_prompt") => {
-                        self.set_status(AgentStatus::NeedsFeedback, &mut effects)
-                    }
-                    // "Claude is waiting for your input". Claude fires this
-                    // only with nothing in flight and no dialog open, so it
-                    // means the turn really is over — see `mark_idle`.
-                    Some("idle_prompt") => self.mark_idle(now, &mut effects),
-                    // Every other notification type (auth, quota, nested
-                    // fleet sessions) is none of our business.
-                    _ => {}
-                }
             }
             HookEvent::PreToolUse {
-                tool_name,
-                subagent_id,
-            } => {
-                if subagent_id.is_some() {
-                    self.note_subagent_alive(now);
-                }
-                if tool_name.as_deref() == Some("AskUserQuestion") {
-                    self.set_status(AgentStatus::NeedsFeedback, &mut effects);
-                }
+                subagent_id: Some(_),
+                ..
             }
-            HookEvent::PostToolUse {
-                tool_name,
-                subagent_id,
-            } => {
-                if subagent_id.is_some() {
-                    self.note_subagent_alive(now);
-                }
-                if tool_name.as_deref() == Some("AskUserQuestion") {
-                    self.set_status(AgentStatus::Running, &mut effects);
-                }
-            }
+            | HookEvent::PostToolUse {
+                subagent_id: Some(_),
+                ..
+            } => self.note_subagent_alive(now),
             HookEvent::SubagentStart { subagent_id } => {
-                self.subagents.start(subagent_id, now);
+                self.subagents.start(subagent_id.clone(), now);
                 self.note_subagent_alive(now);
-                if self.status == AgentStatus::Finished {
-                    match self.finished_at {
-                        // The Stop raced this subagent's own POST — heal.
-                        Some(finished) if now.duration_since(finished) < RECENT_FINISH_WINDOW => {
-                            self.stop_held = true;
-                            self.drain_idle_since = None;
-                            self.set_status(AgentStatus::Running, &mut effects);
-                        }
-                        // Post-turn internal helper (away-summary etc.): a
-                        // start with no Stop coming. Track it, don't heal —
-                        // healing here wedges the agent on running forever.
-                        _ => {}
-                    }
-                }
             }
             HookEvent::SubagentStop { subagent_id } => {
-                self.subagents.stop(subagent_id);
+                self.subagents.stop(subagent_id.clone());
                 self.note_subagent_alive(now);
             }
-            HookEvent::Progress { busy } => {
-                if busy {
-                    // A turn started. Normally `UserPromptSubmit` already
-                    // said so; this also catches turns berth never saw a
-                    // prompt for (a resumed session, a scheduled wake-up).
-                    // Deliberately narrow: it must not talk over a pending
-                    // permission prompt (which holds progress at *busy*
-                    // anyway, so no edge arrives) or revive a dead agent.
-                    if matches!(self.status, AgentStatus::Fresh | AgentStatus::Finished) {
-                        self.stop_held = false;
-                        self.drain_idle_since = None;
-                        self.subagent_alive_at = None;
-                        self.finished_at = None;
-                        self.set_status(AgentStatus::Running, &mut effects);
-                    }
-                } else if matches!(
-                    self.status,
-                    AgentStatus::Running | AgentStatus::NeedsFeedback
-                ) {
-                    // The CLI cleared its progress bar: the turn is over,
-                    // however it ended. Same bookkeeping as `Stop`, so a
-                    // real Stop arriving either side of this is a no-op and
-                    // the subagent drain hold still applies.
-                    self.end_turn(now, &mut effects);
-                }
-                // Fresh / Terminated / Disconnected are left alone: a CLI
-                // clears its progress bar on startup and on exit too, and
-                // neither is a finished turn.
-            }
-            HookEvent::TitleIdle { idle } => {
-                // Deliberately narrower than `Progress`. The title reads idle
-                // while a permission prompt waits as well as when a turn is
-                // over, so `needs_feedback` is excluded — and it is never a
-                // reason to *start* a turn, since a CLI titles itself idle at
-                // startup and on exit too.
-                if idle && self.status == AgentStatus::Running {
-                    self.end_turn(now, &mut effects);
-                }
-            }
-            HookEvent::SessionEnded { exit_code } => {
+            HookEvent::SessionEnded { .. } => {
                 // Dead process: laggard subagent POSTs must never resurrect it.
                 self.subagents.clear();
-                self.stop_held = false;
-                self.drain_idle_since = None;
                 self.subagent_alive_at = None;
-                self.finished_at = None;
-                if matches!(
-                    self.status,
-                    AgentStatus::Running | AgentStatus::NeedsFeedback
-                ) {
-                    let status = if exit_code == Some(0) {
-                        AgentStatus::Finished
-                    } else {
-                        AgentStatus::Terminated
-                    };
-                    self.set_status(status, &mut effects);
-                }
             }
+            _ => {}
         }
-        effects
+    }
+
+    fn transition(&mut self, event: &HookEvent, delivery: Delivery, now: Instant) -> Option<State> {
+        use HookEvent as E;
+        use State::*;
+        let state = self.state.clone();
+        let kept_gate = state.gate();
+        let adopted = delivery == Delivery::AdoptedSession;
+        match (&state, event) {
+            (_, E::UserPromptSubmit) => Some(self.start_turn()),
+
+            (_, E::Stop) => Some(self.end_turn(now)),
+
+            (Running(_) | NeedsFeedback { .. }, E::SessionStart { source }) if is_clear(source) => {
+                // `/clear` itself fired `UserPromptSubmit` but runs no
+                // turn, so no `Stop` or title edge follows: without this
+                // the fresh conversation sits on running forever.
+                Some(Fresh)
+            }
+            (Running(gate), E::SessionStart { .. }) if adopted && gate.is_held() => {
+                Some(Running(StopGate::Open))
+            }
+            (NeedsFeedback { gate }, E::SessionStart { .. }) if adopted && gate.is_held() => {
+                Some(NeedsFeedback {
+                    gate: StopGate::Open,
+                })
+            }
+            (Finished { .. }, E::SessionStart { source }) if is_clear(source) => {
+                Some(Finished { finished_at: None })
+            }
+            (Disconnected, E::SessionStart { source }) => {
+                Some(if starts_new_conversation(source) {
+                    Fresh
+                } else {
+                    Finished { finished_at: None }
+                })
+            }
+            (_, E::SessionStart { .. }) => None,
+
+            (_, E::PermissionRequest) => Some(NeedsFeedback { gate: kept_gate }),
+
+            (_, E::Notification { notification_type })
+                if notified(notification_type, "permission_prompt") =>
+            {
+                Some(NeedsFeedback { gate: kept_gate })
+            }
+            // "Claude is waiting for your input". Claude fires this
+            // only with nothing in flight and no dialog open, so it
+            // means the turn really is over — see `mark_idle`.
+            (Running(_) | NeedsFeedback { .. }, E::Notification { notification_type })
+                if notified(notification_type, "idle_prompt") =>
+            {
+                Some(self.mark_idle(now))
+            }
+            // Every other notification type (auth, quota, nested
+            // fleet sessions) is none of our business.
+            (_, E::Notification { .. }) => None,
+
+            (_, E::PreToolUse { tool_name, .. }) if asks_the_user(tool_name) => {
+                Some(NeedsFeedback { gate: kept_gate })
+            }
+            (_, E::PreToolUse { .. }) => None,
+            (_, E::PostToolUse { tool_name, .. }) if asks_the_user(tool_name) => {
+                Some(Running(kept_gate))
+            }
+            (_, E::PostToolUse { .. }) => None,
+
+            // The Stop raced this subagent's own POST — heal.
+            (
+                Finished {
+                    finished_at: Some(finished),
+                },
+                E::SubagentStart { .. },
+            ) if now.duration_since(*finished) < RECENT_FINISH_WINDOW => {
+                Some(Running(StopGate::HeldForSubagents))
+            }
+            // Post-turn internal helper (away-summary etc.): a
+            // start with no Stop coming. Track it, don't heal —
+            // healing here wedges the agent on running forever.
+            (_, E::SubagentStart { .. }) => None,
+            (_, E::SubagentStop { .. }) => None,
+
+            // A turn started. Normally `UserPromptSubmit` already
+            // said so; this also catches turns berth never saw a
+            // prompt for (a resumed session, a scheduled wake-up).
+            // Deliberately narrow: it must not talk over a pending
+            // permission prompt (which holds progress at *busy*
+            // anyway, so no edge arrives) or revive a dead agent.
+            (Fresh | Finished { .. }, E::Progress { busy: true }) => Some(self.start_turn()),
+            // The CLI cleared its progress bar: the turn is over,
+            // however it ended. Same bookkeeping as `Stop`, so a
+            // real Stop arriving either side of this is a no-op and
+            // the subagent drain hold still applies.
+            (Running(_) | NeedsFeedback { .. }, E::Progress { busy: false }) => {
+                Some(self.end_turn(now))
+            }
+            // Fresh / Terminated / Disconnected are left alone: a CLI
+            // clears its progress bar on startup and on exit too, and
+            // neither is a finished turn.
+            (_, E::Progress { .. }) => None,
+
+            // Deliberately narrower than `Progress`. The title reads idle
+            // while a permission prompt waits as well as when a turn is
+            // over, so `needs_feedback` is excluded — and it is never a
+            // reason to *start* a turn, since a CLI titles itself idle at
+            // startup and on exit too.
+            (Running(_), E::TitleIdle { idle: true }) => Some(self.end_turn(now)),
+            (_, E::TitleIdle { .. }) => None,
+
+            (Running(_) | NeedsFeedback { .. }, E::SessionEnded { exit_code }) => {
+                Some(if *exit_code == Some(0) {
+                    Finished { finished_at: None }
+                } else {
+                    Terminated
+                })
+            }
+            (Finished { .. }, E::SessionEnded { .. }) => Some(Finished { finished_at: None }),
+            (_, E::SessionEnded { .. }) => None,
+
+            (
+                Running(StopGate::Open)
+                | NeedsFeedback {
+                    gate: StopGate::Open,
+                },
+                E::Tick {
+                    progress_busy: Some(false),
+                },
+            ) => self.parked_twice(now),
+            (Running(gate), E::Tick { .. }) if gate.is_held() => {
+                self.idle_level_seen = false;
+                self.drain(*gate, now)
+            }
+            (_, E::Tick { .. }) => {
+                self.idle_level_seen = false;
+                None
+            }
+
+            (_, E::Killed) => None,
+
+            (Running(_) | NeedsFeedback { .. }, E::DaemonBooted) => Some(Disconnected),
+            (_, E::DaemonBooted) => None,
+        }
     }
 
     /// Periodic tick, two jobs.
@@ -424,61 +523,54 @@ impl AgentStatusMachine {
     /// (killed tasks, a crashed worker) and holding longer only wedges the
     /// agent on yellow.
     pub fn tick(&mut self, now: Instant, progress_busy: Option<bool>) -> Vec<Effect> {
-        let mut effects = Vec::new();
+        self.handle(HookEvent::Tick { progress_busy }, None, now)
+    }
+
+    fn parked_twice(&mut self, now: Instant) -> Option<State> {
         // A held Stop is exempt: the turn is already over and the drain owns
         // the status, so re-running `end_turn` here would reset its clock
         // every tick and the hold would never drain.
-        if !self.stop_held
-            && progress_busy == Some(false)
-            && matches!(
-                self.status,
-                AgentStatus::Running | AgentStatus::NeedsFeedback
-            )
-        {
-            if std::mem::replace(&mut self.idle_level_seen, true) {
-                self.idle_level_seen = false;
-                self.end_turn(now, &mut effects);
-            }
-            return effects;
+        if std::mem::replace(&mut self.idle_level_seen, true) {
+            self.idle_level_seen = false;
+            return Some(self.end_turn(now));
         }
-        self.idle_level_seen = false;
-        if !self.stop_held || self.status != AgentStatus::Running {
-            return effects;
-        }
+        None
+    }
+
+    fn drain(&mut self, gate: StopGate, now: Instant) -> Option<State> {
         self.subagents.prune_expired(now);
         if self.subagents.is_empty() {
-            match self.drain_idle_since {
-                None => self.drain_idle_since = Some(now),
-                Some(idle_since) if now.duration_since(idle_since) >= DRAIN_GRACE => {
-                    self.stop_held = false;
-                    self.drain_idle_since = None;
+            return match gate {
+                StopGate::DrainingSince(idle_since)
+                    if now.duration_since(idle_since) >= DRAIN_GRACE =>
+                {
                     self.subagent_alive_at = None;
-                    self.finished_at = Some(now);
-                    self.set_status(AgentStatus::Finished, &mut effects);
+                    Some(State::Finished {
+                        finished_at: Some(now),
+                    })
                 }
-                Some(_) => {}
-            }
-        } else {
-            self.drain_idle_since = None;
-            let quiet_since = *self.subagent_alive_at.get_or_insert(now);
-            if now.duration_since(quiet_since) >= SUBAGENT_QUIET_GRACE {
-                // Orphaned: same exit as an idle notification with nothing
-                // tracked, and no `finished_at` for the same reason.
-                self.subagents.clear();
-                self.stop_held = false;
-                self.subagent_alive_at = None;
-                self.finished_at = None;
-                self.set_status(AgentStatus::Finished, &mut effects);
-            }
+                StopGate::DrainingSince(_) => None,
+                StopGate::Open | StopGate::HeldForSubagents => {
+                    Some(State::Running(StopGate::DrainingSince(now)))
+                }
+            };
         }
-        effects
+        let quiet_since = *self.subagent_alive_at.get_or_insert(now);
+        if now.duration_since(quiet_since) >= SUBAGENT_QUIET_GRACE {
+            // Orphaned: same exit as an idle notification with nothing
+            // tracked, and no `finished_at` for the same reason.
+            self.subagents.clear();
+            self.subagent_alive_at = None;
+            return Some(State::Finished { finished_at: None });
+        }
+        Some(State::Running(StopGate::HeldForSubagents))
     }
 
     /// Ids of the subagents a held Stop is still waiting on, or `None`
     /// when nothing is being held. The caller reads this before touching
     /// the disk, so an agent that is simply running costs no I/O.
     pub fn held_subagents(&self) -> Option<Vec<String>> {
-        if !self.stop_held || self.status != AgentStatus::Running {
+        if !self.state.holds_stop() {
             return None;
         }
         let ids: Vec<String> = self.subagents.keyed.keys().cloned().collect();
@@ -504,26 +596,29 @@ impl AgentStatusMachine {
     /// progress bar. Finished outright when no subagent is still tracked;
     /// otherwise the stop is held at running and `tick` promotes it once
     /// the set has drained and stayed empty for the grace period.
-    fn end_turn(&mut self, now: Instant, effects: &mut Vec<Effect>) {
+    fn end_turn(&mut self, now: Instant) -> State {
         self.subagents.prune_expired(now);
         if self.subagents.is_empty() {
-            self.stop_held = false;
-            self.finished_at = Some(now);
-            self.set_status(AgentStatus::Finished, effects);
+            State::Finished {
+                finished_at: Some(now),
+            }
         } else {
             // Foreground turn ended but subagents are still working.
-            self.hold_for_subagents(now, effects);
+            self.hold_for_subagents(now)
         }
+    }
+
+    fn start_turn(&mut self) -> State {
+        self.subagent_alive_at = None;
+        State::Running(StopGate::Open)
     }
 
     /// Keep (or put) the agent at running because subagents are still
     /// tracked. The quiet clock starts now unless a subagent has already
     /// shown life more recently than the hold.
-    fn hold_for_subagents(&mut self, now: Instant, effects: &mut Vec<Effect>) {
-        self.stop_held = true;
-        self.drain_idle_since = None;
+    fn hold_for_subagents(&mut self, now: Instant) -> State {
         self.subagent_alive_at.get_or_insert(now);
-        self.set_status(AgentStatus::Running, effects);
+        State::Running(StopGate::HeldForSubagents)
     }
 
     /// Claude reports itself idle at the input box. This is the only end-of-
@@ -543,34 +638,43 @@ impl AgentStatusMachine {
     /// still tracked the agent stays at running exactly as a gated `Stop`
     /// would — `tick` finishes it once they drain, or once they have been
     /// quiet for `SUBAGENT_QUIET_GRACE`.
-    fn mark_idle(&mut self, now: Instant, effects: &mut Vec<Effect>) {
-        if !matches!(
-            self.status,
-            AgentStatus::Running | AgentStatus::NeedsFeedback
-        ) {
-            return;
-        }
+    fn mark_idle(&mut self, now: Instant) -> State {
         self.subagents.prune_expired(now);
         if !self.subagents.is_empty() {
-            self.hold_for_subagents(now, effects);
-            return;
+            return self.hold_for_subagents(now);
         }
-        self.stop_held = false;
-        self.drain_idle_since = None;
         self.subagent_alive_at = None;
         // Deliberately no `finished_at`: after this much idle time a
         // SubagentStart is a post-turn helper, never a Stop that raced its
         // own POST, so it must not heal back to running.
-        self.finished_at = None;
-        self.set_status(AgentStatus::Finished, effects);
+        State::Finished { finished_at: None }
     }
+}
 
-    fn set_status(&mut self, status: AgentStatus, effects: &mut Vec<Effect>) {
-        if self.status != status {
-            self.status = status;
-            effects.push(Effect::SetStatus(status));
-        }
-    }
+fn is_clear(source: &Option<String>) -> bool {
+    source.as_deref() == Some("clear")
+}
+
+fn starts_new_conversation(source: &Option<String>) -> bool {
+    matches!(source.as_deref(), Some("startup" | "clear"))
+}
+
+fn notified(notification_type: &Option<String>, kind: &str) -> bool {
+    notification_type.as_deref() == Some(kind)
+}
+
+fn asks_the_user(tool_name: &Option<String>) -> bool {
+    tool_name.as_deref() == Some("AskUserQuestion")
+}
+
+pub fn after_daemon_boot(status: AgentStatus) -> Option<AgentStatus> {
+    AgentStatusMachine::new(status, None)
+        .handle(HookEvent::DaemonBooted, None, Instant::now())
+        .into_iter()
+        .find_map(|effect| match effect {
+            Effect::SetStatus(status) => Some(status),
+            _ => None,
+        })
 }
 
 #[cfg(test)]
@@ -1352,5 +1456,120 @@ mod tests {
             source: Some("resume".into()),
         };
         assert!(status_of(&alive.handle(event, Some("s1"), t0())).is_none());
+    }
+
+    const EVERY_STATUS: [AgentStatus; 6] = [
+        AgentStatus::Fresh,
+        AgentStatus::Running,
+        AgentStatus::NeedsFeedback,
+        AgentStatus::Finished,
+        AgentStatus::Terminated,
+        AgentStatus::Disconnected,
+    ];
+
+    #[test]
+    fn the_boot_sweep_disconnects_only_live_agents() {
+        for status in EVERY_STATUS {
+            let live = matches!(status, AgentStatus::Running | AgentStatus::NeedsFeedback);
+            let expected = live.then_some(AgentStatus::Disconnected);
+            assert_eq!(after_daemon_boot(status), expected, "{status:?}");
+        }
+    }
+
+    #[test]
+    fn a_kill_leaves_every_status_as_it_was() {
+        for status in EVERY_STATUS {
+            let mut m = AgentStatusMachine::new(status, Some("s1".into()));
+            let fx = m.handle(HookEvent::Killed, None, t0());
+            assert!(fx.is_empty(), "{status:?}: {fx:?}");
+            assert_eq!(m.status(), status);
+        }
+    }
+
+    #[test]
+    fn dead_agents_ignore_turn_signals_and_subagent_traffic() {
+        let ignored = || {
+            vec![
+                HookEvent::Progress { busy: true },
+                HookEvent::Progress { busy: false },
+                HookEvent::TitleIdle { idle: true },
+                HookEvent::Notification {
+                    notification_type: Some("idle_prompt".into()),
+                },
+                HookEvent::SubagentStart {
+                    subagent_id: Some("sub1".into()),
+                },
+                HookEvent::SubagentStop {
+                    subagent_id: Some("sub1".into()),
+                },
+                HookEvent::SessionEnded { exit_code: Some(1) },
+                HookEvent::Killed,
+                HookEvent::DaemonBooted,
+            ]
+        };
+        for status in [AgentStatus::Terminated, AgentStatus::Disconnected] {
+            let mut m = AgentStatusMachine::new(status, Some("s1".into()));
+            let now = t0();
+            for event in ignored() {
+                let fx = m.handle(event.clone(), Some("s1"), now);
+                assert!(fx.is_empty(), "{status:?} took {event:?}: {fx:?}");
+            }
+            assert!(m.tick(now, Some(false)).is_empty());
+            assert!(m
+                .tick(now + Duration::from_secs(30), Some(false))
+                .is_empty());
+            assert_eq!(m.status(), status);
+        }
+    }
+
+    #[test]
+    fn a_question_suspends_the_held_stop_and_the_answer_resumes_it() {
+        let mut m = AgentStatusMachine::new(AgentStatus::Fresh, None);
+        let now = t0();
+        m.handle(HookEvent::UserPromptSubmit, Some("s1"), now);
+        subagent(&mut m, true, "sub1", now);
+        m.handle(HookEvent::Stop, Some("s1"), now);
+        assert_eq!(m.held_subagents(), Some(vec!["sub1".to_string()]));
+
+        let ask = |tool: &str| HookEvent::PreToolUse {
+            tool_name: Some(tool.into()),
+            subagent_id: None,
+        };
+        m.handle(ask("AskUserQuestion"), Some("s1"), now);
+        assert_eq!(m.status(), AgentStatus::NeedsFeedback);
+        assert_eq!(m.held_subagents(), None);
+        subagent(&mut m, false, "sub1", now);
+        assert!(m.tick(now + 2 * DRAIN_GRACE, None).is_empty());
+        assert!(m.tick(now + 4 * DRAIN_GRACE, None).is_empty());
+        assert_eq!(m.status(), AgentStatus::NeedsFeedback);
+
+        let answered = HookEvent::PostToolUse {
+            tool_name: Some("AskUserQuestion".into()),
+            subagent_id: None,
+        };
+        let fx = m.handle(answered, Some("s1"), now + 4 * DRAIN_GRACE);
+        assert_eq!(status_of(&fx), Some(AgentStatus::Running));
+        let t = now + 5 * DRAIN_GRACE;
+        assert!(m.tick(t, None).is_empty(), "the drain starts over");
+        let fx = m.tick(t + DRAIN_GRACE, None);
+        assert_eq!(status_of(&fx), Some(AgentStatus::Finished));
+    }
+
+    #[test]
+    fn a_new_cli_session_drops_the_old_sessions_held_stop() {
+        let mut m = AgentStatusMachine::new(AgentStatus::Fresh, None);
+        let now = t0();
+        m.handle(HookEvent::UserPromptSubmit, Some("s1"), now);
+        subagent(&mut m, true, "sub1", now);
+        m.handle(HookEvent::Stop, Some("s1"), now);
+        assert!(m.held_subagents().is_some());
+
+        let resumed = HookEvent::SessionStart {
+            source: Some("resume".into()),
+        };
+        let fx = m.handle(resumed, Some("s2"), now);
+        assert_eq!(fx, vec![Effect::SaveSessionId("s2".into())]);
+        assert_eq!(m.status(), AgentStatus::Running);
+        assert_eq!(m.held_subagents(), None);
     }
 }

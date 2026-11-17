@@ -334,7 +334,7 @@ impl Daemon {
         }
         if let SessionRef::Agent(id) = sref {
             self.acp.kill(id);
-            self.clear_feedback(id);
+            self.note_session_killed(id);
         }
     }
 
