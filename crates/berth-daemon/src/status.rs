@@ -272,6 +272,15 @@ impl AgentStatusMachine {
                         self.set_status(AgentStatus::Fresh, &mut effects);
                     }
                 }
+                if self.status == AgentStatus::Disconnected {
+                    let new_conversation = matches!(source.as_deref(), Some("startup" | "clear"));
+                    let back = if new_conversation {
+                        AgentStatus::Fresh
+                    } else {
+                        AgentStatus::Finished
+                    };
+                    self.set_status(back, &mut effects);
+                }
             }
             HookEvent::PermissionRequest => {
                 self.set_status(AgentStatus::NeedsFeedback, &mut effects);
@@ -1324,5 +1333,24 @@ mod tests {
         );
         let fx = m.handle(HookEvent::Stop, Some("s1"), now + Duration::from_secs(1));
         assert_eq!(status_of(&fx), Some(AgentStatus::Finished));
+    }
+
+    #[test]
+    fn a_respawned_cli_leaves_disconnected() {
+        let start = |source: &str| {
+            let mut m = AgentStatusMachine::new(AgentStatus::Disconnected, Some("s1".into()));
+            let event = HookEvent::SessionStart {
+                source: Some(source.into()),
+            };
+            status_of(&m.handle(event, Some("s1"), t0()))
+        };
+        assert_eq!(start("resume"), Some(AgentStatus::Finished));
+        assert_eq!(start("startup"), Some(AgentStatus::Fresh));
+
+        let mut alive = AgentStatusMachine::new(AgentStatus::Finished, Some("s1".into()));
+        let event = HookEvent::SessionStart {
+            source: Some("resume".into()),
+        };
+        assert!(status_of(&alive.handle(event, Some("s1"), t0())).is_none());
     }
 }
