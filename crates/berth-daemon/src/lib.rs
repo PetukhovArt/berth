@@ -26,6 +26,7 @@ pub mod pty;
 pub mod registry;
 pub mod restore;
 pub mod resume_check;
+pub mod resume_conversation;
 pub mod router;
 pub mod sampler;
 pub mod server;

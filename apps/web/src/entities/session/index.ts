@@ -25,7 +25,8 @@ export { agentName, answerInChannel, channelKeys, channelRequestOf, grantChannel
 export type { ChannelGrant, ChannelMessage, ChannelPresent, ChannelRequest, ChannelSettlement, ChannelTouching, LoadedChannelMessage } from './model/channels';
 export { getMetrics } from './model/metrics';
 export type { MetricsSnapshot, SessionMetrics } from './model/metrics';
-export { listOrphans, moveAgent, resumeOrphan } from './model/orphans';
+export { listOrphans, listProjectConversations, moveAgent, resumeConversation, resumeOrphan } from './model/orphans';
+export { canContinueAsAgent, clearHandoff, continueTerminalAsAgent, handoffOf } from './model/terminalHandoff';
 export type { OrphanedSession } from './model/orphans';
 export { canMove, moved, pinned, pinnedFirst, unpinned } from './model/projectPins';
 export { METRICS_PANEL, useSessionDock } from './model/sessionDock';

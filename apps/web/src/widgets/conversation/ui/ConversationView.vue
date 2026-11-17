@@ -4,7 +4,7 @@ import { Bot, Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, Triangle
 import { VButton, VMessage } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
-import { AGENT_KIND_LABEL, continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, sendInput, useFeedbackRequest, allowRequest, alwaysAllowRequest, offersAlways, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, submitPrompt, useAcpChat, useQueuedPrompts, type SessionRef } from '../../../entities/session';
+import { AGENT_KIND_LABEL, clearHandoff, continueInBerth, handoffOf, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, sendInput, useFeedbackRequest, allowRequest, alwaysAllowRequest, offersAlways, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, submitPrompt, useAcpChat, useQueuedPrompts, type SessionRef } from '../../../entities/session';
 import { worktreeOf } from '../../../features/session-view-switch';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
@@ -67,7 +67,9 @@ const agentId = computed(() => (props.terminal && 'Agent' in props.terminal ? pr
 const agent = computed(() => (agentId.value ? berth?.entities.value.agents.get(agentId.value) : undefined));
 const suggestion = computed(() => (agent.value?.status === 'finished' ? (agent.value.suggested_prompt ?? null) : null));
 const command = computed(() => (harness.value ? resumeCommand({ harness: harness.value, id: props.sessionId }) : ''));
-const canContinue = computed(() => !!session.value && !!target.value && !running.value && !action.busy.value);
+const handoff = computed(() => (session.value ? handoffOf(session.value) : undefined));
+const continueError = computed(() => action.error.value ?? (handoff.value?.state === 'failed' ? handoff.value.message : null));
+const canContinue = computed(() => !!session.value && !!target.value && !running.value && !action.busy.value && handoff.value?.state !== 'pending');
 
 const root = computed(() => {
   const own = agent.value ? berth?.entities.value.worktrees.get(agent.value.worktree_id)?.path : undefined;
@@ -173,6 +175,7 @@ async function continueHere() {
   const current = session.value;
   const where = target.value;
   if (!current || !where || current.running) return;
+  clearHandoff(current);
   await action.run(async () => {
     const ref = await continueInBerth(current, where);
     dock.openWhenListed(ref, externalKey(current), true);
@@ -252,7 +255,7 @@ onBeforeUnmount(() => {
       <p v-else-if="running" class="warning" role="alert" data-testid="conversation-running-warning"><TriangleAlert :size="13" />{{ t('workbench.external.stillOpen') }}</p>
       <p v-else-if="session && !target" class="hint" data-testid="conversation-no-project">{{ t('workbench.external.noProject') }}</p>
       <p v-else-if="target" class="hint" data-testid="conversation-target">{{ t('workbench.external.continuesIn', { project: target.projectName, branch: target.branch }) }}</p>
-      <VMessage v-if="action.error.value" severity="error" size="small" data-testid="conversation-error">{{ action.error.value }}</VMessage>
+      <VMessage v-if="continueError" severity="error" size="small" data-testid="conversation-error">{{ continueError }}</VMessage>
     </header>
     <PlanStrip :plan="plan" />
     <div ref="scroller" class="scroll" data-testid="conversation-scroll">

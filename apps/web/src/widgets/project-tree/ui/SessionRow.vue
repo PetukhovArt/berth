@@ -4,7 +4,7 @@ import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
 import { VButton, VContextMenu, VInputText } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
-import { externalStatusLabel, sessionDot, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, type SessionStatus, useAction, StatusDot } from '../../../entities/session';
+import { canContinueAsAgent, continueTerminalAsAgent, externalKey, externalStatusLabel, sessionDot, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, type SessionStatus, useAction, StatusDot } from '../../../entities/session';
 import { MoveAgentDialog } from '../../../features/move-agent';
 
 import { UiButton } from '../../../shared/ui/UiButton';
@@ -16,7 +16,7 @@ function statusLabel(status: SessionStatus): string {
 }
 
 type Mode = 'idle' | 'renaming' | 'confirming-delete';
-type MenuAction = { key: string; label: string; command: () => void };
+type MenuAction = { key: string; label: string; command: () => void; testid?: string };
 
 const menu = useTemplateRef<InstanceType<typeof VContextMenu>>('menu');
 const row = useTemplateRef<HTMLElement>('row');
@@ -49,6 +49,7 @@ const menuItems = computed<MenuAction[]>(() => {
   if ('Terminal' in session)
     return [
       ...(props.linked ? [{ key: 'conversation', label: t('workbench.external.open'), command: () => emit('open-conversation') }] : []),
+      ...(canContinueAsAgent(props.linked) ? [{ key: 'continue-as-agent', label: t('workbench.external.continueAsAgent'), command: continueAsAgent, testid: 'session-continue-as-agent' }] : []),
       { key: 'rename', label: t('common.rename'), command: startRename },
       { key: 'close', label: t('common.close'), command: () => void action.run(() => closeTerminal(session.Terminal)) },
     ];
@@ -60,6 +61,17 @@ const menuItems = computed<MenuAction[]>(() => {
     { key: 'delete', label: t('common.delete'), command: () => (mode.value = 'confirming-delete') },
   ];
 });
+
+function continueAsAgent() {
+  const session = props.session.ref;
+  const linked = props.linked;
+  if (!('Terminal' in session) || !linked) return;
+  dock.openExternal(linked, false, props.session.key);
+  void action.run(async () => {
+    const agent = await continueTerminalAsAgent(session.Terminal, linked);
+    dock.openWhenListed({ Agent: agent }, externalKey(linked), true);
+  });
+}
 
 function showMenu(event: MouseEvent) {
   menu.value?.show(event);
@@ -141,7 +153,7 @@ async function confirmDelete() {
     </template>
     <VContextMenu ref="menu" :model="menuItems">
       <template #item="{ item, props: itemProps }">
-        <a v-bind="itemProps.action" :data-testid="`session-menu-${item.key}`">{{ item.label }}</a>
+        <a v-bind="itemProps.action" :data-testid="item.testid ?? `session-menu-${item.key}`">{{ item.label }}</a>
       </template>
     </VContextMenu>
     <div v-if="mode === 'confirming-delete'" class="confirm" role="group" :aria-label="t('agents.session.confirmDeleteLabel')" data-testid="session-delete-confirm">

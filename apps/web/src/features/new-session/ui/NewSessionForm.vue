@@ -6,15 +6,21 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
 import { chordJoiner, modifierGlyphs, onlyPrimaryPressed, primaryModifier, primaryPressed } from '../../../shared/lib/platform';
 import { invoke } from '../../../bridge';
-import { acpPrompt, createAcpAgent, createAgent, createTerminal, entitySessionRef, type AgentKind, type SessionRef, useAction } from '../../../entities/session';
+import { acpPrompt, createAcpAgent, createAgent, createTerminal, entitySessionRef, resumeConversation, type AgentKind, type SessionRef, useAction } from '../../../entities/session';
 import { enabledNativeAgent, useProviders } from '../../../shared/api/providers';
 import { useSessionTarget } from '../model/sessionTarget';
+import { useProjectConversations } from '../model/conversations';
 import { deletePreset, presets, savePreset, withPromptFrame, type AgentPreset } from '../model/presets';
 import NewSessionTarget from './NewSessionTarget.vue';
+import ContinueConversation from './ContinueConversation.vue';
 
 const props = defineProps<{ worktree: string | null }>();
 const emit = defineEmits<{ close: []; created: [session: SessionRef] }>();
 const location = useSessionTarget(props.worktree);
+const continuing = shallowRef(false);
+const pickedConversation = shallowRef<string | null>(null);
+const conversations = useProjectConversations(location.project, continuing);
+const chosenConversation = computed(() => conversations.choices.value.find((choice) => choice.key === pickedConversation.value && !choice.busy) ?? null);
 
 type AcpKind = `acp:${string}`;
 type Kind = Exclude<AgentKind, 'acp'> | AcpKind | 'terminal';
@@ -73,7 +79,7 @@ watch(defaultName, (next, previous) => {
 });
 
 const extras = shallowRef<Kind[]>([]);
-const kinds = computed<Kind[]>(() => (kind.value === 'terminal' ? [kind.value] : [kind.value, ...extras.value.filter((extra) => extra !== kind.value)]));
+const kinds = computed<Kind[]>(() => (kind.value === 'terminal' || continuing.value ? [kind.value] : [kind.value, ...extras.value.filter((extra) => extra !== kind.value)]));
 const extraOptions = computed(() => KINDS.value.filter((option) => option.value !== 'terminal' && option.value !== kind.value));
 const many = computed(() => kinds.value.length > 1);
 
@@ -128,15 +134,28 @@ const optional = (text: string | null) => text?.trim() || null;
 const warmWorktree = computed(() => (location.plan.value.kind === 'use' && providers.value.length ? location.plan.value.worktree.id : null));
 
 watch(
-  [warmWorktree, kind],
-  ([worktree, chosen]) => {
-    if (!worktree || chosen === 'terminal' || acpProviderOf(chosen)) return;
+  [warmWorktree, kind, continuing],
+  ([worktree, chosen, resuming]) => {
+    if (!worktree || resuming || chosen === 'terminal' || acpProviderOf(chosen)) return;
     invoke<void>('berth_prewarm', { worktree, kind: chosen, model: optional(model.value), effort: optional(effort.value) }).catch(() => undefined);
   },
   { immediate: true },
 );
 
+async function continueConversation(background: boolean) {
+  const conversation = chosenConversation.value;
+  if (!conversation) return;
+  await action.run(async () => {
+    const [worktree] = await location.resolve(['']);
+    if (!worktree) return;
+    const agent = await resumeConversation(conversation, worktree);
+    if (background) emit('close');
+    else emit('created', { Agent: agent });
+  });
+}
+
 async function submit(background = false) {
+  if (continuing.value) return continueConversation(background);
   const chosen = kinds.value;
   const defaults = chosen.map(generatedName);
   const names = chosen.length > 1 ? defaults : [name.value.trim() || defaults[0]];
@@ -173,7 +192,7 @@ async function submit(background = false) {
 }
 
 function startable(): boolean {
-  return location.plan.value.kind !== 'incomplete' && !action.busy.value;
+  return location.plan.value.kind !== 'incomplete' && !action.busy.value && (!continuing.value || !!chosenConversation.value);
 }
 
 function onPromptKey(event: KeyboardEvent) {
@@ -210,8 +229,9 @@ function onVisible(visible: boolean) {
       <UiButton type="button" class="esc" :title="t('common.close')" :aria-label="t('common.close')" data-testid="new-session-close" @click="emit('close')">Esc</UiButton>
     </template>
     <form class="form" data-testid="new-session-form" @submit.prevent="submit()" @keydown="onFormKey">
+      <ContinueConversation v-if="continuing" v-model="pickedConversation" :conversations="conversations" />
       <VTextarea
-        v-if="kind !== 'terminal'"
+        v-else-if="kind !== 'terminal'"
         v-model="prompt"
         rows="3"
         auto-resize
@@ -224,6 +244,7 @@ function onVisible(visible: boolean) {
       <NewSessionTarget :state="location">
         <template #type>
           <VSelect
+            v-if="!continuing"
             :model-value="kind"
             :options="KINDS"
             option-label="label"
@@ -237,7 +258,7 @@ function onVisible(visible: boolean) {
         </template>
       </NewSessionTarget>
       <div class="chips" data-testid="new-session-options">
-        <template v-if="kind !== 'terminal' && !acpProviderOf(kind)">
+        <template v-if="kind !== 'terminal' && !acpProviderOf(kind) && !continuing">
           <VSelect
             v-model="model"
             :options="modelOptions"
@@ -261,6 +282,14 @@ function onVisible(visible: boolean) {
         </template>
         <span class="spacer" />
         <VButton
+          :label="continuing ? t('agents.newSession.newTask') : t('agents.newSession.continueMode')"
+          size="small"
+          text
+          :aria-pressed="continuing"
+          data-testid="new-session-continue"
+          @click="continuing = !continuing"
+        />
+        <VButton
           :label="expanded ? t('agents.newSession.fewer') : t('agents.newSession.more')"
           size="small"
           text
@@ -273,7 +302,7 @@ function onVisible(visible: boolean) {
         <span class="row-label">{{ t('agents.newSession.setupCommand') }}</span>
         <VInputText v-model="location.setup.value" size="small" :placeholder="t('agents.newSession.setupPlaceholder')" class="row-input mono" data-testid="new-session-setup" />
       </label>
-      <div v-if="expanded && kind !== 'terminal'" class="extras" data-testid="new-session-extras">
+      <div v-if="expanded && kind !== 'terminal' && !continuing" class="extras" data-testid="new-session-extras">
         <span class="extras-label">{{ t('agents.newSession.alsoStart') }}</span>
         <VButton
           v-for="option in extraOptions"
@@ -286,7 +315,7 @@ function onVisible(visible: boolean) {
           @click="toggleExtra(option.value)"
         />
       </div>
-      <div v-if="expanded && presets.length" class="extras" data-testid="new-session-presets">
+      <div v-if="expanded && presets.length && !continuing" class="extras" data-testid="new-session-presets">
         <span class="extras-label">{{ t('agents.newSession.presets') }}</span>
         <span v-for="preset in presets" :key="preset.name" class="preset">
           <VButton
@@ -307,7 +336,7 @@ function onVisible(visible: boolean) {
           />
         </span>
       </div>
-      <div v-if="expanded && kind !== 'terminal'" class="pair">
+      <div v-if="expanded && kind !== 'terminal' && !continuing" class="pair">
         <label class="field">
           <span>{{ t('agents.newSession.before') }}</span>
           <VInputText v-model="before" size="small" data-testid="new-session-before" />
@@ -317,20 +346,20 @@ function onVisible(visible: boolean) {
           <VInputText v-model="after" size="small" data-testid="new-session-after" />
         </label>
       </div>
-      <div v-if="expanded && kind !== 'terminal'" class="extras">
+      <div v-if="expanded && kind !== 'terminal' && !continuing" class="extras">
         <VInputText v-model="presetName" size="small" :placeholder="t('agents.newSession.presetName')" data-testid="new-session-preset-name" @keydown.enter.prevent="saveCurrent" />
         <VButton :label="t('agents.newSession.savePreset')" size="small" outlined :disabled="!presetName.trim()" data-testid="new-session-preset-save" @click="saveCurrent" />
       </div>
       <VMessage v-if="action.error.value" severity="error" size="small" data-testid="new-session-error">{{ action.error.value }}</VMessage>
       <div class="footer">
-        <label v-if="!many" class="name">
+        <label v-if="!many && !continuing" class="name">
           <span>{{ t('agents.newSession.name') }}</span>
           <VInputText v-model="name" size="small" :placeholder="defaultName" data-testid="new-session-name" />
         </label>
         <span class="spacer" />
         <span class="hint" data-testid="new-session-background-hint">{{ t('agents.newSession.backgroundHint', { key: backgroundKey }) }}</span>
         <VButton :label="t('common.cancel')" size="small" text data-testid="new-session-cancel" @click="emit('close')" />
-        <VButton type="submit" :label="many ? t('agents.newSession.startMany', { count: kinds.length }) : t('common.create')" size="small" :loading="action.busy.value" :disabled="location.plan.value.kind === 'incomplete'" data-testid="new-session-submit" />
+        <VButton type="submit" :label="continuing ? t('agents.newSession.continueStart') : many ? t('agents.newSession.startMany', { count: kinds.length }) : t('common.create')" size="small" :loading="action.busy.value" :disabled="location.plan.value.kind === 'incomplete' || (continuing && !chosenConversation)" data-testid="new-session-submit" />
       </div>
     </form>
   </VDialog>

@@ -755,6 +755,7 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::ListBranches { req_id, .. }
         | ClientRequest::ListOrphanedSessions { req_id, .. }
         | ClientRequest::ResumeOrphanedSession { req_id, .. }
+        | ClientRequest::ResumeConversation { req_id, .. }
         | ClientRequest::CreateAgent { req_id, .. }
         | ClientRequest::CreatePrAgent { req_id, .. }
         | ClientRequest::RenameAgent { req_id, .. }

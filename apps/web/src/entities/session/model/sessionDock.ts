@@ -158,8 +158,9 @@ function createSessionDock() {
     });
   }
 
-  function openExternal(session: ExternalSession, split = false) {
-    openPanel({ id: externalKey(session), component: 'conversation', title: session.title, params: { harness: session.harness, id: session.id } }, split);
+  function openExternal(session: ExternalSession, split = false, beside?: string) {
+    const anchor: PanelPosition | boolean = beside && dock.api.value?.getPanel(beside) ? { referencePanel: beside, direction: 'within' } : split;
+    openPanel({ id: externalKey(session), component: 'conversation', title: session.title, params: { harness: session.harness, id: session.id } }, anchor);
   }
 
   function openMetrics() {
