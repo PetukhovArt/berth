@@ -45,6 +45,7 @@
 - Changed the Chat composer footer to show the model chip, hint, microphone and send button across the full width, tool rows to use forward slashes and bash rows to show their exit status
 - Changed on a phone the session view to list Chat first and keep its header buttons on the tab row
 - Changed the Inbox to say a session crashed instead of stopped with an error, and the Russian status words to agree in gender
+- Fixed the title bar and the phone header show the app icon from the taskbar and the splash screen again, instead of a letter on a blue tile
 - Fixed `ui.font_size` leaving parts of the interface at their old size: session rows, the title bar, session header buttons, the new session form, badges, diagrams and line heights now follow it too.
 - Fixed a blank web UI on a phone caused by phone-only Inbox and approval styles applying to the whole page
 - Fixed the Inbox card on a phone: its age shows without the actions menu on top of it, and a crashed card shows what happened
