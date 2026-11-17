@@ -8,7 +8,7 @@ use crate::connectors::forge::parse_remote;
 use crate::connectors::types::Fork;
 
 const FETCH_TIMEOUT: Duration = Duration::from_secs(180);
-const QUICK_TIMEOUT: Duration = Duration::from_secs(15);
+pub(crate) const QUICK_TIMEOUT: Duration = Duration::from_secs(15);
 const REMOTE_TRIES: usize = 5;
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -29,13 +29,13 @@ pub struct Fetched {
     pub diverged: bool,
 }
 
-struct Run {
-    ok: bool,
-    stdout: String,
-    stderr: String,
+pub(crate) struct Run {
+    pub(crate) ok: bool,
+    pub(crate) stdout: String,
+    pub(crate) stderr: String,
 }
 
-async fn git(repo: &str, args: &[&str], timeout: Duration) -> Result<Run, String> {
+pub(crate) async fn git(repo: &str, args: &[&str], timeout: Duration) -> Result<Run, String> {
     let mut command = Command::new("git");
     command
         .arg("-C")

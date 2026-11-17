@@ -9,7 +9,7 @@ import { useDock } from '../../../shared/model/dock';
 import { useSessionDock, isSessionRef, useBerth, type Harness } from '../../../entities/session';
 import { openIssue } from '../../../entities/jira-issue';
 import { ProjectTree } from '../../../widgets/project-tree';
-import { NewSessionForm, cancelCreate, creatingIn, onCreated } from '../../../features/new-session';
+import { BaseNotice, NewSessionForm, cancelCreate, creatingIn, onCreated } from '../../../features/new-session';
 import { ArchitectureView } from '../../../features/architecture';
 import { SessionViews, viewOf } from '../../../features/session-view-switch';
 import { DockArea } from '../../../widgets/dock';
@@ -94,6 +94,7 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
     <SessionInspector v-if="!mobile" />
     <TerminalKeys v-if="mobile && detail && activeSession && !(activeKey && viewOf(activeKey) === 'chat')" :session="activeSession.ref" />
     <NewSessionForm v-if="creatingIn" :key="creatingIn.worktree ?? ''" :worktree="creatingIn.worktree" @close="cancelCreate" @created="onCreated" />
+    <BaseNotice />
   </div>
 </template>
 

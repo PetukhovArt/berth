@@ -255,6 +255,46 @@ fn in_git_spelling(path: PathBuf) -> PathBuf {
     }
 }
 
+pub struct LocalBase {
+    pub start: String,
+    pub shown_as: String,
+}
+
+pub async fn local_copy_of_origin_branch(repo: &Path, branch: &str) -> Option<LocalBase> {
+    let head = format!("refs/heads/{branch}");
+    let tracking = format!("refs/remotes/origin/{branch}");
+    let local = git(repo, &["rev-parse", "--verify", "--quiet", &head])
+        .await
+        .ok();
+    let remote = git(repo, &["rev-parse", "--verify", "--quiet", &tracking])
+        .await
+        .ok();
+    let tracking_is_newer = match (&local, &remote) {
+        (Some(a), Some(b)) if a.trim() != b.trim() => {
+            git(repo, &["merge-base", "--is-ancestor", &head, &tracking])
+                .await
+                .is_ok()
+        }
+        (None, Some(_)) => true,
+        _ => false,
+    };
+    if tracking_is_newer {
+        Some(LocalBase {
+            start: format!("{tracking}^0"),
+            shown_as: format!("origin/{branch}"),
+        })
+    } else {
+        local.map(|_| LocalBase {
+            start: branch.to_owned(),
+            shown_as: branch.to_owned(),
+        })
+    }
+}
+
+pub async fn has_remote(repo: &Path, name: &str) -> bool {
+    git(repo, &["remote", "get-url", name]).await.is_ok()
+}
+
 /// `git worktree add <path> -b <branch> [base]`. Falls back to checking out an
 /// existing branch when `-b` fails because it already exists.
 pub async fn add_worktree(repo: &Path, branch: &str, base: Option<&str>) -> Result<PathBuf> {

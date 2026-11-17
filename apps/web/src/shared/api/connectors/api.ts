@@ -152,6 +152,8 @@ export type FetchedSource = { remote: string; base: string | null; problem: Fetc
 
 export const forgeSource = (ref: ChangeRequestRef) => invoke<SourceRepo>('forge_source', { connector: ref.connector, project: ref.project, number: ref.number });
 export const mrFetchSource = (repo: string, branch: string, local: string, fork: ForkSource | null) => invoke<FetchedSource>('mr_fetch_source', { repo, branch, local, fork });
+export type WorktreeBase = { base: string | null; local_copy: string | null; detail: string | null };
+export const worktreeBaseSource = (repo: string, branch: string) => invoke<WorktreeBase>('worktree_base_source', { repo, branch });
 
 export const jiraSearch = (connector: string, jql: string, start: number, limit: number) =>
   invoke<{ total: number; issues: JiraIssueSummary[] }>('jira_search', { connector, jql, start, limit });

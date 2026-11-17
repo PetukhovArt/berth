@@ -18,7 +18,7 @@ use crate::files::{self, FileWatches};
 use crate::settings::{self, ConfigFile, SettingsWatch};
 use crate::sink::{BoxSink, Sink};
 
-const GUARDED: [(&str, &str); 17] = [
+const GUARDED: [(&str, &str); 18] = [
     ("review_queue", "repo"),
     ("review_adapter", "repo"),
     ("fs_read_text", "path"),
@@ -30,6 +30,7 @@ const GUARDED: [(&str, &str); 17] = [
     ("fs_watch", "path"),
     ("forge_for_worktree", "path"),
     ("mr_fetch_source", "repo"),
+    ("worktree_base_source", "repo"),
     ("worktree_changes", "path"),
     ("worktree_commits", "path"),
     ("worktree_git_state", "path"),

@@ -834,6 +834,8 @@ pub enum ServerEvent {
         req_id: u64,
         worktree: Worktree,
         outcome: EnterOutcome,
+        #[serde(default)]
+        warning: Option<String>,
     },
     Error {
         req_id: Option<u64>,

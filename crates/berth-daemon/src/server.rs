@@ -911,10 +911,11 @@ async fn handle_client(
                     base,
                 } => {
                     let ev = match daemon.enter_worktree(&id, &branch, base.as_deref()).await {
-                        Ok((worktree, outcome)) => ServerEvent::WorktreeEntered {
+                        Ok((worktree, outcome, warning)) => ServerEvent::WorktreeEntered {
                             req_id,
                             worktree,
                             outcome,
+                            warning,
                         },
                         Err(e) => ServerEvent::Error {
                             req_id: Some(req_id),
@@ -929,6 +930,7 @@ async fn handle_client(
                             req_id,
                             worktree,
                             outcome,
+                            warning: None,
                         },
                         Err(e) => ServerEvent::Error {
                             req_id: Some(req_id),

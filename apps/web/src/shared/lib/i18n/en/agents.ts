@@ -95,6 +95,7 @@ export const agents = {
     alsoStart: 'Also start',
     startMany: 'Start {count} Sessions',
     baseFetchFailed: 'Could not fetch {branch} from origin: {detail}',
+    baseFromLocalCopy: 'The worktree was created from the local {copy}, because fetching {branch} from origin failed: {detail}',
     branchesFailed: 'Could not list branches: {error}',
     type: 'Type',
     typeAria: 'Session type',

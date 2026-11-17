@@ -350,6 +350,7 @@ pub fn run() {
             forge_file,
             forge_source,
             mr_fetch_source,
+            worktree_base_source,
             fs_read_text,
             review_queue,
             review_adapter,
