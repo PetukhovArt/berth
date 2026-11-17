@@ -97,9 +97,9 @@ pub enum Harness {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Status {
-    Working,
-    Waiting,
-    Idle,
+    Running,
+    Finished,
+    Closed,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -160,8 +160,8 @@ impl Drop for AgentSessionWatch {
 enum Last {
     #[default]
     Unknown,
-    Working,
-    Waiting,
+    Running,
+    Finished,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -523,12 +523,12 @@ fn claude_tail(tail: &mut Tail, line: &Value) {
         "ai-title" => tail.ai = owned(&line["aiTitle"]).or(tail.ai.take()),
         "system" => match line["subtype"].as_str() {
             Some("turn_duration") => {
-                tail.last = Last::Waiting;
+                tail.last = Last::Finished;
                 if let Some(count) = line["messageCount"].as_u64() {
                     tail.messages = Some(u32::try_from(count).unwrap_or(u32::MAX));
                 }
             }
-            Some("stop_hook_summary") => tail.last = Last::Waiting,
+            Some("stop_hook_summary") => tail.last = Last::Finished,
             _ => {}
         },
         "assistant" => {
@@ -542,9 +542,9 @@ fn claude_tail(tail: &mut Tail, line: &Value) {
                 })
             };
             if has("tool_use") {
-                tail.last = Last::Working;
+                tail.last = Last::Running;
             } else if has("text") {
-                tail.last = Last::Waiting;
+                tail.last = Last::Finished;
             }
         }
         "user" if line["isMeta"].as_bool() != Some(true) => {
@@ -556,7 +556,7 @@ fn claude_tail(tail: &mut Tail, line: &Value) {
                     .any(|block| block["type"].as_str() == Some("tool_result"))
             });
             if result {
-                tail.last = Last::Working;
+                tail.last = Last::Running;
                 return;
             }
             let text = content_text(content).unwrap_or_default();
@@ -564,11 +564,11 @@ fn claude_tail(tail: &mut Tail, line: &Value) {
             if text.starts_with("[Request interrupted")
                 || text.starts_with("<local-command-stdout>")
             {
-                tail.last = Last::Waiting;
+                tail.last = Last::Finished;
             } else if !text.starts_with("<command-name>")
                 && !text.starts_with("<local-command-caveat>")
             {
-                tail.last = Last::Working;
+                tail.last = Last::Running;
             }
         }
         _ => {}
@@ -606,18 +606,18 @@ fn codex_head(head: &mut Head, line: &Value) {
 fn codex_tail(tail: &mut Tail, line: &Value) {
     let payload = &line["payload"];
     match (line["type"].as_str(), payload["type"].as_str()) {
-        (Some("event_msg"), Some("task_complete" | "turn_aborted")) => tail.last = Last::Waiting,
-        (Some("event_msg"), Some("task_started")) => tail.last = Last::Working,
+        (Some("event_msg"), Some("task_complete" | "turn_aborted")) => tail.last = Last::Finished,
+        (Some("event_msg"), Some("task_started")) => tail.last = Last::Running,
         (Some("event_msg"), Some("thread_name_updated")) => {
             tail.custom = owned(&payload["thread_name"]).or(tail.custom.take());
         }
         (Some("event_msg"), Some("user_message")) => {
             tail.counted += 1;
-            tail.last = Last::Working;
+            tail.last = Last::Running;
         }
         (Some("event_msg"), Some("agent_message")) => {
             tail.counted += 1;
-            tail.last = Last::Waiting;
+            tail.last = Last::Finished;
         }
         (
             Some("response_item"),
@@ -629,7 +629,7 @@ fn codex_tail(tail: &mut Tail, line: &Value) {
                 | "function_call_output"
                 | "custom_tool_call_output",
             ),
-        ) => tail.last = Last::Working,
+        ) => tail.last = Last::Running,
         _ => {}
     }
 }
@@ -998,16 +998,19 @@ fn title_of(entry: &Entry) -> String {
 }
 
 fn status_of(entry: &Entry, running: bool, now: u64) -> Status {
+    if !running {
+        return Status::Closed;
+    }
     let age = now.saturating_sub(entry.signature.modified);
     if age < FRESH_MS {
-        return Status::Working;
+        return Status::Running;
     }
-    if !running || age > IDLE_MS {
-        return Status::Idle;
+    if age > IDLE_MS {
+        return Status::Finished;
     }
     match entry.tail.last {
-        Last::Working => Status::Working,
-        Last::Waiting | Last::Unknown => Status::Waiting,
+        Last::Running => Status::Running,
+        Last::Finished | Last::Unknown => Status::Finished,
     }
 }
 

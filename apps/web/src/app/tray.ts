@@ -29,11 +29,7 @@ export function initTray(): () => void {
             if (session.status === 'running') running += 1;
             else if (session.status === 'needs_feedback') waiting += 1;
           }
-          for (const session of [...(external?.sessions.value ?? []), ...(external?.linked.value.values() ?? [])]) {
-            if (!session.running) continue;
-            if (session.status === 'working') running += 1;
-            else if (session.status === 'waiting') waiting += 1;
-          }
+          for (const session of [...(external?.sessions.value ?? []), ...(external?.linked.value.values() ?? [])]) if (session.status === 'running') running += 1;
           return `${running}:${waiting}`;
         },
         (counts) => {

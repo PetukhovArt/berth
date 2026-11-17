@@ -4,7 +4,7 @@ import { Bot, Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, Triangle
 import { VButton, VMessage } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
-import { AGENT_KIND_LABEL, clearHandoff, continueInBerth, handoffOf, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, sendInput, useFeedbackRequest, allowRequest, alwaysAllowRequest, offersAlways, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, submitPrompt, useAcpChat, useQueuedPrompts, type SessionRef } from '../../../entities/session';
+import { AGENT_KIND_LABEL, clearHandoff, continueInBerth, handoffOf, externalKey, externalOrigin, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, sendInput, useFeedbackRequest, allowRequest, alwaysAllowRequest, offersAlways, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, submitPrompt, useAcpChat, useQueuedPrompts, type SessionRef } from '../../../entities/session';
 import { worktreeOf } from '../../../features/session-view-switch';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
@@ -228,8 +228,8 @@ onBeforeUnmount(() => {
         <HarnessIcon v-if="harness" :harness="harness" :size="14" />
         <h2 class="title">{{ session?.title ?? sessionId }}</h2>
         <span v-if="session" class="status" data-testid="conversation-status" :data-running="session.running" :data-status="session.status">
-          <StatusIcon :status="externalDot(session)" :unseen="false" />
-          {{ externalStatusLabel(session) }}
+          <StatusIcon :status="session.status" :unseen="false" />
+          {{ t(`agents.status.${session.status}`) }}
         </span>
       </div>
       <div class="meta">

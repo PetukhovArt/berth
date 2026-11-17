@@ -4,7 +4,7 @@ import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
 import { VButton, VContextMenu, VInputText } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
-import { canContinueAsAgent, continueTerminalAsAgent, externalKey, externalStatusLabel, sessionDot, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, type SessionStatus, useAction, StatusDot } from '../../../entities/session';
+import { canContinueAsAgent, continueTerminalAsAgent, externalKey, sessionDot, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, type SessionStatus, useAction, StatusDot } from '../../../entities/session';
 import { MoveAgentDialog } from '../../../features/move-agent';
 
 import { UiButton } from '../../../shared/ui/UiButton';
@@ -131,13 +131,13 @@ async function confirmDelete() {
         :data-linked-harness="linked?.harness"
         :data-linked-session-id="linked?.id"
         :data-linked-status="linked?.status"
-        :title="linked ? `${session.name}\n${externalStatusLabel(linked)}` : `${session.name} — ${statusLabel(session.status)}`"
+        :title="linked ? `${session.name}\n${statusLabel(linked.status)}` : `${session.name} — ${statusLabel(session.status)}`"
         @click="emit('open', primaryPressed($event))"
         @contextmenu.prevent="showMenu"
       >
         <StatusDot :status="sessionDot(session, linked)" :unseen="session.unseen" />
         <span class="name">{{ session.name }}</span>
-        <span class="label">{{ linked ? externalStatusLabel(linked) : statusLabel(session.status) }}</span>
+        <span class="label">{{ linked ? statusLabel(linked.status) : statusLabel(session.status) }}</span>
       </UiButton>
       <UiButton v-if="linked" class="more conversation" :title="t('workbench.external.open')" :aria-label="t('workbench.external.open')" data-testid="session-open-conversation" @click="emit('open-conversation')"><MessageSquare :size="14" /></UiButton>
       <UiButton class="more" :title="t('agents.session.actions')" :aria-label="t('agents.session.actions')" aria-haspopup="menu" data-testid="session-menu" @click="showMenu"><Ellipsis :size="14" /></UiButton>

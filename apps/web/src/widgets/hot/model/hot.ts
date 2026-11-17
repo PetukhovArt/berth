@@ -1,5 +1,5 @@
 import { computed, shallowRef, watch, type ComputedRef } from 'vue';
-import { externalKey, externalTarget, feedbackText, readTranscript, useExternalSessions, type ExternalSession, useBerth, type SessionNode, type SessionStatus, useSessionDock } from '../../../entities/session';
+import { externalKey, externalTarget, feedbackText, readTranscript, useExternalSessions, useBerth, type SessionNode, type SessionStatus, useSessionDock } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
 
@@ -51,10 +51,6 @@ export function hotDotOf(item: Pick<HotItem, 'status' | 'harness'>): SessionStat
 
 const toMillis = (value: number) => (value > 0 && value < SECONDS_LIMIT ? value * 1000 : value);
 
-function fromExternal(status: ExternalSession['status']): HotStatus {
-  return status === 'waiting' ? 'waiting' : status === 'working' ? 'working' : 'idle';
-}
-
 function previewOf(messages: readonly { role: string; text: string; tool: string | null }[]): string | null {
   for (let index = messages.length - 1; index >= 0; index--) {
     const message = messages[index];
@@ -96,7 +92,7 @@ function create() {
         seed = agent.status_changed_at ? toMillis(agent.status_changed_at) : null;
         stamp = agent.status_changed_at;
       } else if (link?.running) {
-        status = fromExternal(link.status);
+        status = link.status === 'running' ? 'working' : 'idle';
         harness = link.harness;
         source = { harness: link.harness, id: link.id };
         seed = link.updated_at;
@@ -128,7 +124,7 @@ function create() {
         project: target?.projectName ?? null,
         branch: target?.branch ?? session.branch,
         harness: session.harness,
-        status: session.running ? fromExternal(session.status) : 'idle',
+        status: session.status === 'running' ? 'working' : 'idle',
         unseen: false,
         live: session.running,
         seed: session.updated_at,

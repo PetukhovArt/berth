@@ -1,5 +1,5 @@
 import { Archive, Eye, EyeOff, Folder, FolderGit2, FolderOpen, FolderSearch, GitBranch, History, House, Inbox, Layers, Pin, UserRound } from '../../../shared/ui/icons';
-import { AGENT_KIND_LABEL, pinnedFirst, externalDot, externalKey, placeExternal, splitEarlier, type ExternalSession, worktreesOfProject, type Entities, type SessionNode, type WorktreeNode, rollupOf, type Rollup, type WorkspaceNode } from '../../../entities/session';
+import { AGENT_KIND_LABEL, pinnedFirst, externalKey, placeExternal, splitEarlier, type ExternalSession, worktreesOfProject, type Entities, type SessionNode, type WorktreeNode, rollupOf, type Rollup, type WorkspaceNode } from '../../../entities/session';
 import type { ConnectorView, InboxItem, JiraIssueSummary, PipelineStatus } from '../../../shared/api/connectors/api';
 import { numberLabel, itemId, pipelineRollup } from '../../../entities/merge-request';
 import { t, compareText } from '../../../shared/lib/i18n/i18n';
@@ -180,9 +180,9 @@ const liveRollup = (sessions: readonly SessionNode[], external: readonly Externa
   rollupOf([
     ...sessions.map((session) => {
       const link = linked.get(session.key);
-      return link ? { status: externalDot(link), unseen: false } : session;
+      return link ? { status: link.status, unseen: false } : session;
     }),
-    ...external.filter((session) => session.running).map((session) => ({ status: externalDot(session), unseen: false })),
+    ...external.filter((session) => session.running).map((session) => ({ status: session.status, unseen: false })),
   ]);
 
 function externalChildren(prefix: string, sessions: readonly ExternalSession[], now: number): WorkNode[] {

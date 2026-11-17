@@ -3,7 +3,7 @@ import type { DockviewPanelApi } from 'dockview-vue';
 import { FileText, GitPullRequest, Network, Ticket, X } from '../../../shared/ui/icons';
 import { isDirtyPath, settleDirty } from '../../../entities/document';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { METRICS_PANEL, useBerth, externalDot, isExternalPanel, sessionDot, stopAgent, useExternalSessions, StatusDot } from '../../../entities/session';
+import { METRICS_PANEL, useBerth, isExternalPanel, sessionDot, stopAgent, useExternalSessions, StatusDot } from '../../../entities/session';
 import { FILE_PANEL_PREFIX, isFilePanel } from '../../../shared/lib/markdownFiles';
 import { panelTitle } from '../../../shared/model/dock';
 import { SessionViewSwitch } from '../../../features/session-view-switch';
@@ -26,7 +26,7 @@ function kindOf(id: string): 'metrics' | 'file' | 'review' | 'architecture' | 'i
 
 const conversationDot = (id: string) => {
   const session = external?.anyByKey.value.get(id);
-  return session ? externalDot(session) : 'closed';
+  return session ? session.status : 'closed';
 };
 const session = (id: string) => berth?.sessions.value.get(id);
 const linked = (id: string) => external?.linked.value.get(id);

@@ -59,7 +59,7 @@
 - Fixed the Inbox card on a phone: its age shows without the actions menu on top of it, and a crashed card shows what happened
 - Fixed `Alt+1`..`Alt+9` in the Hot sessions overview: it opens that session and closes the overview
 - Fixed `Ctrl+Tab`, Hot sessions and `Alt+1`..`Alt+9` listing agents whose process had ended; they list only running sessions
-- Fixed the Inbox missing a Claude or Codex session started by hand in a terminal when it waits for you
+- Fixed a Claude or Codex conversation whose turn had ended showing as waiting for you in the Inbox, the session tree, Hot sessions and the tray; it shows as finished
 - Fixed the Changes toolbar cutting off the commit button in a narrow pane: it shrinks to a short label and then an icon, as the git step button in the session header does
 - Fixed the session header showing no model when the agent has none set: it shows the model of the latest turn
 - Fixed Quick Open repeating a session title in its message match, matching scattered letters in long words, and missing words in session prompts and replies

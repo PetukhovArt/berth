@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue';
-import { externalDot, useBerth, useExternalSessions, useSessionDock, type SessionNode, type SessionStatus } from '../../../entities/session';
+import { useBerth, useExternalSessions, useSessionDock, type SessionNode, type SessionStatus } from '../../../entities/session';
 import { attentionKindOf, type AttentionKind } from './attention';
 
 export type InboxEntry = { key: string; node: SessionNode; status: SessionStatus; kind: AttentionKind; since: number; place: string; until?: number | undefined };
@@ -77,7 +77,7 @@ export function useInbox() {
         if (!terminal || !link) continue;
         worktreeId = terminal.worktree_id;
         changedAt = link.updated_at;
-        status = externalDot(link);
+        status = link.status;
         kind = attentionKindOf(status, false);
       }
       if (!kind) continue;

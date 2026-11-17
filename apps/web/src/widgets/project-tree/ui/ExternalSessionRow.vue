@@ -4,7 +4,7 @@ import { VContextMenu } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
-import { archiveExternal, externalDot, externalOrigin, externalStatusLabel, resumeCommand, type ExternalSession, StatusDot, useAction } from '../../../entities/session';
+import { archiveExternal, externalOrigin, resumeCommand, type ExternalSession, StatusDot, useAction } from '../../../entities/session';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ session: ExternalSession; active: boolean }>();
@@ -16,7 +16,7 @@ const action = useAction();
 
 const origin = computed(() => externalOrigin(props.session));
 const tooltip = computed(() =>
-  [props.session.title, `${externalStatusLabel(props.session)} · ${formatDate(props.session.updated_at)}`, props.session.branch ? `${props.session.cwd} · ${props.session.branch}` : props.session.cwd, origin.value].join('\n'),
+  [props.session.title, `${t(`agents.status.${props.session.status}`)} · ${formatDate(props.session.updated_at)}`, props.session.branch ? `${props.session.cwd} · ${props.session.branch}` : props.session.cwd, origin.value].join('\n'),
 );
 const menuItems = computed(() => [
   { key: 'open', label: t('workbench.external.open'), command: () => emit('open', false) },
@@ -39,9 +39,9 @@ const menuItems = computed(() => [
       @click="emit('open', primaryPressed($event))"
       @contextmenu.prevent="menu?.show($event)"
     >
-      <StatusDot :status="externalDot(session)" :unseen="false" />
+      <StatusDot :status="session.status" :unseen="false" />
       <span class="name">{{ session.title }}</span>
-      <span class="label">{{ session.running ? externalStatusLabel(session) : formatRelative(session.updated_at) }}</span>
+      <span class="label">{{ session.running ? t(`agents.status.${session.status}`) : formatRelative(session.updated_at) }}</span>
     </UiButton>
     <VContextMenu ref="menu" :model="menuItems">
       <template #item="{ item, props: itemProps }">

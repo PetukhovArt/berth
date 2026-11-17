@@ -84,12 +84,6 @@ export const workbench: Translation<typeof en> = {
       claude: 'Claude Code',
       codex: 'Codex',
     },
-    status: {
-      working: 'работает',
-      waiting: 'ждёт вас',
-      idle: 'простаивает',
-      closed: 'закрыта',
-    },
     startedIn: 'Запущена вне Berth ({host})',
     startedOutside: 'Запущена вне Berth',
     earlier: 'Раньше',

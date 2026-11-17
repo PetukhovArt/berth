@@ -81,12 +81,6 @@ export const workbench = {
       claude: 'Claude Code',
       codex: 'Codex',
     },
-    status: {
-      working: 'working',
-      waiting: 'waiting for you',
-      idle: 'idle',
-      closed: 'closed',
-    },
     startedIn: 'Started outside Berth ({host})',
     startedOutside: 'Started outside Berth',
     earlier: 'Earlier',
