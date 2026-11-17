@@ -133,6 +133,9 @@ const summary = computed(() => {
 }
 
 .chip :deep(.p-select-label) {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
   padding: 0 9px;
   white-space: nowrap;
 }
