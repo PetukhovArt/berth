@@ -14,7 +14,7 @@ import { deletePreset, presets, savePreset, withPromptFrame, type AgentPreset } 
 import NewSessionTarget from './NewSessionTarget.vue';
 import ContinueConversation from './ContinueConversation.vue';
 
-const props = defineProps<{ worktree: string | null }>();
+const props = defineProps<{ worktree: string | null; projectLocked: boolean }>();
 const emit = defineEmits<{ close: []; created: [session: SessionRef] }>();
 const location = useSessionTarget(props.worktree);
 const continuing = shallowRef(false);
@@ -241,7 +241,7 @@ function onVisible(visible: boolean) {
         data-testid="new-session-prompt"
         @keydown="onPromptKey"
       />
-      <NewSessionTarget :state="location">
+      <NewSessionTarget :state="location" :project-locked="projectLocked">
         <template #type>
           <VSelect
             v-if="!continuing"

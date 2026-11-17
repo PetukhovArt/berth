@@ -79,7 +79,7 @@ const rows = computed(() => {
 
 function create(projectId: string) {
   const entities = berth?.entities.value;
-  if (entities) startCreate(worktreesOfProject(entities, projectId)[0]?.id ?? null);
+  if (entities) startCreate(worktreesOfProject(entities, projectId)[0]?.id ?? null, true);
 }
 </script>
 

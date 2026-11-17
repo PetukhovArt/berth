@@ -93,7 +93,7 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
     </DockArea>
     <SessionInspector v-if="!mobile" />
     <TerminalKeys v-if="mobile && detail && activeSession && !(activeKey && viewOf(activeKey) === 'chat')" :session="activeSession.ref" />
-    <NewSessionForm v-if="creatingIn" :key="creatingIn.worktree ?? ''" :worktree="creatingIn.worktree" @close="cancelCreate" @created="onCreated" />
+    <NewSessionForm v-if="creatingIn" :key="creatingIn.worktree ?? ''" :worktree="creatingIn.worktree" :project-locked="creatingIn.projectLocked" @close="cancelCreate" @created="onCreated" />
     <BaseNotice />
   </div>
 </template>

@@ -5,7 +5,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { useBerth } from '../../../entities/session';
 import type { BranchMode, SessionTarget } from '../model/sessionTarget';
 
-const props = defineProps<{ state: SessionTarget }>();
+const props = defineProps<{ state: SessionTarget; projectLocked: boolean }>();
 const berth = useBerth();
 const { project, target, mode, existing, fresh, setup, base, baseOptions, baseChoice, branches, branchesError, loading, count, sharesBranch, projects, targets, creating, plan } = props.state;
 
@@ -46,7 +46,7 @@ const summary = computed(() => {
 <template>
   <div class="target" data-testid="new-session-target">
     <div class="chips">
-      <VSelect v-model="project" :options="projects" option-label="label" option-value="id" size="small" class="chip" :aria-label="t('agents.newSession.project')" data-testid="new-session-project" />
+      <VSelect v-if="!projectLocked" v-model="project" :options="projects" option-label="label" option-value="id" size="small" class="chip" :aria-label="t('agents.newSession.project')" data-testid="new-session-project" />
       <VSelect v-model="target" :options="targets" option-label="label" option-value="id" size="small" class="chip" :aria-label="t('agents.newSession.target')" data-testid="new-session-worktree" />
       <VSelect
         v-if="creating && baseOptions.length"

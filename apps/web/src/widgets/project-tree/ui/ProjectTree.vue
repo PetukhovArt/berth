@@ -225,7 +225,7 @@ const moreItems = computed(() => {
           <template v-if="node.kind === 'worktree' && node.data?.worktree">
             <OpenChannelAction v-if="!node.data.worktree.main" :channel-key="channelKeyOf(node.data.worktree.branch)" variant="icon" />
             <MarkdownPicker :root="node.data.worktree.path" @open="sessions.openFile($event, { worktreeId: node.data.worktree.id })" />
-            <UiButton class="icon" :title="t('agents.newSession.action')" :aria-label="t('agents.newSession.action')" data-testid="worktree-new-session" @click="startCreate(node.data.worktree.id)"><Plus :size="14" /></UiButton>
+            <UiButton class="icon" :title="t('agents.newSession.action')" :aria-label="t('agents.newSession.action')" data-testid="worktree-new-session" @click="startCreate(node.data.worktree.id, true)"><Plus :size="14" /></UiButton>
           </template>
           <WorkspaceActions v-else-if="node.kind === 'workspace' && node.data?.workspaceId" :workspace-id="node.data.workspaceId" />
           <RepoActions v-else-if="node.kind === 'repo' && node.data?.repo" :repo="node.data.repo" />
@@ -237,7 +237,7 @@ const moreItems = computed(() => {
             v-else-if="node.kind === 'project' && node.data?.projectId"
             :project-id="node.data.projectId"
             @resumed="sessions.openWhenListed({ Agent: $event })"
-            @create="startCreate($event)"
+            @create="startCreate($event, true)"
           />
         </template>
         <template #empty>
