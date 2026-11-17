@@ -559,7 +559,7 @@ impl AgentStatusMachine {
             (Running(_), E::TitleIdle { idle: true }) => Some(self.end_turn(now)),
             (_, E::TitleIdle { .. }) => None,
 
-            (Running(_) | NeedsFeedback { .. }, E::SessionEnded { exit_code }) => {
+            (Running(_) | NeedsFeedback { .. } | Disconnected, E::SessionEnded { exit_code }) => {
                 Some(if *exit_code == Some(0) {
                     Finished { finished_at: None }
                 } else {
@@ -1528,6 +1528,18 @@ mod tests {
     }
 
     #[test]
+    fn a_restored_cli_that_dies_leaves_disconnected() {
+        let now = t0();
+        let mut m = AgentStatusMachine::new(AgentStatus::Disconnected, Some("s1".into()));
+        let fx = m.handle(HookEvent::SessionEnded { exit_code: Some(1) }, None, now);
+        assert_eq!(status_of(&fx), Some(AgentStatus::Terminated));
+
+        let mut m = AgentStatusMachine::new(AgentStatus::Disconnected, Some("s1".into()));
+        let fx = m.handle(HookEvent::SessionEnded { exit_code: Some(0) }, None, now);
+        assert_eq!(status_of(&fx), Some(AgentStatus::Finished));
+    }
+
+    #[test]
     fn pty_exit_when_already_finished_keeps_finished() {
         let mut m = AgentStatusMachine::new(AgentStatus::Fresh, None);
         let now = t0();
@@ -1797,6 +1809,11 @@ mod tests {
             let mut m = AgentStatusMachine::new(status, Some("s1".into()));
             let now = t0();
             for event in ignored() {
+                if status == AgentStatus::Disconnected
+                    && matches!(event, HookEvent::SessionEnded { .. })
+                {
+                    continue;
+                }
                 let fx = m.handle(event.clone(), Some("s1"), now);
                 assert!(fx.is_empty(), "{status:?} took {event:?}: {fx:?}");
             }

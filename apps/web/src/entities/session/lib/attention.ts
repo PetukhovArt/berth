@@ -11,7 +11,6 @@ const CALM: readonly PhaseName[] = ['closed', 'disconnected', 'shell', 'fresh', 
 const RAISED_FROM: readonly PhaseName[] = ['running', 'needs_feedback'];
 
 export function attentionOf(state: Attending): AttentionKind | null {
-  if (state.phase.name === 'disconnected' && !state.alive) return 'crashed';
   return KIND[state.phase.name] ?? null;
 }
 
