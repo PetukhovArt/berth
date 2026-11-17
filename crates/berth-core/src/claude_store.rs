@@ -95,7 +95,12 @@ mod tests {
     #[test]
     fn a_synced_transcript_resolves_to_the_checkout_its_directory_names() {
         let base = tempfile::tempdir().unwrap();
-        let checkout = base.path().join("web-projects").join("web-client");
+        let long_base = fs::canonicalize(base.path()).unwrap();
+        let long_base = long_base
+            .to_str()
+            .and_then(|path| path.strip_prefix(r"\\?\"))
+            .map_or(long_base.clone(), PathBuf::from);
+        let checkout = long_base.join("web-projects").join("web-client");
         let worktree = checkout.join(".claude").join("worktrees").join("x-1");
         fs::create_dir_all(&worktree).unwrap();
 
