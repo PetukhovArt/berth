@@ -224,6 +224,8 @@ async fn handle_client(
                     if let Some(s) = daemon.session(&session) {
                         if let Err(e) = s.write_input(&data) {
                             tracing::warn!(error = %e, "pty write failed");
+                        } else if let SessionRef::Agent(agent) = &session {
+                            daemon.note_typed_into_agent(agent, &data);
                         }
                     }
                 }

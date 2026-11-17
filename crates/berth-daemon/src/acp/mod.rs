@@ -310,7 +310,11 @@ impl Daemon {
         }
         self.apply_hook_event(
             agent_id,
-            HookEvent::PermissionRequest,
+            HookEvent::PermissionRequest {
+                tool_name: None,
+                subagent_id: None,
+                detail: None,
+            },
             live.current_session_id(),
         );
         self.set_feedback_request(agent_id, permission.request);

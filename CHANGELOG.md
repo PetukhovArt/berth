@@ -52,6 +52,7 @@
 - Changed `berth attention` to list an Agent whose process died mid-run, with `attention` set to `terminated`
 - Fixed the chat bridge saying nothing when an Agent finished right after you answered its permission request or question
 - Fixed a subagent's permission prompt showing no Allow and Deny card while its session waits for you
+- Fixed a session still waiting for you, with its Allow and Deny card, after you answered its permission request, until the turn ended
 - Fixed an Allow and Deny card staying under a session after its tab was closed or its process was stopped, with nothing left to answer
 - Fixed a session restored after a daemon restart staying Disconnected until its next prompt
 - Fixed a crashed session staying Terminated after its agent was started again, until its next prompt

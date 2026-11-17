@@ -10,6 +10,9 @@ const MAX_DETAIL_CHARS: usize = 64 * 1024;
 const MAX_PREVIEW_CHARS: usize = 400;
 const CUT_NOTE: &str = "\n[cut: the text is too long to show in full]";
 pub(crate) const MAX_OPTIONS: usize = 9;
+pub(crate) const ALLOW_KEY: &[u8] = b"1";
+pub(crate) const ALWAYS_ALLOW_KEY: &[u8] = b"2";
+pub(crate) const DENY_KEY: &[u8] = b"\x1b";
 
 #[derive(Default)]
 pub struct PendingFeedback {
@@ -17,6 +20,10 @@ pub struct PendingFeedback {
 }
 
 impl PendingFeedback {
+    fn answer_typed(&self, agent: &AgentId, keys: &[u8]) -> Option<HookEvent> {
+        answer_in(self.requests.lock().unwrap().get(agent)?, keys)
+    }
+
     pub fn set(&self, agent: &AgentId, request: FeedbackRequest) {
         self.requests.lock().unwrap().insert(agent.clone(), request);
     }
@@ -57,6 +64,23 @@ impl Daemon {
         self.clear_feedback(agent);
         self.apply_hook_event(agent, HookEvent::Killed, None);
     }
+
+    pub fn note_typed_into_agent(&self, agent: &AgentId, keys: &[u8]) {
+        if let Some(answer) = self.feedback.answer_typed(agent, keys) {
+            self.apply_hook_event(agent, answer, None);
+        }
+    }
+}
+
+fn answer_in(request: &FeedbackRequest, keys: &[u8]) -> Option<HookEvent> {
+    let permission = request.kind == FeedbackKind::Permission;
+    let declined = match keys {
+        DENY_KEY => true,
+        ALLOW_KEY if permission => false,
+        ALWAYS_ALLOW_KEY if permission && request.always_allow => false,
+        _ => return None,
+    };
+    Some(HookEvent::FeedbackAnswered { declined })
 }
 
 pub fn from_hook(
@@ -211,5 +235,65 @@ mod tests {
             rx.try_recv().unwrap(),
             ServerEvent::FeedbackRequestChanged { request: None, .. }
         ));
+    }
+
+    fn answered(declined: bool) -> Option<HookEvent> {
+        Some(HookEvent::FeedbackAnswered { declined })
+    }
+
+    #[test]
+    fn the_card_keys_answer_a_permission() {
+        let mut request = from_hook("PermissionRequest", Some("Bash"), None).unwrap();
+        assert_eq!(answer_in(&request, ALLOW_KEY), answered(false));
+        assert_eq!(answer_in(&request, DENY_KEY), answered(true));
+        assert_eq!(answer_in(&request, ALWAYS_ALLOW_KEY), None);
+        request.always_allow = true;
+        assert_eq!(answer_in(&request, ALWAYS_ALLOW_KEY), answered(false));
+        for typed in [&b"\r"[..], b"3", b"\x1b[A", b"1\r", b"yes"] {
+            assert_eq!(answer_in(&request, typed), None, "{typed:?}");
+        }
+    }
+
+    #[test]
+    fn only_a_rejection_answers_a_question() {
+        let input = json!({"questions": [{"question": "Which?", "options": [
+            {"label": "A"}, {"label": "B"}]}]});
+        let request = from_hook("PreToolUse", Some("AskUserQuestion"), Some(&input)).unwrap();
+        assert_eq!(answer_in(&request, DENY_KEY), answered(true));
+        assert_eq!(answer_in(&request, b"1"), None);
+        assert_eq!(answer_in(&request, b"2"), None);
+    }
+
+    #[test]
+    fn an_allow_typed_into_a_waiting_agent_ends_the_wait_and_takes_the_card() {
+        use crate::registry::tests::{seed_agent, seed_projects, seed_worktree, test_daemon};
+        use berth_core::AgentStatus;
+        let daemon = test_daemon();
+        seed_projects(&daemon, &["p"]);
+        seed_worktree(&daemon, "p", "w", "/tmp/p", true);
+        seed_agent(&daemon, "a", "w", Some("s1"));
+        let agent = AgentId("a".into());
+        let input = json!({"command": "cargo test"});
+        let asked = HookEvent::PermissionRequest {
+            tool_name: Some("Bash".into()),
+            subagent_id: None,
+            detail: detail(&input),
+        };
+        daemon.apply_hook_event(&agent, asked, Some("s1".into()));
+        let request = from_hook("PermissionRequest", Some("Bash"), Some(&input)).unwrap();
+        daemon.set_feedback_request(&agent, request);
+        let status = || daemon.store.get_agent(&agent).unwrap().unwrap().status;
+        assert_eq!(status(), AgentStatus::NeedsFeedback);
+
+        daemon.note_typed_into_agent(&agent, b"\x1b[B");
+        assert_eq!(
+            status(),
+            AgentStatus::NeedsFeedback,
+            "an arrow key is no answer"
+        );
+
+        daemon.note_typed_into_agent(&agent, ALLOW_KEY);
+        assert_eq!(status(), AgentStatus::Running);
+        assert!(daemon.feedback.all().is_empty(), "the card is answered");
     }
 }

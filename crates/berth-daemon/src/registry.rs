@@ -2619,7 +2619,7 @@ pub(crate) mod tests {
         assert!(daemon.store.get_agent(&id).unwrap().is_none());
     }
 
-    fn seed_projects(daemon: &Daemon, names: &[&str]) {
+    pub(crate) fn seed_projects(daemon: &Daemon, names: &[&str]) {
         for (i, name) in names.iter().enumerate() {
             daemon
                 .store
@@ -2635,7 +2635,13 @@ pub(crate) mod tests {
         }
     }
 
-    fn seed_worktree(daemon: &Daemon, project: &str, id: &str, path: &str, is_main: bool) {
+    pub(crate) fn seed_worktree(
+        daemon: &Daemon,
+        project: &str,
+        id: &str,
+        path: &str,
+        is_main: bool,
+    ) {
         daemon
             .store
             .insert_worktree(&Worktree {
@@ -2649,7 +2655,7 @@ pub(crate) mod tests {
             .unwrap();
     }
 
-    fn seed_agent(daemon: &Daemon, id: &str, worktree: &str, session_id: Option<&str>) {
+    pub(crate) fn seed_agent(daemon: &Daemon, id: &str, worktree: &str, session_id: Option<&str>) {
         daemon
             .store
             .insert_agent(&Agent {
@@ -2781,6 +2787,7 @@ pub(crate) mod tests {
             &HookEvent::PostToolUse {
                 tool_name: Some("Bash".into()),
                 subagent_id: None,
+                detail: None,
             },
         );
         assert!(

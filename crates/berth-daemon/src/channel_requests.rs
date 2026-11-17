@@ -299,13 +299,15 @@ impl Daemon {
             return self.answer_feedback(agent, i).await;
         }
         let keys = match answer {
-            Answer::Allow => b"1".to_vec(),
-            Answer::Deny => b"\x1b".to_vec(),
+            Answer::Allow => crate::feedback::ALLOW_KEY.to_vec(),
+            Answer::Deny => crate::feedback::DENY_KEY.to_vec(),
             Answer::Option(_) => answer.token().into_bytes(),
         };
         self.session(&SessionRef::Agent(agent.clone()))
             .context("the Agent's terminal is not running")?
-            .write_input(&keys)
+            .write_input(&keys)?;
+        self.note_typed_into_agent(agent, &keys);
+        Ok(())
     }
 
     async fn settle_answered_locally(

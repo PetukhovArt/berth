@@ -59,7 +59,11 @@ pub enum HookEvent {
     SessionStart {
         source: Option<String>,
     },
-    PermissionRequest,
+    PermissionRequest {
+        tool_name: Option<String>,
+        subagent_id: Option<String>,
+        detail: Option<String>,
+    },
     Notification {
         notification_type: Option<String>,
     },
@@ -73,6 +77,7 @@ pub enum HookEvent {
     PostToolUse {
         tool_name: Option<String>,
         subagent_id: Option<String>,
+        detail: Option<String>,
     },
     SubagentStart {
         subagent_id: Option<String>,
@@ -97,6 +102,9 @@ pub enum HookEvent {
     },
     Tick {
         progress_busy: Option<bool>,
+    },
+    FeedbackAnswered {
+        declined: bool,
     },
     Killed,
     DaemonBooted,
@@ -191,11 +199,46 @@ impl StopGate {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+struct AskedToolCall {
+    tool_name: String,
+    subagent_id: Option<String>,
+    detail: Option<String>,
+}
+
+impl AskedToolCall {
+    fn of(
+        tool_name: &Option<String>,
+        subagent_id: &Option<String>,
+        detail: &Option<String>,
+    ) -> Option<Self> {
+        Some(AskedToolCall {
+            tool_name: tool_name.clone()?,
+            subagent_id: subagent_id.clone(),
+            detail: detail.clone(),
+        })
+    }
+
+    fn ran_as(
+        &self,
+        tool_name: &Option<String>,
+        subagent_id: &Option<String>,
+        detail: &Option<String>,
+    ) -> bool {
+        Some(self) == Self::of(tool_name, subagent_id, detail).as_ref()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 enum State {
     Fresh,
     Running(StopGate),
-    NeedsFeedback { gate: StopGate },
-    Finished { finished_at: Option<Instant> },
+    NeedsFeedback {
+        gate: StopGate,
+        asked: Option<AskedToolCall>,
+    },
+    Finished {
+        finished_at: Option<Instant>,
+    },
     Terminated,
     Disconnected,
 }
@@ -207,6 +250,7 @@ impl State {
             AgentStatus::Running => State::Running(StopGate::Open),
             AgentStatus::NeedsFeedback => State::NeedsFeedback {
                 gate: StopGate::Open,
+                asked: None,
             },
             AgentStatus::Finished => State::Finished { finished_at: None },
             AgentStatus::Terminated => State::Terminated,
@@ -227,8 +271,15 @@ impl State {
 
     fn gate(&self) -> StopGate {
         match self {
-            State::Running(gate) | State::NeedsFeedback { gate } => *gate,
+            State::Running(gate) | State::NeedsFeedback { gate, .. } => *gate,
             _ => StopGate::Open,
+        }
+    }
+
+    fn asked(&self) -> Option<AskedToolCall> {
+        match self {
+            State::NeedsFeedback { asked, .. } => asked.clone(),
+            _ => None,
         }
     }
 
@@ -367,6 +418,7 @@ impl AgentStatusMachine {
         use State::*;
         let state = self.state.clone();
         let kept_gate = state.gate();
+        let kept_ask = state.asked();
         let adopted = delivery == Delivery::AdoptedSession;
         match (&state, event) {
             (_, E::UserPromptSubmit) => Some(self.start_turn()),
@@ -382,9 +434,12 @@ impl AgentStatusMachine {
             (Running(gate), E::SessionStart { .. }) if adopted && gate.is_held() => {
                 Some(Running(StopGate::Open))
             }
-            (NeedsFeedback { gate }, E::SessionStart { .. }) if adopted && gate.is_held() => {
+            (NeedsFeedback { gate, asked }, E::SessionStart { .. })
+                if adopted && gate.is_held() =>
+            {
                 Some(NeedsFeedback {
                     gate: StopGate::Open,
+                    asked: asked.clone(),
                 })
             }
             (Finished { .. }, E::SessionStart { source }) if is_clear(source) => {
@@ -399,12 +454,25 @@ impl AgentStatusMachine {
             }
             (_, E::SessionStart { .. }) => None,
 
-            (_, E::PermissionRequest) => Some(NeedsFeedback { gate: kept_gate }),
+            (
+                _,
+                E::PermissionRequest {
+                    tool_name,
+                    subagent_id,
+                    detail,
+                },
+            ) => Some(NeedsFeedback {
+                gate: kept_gate,
+                asked: AskedToolCall::of(tool_name, subagent_id, detail),
+            }),
 
             (_, E::Notification { notification_type })
                 if notified(notification_type, "permission_prompt") =>
             {
-                Some(NeedsFeedback { gate: kept_gate })
+                Some(NeedsFeedback {
+                    gate: kept_gate,
+                    asked: kept_ask,
+                })
             }
             // "Claude is waiting for your input". Claude fires this
             // only with nothing in flight and no dialog open, so it
@@ -419,13 +487,35 @@ impl AgentStatusMachine {
             (_, E::Notification { .. }) => None,
 
             (_, E::PreToolUse { tool_name, .. }) if asks_the_user(tool_name) => {
-                Some(NeedsFeedback { gate: kept_gate })
+                Some(NeedsFeedback {
+                    gate: kept_gate,
+                    asked: None,
+                })
             }
             (_, E::PreToolUse { .. }) => None,
             (_, E::PostToolUse { tool_name, .. }) if asks_the_user(tool_name) => {
                 Some(Running(kept_gate))
             }
+            (
+                NeedsFeedback {
+                    gate,
+                    asked: Some(asked),
+                },
+                E::PostToolUse {
+                    tool_name,
+                    subagent_id,
+                    detail,
+                },
+            ) if asked.ran_as(tool_name, subagent_id, detail) => Some(Running(*gate)),
             (_, E::PostToolUse { .. }) => None,
+
+            (NeedsFeedback { gate, .. }, E::FeedbackAnswered { declined: false }) => {
+                Some(Running(*gate))
+            }
+            (NeedsFeedback { .. }, E::FeedbackAnswered { declined: true }) => {
+                Some(self.end_turn(now))
+            }
+            (_, E::FeedbackAnswered { .. }) => None,
 
             // The Stop raced this subagent's own POST — heal.
             (
@@ -483,6 +573,7 @@ impl AgentStatusMachine {
                 Running(StopGate::Open)
                 | NeedsFeedback {
                     gate: StopGate::Open,
+                    ..
                 },
                 E::Tick {
                     progress_busy: Some(false),
@@ -497,6 +588,10 @@ impl AgentStatusMachine {
                 None
             }
 
+            (NeedsFeedback { gate, .. }, E::Killed) => Some(NeedsFeedback {
+                gate: *gate,
+                asked: None,
+            }),
             (_, E::Killed) => None,
 
             (Running(_) | NeedsFeedback { .. }, E::DaemonBooted) => Some(Disconnected),
@@ -728,7 +823,15 @@ mod tests {
         let mut m = AgentStatusMachine::new(AgentStatus::Fresh, None);
         let now = t0();
         m.handle(HookEvent::UserPromptSubmit, Some("s1"), now);
-        m.handle(HookEvent::PermissionRequest, Some("s1"), now);
+        m.handle(
+            HookEvent::PermissionRequest {
+                tool_name: None,
+                subagent_id: None,
+                detail: None,
+            },
+            Some("s1"),
+            now,
+        );
         assert_eq!(m.status(), AgentStatus::NeedsFeedback);
         let fx = m.handle(
             HookEvent::TitleIdle { idle: true },
@@ -755,7 +858,15 @@ mod tests {
         let mut m = AgentStatusMachine::new(AgentStatus::Fresh, None);
         let now = t0();
         m.handle(HookEvent::UserPromptSubmit, Some("s1"), now);
-        let fx = m.handle(HookEvent::PermissionRequest, Some("s1"), now);
+        let fx = m.handle(
+            HookEvent::PermissionRequest {
+                tool_name: None,
+                subagent_id: None,
+                detail: None,
+            },
+            Some("s1"),
+            now,
+        );
         assert_eq!(status_of(&fx), Some(AgentStatus::NeedsFeedback));
         // Answering the prompt resumes the turn (next event is tool traffic /
         // eventually Stop; a PostToolUse AskUserQuestion also flips back).
@@ -763,6 +874,7 @@ mod tests {
             HookEvent::PostToolUse {
                 tool_name: Some("AskUserQuestion".into()),
                 subagent_id: None,
+                detail: None,
             },
             Some("s1"),
             now,
@@ -890,7 +1002,15 @@ mod tests {
         let now = t0();
         m.handle(HookEvent::UserPromptSubmit, Some("s1"), now);
         subagent(&mut m, true, "sub1", now);
-        m.handle(HookEvent::PermissionRequest, Some("s1"), now);
+        m.handle(
+            HookEvent::PermissionRequest {
+                tool_name: None,
+                subagent_id: None,
+                detail: None,
+            },
+            Some("s1"),
+            now,
+        );
         assert_eq!(m.status(), AgentStatus::NeedsFeedback);
         let fx = idle(&mut m, now + Duration::from_secs(60));
         assert_eq!(status_of(&fx), Some(AgentStatus::Running));
@@ -940,6 +1060,7 @@ mod tests {
             HookEvent::PostToolUse {
                 tool_name: Some("Bash".into()),
                 subagent_id: Some("sub1".into()),
+                detail: None,
             },
             Some("s1"),
             t1,
@@ -955,6 +1076,7 @@ mod tests {
             HookEvent::PostToolUse {
                 tool_name: Some("Bash".into()),
                 subagent_id: None,
+                detail: None,
             },
             Some("s1"),
             t2 + Duration::from_secs(25 * 60),
@@ -985,7 +1107,15 @@ mod tests {
         let mut m = AgentStatusMachine::new(AgentStatus::Fresh, None);
         let now = t0();
         m.handle(HookEvent::UserPromptSubmit, Some("s1"), now);
-        m.handle(HookEvent::PermissionRequest, Some("s1"), now);
+        m.handle(
+            HookEvent::PermissionRequest {
+                tool_name: None,
+                subagent_id: None,
+                detail: None,
+            },
+            Some("s1"),
+            now,
+        );
         let fx = m.handle(
             HookEvent::Notification {
                 notification_type: Some("idle_prompt".into()),
@@ -1110,7 +1240,15 @@ mod tests {
         let mut m = AgentStatusMachine::new(AgentStatus::Fresh, None);
         let now = t0();
         m.handle(HookEvent::UserPromptSubmit, Some("s1"), now);
-        m.handle(HookEvent::PermissionRequest, Some("s1"), now);
+        m.handle(
+            HookEvent::PermissionRequest {
+                tool_name: None,
+                subagent_id: None,
+                detail: None,
+            },
+            Some("s1"),
+            now,
+        );
         assert_eq!(m.status(), AgentStatus::NeedsFeedback);
         let fx = progress(&mut m, false, now + Duration::from_secs(5));
         assert_eq!(status_of(&fx), Some(AgentStatus::Finished));
@@ -1129,7 +1267,15 @@ mod tests {
         // The CLI parks, then the permission prompt's hook lands: the edge is
         // spent and the status ends up red with nothing left to move it.
         progress(&mut m, false, now);
-        m.handle(HookEvent::PermissionRequest, Some("s1"), now);
+        m.handle(
+            HookEvent::PermissionRequest {
+                tool_name: None,
+                subagent_id: None,
+                detail: None,
+            },
+            Some("s1"),
+            now,
+        );
         assert_eq!(m.status(), AgentStatus::NeedsFeedback);
 
         let t = now + Duration::from_secs(30);
@@ -1289,7 +1435,11 @@ mod tests {
         m.handle(HookEvent::UserPromptSubmit, Some("s1"), now);
         progress(&mut m, true, now);
         m.handle(
-            HookEvent::PermissionRequest,
+            HookEvent::PermissionRequest {
+                tool_name: None,
+                subagent_id: None,
+                detail: None,
+            },
             Some("s1"),
             now + Duration::from_secs(3),
         );
@@ -1299,6 +1449,7 @@ mod tests {
             HookEvent::PostToolUse {
                 tool_name: Some("Bash".into()),
                 subagent_id: None,
+                detail: None,
             },
             Some("s1"),
             now + Duration::from_secs(19),
@@ -1472,6 +1623,127 @@ mod tests {
         assert_eq!(start("clear"), Some(AgentStatus::Fresh));
     }
 
+    #[test]
+    fn the_allowed_tool_finishing_ends_the_wait() {
+        let mut m = waiting_on_bash(None, "cargo test");
+        let ran = bash_ran(None, "cargo test");
+        let fx = m.handle(ran, Some("s1"), t0());
+        assert_eq!(status_of(&fx), Some(AgentStatus::Running));
+    }
+
+    fn waiting_on_bash(subagent: Option<&str>, command: &str) -> AgentStatusMachine {
+        let mut m = AgentStatusMachine::new(AgentStatus::Fresh, None);
+        let now = t0();
+        m.handle(HookEvent::UserPromptSubmit, Some("s1"), now);
+        let asked = HookEvent::PermissionRequest {
+            tool_name: Some("Bash".into()),
+            subagent_id: subagent.map(str::to_string),
+            detail: Some(command.into()),
+        };
+        m.handle(asked, Some("s1"), now);
+        assert_eq!(m.status(), AgentStatus::NeedsFeedback);
+        m
+    }
+
+    fn bash_ran(subagent: Option<&str>, command: &str) -> HookEvent {
+        HookEvent::PostToolUse {
+            tool_name: Some("Bash".into()),
+            subagent_id: subagent.map(str::to_string),
+            detail: Some(command.into()),
+        }
+    }
+
+    #[test]
+    fn another_call_of_the_same_tool_does_not_end_the_wait() {
+        let mut m = waiting_on_bash(Some("sub1"), "cargo test");
+        for other in [
+            bash_ran(Some("sub1"), "git status"),
+            bash_ran(None, "cargo test"),
+            bash_ran(Some("sub2"), "cargo test"),
+        ] {
+            let fx = m.handle(other.clone(), Some("s1"), t0());
+            assert!(status_of(&fx).is_none(), "{other:?}: {fx:?}");
+        }
+        assert_eq!(m.status(), AgentStatus::NeedsFeedback);
+        let fx = m.handle(bash_ran(Some("sub1"), "cargo test"), Some("s1"), t0());
+        assert_eq!(status_of(&fx), Some(AgentStatus::Running));
+    }
+
+    #[test]
+    fn a_request_with_no_tool_ends_only_on_its_answer() {
+        let mut m = AgentStatusMachine::new(AgentStatus::Running, Some("s1".into()));
+        let anonymous = HookEvent::PermissionRequest {
+            tool_name: None,
+            subagent_id: None,
+            detail: None,
+        };
+        m.handle(anonymous, Some("s1"), t0());
+        let ran = HookEvent::PostToolUse {
+            tool_name: None,
+            subagent_id: None,
+            detail: None,
+        };
+        assert!(m.handle(ran, Some("s1"), t0()).is_empty());
+        let allowed = HookEvent::FeedbackAnswered { declined: false };
+        let fx = m.handle(allowed, None, t0());
+        assert_eq!(status_of(&fx), Some(AgentStatus::Running));
+    }
+
+    #[test]
+    fn an_allow_sent_from_berth_resumes_the_turn() {
+        let mut m = waiting_on_bash(None, "cargo test");
+        let allowed = HookEvent::FeedbackAnswered { declined: false };
+        let fx = m.handle(allowed, None, t0());
+        assert_eq!(status_of(&fx), Some(AgentStatus::Running));
+        let fx = m.handle(bash_ran(None, "cargo test"), Some("s1"), t0());
+        assert!(fx.is_empty(), "already running: {fx:?}");
+    }
+
+    #[test]
+    fn a_deny_sent_from_berth_ends_the_turn_or_holds_it_for_subagents() {
+        let mut m = waiting_on_bash(None, "rm -rf dist");
+        let denied = HookEvent::FeedbackAnswered { declined: true };
+        let fx = m.handle(denied.clone(), None, t0());
+        assert_eq!(status_of(&fx), Some(AgentStatus::Finished));
+
+        let mut m = AgentStatusMachine::new(AgentStatus::Fresh, None);
+        let now = t0();
+        m.handle(HookEvent::UserPromptSubmit, Some("s1"), now);
+        subagent(&mut m, true, "sub1", now);
+        let asked = HookEvent::PermissionRequest {
+            tool_name: Some("Bash".into()),
+            subagent_id: Some("sub1".into()),
+            detail: Some("rm -rf dist".into()),
+        };
+        m.handle(asked, Some("s1"), now);
+        let fx = m.handle(denied, None, now);
+        assert_eq!(status_of(&fx), Some(AgentStatus::Running));
+        assert_eq!(m.held_subagents(), Some(vec!["sub1".to_string()]));
+    }
+
+    #[test]
+    fn an_answer_reaches_only_an_agent_that_waits() {
+        for status in EVERY_STATUS {
+            if status == AgentStatus::NeedsFeedback {
+                continue;
+            }
+            for declined in [false, true] {
+                let mut m = AgentStatusMachine::new(status, Some("s1".into()));
+                let fx = m.handle(HookEvent::FeedbackAnswered { declined }, None, t0());
+                assert!(fx.is_empty(), "{status:?} declined={declined}: {fx:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_kill_forgets_the_call_the_agent_waited_on() {
+        let mut m = waiting_on_bash(None, "cargo test");
+        assert!(m.handle(HookEvent::Killed, None, t0()).is_empty());
+        let fx = m.handle(bash_ran(None, "cargo test"), Some("s1"), t0());
+        assert!(fx.is_empty(), "{fx:?}");
+        assert_eq!(m.status(), AgentStatus::NeedsFeedback);
+    }
+
     const EVERY_STATUS: [AgentStatus; 6] = [
         AgentStatus::Fresh,
         AgentStatus::Running,
@@ -1560,6 +1832,7 @@ mod tests {
         let answered = HookEvent::PostToolUse {
             tool_name: Some("AskUserQuestion".into()),
             subagent_id: None,
+            detail: None,
         };
         let fx = m.handle(answered, Some("s1"), now + 4 * DRAIN_GRACE);
         assert_eq!(status_of(&fx), Some(AgentStatus::Running));

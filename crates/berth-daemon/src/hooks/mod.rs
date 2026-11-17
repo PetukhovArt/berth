@@ -160,7 +160,14 @@ pub fn parse_event(hook_event: &str, payload: &HookPayload) -> Option<HookEvent>
         "SessionStart" => HookEvent::SessionStart {
             source: payload.source.clone(),
         },
-        "PermissionRequest" => HookEvent::PermissionRequest,
+        "PermissionRequest" => HookEvent::PermissionRequest {
+            tool_name: payload.tool_name.clone(),
+            subagent_id: payload.subagent_id(),
+            detail: payload
+                .tool_input
+                .as_ref()
+                .and_then(crate::feedback::detail),
+        },
         "Notification" => HookEvent::Notification {
             notification_type: payload.notification_type.clone(),
         },
@@ -171,6 +178,10 @@ pub fn parse_event(hook_event: &str, payload: &HookPayload) -> Option<HookEvent>
         "PostToolUse" => HookEvent::PostToolUse {
             tool_name: payload.tool_name.clone(),
             subagent_id: payload.subagent_id(),
+            detail: payload
+                .tool_input
+                .as_ref()
+                .and_then(crate::feedback::detail),
         },
         "SubagentStart" => HookEvent::SubagentStart {
             subagent_id: payload.subagent_id(),
@@ -591,6 +602,7 @@ mod tests {
             HookEvent::PostToolUse {
                 tool_name: Some("Bash".into()),
                 subagent_id: None,
+                detail: None,
             }
         );
 

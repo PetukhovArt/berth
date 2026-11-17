@@ -282,7 +282,10 @@ impl Daemon {
         let session = self
             .session(&SessionRef::Agent(agent.clone()))
             .context("the session is not running")?;
-        session.write_input((u16::from(option) + 1).to_string().as_bytes())
+        let keys = (u16::from(option) + 1).to_string();
+        session.write_input(keys.as_bytes())?;
+        self.note_typed_into_agent(agent, keys.as_bytes());
+        Ok(())
     }
 
     async fn route_prompt(

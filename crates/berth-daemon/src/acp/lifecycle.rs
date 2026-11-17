@@ -235,7 +235,15 @@ impl Daemon {
                 text: message.clone(),
             },
         );
-        self.apply_hook_event(agent_id, HookEvent::PermissionRequest, None);
+        self.apply_hook_event(
+            agent_id,
+            HookEvent::PermissionRequest {
+                tool_name: None,
+                subagent_id: None,
+                detail: None,
+            },
+            None,
+        );
         self.set_feedback_request(
             agent_id,
             FeedbackRequest {
