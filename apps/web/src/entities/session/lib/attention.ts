@@ -1,29 +1,28 @@
-import type { SessionStatus } from '../model/berth';
 import type { SessionState } from '../model/sessionState';
 
 export type AttentionKind = 'needs_feedback' | 'crashed' | 'limit' | 'unseen';
 
-type Attending = Pick<SessionState, 'status' | 'unseen' | 'alive'>;
+type PhaseName = SessionState['phase']['name'];
+type Attending = Pick<SessionState, 'phase' | 'alive'>;
 
+const KIND: Readonly<Partial<Record<PhaseName, AttentionKind>>> = { needs_feedback: 'needs_feedback', crashed: 'crashed', limit: 'limit', finished_unseen: 'unseen' };
 const ATTENTION: readonly AttentionKind[] = ['unseen', 'limit', 'crashed', 'needs_feedback'];
-const CALM: readonly SessionStatus[] = ['closed', 'disconnected', 'shell', 'fresh', 'finished', 'running'];
+const CALM: readonly PhaseName[] = ['closed', 'disconnected', 'shell', 'fresh', 'finished', 'running'];
+const RAISED_FROM: readonly PhaseName[] = ['running', 'needs_feedback'];
 
 export function attentionOf(state: Attending): AttentionKind | null {
-  if (state.status === 'needs_feedback') return 'needs_feedback';
-  if (state.status === 'terminated' || (state.status === 'disconnected' && !state.alive)) return 'crashed';
-  if (state.status === 'limit') return 'limit';
-  if (state.status === 'finished' && state.unseen) return 'unseen';
-  return null;
+  if (state.phase.name === 'disconnected' && !state.alive) return 'crashed';
+  return KIND[state.phase.name] ?? null;
 }
 
 export function urgencyOf(state: Attending): number {
   const kind = attentionOf(state);
-  return kind ? CALM.length + ATTENTION.indexOf(kind) : CALM.indexOf(state.status);
+  return kind ? CALM.length + ATTENTION.indexOf(kind) : CALM.indexOf(state.phase.name);
 }
 
-export function attentionEdge(previous: SessionStatus, state: Attending): AttentionKind | null {
-  if (previous === state.status) return null;
+export function attentionEdge(previous: PhaseName, state: Attending): AttentionKind | null {
+  if (previous === state.phase.name) return null;
   const kind = attentionOf(state);
-  if (kind === 'unseen' && previous !== 'running' && previous !== 'needs_feedback') return null;
+  if (kind === 'unseen' && !RAISED_FROM.includes(previous)) return null;
   return kind;
 }

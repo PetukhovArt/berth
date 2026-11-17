@@ -1,5 +1,5 @@
 import { shallowRef, watch } from 'vue';
-import { attentionEdge, useBerth, useSessionDock, useSessionStates, type AttentionKind, type SessionStatus } from '../../../entities/session';
+import { attentionEdge, useBerth, useSessionDock, useSessionStates, type AttentionKind, type SessionState } from '../../../entities/session';
 import { hostWindow, isDesktop } from '../../../bridge';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
@@ -46,13 +46,13 @@ export function initAttention(): () => void {
   if (!berth || !isDesktop) return () => undefined;
   const dock = useDock();
   const states = useSessionStates();
-  const seen = new Map<string, SessionStatus>();
+  const seen = new Map<string, SessionState['phase']['name']>();
   const stop = watch(
     () => states.value,
     (current) => {
       for (const state of current.values()) {
         const previous = seen.get(state.key);
-        seen.set(state.key, state.status);
+        seen.set(state.key, state.phase.name);
         if (previous === undefined) continue;
         const kind = attentionEdge(previous, state);
         if (!kind) continue;

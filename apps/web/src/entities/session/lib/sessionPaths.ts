@@ -29,7 +29,7 @@ export function sessionPaths(tree: readonly WorkspaceNode[]): Map<string, Sessio
 
 export type Rollup = { status: SessionStatus | undefined; unseen: boolean; running: number; feedback: number; total: number };
 
-export function rollupOf(sessions: readonly Pick<SessionState, 'status' | 'unseen' | 'alive'>[]): Rollup {
+export function rollupOf(sessions: readonly Pick<SessionState, 'phase' | 'status' | 'unseen' | 'alive'>[]): Rollup {
   let status: SessionStatus | undefined;
   let top = -Infinity;
   let unseen = false;
