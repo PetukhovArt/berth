@@ -19,6 +19,7 @@ export const attention = {
     unseen: 'finished, not seen yet',
     crashed: 'crashed',
     limit: 'limit · resets at {time}',
+    limitNoReset: 'limit',
     actions: 'Inbox actions',
     next: 'Next that needs you',
     snoozeHour: 'Snooze for 1 hour',

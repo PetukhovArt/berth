@@ -19,6 +19,7 @@ export const attention = {
     unseen: 'закончила, не просмотрено',
     crashed: 'упала',
     limit: 'лимит · сброс в {time}',
+    limitNoReset: 'лимит',
     next: 'Следующая, где нужны вы',
     actions:'Действия с входящим',
     snoozeHour: 'Отложить на час',

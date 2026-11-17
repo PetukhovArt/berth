@@ -60,6 +60,9 @@
 - Fixed an Allow and Deny card staying under a session after its tab was closed or its process was stopped, with nothing left to answer
 - Fixed a session restored after a daemon restart staying Disconnected until its next prompt
 - Fixed a crashed session staying Terminated after its agent was started again, until its next prompt
+- Fixed a session whose agent could not start again after a daemon restart showing as disconnected in the tree and crashed in the Inbox; it now shows as crashed everywhere
+- Fixed the Inbox listing sessions newest first instead of waiting for you first, then crashed, then at its limit, then finished and not seen
+- Fixed an Inbox limit entry reading "resets at" with no time after it
 - Fixed New Session opened from a project's `+` asking for the project again
 - Fixed the Inbox showing minutes for a status that changed seconds ago, and sorting by the old time
 - Fixed `claude --resume` in a berth terminal briefly showing as a second row in the session tree

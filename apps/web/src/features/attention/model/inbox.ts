@@ -65,7 +65,7 @@ function createInbox() {
       const place = path ? [path.project.name, path.worktree.branch] : [target?.projectName, target?.branch];
       list.push({ key: state.key, state, kind, since: state.since, place: place.filter(Boolean).join(' › '), node });
     }
-    return list.sort((a, b) => (b.since ?? 0) - (a.since ?? 0));
+    return list.sort((a, b) => urgencyOf(b.state) - urgencyOf(a.state) || (b.since ?? 0) - (a.since ?? 0));
   });
   const items = computed(() => entries.value.filter((entry) => !hidden(entry, now.value)));
   return { items, now };

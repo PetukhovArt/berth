@@ -92,7 +92,7 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
             <span class="name">{{ entry.state.name }}</span>
             <span class="age">{{ age(entry.since) }}</span>
           </span>
-          <span class="reason"><span class="kind">{{ t(`attention.inbox.${entry.kind}`, { time: resetTime(entry.state.limitUntil) }) }}</span><template v-if="entry.place"> · {{ entry.place }}</template></span>
+          <span class="reason"><span class="kind">{{ entry.kind === 'limit' && !resetTime(entry.state.limitUntil) ? t('attention.inbox.limitNoReset') : t(`attention.inbox.${entry.kind}`, { time: resetTime(entry.state.limitUntil) }) }}</span><template v-if="entry.place"> · {{ entry.place }}</template></span>
         </span>
       </UiButton>
       <div v-if="requestOf(entry)" class="card vr-phone-only" data-testid="inbox-request">
