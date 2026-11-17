@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
-import BackBar from '../../../shared/ui/BackBar.vue';
+import { PhoneInbox } from '../../../features/attention';
+import { phoneSection } from '../../../widgets/mobile-nav';
 import { TerminalKeys, SessionPanel } from '../../../widgets/terminal';
 import { useIsPhone } from '../../../shared/ui/kit';
 import { useDock } from '../../../shared/model/dock';
 import { useSessionDock, isSessionRef, useBerth, type Harness } from '../../../entities/session';
 import { openIssue } from '../../../entities/jira-issue';
 import { ProjectTree } from '../../../widgets/project-tree';
-import { NewSessionForm, cancelCreate, creatingIn, onCreated } from '../../../features/new-session';
+import { BaseNotice, NewSessionForm, cancelCreate, creatingIn, onCreated } from '../../../features/new-session';
 import { ArchitectureView } from '../../../features/architecture';
-import { SessionViews } from '../../../features/session-view-switch';
+import { SessionViews, viewOf } from '../../../features/session-view-switch';
 import { DockArea } from '../../../widgets/dock';
 import { SessionHeader } from '../../../widgets/session-header';
+import { SessionInspector } from '../../../widgets/session-inspector';
 import { FirstRun, isFirstRun } from '../../../widgets/first-run';
 
 const ChangeRequestView = defineAsyncComponent(() => import('../../../widgets/change-request').then((m) => m.ChangeRequestView));
@@ -31,7 +33,7 @@ const dock = useDock();
 const sessions = useSessionDock();
 const { onReady } = dock.useHost();
 const mobile = useIsPhone();
-const { activeKey, activeTitle, detail } = dock;
+const { activeKey, detail } = dock;
 const { activeSession } = sessions;
 const isHarness = (value: unknown): value is Harness => value === 'claude' || value === 'codex';
 const str = (value: unknown) => (typeof value === 'string' ? value : '');
@@ -41,15 +43,15 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
   <div v-if="!berth" class="unavailable" data-testid="berth-banner" data-state="unavailable">{{ t('agents.unavailable') }}</div>
   <FirstRun v-else-if="isFirstRun(berth.entities.value)" />
   <div v-else class="workbench vr-master-detail" data-testid="workbench" :data-detail="detail">
-    <ProjectTree v-if="mobile" class="vr-master" with-filter />
-    <BackBar v-if="mobile && detail" :title="activeSession?.name ?? activeTitle" @back="detail = false" />
+    <PhoneInbox v-if="mobile && phoneSection === 'inbox'" class="vr-master" />
+    <ProjectTree v-else-if="mobile" class="vr-master" with-filter :tabs-shown="phoneSection === 'reviews' ? ['reviews'] : ['sessions', 'mrs', 'tasks']" :with-inbox="false" />
     <DockArea class="vr-detail" :active-key="activeKey" @ready="onReady">
       <template #panel-session="{ params, api }">
         <div class="session">
           <SessionHeader :panel="api" :active="activeKey === api.id" />
           <SessionViews class="body" :panel-id="api.id">
             <template #terminal><SessionPanel v-if="isSessionRef(params.session)" class="vr-fade-in" :session="params.session" :panel="api" /></template>
-            <template #chat="{ harness, sessionId, terminal }"><ConversationView class="pane" :harness="harness" :session-id="sessionId" :terminal="terminal" data-testid="session-chat-view" /></template>
+            <template #chat="{ harness, sessionId, terminal }"><ConversationView class="pane" :harness="harness" :session-id="sessionId" :terminal="terminal" :panel-id="api.id" data-testid="session-chat-view" /></template>
             <template #mr="{ mr }"><ChangeRequestView class="pane vr-fade-in" :connector="mr.connector" :project="mr.project" :number="mr.number" :panel="api" data-testid="session-mr-view" /></template>
             <template #diff="{ path, status, session }"><WorktreeChanges class="pane" :path="path" :status="status" :session="session" data-testid="session-diff-view" /></template>
           </SessionViews>
@@ -74,7 +76,7 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
       </template>
       <template #panel-conversation="{ params, api }">
         <SessionViews :panel-id="api.id">
-          <template #terminal><ConversationView v-if="isHarness(params.harness) && typeof params.id === 'string'" class="vr-fade-in" :harness="params.harness" :session-id="params.id" /></template>
+          <template #terminal><ConversationView v-if="isHarness(params.harness) && typeof params.id === 'string'" class="vr-fade-in" :harness="params.harness" :session-id="params.id" :panel-id="api.id" /></template>
           <template #mr="{ mr }"><ChangeRequestView class="pane vr-fade-in" :connector="mr.connector" :project="mr.project" :number="mr.number" :panel="api" data-testid="session-mr-view" /></template>
           <template #diff="{ path, status, session }"><WorktreeChanges class="pane" :path="path" :status="status" :session="session" data-testid="session-diff-view" /></template>
         </SessionViews>
@@ -89,8 +91,10 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
         <MarkdownFile v-if="typeof params.path === 'string'" class="vr-fade-in" :path="params.path" :hash="typeof params.hash === 'string' ? params.hash : ''" @open-file="(path, hash) => sessions.openFile(path, { hash, from: api.id })" />
       </template>
     </DockArea>
-    <TerminalKeys v-if="mobile && detail && activeSession" :session="activeSession.ref" />
-    <NewSessionForm v-if="creatingIn" :key="creatingIn.worktree ?? ''" :worktree="creatingIn.worktree" @close="cancelCreate" @created="onCreated" />
+    <SessionInspector v-if="!mobile" />
+    <TerminalKeys v-if="mobile && detail && activeSession && !(activeKey && viewOf(activeKey) === 'chat')" :session="activeSession.ref" />
+    <NewSessionForm v-if="creatingIn" :key="creatingIn.worktree ?? ''" :worktree="creatingIn.worktree" :project-locked="creatingIn.projectLocked" @close="cancelCreate" @created="onCreated" />
+    <BaseNotice />
   </div>
 </template>
 

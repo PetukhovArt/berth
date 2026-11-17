@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import 'dockview-vue/dist/styles/dockview.css';
-import { computed, onBeforeUnmount, shallowRef, useSlots } from 'vue';
+import { computed, onBeforeUnmount, shallowRef, useSlots, useTemplateRef } from 'vue';
 import { DockviewVue, themeLight, type DockviewApi, type DockviewPanelApi, type DockviewReadyEvent } from 'dockview-vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
 import { isDesktop } from '../../../bridge';
 import { useSettings } from '../../../shared/config/settings/store';
 import { startTabDrag, trackTabOrder } from '../lib/tabOrder';
+import { trackTabFit } from '../lib/tabFit';
+import DockNewTab from './DockNewTab.vue';
 import DockTab from './DockTab.vue';
 import ProjectTabRows from './ProjectTabRows.vue';
 
@@ -21,12 +23,14 @@ const { values } = useSettings();
 const subscriptions: { dispose(): void }[] = [];
 let dockApi: DockviewApi | null = null;
 const readyApi = shallowRef<DockviewApi | null>(null);
+const host = useTemplateRef<HTMLElement>('host');
 
 function onReady(event: DockviewReadyEvent) {
   const api = event.api;
   dockApi = api;
   readyApi.value = api;
   subscriptions.push(...trackTabOrder(api));
+  if (host.value) subscriptions.push(...trackTabFit(host.value, api));
   emit('ready', event);
 }
 
@@ -42,11 +46,14 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="dock" :data-tabs="values['workbench.tabs']">
+  <div ref="host" class="dock" :data-tabs="values['workbench.tabs']">
     <ProjectTabRows v-if="values['workbench.tabs'] === 'projects'" :api="readyApi" />
     <DockviewVue class="dockview" :theme="themeLight" :disable-dnd="isDesktop" @ready="onReady">
       <template v-for="name in panelSlots" :key="name" #[name]="scope">
         <slot :name="name" v-bind="scope" />
+      </template>
+      <template #rightHeaderActions>
+        <DockNewTab />
       </template>
       <template #defaultTab="{ api }">
         <DockTab :panel="api" :active="api.id === activeKey" @dblclick="dock.toggleMaximize(api.id)" @pointerdown="onTabPointerDown($event, api)" />
@@ -112,11 +119,41 @@ onBeforeUnmount(() => {
   --dv-drag-over-background-color: var(--vr-color-nav-active);
   --dv-scrollbar-background-color: var(--vr-color-nav-active);
   --dv-tabs-container-scrollbar-color: var(--vr-color-nav-active);
+  --dv-transition-duration: var(--vr-motion-base);
+}
+
+:root.vr-reduce-motion .dock :deep(:is([class^='dv-'], [class*=' dv-'])) {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root .dock :deep(:is([class^='dv-'], [class*=' dv-'])) {
+    transition: none;
+  }
 }
 
 .dock[data-tabs='scroll'] :deep(.dv-scrollable .dv-scrollbar-horizontal) {
-  height: 6px;
-  background-color: var(--dv-scrollbar-background-color);
+  display: none;
+}
+
+.dock[data-tabs='scroll'] :deep(.dv-tabs-container) {
+  scrollbar-width: none;
+}
+
+.dock[data-tabs='scroll'] :deep(.dv-tabs-container::-webkit-scrollbar) {
+  display: none;
+}
+
+.dock[data-tabs='scroll'] :deep(.dv-tabs-container .dv-tab) {
+  flex: none;
+  width: var(--dock-tab-width, auto);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.dock :deep(.dv-tab:hover .close),
+.dock :deep(.dv-tab:focus-within .close) {
+  visibility: visible;
 }
 
 .dock[data-tabs='wrap'] :deep(.dv-tabs-and-actions-container) {

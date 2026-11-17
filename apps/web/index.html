@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
@@ -14,6 +14,14 @@
       }
 
       #berth-splash {
+        --vs-canvas-top: var(--vr-color-canvas-top);
+        --vs-canvas-bottom: var(--vr-color-canvas-bottom);
+        --vs-text: var(--vr-palette-ink-900);
+        --vs-a: var(--vr-palette-blue-500);
+        --vs-b: var(--vr-palette-avatar-6);
+        --vs-line: var(--vr-color-border-strong);
+        --vs-vignette: var(--vr-palette-black-a-7);
+        --vs-sheen: var(--vr-palette-ink-0);
         --vs-ease: cubic-bezier(0.2, 0, 0, 1);
         position: fixed;
         inset: 0;
@@ -26,6 +34,14 @@
         background: linear-gradient(to bottom, var(--vs-canvas-top), var(--vs-canvas-bottom));
         user-select: none;
         will-change: opacity, transform;
+      }
+
+      .vr-dark #berth-splash {
+        --vs-text: var(--vr-palette-fog-100);
+        --vs-a: var(--vr-palette-avatar-5);
+        --vs-b: var(--vr-palette-blue-500);
+        --vs-line: var(--vr-palette-white-a-16);
+        --vs-vignette: var(--vr-palette-black-a-40);
       }
 
 
@@ -318,14 +334,12 @@
         var root = doc.documentElement;
         var splash = doc.getElementById('berth-splash');
         if (!splash) return;
-        var light = false;
+        var theme = 'dark';
         try {
-          light = /"theme"\s*:\s*"light"/.test(localStorage.getItem('berth.settings.json') || localStorage.getItem('veyra.settings.json') || '');
+          var saved = /"theme"\s*:\s*"(\w+)"/.exec(localStorage.getItem('berth.settings.cache') || localStorage.getItem('berth.settings.json') || localStorage.getItem('veyra.settings.json') || '');
+          if (saved) theme = saved[1];
         } catch (e) {}
-        var palette = light
-          ? { 'canvas-top': '#e6e6b6', 'canvas-bottom': '#c4d0da', text: '#24292e', a: '#3b82f6', b: '#8b5cf6', line: 'rgba(0, 0, 0, 0.14)', vignette: 'rgba(0, 0, 0, 0.07)', sheen: '#ffffff' }
-          : { 'canvas-top': '#4a4616', 'canvas-bottom': '#0a1423', text: '#e1e4e8', a: '#22d3ee', b: '#3b82f6', line: 'rgba(255, 255, 255, 0.16)', vignette: 'rgba(0, 0, 0, 0.4)', sheen: '#ffffff' };
-        for (var key in palette) splash.style.setProperty('--vs-' + key, palette[key]);
+        root.classList.toggle('vr-dark', theme === 'system' ? matchMedia('(prefers-color-scheme: dark)').matches : theme !== 'light');
 
         var MIN_VISIBLE_MS = 500;
         var hold = new URLSearchParams(location.search).get('splash') === 'hold';

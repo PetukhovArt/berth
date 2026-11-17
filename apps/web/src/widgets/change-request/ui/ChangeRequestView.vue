@@ -8,7 +8,10 @@ import PersonAvatar from '../../../shared/ui/PersonAvatar.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useScope, visibleInterval } from '../../../shared/lib/scope';
 import { ArchitectureAction } from '../../../features/architecture';
-import { MrSessionNotice, OpenInSessionAction, mrRuns } from '../../../features/open-in-session';
+import { MrSessionNotice, OpenInSessionAction, mrRuns, useMrSession } from '../../../features/open-in-session';
+import { quoteToPrompt } from '../../../features/session-view-switch';
+import { OpenChannelAction } from '../../../features/attention';
+import { channelKeyOf } from '../../../entities/jira-issue';
 import { WatchAction, WatchStrip, isWatching } from '../../../features/watch-merge-request';
 import { RepoActions } from '../../../features/manage-workspace';
 import { itemId, fullDate, numberLabel, pipelineLabel, relativeTime } from '../../../entities/merge-request';
@@ -33,6 +36,12 @@ const diffRef = useTemplateRef<InstanceType<typeof DiffView>>('diff');
 
 const unresolved = computed(() => discussions.value.filter((d) => d.resolvable && !d.resolved).length);
 const sessionRun = computed(() => mrRuns.value.get(itemId(target.value)));
+
+const session = useMrSession(() => target.value);
+
+function quote(text: string) {
+  if (session.value) quoteToPrompt(session.value.ref, text, props.panel?.id === itemId(target.value) ? props.panel.id : undefined);
+}
 
 const watching = computed(() => isWatching(target.value));
 const pendingThread =shallowRef<string | null>(null);
@@ -96,6 +105,7 @@ onMounted(() => {
               <template #icon><ExternalLink :size="14" /></template>
             </VButton>
             <OpenInSessionAction :item="cr" />
+            <OpenChannelAction :channel-key="channelKeyOf(cr.source_branch, cr.title)" />
             <WatchAction v-if="cr.state === 'open'" :target="target" />
             <ArchitectureAction :item="cr" />
           </div>
@@ -113,9 +123,9 @@ onMounted(() => {
         </div>
 
         <div class="meta">
-          <span v-if="cr.reviewers.length" class="person" data-testid="cr-reviewers">
+          <span v-if="cr.reviewers.length" class="person reviewers" data-testid="cr-reviewers">
             <span class="muted">{{ t('forge.request.reviewers') }}</span>
-            <PersonAvatar v-for="r in cr.reviewers" :key="r.username" :person="r" small />
+            <span v-for="r in cr.reviewers" :key="r.username" class="person" data-testid="cr-reviewer"><PersonAvatar :person="r" small />{{ r.name || r.username }}</span>
           </span>
           <span v-for="label in cr.labels" :key="label" class="chip label"><Tag :size="10" />{{ label }}</span>
           <UiButton v-if="pipeline" class="chip pipeline" :aria-expanded="pipelineOpen" data-testid="cr-pipeline-chip" @click="pipelineOpen = !pipelineOpen">
@@ -129,7 +139,7 @@ onMounted(() => {
           <PipelineJobs />
         </div>
         <p v-if="sideFailure" class="side-failure" role="alert">{{ sideFailure }}</p>
-        <WatchStrip v-if="watching" :target="target" :url="cr.url" />
+        <WatchStrip v-if="watching && cr.state === 'open'" :target="target" :url="cr.url" />
         <MrSessionNotice v-if="sessionRun" :run="sessionRun">
           <template #project="{ repo }"><RepoActions :repo="repo" /></template>
         </MrSessionNotice>
@@ -145,19 +155,21 @@ onMounted(() => {
         <UiButton class="tab" role="tab" :aria-selected="tab === 'pipeline'" data-testid="cr-tab-pipeline" @click="selectTab('pipeline')">{{ t('forge.request.tabPipeline') }}</UiButton>
       </nav>
 
-      <ChangeRequestOverview v-show="tab === 'overview'" :connector="connector" :request="cr" @goto="gotoThread" />
+      <ChangeRequestOverview v-show="tab === 'overview'" :connector="connector" :request="cr" :session="session" @goto="gotoThread" @quote="quote" />
 
       <div v-if="tab === 'diff' || diffLoaded" v-show="tab === 'diff'" class="pane" data-testid="cr-diff">
         <p v-if="diffFailure" class="failure" role="alert">{{ diffFailure }}</p>
         <p v-else-if="diffLoading && !diffLoaded" class="loading">{{ t('forge.request.loadingChanges') }}</p>
-        <DiffView v-else ref="diff" :files="files" :discussions="discussions" :connector="connector" :project="project" :head-sha="cr.head_sha" :request-url="cr.url" />
+        <DiffView v-else ref="diff" :files="files" :discussions="discussions" :connector="connector" :project="project" :head-sha="cr.head_sha" :request-url="cr.url" :quotable="!!session" @quote="quote" />
       </div>
 
       <div v-show="tab === 'pipeline'" class="pane scroll" data-testid="cr-pipeline">
         <template v-if="pipeline">
           <p class="pipeline-head">
-            <StatusIcon :tone="pipelineTone(pipeline.status)" />{{ pipelineLabel(pipeline.status) }}
-            <a class="link" :href="pipeline.url" @click.prevent="openUrl(pipeline.url)">{{ t('common.open') }} <ExternalLink :size="12" /></a>
+            <StatusIcon :tone="pipelineTone(pipeline.status)" />
+            <b data-testid="cr-pipeline-title">{{ t('forge.request.pipelineNumber', { id: pipeline.id }) }}</b>
+            <span class="muted">{{ pipelineLabel(pipeline.status) }}</span>
+            <a class="link open-link" :href="pipeline.url" data-testid="cr-pipeline-open" @click.prevent="openUrl(pipeline.url)">{{ t('common.open') }}</a>
           </p>
           <PipelineJobs />
         </template>
@@ -328,6 +340,10 @@ code {
   gap: var(--vr-space-1);
 }
 
+.reviewers {
+  gap: var(--vr-space-2);
+}
+
 .pipeline-pop {
   display: flex;
   flex-direction: column;
@@ -404,5 +420,16 @@ code {
   align-items: center;
   gap: var(--vr-space-2);
   margin: 0 0 var(--vr-space-3);
+}
+
+.open-link {
+  align-self: center;
+  margin-left: auto;
+  color: var(--vr-color-link);
+  text-decoration: none;
+}
+
+.open-link:hover {
+  text-decoration: underline;
 }
 </style>

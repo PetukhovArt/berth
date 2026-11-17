@@ -4,6 +4,9 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { limitUntil, watchUsageLimits } from './limits';
 
 export type AgentKind = 'claude' | 'codex' | 'cursor' | 'opencode' | 'grok' | 'acp';
+export const AGENT_KIND_LABEL: Readonly<Record<AgentKind, string>> = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode', grok: 'Grok', acp: 'ACP' };
+const SECONDS_LIMIT = 1e11;
+const toMillis = (value: number) => (value < SECONDS_LIMIT ? value * 1000 : value);
 type AgentStatus = 'fresh' | 'running' | 'finished' | 'needs_feedback' | 'terminated' | 'disconnected';
 export type SessionRef = { Agent: string } | { Terminal: string };
 type ConnectionState = 'connecting' | 'connected' | 'offline' | 'incompatible';
@@ -42,7 +45,7 @@ type Terminal = { id: string; worktree_id: string; name: string; sort_order: num
 type Entity = { Workspace: Workspace } | { Project: Project } | { Worktree: Worktree } | { Agent: Agent } | { Terminal: Terminal };
 type EntityId = { Workspace: string } | { Project: string } | { Worktree: string } | { Agent: string } | { Terminal: string };
 
-export type FeedbackRequest = { kind: 'Permission' | 'Question'; title: string; detail: string | null; options: string[] };
+export type FeedbackRequest = { kind: 'Permission' | 'Question'; title: string; detail: string | null; options: string[]; always_allow?: boolean };
 
 type ArchivedExternal = { kind: AgentKind; session_id: string; archived_at: number };
 
@@ -57,6 +60,7 @@ type WatchEvent =
   | { type: 'feedback_request'; agent: string; request: FeedbackRequest | null }
   | { type: 'task_note'; worktree: string; text: string }
   | { type: 'acp_item'; agent: string; seq: number; item: AcpItem }
+  | { type: 'channel_appended'; channel: string; seq: number }
   | { type: 'error'; message: string };
 
 type AcpTool = { id: string; title: string; kind: string; status: string; detail: string | null; diff: { path: string; old: string | null; new: string } | null; output: string | null };
@@ -71,10 +75,17 @@ export function onAcpItem(listener: (agent: string, item: AcpItemAt) => void): (
   return () => acpListeners.delete(listener);
 }
 
+const channelListeners = new Set<(channel: string) => void>();
+
+export function onChannelAppended(listener: (channel: string) => void): () => void {
+  channelListeners.add(listener);
+  return () => channelListeners.delete(listener);
+}
+
 export type SessionEvent = { type: 'reset'; data: string } | { type: 'output'; data: string } | { type: 'exited'; exit_code: number | null };
 
 export type SessionStatus = AgentStatus | 'shell' | 'closed' | 'limit';
-export type SessionNode = { key: string; id: string; ref: SessionRef; name: string; status: SessionStatus; unseen: boolean; alive: boolean; limitUntil?: number; providerError?: ProviderError; suggestion?: RouteSuggestion };
+export type SessionNode = { key: string; id: string; ref: SessionRef; name: string; status: SessionStatus; unseen: boolean; alive: boolean; kind?: AgentKind; changedAt?: number; limitUntil?: number; providerError?: ProviderError; suggestion?: RouteSuggestion };
 export type WorktreeNode = { id: string; path: string; branch: string; main: boolean; sessions: SessionNode[]; archived: SessionNode[] };
 type ProjectNode = { id: string; name: string; worktrees: WorktreeNode[] };
 type WorkspaceNode = { id: string; name: string; projects: ProjectNode[] };
@@ -139,10 +150,10 @@ function remove(entities: MutableEntities, id: EntityId): boolean {
   return false;
 }
 
-function setStatus(entities: MutableEntities, id: string, status: AgentStatus, unseen: boolean): boolean {
+function setStatus(entities: MutableEntities, id: string, status: AgentStatus, unseen: boolean, changedAt: number): boolean {
   const agent = entities.agents.get(id);
-  if (!agent || (agent.status === status && agent.unseen === unseen)) return false;
-  entities.agents.set(id, { ...agent, status, unseen });
+  if (!agent || (agent.status === status && agent.unseen === unseen && agent.status_changed_at === changedAt)) return false;
+  entities.agents.set(id, { ...agent, status, unseen, status_changed_at: changedAt });
   return true;
 }
 
@@ -163,7 +174,8 @@ export function isSessionRef(value: unknown): value is SessionRef {
 function agentNode(agent: Agent): SessionNode {
   const ref = { Agent: agent.id };
   const until = agent.status === 'finished' && agent.alive ? limitUntil(agent.kind) : null;
-  const node: SessionNode = { key: sessionKey(ref), id: agent.id, ref, name: agent.name, status: agent.status, unseen: agent.unseen, alive: agent.alive };
+  const node: SessionNode = { key: sessionKey(ref), id: agent.id, ref, name: agent.name, status: agent.status, unseen: agent.unseen, alive: agent.alive, kind: agent.kind };
+  if (agent.status_changed_at > 0) node.changedAt = toMillis(agent.status_changed_at);
   if (agent.route_suggestion) node.suggestion = agent.route_suggestion;
   if (agent.provider_error) return { ...node, status: 'limit', providerError: agent.provider_error, limitUntil: agent.provider_error.resets_at_ms ?? undefined };
   return until === null ? node : { ...node, status: 'limit', limitUntil: until };
@@ -176,9 +188,11 @@ function terminalNode(terminal: Terminal): SessionNode {
 
 function buildTree(entities: Entities): WorkspaceNode[] {
   const agentsOf = (worktree: string) => [...entities.agents.values()].filter((a) => a.worktree_id === worktree);
+  const agentConversations = new Set([...entities.agents.values()].flatMap((a) => (a.session_id ? [a.session_id] : [])));
+  const leftByAgent = (terminal: Terminal) => !terminal.alive && !!terminal.session_id && agentConversations.has(terminal.session_id);
   const sessionsOf = (worktree: string) => [
     ...agentsOf(worktree).filter((a) => !a.archived).sort(bySortOrder).map(agentNode),
-    ...[...entities.terminals.values()].filter((t) => t.worktree_id === worktree).sort(bySortOrder).map(terminalNode),
+    ...[...entities.terminals.values()].filter((t) => t.worktree_id === worktree && !leftByAgent(t)).sort(bySortOrder).map(terminalNode),
   ];
   const archivedOf = (worktree: string) =>
     agentsOf(worktree)
@@ -244,7 +258,7 @@ function createStore(): BerthStore {
         publish(remove(state, event.id));
         return;
       case 'status':
-        publish(setStatus(state, event.agent, event.status, event.unseen));
+        publish(setStatus(state, event.agent, event.status, event.unseen, event.changed_at));
         return;
       case 'feedback_request':
         feedback.value = event.request ? new Map(feedback.value).set(event.agent, event.request) : drop(feedback.value, event.agent);
@@ -254,6 +268,9 @@ function createStore(): BerthStore {
         return;
       case 'acp_item':
         for (const listener of acpListeners) listener(event.agent, { seq: event.seq, item: event.item });
+        return;
+      case 'channel_appended':
+        for (const listener of channelListeners) listener(event.channel);
         return;
       case 'error':
         error.value = event.message;
@@ -281,15 +298,7 @@ export function useBerth(): BerthStore | null {
   return store;
 }
 
-let lastPane = { cols: 120, rows: 40 };
-
-export function prewarmWorktreeSessions(worktree: string): void {
-  if (!hasBackend) return;
-  void invoke<null>('berth_call', { request: { PrewarmWorktreeSessions: { worktree, ...lastPane } } }).catch(() => {});
-}
-
 export async function attachSession(session: SessionRef, cols: number, rows: number, onEvent: (event: SessionEvent) => void): Promise<void> {
-  lastPane = { cols, rows };
   await watching;
   await invoke<void>('berth_attach', { session, cols, rows, onEvent: createChannel<SessionEvent>(onEvent) });
 }
@@ -343,13 +352,16 @@ export type BerthReply =
   | { ProjectSetup: { req_id: number; project: string; command: string } }
   | { Checkpoints: { req_id: number; agent: string; checkpoints: { number: number; created_at: number; before_restore: boolean }[] } }
   | { Channels: { req_id: number; channels: { key: string; head: number; unread: number }[] } }
-  | { ChannelEvents: { req_id: number; events: { seq: number; kind: number; author: string; author_name: string; author_kind: string; channel: string; tags: string[][]; content: string; created_at: number }[] } }
+  | { ChannelEvents: { req_id: number; events: { seq: number; kind: number; author: string; author_name: string; author_kind: string; channel: string; tags: string[][]; content: string; created_at: number; from_me: boolean; author_agent: string | null; mentioned_agents: string[] }[] } }
   | { ChannelPresence: { req_id: number; here: { member: string; name: string; agents: string[] }[] } }
+  | { ChannelOpened: { req_id: number; key: string } }
+  | { ChannelTouched: { req_id: number; touched: { member: string; name: string; agent: string; modules: string[] }[] } }
+  | { ChannelGrants: { req_id: number; grants: { channel: string; agent: string; member: string; member_name: string }[] } }
   | { AcpTranscript: { req_id: number; agent: string; items: AcpItemAt[] } };
 
 export class BerthCallError extends Error {}
 
-const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote', 'RouterConfig', 'ProjectSetup', 'Checkpoints', 'Channels', 'ChannelEvents', 'ChannelPresence', 'AcpTranscript']);
+const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote', 'RouterConfig', 'ProjectSetup', 'Checkpoints', 'Channels', 'ChannelEvents', 'ChannelPresence', 'ChannelOpened', 'ChannelTouched', 'ChannelGrants', 'AcpTranscript']);
 
 function isBerthReply(value: unknown): value is BerthReply {
   if (typeof value !== 'object' || value === null) return false;
@@ -372,11 +384,6 @@ export async function acknowledged(request: BerthRequest): Promise<EntityId | nu
 }
 
 export type NewAgent = { worktree: string; name: string; kind: AgentKind; model: string | null; effort: string | null; autoTitle: boolean; startingPrompt: string | null };
-
-export function prewarmAgent(worktree: string, kind: AgentKind, model: string | null, effort: string | null): void {
-  if (!hasBackend) return;
-  void invoke<null>('berth_call', { request: { PrewarmAgent: { worktree, kind, model, effort } } }).catch(() => {});
-}
 
 export function createAgent(agent: NewAgent): Promise<EntityId | null> {
   return acknowledged({

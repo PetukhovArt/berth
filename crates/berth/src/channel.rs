@@ -5,7 +5,7 @@ use berth_core::{AgentId, ClientRequest, ServerEvent};
 use berth_hub::client::HubClient;
 use serde_json::{json, Value};
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 fn own_agent() -> Option<AgentId> {
     berth_core::env::non_empty(berth_core::env::AGENT_ID)
@@ -25,9 +25,16 @@ async fn call(request: ClientRequest) -> Result<ServerEvent> {
                 req_id: Some(ONE_SHOT_REQ_ID),
                 message,
             }) => bail!("{message}"),
-            Some(event @ (ServerEvent::Channels { .. } | ServerEvent::ChannelEvents { .. })) => {
-                return Ok(event)
-            }
+            Some(
+                event @ (ServerEvent::Channels { .. }
+                | ServerEvent::ChannelEvents { .. }
+                | ServerEvent::ChannelOpened { .. }
+                | ServerEvent::ChannelGrants { .. }
+                | ServerEvent::Ack {
+                    req_id: ONE_SHOT_REQ_ID,
+                    ..
+                }),
+            ) => return Ok(event),
             Some(_) => continue,
             None => bail!("the daemon closed the connection before it answered"),
         }
@@ -46,6 +53,25 @@ pub fn run_list() -> Result<()> {
         println!(
             "{}",
             serde_json::to_string_pretty(&json!({ "ok": true, "channels": channels }))?
+        );
+        Ok(())
+    })
+}
+
+pub fn run_open(key: Option<String>) -> Result<()> {
+    runtime()?.block_on(async {
+        let ServerEvent::ChannelOpened { key, .. } = call(ClientRequest::OpenChannel {
+            req_id: ONE_SHOT_REQ_ID,
+            key,
+            agent: own_agent(),
+        })
+        .await?
+        else {
+            bail!("unexpected reply");
+        };
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({ "ok": true, "channel": key }))?
         );
         Ok(())
     })
@@ -71,16 +97,9 @@ pub fn run_read(channel: String, after: i64) -> Result<()> {
     })
 }
 
-pub fn run_post(channel: String, content: String) -> Result<()> {
+fn print_posted(request: ClientRequest) -> Result<()> {
     runtime()?.block_on(async {
-        let ServerEvent::ChannelEvents { events, .. } = call(ClientRequest::PostToChannel {
-            req_id: ONE_SHOT_REQ_ID,
-            channel,
-            content,
-            agent: own_agent(),
-        })
-        .await?
-        else {
+        let ServerEvent::ChannelEvents { events, .. } = call(request).await? else {
             bail!("unexpected reply");
         };
         println!(
@@ -91,19 +110,110 @@ pub fn run_post(channel: String, content: String) -> Result<()> {
     })
 }
 
+pub fn run_post(channel: String, content: String) -> Result<()> {
+    print_posted(ClientRequest::PostToChannel {
+        req_id: ONE_SHOT_REQ_ID,
+        channel,
+        content,
+        agent: own_agent(),
+    })
+}
+
+pub fn run_note(channel: String, content: String) -> Result<()> {
+    print_posted(ClientRequest::PostChannelNote {
+        req_id: ONE_SHOT_REQ_ID,
+        channel,
+        content,
+        agent: own_agent(),
+    })
+}
+
+pub fn run_answer(channel: String, request: i64, answer: String) -> Result<()> {
+    print_posted(ClientRequest::AnswerInChannel {
+        req_id: ONE_SHOT_REQ_ID,
+        channel,
+        request,
+        answer,
+        agent: own_agent(),
+    })
+}
+
+fn owner_only(verb: &str) -> Result<()> {
+    if own_agent().is_some() {
+        bail!("berth channel {verb} is for the owner: an Agent cannot run it from its session");
+    }
+    Ok(())
+}
+
+fn print_grants(event: ServerEvent) -> Result<()> {
+    let ServerEvent::ChannelGrants { grants, .. } = event else {
+        bail!("unexpected reply");
+    };
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&json!({ "ok": true, "grants": grants }))?
+    );
+    Ok(())
+}
+
+pub fn run_promote(channel: String, seq: i64, agent: Option<String>) -> Result<()> {
+    owner_only("promote")?;
+    runtime()?.block_on(async {
+        call(ClientRequest::PromoteChannelMessage {
+            req_id: ONE_SHOT_REQ_ID,
+            channel,
+            seq,
+            agent: agent.map(AgentId),
+        })
+        .await?;
+        println!("{}", serde_json::to_string_pretty(&json!({ "ok": true }))?);
+        Ok(())
+    })
+}
+
+pub fn run_grant(channel: String, agent: String, colleague: String, granted: bool) -> Result<()> {
+    owner_only(if granted { "grant" } else { "revoke" })?;
+    runtime()?.block_on(async {
+        print_grants(
+            call(ClientRequest::SetChannelGrant {
+                req_id: ONE_SHOT_REQ_ID,
+                channel,
+                agent: AgentId(agent),
+                member: colleague,
+                granted,
+            })
+            .await?,
+        )
+    })
+}
+
+pub fn run_grants(channel: Option<String>) -> Result<()> {
+    runtime()?.block_on(async {
+        print_grants(
+            call(ClientRequest::ListChannelGrants {
+                req_id: ONE_SHOT_REQ_ID,
+                channel,
+            })
+            .await?,
+        )
+    })
+}
+
 pub fn run_hub_serve(
     bind: SocketAddr,
     db: Option<PathBuf>,
     admin_token: Option<String>,
+    tls: Option<berth_hub::TlsFiles>,
 ) -> Result<()> {
     let db = db.unwrap_or_else(|| berth_core::paths::data_dir().join("hub.db"));
+    let scheme = if tls.is_some() { "https" } else { "http" };
     runtime()?.block_on(async {
-        let hub = berth_hub::serve(&db, bind, admin_token).await?;
+        let hub = berth_hub::serve(&db, bind, admin_token, tls).await?;
         println!(
             "{}",
             serde_json::to_string_pretty(&json!({
                 "ok": true,
-                "url": format!("http://{}", hub.addr),
+                "url": format!("{scheme}://{}", hub.addr),
                 "admin_token": hub.admin_token,
             }))?
         );
@@ -112,12 +222,39 @@ pub fn run_hub_serve(
     })
 }
 
+fn hub_at(url: &str, token: &str) -> Result<HubClient> {
+    let config = berth_daemon::config::Config::load();
+    HubClient::trusting(url, token, config.hub_ca.as_deref().map(Path::new))
+}
+
 pub fn run_hub_pair(url: String, name: String) -> Result<()> {
     runtime()?.block_on(async {
-        let (id, token) = HubClient::pair(&url, &name).await?;
+        let (id, token) = hub_at(&url, "")?.pair_device(&name).await?;
         println!(
             "{}",
             serde_json::to_string_pretty(&json!({ "ok": true, "id": id, "token": token }))?
+        );
+        Ok(())
+    })
+}
+
+pub fn run_hub_devices(url: String, admin_token: String) -> Result<()> {
+    runtime()?.block_on(async {
+        let devices = hub_at(&url, &admin_token)?.devices().await?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({ "ok": true, "devices": devices }))?
+        );
+        Ok(())
+    })
+}
+
+pub fn run_hub_revoke(url: String, admin_token: String, id: String) -> Result<()> {
+    runtime()?.block_on(async {
+        hub_at(&url, &admin_token)?.revoke(&id).await?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({ "ok": true, "revoked": id }))?
         );
         Ok(())
     })
@@ -130,7 +267,7 @@ pub fn run_hub_approve(
     scopes: Vec<String>,
 ) -> Result<()> {
     runtime()?.block_on(async {
-        let hub = HubClient::new(&url, &admin_token)?;
+        let hub = hub_at(&url, &admin_token)?;
         let scopes: Vec<&str> = scopes.iter().map(String::as_str).collect();
         hub.approve(&id, &scopes).await?;
         let pending: Value = hub.pending().await?;

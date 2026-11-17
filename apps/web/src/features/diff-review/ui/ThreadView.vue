@@ -11,8 +11,8 @@ import CommentComposer from './CommentComposer.vue';
 import { fullDate, relativeTime } from '../../../entities/merge-request';
 
 import { UiButton } from '../../../shared/ui/UiButton';
-const props = defineProps<{ discussion: Discussion; connector?: string; showPosition?: boolean; target?: ChangeRequestRef }>();
-const emit = defineEmits<{ goto: [discussion: Discussion]; update: [discussion: Discussion] }>();
+const props = defineProps<{ discussion: Discussion; connector?: string; showPosition?: boolean; target?: ChangeRequestRef; quotable?: boolean }>();
+const emit = defineEmits<{ goto: [discussion: Discussion]; update: [discussion: Discussion]; quote: [text: string] }>();
 
 const folded = shallowRef(props.discussion.resolved);
 const copied = shallowRef(false);
@@ -31,6 +31,14 @@ const position = computed(() => {
   const line = p.new_line ?? p.old_line;
   return line == null ? p.path : `${p.path}:${line}`;
 });
+
+function quoteThread() {
+  const comments = notes.value
+    .filter((n) => !n.system)
+    .map((n) => `> ${n.author.name || n.author.username}: ${n.body.trim()}`.replace(/\n/g, '\n> '));
+  if (!comments.length) return;
+  emit('quote', `${position.value ? `${position.value}\n` : ''}${comments.join('\n')}\n`);
+}
 
 async function copyLink() {
   await copyText(props.discussion.url);
@@ -122,9 +130,13 @@ defineExpose({ expand });
         <div v-if="!replying || discussion.resolvable" class="actions">
           <VButton v-if="!replying" size="small" severity="secondary" text :label="draft.trim() ? `${t('forge.thread.reply')} …` : t('forge.thread.reply')" data-testid="thread-reply" @click="replying = true" />
           <VButton v-if="discussion.resolvable" size="small" severity="secondary" text :label="discussion.resolved ? t('forge.thread.unresolve') : t('forge.thread.resolve')" :loading="resolving" data-testid="thread-resolve" @click="toggleResolved" />
+          <VButton v-if="quotable" size="small" severity="secondary" text :label="t('forge.thread.addToPrompt')" :title="t('forge.thread.addToPromptTitle')" data-testid="thread-add-to-prompt" @click="quoteThread" />
         </div>
         <p v-if="resolveError" class="error" role="alert">{{ resolveError }}</p>
       </template>
+      <div v-else-if="quotable" class="actions">
+        <VButton size="small" severity="secondary" text :label="t('forge.thread.addToPrompt')" :title="t('forge.thread.addToPromptTitle')" data-testid="thread-add-to-prompt" @click="quoteThread" />
+      </div>
     </template>
   </article>
 </template>

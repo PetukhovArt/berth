@@ -24,6 +24,15 @@ export const common: Translation<typeof en> = {
   time: {
     justNow: 'только что',
   },
+  kit: {
+    emptyMessage: 'Нет доступных вариантов',
+    emptySearchMessage: 'Ничего не найдено',
+    searchMessage: 'Найдено результатов: {0}',
+    selectionMessage: 'Выбрано: {0}',
+    emptySelectionMessage: 'Ничего не выбрано',
+    selectAll: 'Выбраны все элементы',
+    unselectAll: 'Выбор снят со всех элементов',
+  },
   language: {
     label: 'Язык',
     en: 'English',

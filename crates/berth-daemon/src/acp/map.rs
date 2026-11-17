@@ -76,8 +76,13 @@ pub fn permission(params: &Value) -> Permission {
         request: FeedbackRequest {
             kind: FeedbackKind::Permission,
             title: patch.title.clone().unwrap_or_else(|| "Permission".into()),
-            detail: patch.detail.or(patch.diff.map(|d| d.path)),
+            detail: call
+                .get("rawInput")
+                .and_then(crate::feedback::detail)
+                .or(patch.detail)
+                .or(patch.diff.map(|d| d.path)),
             options: names,
+            always_allow: false,
         },
         option_ids,
     }
@@ -146,7 +151,7 @@ fn tool_patch(call: &Value) -> ToolPatch {
         status: str_at(call, "status").map(str::to_string),
         detail: call
             .get("rawInput")
-            .and_then(crate::feedback::detail)
+            .and_then(crate::feedback::preview)
             .or(location),
         diff,
         output: (!output.is_empty()).then_some(output),
@@ -247,5 +252,16 @@ mod tests {
         assert_eq!(permission.request.detail.as_deref(), Some("pnpm test"));
         assert_eq!(permission.request.options, ["Allow", "Reject"]);
         assert_eq!(permission.option_ids, ["allow-once", "reject-once"]);
+    }
+
+    #[test]
+    fn permission_carries_a_long_command_whole() {
+        let command = format!("echo {}", "x".repeat(995));
+        let p = json!({"sessionId": "s", "toolCall": {"toolCallId": "t1", "title": "Run",
+        "rawInput": {"command": command}}, "options": []});
+        assert_eq!(
+            permission(&p).request.detail.as_deref(),
+            Some(command.as_str())
+        );
     }
 }

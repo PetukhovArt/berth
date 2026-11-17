@@ -25,6 +25,16 @@ export function useProviders(): ShallowRef<readonly Provider[]> {
   return providers;
 }
 
+export async function loadedProviders(): Promise<readonly Provider[]> {
+  await (loading ?? reloadProviders());
+  return providers.value;
+}
+
+export function enabledNativeAgent(preferred: string, rows: readonly Provider[]): string | null {
+  const native = rows.filter((row) => !row.acp && row.enabled);
+  return (native.find((row) => row.id === preferred) ?? native[0])?.id ?? null;
+}
+
 export async function setProviderEnabled(provider: Provider, enabled: boolean): Promise<void> {
   await invoke<void>('providers_write', { id: provider.id, acp: provider.acp, enabled });
   await reloadProviders();

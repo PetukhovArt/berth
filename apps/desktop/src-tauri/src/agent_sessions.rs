@@ -14,6 +14,11 @@ use tokio::task::{spawn_blocking, JoinHandle};
 use crate::connectors::ai::{claude_dir, codex_home};
 use crate::sink::BoxSink;
 
+mod tool_exit;
+mod turn_files;
+
+use turn_files::{file_edits, line_model, FileEdit};
+
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
 const DEFAULT_DAYS: u32 = 14;
 const MAX_DAYS: u32 = 365;
@@ -133,6 +138,10 @@ pub struct TranscriptMessage {
     tool: Option<String>,
     at: Option<String>,
     input: Option<Value>,
+    model: Option<String>,
+    edits: Vec<FileEdit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    exit: Option<i32>,
 }
 
 #[derive(Default)]
@@ -944,7 +953,8 @@ fn claim(candidates: &[&Entry], procs: &[Proc]) -> HashMap<usize, Claim> {
                     berth_pids: proc.berth_pids.clone(),
                 });
             }
-            None => pending.push(proc),
+            None if proc.resume.is_none() => pending.push(proc),
+            None => {}
         }
     }
     pending.sort_by_key(|proc| proc.cwd.is_none());
@@ -1177,6 +1187,9 @@ fn claude_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
                     tool: None,
                     at: at.clone(),
                     input: None,
+                    model: None,
+                    edits: Vec::new(),
+                    exit: None,
                 });
             }
         } else if block["type"].as_str() == Some("tool_use") {
@@ -1187,6 +1200,9 @@ fn claude_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
                 tool: owned(&block["name"]).or_else(|| Some("tool".to_owned())),
                 at: at.clone(),
                 input: plan_input(block["name"].as_str(), &block["input"]),
+                model: None,
+                edits: file_edits(block["name"].as_str(), &block["input"]),
+                exit: None,
             });
         }
     }
@@ -1238,6 +1254,9 @@ fn codex_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
                 tool: None,
                 at,
                 input: None,
+                model: None,
+                edits: Vec::new(),
+                exit: None,
             }
         }
         "function_call" | "custom_tool_call" => TranscriptMessage {
@@ -1258,6 +1277,16 @@ fn codex_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
                     &payload["input"]
                 },
             ),
+            model: None,
+            edits: file_edits(
+                payload["name"].as_str(),
+                if kind == "function_call" {
+                    &payload["arguments"]
+                } else {
+                    &payload["input"]
+                },
+            ),
+            exit: None,
         },
         "local_shell_call" => TranscriptMessage {
             key,
@@ -1266,6 +1295,9 @@ fn codex_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
             tool: Some("shell".to_owned()),
             at,
             input: None,
+            model: None,
+            edits: file_edits(None, &payload["action"]),
+            exit: None,
         },
         _ => return,
     };
@@ -1285,11 +1317,33 @@ fn read_transcript(
     loop {
         let (buffer, from_start) = read_tail(&path, budget)
             .ok_or_else(|| format!("не удалось прочитать {}", path.display()))?;
-        let mut messages = Vec::new();
+        let mut messages: Vec<TranscriptMessage> = Vec::new();
+        let mut model: Option<String> = None;
+        let mut calls: HashMap<String, usize> = HashMap::new();
         for line in parse_lines(&buffer) {
+            if let Some(next) = line_model(harness, &line) {
+                model = Some(next);
+            }
+            let from = messages.len();
             match harness {
                 Harness::Claude => claude_messages(&line, &mut messages),
                 Harness::Codex => codex_messages(&line, &mut messages),
+            }
+            for message in &mut messages[from..] {
+                if message.role == Role::Assistant {
+                    message.model.clone_from(&model);
+                }
+            }
+            let tools = (from..messages.len()).filter(|&index| messages[index].tool.is_some());
+            for (index, id) in tools.zip(tool_exit::call_ids(harness, &line)) {
+                if !id.is_empty() {
+                    calls.insert(id, index);
+                }
+            }
+            for (id, code) in tool_exit::results(harness, &line) {
+                if let Some(&index) = calls.get(&id) {
+                    messages[index].exit = Some(code);
+                }
             }
         }
         if messages.len() >= wanted || from_start || budget >= TRANSCRIPT_MAX_BYTES {

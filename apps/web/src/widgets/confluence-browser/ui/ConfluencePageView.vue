@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue';
-import { VButton } from '../../../shared/ui/kit';
+import { VButton, isMotionEnabled } from '../../../shared/ui/kit';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { confluencePage, describeError, openUrl, reloadWhenRecovered, type ConfluencePage } from '../../../shared/api/connectors/api';
@@ -73,7 +73,7 @@ function spy() {
 }
 
 function jump(index: number) {
-  elements[index]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  elements[index]?.scrollIntoView({ behavior: isMotionEnabled() ? 'smooth' : 'instant', block: 'start' });
   activeIndex.value = index;
 }
 

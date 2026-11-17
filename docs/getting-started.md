@@ -72,7 +72,7 @@ Cursor, OpenCode, Grok or a plain terminal), and for an agent the model, the eff
 
 A new worktree is a real `git worktree`, created under `<repo>/../<repo-name>-worktrees/<branch>`.
 That is the point of it: two agents in two worktrees edit two directories and never collide.
-`sessions.worktreeBase` in settings picks the branch a new worktree starts from.
+`sessions.worktreeBase` in settings picks the branch a new worktree starts from, here and for `berth worktree`.
 
 You can also just ask: tell an agent "do this in a worktree" and it runs `berth worktree`, which
 creates one and moves the session into it. Asked to work in another repo, it runs `berth enter`.

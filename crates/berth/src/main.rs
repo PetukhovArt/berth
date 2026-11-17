@@ -2,6 +2,7 @@ mod channel;
 mod client;
 mod mcp;
 mod sessions;
+mod shared_setup;
 mod triggers;
 mod upgrade;
 
@@ -107,8 +108,11 @@ enum Command {
         /// Branch name; several words are joined with hyphens, none at all
         /// gets a random `<adj>-<noun>-<verb>` one.
         name: Vec<String>,
-        /// Start point for a new branch (default: the checkout's HEAD).
-        #[arg(long, value_name = "REF")]
+        #[arg(
+            long,
+            value_name = "REF",
+            help = "Start point for a new branch (default: worktree_base in config.json, else develop, main or master)"
+        )]
         base: Option<String>,
     },
     /// Move this session into another project (run from inside a berth
@@ -208,6 +212,13 @@ enum Command {
         #[command(subcommand)]
         command: WorkspaceCommand,
     },
+    #[command(
+        about = "Install the shared setup named by shared_setup in the config into every project and worktree"
+    )]
+    SharedSetup {
+        #[command(subcommand)]
+        command: SharedSetupCommand,
+    },
     /// Install the latest published berth over this one.
     Upgrade {
         /// Upgrade even when running from a local cargo build.
@@ -224,6 +235,10 @@ enum Command {
 enum ChannelCommand {
     #[command(about = "List the channels you are in, with their unread counts")]
     List,
+    #[command(
+        about = "Create the channel for a Jira issue key, a merge request branch or a Worktree, or open it when it exists; with no key, inside a session, the key of the session's branch"
+    )]
+    Open { key: Option<String> },
     #[command(about = "Print the events of a channel after a sequence number")]
     Read {
         channel: String,
@@ -238,6 +253,48 @@ enum ChannelCommand {
         #[arg(required = true, num_args = 1.., help = "The message; multiple words need no quotes")]
         message: Vec<String>,
     },
+    #[command(
+        about = "Set the note of a channel's task: every member's Agent that starts a session on the task gets it. The latest note wins; no text clears it"
+    )]
+    Note {
+        channel: String,
+        #[arg(num_args = 0.., help = "The note; multiple words need no quotes")]
+        text: Vec<String>,
+    },
+    #[command(about = "Answer your Agent's request in a channel: allow, deny or an option number")]
+    Answer {
+        channel: String,
+        #[arg(help = "The seq of the request event, as `berth channel read` prints it")]
+        request: i64,
+        answer: String,
+    },
+    #[command(
+        about = "Deliver a colleague's message to your Agent as an instruction; without --agent, to each of your Agents it mentions"
+    )]
+    Promote {
+        channel: String,
+        #[arg(help = "The message's sequence number, as `berth channel read` prints it")]
+        seq: i64,
+        #[arg(long, value_name = "AGENT_ID")]
+        agent: Option<String>,
+    },
+    #[command(
+        about = "Let a colleague instruct one of your Agents in a channel: their mentions of it arrive as instructions"
+    )]
+    Grant {
+        channel: String,
+        agent: String,
+        #[arg(help = "The colleague's hub member id, or their name as it shows in the channel")]
+        colleague: String,
+    },
+    #[command(about = "Take back a grant")]
+    Revoke {
+        channel: String,
+        agent: String,
+        colleague: String,
+    },
+    #[command(about = "List your grants, in one channel or in all")]
+    Grants { channel: Option<String> },
 }
 
 #[derive(Subcommand)]
@@ -250,10 +307,26 @@ enum HubCommand {
         db: Option<std::path::PathBuf>,
         #[arg(long)]
         admin_token: Option<String>,
+        #[arg(
+            long,
+            value_name = "PEM",
+            requires = "key",
+            help = "Serve HTTPS with this certificate chain"
+        )]
+        cert: Option<std::path::PathBuf>,
+        #[arg(
+            long,
+            value_name = "PEM",
+            requires = "cert",
+            help = "The private key of --cert"
+        )]
+        key: Option<std::path::PathBuf>,
     },
     #[command(about = "Step one: admit this device; prints its token, which opens nothing yet")]
     Pair { url: String, name: String },
-    #[command(about = "Step two: approve an admitted device and what it may do")]
+    #[command(
+        about = "Step two: approve an admitted device and what it may do; run it again to change the scopes"
+    )]
     Approve {
         url: String,
         #[arg(long)]
@@ -262,6 +335,27 @@ enum HubCommand {
         #[arg(long, value_delimiter = ',', default_value = "read,post,create")]
         scopes: Vec<String>,
     },
+    #[command(about = "List the devices of the hub with their status and scopes")]
+    Devices {
+        url: String,
+        #[arg(long)]
+        admin_token: String,
+    },
+    #[command(about = "Revoke a device: its token and its Agents stop working at once")]
+    Revoke {
+        url: String,
+        #[arg(long)]
+        admin_token: String,
+        id: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum SharedSetupCommand {
+    #[command(
+        about = "Fetch the shared setup when it is a repository, then update every checkout from it"
+    )]
+    Sync,
 }
 
 #[derive(Subcommand)]
@@ -306,6 +400,9 @@ fn main() -> Result<()> {
             };
             client::run_workspace(op)
         }
+        Some(Command::SharedSetup {
+            command: SharedSetupCommand::Sync,
+        }) => shared_setup::run_sync(),
         Some(Command::Sessions { all }) => sessions::run_sessions(all),
         Some(Command::Attention) => sessions::run_attention(),
         Some(Command::Send {
@@ -342,17 +439,47 @@ fn main() -> Result<()> {
         Some(Command::Triggers { remove }) => triggers::run_triggers(remove),
         Some(Command::Channel { command }) => match command {
             ChannelCommand::List => channel::run_list(),
+            ChannelCommand::Open { key } => channel::run_open(key),
             ChannelCommand::Read { channel, after } => channel::run_read(channel, after),
             ChannelCommand::Post { channel, message } => {
                 channel::run_post(channel, message.join(" "))
             }
+            ChannelCommand::Note { channel, text } => channel::run_note(channel, text.join(" ")),
+            ChannelCommand::Answer {
+                channel,
+                request,
+                answer,
+            } => channel::run_answer(channel, request, answer),
+            ChannelCommand::Promote {
+                channel,
+                seq,
+                agent,
+            } => channel::run_promote(channel, seq, agent),
+            ChannelCommand::Grant {
+                channel,
+                agent,
+                colleague,
+            } => channel::run_grant(channel, agent, colleague, true),
+            ChannelCommand::Revoke {
+                channel,
+                agent,
+                colleague,
+            } => channel::run_grant(channel, agent, colleague, false),
+            ChannelCommand::Grants { channel } => channel::run_grants(channel),
         },
         Some(Command::Hub { command }) => match command {
             HubCommand::Serve {
                 bind,
                 db,
                 admin_token,
-            } => channel::run_hub_serve(bind, db, admin_token),
+                cert,
+                key,
+            } => {
+                let tls = cert
+                    .zip(key)
+                    .map(|(cert, key)| berth_hub::TlsFiles { cert, key });
+                channel::run_hub_serve(bind, db, admin_token, tls)
+            }
             HubCommand::Pair { url, name } => channel::run_hub_pair(url, name),
             HubCommand::Approve {
                 url,
@@ -360,6 +487,12 @@ fn main() -> Result<()> {
                 id,
                 scopes,
             } => channel::run_hub_approve(url, admin_token, id, scopes),
+            HubCommand::Devices { url, admin_token } => channel::run_hub_devices(url, admin_token),
+            HubCommand::Revoke {
+                url,
+                admin_token,
+                id,
+            } => channel::run_hub_revoke(url, admin_token, id),
         },
         Some(Command::Upgrade { force }) => upgrade::run_upgrade(force),
         Some(Command::StaleDaemonNote) => {

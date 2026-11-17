@@ -5,7 +5,7 @@ import { describeError, sessionId, sessionKey, useBerth, getMetrics, useUsageLim
 
 const POLL_INTERVAL_MS = 3000;
 
-const { t, formatBytes, formatNumber } = useI18n();
+const { t, formatBytes, formatDate, formatNumber } = useI18n();
 
 type Row = { id: string; name: string; procs: number; rssBytes: number; share: number; tokens: number | null };
 
@@ -40,7 +40,7 @@ const limitRows = computed(() =>
     kind: w.kind,
     label: windowLabel(w),
     percent: Math.round(w.used_percent),
-    resets: new Date(w.resets_at_ms).toLocaleString([], { weekday: isFiveHourWindow(w) ? undefined : 'short', hour: '2-digit', minute: '2-digit' }),
+    resets: formatDate(w.resets_at_ms, { weekday: isFiveHourWindow(w) ? undefined : 'short', hour: '2-digit', minute: '2-digit' }),
   })),
 );
 

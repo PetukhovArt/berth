@@ -7,11 +7,13 @@ use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::post;
 use axum::Router;
-use berth_core::{NewTrigger, PromptTrigger, SessionRef, TriggerId, TriggerTarget, TriggerWhen};
+use berth_core::{
+    AgentId, NewTrigger, PromptTrigger, SessionRef, TriggerId, TriggerTarget, TriggerWhen,
+};
 use subtle::ConstantTimeEq;
 
 use crate::config::Config;
-use crate::pty::{DEFAULT_COLS, DEFAULT_ROWS};
+use crate::pty::{PtySession, DEFAULT_COLS, DEFAULT_ROWS};
 use crate::registry::{CreateAgentSpec, Daemon};
 
 pub const PROMPT_MAX_BYTES: usize = 16 * 1024;
@@ -19,7 +21,7 @@ pub const NAME_MAX_CHARS: usize = 80;
 pub const MIN_REPEAT_SECS: u64 = 60;
 const SCHEDULER_TICK: Duration = Duration::from_secs(5);
 pub(crate) const BOOT_GRACE: Duration = Duration::from_secs(6);
-pub(crate) const PASTE_GAP: Duration = Duration::from_millis(150);
+pub const PASTE_GAP: Duration = Duration::from_millis(150);
 const MIN_WEBHOOK_GAP: Duration = Duration::from_secs(5);
 const DELIVERY_MEMORY: usize = 512;
 const WEBHOOK_BODY_LIMIT: usize = 64 * 1024;
@@ -44,8 +46,14 @@ fn next_run(run_at: i64, repeat_secs: Option<u64>, now: i64) -> Option<i64> {
     Some(run_at + periods_behind * period)
 }
 
-pub(crate) fn paste(prompt: &str) -> Vec<u8> {
+pub fn paste(prompt: &str) -> Vec<u8> {
     format!("\x1b[200~{prompt}\x1b[201~").into_bytes()
+}
+
+pub async fn type_prompt(session: &PtySession, prompt: &str) -> Result<()> {
+    session.write_input(&paste(prompt))?;
+    tokio::time::sleep(PASTE_GAP).await;
+    session.write_input(b"\r")
 }
 
 impl Daemon {
@@ -146,6 +154,20 @@ impl Daemon {
         }
     }
 
+    pub(crate) async fn type_into_agent(
+        self: &Arc<Self>,
+        id: &AgentId,
+        prompt: &str,
+    ) -> Result<()> {
+        let sref = SessionRef::Agent(id.clone());
+        let was_alive = self.is_alive(&sref);
+        let session = self.ensure_session(&sref, DEFAULT_COLS, DEFAULT_ROWS)?;
+        if !was_alive {
+            tokio::time::sleep(BOOT_GRACE).await;
+        }
+        type_prompt(&session, prompt).await
+    }
+
     fn spawn_fire(self: &Arc<Self>, trigger: PromptTrigger) {
         let daemon = self.clone();
         tokio::spawn(async move {
@@ -164,17 +186,7 @@ impl Daemon {
                 }
                 sent
             }
-            TriggerTarget::Agent(id) => {
-                let sref = SessionRef::Agent(id.clone());
-                let was_alive = self.is_alive(&sref);
-                let session = self.ensure_session(&sref, DEFAULT_COLS, DEFAULT_ROWS)?;
-                if !was_alive {
-                    tokio::time::sleep(BOOT_GRACE).await;
-                }
-                session.write_input(&paste(&trigger.prompt))?;
-                tokio::time::sleep(PASTE_GAP).await;
-                session.write_input(b"\r")
-            }
+            TriggerTarget::Agent(id) => self.type_into_agent(id, &trigger.prompt).await,
             TriggerTarget::NewAgent { worktree, kind } => {
                 let (_, _, agents, _) = self.store.load_tree()?;
                 let taken = agents

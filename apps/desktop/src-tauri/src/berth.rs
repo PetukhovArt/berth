@@ -92,6 +92,10 @@ pub enum WatchEvent {
         seq: u64,
         item: Box<berth_core::acp::AcpItem>,
     },
+    ChannelAppended {
+        channel: String,
+        seq: i64,
+    },
     Error {
         message: String,
     },
@@ -175,6 +179,21 @@ pub fn berth_mark_seen(berth: &Berth, agent: AgentId) {
     berth.send(Command::MarkSeen { agent });
 }
 
+pub fn berth_prewarm(
+    berth: &Berth,
+    worktree: WorktreeId,
+    kind: AgentKind,
+    model: Option<String>,
+    effort: Option<String>,
+) {
+    berth.send(Command::Prewarm(ClientRequest::PrewarmAgent {
+        worktree,
+        kind,
+        model,
+        effort,
+    }));
+}
+
 pub async fn berth_call(berth: &Berth, mut request: serde_json::Value) -> CallResult {
     if let Some(serde_json::Value::Object(fields)) = request
         .as_object_mut()
@@ -219,6 +238,7 @@ enum Command {
     MarkSeen {
         agent: AgentId,
     },
+    Prewarm(ClientRequest),
     Call {
         request: ClientRequest,
         reply: oneshot::Sender<CallResult>,
@@ -430,19 +450,12 @@ impl Actor {
                 self.write(ClientRequest::Detach { session });
             }
             Command::MarkSeen { agent } => self.write(ClientRequest::MarkAgentSeen { id: agent }),
+            Command::Prewarm(request) => self.write(request),
             Command::Call { request, reply } => self.call(request, reply),
         }
     }
 
     fn call(&mut self, mut request: ClientRequest, reply: oneshot::Sender<CallResult>) {
-        if matches!(
-            request,
-            ClientRequest::PrewarmAgent { .. } | ClientRequest::PrewarmWorktreeSessions { .. }
-        ) {
-            self.write(request);
-            let _ = reply.send(Ok(serde_json::Value::Null));
-            return;
-        }
         let Some(slot) = rpc_req_id(&mut request) else {
             let _ = reply.send(Err(
                 "berth_call принимает только RPC-запросы с req_id".into()
@@ -607,6 +620,9 @@ impl Actor {
                 WatchEvent::TaskNote { worktree, text }
             }
             ServerEvent::AcpItem { agent, seq, item } => WatchEvent::AcpItem { agent, seq, item },
+            ServerEvent::ChannelAppended { channel, seq } => {
+                WatchEvent::ChannelAppended { channel, seq }
+            }
             ServerEvent::Error { message, .. } => WatchEvent::Error { message },
             ServerEvent::Scrollback {
                 session,
@@ -714,6 +730,9 @@ fn reply_req_id(event: &ServerEvent) -> Option<u64> {
         | ServerEvent::Channels { req_id, .. }
         | ServerEvent::ChannelEvents { req_id, .. }
         | ServerEvent::ChannelPresence { req_id, .. }
+        | ServerEvent::ChannelOpened { req_id, .. }
+        | ServerEvent::ChannelTouched { req_id, .. }
+        | ServerEvent::ChannelGrants { req_id, .. }
         | ServerEvent::AcpTranscript { req_id, .. }
         | ServerEvent::Metrics { req_id, .. } => Some(*req_id),
         ServerEvent::Error { req_id, .. } => *req_id,
@@ -736,6 +755,7 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::ListBranches { req_id, .. }
         | ClientRequest::ListOrphanedSessions { req_id, .. }
         | ClientRequest::ResumeOrphanedSession { req_id, .. }
+        | ClientRequest::ResumeConversation { req_id, .. }
         | ClientRequest::CreateAgent { req_id, .. }
         | ClientRequest::RenameAgent { req_id, .. }
         | ClientRequest::AutoRenameAgent { req_id, .. }
@@ -762,6 +782,7 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::GetProjectSetup { req_id, .. }
         | ClientRequest::SetProjectSetup { req_id, .. }
         | ClientRequest::ListTriggers { req_id }
+        | ClientRequest::TestChatBridge { req_id }
         | ClientRequest::CreateTrigger { req_id, .. }
         | ClientRequest::DeleteTrigger { req_id, .. }
         | ClientRequest::ListCheckpoints { req_id, .. }
@@ -770,10 +791,17 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::ReadChannel { req_id, .. }
         | ClientRequest::PostToChannel { req_id, .. }
         | ClientRequest::GetChannelPresence { req_id, .. }
+        | ClientRequest::OpenChannel { req_id, .. }
+        | ClientRequest::PostChannelNote { req_id, .. }
+        | ClientRequest::GetChannelTouched { req_id, .. }
+        | ClientRequest::PromoteChannelMessage { req_id, .. }
+        | ClientRequest::SetChannelGrant { req_id, .. }
+        | ClientRequest::ListChannelGrants { req_id, .. }
         | ClientRequest::CreateAcpAgent { req_id, .. }
         | ClientRequest::AcpPrompt { req_id, .. }
         | ClientRequest::AcpTranscript { req_id, .. }
         | ClientRequest::AnswerFeedback { req_id, .. }
+        | ClientRequest::AnswerInChannel { req_id, .. }
         | ClientRequest::GetUsageLimits { req_id }
         | ClientRequest::GetMetrics { req_id } => Some(req_id),
         ClientRequest::Hello { .. }
@@ -783,8 +811,9 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::Input { .. }
         | ClientRequest::Resize { .. }
         | ClientRequest::PrewarmAgent { .. }
-        | ClientRequest::PrewarmWorktreeSessions { .. }
         | ClientRequest::MarkAgentSeen { .. }
+        | ClientRequest::OfferTranscription
+        | ClientRequest::VoiceTranscribed { .. }
         | ClientRequest::Shutdown => None,
     }
 }

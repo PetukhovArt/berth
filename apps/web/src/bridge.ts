@@ -132,6 +132,9 @@ export const hostWindow = {
   },
   isMaximized: async (): Promise<boolean> => (isDesktop ? getCurrentWindow().isMaximized() : false),
   onResized: async (handler: () => void): Promise<() => void> => (isDesktop ? getCurrentWindow().onResized(handler) : () => undefined),
+  setBackground: async (rgb: [number, number, number]): Promise<void> => {
+    if (isDesktop) await getCurrentWindow().setBackgroundColor(rgb);
+  },
 };
 
 export function remoteFetch(path: string, init?: RequestInit): Promise<Response> {

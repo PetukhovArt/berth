@@ -1,17 +1,26 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, shallowRef, watch } from 'vue';
 import { VButton, VDialog, VInputText, VMessage, VSelect, VTextarea } from '../../../shared/ui/kit';
+import { UiButton } from '../../../shared/ui/UiButton';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
-import { acpPrompt, createAcpAgent, createAgent, createTerminal, entitySessionRef, prewarmAgent, type AgentKind, type SessionRef, useAction } from '../../../entities/session';
-import { useProviders } from '../../../shared/api/providers';
+import { chordJoiner, modifierGlyphs, onlyPrimaryPressed, primaryModifier, primaryPressed } from '../../../shared/lib/platform';
+import { invoke } from '../../../bridge';
+import { acpPrompt, createAcpAgent, createAgent, createTerminal, entitySessionRef, resumeConversation, type AgentKind, type SessionRef, useAction } from '../../../entities/session';
+import { enabledNativeAgent, useProviders } from '../../../shared/api/providers';
 import { useSessionTarget } from '../model/sessionTarget';
+import { useProjectConversations } from '../model/conversations';
 import { deletePreset, presets, savePreset, withPromptFrame, type AgentPreset } from '../model/presets';
 import NewSessionTarget from './NewSessionTarget.vue';
+import ContinueConversation from './ContinueConversation.vue';
 
-const props = defineProps<{ worktree: string | null }>();
+const props = defineProps<{ worktree: string | null; projectLocked: boolean }>();
 const emit = defineEmits<{ close: []; created: [session: SessionRef] }>();
 const location = useSessionTarget(props.worktree);
+const continuing = shallowRef(false);
+const pickedConversation = shallowRef<string | null>(null);
+const conversations = useProjectConversations(location.project, continuing);
+const chosenConversation = computed(() => conversations.choices.value.find((choice) => choice.key === pickedConversation.value && !choice.busy) ?? null);
 
 type AcpKind = `acp:${string}`;
 type Kind = Exclude<AgentKind, 'acp'> | AcpKind | 'terminal';
@@ -40,17 +49,28 @@ function generatedName(kind: Kind): string {
 }
 
 const { values } = useSettings();
-const initialKind = KINDS.value.find((option) => option.value === values.value['sessions.default_kind'])?.value ?? 'claude';
-const kind = shallowRef<Kind>(initialKind);
-const name = shallowRef(generatedName(initialKind));
-const model = shallowRef(values.value['sessions.default_model']);
-const effort = shallowRef(values.value['sessions.default_effort']);
+const defaultKind = computed<Kind>(() => {
+  const chosen = values.value['sessions.default_kind'];
+  if (chosen === 'terminal') return 'terminal';
+  if (!providers.value.length) return ON_BEFORE_PROVIDERS_LOAD.find((option) => option.value === chosen)?.value ?? 'claude';
+  return (enabledNativeAgent(chosen, providers.value) as Kind | null) ?? 'terminal';
+});
+const picked = shallowRef<Kind | null>(null);
+const kind = computed<Kind>(() => picked.value ?? defaultKind.value);
+const name = shallowRef(generatedName(kind.value));
+const model = shallowRef<string | null>(values.value['sessions.default_model']);
+const effort = shallowRef<string | null>(values.value['sessions.default_effort']);
 const prompt = shallowRef('');
 const before = shallowRef('');
 const after = shallowRef('');
 const activePreset = shallowRef<string | null>(null);
 const presetName = shallowRef('');
 const action = useAction();
+const expanded = shallowRef(false);
+const backgroundKey = `${modifierGlyphs[primaryModifier]}${chordJoiner}Enter`;
+const MODEL_SUGGESTIONS = ['opus', 'sonnet', 'haiku'];
+const EFFORT_SUGGESTIONS = ['low', 'medium', 'high'];
+const modelOptions = computed(() => (kind.value === 'claude' ? MODEL_SUGGESTIONS : []));
 
 const defaultName = computed(() => generatedName(kind.value));
 
@@ -59,7 +79,7 @@ watch(defaultName, (next, previous) => {
 });
 
 const extras = shallowRef<Kind[]>([]);
-const kinds = computed<Kind[]>(() => (kind.value === 'terminal' ? [kind.value] : [kind.value, ...extras.value.filter((extra) => extra !== kind.value)]));
+const kinds = computed<Kind[]>(() => (kind.value === 'terminal' || continuing.value ? [kind.value] : [kind.value, ...extras.value.filter((extra) => extra !== kind.value)]));
 const extraOptions = computed(() => KINDS.value.filter((option) => option.value !== 'terminal' && option.value !== kind.value));
 const many = computed(() => kinds.value.length > 1);
 
@@ -71,27 +91,6 @@ watch(
   { immediate: true },
 );
 
-const optional = (text: string) => text.trim() || null;
-
-const prewarmTarget = computed(() => {
-  const plan = location.plan.value;
-  if (plan.kind !== 'use' || many.value || kind.value === 'terminal' || acpProviderOf(kind.value)) return null;
-  return { worktree: plan.worktree.id, kind: kind.value as AgentKind, model: optional(model.value), effort: optional(effort.value) };
-});
-
-let prewarmTimer: ReturnType<typeof setTimeout> | undefined;
-watch(
-  () => JSON.stringify(prewarmTarget.value),
-  () => {
-    clearTimeout(prewarmTimer);
-    const target = prewarmTarget.value;
-    if (!target) return;
-    prewarmTimer = setTimeout(() => prewarmAgent(target.worktree, target.kind, target.model, target.effort), 150);
-  },
-  { immediate: true },
-);
-onBeforeUnmount(() => clearTimeout(prewarmTimer));
-
 function toggleExtra(value: Kind) {
   extras.value = extras.value.includes(value) ? extras.value.filter((extra) => extra !== value) : [...extras.value, value];
 }
@@ -100,7 +99,7 @@ function pickKind(value: unknown) {
   const next = KINDS.value.find((option) => option.value === value);
   if (!next) return;
   if (name.value.trim() === defaultName.value || !name.value.trim()) name.value = generatedName(next.value);
-  kind.value = next.value;
+  picked.value = next.value;
 }
 
 function applyPreset(preset: AgentPreset) {
@@ -120,7 +119,7 @@ function saveCurrent() {
   const trimmed = presetName.value.trim();
   if (!trimmed || kind.value === 'terminal') return;
   const acp = acpProviderOf(kind.value) !== null;
-  savePreset({ name: trimmed, kind: kind.value, model: acp ? '' : model.value.trim(), effort: acp ? '' : effort.value.trim(), before: before.value, after: after.value });
+  savePreset({ name: trimmed, kind: kind.value, model: acp ? '' : (optional(model.value) ?? ''), effort: acp ? '' : (optional(effort.value) ?? ''), before: before.value, after: after.value });
   activePreset.value = trimmed;
   presetName.value = '';
 }
@@ -130,8 +129,44 @@ function removePreset(name: string) {
   if (activePreset.value === name) activePreset.value = null;
 }
 
+const optional = (text: string | null) => text?.trim() || null;
 
-async function submit() {
+const warmWorktree = computed(() => (location.plan.value.kind === 'use' && providers.value.length ? location.plan.value.worktree.id : null));
+
+const warmTarget = computed(() => {
+  const worktree = warmWorktree.value;
+  const chosen = kind.value;
+  if (!worktree || continuing.value || chosen === 'terminal' || acpProviderOf(chosen)) return null;
+  return { worktree, kind: chosen, model: optional(model.value), effort: optional(effort.value) };
+});
+
+let prewarmTimer: ReturnType<typeof setTimeout> | undefined;
+watch(
+  () => JSON.stringify(warmTarget.value),
+  () => {
+    clearTimeout(prewarmTimer);
+    const target = warmTarget.value;
+    if (!target) return;
+    prewarmTimer = setTimeout(() => invoke<void>('berth_prewarm', target).catch(() => undefined), 150);
+  },
+  { immediate: true },
+);
+onBeforeUnmount(() => clearTimeout(prewarmTimer));
+
+async function continueConversation(background: boolean) {
+  const conversation = chosenConversation.value;
+  if (!conversation) return;
+  await action.run(async () => {
+    const [worktree] = await location.resolve(['']);
+    if (!worktree) return;
+    const agent = await resumeConversation(conversation, worktree);
+    if (background) emit('close');
+    else emit('created', { Agent: agent });
+  });
+}
+
+async function submit(background = false) {
+  if (continuing.value) return continueConversation(background);
   const chosen = kinds.value;
   const defaults = chosen.map(generatedName);
   const names = chosen.length > 1 ? defaults : [name.value.trim() || defaults[0]];
@@ -162,16 +197,25 @@ async function submit() {
       if (acpProvider && startingPrompt && created && 'Agent' in created) await acpPrompt(created.Agent, startingPrompt);
       first ??= created;
     }
-    if (first) emit('created', first);
+    if (first && !background) emit('created', first);
     else emit('close');
   });
 }
 
+function startable(): boolean {
+  return location.plan.value.kind !== 'incomplete' && !action.busy.value && (!continuing.value || !!chosenConversation.value);
+}
+
 function onPromptKey(event: KeyboardEvent) {
-  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing || primaryPressed(event)) return;
   event.preventDefault();
-  if (location.plan.value.kind === 'incomplete' || action.busy.value) return;
-  void submit();
+  if (startable()) void submit();
+}
+
+function onFormKey(event: KeyboardEvent) {
+  if (event.key !== 'Enter' || event.isComposing || !onlyPrimaryPressed(event)) return;
+  event.preventDefault();
+  if (startable()) void submit(true);
 }
 
 function onVisible(visible: boolean) {
@@ -183,28 +227,36 @@ function onVisible(visible: boolean) {
   <VDialog
     :visible="true"
     modal
-    :header="t('agents.newSession.title')"
-    :style="{ width: '640px', maxWidth: '95vw' }"
-    :pt="{ mask: { style: { background: 'var(--vr-overlay)' } }, root: { style: { borderRadius: '14px', boxShadow: 'var(--vr-shadow-dialog)' } } }"
+    position="top"
+    :closable="false"
+    :aria-label="t('agents.newSession.title')"
+    :style="{ width: '720px', maxWidth: '95vw' }"
+    :pt="{ mask: { style: { background: 'var(--vr-overlay)', alignItems: 'flex-start', paddingTop: '12vh' } }, root: { style: { borderRadius: '14px', boxShadow: 'var(--vr-shadow-dialog)' } } }"
     :draggable="false"
     @update:visible="onVisible"
   >
-    <form class="form" data-testid="new-session-form" @submit.prevent="submit">
+    <template #header>
+      <span class="p-dialog-title">{{ t('agents.newSession.title') }}</span>
+      <UiButton type="button" class="esc" :title="t('common.close')" :aria-label="t('common.close')" data-testid="new-session-close" @click="emit('close')">Esc</UiButton>
+    </template>
+    <form class="form" data-testid="new-session-form" @submit.prevent="submit()" @keydown="onFormKey">
+      <ContinueConversation v-if="continuing" v-model="pickedConversation" :conversations="conversations" />
       <VTextarea
-        v-if="kind !== 'terminal'"
+        v-else-if="kind !== 'terminal'"
         v-model="prompt"
-        rows="4"
+        rows="3"
         auto-resize
         class="prompt"
         autofocus
         :aria-label="t('agents.newSession.prompt')"
-        :placeholder="t('agents.newSession.optional')"
+        :placeholder="t('agents.newSession.promptPlaceholder')"
         data-testid="new-session-prompt"
         @keydown="onPromptKey"
       />
-      <NewSessionTarget :state="location">
+      <NewSessionTarget :state="location" :project-locked="projectLocked">
         <template #type>
           <VSelect
+            v-if="!continuing"
             :model-value="kind"
             :options="KINDS"
             option-label="label"
@@ -217,7 +269,52 @@ function onVisible(visible: boolean) {
           />
         </template>
       </NewSessionTarget>
-      <div v-if="kind !== 'terminal'" class="extras" data-testid="new-session-extras">
+      <div class="chips" data-testid="new-session-options">
+        <template v-if="kind !== 'terminal' && !acpProviderOf(kind) && !continuing">
+          <VSelect
+            v-model="model"
+            :options="modelOptions"
+            editable
+            size="small"
+            class="chip chip-input"
+            :placeholder="t('agents.newSession.defaultModel')"
+            :aria-label="t('agents.newSession.model')"
+            data-testid="new-session-model"
+          />
+          <VSelect
+            v-model="effort"
+            :options="EFFORT_SUGGESTIONS"
+            editable
+            size="small"
+            class="chip chip-input"
+            :placeholder="t('agents.newSession.defaultEffort')"
+            :aria-label="t('agents.newSession.effort')"
+            data-testid="new-session-effort"
+          />
+        </template>
+        <span class="spacer" />
+        <VButton
+          :label="continuing ? t('agents.newSession.newTask') : t('agents.newSession.continueMode')"
+          size="small"
+          text
+          :aria-pressed="continuing"
+          data-testid="new-session-continue"
+          @click="continuing = !continuing"
+        />
+        <VButton
+          :label="expanded ? t('agents.newSession.fewer') : t('agents.newSession.more')"
+          size="small"
+          text
+          :aria-expanded="expanded"
+          data-testid="new-session-more"
+          @click="expanded = !expanded"
+        />
+      </div>
+      <label v-if="expanded && location.plan.value.kind === 'create'" class="row">
+        <span class="row-label">{{ t('agents.newSession.setupCommand') }}</span>
+        <VInputText v-model="location.setup.value" size="small" :placeholder="t('agents.newSession.setupPlaceholder')" class="row-input mono" data-testid="new-session-setup" />
+      </label>
+      <div v-if="expanded && kind !== 'terminal' && !continuing" class="extras" data-testid="new-session-extras">
         <span class="extras-label">{{ t('agents.newSession.alsoStart') }}</span>
         <VButton
           v-for="option in extraOptions"
@@ -230,7 +327,7 @@ function onVisible(visible: boolean) {
           @click="toggleExtra(option.value)"
         />
       </div>
-      <div v-if="presets.length" class="extras" data-testid="new-session-presets">
+      <div v-if="expanded && presets.length && !continuing" class="extras" data-testid="new-session-presets">
         <span class="extras-label">{{ t('agents.newSession.presets') }}</span>
         <span v-for="preset in presets" :key="preset.name" class="preset">
           <VButton
@@ -251,7 +348,7 @@ function onVisible(visible: boolean) {
           />
         </span>
       </div>
-      <div v-if="kind !== 'terminal'" class="pair">
+      <div v-if="expanded && kind !== 'terminal' && !continuing" class="pair">
         <label class="field">
           <span>{{ t('agents.newSession.before') }}</span>
           <VInputText v-model="before" size="small" data-testid="new-session-before" />
@@ -261,29 +358,20 @@ function onVisible(visible: boolean) {
           <VInputText v-model="after" size="small" data-testid="new-session-after" />
         </label>
       </div>
-      <div v-if="kind !== 'terminal' && !acpProviderOf(kind)" class="pair">
-        <label class="field">
-          <span>{{ t('agents.newSession.model') }}</span>
-          <VInputText v-model="model" size="small" :placeholder="t('agents.newSession.byDefault')" data-testid="new-session-model" />
-        </label>
-        <label class="field">
-          <span>{{ t('agents.newSession.effort') }}</span>
-          <VInputText v-model="effort" size="small" :placeholder="t('agents.newSession.byDefault')" data-testid="new-session-effort" />
-        </label>
-      </div>
-      <div v-if="kind !== 'terminal'" class="extras">
+      <div v-if="expanded && kind !== 'terminal' && !continuing" class="extras">
         <VInputText v-model="presetName" size="small" :placeholder="t('agents.newSession.presetName')" data-testid="new-session-preset-name" @keydown.enter.prevent="saveCurrent" />
         <VButton :label="t('agents.newSession.savePreset')" size="small" outlined :disabled="!presetName.trim()" data-testid="new-session-preset-save" @click="saveCurrent" />
       </div>
       <VMessage v-if="action.error.value" severity="error" size="small" data-testid="new-session-error">{{ action.error.value }}</VMessage>
       <div class="footer">
-        <label v-if="!many" class="name">
+        <label v-if="!many && !continuing" class="name">
           <span>{{ t('agents.newSession.name') }}</span>
           <VInputText v-model="name" size="small" :placeholder="defaultName" data-testid="new-session-name" />
         </label>
         <span class="spacer" />
+        <span class="hint" data-testid="new-session-background-hint">{{ t('agents.newSession.backgroundHint', { key: backgroundKey }) }}</span>
         <VButton :label="t('common.cancel')" size="small" text data-testid="new-session-cancel" @click="emit('close')" />
-        <VButton type="submit" :label="many ? t('agents.newSession.startMany', { count: kinds.length }) : t('common.create')" size="small" :loading="action.busy.value" :disabled="location.plan.value.kind === 'incomplete'" data-testid="new-session-submit" />
+        <VButton type="submit" :label="continuing ? t('agents.newSession.continueStart') : many ? t('agents.newSession.startMany', { count: kinds.length }) : t('common.create')" size="small" :loading="action.busy.value" :disabled="location.plan.value.kind === 'incomplete' || (continuing && !chosenConversation)" data-testid="new-session-submit" />
       </div>
     </form>
   </VDialog>
@@ -296,15 +384,73 @@ function onVisible(visible: boolean) {
   gap: var(--vr-space-3);
 }
 
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.chip-input {
+  width: 10.5rem;
+}
+
+.esc {
+  margin-left: auto;
+  padding: 1px 6px;
+  font-family: var(--vr-font-mono);
+  font-size: var(--vr-font-size-2xs);
+  color: var(--vr-color-text-muted);
+  cursor: pointer;
+  background: none;
+  border: 1px solid var(--vr-color-border-strong);
+  border-radius: 4px;
+}
+
+.esc:hover {
+  color: var(--vr-color-text);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.row-label {
+  width: 7.5rem;
+  flex: none;
+  overflow: hidden;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.mono {
+  font-family: var(--vr-font-mono);
+  font-size: var(--vr-font-size-label);
+}
+
+.hint {
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-muted);
+}
+
 .prompt {
-  min-height: 120px;
+  min-height: 84px;
   padding: 12px 14px;
   border: 1px solid var(--vr-color-border-strong);
   border-radius: 12px;
   background: var(--vr-color-surface-sunken);
   box-shadow: none;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: var(--vr-font-size-sm);
+  line-height: 1.57;
   resize: none;
 }
 
@@ -315,12 +461,16 @@ function onVisible(visible: boolean) {
   border-radius: 7px;
   background: var(--vr-color-surface-muted);
   box-shadow: none;
-  font-size: 12.5px;
+  font-size: var(--vr-font-size-label);
 }
 
 .chip :deep(.p-select-label) {
   padding: 0 9px;
   white-space: nowrap;
+}
+
+.chip :deep(.p-select-dropdown) {
+  width: 1.6rem;
 }
 
 .pair {
@@ -368,7 +518,7 @@ function onVisible(visible: boolean) {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
 }
 

@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 57;
+pub const PROTOCOL_VERSION: u32 = 58;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -137,6 +137,7 @@ pub enum ClientRequest {
     ListOrphanedSessions {
         req_id: u64,
         project: ProjectId,
+        include_live: bool,
     },
     /// Bring an ORPHANED SESSION back as a live AGENT in `worktree`. Creates
     /// an ordinary row there carrying the old CLI session id, so the next
@@ -145,6 +146,13 @@ pub enum ClientRequest {
         req_id: u64,
         session_id: String,
         worktree: WorktreeId,
+    },
+    ResumeConversation {
+        req_id: u64,
+        worktree: WorktreeId,
+        kind: AgentKind,
+        session_id: String,
+        name: String,
     },
     CreateAgent {
         req_id: u64,
@@ -169,8 +177,8 @@ pub enum ClientRequest {
         starting_prompt: Option<String>,
     },
     /// Fire-and-forget: pre-spawn an agent CLI for this (worktree, kind) so
-    /// the next CreateAgent adopts an already-booted session. Sent the
-    /// moment the user picks the kind, before they type the name. No reply;
+    /// the next CreateAgent adopts an already-booted session.
+    /// No reply;
     /// a missing CLI or failed spawn silently degrades to a cold spawn.
     PrewarmAgent {
         worktree: WorktreeId,
@@ -179,19 +187,6 @@ pub enum ClientRequest {
         /// discarded (a CLI booted with the wrong model can't be adopted).
         model: Option<String>,
         effort: Option<String>,
-    },
-    /// Fire-and-forget: pre-spawn every dead (non-archived) session under a
-    /// worktree so attaching later replays an already-booted screen instead
-    /// of watching a login shell + CLI boot. Sent once the worktree
-    /// selection has rested (debounced client-side); already-alive sessions
-    /// are untouched. No reply; a failed spawn degrades to today's lazy
-    /// spawn-on-attach.
-    PrewarmWorktreeSessions {
-        worktree: WorktreeId,
-        /// Pane size the sessions boot at, so the later Attach resizes to
-        /// the same grid and full-screen apps need no reflow.
-        cols: u16,
-        rows: u16,
     },
     RenameAgent {
         req_id: u64,
@@ -379,6 +374,13 @@ pub enum ClientRequest {
         req_id: u64,
     },
 
+    /// Post a short test text through every configured chat bridge route.
+    /// Answered by an Ack when each route took it, else an Error naming the
+    /// routes that failed, or saying none is configured.
+    TestChatBridge {
+        req_id: u64,
+    },
+
     CreateTrigger {
         req_id: u64,
         trigger: NewTrigger,
@@ -423,6 +425,44 @@ pub enum ClientRequest {
         channel: String,
     },
 
+    OpenChannel {
+        req_id: u64,
+        key: Option<String>,
+        agent: Option<AgentId>,
+    },
+
+    PostChannelNote {
+        req_id: u64,
+        channel: String,
+        content: String,
+        agent: Option<AgentId>,
+    },
+
+    GetChannelTouched {
+        req_id: u64,
+        channel: String,
+    },
+
+    PromoteChannelMessage {
+        req_id: u64,
+        channel: String,
+        seq: i64,
+        agent: Option<AgentId>,
+    },
+
+    SetChannelGrant {
+        req_id: u64,
+        channel: String,
+        agent: AgentId,
+        member: String,
+        granted: bool,
+    },
+
+    ListChannelGrants {
+        req_id: u64,
+        channel: Option<String>,
+    },
+
     CreateAcpAgent {
         req_id: u64,
         worktree: WorktreeId,
@@ -449,7 +489,23 @@ pub enum ClientRequest {
         option: u8,
     },
 
+    AnswerInChannel {
+        req_id: u64,
+        channel: String,
+        request: i64,
+        answer: String,
+        agent: Option<AgentId>,
+    },
+
     Shutdown,
+
+    OfferTranscription,
+
+    VoiceTranscribed {
+        request: u64,
+        text: Option<String>,
+        error: Option<String>,
+    },
 }
 
 /// The archive mark on an EXTERNAL SESSION, keyed by its agent CLI and that
@@ -614,6 +670,8 @@ pub struct FeedbackRequest {
     pub title: String,
     pub detail: Option<String>,
     pub options: Vec<String>,
+    #[serde(default)]
+    pub always_allow: bool,
 }
 
 /// One local branch of a project, as `ListBranches` reports it.
@@ -681,6 +739,8 @@ pub enum ServerEvent {
         req_id: u64,
         worktree: Worktree,
         outcome: EnterOutcome,
+        #[serde(default)]
+        warning: Option<String>,
     },
     Error {
         req_id: Option<u64>,
@@ -804,6 +864,21 @@ pub enum ServerEvent {
         here: Vec<ChannelPresent>,
     },
 
+    ChannelOpened {
+        req_id: u64,
+        key: String,
+    },
+
+    ChannelTouched {
+        req_id: u64,
+        touched: Vec<ChannelTouching>,
+    },
+
+    ChannelGrants {
+        req_id: u64,
+        grants: Vec<ChannelGrant>,
+    },
+
     AcpTranscript {
         req_id: u64,
         agent: AgentId,
@@ -815,6 +890,16 @@ pub enum ServerEvent {
         seq: u64,
         item: Box<AcpItem>,
     },
+
+    ChannelAppended {
+        channel: String,
+        seq: i64,
+    },
+
+    TranscribeVoice {
+        request: u64,
+        pcm_path: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -822,6 +907,22 @@ pub struct ChannelPresent {
     pub member: String,
     pub name: String,
     pub agents: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChannelTouching {
+    pub member: String,
+    pub name: String,
+    pub agent: String,
+    pub modules: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChannelGrant {
+    pub channel: String,
+    pub agent: AgentId,
+    pub member: String,
+    pub member_name: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -842,6 +943,12 @@ pub struct ChannelEvent {
     pub tags: Vec<Vec<String>>,
     pub content: String,
     pub created_at: i64,
+    #[serde(default)]
+    pub from_me: bool,
+    #[serde(default)]
+    pub author_agent: Option<AgentId>,
+    #[serde(default)]
+    pub mentioned_agents: Vec<AgentId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

@@ -31,6 +31,12 @@
     "accent-contrast": {
       "$value": "#151618"
     },
+    "brand": {
+      "$value": "#2f6feb"
+    },
+    "brand-contrast": {
+      "$value": "#ffffff"
+    },
     "chip-bg": {
       "$value": "rgba(225, 228, 232, 0.15)"
     },
@@ -150,17 +156,71 @@
     "dim": {
       "$value": "#80858c"
     },
-    "accent": {
-      "$value": "#e0896a"
+    "black": {
+      "$value": "#5c6168"
     },
-    "blue": {
-      "$value": "#8fb4ff"
+    "red": {
+      "$value": "#ff8a80"
     },
     "green": {
       "$value": "#6fd3a0"
     },
-    "red": {
-      "$value": "#ff8a80"
+    "yellow": {
+      "$value": "#e5c07b"
+    },
+    "blue": {
+      "$value": "#8fb4ff"
+    },
+    "magenta": {
+      "$value": "#d2a8ff"
+    },
+    "cyan": {
+      "$value": "#6fcfdc"
+    },
+    "white": {
+      "$value": "#d6d8db"
+    },
+    "bright-black": {
+      "$value": "#80858c"
+    },
+    "bright-red": {
+      "$value": "#ffaba3"
+    },
+    "bright-green": {
+      "$value": "#94e6bb"
+    },
+    "bright-yellow": {
+      "$value": "#f2d99b"
+    },
+    "bright-blue": {
+      "$value": "#b3cdff"
+    },
+    "bright-magenta": {
+      "$value": "#e3c6ff"
+    },
+    "bright-cyan": {
+      "$value": "#9de3ec"
+    },
+    "bright-white": {
+      "$value": "#f5f6f7"
+    },
+    "selection": {
+      "$value": "rgba(143, 180, 255, 0.3)"
+    },
+    "selection-inactive": {
+      "$value": "rgba(255, 255, 255, 0.12)"
+    },
+    "selection-fg": {
+      "$value": "#f5f6f7"
+    },
+    "scrollbar": {
+      "$value": "rgba(255, 255, 255, 0.12)"
+    },
+    "scrollbar-hover": {
+      "$value": "rgba(255, 255, 255, 0.2)"
+    },
+    "scrollbar-active": {
+      "$value": "rgba(255, 255, 255, 0.28)"
     }
   },
   "shadow": {

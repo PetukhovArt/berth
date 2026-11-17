@@ -3,6 +3,7 @@ import { archiveAgent, acknowledged, closeTerminal, describeError, useBerth, typ
 import { invoke, isDesktop } from '../../../bridge';
 import { useSettings } from '../../../shared/config/settings/store';
 import { createScope, visibleInterval } from '../../../shared/lib/scope';
+import { compareText } from '../../../shared/lib/i18n/i18n';
 
 type Category = 'safe' | 'review' | 'changes' | 'keep';
 type Reason = 'request_merged' | 'request_closed' | 'merged' | 'branch_gone' | 'stale' | 'missing' | 'active';
@@ -123,7 +124,7 @@ function candidatesOf(stored: Stored | null, entities: Entities): Candidate[] {
       out.push({ key: `o:${orphan.path}`, projectId: project.id, projectName: known.name, repo: project.repo, base: project.base, category: 'orphan', path: orphan.path, name: folderName(orphan.path), worktreeId: null, scan: null, orphan });
     }
   }
-  return out.sort((a, b) => a.projectName.localeCompare(b.projectName) || CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category) || a.name.localeCompare(b.name));
+  return out.sort((a, b) => compareText(a.projectName, b.projectName) || CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category) || compareText(a.name, b.name));
 }
 
 const berth = useBerth();

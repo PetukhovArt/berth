@@ -19,6 +19,7 @@ function themeVariables(dark: boolean) {
     darkMode: dark,
     background: surface,
     fontFamily: cssToken('font-family'),
+    fontSize: `${16 * (Number(cssToken('font-scale')) || 1)}px`,
     primaryColor: muted,
     primaryTextColor: text,
     primaryBorderColor: line,

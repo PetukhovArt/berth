@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
-import { t } from '../../../shared/lib/i18n/i18n';
-import { sessionDot, StatusIcon, useBerth, useExternalSessions, type AgentKind, type SessionStatus } from '../../../entities/session';
+import { useI18n } from '../../../shared/lib/i18n/i18n';
+import { latestModel, modelLabel, sessionDot, StatusIcon, useAgentMessages, useBerth, useExternalSessions, type AgentKind, type SessionStatus } from '../../../entities/session';
 import { knownMr, lookupMr, numberLabel } from '../../../entities/merge-request';
 import { SessionViewSwitch } from '../../../features/session-view-switch';
 import { GitStepButton } from '../../../features/git-step';
@@ -10,9 +10,14 @@ import TaskNoteButton from './TaskNoteButton.vue';
 import CheckpointsButton from './CheckpointsButton.vue';
 import RouteButton from './RouteButton.vue';
 import { OverlapChip } from '../../../features/overlaps';
+import { ShareButton } from '../../../features/share-session';
+import { isDesktop } from '../../../bridge';
+import { inspectorShown } from '../../../shared/model/inspector';
 
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
+const { t, formatTime } = useI18n();
 
+const MODEL_TAIL = 40;
 const KIND_LABEL: Record<AgentKind, string> = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode', grok: 'Grok', acp: 'ACP' };
 
 const berth = useBerth();
@@ -48,7 +53,7 @@ const statusText = computed(() => {
   const failure = node.value?.providerError;
   const label = failure ? t(`agents.route.errorKind.${failure.kind}`) : t(`agents.status.${status.value}`);
   const until = status.value === 'limit' ? node.value?.limitUntil : undefined;
-  return until ? `${label} · ${t('agents.metrics.resets', { time: new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}` : label;
+  return until ? `${label} · ${t('agents.metrics.resets', { time: formatTime(until) })}` : label;
 });
 
 const place = computed(() => [project.value, worktree.value?.branch].filter(Boolean).join(' › '));
@@ -65,8 +70,13 @@ const routedFrom = computed(() => {
   }
   return names.length ? t('agents.route.routedFrom', { name: names.join(' ← ') }) : undefined;
 });
+const messages = useAgentMessages(() => agent.value, MODEL_TAIL, () => status.value);
+const modelName = computed(() => {
+  const id = latestModel(messages.value) ?? agent.value?.model;
+  return id ? modelLabel(id) : undefined;
+});
 const meta = computed(() =>
-  [agent.value ? KIND_LABEL[agent.value.kind] : undefined, agent.value?.model, place.value, mr.value ? numberLabel(mr.value) : undefined, routedFrom.value].filter(Boolean).join(' · '),
+  [agent.value ? KIND_LABEL[agent.value.kind] : undefined, modelName.value, place.value, mr.value ? numberLabel(mr.value) : undefined, routedFrom.value].filter(Boolean).join(' · '),
 );
 
 watch(
@@ -87,20 +97,47 @@ watch(
           <StatusIcon class="icon" :status="status" :unseen="node.unseen" />
           {{ statusText }}
         </span>
-        <OverlapChip v-if="agent" :agent-id="agent.id" />
+        <OverlapChip v-if="agent && !inspectorShown" :agent-id="agent.id" />
       </div>
       <div v-if="meta" class="meta" data-testid="session-header-meta">{{ meta }}</div>
     </div>
     <RouteButton v-if="agent" :agent-id="agent.id" :kind="agent.kind" :model="agent.model" :resumable="!!agent.session_id" :error="agent.provider_error ?? null" />
-    <CheckpointsButton v-if="agent" :agent-id="agent.id" :name="agent.name" :kind="agent.kind" :refresh-key="status" />
-    <TaskNoteButton v-if="worktree" :worktree-id="worktree.id" :branch="worktree.branch" />
+    <CheckpointsButton v-if="agent && !inspectorShown" :agent-id="agent.id" :name="agent.name" :kind="agent.kind" :refresh-key="status" />
+    <ShareButton v-if="agent && isDesktop" :agent-id="agent.id" :name="node.name" />
+    <TaskNoteButton v-if="worktree && !inspectorShown" :worktree-id="worktree.id" :branch="worktree.branch" />
     <GitStepButton v-if="worktree && worktree.branch" :path="worktree.path" :branch="worktree.branch" :has-request="!!mr" :refresh-key="status" />
     <SessionViewSwitch :panel="panel" :active="active" />
   </header>
 </template>
 
 <style scoped>
+@container session-header (max-width: 1280px) {
+  .session-header :deep(.git-step .full),
+  .session-header :deep(.git-step > .hint) {
+    display: none;
+  }
+
+  .session-header :deep(.git-step .short) {
+    display: inline;
+  }
+}
+
+@container session-header (max-width: 960px) {
+  .session-header :deep(.git-step .short) {
+    display: none;
+  }
+
+  .session-header :deep(.git-step .glyph) {
+    display: block;
+  }
+
+  .session-header :deep(.git-step > .run) {
+    padding: 0 8px;
+  }
+}
+
 .session-header {
+  container: session-header / inline-size;
   display: flex;
   flex: none;
   align-items: center;
@@ -110,7 +147,72 @@ watch(
   border-bottom: 1px solid var(--vr-color-border);
 }
 
+:root[data-vr-viewport='phone'] .session-header {
+  flex-wrap: nowrap;
+  gap: var(--vr-space-1);
+  padding: var(--vr-space-2) var(--vr-space-3);
+}
+
 :root[data-vr-viewport='phone'] .session-header .title {
+  display: none;
+}
+
+:root[data-vr-viewport='phone'] .session-header .identity,
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step) {
+  display: none;
+}
+
+:root[data-vr-viewport='phone'] .session-header .title-row {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step) {
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  row-gap: 6px;
+  min-width: 0;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step > .hint),
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step > .error) {
+  flex-basis: 100%;
+  white-space: normal;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step > .error) {
+  position: static;
+  max-width: none;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step > .run) {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.modes) {
+  display: flex;
+  flex: 1 1 0;
+  order: -1;
+  min-width: 0;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.modes .mode) {
+  flex: 1 1 auto;
+  justify-content: center;
+  min-width: 0;
+  height: 32px;
+  padding: 0 var(--vr-space-1);
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.modes .name) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:root[data-vr-viewport='phone'] .session-header :deep(.modes .key) {
   display: none;
 }
 
@@ -119,7 +221,7 @@ watch(
   flex: 1;
   flex-direction: column;
   gap: 2px;
-  min-width: 0;
+  min-width: 12rem;
 }
 
 .title-row {
@@ -131,7 +233,7 @@ watch(
 
 .title {
   overflow: hidden;
-  font-size: 15px;
+  font-size: var(--vr-font-size-title);
   font-weight: 600;
   white-space: nowrap;
   text-overflow: ellipsis;

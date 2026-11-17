@@ -411,7 +411,7 @@ onBeforeUnmount(() => clearTimeout(copyTimer));
   color: var(--vr-color-text-muted);
   font-family: var(--vr-font-mono);
   font-size: var(--vr-font-size-2xs);
-  line-height: 24px;
+  line-height: 2.2;
   pointer-events: none;
   user-select: none;
 }
@@ -516,8 +516,8 @@ onBeforeUnmount(() => clearTimeout(copyTimer));
   background: var(--vr-color-surface-muted);
   box-shadow: inset 0 -1px 0 var(--vr-color-border);
   font-family: var(--vr-font-mono);
-  font-size: 11px;
-  line-height: 10px;
+  font-size: var(--vr-font-size-2xs);
+  line-height: 0.9;
   vertical-align: middle;
 }
 

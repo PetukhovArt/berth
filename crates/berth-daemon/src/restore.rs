@@ -10,7 +10,7 @@ use berth_core::protocol::SessionRef;
 
 use crate::registry::Daemon;
 
-/// Gap between two boots, the same reason as a worktree prewarm sweep: a
+/// Gap between two boots: a
 /// burst of CLI starts at once is slower than the starts in turn.
 const STAGGER: Duration = Duration::from_millis(1500);
 /// Grid a restored PTY starts with; the first attach resizes it.

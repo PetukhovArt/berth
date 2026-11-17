@@ -3,13 +3,14 @@ import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplate
 import { Check, ChevronDown, ChevronRight, ChevronUp, Columns2, Folder, FolderOpen, ListTree, MessageSquare, Rows2, Search, WrapText, X } from '../../../shared/ui/icons';
 import { useIsPhone, VInputText } from '../../../shared/ui/kit';
 import type { DiffFile, Discussion } from '../../../shared/api/connectors/api';
-import { t } from '../../../shared/lib/i18n/i18n';
+import { t, compareText } from '../../../shared/lib/i18n/i18n';
 import SidePane from '../../../shared/ui/SidePane.vue';
 import DiffFileBody from './DiffFileBody.vue';
 import { isMarkdownPath, type PreviewSource } from '../lib/fileBase';
 import MarkdownPreview from './MarkdownPreview.vue';
 import { fingerprint, loadMarks, saveMarks, type Marks } from '../lib/reviewed';
 import { parsePatch } from '../lib/patch';
+import { flatName, treePlace } from '../lib/treePlace';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ files: DiffFile[]; discussions: Discussion[]; connector?: string; project?: string; headSha?: string; requestUrl?: string; root?: string; quotable?: boolean }>();
@@ -226,7 +227,7 @@ function buildTree(): TreeNode {
   const top: TreeNode = { name: '', path: '', dirs: new Map(), files: [] };
   props.files.forEach((file, index) => {
     let node = top;
-    for (const part of file.new_path.split('/').slice(0, -1)) {
+    for (const part of treePlace(file).dirs) {
       let child = node.dirs.get(part);
       if (!child) {
         child = { name: part, path: node.path ? `${node.path}/${part}` : part, dirs: new Map(), files: [] };
@@ -258,12 +259,12 @@ const treeRows = computed<TreeRow[]>(() => {
   if (query.value) {
     return visible.value.map((index) => {
       const file = props.files[index]!;
-      return { key: `f${index}`, kind: 'file' as const, depth: 0, name: file.new_path, path: file.new_path, index, additions: file.additions, deletions: file.deletions, open: false };
+      return { key: `f${index}`, kind: 'file' as const, depth: 0, name: flatName(file), path: file.new_path, index, additions: file.additions, deletions: file.deletions, open: false };
     });
   }
   const rows: TreeRow[] = [];
   const walk = (node: TreeNode, depth: number) => {
-    for (const dir of [...node.dirs.values()].sort((a, b) => a.name.localeCompare(b.name))) {
+    for (const dir of [...node.dirs.values()].sort((a, b) => compareText(a.name, b.name))) {
       let tail = dir;
       let name = dir.name;
       while (tail.files.length === 0 && tail.dirs.size === 1) {
@@ -275,10 +276,10 @@ const treeRows = computed<TreeRow[]>(() => {
       rows.push({ key: `d${tail.path}`, kind: 'dir', depth, name, path: tail.path, index: -1, additions: sum.additions, deletions: sum.deletions, open });
       if (open) walk(tail, depth + 1);
     }
-    const ordered = [...node.files].sort((a, b) => props.files[a]!.new_path.localeCompare(props.files[b]!.new_path));
+    const ordered = [...node.files].sort((a, b) => compareText(props.files[a]!.new_path, props.files[b]!.new_path));
     for (const index of ordered) {
       const file = props.files[index]!;
-      rows.push({ key: `f${index}`, kind: 'file', depth, name: file.new_path.split('/').at(-1)!, path: file.new_path, index, additions: file.additions, deletions: file.deletions, open: false });
+      rows.push({ key: `f${index}`, kind: 'file', depth, name: treePlace(file).name, path: file.new_path, index, additions: file.additions, deletions: file.deletions, open: false });
     }
   };
   walk(buildTree(), 0);
@@ -511,12 +512,23 @@ onBeforeUnmount(() => {
   if (frame) cancelAnimationFrame(frame);
 });
 
-defineExpose({ focusThread, root });
+function focusFile(path: string): boolean {
+  const index = props.files.findIndex((file) => file.new_path === path || file.old_path === path);
+  if (index < 0) return false;
+  pickFile(index);
+  return true;
+}
+
+defineExpose({ focusThread, focusFile, root });
 </script>
 
 <template>
   <div ref="root" class="diff vr-master-detail" :data-detail="!filesOpen" tabindex="0" data-testid="diff-view" @keydown="onKey">
     <SidePane class="tree vr-master" storage-key="berth.diff.treeWidth" :default-width="260" :label="t('forge.diff.treeWidth')" handle-testid="diff-tree-resize-handle" data-testid="diff-tree">
+      <div v-if="!phone" class="tree-head" data-testid="diff-tree-head">
+        <span class="summary">{{ t('forge.diff.fileCount', { count: files.length }) }} <span class="add">+{{ totals.additions }}</span> <span class="del">−{{ totals.deletions }}</span></span>
+        <slot name="scope" />
+      </div>
       <div class="tree-filter">
         <Search :size="14" />
         <VInputText v-model="filter" class="tree-input" :placeholder="t('forge.diff.filter')" autocomplete="off" data-testid="diff-filter" />
@@ -551,11 +563,13 @@ defineExpose({ focusThread, root });
     <div class="main vr-detail">
       <header class="toolbar">
         <UiButton class="mode vr-phone-only" data-testid="diff-files-open" @click="filesOpen = true"><ListTree :size="14" />{{ t('forge.diff.files') }}</UiButton>
-        <span class="summary">{{ t('forge.diff.fileCount', { count: files.length }) }} <span class="add">+{{ totals.additions }}</span> <span class="del">−{{ totals.deletions }}</span></span>
-        <span v-if="scope" class="summary" data-testid="diff-reviewed-count">{{ t('forge.diff.reviewedCount', { done: reviewedCount, total: files.length }) }}</span>
+        <template v-if="phone">
+          <span class="summary">{{ t('forge.diff.fileCount', { count: files.length }) }} <span class="add">+{{ totals.additions }}</span> <span class="del">−{{ totals.deletions }}</span></span>
+          <slot name="scope" />
+        </template>
+        <span v-if="scope" class="summary reviewed-count" data-testid="diff-reviewed-count">{{ t('forge.diff.reviewedCount', { done: reviewedCount, total: files.length }) }}</span>
         <span class="spacer" />
         <UiButton v-if="quotable && picked" class="mode" :title="t('forge.diff.quoteTitle')" data-testid="diff-quote" @click="quotePicked"><MessageSquare :size="14" />{{ t('forge.diff.quote', { count: pickedCount }) }}</UiButton>
-        <slot name="actions" />
         <span v-if="unresolved.length" class="group">
           <UiButton class="icon" :title="t('forge.diff.prevThreadTitle')" :aria-label="t('forge.diff.prevThread')" data-testid="diff-prev-thread" @click="stepThread(-1)"><ChevronUp :size="14" /></UiButton>
           <span>{{ t('forge.diff.unresolvedCount', { count: unresolved.length }) }}</span>
@@ -566,6 +580,7 @@ defineExpose({ focusThread, root });
           <UiButton class="mode" :data-active="mode === 'unified'" :title="t('forge.diff.unified')" data-testid="diff-mode-unified" @click="setMode('unified')"><Rows2 :size="14" />{{ t('forge.diff.unified') }}</UiButton>
           <UiButton class="mode" :data-active="mode === 'split'" :title="t('forge.diff.split')" data-testid="diff-mode-split" @click="setMode('split')"><Columns2 :size="14" />{{ t('forge.diff.split') }}</UiButton>
         </span>
+        <slot name="actions" />
       </header>
 
       <div ref="scroller" v-auto-animate class="files" data-testid="diff-files" @scroll.passive="onScroll" @wheel.passive="release" @pointerdown="release" @touchstart.passive="release">
@@ -574,15 +589,16 @@ defineExpose({ focusThread, root });
         <section v-for="{ file, i } in entries" :key="`${file.old_path}>${file.new_path}`" :ref="(el) => (fileEls[i] = el as HTMLElement | null)" class="file" :data-index="i" data-testid="diff-file">
           <header class="file-head" @click="toggleCollapsed(i)">
             <ChevronRight :size="14" class="chev vr-chevron" :data-open="!collapsed.has(i)" />
-            <span class="mark" :data-status="file.status" :title="t(STATUS_TITLE_KEY[file.status])">{{ STATUS_MARK[file.status] }}</span>
             <span class="path" :title="file.new_path">
               <template v-if="file.status === 'renamed' && file.old_path !== file.new_path">{{ file.old_path }} → </template>{{ file.new_path }}
             </span>
-            <span v-if="canPreview(file)" class="group" role="group" :aria-label="t('forge.diff.fileView')" @click.stop>
+            <span class="pill" :data-status="file.status" data-testid="diff-file-status">{{ t(STATUS_TITLE_KEY[file.status]) }}</span>
+            <span class="counts"><span class="add">+{{ file.additions }}</span> <span class="del">−{{ file.deletions }}</span></span>
+            <span class="spacer" />
+            <span v-if="canPreview(file)" class="group switch" role="group" :aria-label="t('forge.diff.fileView')" @click.stop>
               <UiButton class="mode" :data-active="!previewing.has(i)" data-testid="diff-file-code" @click="setPreview(i, false)">{{ t('forge.diff.code') }}</UiButton>
               <UiButton class="mode" :data-active="previewing.has(i)" data-testid="diff-file-preview" @click="setPreview(i, true)">{{ t('forge.diff.preview') }}</UiButton>
             </span>
-            <span class="counts"><span class="add">+{{ file.additions }}</span> <span class="del">−{{ file.deletions }}</span></span>
             <UiButton
               v-if="scope"
               class="mode reviewed"
@@ -611,6 +627,7 @@ defineExpose({ focusThread, root });
               :picked="picked?.file === i ? picked : null"
               @pick="(index, extend) => pickLine(i, index, extend)"
               @expand="expandFile(i)"
+              @quote="emit('quote', $event)"
             />
             <div v-else class="placeholder" :style="{ height: `${estimates[i]}px` }" />
           </template>
@@ -690,6 +707,57 @@ defineExpose({ focusThread, root });
 
 .reviewed {
   flex: none;
+  height: 22px;
+  padding: 0 var(--vr-space-2);
+  font-size: var(--vr-font-size-2xs);
+  white-space: nowrap;
+  border-color: var(--vr-color-border);
+}
+
+.reviewed[data-active='true'] {
+  color: var(--vr-color-success);
+}
+
+.switch {
+  flex: none;
+  padding: 2px;
+  background: var(--vr-color-surface-muted);
+  border-radius: 7px;
+}
+
+.switch .mode {
+  height: 20px;
+  padding: 0 var(--vr-space-2);
+  font-size: var(--vr-font-size-2xs);
+  border-radius: 5px;
+}
+
+.switch .mode[data-active='true'] {
+  background: var(--vr-color-surface);
+}
+
+.tree-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vr-space-2);
+  min-height: 40px;
+  box-sizing: border-box;
+  padding: 0 var(--vr-space-2) 0 var(--vr-space-3);
+  font-size: var(--vr-font-size-xs);
+}
+
+.summary {
+  flex: none;
+  color: var(--vr-color-text-muted);
+  white-space: nowrap;
+}
+
+.reviewed-count {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tree-row[data-active='true'] {
@@ -756,10 +824,35 @@ defineExpose({ focusThread, root });
   min-height: 0;
 }
 
+@container diff-toolbar (max-width: 700px) {
+  :root:not([data-vr-viewport='phone']) .toolbar :deep(.git-step .full) {
+    display: none;
+  }
+
+  :root:not([data-vr-viewport='phone']) .toolbar :deep(.git-step .short) {
+    display: inline;
+  }
+}
+
+@container diff-toolbar (max-width: 600px) {
+  :root:not([data-vr-viewport='phone']) .toolbar :deep(.git-step .short) {
+    display: none;
+  }
+
+  :root:not([data-vr-viewport='phone']) .toolbar :deep(.git-step .glyph) {
+    display: block;
+  }
+
+  :root:not([data-vr-viewport='phone']) .toolbar :deep(.git-step > .run) {
+    padding: 0 8px;
+  }
+}
+
 .toolbar {
+  container: diff-toolbar / inline-size;
   display: flex;
   flex: none;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--vr-space-3);
   min-height: 40px;
@@ -767,6 +860,14 @@ defineExpose({ focusThread, root });
   padding: 0 var(--vr-space-2) 0 var(--vr-space-3);
   font-size: var(--vr-font-size-xs);
   border-bottom: 1px solid var(--vr-color-border);
+}
+
+:root[data-vr-viewport='phone'] .toolbar {
+  flex-wrap: wrap;
+}
+
+.toolbar .mode {
+  white-space: nowrap;
 }
 
 .toolbar > .group[role='group'] {
@@ -858,8 +959,29 @@ defineExpose({ focusThread, root });
   color: var(--vr-color-text-subtle);
 }
 
+.pill {
+  flex: none;
+  padding: 1px 7px;
+  color: var(--vr-color-text-muted);
+  font-size: var(--vr-font-size-2xs);
+  background: var(--vr-color-chip-bg);
+  border-radius: var(--vr-radius-full);
+}
+
+.pill[data-status='added'] {
+  color: var(--vr-color-success);
+}
+
+.pill[data-status='deleted'] {
+  color: var(--vr-color-danger);
+}
+
+.pill[data-status='renamed'] {
+  color: var(--vr-color-conflict);
+}
+
 .path {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   font-family: var(--vr-font-mono);

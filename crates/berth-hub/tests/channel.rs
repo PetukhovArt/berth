@@ -6,6 +6,7 @@ async fn start(dir: &std::path::Path) -> (Hub, String) {
         &dir.join("hub.db"),
         "127.0.0.1:0".parse().unwrap(),
         Some("admin-secret".into()),
+        None,
     )
     .await
     .unwrap();
@@ -49,6 +50,25 @@ async fn two_people_post_and_read_in_one_channel() {
     let after = bob.read("PROJ-12", seen[0].seq, None).await.unwrap();
     assert_eq!(after.len(), 1);
     assert_eq!(after[0].content, "ack");
+}
+
+#[tokio::test]
+async fn a_device_with_the_create_scope_joins_an_existing_channel() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_hub, url) = start(dir.path()).await;
+    let (_a, ann) = person(&url, "ann", &["read", "post", "create"]).await;
+    let (_b, bob) = person(&url, "bob", &["read", "post", "create"]).await;
+    let (_c, cy) = person(&url, "cy", &["read", "post"]).await;
+    ann.create_channel("PROJ-12").await.unwrap();
+    ann.post("PROJ-12", "before bob", None).await.unwrap();
+    assert!(bob.read("PROJ-12", 0, None).await.is_err());
+
+    bob.create_channel("PROJ-12").await.unwrap();
+    let seen = bob.read("PROJ-12", 0, None).await.unwrap();
+    assert_eq!(seen[0].content, "before bob");
+    bob.post("PROJ-12", "joined", None).await.unwrap();
+    assert!(cy.create_channel("PROJ-12").await.is_err());
+    assert!(cy.read("PROJ-12", 0, None).await.is_err());
 }
 
 #[tokio::test]
@@ -163,6 +183,44 @@ async fn a_mention_reaches_only_the_owner_of_that_agent_and_counts_the_agent_cha
 }
 
 #[tokio::test]
+async fn a_display_name_mentions_the_agent_and_prefers_the_authors_own() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_hub, url) = start(dir.path()).await;
+    let (_a, ann) = person(&url, "ann", &["read", "post", "create"]).await;
+    let (bob_id, bob) = person(&url, "bob", &["read", "post"]).await;
+    ann.create_channel("PROJ-12").await.unwrap();
+    ann.add_member("PROJ-12", &bob_id).await.unwrap();
+    let a = ann
+        .register_agent("01JANN", Some("Fix Login Redirect"))
+        .await
+        .unwrap();
+    let ann_one = ann
+        .register_agent("01JANN1", Some("agent-1"))
+        .await
+        .unwrap();
+    let bob_one = bob
+        .register_agent("01JBOB1", Some("agent-1"))
+        .await
+        .unwrap();
+
+    let posted = ann
+        .post("PROJ-12", "@fix-login-redirect /compact", None)
+        .await
+        .unwrap();
+    assert_eq!(posted.tags, [vec!["p".to_string(), a.clone()]]);
+    let seen = ann.mentions(0).await.unwrap();
+    assert_eq!(seen[0].agent_name, "01JANN");
+
+    let by_ann = ann.post("PROJ-12", "@Agent-1 go", None).await.unwrap();
+    assert_eq!(by_ann.tags, [vec!["p".to_string(), ann_one]]);
+    let by_bob = bob.post("PROJ-12", "@agent-1 go", None).await.unwrap();
+    assert_eq!(by_bob.tags, [vec!["p".to_string(), bob_one.clone()]]);
+
+    let reply = bob.post("PROJ-12", "done", Some(&bob_one)).await.unwrap();
+    assert_eq!(reply.author_name, "agent-1");
+}
+
+#[tokio::test]
 async fn presence_shows_who_runs_sessions_on_a_task_and_expires() {
     let dir = tempfile::tempdir().unwrap();
     let hub = berth_hub::serve_with_ttl(
@@ -198,10 +256,65 @@ async fn presence_shows_who_runs_sessions_on_a_task_and_expires() {
     assert!(carol.presence("PROJ-12").await.is_err());
 
     ann.report_presence(&on(&[])).await.unwrap();
+    let here = bob.presence("PROJ-12").await.unwrap();
+    assert_eq!(here.len(), 1);
+    assert!(here[0].agents.is_empty());
+
+    ann.report_presence(&std::collections::HashMap::new())
+        .await
+        .unwrap();
     assert!(bob.presence("PROJ-12").await.unwrap().is_empty());
 
     ann.report_presence(&on(&["agent-1"])).await.unwrap();
     assert_eq!(bob.presence("PROJ-12").await.unwrap().len(), 1);
     tokio::time::sleep(std::time::Duration::from_millis(600)).await;
     assert!(bob.presence("PROJ-12").await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn an_admin_lists_rescopes_and_revokes_devices() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_hub, url) = start(dir.path()).await;
+    let admin = HubClient::new(&url, "admin-secret").unwrap();
+    let (_ann_id, ann) = person(&url, "ann", &["read", "post", "create"]).await;
+    let (bob_id, bob) = person(&url, "bob", &["read", "post"]).await;
+    let (_eve_id, _) = HubClient::pair(&url, "eve").await.unwrap();
+    assert!(ann.devices().await.is_err());
+    let listed: Vec<_> = admin
+        .devices()
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|d| (d.name, d.status, d.scopes.join(",")))
+        .collect();
+    assert_eq!(
+        listed,
+        [
+            ("ann".into(), "approved".into(), "read,post,create".into()),
+            ("bob".into(), "approved".into(), "read,post".into()),
+            ("eve".into(), "pending".into(), "".into()),
+        ]
+    );
+
+    ann.create_channel("c").await.unwrap();
+    ann.add_member("c", &bob_id).await.unwrap();
+    let agent = bob.agent("agent-b").await.unwrap();
+    bob.post("c", "hello", None).await.unwrap();
+
+    admin.approve(&bob_id, &["read"]).await.unwrap();
+    assert!(bob.post("c", "muted", None).await.is_err());
+    assert_eq!(bob.read("c", 0, None).await.unwrap().len(), 1);
+
+    admin.revoke(&bob_id).await.unwrap();
+    assert!(bob.read("c", 0, None).await.is_err());
+    assert!(bob.post("c", "again", Some(&agent)).await.is_err());
+    assert!(admin.approve(&bob_id, &["read"]).await.is_err());
+    assert!(admin.revoke("m-nobody").await.is_err());
+    assert!(ann
+        .post("c", "@agent-b still there?", None)
+        .await
+        .unwrap()
+        .tags
+        .is_empty());
+    assert_eq!(ann.read("c", 0, None).await.unwrap().len(), 2);
 }

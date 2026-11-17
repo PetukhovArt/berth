@@ -2,11 +2,11 @@ import { shallowRef } from 'vue';
 import { navigate, view } from '../../../shared/model/nav';
 import { useBerth, worktreesOfProject, type SessionRef, useSessionDock } from '../../../entities/session';
 
-export const creatingIn = shallowRef<{ worktree: string | null } | null>(null);
+export const creatingIn = shallowRef<{ worktree: string | null; projectLocked: boolean } | null>(null);
 
-export function startCreate(worktreeId: string | null): void {
+export function startCreate(worktreeId: string | null, projectLocked = false): void {
   if (view.value.kind !== 'agents') void navigate({ kind: 'agents' });
-  creatingIn.value = { worktree: worktreeId };
+  creatingIn.value = { worktree: worktreeId, projectLocked };
 }
 
 export function startCreateInMain(): void {

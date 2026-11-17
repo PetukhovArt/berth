@@ -1,4 +1,23 @@
-import { acknowledged } from './berth';
+import { computed, shallowRef, watch, type ComputedRef } from 'vue';
+import { acknowledged, useBerth } from './berth';
+
+const OPEN_KEY = 'berth.workspace.open';
+const chosenWorkspace = shallowRef<string | null>(localStorage.getItem(OPEN_KEY));
+
+watch(chosenWorkspace, (id) => (id ? localStorage.setItem(OPEN_KEY, id) : localStorage.removeItem(OPEN_KEY)));
+
+export function useOpenWorkspace(): ComputedRef<string | null> {
+  const berth = useBerth();
+  return computed(() => {
+    const id = chosenWorkspace.value;
+    return id && berth?.entities.value.workspaces.has(id) ? id : null;
+  });
+}
+
+export async function openWorkspace(id: string | null): Promise<void> {
+  if (id) await acknowledged({ OpenWorkspace: { id } });
+  chosenWorkspace.value = id;
+}
 
 export type NewProject = { path: string; name: string | null; createMissing: boolean };
 

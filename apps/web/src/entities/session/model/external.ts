@@ -3,9 +3,9 @@ import { createChannel, hasBackend, invoke } from '../../../bridge';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
 import { getMetrics } from './metrics';
-import { listOrphans, resumeOrphan } from './orphans';
+import { resumeConversation } from './orphans';
 import { withShellBlocks, type ShellMessage } from './shellTags';
-import { archiveExternalSession, createTerminal, describeError, entitySessionRef, externalArchiveKey, BerthCallError, sendInput, sessionKey, unarchiveExternalSession, useBerth, worktreesOfProject, type Entities, type SessionNode, type SessionRef, type SessionStatus } from './berth';
+import { archiveExternalSession, describeError, externalArchiveKey, sessionKey, unarchiveExternalSession, useBerth, worktreesOfProject, type Entities, type SessionNode, type SessionRef, type SessionStatus } from './berth';
 
 export type Harness = 'claude' | 'codex';
 type ExternalStatus = 'working' | 'waiting' | 'idle';
@@ -39,10 +39,11 @@ type Store = {
 
 const EXTERNAL_PREFIX = 'ext:';
 const TERMINAL_NAME_CHARS = 40;
-const LISTED_TIMEOUT_MS = 5000;
 const EARLIER_MS = 24 * 3_600_000;
 const RECENT_CLOSED = 3;
 const METRICS_DEBOUNCE_MS = 300;
+const OWNER_RETRY_MS = 5500;
+const OWNER_RETRIES = 3;
 
 export const externalKey = (session: Pick<ExternalSession, 'harness' | 'id'>) => `${EXTERNAL_PREFIX}${session.harness}:${session.id}`;
 export const isExternalPanel = (id: string) => id.startsWith(EXTERNAL_PREFIX);
@@ -140,68 +141,15 @@ export function readTranscript(session: Pick<ExternalSession, 'harness' | 'id'>,
 }
 
 export async function continueInBerth(session: ExternalSession, target: ExternalTarget): Promise<SessionRef> {
-  if (session.harness === 'claude') {
-    const orphans = await listOrphans(target.projectId).catch(() => []);
-    if (orphans.some((orphan) => orphan.session_id === session.id)) return { Agent: await resumeOrphan(session.id, target.worktreeId) };
-  }
-  const host = closedHost(session, useBerth()?.entities.value);
-  if (host) {
-    const closed = { Terminal: host };
-    void whenAlive(host).then((alive) => (alive ? sendInput(closed, `${resumeCommand(session)}\r`) : undefined));
-    return closed;
-  }
-  const terminal = entitySessionRef(await createTerminal(target.worktreeId, session.title.slice(0, TERMINAL_NAME_CHARS)));
-  if (!terminal) throw new BerthCallError(t('workbench.external.noTerminal'));
-  await whenListed(terminal);
-  await sendInput(terminal, `${resumeCommand(session)}\r`);
-  return terminal;
+  return { Agent: await resumeConversation(session, target.worktreeId) };
 }
 
 function closedHost(session: ExternalSession, entities: Entities | undefined): string | null {
   if (session.running || session.harness !== 'claude') return null;
   for (const terminal of entities?.terminals.values() ?? []) {
-    if (!terminal.alive && terminal.session_id === session.id) return terminal.id;
+    if (terminal.session_id === session.id) return terminal.id;
   }
   return null;
-}
-
-function whenAlive(id: string): Promise<boolean> {
-  const berth = useBerth();
-  if (!berth) return Promise.resolve(false);
-  return new Promise((resolve) => {
-    const finish = (alive: boolean) => {
-      clearTimeout(timer);
-      stop();
-      resolve(alive);
-    };
-    const timer = setTimeout(() => finish(false), LISTED_TIMEOUT_MS);
-    const stop = watch(
-      () => berth.entities.value.terminals.get(id)?.alive === true,
-      (alive) => {
-        if (alive) finish(true);
-      },
-    );
-  });
-}
-
-function whenListed(session: SessionRef): Promise<void> {
-  const berth = useBerth();
-  const key = sessionKey(session);
-  if (!berth || berth.sessions.value.has(key)) return Promise.resolve();
-  return new Promise((resolve) => {
-    const finish = () => {
-      clearTimeout(timer);
-      stop();
-      resolve();
-    };
-    const timer = setTimeout(finish, LISTED_TIMEOUT_MS);
-    const stop = watch(
-      () => berth.sessions.value.has(key),
-      (listed) => {
-        if (listed) finish();
-      },
-    );
-  });
 }
 
 function terminalByName(session: ExternalSession, entities: Entities): string | null {
@@ -244,27 +192,39 @@ function createStore(): Store {
     return ids;
   });
   const pidOwners = shallowRef<ReadonlyMap<number, string> | null>(null);
+  const ownersSignature = shallowRef<string | null>(null);
   const berthHosted = computed(() => raw.value.filter((session) => session.in_berth && !berthIds.value.has(session.id)));
   const refreshSignature = computed(() => `${berthHosted.value.map((session) => `${externalKey(session)}@${session.berth_pids.join('.')}`).join(',')}|${[...(berth?.sessions.value.keys() ?? [])].join(',')}`);
   let metricsRun = 0;
   let metricsTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function loadOwners(signature: string, attempt: number, delay: number) {
+    metricsTimer = setTimeout(() => {
+      const run = ++metricsRun;
+      getMetrics().then(
+        (snapshot) => {
+          if (run !== metricsRun) return;
+          const owners = new Map(snapshot.sessions.map((entry) => [entry.pid, sessionKey(entry.session)]));
+          pidOwners.value = owners;
+          const unmatched = berthHosted.value.some((session) => !session.berth_pids.some((pid) => owners.has(pid)));
+          if (unmatched && attempt < OWNER_RETRIES) loadOwners(signature, attempt + 1, OWNER_RETRY_MS);
+          else ownersSignature.value = signature;
+        },
+        () => {
+          if (run !== metricsRun) return;
+          pidOwners.value = new Map();
+          ownersSignature.value = signature;
+        },
+      );
+    }, delay);
+  }
 
   watch(
     refreshSignature,
     () => {
       clearTimeout(metricsTimer);
       if (!berthHosted.value.length) return;
-      metricsTimer = setTimeout(() => {
-        const run = ++metricsRun;
-        getMetrics().then(
-          (snapshot) => {
-            if (run === metricsRun) pidOwners.value = new Map(snapshot.sessions.map((entry) => [entry.pid, sessionKey(entry.session)]));
-          },
-          () => {
-            if (run === metricsRun) pidOwners.value = new Map();
-          },
-        );
-      }, METRICS_DEBOUNCE_MS);
+      loadOwners(refreshSignature.value, 0, METRICS_DEBOUNCE_MS);
     },
     { immediate: true },
   );
@@ -291,7 +251,8 @@ function createStore(): Store {
     const entities = berth?.entities.value;
     for (const session of raw.value) {
       const host = berthIds.value.has(session.id) ? null : closedHost(session, entities);
-      if (host) map.set(sessionKey({ Terminal: host }), session);
+      const key = host ? sessionKey({ Terminal: host }) : null;
+      if (key && !map.has(key)) map.set(key, session);
     }
     return map;
   });
@@ -302,7 +263,7 @@ function createStore(): Store {
       if (terminalOf.value.has(externalKey(session))) return false;
       if (!session.in_berth) return true;
       if (hostKey.value.has(externalKey(session))) return false;
-      return pidOwners.value !== null;
+      return pidOwners.value !== null && ownersSignature.value === refreshSignature.value;
     }),
   );
   const isArchived = (session: ExternalSession) => {

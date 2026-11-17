@@ -1,11 +1,11 @@
 import { computed, shallowRef, watch } from 'vue';
 import type { DockviewApi } from 'dockview-vue';
-import { splitPosition, useDock, type PanelPosition, type PanelSpec } from '../../../shared/model/dock';
+import { splitPosition, titleKey, useDock, type PanelPosition, type PanelSpec } from '../../../shared/model/dock';
 import { FILE_PANEL_PREFIX, fileNameOf, filePanelId, isFilePanel, normalizePath } from '../../../shared/lib/markdownFiles';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
 import { externalKey, externalTarget, isExternalPanel, useExternalSessions, type ExternalSession } from './external';
-import { markSeen, prewarmWorktreeSessions, sessionKey, useBerth, type SessionNode, type SessionRef, type WorktreeNode } from './berth';
+import { markSeen, sessionKey, useBerth, type SessionNode, type SessionRef, type WorktreeNode } from './berth';
 import { loadOpenTabs, saveOpenTabs } from './openTabs';
 import { sessionPaths } from '../lib/sessionPaths';
 
@@ -22,7 +22,7 @@ const reviveFile = (id: string) => (isFilePanel(id) ? filePanel(id.slice(FILE_PA
 function createSessionDock() {
   const berth = useBerth();
   const dock = useDock();
-  const { activeKey, activeTitle, visible, withDock, openPanel } = dock;
+  const { activeKey, visible, withDock, openPanel } = dock;
   const openingKey = shallowRef<string | null>(null);
   let openingBeside: string | undefined;
   let openingReplace = false;
@@ -41,7 +41,6 @@ function createSessionDock() {
         const panel = api.getPanel(key);
         if (!panel || panel.title === name) continue;
         panel.api.setTitle(name);
-        if (key === activeKey.value) activeTitle.value = name;
       }
     },
   );
@@ -86,19 +85,13 @@ function createSessionDock() {
     if (agent) void markSeen(agent);
   });
 
-  let prewarmTimer: ReturnType<typeof setTimeout> | undefined;
-  watch(activeWorktreeId, (worktree) => {
-    clearTimeout(prewarmTimer);
-    if (worktree) prewarmTimer = setTimeout(() => prewarmWorktreeSessions(worktree), 400);
-  });
-
   watch(
     () => berth?.sessions.value,
     (sessions) => {
       if (!sessions || berth?.connection.value.state !== 'connected') return;
       const api = dock.api.value;
       if (api) reopen(api);
-      if (api) for (const panel of api.panels) if (isSessionPanel(panel.id) && !sessions.has(panel.id)) panel.api.close();
+      if (api) closeGone(api);
       const opening = openingKey.value ? sessions.get(openingKey.value) : undefined;
       if (!opening) return;
       openingKey.value = null;
@@ -165,12 +158,13 @@ function createSessionDock() {
     });
   }
 
-  function openExternal(session: ExternalSession, split = false) {
-    openPanel({ id: externalKey(session), component: 'conversation', title: session.title, params: { harness: session.harness, id: session.id } }, split);
+  function openExternal(session: ExternalSession, split = false, beside?: string) {
+    const anchor: PanelPosition | boolean = beside && dock.api.value?.getPanel(beside) ? { referencePanel: beside, direction: 'within' } : split;
+    openPanel({ id: externalKey(session), component: 'conversation', title: session.title, params: { harness: session.harness, id: session.id } }, anchor);
   }
 
   function openMetrics() {
-    openPanel({ id: METRICS_PANEL, component: 'metrics', title: t('agents.metrics.title') });
+    openPanel({ id: METRICS_PANEL, component: 'metrics', title: t('agents.metrics.title'), params: titleKey('agents.metrics.title') });
   }
 
   function openWhenListed(session: SessionRef, beside?: string, replace = false) {
@@ -206,7 +200,14 @@ function createSessionDock() {
     if (active) api.getPanel(active)?.api.setActive();
   }
 
+  function closeGone(api: DockviewApi) {
+    const sessions = berth?.sessions.value;
+    if (!sessions || berth?.connection.value.state !== 'connected') return;
+    for (const panel of api.panels) if (isSessionPanel(panel.id) && !sessions.has(panel.id)) panel.api.close();
+  }
+
   function remember(api: DockviewApi) {
+    closeGone(api);
     if (reopening) return;
     const keep = useSettings().values.value['sessions.restoreOnRestart'];
     const keys = api.panels.map((panel) => panel.id).filter((id) => isSessionPanel(id) || dock.revive(id) !== undefined);

@@ -40,6 +40,7 @@ macro_rules! plain_commands {
             state forge_file(connector: String, project: String, r#ref: String, path: String) = $crate::connectors::forge::forge_file;
             state forge_source(connector: String, project: String, number: u64) = $crate::connectors::forge::forge_source;
             free mr_fetch_source(repo: String, branch: String, local: String, fork: Option<$crate::connectors::types::Fork>) = $crate::mr_checkout::mr_fetch_source;
+            free worktree_base_source(repo: String, branch: String) = $crate::new_worktree_base::worktree_base_source;
             state jira_search(connector: String, jql: String, start: Option<u32>, limit: Option<u32>) = $crate::connectors::jira::jira_search;
             state jira_issue(connector: String, key: String) = $crate::connectors::jira::jira_issue;
             state confluence_search(connector: String, text: String, limit: Option<u32>) = $crate::connectors::confluence::confluence_search;
@@ -61,6 +62,10 @@ macro_rules! plain_commands {
             free berth_restore_sessions_write(value: bool) = $crate::settings::berth_restore_sessions_write;
             free berth_flag_read(key: String) = $crate::settings::berth_flag_read;
             free berth_flag_write(key: String, value: bool) = $crate::settings::berth_flag_write;
+            free chat_bridge_read() = $crate::chat_bridge::chat_bridge_read;
+            free chat_bridge_write(telegram_token: String, telegram_chat: String, telegram_owner: String, webhook_url: String) = $crate::chat_bridge::chat_bridge_write;
+            free berth_worktree_base_read() = $crate::settings::berth_worktree_base_read;
+            free berth_worktree_base_write(value: std::collections::BTreeMap<String, String>) = $crate::settings::berth_worktree_base_write;
             free providers_read() = $crate::providers::providers_read;
             free providers_write(id: String, acp: bool, enabled: bool) = $crate::providers::providers_write;
             free providers_save_acp(id: String, name: String, command: String, args: Vec<String>) = $crate::providers::providers_save_acp;
@@ -77,12 +82,14 @@ macro_rules! plain_commands {
             free fs_list_markdown(root: String) = $crate::files::fs_list_markdown;
             free fs_list_dirs(root: String) = $crate::files::fs_list_dirs;
             local_free history_projects() = $crate::history_projects::history_projects;
-            free worktree_changes(path: String) = $crate::changes::worktree_changes;
+            free worktree_changes(path: String, scope: Option<String>) = $crate::changes::worktree_changes;
+            free worktree_commits(path: String) = $crate::changes::worktree_commits;
             free worktree_git_state(path: String) = $crate::git_step::worktree_git_state;
             free worktree_git_step(path: String, step: String, message: Option<String>) = $crate::git_step::worktree_git_step;
             state forge_create_change_request(path: String, branch: String, target: String, title: String, description: String) = $crate::connectors::forge::forge_create_change_request;
-            state tracker_comment(path: String, branch: String, body: String) = $crate::connectors::tracker::tracker_comment;
             free project_repo_url(path: String) = $crate::connectors::forge::project_repo_url;
+            free merge_watch_list() = $crate::merge_watch::merge_watch_list;
+            free merge_watch_set(connector: String, project: String, number: u64, on: bool) = $crate::merge_watch::merge_watch_set;
             local_free settings_open_external(file: Option<$crate::settings::ConfigFile>) = $crate::settings::settings_open_external;
             local_free fs_open_external(path: String) = $crate::files::fs_open_external;
             local_free stratum_probe(repo: String, target: String) = $crate::stratum::stratum_probe;

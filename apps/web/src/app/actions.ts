@@ -6,9 +6,12 @@ import { navigate, openSettings } from '../shared/model/nav';
 import { hotEnabled, toggleHotOverview } from '../widgets/hot';
 import { toggleTheme } from '../shared/ui/appearance';
 import { requestSidebarSearch, toggleSidebar } from '../shared/model/sidebar';
+import { toggleInspector } from '../shared/model/inspector';
 import { openUpdate } from '../features/update';
 import { toggleMaximizedGroup, toggleQuickOpen } from '../shared/model/dock';
 import { startNewSession } from '../features/new-session';
+import { openNextWaiting } from '../features/attention';
+import { holdToTalk, toggleWakeWord } from '../features/voice-input';
 import { paletteOpen } from '../shared/lib/commands/context';
 import { openKeymapExternal } from '../shared/lib/commands/keymap';
 import { defineAction } from '../shared/lib/commands/registry';
@@ -28,6 +31,7 @@ defineAction({ id: 'nav.confluence', title: 'commands.action.navConfluence', cat
 defineAction({ id: 'nav.settings', title: 'commands.action.navSettings', category: VIEW, run: () => openSettings() });
 
 defineAction({ id: 'sidebar.toggle', title: 'commands.action.sidebarToggle', category: VIEW, run: toggleSidebar });
+defineAction({ id: 'inspector.toggle', title: 'inspector.action.toggle', category: VIEW, run: toggleInspector });
 defineAction({ id: 'sidebar.search', title: 'commands.action.sidebarSearch', category: NAVIGATION, run: requestSidebarSearch });
 defineAction({ id: 'theme.toggle', title: 'commands.action.themeToggle', category: VIEW, run: toggleTheme });
 
@@ -37,12 +41,16 @@ defineAction({ id: 'terminal.zoomReset', title: 'commands.action.terminalZoomRes
 
 defineAction({ id: 'agents.quickOpen', title: 'commands.action.agentsQuickOpen', category: NAVIGATION, run: toggleQuickOpen });
 defineAction({ id: 'hot.overview', title: 'hot.overview.title', category: NAVIGATION, run: () => hotEnabled.value && toggleHotOverview() });
+defineAction({ id: 'inbox.nextWaiting', title: 'commands.action.inboxNextWaiting', category: NAVIGATION, run: openNextWaiting });
 defineAction({ id: 'agents.newSession', title: 'commands.action.agentsNewSession', category: NAVIGATION, run: startNewSession });
 defineAction({ id: 'session.view.terminal', title: 'agents.sessionView.action.terminal', category: VIEW, run: () => showViewInActivePanel('terminal') });
 defineAction({ id: 'session.view.chat', title: 'agents.sessionView.action.chat', category: VIEW, run: () => showViewInActivePanel('chat') });
 defineAction({ id: 'session.view.mr', title: 'agents.sessionView.action.mr', category: VIEW, run: () => showViewInActivePanel('mr') });
 defineAction({ id: 'session.view.diff', title: 'agents.sessionView.action.diff', category: VIEW, run: () => showViewInActivePanel('diff') });
 defineAction({ id: 'dock.toggleMaximize', title: 'commands.action.dockToggleMaximize', category: VIEW, run: toggleMaximizedGroup });
+
+defineAction({ id: 'voice.pushToTalk', title: 'voice.action.pushToTalk', category: 'voice.category', run: holdToTalk });
+defineAction({ id: 'voice.wakeWord', title: 'voice.action.wakeWord', category: 'voice.category', run: toggleWakeWord });
 
 defineAction({ id: 'keymap.openSettings', title: 'commands.action.keymapOpenSettings', category: KEYS, run: () => openSettings('keymap') });
 if (isDesktop) {

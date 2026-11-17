@@ -11,7 +11,7 @@ import { useScope, visibleInterval } from '../../../shared/lib/scope';
 type Problem = { kind: 'tailscale_missing' } | { kind: 'serve_failed'; message: string } | { kind: 'bind_failed'; message: string } | { kind: 'token_store'; message: string };
 type Scope = 'full' | 'read_only';
 type ClientInfo = { id: number; address: string; agent: string; device: string; connected_at: number };
-type DeviceInfo = { id: number; name: string; scope: Scope; created_at: number };
+type DeviceInfo = { id: number; name: string; scope: Scope | { session: string }; created_at: number };
 type Pairing = { url: string; qr_svg: string | null };
 type RemoteStatus = {
   enabled: boolean;
@@ -28,7 +28,7 @@ const POLL_MS = 2000;
 const COPIED_MS = 1500;
 const TAILSCALE_DOWNLOAD_URL = 'https://tailscale.com/download';
 
-const { t } = useI18n();
+const { t, formatDate } = useI18n();
 const settings = useSettings();
 const status = shallowRef<RemoteStatus | null>(null);
 const failure = shallowRef<string | null>(null);
@@ -97,7 +97,7 @@ function problemText(problem: Problem): string {
   return t(`remote.panel.problem.${problem.kind}`, { message: problem.message });
 }
 
-const since = (ms: number) => t('remote.panel.connectedAt', { time: new Date(ms).toLocaleTimeString() });
+const since = (ms: number) => t('remote.panel.connectedAt', { time: formatDate(ms, { timeStyle: 'medium' }) });
 
 onMounted(() => {
   if (!isDesktop) return;
@@ -157,7 +157,7 @@ onMounted(() => {
           <li v-for="device in status.devices" :key="device.id" :data-testid="`remote-device-${device.id}`">
             <Smartphone :size="14" />
             <span class="agent">{{ device.name }}</span>
-            <span class="muted">{{ t(`remote.panel.scope.${device.scope}`) }}</span>
+            <span class="muted">{{ t(`remote.panel.scope.${typeof device.scope === 'string' ? device.scope : 'session'}`) }}</span>
             <VButton size="small" severity="danger" :label="t('remote.panel.revoke')" :disabled="busy" data-testid="remote-revoke" @click="revokeDevice(device.id)">
               <template #icon><Trash2 :size="14" /></template>
             </VButton>

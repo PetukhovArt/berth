@@ -6,7 +6,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { deleteAgent, unarchiveAgent, type SessionNode, useAction } from '../../../entities/session';
 
 import { UiButton } from '../../../shared/ui/UiButton';
-const props = defineProps<{ session: SessionNode }>();
+const props = defineProps<{ session: SessionNode; where?: string | undefined }>();
 
 const confirming = shallowRef(false);
 const action = useAction();
@@ -23,7 +23,7 @@ async function confirmDelete() {
 <template>
   <div class="archived" data-testid="archived-row" :data-session-id="session.id" :data-busy="action.busy.value">
     <div class="line">
-      <span class="name" :title="session.name">{{ session.name }}</span>
+      <span class="name" :title="where ? `${session.name} · ${where}` : session.name">{{ session.name }}<span v-if="where" class="where"> · {{ where }}</span></span>
       <template v-if="!confirming">
         <UiButton class="icon vr-reveal" :title="t('agents.session.restore')" :aria-label="t('agents.session.restore')" :disabled="action.busy.value" data-testid="archived-restore" @click="restore"><ArchiveRestore :size="14" /></UiButton>
         <UiButton class="icon danger vr-reveal" :title="t('common.delete')" :aria-label="t('common.delete')" :disabled="action.busy.value" data-testid="archived-delete" @click="confirming = true"><Trash2 :size="14" /></UiButton>
@@ -45,7 +45,7 @@ async function confirmDelete() {
   gap: var(--vr-space-1);
   height: 28px;
   padding: 0 4px 0 var(--vr-space-6);
-  font-size: 13px;
+  font-size: var(--vr-font-size-label);
 }
 
 .name {
@@ -55,6 +55,11 @@ async function confirmDelete() {
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--vr-color-text-muted);
+}
+
+.where {
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-subtle);
 }
 
 .icon {

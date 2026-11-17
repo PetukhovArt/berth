@@ -24,6 +24,11 @@ pub fn tie_to_parent(command: &mut Command) {
     super::unix::tie_to_group(command);
 }
 
+#[cfg(feature = "voice")]
+pub fn speech_engine_loads() -> bool {
+    true
+}
+
 pub fn default_install_root() -> Option<PathBuf> {
     berth_core::platform::profile_home().map(|home| home.join("Library/Application Support/Berth"))
 }

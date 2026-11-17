@@ -35,7 +35,7 @@ function restore() {
   gap: var(--vr-space-1);
   height: 28px;
   padding: 0 4px 0 var(--vr-space-5);
-  font-size: 13px;
+  font-size: var(--vr-font-size-label);
 }
 
 .open {

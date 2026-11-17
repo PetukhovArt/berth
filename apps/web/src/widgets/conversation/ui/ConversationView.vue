@@ -1,23 +1,27 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
-import { Check, Copy, FolderOpen, GitBranch, Mic, Play, SquareTerminal, TriangleAlert, Wrench } from '../../../shared/ui/icons';
-import { useIsPhone, VButton, VMessage } from '../../../shared/ui/kit';
+import { Bot, Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, TriangleAlert } from '../../../shared/ui/icons';
+import { VButton, VMessage } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
-import { continueInBerth, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, readTranscript, resumeCommand, useExternalSessions, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, sendInput, useFeedbackRequest, allowRequest, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, submitPrompt, useAcpChat, useQueuedPrompts, type SessionRef } from '../../../entities/session';
+import { AGENT_KIND_LABEL, clearHandoff, continueInBerth, handoffOf, externalDot, externalKey, externalOrigin, externalStatusLabel, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, sendInput, useFeedbackRequest, allowRequest, alwaysAllowRequest, offersAlways, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, submitPrompt, useAcpChat, useQueuedPrompts, type SessionRef } from '../../../entities/session';
+import { worktreeOf } from '../../../features/session-view-switch';
 import { UiButton } from '../../../shared/ui/UiButton';
-import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { readAcpAgentLog } from '../../../shared/api/providers';
-import { useHoldToTalk, type HoldToTalkIssue } from '../model/useHoldToTalk';
-import { useVoiceLoop } from '../model/useVoiceLoop';
+import { chatBlocks } from '../model/chatBlocks';
+import { forwardSlashes } from '../../../shared/lib/homePath';
+import { durationLabel } from '../model/duration';
+import ToolGroup from './ToolGroup.vue';
+import TurnFiles from './TurnFiles.vue';
+import CheckpointRow from './CheckpointRow.vue';
+import ChatComposer from './ChatComposer.vue';
 
 const TAIL = 200;
 const PIN_PX = 48;
 const COPIED_MS = 1500;
-const NOTICE_MS = 3000;
 
-const props = defineProps<{ harness: Harness | 'acp'; sessionId: string; terminal?: SessionRef }>();
+const props = defineProps<{ harness: Harness | 'acp'; sessionId: string; terminal?: SessionRef; panelId?: string }>();
 
 const { t, formatRelative, formatDate } = useI18n();
 const external = useExternalSessions();
@@ -36,12 +40,11 @@ const shownError = computed(() => error.value ?? acp?.error.value ?? null);
 const queued = useQueuedPrompts(props.sessionId);
 const copied = shallowRef(false);
 const request = props.terminal ? useFeedbackRequest(props.terminal) : null;
-const draft = shallowRef('');
 const sending = shallowRef(false);
-const notice = shallowRef('');
-const phone = useIsPhone();
 const plan = computed(() => acp?.plan.value ?? derivePlan(messages.value));
 const agentLog = shallowRef<string | null>(null);
+const checkpoints = shallowRef<Checkpoint[]>([]);
+const spoken = shallowRef<ReadonlySet<string>>(new Set());
 
 async function toggleAgentLog() {
   if (agentLog.value !== null) {
@@ -55,20 +58,55 @@ async function toggleAgentLog() {
   }
 }
 let generation = 0;
-let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
 const session = computed(() => (harness.value ? external?.anyByKey.value.get(externalKey({ harness: harness.value, id: props.sessionId })) : undefined));
 const target = computed(() => (session.value ? externalTarget(session.value, berth?.entities.value) : null));
 const running = computed(() => session.value?.running ?? false);
-const suggestion = computed(() => {
-  const ref = props.terminal;
-  if (!ref || !('Agent' in ref) || draft.value) return null;
-  const agent = berth?.entities.value.agents.get(ref.Agent);
-  return agent?.status === 'finished' ? (agent.suggested_prompt ?? null) : null;
-});
+const agentId = computed(() => (props.terminal && 'Agent' in props.terminal ? props.terminal.Agent : null));
+const agent = computed(() => (agentId.value ? berth?.entities.value.agents.get(agentId.value) : undefined));
+const suggestion = computed(() => (agent.value?.status === 'finished' ? (agent.value.suggested_prompt ?? null) : null));
 const command = computed(() => (harness.value ? resumeCommand({ harness: harness.value, id: props.sessionId }) : ''));
-const canContinue = computed(() => !!session.value && !!target.value && !running.value && !action.busy.value);
+const handoff = computed(() => (session.value ? handoffOf(session.value) : undefined));
+const continueError = computed(() => action.error.value ?? (handoff.value?.state === 'failed' ? handoff.value.message : null));
+const canContinue = computed(() => !!session.value && !!target.value && !running.value && !action.busy.value && handoff.value?.state !== 'pending');
+
+const root = computed(() => {
+  const own = agent.value ? berth?.entities.value.worktrees.get(agent.value.worktree_id)?.path : undefined;
+  return own ?? (props.panelId ? worktreeOf(props.panelId)?.path : undefined) ?? session.value?.cwd ?? null;
+});
+const agentLabel = computed(() => {
+  const own = agent.value;
+  if (own) return own.kind === 'acp' && own.acp_provider ? own.acp_provider : AGENT_KIND_LABEL[own.kind];
+  return harness.value ? t(`workbench.external.harness.${harness.value}`) : AGENT_KIND_LABEL.acp;
+});
+const blocks = computed(() => chatBlocks(messages.value));
+const promptCount = computed(() => blocks.value.filter((block) => block.type === 'prompt').length);
+const checkpointOf = computed(() => checkpointsByPrompt(messages.value, checkpoints.value));
+const latestModel = computed(() => {
+  for (let i = blocks.value.length - 1; i >= 0; i--) {
+    const block = blocks.value[i]!;
+    if (block.type === 'turn' && block.model) return block.model;
+  }
+  return agent.value?.model ?? null;
+});
+const modelChip = computed(() => [agentLabel.value, latestModel.value ? modelLabel(latestModel.value) : null].filter(Boolean).join(' · '));
+
+async function loadCheckpoints() {
+  const id = agentId.value;
+  if (!id) {
+    checkpoints.value = [];
+    return;
+  }
+  try {
+    const next = await listCheckpoints(id);
+    if (agentId.value === id) checkpoints.value = next;
+  } catch {
+    if (agentId.value === id) checkpoints.value = [];
+  }
+}
+
+watch([agentId, promptCount], () => void loadCheckpoints(), { immediate: true });
 
 async function load() {
   const own = harness.value;
@@ -92,7 +130,7 @@ async function load() {
   if (box) box.scrollTop = box.scrollHeight;
 }
 
-const root = useTemplateRef<HTMLElement>('root');
+const section = useTemplateRef<HTMLElement>('section');
 let loaded = false;
 let shown = true;
 let stale = false;
@@ -112,7 +150,7 @@ watch(
 );
 
 onMounted(() => {
-  const element = root.value;
+  const element = section.value;
   if (!element) return;
   observer = new IntersectionObserver((entries) => {
     const latest = entries.at(-1);
@@ -130,7 +168,6 @@ async function copyCommand() {
   await copyText(command.value);
   copied.value = true;
   clearTimeout(copiedTimer);
-  clearTimeout(noticeTimer);
   copiedTimer = setTimeout(() => (copied.value = false), COPIED_MS);
 }
 
@@ -138,17 +175,14 @@ async function continueHere() {
   const current = session.value;
   const where = target.value;
   if (!current || !where || current.running) return;
+  clearHandoff(current);
   await action.run(async () => {
     const ref = await continueInBerth(current, where);
     dock.openWhenListed(ref, externalKey(current), true);
   });
 }
 
-async function send() {
-  await submit(draft.value.trim(), true);
-}
-
-async function submit(text: string, clearDraft: boolean): Promise<boolean> {
+async function submit(text: string, viaVoice: boolean): Promise<boolean> {
   if (!props.terminal || !text || sending.value) return false;
   sending.value = true;
   try {
@@ -157,7 +191,7 @@ async function submit(text: string, clearDraft: boolean): Promise<boolean> {
       await sendInput(props.terminal, `\x1b[200~${text}\x1b[201~`);
       await sendInput(props.terminal, '\r');
     }
-    if (clearDraft) draft.value = '';
+    if (viaVoice) spoken.value = new Set(spoken.value).add(text.trim());
     return true;
   } catch (e) {
     error.value = describeError(e);
@@ -173,61 +207,13 @@ async function sendToAcp(text: string) {
   else await submitPrompt({ Agent: props.sessionId }, text);
 }
 
-const ISSUES: Record<HoldToTalkIssue, 'chatTalkDenied' | 'chatTalkShort' | 'chatTalkEmpty' | 'chatTalkFailed'> = { denied: 'chatTalkDenied', short: 'chatTalkShort', empty: 'chatTalkEmpty', failed: 'chatTalkFailed' };
-const voice = useVoiceLoop({
-  messages: () => messages.value,
-  lang: () => (document.documentElement.lang === 'ru' ? 'ru-RU' : 'en-US'),
-  listen: () => talk.listen(),
-  stop: () => talk.stopListening(),
-  listening: () => talk.holding.value,
-});
-const talk = useHoldToTalk({
-  lang: () => (document.documentElement.lang === 'ru' ? 'ru-RU' : 'en-US'),
-  onSend: async (text) => {
-    voice.sent();
-    if (!(await submit(text, false))) voice.unsent();
-  },
-  onSpeech: () => voice.onSpeech(),
-  onSettled: () => voice.onSettled(),
-  onIssue: (issue) => {
-    if (voice.active.value && (issue === 'denied' || issue === 'failed')) voice.end();
-    notice.value = t(`agents.sessionView.${ISSUES[issue]}`);
-    clearTimeout(noticeTimer);
-    noticeTimer = setTimeout(() => (notice.value = ''), NOTICE_MS);
-  },
-});
-const showTalk = computed(() => phone.value && talk.supported);
-const showVoice = computed(() => showTalk.value && voice.supported);
-const voiceStatus = computed(() => {
-  if (voice.phase.value === 'wait') return t('agents.sessionView.chatVoiceWaiting');
-  if (voice.phase.value === 'speak') return t('agents.sessionView.chatVoiceSpeaking');
-  if (voice.muted.value) return t('agents.sessionView.chatVoiceMuted');
-  return talk.transcript.value || t('agents.sessionView.chatVoiceListening');
-});
-
 watch(messages, async () => {
-  voice.transcriptChanged();
   if (!acp) return;
   const el = scroller.value;
   if (!el || el.scrollHeight - el.scrollTop - el.clientHeight >= PIN_PX) return;
   await nextTick();
   el.scrollTop = el.scrollHeight;
 });
-
-function acceptSuggestion() {
-  if (suggestion.value) draft.value = suggestion.value;
-}
-
-function onKey(event: KeyboardEvent) {
-  if (event.key === 'Tab' && !event.shiftKey && suggestion.value) {
-    event.preventDefault();
-    acceptSuggestion();
-    return;
-  }
-  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
-  event.preventDefault();
-  void send();
-}
 
 onBeforeUnmount(() => {
   clearTimeout(copiedTimer);
@@ -236,7 +222,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section ref="root" class="conversation" data-testid="conversation-view" :data-session-id="sessionId" :data-harness="harness">
+  <section ref="section" class="conversation" data-testid="conversation-view" :data-session-id="sessionId" :data-harness="harness">
     <header v-if="!terminal" class="head">
       <div class="title-line">
         <HarnessIcon v-if="harness" :harness="harness" :size="14" />
@@ -248,7 +234,7 @@ onBeforeUnmount(() => {
       </div>
       <div class="meta">
         <span v-if="harness" class="chip">{{ t(`workbench.external.harness.${harness}`) }}</span>
-        <span v-if="session" class="chip mono" :title="session.cwd"><FolderOpen :size="12" />{{ session.cwd }}</span>
+        <span v-if="session" class="chip mono" :title="session.cwd"><FolderOpen :size="12" />{{ forwardSlashes(session.cwd) }}</span>
         <span v-if="session?.branch" class="chip mono"><GitBranch :size="12" />{{ session.branch }}</span>
         <span v-if="session" class="chip" :title="formatDate(session.updated_at)">{{ formatRelative(session.updated_at) }}</span>
         <span v-if="session" class="chip" data-testid="conversation-origin"><SquareTerminal :size="12" />{{ externalOrigin(session) }}</span>
@@ -269,7 +255,7 @@ onBeforeUnmount(() => {
       <p v-else-if="running" class="warning" role="alert" data-testid="conversation-running-warning"><TriangleAlert :size="13" />{{ t('workbench.external.stillOpen') }}</p>
       <p v-else-if="session && !target" class="hint" data-testid="conversation-no-project">{{ t('workbench.external.noProject') }}</p>
       <p v-else-if="target" class="hint" data-testid="conversation-target">{{ t('workbench.external.continuesIn', { project: target.projectName, branch: target.branch }) }}</p>
-      <VMessage v-if="action.error.value" severity="error" size="small" data-testid="conversation-error">{{ action.error.value }}</VMessage>
+      <VMessage v-if="continueError" severity="error" size="small" data-testid="conversation-error">{{ continueError }}</VMessage>
     </header>
     <PlanStrip :plan="plan" />
     <div ref="scroller" class="scroll" data-testid="conversation-scroll">
@@ -277,15 +263,26 @@ onBeforeUnmount(() => {
       <p v-else-if="shownError" class="state error" role="alert">{{ shownError }}</p>
       <p v-else-if="!messages.length" class="state">{{ t('workbench.external.empty') }}</p>
       <ol v-else class="messages" data-testid="conversation-messages">
-        <li v-for="message in messages" :key="message.key" class="message" :data-role="message.role" :data-tool="message.tool !== null" :title="message.at ? formatDate(message.at) : undefined" data-testid="conversation-message">
-          <div v-if="message.tool" class="tool">
-            <Wrench :size="12" />
-            <span class="tool-name">{{ message.tool }}</span>
-            <span class="tool-arg mono">{{ message.text }}</span>
+        <li v-for="block in blocks" :key="block.key" class="block" :data-block="block.type">
+          <div v-if="block.type === 'prompt'" class="message" data-role="user" :title="block.message.at ? formatDate(block.message.at) : undefined" data-testid="conversation-message">
+            <RichContent v-if="block.message.shell && block.message.markdown" class="shell" :data-shell="block.message.shell" :markdown="block.message.markdown" />
+            <p v-else class="user">{{ block.message.text }}</p>
+            <span v-if="spoken.has(block.message.text.trim())" class="spoken" data-testid="conversation-spoken">{{ t('chat.sentByVoice') }}</span>
+            <CheckpointRow v-if="agentId && checkpointOf.get(block.message.key)" :agent-id="agentId" :checkpoint="checkpointOf.get(block.message.key)!" @restored="loadCheckpoints" />
           </div>
-          <RichContent v-else-if="message.shell && message.markdown" class="shell" :data-shell="message.shell" :markdown="message.markdown" />
-          <p v-else-if="message.role === 'user'" class="user">{{ message.text }}</p>
-          <RichContent v-else class="assistant" :markdown="message.text" />
+          <div v-else-if="block.type === 'turn'" class="turn" :title="block.model ? modelLabel(block.model) : undefined" data-testid="conversation-turn">
+            <HarnessIcon v-if="harness" :harness="harness" :size="14" />
+            <Bot v-else :size="14" />
+            <span>{{ agentLabel }}</span>
+            <span v-if="block.seconds !== null" class="turn-time">· {{ durationLabel(block.seconds) }}</span>
+          </div>
+          <ToolGroup v-else-if="block.type === 'tools'" :calls="block.calls" :seconds="block.seconds" :root="root" />
+          <TurnFiles v-else-if="block.type === 'files'" :files="block.files" :root="root" :panel-id="panelId" />
+          <div v-else class="message" :data-role="block.message.role" :title="block.message.at ? formatDate(block.message.at) : undefined" data-testid="conversation-message">
+            <RichContent v-if="block.message.shell && block.message.markdown" class="shell" :data-shell="block.message.shell" :markdown="block.message.markdown" />
+            <p v-else-if="block.message.role === 'user'" class="user">{{ block.message.text }}</p>
+            <RichContent v-else class="assistant" :markdown="block.message.text" />
+          </div>
         </li>
       </ol>
     </div>
@@ -294,6 +291,7 @@ onBeforeUnmount(() => {
       <code v-if="request.detail" class="feedback-detail mono">{{ request.detail }}</code>
       <template v-if="request.kind === 'Permission' && !request.options.length">
         <UiButton type="button" class="feedback-action" data-testid="feedback-allow" @click="allowRequest(terminal)">{{ t('feedback.allow') }}</UiButton>
+        <UiButton v-if="offersAlways(request)" type="button" class="feedback-action" :title="t('feedback.alwaysTitle')" data-testid="feedback-always" @click="alwaysAllowRequest(terminal)">{{ t('feedback.always') }}</UiButton>
         <UiButton type="button" class="feedback-action" data-testid="feedback-deny" @click="denyRequest(terminal)">{{ t('feedback.deny') }}</UiButton>
       </template>
       <UiButton v-for="(option, index) in request.options" v-else :key="index" type="button" class="feedback-action" data-testid="feedback-option" @click="chooseOption(terminal, index)">{{ option }}</UiButton>
@@ -309,19 +307,7 @@ onBeforeUnmount(() => {
         <UiButton type="button" class="queued-remove" data-testid="queue-remove" @click="removeQueuedPrompt(sessionId, item.id)">{{ t('feedback.queue.remove') }}</UiButton>
       </li>
     </ul>
-    <form v-if="terminal" class="composer" data-testid="chat-composer" @submit.prevent="send">
-      <div v-if="voice.active.value" class="voice" data-testid="chat-voice" :data-phase="voice.phase.value" role="status">
-        <span class="voice-text" data-testid="chat-voice-status">{{ voiceStatus }}</span>
-        <UiButton type="button" class="voice-action" data-testid="chat-voice-mute" @click="voice.toggleMute">{{ voice.muted.value ? t('agents.sessionView.chatVoiceUnmute') : t('agents.sessionView.chatVoiceMute') }}</UiButton>
-        <UiButton type="button" class="voice-action voice-end" data-testid="chat-voice-end" @click="voice.end">{{ t('agents.sessionView.chatVoiceEnd') }}</UiButton>
-      </div>
-      <p v-else-if="talk.holding.value || notice" class="talk-note" :data-cancelling="talk.cancelling.value || undefined" data-testid="chat-talk-note" role="status">{{ talk.holding.value ? talk.transcript.value || t('agents.sessionView.chatTalkListening') : notice }}{{ talk.holding.value ? ' ' + t('agents.sessionView.chatTalkHint') : '' }}</p>
-      <UiButton v-if="suggestion && !voice.active.value" type="button" class="suggestion" :title="t('agents.sessionView.chatSuggestion')" data-testid="chat-suggestion" @click="acceptSuggestion">{{ suggestion }}</UiButton>
-      <UiTextarea v-if="!voice.active.value" v-model="draft" class="input" rows="2" :placeholder="t('agents.sessionView.chatPlaceholder')" :aria-label="t('agents.sessionView.chatPlaceholder')" data-testid="chat-input" @keydown="onKey" />
-      <VButton v-if="!voice.active.value" size="small" type="submit" :disabled="!draft.trim()" :loading="sending" data-testid="chat-send">{{ t('agents.sessionView.chatSend') }}</VButton>
-      <UiButton v-if="showVoice && !voice.active.value" type="button" class="voice-start" data-testid="chat-voice-start" @click="voice.start">{{ t('agents.sessionView.chatVoiceStart') }}</UiButton>
-      <UiButton v-if="showTalk && !voice.active.value" type="button" class="talk" :data-holding="talk.holding.value || undefined" :data-cancelling="talk.cancelling.value || undefined" :aria-label="t('agents.sessionView.chatTalk')" :title="t('agents.sessionView.chatTalk')" data-testid="chat-talk" @pointerdown="talk.start" @pointermove="talk.move" @pointerup="talk.release" @pointercancel="talk.release" @contextmenu.prevent><Mic :size="20" /></UiButton>
-    </form>
+    <ChatComposer v-if="terminal" :messages="messages" :suggestion="suggestion" :model-chip="modelChip" :sending="sending" :send="submit" />
   </section>
 </template>
 
@@ -454,7 +440,7 @@ onBeforeUnmount(() => {
   padding: 0 var(--vr-space-2);
   overflow: hidden;
   font-size: var(--vr-font-size-2xs);
-  line-height: 20px;
+  line-height: 1.8;
   color: var(--vr-color-text-muted);
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -513,12 +499,16 @@ onBeforeUnmount(() => {
 }
 
 .feedback-detail {
+  box-sizing: border-box;
+  flex: 1 1 100%;
   min-width: 0;
+  max-height: min(30dvh, 10em);
   padding: 1px 6px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
   font-size: var(--vr-font-size-xs);
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  white-space: pre-wrap;
   background: var(--vr-color-surface-muted);
   border-radius: var(--vr-radius-sm);
 }
@@ -533,122 +523,6 @@ onBeforeUnmount(() => {
   background: var(--vr-color-surface-muted);
   border: none;
   border-radius: var(--vr-radius-md);
-}
-
-.composer {
-  display: flex;
-  flex: none;
-  align-items: flex-end;
-  gap: var(--vr-space-2);
-  width: 100%;
-  max-width: 920px;
-  margin: 0 auto;
-  padding: 0 var(--vr-space-4) var(--vr-space-4);
-}
-
-.composer {
-  flex-wrap: wrap;
-}
-
-.suggestion {
-  flex: 0 0 100%;
-  overflow: hidden;
-  padding: var(--vr-space-1) var(--vr-space-3);
-  border: 1px dashed var(--vr-color-border);
-  border-radius: var(--vr-radius-md);
-  font-size: var(--vr-font-size-sm);
-  color: var(--vr-color-text-muted);
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.talk-note {
-  flex: 0 0 100%;
-  margin: 0;
-  font-size: var(--vr-font-size-sm);
-  color: var(--vr-color-text-muted);
-}
-
-.voice {
-  display: flex;
-  flex: 0 0 100%;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--vr-space-2);
-}
-
-.voice-text {
-  flex: 1 1 100%;
-  font-size: var(--vr-font-size-sm);
-  color: var(--vr-color-text-muted);
-}
-
-.voice-action,
-.voice-start {
-  height: var(--vr-size-row);
-  padding: 0 var(--vr-space-4);
-  font: inherit;
-  font-size: var(--vr-font-size-sm);
-  color: var(--vr-color-text);
-  cursor: pointer;
-  background: var(--vr-color-surface-muted);
-  border: none;
-  border-radius: var(--vr-radius-full);
-}
-
-.voice-end {
-  font-weight: 600;
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-accent);
-}
-
-.talk-note[data-cancelling] {
-  color: var(--vr-color-danger);
-}
-
-.talk {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: var(--vr-size-row);
-  height: var(--vr-size-row);
-  color: var(--vr-color-text);
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-  background: var(--vr-color-surface-sunken);
-  border: 1px solid var(--vr-color-border-strong);
-  border-radius: 50%;
-}
-
-.talk[data-holding] {
-  background: var(--vr-color-nav-active);
-  transform: scale(1.1);
-}
-
-.talk[data-cancelling] {
-  color: var(--vr-color-danger);
-  border-color: var(--vr-color-danger);
-}
-
-.input {
-  flex: 1;
-  min-width: 0;
-  padding: var(--vr-space-2) var(--vr-space-3);
-  color: var(--vr-color-text);
-  font: inherit;
-  font-size: var(--vr-font-size-sm);
-  resize: none;
-  background: var(--vr-color-surface-sunken);
-  border: 1px solid var(--vr-color-border-strong);
-  border-radius: var(--vr-radius-lg);
-  outline: none;
-}
-
-.input:focus-visible {
-  border-color: var(--vr-color-focus);
 }
 
 .state {
@@ -671,9 +545,39 @@ onBeforeUnmount(() => {
   list-style: none;
 }
 
-.message[data-role='user'] {
+.block[data-block='prompt'] {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   align-self: flex-end;
   max-width: 85%;
+}
+
+.block[data-block='turn'] {
+  margin-top: var(--vr-space-2);
+}
+
+.message[data-role='user'] {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.spoken {
+  font-size: var(--vr-font-size-2xs);
+  color: var(--vr-color-text-subtle);
+}
+
+.turn {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-2);
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-muted);
+}
+
+.turn-time {
+  color: var(--vr-color-text-subtle);
 }
 
 .user {
@@ -698,30 +602,4 @@ onBeforeUnmount(() => {
   font-size: var(--vr-font-size-sm);
 }
 
-.message[data-tool='true'] + .message[data-tool='true'] {
-  margin-top: calc(-1 * var(--vr-space-2));
-}
-
-.tool {
-  display: flex;
-  align-items: center;
-  gap: var(--vr-space-2);
-  min-width: 0;
-  padding: 2px var(--vr-space-2);
-  font-size: var(--vr-font-size-2xs);
-  color: var(--vr-color-text-muted);
-}
-
-.tool-name {
-  flex: none;
-  font-weight: 600;
-}
-
-.tool-arg {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
 </style>

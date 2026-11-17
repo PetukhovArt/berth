@@ -33,6 +33,9 @@ export const forge: Translation<typeof en> = {
     reviewers: 'Ревьюеры:',
     reviewersHeading: 'Ревьюеры',
     issueHeading: 'Связанная задача',
+    sessionHeading: 'Сессия',
+    openSession: 'Открыть эту сессию',
+    noSession: 'Над этим запросом не работает ни одна сессия',
     openIssue: 'Открыть {key}',
     pipelineNumber: 'Пайплайн #{id}',
     tabOverview: 'Обзор',
@@ -55,6 +58,8 @@ export const forge: Translation<typeof en> = {
     send: 'Отправить',
     resolve: 'Решить',
     unresolve: 'Вернуть в работу',
+    addToPrompt: 'В промпт',
+    addToPromptTitle: 'Вставить тред и его место в промпт сессии, которая работает над этим запросом',
   },
   composer: {
     hint: 'Ctrl/Cmd+Enter отправляет, Esc закрывает',

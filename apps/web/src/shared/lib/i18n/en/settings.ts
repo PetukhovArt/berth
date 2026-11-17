@@ -15,7 +15,9 @@ export const settings = {
   connectorKeywords: 'connectors connector github gitlab jira confluence token tokens connection account',
   routerKeywords: 'llm router routing route rule rules fallback chain limit error switch model provider',
   providerKeywords: 'providers provider agents agent acp claude codex gemini cursor command enable disable',
+  chatKeywords: 'chat bridge messenger telegram bot token webhook slack mattermost notification notify test message',
   category: {
+    chat: 'Chat bridge',
     appearance: 'Appearance',
     terminal: 'Terminal',
     sessions: 'Sessions',
@@ -23,6 +25,22 @@ export const settings = {
     keymap: 'Keys',
     router: 'LLM Router',
     providers: 'Providers',
+  },
+  chatBridge: {
+    title: 'Chat bridge',
+    hint: 'berth posts a short message to your chat when an Agent needs feedback or finishes, and when you save a Session task note. The daemon reads these values from config.json on every message, so there is nothing to restart.',
+    telegramToken: 'Telegram bot token',
+    telegramChat: 'Telegram chat id',
+    telegramHint: 'Create a bot with @BotFather, send it a message, and use the chat id of that conversation or group. Both fields are needed.',
+    telegramOwner: 'Your Telegram user id',
+    ownerHint: 'Text and voice notes you send in that chat become prompts for your Agents: a reply to a berth message goes to its Session, anything else to the Session that most recently started waiting. Messages from anyone else are ignored, and nothing is taken while this is empty. In a private chat with the bot your user id is the chat id.',
+    ownerInvalid: 'The user id is a number, for example 123456789.',
+    webhookUrl: 'Webhook URL',
+    webhookHint: 'An incoming webhook, for example from Slack or Mattermost. berth sends a POST with {"text": "..."} to it.',
+    half: 'Telegram needs both the bot token and the chat id, otherwise it stays off.',
+    save: 'Save',
+    test: 'Send test message',
+    sent: 'The test message was sent. Check the chat.',
   },
   providers: {
     native: 'Agents with a terminal',
@@ -133,7 +151,7 @@ export const settings = {
     },
     sessionsWorktreeBase: {
       label: 'Base branch for new worktrees',
-      description: 'The branch New worktree… starts from, fetched from origin first. Pairs of project name and branch: web-client=develop. A project not listed starts from develop, main or master, the first one it has.',
+      description: 'The branch New worktree… and berth worktree start from, fetched from origin first. Pairs of project name and branch: web-client=develop. A project not listed starts from develop, main or master, the first one it has.',
       placeholder: 'web-client=develop',
     },
     sessionsMrPrompt: {
@@ -156,13 +174,9 @@ export const settings = {
       label: 'Run git init for a new folder',
       description: 'When you add a project by creating a folder that does not exist yet, run git init in it. Stored in the berth config, so it applies to every client.',
     },
-    daemonPrewarmAgents: {
-      label: 'Prewarm agents',
-      description: 'Start the agent CLI in the background while you name a new session, so it opens instantly. Costs one idle process per warm slot. Stored in the berth config.',
-    },
-    daemonPrewarmSessions: {
-      label: 'Prewarm sessions',
-      description: 'Start the stopped sessions of a worktree when you select it, so attaching shows a screen that is already booted. Costs idle processes for sessions you may never open. Stored in the berth config.',
+    daemonPrewarm: {
+      label: 'Start the next agent ahead of time',
+      description: 'While the new session form is open, the agent it targets starts in the background, so the session opens instantly. Costs one idle agent process, a few hundred MB for Claude, which stops after 15 minutes if no session takes it. Stored in the berth config, so it applies to every client.',
     },
     daemonClaudeLimits: {
       label: 'Show Claude subscription limits',

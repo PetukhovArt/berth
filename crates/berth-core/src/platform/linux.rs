@@ -3,7 +3,7 @@
 
 use std::ffi::OsString;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::{Capabilities, Os};
 
@@ -22,6 +22,13 @@ pub const CAPABILITIES: Capabilities = Capabilities {
 
 pub fn open_path(path: &Path) -> io::Result<()> {
     super::unix::open_path_with("xdg-open", path)
+}
+
+pub fn speech_to_file(
+    _text_file: &Path,
+    _language: &str,
+) -> Option<(std::process::Command, PathBuf)> {
+    None
 }
 
 pub fn system_total_bytes() -> Option<u64> {

@@ -25,6 +25,19 @@ pub const INSTALL_ROOT_MISSING: &str = "LOCALAPPDATA is not set";
 pub const INSTALLER_SCRIPT: &str = "install-app.ps1";
 pub const APP_EXECUTABLE: &str = "berth-desktop.exe";
 
+#[cfg(feature = "voice")]
+const SPEECH_ENGINE_DLL: &str = "sherpa-onnx-c-api.dll";
+
+#[cfg(feature = "voice")]
+pub fn speech_engine_loads() -> bool {
+    use windows_sys::Win32::System::LibraryLoader::LoadLibraryW;
+    let name: Vec<u16> = SPEECH_ENGINE_DLL
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
+    !unsafe { LoadLibraryW(name.as_ptr()) }.is_null()
+}
+
 pub fn tie_to_parent(command: &mut tokio::process::Command) {
     command.no_window();
 }

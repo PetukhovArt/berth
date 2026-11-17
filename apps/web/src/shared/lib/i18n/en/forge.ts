@@ -30,6 +30,9 @@ export const forge = {
     reviewers: 'Reviewers:',
     reviewersHeading: 'Reviewers',
     issueHeading: 'Linked issue',
+    sessionHeading: 'Session',
+    openSession: 'Open this session',
+    noSession: 'No session works on this request',
     openIssue: 'Open {key}',
     pipelineNumber: 'Pipeline #{id}',
     tabOverview: 'Overview',
@@ -52,6 +55,8 @@ export const forge = {
     send: 'Send',
     resolve: 'Resolve',
     unresolve: 'Unresolve',
+    addToPrompt: 'Add to prompt',
+    addToPromptTitle: 'Put this thread and its location in the prompt of the session working on this request',
   },
   composer: {
     hint: 'Ctrl/Cmd+Enter to send, Esc to close',

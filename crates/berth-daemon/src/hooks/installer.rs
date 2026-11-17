@@ -40,6 +40,8 @@ use berth_core::legacy;
 use serde_json::{json, Map, Value};
 use std::path::{Path, PathBuf};
 
+use crate::git_exclude::{add_to_block, CREATED_HOOK_FILES_BLOCK};
+
 /// The hooks file's name under codex's home and cursor's per-worktree dir.
 /// Claude keeps its hooks in its settings file instead.
 const HOOKS_FILE: &str = "hooks.json";
@@ -54,6 +56,15 @@ const CURSOR_DIR: &str = ".cursor";
 const CODEX_DIR: &str = ".codex";
 const GROK_DIR: &str = ".grok";
 const GROK_HOOKS_FILE: &str = "berth.json";
+const CURSOR_TITLE_RULE_FILE: &str = "berth-title.mdc";
+const CLAUDE_SETTINGS_IN_CHECKOUT: &str = ".claude/settings.local.json";
+const CURSOR_HOOKS_IN_CHECKOUT: &str = ".cursor/hooks.json";
+const CURSOR_TITLE_RULE_IN_CHECKOUT: &str = ".cursor/rules/berth-title.mdc";
+pub const WRITTEN_IN_CHECKOUT: [&str; 3] = [
+    CLAUDE_SETTINGS_IN_CHECKOUT,
+    CURSOR_HOOKS_IN_CHECKOUT,
+    CURSOR_TITLE_RULE_IN_CHECKOUT,
+];
 /// How long a hook waits on the daemon. Hooks run inline in the agent's
 /// turn, so a hung daemon has to cost seconds, not a stuck session.
 const HOOK_CURL_TIMEOUT_SECS: u32 = 3;
@@ -235,13 +246,24 @@ fn managed_group(endpoint: &str, event: &str, matcher: Option<&str>) -> Value {
 /// `<cwd>/.claude/settings.local.json`, plus the permission rule that lets
 /// the auto-title `berth rename` run unprompted.
 pub fn install_claude_hooks(cwd: &Path) -> Result<()> {
+    let created = !cwd.join(CLAUDE_SETTINGS_IN_CHECKOUT).exists();
     install_managed_hooks(
         &cwd.join(CLAUDE_DIR),
         CLAUDE_SETTINGS_FILE,
         "claude",
         CLAUDE_EVENTS,
         CLAUDE_ALLOW_RULES,
-    )
+    )?;
+    if created {
+        exclude_from_git(cwd, CLAUDE_SETTINGS_IN_CHECKOUT);
+    }
+    Ok(())
+}
+
+fn exclude_from_git(cwd: &Path, file: &str) {
+    if let Err(error) = add_to_block(cwd, &CREATED_HOOK_FILES_BLOCK, file) {
+        tracing::debug!(cwd = %cwd.display(), %file, %error, "hook file not added to git's exclude");
+    }
 }
 
 pub fn install_claude_settings(cwd: &Path) -> Result<()> {
@@ -419,6 +441,7 @@ fn purge_berth_groups(hooks_obj: &mut Map<String, Value>) {
 pub fn install_cursor_hooks(cwd: &Path) -> Result<()> {
     let dir = cwd.join(CURSOR_DIR);
     let path = dir.join(HOOKS_FILE);
+    let created = !path.exists();
     let mut root = load_hooks_root(&path)?;
 
     let root_obj = root_object_mut(&mut root, &path)?;
@@ -441,7 +464,11 @@ pub fn install_cursor_hooks(cwd: &Path) -> Result<()> {
         }));
     }
 
-    write_hooks_root(&dir, HOOKS_FILE, &root)
+    write_hooks_root(&dir, HOOKS_FILE, &root)?;
+    if created {
+        exclude_from_git(cwd, CURSOR_HOOKS_IN_CHECKOUT);
+    }
+    Ok(())
 }
 
 fn load_hooks_root(path: &Path) -> Result<Value> {
@@ -535,7 +562,8 @@ fn merge_managed_hooks(
 /// the daemon accepts at most one auto-title per session.
 pub fn install_cursor_title_rule(cwd: &Path) -> Result<()> {
     let dir = cwd.join(CURSOR_DIR).join("rules");
-    write_text_atomic(&dir, "berth-title.mdc", &cursor_title_rule())?;
+    write_text_atomic(&dir, CURSOR_TITLE_RULE_FILE, &cursor_title_rule())?;
+    exclude_from_git(cwd, CURSOR_TITLE_RULE_IN_CHECKOUT);
     let old = dir.join(legacy::CURSOR_TITLE_RULE);
     if old.exists() {
         std::fs::remove_file(&old).with_context(|| format!("remove {}", old.display()))?;
@@ -1146,5 +1174,86 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("/api/hooks/cursor?"));
+    }
+
+    fn git_in(repo: &Path, args: &[&str]) -> String {
+        let out = std::process::Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .env("GIT_AUTHOR_NAME", "t")
+            .env("GIT_AUTHOR_EMAIL", "t@example.com")
+            .env("GIT_COMMITTER_NAME", "t")
+            .env("GIT_COMMITTER_EMAIL", "t@example.com")
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "git {args:?}: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        String::from_utf8_lossy(&out.stdout).trim().to_owned()
+    }
+
+    #[test]
+    fn hook_files_berth_creates_in_a_worktree_stay_out_of_git_status() {
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = tmp.path().join("repo");
+        std::fs::create_dir(&repo).unwrap();
+        git_in(&repo, &["init", "-b", "main"]);
+        std::fs::create_dir_all(repo.join(".git/info")).unwrap();
+        std::fs::write(repo.join(".git/info/exclude"), "# the user's line\n*.log\n").unwrap();
+        git_in(&repo, &["commit", "--allow-empty", "-m", "a"]);
+        let worktree = tmp.path().join("wt");
+        git_in(
+            &repo,
+            &[
+                "worktree",
+                "add",
+                "-q",
+                "-b",
+                "feat",
+                &worktree.to_string_lossy(),
+            ],
+        );
+
+        install_claude_hooks(&worktree).unwrap();
+        install_cursor_hooks(&worktree).unwrap();
+        install_cursor_title_rule(&worktree).unwrap();
+        install_claude_hooks(&worktree).unwrap();
+
+        assert_eq!(git_in(&worktree, &["status", "--porcelain"]), "");
+        let exclude = std::fs::read_to_string(repo.join(".git/info/exclude")).unwrap();
+        assert!(
+            exclude.starts_with("# the user's line\n*.log\n"),
+            "{exclude}"
+        );
+        assert_eq!(exclude.matches("/.claude/settings.local.json").count(), 1);
+        assert!(exclude.contains("/.cursor/hooks.json"));
+        assert!(exclude.contains("/.cursor/rules/berth-title.mdc"));
+    }
+
+    #[test]
+    fn a_settings_file_the_user_had_is_not_excluded() {
+        let tmp = tempfile::tempdir().unwrap();
+        git_in(tmp.path(), &["init", "-b", "main"]);
+        let no_global_ignore = tmp.path().join("no-global-ignore");
+        git_in(
+            tmp.path(),
+            &[
+                "config",
+                "core.excludesFile",
+                no_global_ignore.to_str().unwrap(),
+            ],
+        );
+        std::fs::create_dir(tmp.path().join(".claude")).unwrap();
+        std::fs::write(tmp.path().join(".claude/settings.local.json"), "{}").unwrap();
+
+        install_claude_hooks(tmp.path()).unwrap();
+
+        let exclude =
+            std::fs::read_to_string(tmp.path().join(".git/info/exclude")).unwrap_or_default();
+        assert!(!exclude.contains("settings.local.json"), "{exclude}");
+        assert!(git_in(tmp.path(), &["status", "--porcelain"]).contains(".claude/"));
     }
 }

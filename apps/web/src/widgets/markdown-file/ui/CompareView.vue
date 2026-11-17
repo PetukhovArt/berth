@@ -1,20 +1,26 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, useTemplateRef } from 'vue';
+import { onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue';
 import { MergeView } from '@codemirror/merge';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { baseExtensions } from '../lib/editor';
+import { useDarkTheme } from '../../../shared/lib/content/theme';
+import { baseExtensions, darkSlot } from '../lib/editor';
 
 const props = defineProps<{ disk: string; mine: string }>();
 
 const host = useTemplateRef<HTMLElement>('host');
+const dark = useDarkTheme();
 let merge: MergeView | undefined;
+
+watch(dark, (value) => {
+  for (const view of merge ? [merge.a, merge.b] : []) view.dispatch({ effects: darkSlot.reconfigure(EditorView.darkTheme.of(value)) });
+});
 
 onMounted(() => {
   const parent = host.value;
   if (!parent) return;
-  const extensions = [...baseExtensions, EditorState.readOnly.of(true), EditorView.editable.of(false)];
+  const extensions = [...baseExtensions, EditorState.readOnly.of(true), EditorView.editable.of(false), darkSlot.of(EditorView.darkTheme.of(dark.value))];
   merge = new MergeView({
     a: { doc: props.disk, extensions },
     b: { doc: props.mine, extensions },

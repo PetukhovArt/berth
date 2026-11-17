@@ -2,14 +2,89 @@
 
 ## Unreleased
 
+- Added `berth hub devices` to list the devices paired with a team hub and `berth hub revoke <id>` to cut one off at once, together with its Agents; `berth hub approve` run again changes a device's scopes
+- Added a team hub over HTTPS: `berth hub serve --cert <pem> --key <pem>`, and `hub_url` accepts `https://`
+- Added `berth channel open [<key>]` and an `Open Channel` action on a Worktree, a merge request and a Jira issue: they create the Channel for that task or open it when it exists
+- Added Channel mentions by an Agent's session name (`@fix-login-redirect`): every Agent is mentionable as soon as it exists, mentions made while the daemon was stopped are delivered on start, and an owner's `@agent /command` is typed as that command
+- Added `berth channel promote` and a Promote button in the Channel view: a colleague's message that mentions your Agent reaches it as an instruction instead of quoted information
+- Added `berth channel grant`, `revoke` and `grants`: let one colleague instruct one of your Agents in one Channel until you revoke it, with the grants listed in the Channel view
+- Added a waiting Agent's permission request or question to its team Channel, where its owner answers it with buttons or `berth channel answer`, and a request answered in berth is marked answered there
+- Added a Task note per Channel that reaches the Agents of every member who starts a Session on that task: set it with `berth channel note <channel> <text>` or the Task note button in the Channel view
+- Added Agents of other team members to the overlap chip when they change the same modules on the same task
+- Added a share button in the Session header that gives a colleague a read-only link to one Session's chat, tool calls and changed files over remote access; `Stop sharing` revokes it
+- Added a chat bridge: set `messenger_telegram_token` and `messenger_telegram_chat`, or `messenger_webhook_url`, in `config.json` and the daemon posts a short message to that chat when an Agent needs feedback or finishes, and when you save a Session's Task note
+- Added a shared setup: point `shared_setup` in the config at a directory or git repository and berth copies its skills, MCP servers, Claude hooks and instructions into every project and worktree in each agent's format, with `berth shared-setup sync` to update them
+- Added `mod-shift-space` push-to-talk: hold it to dictate a prompt and release to send it to the Session in view
+- Added an opt-in wake word: run `Wake word` from the command palette, then say the `voice.wakePhrase` (default `hey berth`) and a prompt to send it to that Session
+- Added a collapsible Projects section in the sidebar: click the Projects header to hide or show the project list, and the app remembers it after a restart.
 - Added a draggable edge on the file tree of the Changes view: drag or use the arrow keys to resize it, double-click to reset, and the width is remembered.
 - Added `mode = "auto"` in `router.toml`: berth applies a router suggestion by itself, at most once per turn, no more hops per task than the fallback chain is long, and each rule waits `auto_cooldown_secs` (600 by default) before it switches again.
 - Added a Return chip after a usage limit resets: the Agent that took over offers to go back to the agent or model it came from, once its turn has ended, and never switches back on its own.
 - Added a router editor in Settings → Sessions: the fallback chain, and each rule's conditions as rows with and, or, not and groups, saved to `router.toml` by the daemon with unknown conditions kept as written.
-- Changed Claude sessions on Claude Code 2.1.287 or later to report to berth from inside Claude Code through a mod, so berth no longer writes hooks into `.claude/settings.local.json` and a tool call no longer starts a shell to reach berth; older Claude Code keeps the hooks.
+- Added text and voice notes you send the Telegram bot as prompts for your Agents, with the answer coming back to the chat, and chat bridge settings with a test message button in the desktop app's Settings
+- Added an `Always` button next to Allow and Deny when Claude's prompt offers "don't ask again", in the session, the Chat view and the phone notification
+- Added a choice in the share popover to include diffs in a Session share link, off by default
+- Added hooks for Codex, Cursor and Grok, MCP servers for OpenCode, Grok and ACP agents, and Claude plugins and MCP approvals to the shared setup, which also syncs Worktrees made outside berth
+- Added `hub_ca` in the config for a team hub with a self-signed certificate, joining a Channel that already exists, and granting an Agent from the Channel view
+- Added speech recognition on your computer with whisper.cpp and sherpa-onnx for dictation in the desktop app, an opt-in feature of the build
+- Added a session details panel beside the terminal that shows the Worktree, merge request (or No merge request yet with a Create action), usage, checkpoints by the prompt they were taken at, Task note, overlaps and people, and a workspace switcher and a Hot sessions button in the title bar
+- Added a phone layout with Inbox, Sessions, Reviews and Settings tabs and a header with the screen title and status, and Resume and Open on the Inbox card of a crashed session
+- Added a Chat view that groups tool calls into one row that says what they did, shows paths relative to the Worktree, adds a checkpoint row with Restore files under each prompt and a Changed files card per turn that opens Changes on the file
+- Added a Changes view that compares uncommitted changes, the branch or one commit, and a merge request page that lists reviewer names, the working session with a Watch toggle and Add to prompt on threads
+- Added an `Alt+J` hint in the Inbox that opens the next waiting session, and a running and total counter on every project in the sidebar
+- Added Continue as agent in a terminal's menu: the Claude or Codex conversation running there moves into an agent in the same worktree and opens where the terminal was
+- Added Continue a conversation in New Session: pick a Claude or Codex conversation from any checkout of the project and continue it as an agent in the chosen worktree
+- Changed Channel messages and Agent mentions to arrive as soon as they are posted instead of on the next 5 second poll
+- Changed a Channel to show people who have the app open, not only those with a Session running, and to count a Session as on the task when its Worktree's Task note names the Channel key
+- Changed the hold-to-talk microphone in a Session's Chat view to work in the desktop app, not only on a phone
 - Changed router suggestions to appear only for an Agent with a provider error or one that has finished its turn or waits on you, so a running Agent no longer shows a chip.
 - Changed deleting a Workspace to ask in a small popover next to the row instead of a block under it.
-- Fixed Prewarm sessions in Settings doing nothing: selecting a worktree now starts its stopped sessions, so opening one shows a screen that is already booted.
+- Changed Claude sessions on Claude Code 2.1.287 or later to report to berth from inside Claude Code through a mod, so berth no longer writes hooks into `.claude/settings.local.json` and a tool call no longer starts a shell to reach berth; older Claude Code keeps the hooks.
+- Changed the New Session dialog to be shorter, with a base branch chip for a new worktree, model and effort chips, an Esc chip, Setup command under More options, and `Ctrl+Enter` (`Cmd+Enter` on macOS) starting the session in the background
+- Changed the first-run screen to have no sidebar, show agent icons with Ready and Install, paths with `~/`, a phone setup row, and Start without an agent and Add N projects and start buttons in a footer
+- Changed the sidebar to show text tabs with counts that turn into icons when the sidebar is dragged narrow, with the filter and an overflow menu in the Projects header, one Archive row, and the collapse button, Activity and the cleanup notice in the footer
+- Changed the Changes toolbar into one row with Commit and push, Added and Modified pills per file, renames shown as `money.ts → lib/money.ts` and the commit scope with its sha and subject; session tabs shrink instead of scrolling, close on hover and have a + that opens New Session
+- Changed Hot sessions to number its cards in the order they are shown, so `Alt+1`..`Alt+9` open the same card, and to show a status icon and a short age on each
+- Changed the Chat composer footer to show the model chip, hint, microphone and send button across the full width, tool rows to use forward slashes and bash rows to show their exit status
+- Changed on a phone the session view to list Chat first and keep its header buttons on the tab row
+- Changed the Inbox to say a session crashed instead of stopped with an error, and the Russian status words to agree in gender
+- Changed Continue in Berth to run a Claude or Codex conversation as an agent with permission prompts and notifications, instead of typing `claude --resume` into a terminal, and to close the conversation's old idle terminal so it shows as one row
+- Fixed New Session opened from a project's `+` asking for the project again
+- Fixed the Inbox showing minutes for a status that changed seconds ago, and sorting by the old time
+- Fixed `claude --resume` in a berth terminal briefly showing as a second row in the session tree
+- Fixed a session tab showing a second Claude icon beside its status
+- Fixed the title bar and the phone header show the app icon from the taskbar and the splash screen again, instead of a letter on a blue tile
+- Fixed `ui.font_size` leaving parts of the interface at their old size: session rows, the title bar, session header buttons, the new session form, badges, diagrams and line heights now follow it too.
+- Fixed a blank web UI on a phone caused by phone-only Inbox and approval styles applying to the whole page
+- Fixed the Inbox card on a phone: its age shows without the actions menu on top of it, and a crashed card shows what happened
+- Fixed `Alt+1`..`Alt+9` in the Hot sessions overview: it opens that session and closes the overview
+- Fixed `Ctrl+Tab`, Hot sessions and `Alt+1`..`Alt+9` listing agents whose process had ended; they list only running sessions
+- Fixed the Inbox missing a Claude or Codex session started by hand in a terminal when it waits for you
+- Fixed the Changes toolbar cutting off the commit button in a narrow pane: it shrinks to a short label and then an icon, as the git step button in the session header does
+- Fixed the session header showing no model when the agent has none set: it shows the model of the latest turn
+- Fixed Quick Open repeating a session title in its message match, matching scattered letters in long words, and missing words in session prompts and replies
+- Windows: Fixed the folder of an external session showing backslashes; it shows forward slashes
+- Windows: Fixed a new worktree's path mixing `/` and `\` in the session inspector
+- Fixed New Session and `berth worktree` failing when origin cannot be fetched: the worktree is created from the local base branch and a warning shows git's error
+- Fixed a repository without an `origin` remote: new worktrees start from the local base branch, and the git step and session details compare against the local default branch
+- Fixed berth's own hook files showing as worktree changes and making every session overlap every other
+- Fixed the Offline banner not saying why the daemon could not be reached, such as an ssh error for a remote one
+- Fixed the Channel view skipping a message posted just before your own and naming a granted Agent by its id instead of its Session name
+- Added a new Claude session with a starting prompt opens on an Agent prestarted while the New Session form was open, from the desktop app, the web client and a phone, so the prompt is taken in under a second instead of about 3 seconds.
+- Changed the daemon to keep one prestarted Agent in total instead of one per project and agent kind; one `daemon.prewarm` setting (`prewarm` in `config.json`) replaces prewarming Agents and prewarming Sessions.
+- Changed `sessions.archiveOnMerge`, `connectors.trackerWriteBack` and Watch on a merge request to work with no desktop window open and under `berth-server`, once per machine, and a restart no longer repeats or misses a wake (#23).
+- Removed the toast that announced a wake from Watch on a merge request; the Watch strip shows the last one.
+- Fixed `Unload idle sessions after` showing 1 hour in Settings while the daemon used 5 minutes.
+- Fixed the default session kind from Settings being replaced by Claude the first time the New Session form opens, and `Open in session` failing when the default agent is off or set to Terminal.
+- Fixed `berth worktree` without `--base` starting the new branch from the checkout's HEAD instead of the base set in `sessions.worktreeBase`, or develop, main or master.
+- Fixed session status animations not playing in the project tree, and their ripple and spinner styles not showing on tabs.
+- Fixed terminal text in some ANSI colors, white and bright yellow among them, being unreadable on the light theme.
+- Fixed the sidebar, dock, messages, toggles and the Confluence outline still animating with `ui.animations` off.
+- Fixed switching the language not updating dates, times, sorting, list and dialog texts, menus and tab titles until a restart.
+- Fixed the compare view, math errors and the splash screen not following the light, dark and system theme.
+- Windows: Fixed Codex and other npm-installed agents failing to start with `not a valid Win32 application` when npm's POSIX script sits beside its `.cmd` shim on `PATH`.
+- Fixed Hot sessions cards saying No activity yet for an Agent that waits for you or is working: a card now shows the permission or question it waits on, its provider error or its last reply, and the window is only as tall as its cards.
+- Fixed Hot sessions cards showing "No activity yet" for a live Agent when many sessions are open: the window now reads the previews of the first 12 cards in the order it lists them, not of the first 12 sessions in the order they were opened.
 - Added Settings → Providers: Claude, Codex and Grok are on by default, and Cursor, OpenCode, Antigravity, Gemini, Kiro and Pi can be turned on to run over ACP in the chat view, with permission requests answered from a card; the terminal Cursor and OpenCode stay on where you already use them.
 - Added resume for ACP agents: after an idle reap or a daemon restart the next prompt continues the same conversation, an agent that needs sign-in shows a card that starts its own sign-in, and restoring a checkpoint says in the chat that the conversation was not rewound.
 - Added command and argument editing for ACP agents in Settings → Providers, Add ACP agent for any other agent that speaks ACP, an Agent log button in the chat of an ACP agent, and presets for ACP agents in New Session.
@@ -53,13 +128,12 @@
 - Added a way to start the same prompt in several Agents from the New Session dialog in the desktop app, each in its own Session and, with a new branch, its own worktree (#22).
 - Added a `Reviewed` mark on each file in the desktop app's diff view, kept across restarts per merge request or worktree and cleared when the file changes (#44).
 - Added `Open Repository` to a project's menu in the desktop app: it opens the repository page on the git host for the `origin` remote, without the credentials in the URL (#45).
-- Added a badge on the desktop app's taskbar icon with the number of sessions waiting for an answer; the icon flashes when a new one starts waiting while the window is in the background.
+- Added a flash of the desktop app's taskbar icon when a new session starts waiting for an answer while the window is in the background.
 - Added a toast in the desktop app when an agent starts waiting, finishes or stops with an error, and an OS notification when the window is in the background; clicking either opens the session (#25).
 - Added Grok as a session type: `grok` runs in a berth session with status updates, auto titles and resume, through hooks berth writes to `~/.grok/hooks/berth.json`.
 - Added OpenCode as a session type: `opencode` runs in a berth session with status updates, auto titles and resume, through a plugin berth writes to `~/.config/opencode/plugin/berth.js`.
 - Changed Checkpoints to be off for Claude agents by default, since Claude Code has its own `/rewind`; `daemon.checkpointsClaude` in the desktop app's settings turns them back on (#20).
 - Changed berth's status hooks in Claude, Codex and Grok to report in the background, so a tool call or turn end no longer waits for the daemon's answer, or up to 3 seconds when the daemon is busy.
-- Changed a new Claude session with a prompt to start in a Claude that berth boots while the New Session dialog is open, so its first answer starts about a second sooner.
 - Changed the desktop app to update an older berth daemon on its own after an app update, instead of showing a protocol mismatch.
 - Fixed the New Session dialog moving focus to its close button right after it opens, so the first letters typed into the prompt went nowhere; the prompt now has focus from the start.
 - Fixed Claude conversations missing from the sidebar when their folder under `~/.claude/projects` is a symlink, and conversations synced from another machine (with that machine's path as their cwd) not showing under the project they belong to on this one.
@@ -131,6 +205,8 @@
 - Fixed opening a Claude session that ended before its first turn: instead of `No conversation found` and a dead pane, berth starts a new conversation in the same worktree and says so in the terminal.
 - Fixed the Route, task note and checkpoint popovers in the session header opening under the sidebar: they now shift to stay inside the main pane.
 - Fixed the chat of a Claude Code session showing background task notifications, system reminders and subagent hand-backs as your own messages.
+- Fixed a second terminal with the same name after a daemon restart: a Claude conversation that ran in a terminal stays under that terminal, and Continue resumes it there instead of opening a new one.
+- Fixed a closed Claude conversation vanishing from the list while a new Claude session sits idle in the same folder.
 
 ## 0.20.0 (2026-09-18)
 

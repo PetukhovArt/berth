@@ -37,16 +37,21 @@ one hooks dialect; Cursor speaks its own. The same hook channel powers auto-titl
 ## Side paths
 
 In the daemon (`crates/berth-daemon/src`): the
-prewarm pool, the idle reaper, restoring live sessions after a restart (`restore.rs`), and the metrics
-sampler (`sampler.rs`) behind the desktop app's metrics panel. In the desktop app
+prewarm pool, the idle reaper, restoring live sessions after a restart (`restore.rs`), the metrics
+sampler (`sampler.rs`) behind the desktop app's metrics panel, and the chat bridge (`messenger/`):
+notifications to Telegram or a webhook, and prompts the owner sends the Telegram bot, whose voice
+notes the daemon hands to the desktop app's whisper engine over the Daemon Socket
+(`OfferTranscription` / `TranscribeVoice`) so the daemon itself never links it. In the desktop app
 (`apps/desktop/src-tauri/src`): remote access (`remote.rs`), connectors, worktree cleanup
-(`cleanup.rs`) and the working-copy updater (`working_copy.rs`).
+(`cleanup.rs`), the working-copy updater (`working_copy.rs`) and the merge-request watcher
+(`merge_watch.rs`, decisions in `berth-core/src/merge_watch.rs`) behind archive on merge,
+tracker write-back and watching a merge request, which the desktop app and `berth-server` both run, one at a time per daemon.
 
 ## Crate layout
 
 | Crate | Role |
 |---|---|
-| `berth` | Thin CLI: `daemon`, `kill`, `add`, `rename`, `worktree`, `enter`, `spawn`, `workspace`, `upgrade`; no args prints help. `client.rs` holds the daemon client: auto-spawn, handshake, kill |
+| `berth` | Thin CLI: `daemon`, `kill`, `add`, `rename`, `worktree`, `enter`, `spawn`, `workspace`, `shared-setup`, `upgrade`; no args prints help. `client.rs` holds the daemon client: auto-spawn, handshake, kill |
 | `berth-core` | Shared protocol, entities, IDs, paths, codec |
 | `berth-daemon` | PTYs, SQLite, git, hook receiver, status engine |
 

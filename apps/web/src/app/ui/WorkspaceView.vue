@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { defineAsyncComponent, watch } from 'vue';
+import { computed, defineAsyncComponent, watch } from 'vue';
+import { isFirstRun } from '../../widgets/first-run';
+import { useBerth } from '../../entities/session';
 import { AgentsView } from '../../pages/agents';
 import { CleanupDialog } from '../../features/cleanup';
 import { CommandPalette } from '../../widgets/command-palette';
@@ -7,16 +9,18 @@ import { paletteOpen } from '../../shared/lib/commands/context';
 import { UnsavedDialog } from '../../features/unsaved-changes';
 import { HotHost } from '../../widgets/hot';
 import { AttentionToasts } from '../../features/attention';
-import { MobileNav } from '../../widgets/mobile-nav';
+import { MobileNav, PhoneHeader } from '../../widgets/mobile-nav';
 import { useIsPhone } from '../../shared/ui/kit';
 import { Sidebar } from '../../widgets/project-tree';
 import { TitleBar } from '../../widgets/title-bar';
 import { ChangesDialog, UpdateDialog } from '../../features/update';
 import { view, type View } from '../../shared/model/nav';
+import { firstRunActive } from '../../shared/model/firstRun';
 import { isDark, toggleTheme } from '../../shared/ui/appearance';
 import { openReview, reviveReview } from '../../entities/merge-request';
 import { useDock } from '../../shared/model/dock';
 import { QuickOpen } from '../../widgets/quick-open';
+import { VoiceIndicator } from '../../features/voice-input';
 
 const SettingsView = defineAsyncComponent(() => import('../../pages/settings').then((m) => m.SettingsView));
 const ConfluenceView = defineAsyncComponent(() => import('../../pages/confluence').then((m) => m.ConfluenceView));
@@ -24,6 +28,9 @@ const JiraView = defineAsyncComponent(() => import('../../pages/jira').then((m) 
 
 const inTauri = '__TAURI_INTERNALS__' in window;
 const mobile = useIsPhone();
+const berth = useBerth();
+const firstRun = computed(() => view.value.kind === 'agents' && isFirstRun(berth?.entities.value));
+watch(firstRun, (value) => (firstRunActive.value = value), { immediate: true });
 const viewKey = 'berth.view.v2';
 
 useDock().revivable(reviveReview);
@@ -50,9 +57,10 @@ watch(
 <template>
   <div class="shell">
     <TitleBar v-if="inTauri" />
-    <div class="body" :data-mobile="mobile">
-      <Sidebar v-if="!mobile" :dark="isDark" @theme="toggleTheme" />
+    <div class="body" :data-mobile="mobile" :data-first-run="firstRun">
+      <Sidebar v-if="!mobile && !firstRun" :dark="isDark" @theme="toggleTheme" />
       <main class="pane vt-main">
+        <PhoneHeader v-if="mobile" />
         <KeepAlive include="AgentsView">
           <AgentsView v-if="view.kind === 'agents'" />
           <JiraView v-else-if="view.kind === 'jira'" />
@@ -69,6 +77,7 @@ watch(
     <CleanupDialog v-if="inTauri" />
     <HotHost />
     <AttentionToasts v-if="inTauri" />
+    <VoiceIndicator />
     <Transition name="palette">
       <CommandPalette v-if="paletteOpen" />
     </Transition>
@@ -90,6 +99,10 @@ watch(
   grid-template-columns: auto minmax(0, 1fr);
   min-height: 0;
   min-width: 0;
+}
+
+.body[data-first-run='true'] {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .body[data-mobile='true'] {

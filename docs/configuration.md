@@ -52,17 +52,214 @@ file or a missing key means the default.
 |---|---|---|
 | `session_idle_timeout` | `5m` | how long an unwatched idle session keeps its terminal before it is released (`off` never releases). The desktop app sets it in its settings |
 | `restore_sessions` | `true` | start the sessions that were running when the daemon stopped again when it starts (agents resume their conversation). The desktop app's `sessions.restoreOnRestart` sets it |
-| `prewarm_agents` | `true` | let a client have an agent CLI started ahead of time so a new session opens instantly; each idle one costs a few hundred MB |
-| `prewarm_sessions` | `true` | let a client have a worktree's closed sessions booted ahead of time so they open on a booted screen |
+| `prewarm` | `true` | while a new session form is open, start the agent it targets ahead of time so the session opens instantly. The daemon keeps one such agent at most, a few hundred MB for Claude, and stops it after 15 minutes if no session takes it. Older configs spell it `prewarm_agents`; the daemon renames the key on start. The desktop app's `daemon.prewarm` sets it |
 | `claude_limits` | `false` | let the daemon read Claude Code's sign-in and ask Anthropic for your 5-hour and weekly usage every minute; off means no file read and no network call |
 | `checkpoints_claude` | `false` | take Checkpoints for Claude agents too; Claude Code has its own `/rewind`, so they are off by default. Other agents always take them, and Checkpoints already taken stay listed and restorable. The desktop app's `daemon.checkpointsClaude` sets it |
 | `webhooks` | `false` | listen for webhook prompts (`berth webhook`); read when the daemon starts |
 | `webhook_port` | `47821` | the port the webhook listener uses |
 | `webhook_expose` | `false` | listen on all interfaces instead of `127.0.0.1` only; put it behind something you trust, since the secret is the only check |
-| `hub_url` | none | the team hub the `berth channel` commands talk to, like `http://hub.example:7843` |
+| `hub_url` | none | the team hub the `berth channel` commands talk to, like `http://hub.example:7843`, or `https://hub.example:7843` for a hub started with `--cert` and `--key`. The certificate must be trusted by the operating system or by `hub_ca` |
+| `hub_ca` | none | path to a PEM file with the CA certificate (or the self-signed certificate itself) of an `https://` hub. berth trusts it in addition to the operating system's certificates, so a hub with a company-made certificate works without installing anything system-wide. `berth hub pair`, `devices`, `approve` and `revoke` read it too |
 | `hub_token` | none | this device's token on the hub, from `berth hub pair` once an admin ran `berth hub approve` |
+| `messenger_telegram_token`, `messenger_telegram_chat` | none | a Telegram bot token and the chat id to post to; both set turns the chat bridge on (see below) |
+| `messenger_telegram_owner` | none | your Telegram user id; set next to the token and chat, text and voice notes you send to the bot become prompts (see below). Nothing is taken while it is unset |
+| `messenger_webhook_url` | none | an incoming-webhook URL to post `{"text": "..."}` to; set turns the chat bridge on |
 | `channel_chain_limit` | `4` | how many Agent-authored messages in a row a channel delivers to Sessions before it stops, so two Agents cannot loop |
 | `git_init_on_create` | `true` | `git init` a directory that `Add Project` creates because it did not exist |
+| `shared_setup` | none | a directory, or a git URL, holding the skills, MCP servers, hooks, Claude plugins and instructions berth installs into every project (see below) |
+| `worktree_base` | `{}` | project name (or repo folder name) to the branch a new worktree starts from, like `{"web-client": "develop"}`. A project not listed starts from `develop`, `main` or `master`, the first one it has. The branch is fetched from `origin` first; when the fetch fails the local branch is used. Applies to `berth worktree` without `--base` and to `New worktree…` in the desktop app, whose `sessions.worktreeBase` sets it |
+
+## Shared setup
+
+Keep the skills, MCP servers, hooks and instructions you want in every project in one directory or
+git repository, and point `shared_setup` in `config.json` at it: a local path like
+`"~/agent-setup"`, or a URL like `"https://github.com/you/agent-setup.git"` or
+`"git@github.com:you/agent-setup.git"`. berth copies it into every checkout of every project,
+translated to what each agent reads. It does so when you add a project, when berth creates a worktree,
+when berth finds a worktree made outside it (by Claude's `EnterWorktree` or `git worktree add`), and
+when you run `berth shared-setup sync`. Only that command fetches a repository (it clones it into
+`shared-setup/` in the data directory the first time and pulls after that), so run it after you change
+the repository.
+
+The directory holds `berth-setup.toml` and the items it names:
+
+```
+agent-setup/
+  berth-setup.toml
+  skills/review/SKILL.md      # a skill is a directory with its files
+  instructions/style.md       # instructions are one markdown file each
+  hooks/format.json           # Claude Code hooks, the "hooks" object of a settings file
+```
+
+```toml
+# Every agent in every project
+[[set]]
+skills = ["review"]
+instructions = ["style"]
+mcp = ["context7"]
+
+# Claude only, and only in two projects
+[[set]]
+kinds = ["claude"]
+projects = ["berth", "web-app"]
+hooks = ["format"]
+plugins = ["superpowers"]
+
+[mcp.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
+env = { DEBUG = "0" }
+
+[mcp.docs]
+url = "https://example.com/mcp"
+
+[plugins.superpowers]
+marketplace = "superpowers-marketplace"
+source = { source = "github", repo = "obra/superpowers-marketplace" }
+```
+
+A set says which items go to which agents (`kinds`: `claude`, `codex`, `cursor`, `opencode`, `grok`,
+`acp`) in which projects (`projects`: the name shown in berth or the repository's folder name). Leave
+either out to mean all of them. An item in several sets goes to every agent any of them names. An MCP
+server is a `command` with optional `args` and `env`, or a `url`. A plugin names a Claude Code plugin
+`marketplace`, the `plugin` in it (the table's name when left out) and, for a marketplace Claude Code
+does not know yet, its `source` as Claude Code writes it in `extraKnownMarketplaces`.
+
+Where each item lands in a checkout:
+
+| Item | Claude | Cursor | Codex | OpenCode | Grok | ACP agents |
+|---|---|---|---|---|---|---|
+| skill | `.claude/skills/<name>/` | `.agents/skills/<name>/` | `.agents/skills/<name>/` | `.agents/skills/<name>/` | `.agents/skills/<name>/` | `.agents/skills/<name>/` |
+| instructions | `.claude/rules/<name>.md` | `.cursor/rules/<name>.mdc`, always applied | `AGENTS.md` | `AGENTS.md` | `AGENTS.md` | `AGENTS.md` |
+| MCP server | `.mcp.json` | `.cursor/mcp.json` | `.codex/config.toml` | `.opencode/opencode.json` | `.grok/config.toml` | passed to the agent when berth opens its session |
+| hooks | `.claude/settings.local.json` | `.cursor/hooks.json` | `hooks.json` in Codex's home | not installed | `.grok/hooks/berth-shared.json` | not installed |
+| plugin | `.claude/settings.json` | not installed | not installed | not installed | not installed | not installed |
+
+`AGENTS.md` joins every instructions item in the order the sets name them. Codex reads
+`.codex/config.toml` only in a folder you trusted. berth adds the servers it writes to `.mcp.json` to
+`enabledMcpjsonServers` in `.claude/settings.local.json`, so Claude Code starts them without asking in
+every checkout. An ACP agent gets its servers in the `session/new` request berth sends, and a `url`
+server only when the agent says it supports HTTP servers.
+
+Hooks are written in Claude Code's format and translated for each agent. An event the agent does not
+have, a handler type it cannot run (Cursor and Codex run only `command` handlers), or a Cursor
+matcher naming only tools Cursor lacks is left out, and `berth shared-setup sync` prints each one it
+skipped. Cursor gets its own camelCase events (`PreToolUse` becomes `preToolUse`, `UserPromptSubmit`
+becomes `beforeSubmitPrompt`) and its own tool names in matchers (`Bash` becomes `Shell`, `Edit`
+becomes `Write`). Cursor and Grok read the hooks in `.claude/settings.local.json` themselves, and
+Grok reads `.cursor/hooks.json` too, so berth writes a hook only once: a hook that goes to Claude is
+not written again for Cursor or Grok, and one that goes to Cursor is not written again for Grok. The
+same reading means a hook given to Claude alone also runs in Cursor and Grok, unless you turn their
+third party imports off.
+
+Codex asks you to trust a hook file again in every folder, so berth puts the Codex hooks in
+`hooks.json` in Codex's home (`$CODEX_HOME`, or `~/.codex`), the file it already uses for its own
+status hooks, and only when that directory exists. Codex then asks once for each hook. Every hook
+there starts with a check that runs it only in a repository whose `.git/berth-shared-hooks` names
+it, which berth writes for the projects the sets give the hook to. Hook commands run in the
+checkout, so a script they call needs an absolute path. OpenCode hooks are JavaScript plugins and
+ACP agents have no hooks file, so neither gets hooks.
+
+A plugin goes to Claude only. berth adds the marketplace to `extraKnownMarketplaces` and the plugin
+to `enabledPlugins` in `.claude/settings.json`; Claude Code installs it when you trust the folder. If
+the project commits `.claude/settings.json`, these keys show up as a change in `git status`.
+
+berth copies files rather than linking them, and it remembers what it wrote in each checkout (in
+`berth-setup.json` inside the checkout's git directory). A sync updates and removes only those files,
+and only while they are still as berth wrote them. A file the project already has, or one you changed
+after berth wrote it, is left alone and the sync names it, so a project overrides an item by keeping
+its own file of the same name. The hooks berth adds to `.claude/settings.local.json`,
+`.cursor/hooks.json` and Codex's `hooks.json` are marked `_berthShared` and replaced on every sync;
+the rest of those files, and the hooks berth installs for its own status tracking, stay as they are.
+The keys berth adds to `.claude/settings.json` and `.claude/settings.local.json` (`enabledPlugins`,
+`extraKnownMarketplaces`, `enabledMcpjsonServers`) are remembered the same way: a sync removes one
+only while it still holds what berth wrote, and a key you already set differently is left alone and
+named. berth also lists the files it writes or creates in the repository's `.git/info/exclude`, so
+they stay out of `git status` and out of commits. Remove `shared_setup` and run
+`berth shared-setup sync` to take everything back out.
+
+## Chat bridge
+
+The daemon can post a short message to a chat when an Agent starts waiting on you, when an Agent
+finishes a turn, and when you save a Task note. With Telegram it also works the other way: text and
+voice notes you send to the bot become prompts for your Agents, and the answer comes back to the
+chat. It is all off until you set the keys below in `config.json`. The desktop app writes the same
+keys: Settings > Chat bridge has a field for each, a `Save` button and a `Send test message` button
+that posts a test text through every route you filled in and shows the error if one fails.
+
+```json
+{
+  "messenger_telegram_token": "123456:ABC-your-bot-token",
+  "messenger_telegram_chat": "123456789",
+  "messenger_telegram_owner": "123456789"
+}
+```
+
+For Telegram, create a bot with `@BotFather`, add it to the chat, and use the chat id (a number,
+negative for a group) as `messenger_telegram_chat`. For a company messenger that offers an incoming
+webhook, such as Slack or Mattermost, set `messenger_webhook_url` instead: berth sends a `POST` with
+the JSON body `{"text": "..."}`. Both can be set at once.
+
+A message carries the Session title, the Project and the status, like `Needs feedback: fix login (api)`
+or `Finished: fix login (api)`. A Task note goes out as its first 300 characters with the Project and
+branch. The token and the webhook URL are secrets: they sit in `config.json` in plain text like
+`hub_token`, so keep that file private. The daemon posts through `curl`, which must be on `PATH`, and
+hands it the secret on stdin, not in its arguments. A failed post is logged in `daemon.log` and not
+retried.
+
+### Prompts from Telegram
+
+`messenger_telegram_owner` is your own Telegram user id. Once it is set next to the token and the
+chat, the daemon reads the bot's messages and takes the ones you send in that chat as if you had
+typed them into berth. Messages from anyone else, or from another chat, are ignored and logged in
+`daemon.log`; while the key is empty nothing is taken at all. In a private chat with the bot your
+user id is the same number as the chat id. The daemon asks Telegram for new messages with
+`getUpdates`, so the bot must have no webhook set and no other program may read its updates at the
+same time. In a group, a bot sees only replies to its own messages and commands unless you turn its
+privacy mode off with `/setprivacy` in `@BotFather`; a private chat with the bot has no such limit.
+
+Where a message goes:
+
+- A reply to one of the bot's messages goes to the Session that message was about. When that
+  Session is busy, the message waits in a queue and is typed in when the current turn finishes. The
+  daemon remembers which message belongs to which Session until it restarts; a reply to an older
+  message is refused and nothing is sent.
+- Any other message goes to the Session that most recently started waiting for input (Finished,
+  Needs Feedback or never run). If every Session is busy or there is none, nothing is sent and the
+  bot says so.
+- A Session that waits on a permission or a question with options takes only an option number
+  (`1`, `2`, ...); the bot lists the options when you send anything else.
+
+The bot answers every message with where it went (`Sent to fix login (api).`). When that Session
+finishes its turn the bot sends a summary of its last message, cut to about 700 characters, with
+code blocks replaced by `(code on screen)`; when it waits on you, the bot sends what it asks. A
+message older than 15 minutes, for example one sent while the computer was asleep, is not sent; the
+bot tells you to send it again.
+
+Voice notes need two things on the computer berth runs on: `ffmpeg` on `PATH` (Telegram sends voice
+notes as OGG/Opus) and the desktop app with its local speech engine (see [Voice](#voice)), which
+turns the note into text with the same whisper model as dictation. The bot echoes what it heard
+before the result. When the desktop app is closed, text messages still work and a voice note waits
+for the app to open, for up to an hour. A voice note longer than 3 minutes is refused.
+
+When a prompt came in as a voice note, the answer also comes back as speech, read by the system
+voice: Windows SAPI (a voice for the answer's language when one is installed) or macOS `say`. Code,
+paths in backticks and links are left out of the spoken text. With `ffmpeg` the answer arrives as a
+Telegram voice message; without it, macOS sends it as an audio file and Windows sends the text only.
+Linux sends the text only.
+
+## Mentions in team channels
+
+With `hub_url` and `hub_token` set, the daemon registers every Agent on the hub under its session
+name, and a channel message that writes `@<name>` reaches that Agent. The name is matched in lower
+case with spaces and punctuation as dashes, so the Agent "Fix Login Redirect" is
+`@fix-login-redirect`. When people on the team have Agents with the same name, a mention goes to
+the author's own Agent if the author has one. The Agent gets the message when it is idle: your own
+message as an instruction, anyone else's as quoted information. Your own message that starts with
+`/` once the mention is taken out, like `@fix-login-redirect /compact`, is typed as that command.
+The daemon remembers the last mention it fetched, so mentions made while it was stopped arrive when
+it starts again. Mentions and promoted messages still waiting for a busy Agent are kept in the
+daemon's database too: a restart delivers them once the Agent is idle, and never twice.
 
 ## Router rules
 
@@ -111,6 +308,38 @@ a task back on its own. The offer lives in the daemon's memory and is gone after
 The desktop app keeps its own settings in `~/.berth/settings.json` and its key bindings in
 `~/.berth/keymap.json`. Both are edited from the app's Settings, which can also open either file in
 your editor; hand edits apply while the app runs. `BERTH_HOME` moves the directory.
+
+### Voice
+
+The desktop app on Windows and macOS, when it was built with the local speech engine (the install script
+does that when it finds LLVM and CMake, see [windows.md](windows.md#desktop-working-copy) and
+[macos.md](macos.md)), recognises speech on your computer: dictation runs
+[whisper.cpp](https://github.com/ggml-org/whisper.cpp) with the multilingual `base` model and detects
+the language on its own, and the wake word runs a
+[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) keyword spotter. Nothing you say leaves the
+machine. The models are not part of the app: the first time you dictate, the app downloads the
+dictation model (about 148 MB) into `%LOCALAPPDATA%\dev.berth.desktop\voice` on Windows or
+`~/Library/Application Support/dev.berth.desktop/voice` on macOS, and the first time you turn the wake word on
+it also downloads the keyword model (about 18 MB). The bar at the bottom of the window shows the
+download progress, and without a connection you get an error instead. Settings, `Sessions`, `Speech
+models` shows what is downloaded and where, and `Remove` deletes it; the next dictation downloads it
+again. The macOS app asks for microphone access the first time.
+
+The phone client in a browser, the Linux desktop app, and a desktop app built without the engine use the speech recognition built into the
+browser engine instead, so voice input works there only where that engine offers it (Chrome, Edge and
+Safari do; some webviews do not, and then the voice controls stay hidden or report that speech
+recognition is unavailable).
+
+- Hold `mod-shift-space` (the `voice.pushToTalk` action) to dictate: what you say while the key is
+  down is sent as a prompt to the Session in view when you release it.
+- The Chat view of a Session has a microphone button that works the same way while you hold it.
+- The wake word is off until you run `Wake word: listen for the wake phrase for the Session in
+  view` from the command palette (`voice.wakeWord`). The microphone then stays on for that one
+  Session: say the wake phrase (setting `voice.wakePhrase`, default `hey berth`) and then your
+  prompt, and it is sent when you pause. A bar at the bottom of the window shows that the microphone
+  is listening; its `Turn off` button, or the same command again, stops it. It does not survive an
+  app restart. The desktop app's keyword spotter knows English words only, so there the wake phrase
+  has to be English; the prompt after it can be in any language.
 
 ## Environment
 

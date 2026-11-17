@@ -5,6 +5,7 @@
 use anyhow::{anyhow, bail, Result};
 use berth_core::platform::NoWindow;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 use tokio::process::Command;
 
 /// Shown when the `git` binary itself is missing. Every other git failure
@@ -31,7 +32,7 @@ fn spawn_err(e: std::io::Error) -> anyhow::Error {
     }
 }
 
-async fn git(repo: &Path, args: &[&str]) -> Result<String> {
+pub(crate) async fn git(repo: &Path, args: &[&str]) -> Result<String> {
     let output = Command::new("git")
         .arg("-C")
         .arg(repo)
@@ -78,6 +79,26 @@ pub async fn list_branches(repo: &Path) -> Result<Vec<String>> {
         .filter(|name| !name.is_empty())
         .map(str::to_string)
         .collect())
+}
+
+pub async fn fetch_origin_branch(repo: &Path, branch: &str, limit: Duration) -> Result<String> {
+    let refspec = format!("+refs/heads/{branch}:refs/remotes/origin/{branch}");
+    let run = Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(["fetch", "--no-tags", "origin", &refspec])
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .kill_on_drop(true)
+        .no_window()
+        .output();
+    let output = tokio::time::timeout(limit, run)
+        .await
+        .map_err(|_| anyhow!("git fetch origin {branch} timed out"))?
+        .map_err(spawn_err)?;
+    if !output.status.success() {
+        bail!("{}", String::from_utf8_lossy(&output.stderr).trim());
+    }
+    Ok(format!("refs/remotes/origin/{branch}"))
 }
 
 #[derive(Debug, Clone)]
@@ -206,11 +227,61 @@ pub fn worktree_dir(repo: &Path, branch: &str) -> PathBuf {
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| "repo".into());
     let safe_branch = branch.replace('/', "-");
-    repo.parent()
+    let dir = repo
+        .parent()
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| PathBuf::from("."))
         .join(format!("{repo_name}-worktrees"))
-        .join(safe_branch)
+        .join(safe_branch);
+    in_git_spelling(dir)
+}
+
+fn in_git_spelling(path: PathBuf) -> PathBuf {
+    if cfg!(windows) {
+        PathBuf::from(path.to_string_lossy().replace('\\', "/"))
+    } else {
+        path
+    }
+}
+
+pub struct LocalBase {
+    pub start: String,
+    pub shown_as: String,
+}
+
+pub async fn local_copy_of_origin_branch(repo: &Path, branch: &str) -> Option<LocalBase> {
+    let head = format!("refs/heads/{branch}");
+    let tracking = format!("refs/remotes/origin/{branch}");
+    let local = git(repo, &["rev-parse", "--verify", "--quiet", &head])
+        .await
+        .ok();
+    let remote = git(repo, &["rev-parse", "--verify", "--quiet", &tracking])
+        .await
+        .ok();
+    let tracking_is_newer = match (&local, &remote) {
+        (Some(a), Some(b)) if a.trim() != b.trim() => {
+            git(repo, &["merge-base", "--is-ancestor", &head, &tracking])
+                .await
+                .is_ok()
+        }
+        (None, Some(_)) => true,
+        _ => false,
+    };
+    if tracking_is_newer {
+        Some(LocalBase {
+            start: format!("{tracking}^0"),
+            shown_as: format!("origin/{branch}"),
+        })
+    } else {
+        local.map(|_| LocalBase {
+            start: branch.to_owned(),
+            shown_as: branch.to_owned(),
+        })
+    }
+}
+
+pub async fn has_remote(repo: &Path, name: &str) -> bool {
+    git(repo, &["remote", "get-url", name]).await.is_ok()
 }
 
 /// `git worktree add <path> -b <branch> [base]`. Falls back to checking out an
@@ -291,6 +362,28 @@ mod tests {
         git(dir, &["commit", "--allow-empty", "-m", "init"])
             .await
             .unwrap();
+    }
+
+    #[test]
+    fn a_new_worktree_dir_keeps_the_repo_paths_separators() {
+        let (repo, want) = if cfg!(windows) {
+            (
+                "C:/Users/me/repos/shop-api",
+                "C:/Users/me/repos/shop-api-worktrees/fix-cart-total",
+            )
+        } else {
+            (
+                "/home/me/repos/shop-api",
+                "/home/me/repos/shop-api-worktrees/fix-cart-total",
+            )
+        };
+        let dir = worktree_dir(Path::new(repo), "fix/cart-total");
+        assert_eq!(dir.to_str(), Some(want));
+        if cfg!(windows) {
+            let stored_mixed =
+                PathBuf::from(r"C:/Users/me/repos\shop-api-worktrees\fix-cart-total");
+            assert_eq!(dir, stored_mixed);
+        }
     }
 
     /// Captured `git worktree list --porcelain` shape: the main checkout

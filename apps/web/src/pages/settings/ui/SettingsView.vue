@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch, type Component } from 'vue';
-import { Bot, ExternalLink, FileJson, FileText, History, Keyboard, Palette, Plug, RefreshCw, Search, SlidersHorizontal, Smartphone, SquareTerminal, Waypoints } from '../../../shared/ui/icons';
+import { Bot, ExternalLink, FileJson, FileText, History, Keyboard, MessageSquare, Palette, Plug, RefreshCw, Search, SlidersHorizontal, Smartphone, SquareTerminal, Waypoints } from '../../../shared/ui/icons';
 import { VButton, VInputText, VMessage } from '../../../shared/ui/kit';
 import { ConnectorsPanel } from '../../../features/manage-connectors';
 import { RouterPanel } from '../../../features/edit-router';
+import { ChatBridgePanel } from '../../../features/chat-bridge';
 import BackBar from '../../../shared/ui/BackBar.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { withViewTransition } from '../../../shared/ui/motion/motion';
@@ -13,6 +14,8 @@ import { KeymapPanel } from '../../../features/keymap-editor';
 import { RemotePanel } from '../../../features/remote-access';
 import { ProvidersPanel } from '../../../features/manage-providers';
 import { PushToggle } from '../../../features/web-push';
+import { VoiceModelsRow } from '../../../features/voice-input';
+import { voiceModels } from '../../../shared/lib/nativeVoice';
 import { isDesktop } from '../../../bridge';
 import SettingsJsonEditor from '../../../shared/ui/SettingsJsonEditor.vue';
 import { CATEGORIES, SETTINGS, SETTING_KEYS } from '../../../shared/config/settings/schema';
@@ -29,7 +32,7 @@ const category = shallowRef<CategoryId>('appearance');
 const rawMode = shallowRef(false);
 const picked = shallowRef(false);
 
-const CATEGORY_ICONS: Record<CategoryId, Component> = { appearance: Palette, terminal: SquareTerminal, sessions: History, providers: Bot, router: Waypoints, files: FileText, connectors: Plug, remote: Smartphone, app: RefreshCw, keymap: Keyboard };
+const CATEGORY_ICONS: Record<CategoryId, Component> = { appearance: Palette, terminal: SquareTerminal, sessions: History, providers: Bot, router: Waypoints, files: FileText, connectors: Plug, chat: MessageSquare, remote: Smartphone, app: RefreshCw, keymap: Keyboard };
 
 const normalizedQuery = computed(() => query.value.trim().toLowerCase());
 const showDetail = computed(() => picked.value || rawMode.value || Boolean(normalizedQuery.value));
@@ -51,6 +54,8 @@ function panelShown(id: CategoryId, keywords: string) {
 const showRouter = computed(() => panelShown('router', `${t('settings.category.router').toLowerCase()} ${t('settings.routerKeywords')}`));
 const showProviders = computed(() => panelShown('providers', `${t('settings.category.providers').toLowerCase()} ${t('settings.providerKeywords')}`));
 const showConnectors = computed(() => panelShown('connectors', t('settings.connectorKeywords')));
+const showChat = computed(() => panelShown('chat', `${t('settings.category.chat').toLowerCase()} ${t('settings.chatKeywords')}`));
+const showVoiceModels = computed(() => Boolean(voiceModels.value?.supported) && panelShown('sessions', t('voice.models.keywords')));
 const groups = computed(() =>
   CATEGORIES.map((entry) => ({
     ...entry,
@@ -172,6 +177,9 @@ function onSearchKey(event: KeyboardEvent) {
             <h2 v-if="normalizedQuery">{{ t('settings.category.router') }}</h2>
             <RouterPanel />
           </section>
+          <section v-if="showChat" class="group" data-testid="settings-chat">
+            <ChatBridgePanel />
+          </section>
           <section v-if="showRemote" class="group" data-testid="settings-remote">
             <RemotePanel />
             <PushToggle v-if="!isDesktop" />
@@ -180,7 +188,10 @@ function onSearchKey(event: KeyboardEvent) {
             <h2 v-if="normalizedQuery">{{ t(group.label) }}</h2>
             <SettingRow v-for="key in group.keys" :key="key" :setting-key="key" />
           </section>
-          <p v-if="!groups.length && !showConnectors && !showProviders && !showRouter" class="empty" data-testid="settings-empty">{{ t('settings.empty') }}</p>
+          <section v-if="showVoiceModels" class="group" data-testid="settings-voice-models">
+            <VoiceModelsRow />
+          </section>
+          <p v-if="!groups.length && !showConnectors && !showProviders && !showRouter && !showChat && !showVoiceModels" class="empty" data-testid="settings-empty">{{ t('settings.empty') }}</p>
         </div>
       </div>
     </div>
@@ -210,6 +221,10 @@ h1 {
   margin: 0 var(--vr-space-4) 0 0;
   font-size: var(--vr-font-size-lg);
   font-weight: 600;
+}
+
+:root[data-vr-viewport='phone'] h1 {
+  display: none;
 }
 
 .search {

@@ -7,11 +7,12 @@ const LEGACY_TOKEN_ID: &str = "remote-pairing-token";
 const DEVICES_ID: &str = "remote-devices";
 const DEFAULT_NAME: &str = "Default";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Scope {
     Full,
     ReadOnly,
+    Session(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -21,6 +22,8 @@ pub struct Device {
     pub scope: Scope,
     pub token: String,
     pub created_at: u64,
+    #[serde(default)]
+    pub diffs: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -29,6 +32,7 @@ pub struct DeviceInfo {
     pub name: String,
     pub scope: Scope,
     pub created_at: u64,
+    pub diffs: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -42,8 +46,9 @@ impl Device {
         DeviceInfo {
             id: self.id,
             name: self.name.clone(),
-            scope: self.scope,
+            scope: self.scope.clone(),
             created_at: self.created_at,
+            diffs: self.diffs,
         }
     }
 }
@@ -55,6 +60,7 @@ pub fn fresh(devices: &[Device], name: &str, scope: Scope, token: String, now: u
         scope,
         token,
         created_at: now,
+        diffs: false,
     }
 }
 
@@ -111,6 +117,7 @@ const READ_ONLY_COMMANDS: &[&str] = &[
     "forge_file",
     "forge_source",
     "project_repo_url",
+    "merge_watch_list",
     "jira_search",
     "jira_issue",
     "confluence_search",
@@ -120,6 +127,7 @@ const READ_ONLY_COMMANDS: &[&str] = &[
     "berth_idle_timeout_read",
     "berth_restore_sessions_read",
     "berth_flag_read",
+    "berth_worktree_base_read",
     "providers_read",
     "acp_agent_log",
     "agent_sessions_list",
@@ -133,6 +141,7 @@ const READ_ONLY_COMMANDS: &[&str] = &[
     "fs_list_dirs",
     "history_projects",
     "worktree_changes",
+    "worktree_commits",
     "worktree_git_state",
 ];
 
@@ -160,9 +169,10 @@ fn request_kind(request: &Value) -> Option<&str> {
     }
 }
 
-pub fn permits(scope: Scope, cmd: &str, args: &Value) -> bool {
+pub fn permits(scope: &Scope, cmd: &str, args: &Value) -> bool {
     match scope {
         Scope::Full => true,
+        Scope::Session(_) => false,
         Scope::ReadOnly if cmd == "berth_call" => args
             .get("request")
             .and_then(request_kind)

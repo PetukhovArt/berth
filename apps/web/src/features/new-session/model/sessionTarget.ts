@@ -1,6 +1,8 @@
 import { computed, shallowRef, watch, type ComputedRef, type ShallowRef } from 'vue';
+import DAEMON_DEFAULTS from '../../../../../../crates/berth-core/daemon-defaults.json';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { mrFetchSource } from '../../../shared/api/connectors/api';
+import { worktreeBaseSource } from '../../../shared/api/connectors/api';
+import { showBaseNotice } from './baseNotice';
 import { useSettings } from '../../../shared/config/settings/store';
 import { acknowledged, call, describeError, loadProjectSetup, saveProjectSetup, BerthCallError, useBerth, worktreesOfProject, type Branch, type Worktree } from '../../../entities/session';
 
@@ -15,6 +17,9 @@ export type SessionTarget = {
   existing: ShallowRef<string | null>;
   fresh: ShallowRef<string>;
   setup: ShallowRef<string>;
+  base: ComputedRef<string | null>;
+  baseOptions: ComputedRef<Option[]>;
+  baseChoice: ShallowRef<string | null>;
   branches: ShallowRef<Branch[] | null>;
   branchesError: ShallowRef<string | null>;
   loading: ShallowRef<boolean>;
@@ -37,7 +42,7 @@ async function listBranches(project: string): Promise<Branch[]> {
 const isDetached = (branch: string) => branch.startsWith('detached');
 
 const NEW_WORKTREE = ':new-worktree';
-const DEFAULT_BASES = ['develop', 'main', 'master'];
+const DEFAULT_BASES = DAEMON_DEFAULTS.worktree_default_bases;
 
 export function useSessionTarget(initialWorktree: string | null): SessionTarget {
   const berth = useBerth();
@@ -85,6 +90,18 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
     return DEFAULT_BASES.find((name) => names.has(name)) ?? null;
   });
   const targetWorktree = computed(() => (creating.value ? mainWorktree.value : worktrees.value.find((worktree) => worktree.id === target.value)));
+  const baseChoice = shallowRef<string | null>(null);
+  const base = computed(() => {
+    const chosen = baseChoice.value ?? configuredBase.value;
+    if (chosen) return chosen;
+    const main = mainWorktree.value?.branch;
+    return main && !isDetached(main) ? main : null;
+  });
+  const baseOptions = computed<Option[]>(() => {
+    const names = (branches.value ?? []).map((branch) => branch.name);
+    const current = base.value;
+    return (current && !names.includes(current) ? [current, ...names] : names).map((name) => ({ id: name, label: name }));
+  });
 
   let loadSeq = 0;
   async function load(id: string) {
@@ -108,6 +125,7 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
       if (previous !== undefined) {
         target.value = mainWorktree.value?.id ?? null;
         existing.value = null;
+        baseChoice.value = null;
       }
       if (id) void load(id);
       setup.value = '';
@@ -137,7 +155,8 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
     const known = branches.value?.find((branch) => branch.name === name);
     const holder = known?.worktree ? all?.worktrees.get(known.worktree) : worktrees.value.find((worktree) => worktree.branch === name);
     if (holder) return { kind: 'use', worktree: holder };
-    if (creating.value && !known && configuredBase.value) return { kind: 'create', branch: name, base: configuredBase.value, fetch: true };
+    const chosenBase = baseChoice.value ?? configuredBase.value;
+    if (creating.value && !known && chosenBase) return { kind: 'create', branch: name, base: chosenBase, fetch: baseChoice.value === null };
     const base = branchMode.value === 'new' && !known && targetWorktree.value && !isDetached(targetWorktree.value.branch) ? targetWorktree.value.branch : null;
     return { kind: 'create', branch: name, base, fetch: false };
   }
@@ -165,12 +184,10 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
   async function fetchBase(id: string, branch: string): Promise<string> {
     const row = entities()?.projects.get(id);
     if (!row) throw new BerthCallError(t('agents.newSession.noTarget'));
-    const fetched = await mrFetchSource(row.repo_path, branch, '', null);
-    if (fetched.problem || !fetched.base) {
-      const detail = (fetched.detail ?? fetched.problem ?? '').split(/\r?\n/).filter(Boolean).at(-1) ?? '';
-      throw new BerthCallError(t('agents.newSession.baseFetchFailed', { branch, detail }));
-    }
-    return `${fetched.base}^0`;
+    const chosen = await worktreeBaseSource(row.repo_path, branch);
+    if (chosen.base && chosen.local_copy) showBaseNotice(t('agents.newSession.baseFromLocalCopy', { branch, copy: chosen.local_copy, detail: chosen.detail ?? '' }));
+    if (chosen.base) return chosen.base;
+    throw new BerthCallError(t('agents.newSession.baseFetchFailed', { branch, detail: chosen.detail ?? '' }));
   }
 
   const sharesBranch = computed(() => {
@@ -207,5 +224,5 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
     return ids;
   }
 
-  return { project, target, mode, existing, fresh, setup, branches, branchesError, loading, count, projects, targets, creating, plan, takenNames, sharesBranch, resolve };
+  return { project, target, mode, existing, fresh, setup, base, baseOptions, baseChoice, branches, branchesError, loading, count, projects, targets, creating, plan, takenNames, sharesBranch, resolve };
 }

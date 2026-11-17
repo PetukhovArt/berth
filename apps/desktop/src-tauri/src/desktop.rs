@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use berth_core::{AgentId, SessionRef};
+use berth_core::{AgentId, AgentKind, SessionRef, WorktreeId};
 use serde_json::Value;
 use tauri::ipc::{Channel, IpcResponse};
 use tauri::{AppHandle, Manager, Runtime, State};
@@ -91,6 +91,17 @@ pub fn berth_mark_seen(berth: State<'_, Berth>, agent: AgentId) {
 }
 
 #[tauri::command]
+pub fn berth_prewarm(
+    berth: State<'_, Berth>,
+    worktree: WorktreeId,
+    kind: AgentKind,
+    model: Option<String>,
+    effort: Option<String>,
+) {
+    berth::berth_prewarm(&berth, worktree, kind, model, effort);
+}
+
+#[tauri::command]
 pub async fn berth_call(berth: State<'_, Berth>, request: Value) -> Result<Value, String> {
     berth::berth_call(&berth, request).await
 }
@@ -167,6 +178,21 @@ pub fn remote_add_device(
 #[tauri::command]
 pub fn remote_revoke_device(remote: State<'_, Remote>, id: u64) -> Result<RemoteStatus, String> {
     remote.revoke_device(id)
+}
+
+#[tauri::command]
+pub fn remote_share_session(
+    remote: State<'_, Remote>,
+    agent: String,
+    name: String,
+    diffs: bool,
+) -> Result<Pairing, String> {
+    remote.share_session(agent, name, diffs)
+}
+
+#[tauri::command]
+pub fn remote_unshare_session(remote: State<'_, Remote>, agent: String) -> Result<(), String> {
+    remote.unshare_session(agent)
 }
 
 #[tauri::command]
@@ -253,11 +279,15 @@ pub fn run() {
         .manage(AgentSessionWatch::default())
         .setup(move |app| {
             tauri::async_runtime::spawn(monitor::run(connectors.clone()));
+            tauri::async_runtime::spawn(crate::merge_watch::run(connectors.clone()));
             tauri::async_runtime::spawn(crate::stratum::sweep_once());
             let remote = Remote::new(connectors, web_source(app.handle()));
             let watcher = remote.clone();
             tauri::async_runtime::spawn(async move { watcher.spawn_watch() });
             app.manage(remote);
+            let voice = crate::voice::Voice::new(app.handle().clone());
+            crate::voice::serve_transcripts(voice.clone());
+            app.manage(voice);
             tray::install(app.handle())?;
             crate::app_menu::install(app.handle())?;
             if crate::platform::WINDOW_CHROME.native_decorations {
@@ -275,6 +305,7 @@ pub fn run() {
             berth_resize,
             berth_detach,
             berth_mark_seen,
+            berth_prewarm,
             berth_call,
             platform_info,
             settings_read,
@@ -285,6 +316,10 @@ pub fn run() {
             berth_restore_sessions_write,
             berth_flag_read,
             berth_flag_write,
+            chat_bridge_read,
+            chat_bridge_write,
+            berth_worktree_base_read,
+            berth_worktree_base_write,
             providers_read,
             providers_write,
             providers_save_acp,
@@ -310,9 +345,12 @@ pub fn run() {
             forge_comment,
             forge_resolve,
             forge_pipeline,
+            merge_watch_list,
+            merge_watch_set,
             forge_file,
             forge_source,
             mr_fetch_source,
+            worktree_base_source,
             fs_read_text,
             review_queue,
             review_adapter,
@@ -324,10 +362,10 @@ pub fn run() {
             fs_list_markdown,
             fs_list_dirs,
             worktree_changes,
+            worktree_commits,
             worktree_git_state,
             worktree_git_step,
             forge_create_change_request,
-            tracker_comment,
             project_repo_url,
             fs_open_external,
             stratum_probe,
@@ -359,9 +397,16 @@ pub fn run() {
             remote_regenerate_token,
             remote_add_device,
             remote_revoke_device,
+            remote_share_session,
+            remote_unshare_session,
             remote_push_notify,
             tray::tray_status,
             tray::tray_cleanup,
+            crate::voice::voice_models,
+            crate::voice::voice_listen,
+            crate::voice::voice_stop,
+            crate::voice::voice_cancel,
+            crate::voice::voice_remove_models,
             app_update_info,
             app_update_status,
             app_update_changes,

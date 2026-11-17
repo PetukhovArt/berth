@@ -171,13 +171,13 @@ mod tests {
         let path = dir.path().join("config.json");
         std::fs::write(
             &path,
-            r#"{"prewarm_agents": false, "providers": {"opencode": {"enabled": false}}}"#,
+            r#"{"prewarm": false, "providers": {"opencode": {"enabled": false}}}"#,
         )
         .unwrap();
         keep_native_kinds_in_use(&path, &[AgentKind::Cursor, AgentKind::OpenCode]).unwrap();
         let written: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
-        assert_eq!(written["prewarm_agents"], false);
+        assert_eq!(written["prewarm"], false);
         let kept: ProvidersConfig = serde_json::from_value(written["providers"].clone()).unwrap();
         assert!(native_enabled(&kept, AgentKind::Cursor));
         assert!(!native_enabled(&kept, AgentKind::OpenCode));

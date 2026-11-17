@@ -326,6 +326,39 @@ const MIGRATIONS: &[&str] = &[
       routed_from TEXT NOT NULL
     );
     ",
+    "
+    CREATE TABLE hub_mention_cursor (
+      hub_url TEXT PRIMARY KEY,
+      seq     INTEGER NOT NULL
+    );
+    ",
+    "
+    CREATE TABLE channel_grants (
+      channel     TEXT NOT NULL,
+      agent_id    TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+      member      TEXT NOT NULL,
+      member_name TEXT NOT NULL,
+      PRIMARY KEY (channel, agent_id, member)
+    );
+    ",
+    "
+    CREATE TABLE hub_mention_pending (
+      hub_url  TEXT NOT NULL,
+      seq      INTEGER NOT NULL,
+      member   TEXT NOT NULL,
+      mention  TEXT NOT NULL,
+      promoted INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (hub_url, seq, member)
+    );
+    CREATE TABLE channel_requests_posted (
+      agent_id TEXT PRIMARY KEY,
+      hub_url  TEXT NOT NULL,
+      channel  TEXT NOT NULL,
+      seq      INTEGER NOT NULL,
+      member   TEXT NOT NULL,
+      request  TEXT NOT NULL
+    );
+    ",
 ];
 
 pub struct Store {
@@ -386,6 +419,10 @@ impl Store {
         }
         conn.pragma_update(None, "foreign_keys", "ON")?;
         Ok(())
+    }
+
+    pub(crate) fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
+        self.conn.lock().unwrap()
     }
 
     // ---- workspaces ----
@@ -800,6 +837,28 @@ impl Store {
                 params![worktree.as_str(), text],
             )?;
         }
+        Ok(())
+    }
+
+    pub fn mention_cursor(&self, hub_url: &str) -> Result<Option<i64>> {
+        Ok(self
+            .conn
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT seq FROM hub_mention_cursor WHERE hub_url = ?1",
+                params![hub_url],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
+    pub fn set_mention_cursor(&self, hub_url: &str, seq: i64) -> Result<()> {
+        self.conn.lock().unwrap().execute(
+            "INSERT INTO hub_mention_cursor (hub_url, seq) VALUES (?1, ?2)
+             ON CONFLICT(hub_url) DO UPDATE SET seq = excluded.seq",
+            params![hub_url, seq],
+        )?;
         Ok(())
     }
 

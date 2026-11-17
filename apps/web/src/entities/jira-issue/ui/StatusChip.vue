@@ -17,7 +17,7 @@ defineProps<{ status: string; category?: 'todo' | 'in_progress' | 'done' }>();
   color: var(--vr-color-text);
   font-size: var(--vr-font-size-2xs);
   font-weight: 600;
-  line-height: 16px;
+  line-height: 1.45;
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;

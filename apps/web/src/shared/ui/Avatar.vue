@@ -44,7 +44,7 @@ const tone = computed(() => ([...props.id].reduce((sum, char) => sum + char.char
 .avatar.small {
   width: var(--vr-size-avatar-sm);
   height: var(--vr-size-avatar-sm);
-  font-size: 9px;
+  font-size: var(--vr-font-size-3xs);
 }
 
 .avatar[data-tone='1'] { background: var(--vr-palette-avatar-1); }

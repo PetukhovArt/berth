@@ -78,6 +78,7 @@ async fn handle_client(
     // Subscribe only for connections that never subscribe: the one-shot
     // `berth add`, whose workspace genuinely is the current default.
     let mut workspace: Option<WorkspaceId> = None;
+    let mut _transcription_offer: Option<crate::messenger::transcribers::Offer> = None;
 
     let result: Result<()> = async {
         while let Some(req) = read_frame::<ClientRequest, _>(&mut reader).await? {
@@ -302,6 +303,26 @@ async fn handle_client(
                     )
                     .await;
                 }
+                ClientRequest::TestChatBridge { req_id } => {
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        reply_done(&out_tx, req_id, crate::messenger::send_test().await).await;
+                    });
+                }
+                ClientRequest::OfferTranscription => {
+                    _transcription_offer =
+                        Some(crate::messenger::transcribers::offer(out_tx.clone()));
+                }
+                ClientRequest::VoiceTranscribed {
+                    request,
+                    text,
+                    error,
+                } => {
+                    crate::messenger::transcribers::answer(
+                        request,
+                        text.ok_or_else(|| error.unwrap_or_default()),
+                    );
+                }
                 ClientRequest::ListTriggers { req_id } => {
                     let ev = match daemon.store.list_triggers() {
                         Ok(triggers) => ServerEvent::Triggers { req_id, triggers },
@@ -354,6 +375,97 @@ async fn handle_client(
                         };
                         let _ = out_tx.send(ev).await;
                     });
+                }
+                ClientRequest::OpenChannel { req_id, key, agent } => {
+                    let out_tx = out_tx.clone();
+                    let daemon = daemon.clone();
+                    tokio::spawn(async move {
+                        let ev = match daemon.open_channel(key, agent).await {
+                            Ok(key) => ServerEvent::ChannelOpened { req_id, key },
+                            Err(e) => ServerEvent::Error {
+                                req_id: Some(req_id),
+                                message: format!("{e:#}"),
+                            },
+                        };
+                        let _ = out_tx.send(ev).await;
+                    });
+                }
+                ClientRequest::GetChannelTouched { req_id, channel } => {
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let ev = match crate::channels::channel_touched(&channel).await {
+                            Ok(touched) => ServerEvent::ChannelTouched { req_id, touched },
+                            Err(e) => ServerEvent::Error {
+                                req_id: Some(req_id),
+                                message: format!("{e:#}"),
+                            },
+                        };
+                        let _ = out_tx.send(ev).await;
+                    });
+                }
+                ClientRequest::PostChannelNote {
+                    req_id,
+                    channel,
+                    content,
+                    agent,
+                } => {
+                    let store = daemon.store.clone();
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let ev = match crate::channels::post_channel_note(
+                            &store, &channel, &content, &agent,
+                        )
+                        .await
+                        {
+                            Ok(event) => ServerEvent::ChannelEvents {
+                                req_id,
+                                events: vec![event],
+                            },
+                            Err(e) => ServerEvent::Error {
+                                req_id: Some(req_id),
+                                message: format!("{e:#}"),
+                            },
+                        };
+                        let _ = out_tx.send(ev).await;
+                    });
+                }
+                ClientRequest::PromoteChannelMessage {
+                    req_id,
+                    channel,
+                    seq,
+                    agent,
+                } => {
+                    let store = daemon.store.clone();
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let done = crate::team_access::promote(&store, &channel, seq, agent).await;
+                        reply_done(&out_tx, req_id, done).await;
+                    });
+                }
+                ClientRequest::SetChannelGrant {
+                    req_id,
+                    channel,
+                    agent,
+                    member,
+                    granted,
+                } => {
+                    let store = daemon.store.clone();
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let result = crate::team_access::set_grant(
+                            &store, &channel, &agent, &member, granted,
+                        )
+                        .await;
+                        let _ = out_tx
+                            .send(crate::team_access::grants_reply(req_id, result))
+                            .await;
+                    });
+                }
+                ClientRequest::ListChannelGrants { req_id, channel } => {
+                    let result = crate::team_access::list_grants(&daemon.store, channel.as_deref());
+                    let _ = out_tx
+                        .send(crate::team_access::grants_reply(req_id, result))
+                        .await;
                 }
                 ClientRequest::CreateAcpAgent {
                     req_id,
@@ -408,22 +520,52 @@ async fn handle_client(
                     )
                     .await;
                 }
+                ClientRequest::AnswerInChannel {
+                    req_id,
+                    channel,
+                    request,
+                    answer,
+                    agent,
+                } => {
+                    let store = daemon.store.clone();
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let ev = match crate::channel_requests::answer_in_channel(
+                            &store, &channel, request, &answer, &agent,
+                        )
+                        .await
+                        {
+                            Ok(event) => ServerEvent::ChannelEvents {
+                                req_id,
+                                events: vec![event],
+                            },
+                            Err(e) => ServerEvent::Error {
+                                req_id: Some(req_id),
+                                message: format!("{e:#}"),
+                            },
+                        };
+                        let _ = out_tx.send(ev).await;
+                    });
+                }
                 ClientRequest::ReadChannel {
                     req_id,
                     channel,
                     after,
                     agent,
                 } => {
+                    let store = daemon.store.clone();
                     let out_tx = out_tx.clone();
                     tokio::spawn(async move {
-                        let ev = match crate::channels::read_channel(&channel, after, &agent).await
-                        {
-                            Ok(events) => ServerEvent::ChannelEvents { req_id, events },
-                            Err(e) => ServerEvent::Error {
-                                req_id: Some(req_id),
-                                message: format!("{e:#}"),
-                            },
-                        };
+                        let ev =
+                            match crate::channels::read_channel(&store, &channel, after, &agent)
+                                .await
+                            {
+                                Ok(events) => ServerEvent::ChannelEvents { req_id, events },
+                                Err(e) => ServerEvent::Error {
+                                    req_id: Some(req_id),
+                                    message: format!("{e:#}"),
+                                },
+                            };
                         let _ = out_tx.send(ev).await;
                     });
                 }
@@ -433,10 +575,13 @@ async fn handle_client(
                     content,
                     agent,
                 } => {
+                    let store = daemon.store.clone();
                     let out_tx = out_tx.clone();
                     tokio::spawn(async move {
-                        let ev = match crate::channels::post_to_channel(&channel, &content, &agent)
-                            .await
+                        let ev = match crate::channels::post_to_channel(
+                            &store, &channel, &content, &agent,
+                        )
+                        .await
                         {
                             Ok(event) => ServerEvent::ChannelEvents {
                                 req_id,
@@ -581,46 +726,50 @@ async fn handle_client(
                 } => {
                     // Logged by mode only — never the task or prompt text.
                     let launch_mode = starting_prompt.is_some().then_some("preset");
-                    let providers = crate::config::Config::load().providers;
-                    let result =
-                        match crate::acp::providers::ensure_native_enabled(&providers, kind) {
-                            Err(off) => Err(off),
-                            Ok(()) => {
-                                daemon
-                                    .create_agent(CreateAgentSpec {
-                                        worktree: worktree.clone(),
-                                        name,
-                                        kind,
-                                        model,
-                                        effort,
-                                        auto_title,
-                                        starting_prompt,
-                                    })
-                                    .await
+                    let daemon = daemon.clone();
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let providers = crate::config::Config::load().providers;
+                        let result =
+                            match crate::acp::providers::ensure_native_enabled(&providers, kind) {
+                                Err(off) => Err(off),
+                                Ok(()) => {
+                                    daemon
+                                        .create_agent(CreateAgentSpec {
+                                            worktree: worktree.clone(),
+                                            name,
+                                            kind,
+                                            model,
+                                            effort,
+                                            auto_title,
+                                            starting_prompt,
+                                        })
+                                        .await
+                                }
+                            };
+                        if let Some(launch_mode) = launch_mode {
+                            match &result {
+                                Ok(berth_core::EntityId::Agent(agent)) => tracing::info!(
+                                    req_id,
+                                    agent = %agent,
+                                    kind = kind.as_str(),
+                                    worktree = %worktree,
+                                    launch_mode,
+                                    "agent session spawned"
+                                ),
+                                Err(error) => tracing::warn!(
+                                    req_id,
+                                    error = %error,
+                                    kind = kind.as_str(),
+                                    worktree = %worktree,
+                                    launch_mode,
+                                    "agent session spawn failed"
+                                ),
+                                Ok(_) => unreachable!("CreateAgent returned a non-agent id"),
                             }
-                        };
-                    if let Some(launch_mode) = launch_mode {
-                        match &result {
-                            Ok(berth_core::EntityId::Agent(agent)) => tracing::info!(
-                                req_id,
-                                agent = %agent,
-                                kind = kind.as_str(),
-                                worktree = %worktree,
-                                launch_mode,
-                                "agent session spawned"
-                            ),
-                            Err(error) => tracing::warn!(
-                                req_id,
-                                error = %error,
-                                kind = kind.as_str(),
-                                worktree = %worktree,
-                                launch_mode,
-                                "agent session spawn failed"
-                            ),
-                            Ok(_) => unreachable!("CreateAgent returned a non-agent id"),
                         }
-                    }
-                    reply(&out_tx, req_id, result.map(Some)).await;
+                        reply(&out_tx, req_id, result.map(Some)).await;
+                    });
                 }
                 ClientRequest::PrewarmAgent {
                     worktree,
@@ -631,24 +780,16 @@ async fn handle_client(
                     // Fire-and-forget: boot the CLI while the user is still
                     // typing the session name; CreateAgent adopts it. Runs
                     // off the request loop (the CLI probe can take a bit).
+                    let ticket = daemon.prewarm.ticket();
                     let daemon = daemon.clone();
                     tokio::spawn(async move {
-                        if let Err(e) = daemon.prewarm_agent(&worktree, kind, model, effort).await {
+                        if let Err(e) = daemon
+                            .prewarm_agent(ticket, &worktree, kind, model, effort)
+                            .await
+                        {
                             tracing::debug!(error = %e, "prewarm failed");
                         }
                     });
-                }
-                ClientRequest::PrewarmWorktreeSessions {
-                    worktree,
-                    cols,
-                    rows,
-                } => {
-                    // Returns at once: the sweep boots the worktree's dead
-                    // sessions on its own task, staggered, skipping the one
-                    // the Attach above already spawned. Racing that Attach is
-                    // safe — ensure_session's spawn gate makes the
-                    // check-and-spawn atomic, so neither can double-fork.
-                    daemon.prewarm_worktree_sessions(&worktree, cols, rows);
                 }
                 ClientRequest::RenameAgent { req_id, id, name } => {
                     reply_done(&out_tx, req_id, daemon.rename_agent(&id, &name)).await;
@@ -699,10 +840,11 @@ async fn handle_client(
                     base,
                 } => {
                     let ev = match daemon.enter_worktree(&id, &branch, base.as_deref()).await {
-                        Ok((worktree, outcome)) => ServerEvent::WorktreeEntered {
+                        Ok((worktree, outcome, warning)) => ServerEvent::WorktreeEntered {
                             req_id,
                             worktree,
                             outcome,
+                            warning,
                         },
                         Err(e) => ServerEvent::Error {
                             req_id: Some(req_id),
@@ -717,6 +859,7 @@ async fn handle_client(
                             req_id,
                             worktree,
                             outcome,
+                            warning: None,
                         },
                         Err(e) => ServerEvent::Error {
                             req_id: Some(req_id),
@@ -741,8 +884,12 @@ async fn handle_client(
                         let _ = out_tx.send(ev).await;
                     });
                 }
-                ClientRequest::ListOrphanedSessions { req_id, project } => {
-                    let ev = match daemon.list_orphaned_sessions(&project) {
+                ClientRequest::ListOrphanedSessions {
+                    req_id,
+                    project,
+                    include_live,
+                } => {
+                    let ev = match daemon.list_orphaned_sessions(&project, include_live) {
                         Ok(sessions) => ServerEvent::OrphanedSessions { req_id, sessions },
                         Err(e) => ServerEvent::Error {
                             req_id: Some(req_id),
@@ -763,6 +910,23 @@ async fn handle_client(
                     tokio::spawn(async move {
                         let created = daemon
                             .resume_orphaned_session(&session_id, &worktree)
+                            .await
+                            .map(Some);
+                        reply(&out_tx, req_id, created).await;
+                    });
+                }
+                ClientRequest::ResumeConversation {
+                    req_id,
+                    worktree,
+                    kind,
+                    session_id,
+                    name,
+                } => {
+                    let daemon = daemon.clone();
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let created = daemon
+                            .resume_conversation(&worktree, kind, &session_id, &name)
                             .await
                             .map(Some);
                         reply(&out_tx, req_id, created).await;

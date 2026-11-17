@@ -142,6 +142,13 @@ fn expand_home(program: &str, home: Option<&Path>) -> String {
 /// unix, `.exe`/`.cmd`/`.bat` on Windows.
 pub const EXECUTABLE_SUFFIXES: &[&str] = imp::EXECUTABLE_SUFFIXES;
 
+pub fn speech_to_file(
+    text_file: &Path,
+    language: &str,
+) -> Option<(std::process::Command, PathBuf)> {
+    imp::speech_to_file(text_file, language)
+}
+
 /// Physical memory installed on this machine, bytes.
 pub fn system_total_bytes() -> Option<u64> {
     imp::system_total_bytes()

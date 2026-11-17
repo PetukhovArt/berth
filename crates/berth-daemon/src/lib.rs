@@ -1,5 +1,6 @@
 pub mod acp;
 pub mod branches;
+pub mod channel_requests;
 pub mod channels;
 pub mod checkpoints;
 pub mod cli_title;
@@ -8,23 +9,29 @@ pub mod enter_project;
 pub mod external_archive;
 pub mod feedback;
 pub mod git;
+pub mod git_exclude;
 pub mod grok;
 pub mod hooks;
+mod hub_stream;
 pub mod launch;
 pub mod lifecycle;
+pub mod messenger;
 pub mod metrics;
 pub mod orphans;
 pub mod pacer_migration;
 pub mod presence;
-pub mod prewarm_prompt;
+pub mod prewarm;
 pub mod project_pins;
 pub mod pty;
 pub mod registry;
 pub mod restore;
 pub mod resume_check;
+pub mod resume_conversation;
 pub mod router;
 pub mod sampler;
 pub mod server;
+pub mod shared_notes;
+pub mod shared_setup;
 pub mod sibling;
 pub mod status;
 pub mod stop_agent;
@@ -32,9 +39,14 @@ pub mod store;
 pub mod subagents;
 pub mod task_notes;
 pub mod team;
+pub mod team_access;
+mod team_members;
+pub mod team_overlaps;
+mod team_pending;
 pub mod triggers;
 pub mod usage;
 pub mod usage_limits;
+pub mod worktree_base;
 pub mod worktree_seed;
 pub mod worktree_setup;
 
@@ -78,6 +90,9 @@ async fn serve() -> Result<()> {
     // Record which build this daemon runs so installers can tell an
     // up-to-date daemon from a stale one (`berth _stale-daemon-note`).
     lifecycle::write_buildstamp();
+    if let Err(e) = config::adopt_renamed_keys(&paths::config_path()) {
+        tracing::warn!(error = %e, "could not rename old keys in the config");
+    }
 
     let endpoint = transport::endpoint_description();
     let listener = transport::bind()
@@ -178,8 +193,13 @@ async fn serve() -> Result<()> {
     }
 
     tokio::spawn(daemon.clone().run_scheduler());
-    tokio::spawn(daemon.clone().run_channel_delivery());
+    let hub_push = std::sync::Arc::new(hub_stream::HubPush::default());
+    tokio::spawn(daemon.clone().run_hub_stream(hub_push.clone()));
+    tokio::spawn(daemon.clone().run_channel_delivery(hub_push.clone()));
     tokio::spawn(daemon.clone().run_presence_report());
+    tokio::spawn(daemon.clone().run_messenger_bridge());
+    tokio::spawn(daemon.clone().run_touched_report());
+    tokio::spawn(daemon.clone().run_channel_requests(hub_push));
     if let Err(e) = triggers::start_webhooks(daemon.clone(), &config::Config::load()).await {
         tracing::warn!(error = %e, "webhook listener not started");
     }

@@ -147,11 +147,13 @@ export const forgeFile = (connector: string, project: string, ref: string, path:
 
 export type ForkSource = { owner: string; http_url: string; ssh_url: string };
 export type SourceRepo = { branch: string; fork: ForkSource | null; gone: boolean; can_push: boolean | null };
-type FetchProblem = 'branch_missing' | 'no_clone_url' | 'failed';
+type FetchProblem = 'branch_missing' | 'no_clone_url' | 'no_remote' | 'failed';
 export type FetchedSource = { remote: string; base: string | null; problem: FetchProblem | null; detail: string | null; diverged: boolean };
 
 export const forgeSource = (ref: ChangeRequestRef) => invoke<SourceRepo>('forge_source', { connector: ref.connector, project: ref.project, number: ref.number });
 export const mrFetchSource = (repo: string, branch: string, local: string, fork: ForkSource | null) => invoke<FetchedSource>('mr_fetch_source', { repo, branch, local, fork });
+export type WorktreeBase = { base: string | null; local_copy: string | null; detail: string | null };
+export const worktreeBaseSource = (repo: string, branch: string) => invoke<WorktreeBase>('worktree_base_source', { repo, branch });
 
 export const jiraSearch = (connector: string, jql: string, start: number, limit: number) =>
   invoke<{ total: number; issues: JiraIssueSummary[] }>('jira_search', { connector, jql, start, limit });
@@ -278,4 +280,3 @@ export function useConnectors(): ConnectorsStore {
   store ??= createStore();
   return store;
 }
-export const trackerComment = (path: string, branch: string, body: string) => invoke<string | null>('tracker_comment', { path, branch, body });

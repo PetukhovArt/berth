@@ -5,6 +5,7 @@ import type { AiView } from '../../../shared/api/connectors/ai';
 import { forgeChangeRequest, forgeSource, mrFetchSource, useConnectors, type ChangeRequestRef, type ChangeRequestSummary, type FetchedSource } from '../../../shared/api/connectors/api';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
+import { enabledNativeAgent, loadedProviders } from '../../../shared/api/providers';
 import { type RepoRef, connectorBase, inspectClone, remotes, type Remote, projectOfRepo, repoRefOf } from '../../../entities/repo';
 import { issueKeyOf } from '../../../entities/jira-issue';
 import { openReview, numberLabel, itemId } from '../../../entities/merge-request';
@@ -26,7 +27,6 @@ export type MrRun = {
 const DESCRIPTION_LIMIT = 1500;
 const NAME_LIMIT = 60;
 const KIND_LABEL: Record<AgentKind, string> = { claude: 'Claude', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode', grok: 'Grok', acp: 'ACP' };
-const KINDS = new Set<string>(['claude', 'codex', 'cursor', 'opencode', 'grok']);
 
 class Problem extends Error {}
 
@@ -153,8 +153,7 @@ export function useOpenInSession() {
       let session: SessionRef;
       if (live) session = { Agent: live.id };
       else {
-        const chosen = values.value['sessions.default_kind'];
-        const kind: AgentKind = KINDS.has(chosen) ? (chosen as AgentKind) : 'claude';
+        const kind = (enabledNativeAgent(values.value['sessions.default_kind'], await loadedProviders()) ?? 'claude') as AgentKind;
         update({ message: t('forge.openSession.step.agent', { kind: KIND_LABEL[kind] }) });
         await ensureCli(kind);
         const template = values.value['sessions.mrPrompt'].trim() || t('forge.openSession.prompt');

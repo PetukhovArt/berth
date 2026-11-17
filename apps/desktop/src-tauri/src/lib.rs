@@ -3,6 +3,7 @@ pub mod agent_sessions;
 mod app_menu;
 pub mod berth;
 mod changes;
+mod chat_bridge;
 mod cleanup;
 mod commands;
 pub mod connectors;
@@ -13,7 +14,9 @@ pub mod files;
 mod git_step;
 mod history_projects;
 pub mod legacy;
+pub mod merge_watch;
 mod mr_checkout;
+mod new_worktree_base;
 pub mod platform;
 mod providers;
 pub mod push;
@@ -30,6 +33,8 @@ pub mod tailscale;
 mod taskbar;
 #[cfg(feature = "desktop")]
 mod tray;
+#[cfg(feature = "desktop")]
+mod voice;
 #[cfg(feature = "desktop")]
 mod working_copy;
 

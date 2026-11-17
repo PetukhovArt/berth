@@ -79,6 +79,31 @@ const rawColors = (file, text) => {
   return css.flatMap(([offset, body]) => [...body.matchAll(DECLARATION)].filter((m) => COLOR.test(m[1])).map((m) => [offset + m.index, m[0].trim()]));
 };
 
+const TYPE_CSS = /([\w-]*(?:font-size|line-height)|(?<![\w-])font)\s*:([^;{}"'\n]+)/g;
+const TYPE_SCRIPT = /(?:\bfontSize|\blineHeight|['"](?:font-size|line-height)['"])\s*:\s*['"`]([^'"`]+)/g;
+const ABSOLUTE_LENGTH = /(?<![\w.-])\d*\.?\d+(?:px|pt|rem)\b/;
+const rawType = (file, text) =>
+  /^(apps\/web|packages\/ui-kit)\/.*\.(vue|css|[cm]?[jt]s)$/.test(file)
+    ? [...text.matchAll(TYPE_CSS), ...text.matchAll(TYPE_SCRIPT)].filter((m) => ABSOLUTE_LENGTH.test(m.at(-1).replace(/max\([^)]*\)/g, ''))).map((m) => [m.index, m[0].trim()])
+    : [];
+
+const MOTION_CSS = /(?<![\w-])(transition|animation)(-duration|-delay)?\s*:([^;{}]+)/g;
+const MOTION_SCRIPT = /(?<![\w-])\w*[dD]uration\s*:\s*(?:\d|['"`]\s*\d*\.?\d+m?s\b)|\bbehavior\s*:\s*['"`]?smooth\b/g;
+const LITERAL_TIME = /(?<![\w.-])\d*\.?\d+m?s\b/;
+const CSS_VAR = /var\([^()]*(?:\([^()]*\)[^()]*)*\)/g;
+const LOOP_INDICATOR = /^\s*(?:spin|pulse)\s/;
+const MOTION_GATED = new Set(['apps/web/src/shared/ui/motion/statusAnimation.css']);
+const rawDuration = (file, text) =>
+  /^(apps\/web|packages\/ui-kit)\/.*\.(vue|css|[cm]?[jt]s)$/.test(file) && !MOTION_GATED.has(file)
+    ? [
+        ...[...text.matchAll(MOTION_CSS)].filter(([, name, part, value]) => !(name === 'animation' && !part && LOOP_INDICATOR.test(value)) && LITERAL_TIME.test(value.replace(CSS_VAR, ''))),
+        ...text.matchAll(MOTION_SCRIPT),
+      ].map((m) => [m.index, m[0].trim()])
+    : [];
+
+const RAW_LOCALE = /\.toLocale(?:Date|Time)?String\(|\bnew\s+Intl\.(?:DateTimeFormat|NumberFormat|RelativeTimeFormat)\(/g;
+const rawLocale = (file, text) =>
+  /^(apps\/web|packages\/ui-kit)\/.*\.(vue|[cm]?[jt]s)$/.test(file) && !file.startsWith('apps/web/src/shared/lib/i18n/') ? [...text.matchAll(RAW_LOCALE)].map((m) => [m.index, m[0]]) : [];
 const RUST_TEST = /#\[(?:cfg\(test\)|test|[\w:]*::test(?:\([^)\]]*\))?)\]/g;
 const SCRIPT_TEST = /\bfrom\s+['"](?:vitest|@playwright\/test|node:test|@vue\/test-utils)['"]/g;
 const testsOf = (file, text) => {
@@ -121,6 +146,9 @@ const checks = [
   ['new-files', 'не добавляй .md, *.test.*, *.spec.* и __tests__/: правда живёт в коде, тестов в проекте нет', async () => added.filter((file) => /\.md$|\.(test|spec)\.|(^|\/)__tests__\//i.test(file))],
   ['tests', 'не пиши тесты в apps/, packages/ и docker/: тесты живут только в crates/', async () => scan(() => true, testsOf)],
   ['raw-elements', 'бери кнопки и поля из apps/web/src/shared/ui (UiButton, UiInput, UiTextarea): сырые button, input и textarea живут только там', async () => scan(() => true, rawElements)],
+  ['raw-type', 'размер текста бери из var(--vr-font-size-…)/var(--vr-font-leading-…), em/% или безразмерный line-height: сырые px не масштабируются', async () => scan(() => true, rawType)],
+  ['raw-duration', 'длительность движения бери из var(--vr-motion-…), в JS спрашивай isMotionEnabled(): сырые s/ms и smooth не выключаются настройкой ui.animations; исключения: statusAnimation.css и бесконечные spin/pulse', async () => scan(() => true, rawDuration)],
+  ['raw-locale', 'даты, время и числа форматируй через formatDate/formatTime/formatNumber/formatRelative из apps/web/src/shared/lib/i18n: toLocale*String и new Intl.* берут язык ОС, а не ui.language', async () => scan(() => true, rawLocale)],
   ['stratum', 'исправь нарушение слоёв: stratum-lint explain <rule> подскажет как, правило не глуши', async () => (lintable.some((file) => file.startsWith('apps/web/')) ? run(`stratum-lint lint --format agent --files ${quoted(lintable)}`) : [])],
   ['oxlint', 'исправь предупреждения oxlint, не отключай правило', async () => (lintable.length ? run(`oxlint --deny-warnings ${quoted(lintable)}`) : [])],
   ['knip', 'удали неиспользуемый export, файл или зависимость', () => run('knip')],
@@ -129,7 +157,7 @@ const checks = [
   ['clippy', 'исправь замечания clippy, не глуши их через allow', async () => (tauriTouched ? run('cargo clippy -p berth-desktop --all-targets -j 4 -- -D warnings') : [])],
 ];
 
-const RULES = new Set(['comments', 'raw-colors', 'new-files', 'tests', 'raw-elements']);
+const RULES = new Set(['comments', 'raw-colors', 'new-files', 'tests', 'raw-elements', 'raw-type', 'raw-duration', 'raw-locale']);
 const results = await Promise.all(checks.filter(([name]) => !rulesOnly || RULES.has(name)).map(async ([name, fix, check]) => [name, fix, await check()]));
 for (const [name, fix, found] of results) {
   console.log(found.length ? `✗ ${name}: ${found.length} — ${fix}` : `✓ ${name}`);

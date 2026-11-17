@@ -45,6 +45,32 @@ pub fn open_path(path: &Path) -> io::Result<()> {
         .map(drop)
 }
 
+const SAPI_SCRIPT: &str = "Add-Type -AssemblyName System.Speech; \
+$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; \
+$v = $s.GetInstalledVoices() | Where-Object { $_.Enabled -and $_.VoiceInfo.Culture.TwoLetterISOLanguageName -eq $env:BERTH_SPEECH_LANGUAGE } | Select-Object -First 1; \
+if ($v) { $s.SelectVoice($v.VoiceInfo.Name) }; \
+$s.SetOutputToWaveFile($env:BERTH_SPEECH_OUT); \
+$s.Speak([IO.File]::ReadAllText($env:BERTH_SPEECH_IN, [Text.Encoding]::UTF8)); \
+$s.Dispose()";
+
+pub fn speech_to_file(text_file: &Path, language: &str) -> Option<(Command, PathBuf)> {
+    let out = text_file.with_extension("wav");
+    let mut command = Command::new("powershell.exe");
+    command
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            SAPI_SCRIPT,
+        ])
+        .env("BERTH_SPEECH_IN", text_file)
+        .env("BERTH_SPEECH_OUT", &out)
+        .env("BERTH_SPEECH_LANGUAGE", language);
+    Some((command, out))
+}
+
 pub fn system_total_bytes() -> Option<u64> {
     use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
     unsafe {
@@ -205,11 +231,7 @@ mod resolve {
         std::env::var("PATHEXT").unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".into())
     }
 
-    /// `base` itself if it is a file, else `base` + each `PATHEXT` entry.
     fn first_existing(base: &Path, extensions: &str) -> Option<PathBuf> {
-        if base.is_file() {
-            return Some(base.to_path_buf());
-        }
         extensions
             .split(';')
             .map(str::trim)
@@ -219,6 +241,7 @@ mod resolve {
             // `cursor.exe` on a name that already contains a dot.
             .map(|ext| PathBuf::from(format!("{}{ext}", base.display())))
             .find(|candidate| candidate.is_file())
+            .or_else(|| base.is_file().then(|| base.to_path_buf()))
     }
 
     #[cfg(test)]
@@ -261,6 +284,19 @@ mod resolve {
                 Some(&dir.join("plain-tool")),
             );
             assert_resolves(&dir.join("absent"), extensions, None);
+        }
+
+        #[test]
+        fn an_npm_cmd_shim_wins_over_the_posix_script_beside_it() {
+            let tmp = tempfile::tempdir().unwrap();
+            let dir = tmp.path();
+            std::fs::write(dir.join("codex"), b"#!/bin/sh\n").unwrap();
+            std::fs::write(dir.join("codex.cmd"), b"@echo off\n").unwrap();
+            assert_resolves(
+                &dir.join("codex"),
+                ".COM;.EXE;.BAT;.CMD",
+                Some(&dir.join("codex.cmd")),
+            );
         }
 
         /// A name that already contains a dot must gain the extension, not

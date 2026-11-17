@@ -281,10 +281,8 @@ function onKey(event: KeyboardEvent) {
               <template v-else>{{ row.node.label }}</template>
             </span>
           </slot>
-          <template v-if="!row.expanded">
-            <span v-if="row.node.count !== undefined" class="count" :title="row.node.countTitle" data-testid="tree-count">{{ row.node.count }}</span>
-            <slot name="rollup" :node="row.node" />
-          </template>
+          <span v-if="row.node.count !== undefined && (!row.expanded || row.node.countAlways)" class="count" :title="row.node.countTitle" data-testid="tree-count">{{ row.node.count }}</span>
+          <slot v-if="!row.expanded" name="rollup" :node="row.node" />
         </template>
         <slot v-else name="leaf" :node="row.node" :data="row.node.data" :selected="row.id === selected">
           <span class="label" :data-kind="row.node.kind">{{ row.node.label }}</span>
@@ -373,7 +371,7 @@ function onKey(event: KeyboardEvent) {
   min-height: 28px;
   padding: 0 4px 0 calc(var(--depth) * var(--indent) + 6px);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--vr-font-size-label);
   text-align: left;
   color: var(--vr-color-text);
   background: none;
@@ -429,7 +427,7 @@ function onKey(event: KeyboardEvent) {
 .count {
   flex: none;
   padding: 0 0 0 var(--vr-space-1);
-  font-size: 11.5px;
+  font-size: var(--vr-font-size-xs);
   font-variant-numeric: tabular-nums;
   color: var(--vr-color-text-muted);
 }

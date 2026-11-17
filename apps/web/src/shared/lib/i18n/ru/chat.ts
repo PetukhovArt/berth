@@ -1,0 +1,36 @@
+import type { Translation } from '../types';
+import type { chat as en } from '../en/chat';
+
+export const chat: Translation<typeof en> = {
+  tools: {
+    read: { one: 'прочитан {count} файл', few: 'прочитано {count} файла', many: 'прочитано {count} файлов', other: 'прочитано {count} файла' },
+    edit: { one: 'изменён {count} файл', few: 'изменено {count} файла', many: 'изменено {count} файлов', other: 'изменено {count} файла' },
+    run: { one: 'выполнена {count} команда', few: 'выполнено {count} команды', many: 'выполнено {count} команд', other: 'выполнено {count} команды' },
+    search: { one: '{count} поиск', few: '{count} поиска', many: '{count} поисков', other: '{count} поиска' },
+    fetch: { one: 'загружена {count} страница', few: 'загружено {count} страницы', many: 'загружено {count} страниц', other: 'загружено {count} страницы' },
+    other: { one: '{count} вызов инструмента', few: '{count} вызова инструментов', many: '{count} вызовов инструментов', other: '{count} вызова инструментов' },
+    expand: 'Показать вызовы инструментов',
+    exit: 'код {code}',
+  },
+  seconds: '{count} с',
+  minutes: '{minutes} мин {seconds} с',
+  checkpoint: 'Чекпоинт',
+  checkpointTitle: 'Чекпоинт {number}: файлы этого worktree на момент этого промпта',
+  restore: 'Восстановить файлы',
+  restoreConfirm: 'Заменить файлы этого worktree этим чекпоинтом? Текущее состояние сначала сохранится как новый чекпоинт.',
+  restoreCancel: 'Отмена',
+  restoreApply: 'Восстановить',
+  changedFiles: 'Изменённые файлы',
+  fileCount: { one: '{count} файл', few: '{count} файла', many: '{count} файлов', other: '{count} файла' },
+  openInChanges: 'Открыть в изменениях',
+  keysHint: 'Enter отправляет · Shift+Enter новая строка',
+  typeMode: 'Текст',
+  typeGlyph: 'Аа',
+  heard: 'Слушаю… «{text}»',
+  talkMode: 'Голос',
+  talkHint: 'Удерживайте, чтобы говорить · Аа для текста',
+  holdToTalk: 'Удерживать',
+  handsFree: 'Без рук',
+  voiceMode: 'Режим голоса',
+  sentByVoice: 'голосом',
+};
