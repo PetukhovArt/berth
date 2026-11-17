@@ -390,7 +390,7 @@ impl AgentStatusMachine {
             (Finished { .. }, E::SessionStart { source }) if is_clear(source) => {
                 Some(Finished { finished_at: None })
             }
-            (Disconnected, E::SessionStart { source }) => {
+            (Terminated | Disconnected, E::SessionStart { source }) => {
                 Some(if starts_new_conversation(source) {
                     Fresh
                 } else {
@@ -1456,6 +1456,20 @@ mod tests {
             source: Some("resume".into()),
         };
         assert!(status_of(&alive.handle(event, Some("s1"), t0())).is_none());
+    }
+
+    #[test]
+    fn a_respawned_cli_leaves_terminated() {
+        let start = |source: &str| {
+            let mut m = AgentStatusMachine::new(AgentStatus::Terminated, Some("s1".into()));
+            let event = HookEvent::SessionStart {
+                source: Some(source.into()),
+            };
+            status_of(&m.handle(event, Some("s1"), t0()))
+        };
+        assert_eq!(start("resume"), Some(AgentStatus::Finished));
+        assert_eq!(start("startup"), Some(AgentStatus::Fresh));
+        assert_eq!(start("clear"), Some(AgentStatus::Fresh));
     }
 
     const EVERY_STATUS: [AgentStatus; 6] = [

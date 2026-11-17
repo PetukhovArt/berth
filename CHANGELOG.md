@@ -54,6 +54,7 @@
 - Fixed a subagent's permission prompt showing no Allow and Deny card while its session waits for you
 - Fixed an Allow and Deny card staying under a session after its tab was closed or its process was stopped, with nothing left to answer
 - Fixed a session restored after a daemon restart staying Disconnected until its next prompt
+- Fixed a crashed session staying Terminated after its agent was started again, until its next prompt
 - Fixed New Session opened from a project's `+` asking for the project again
 - Fixed the Inbox showing minutes for a status that changed seconds ago, and sorting by the old time
 - Fixed `claude --resume` in a berth terminal briefly showing as a second row in the session tree
