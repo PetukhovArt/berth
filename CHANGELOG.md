@@ -50,6 +50,7 @@
 - Changed Continue in Berth to run a Claude or Codex conversation as an agent with permission prompts and notifications, instead of typing `claude --resume` into a terminal, and to close the conversation's old idle terminal so it shows as one row
 - Fixed New Session opened from a project's `+` asking for the project again
 - Fixed the Inbox showing minutes for a status that changed seconds ago, and sorting by the old time
+- Fixed `claude --resume` in a berth terminal briefly showing as a second row in the session tree
 - Fixed a session tab showing a second Claude icon beside its status
 - Fixed the title bar and the phone header show the app icon from the taskbar and the splash screen again, instead of a letter on a blue tile
 - Fixed `ui.font_size` leaving parts of the interface at their old size: session rows, the title bar, session header buttons, the new session form, badges, diagrams and line heights now follow it too.
