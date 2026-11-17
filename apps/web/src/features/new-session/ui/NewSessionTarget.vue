@@ -126,6 +126,8 @@ const summary = computed(() => {
   display: inline-flex;
   align-items: center;
   padding: 0 9px;
+  font-size: var(--vr-font-size-sm);
+  line-height: 1;
   color: var(--vr-color-text);
   white-space: nowrap;
 }
