@@ -151,6 +151,13 @@ pub enum ClientRequest {
         session_id: String,
         worktree: WorktreeId,
     },
+    ResumeConversation {
+        req_id: u64,
+        worktree: WorktreeId,
+        kind: AgentKind,
+        session_id: String,
+        name: String,
+    },
     CreateAgent {
         req_id: u64,
         worktree: WorktreeId,

@@ -71,7 +71,7 @@ pub(crate) struct CreateAgentSpec {
 }
 
 /// Wall-clock epoch ms, matching the store's `status_changed_at` stamps.
-fn epoch_ms() -> i64 {
+pub(crate) fn epoch_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
@@ -898,100 +898,13 @@ impl Daemon {
         crate::orphans::list(&self.store, &project, &live, include_live)
     }
 
-    /// Bring an ORPHANED SESSION back as an AGENT in `worktree_id`.
-    ///
-    /// The row created is an ordinary one carrying the old CLI session id,
-    /// so it resumes on this spawn and behaves like any other session after
-    /// it — including archiving, restarting, and being orphaned again if
-    /// this worktree is deleted in its turn.
-    pub async fn resume_orphaned_session(
-        self: &Arc<Self>,
-        session_id: &str,
-        worktree_id: &WorktreeId,
-    ) -> Result<EntityId> {
-        let worktree = self
-            .store
-            .get_worktree(worktree_id)?
-            .context("worktree not found")?;
-        let (project, live) = self.project_with_worktrees(&worktree.project_id)?;
-        // The full list, not just the orphans: a conversation from another
-        // live worktree resumes here the same way.
-        let orphan = crate::orphans::list(&self.store, &project, &live, true)?
-            .into_iter()
-            .find(|o| o.session_id == session_id)
-            .context("that session is not on record any more")?;
-        if !self.cli_available_for_create(orphan.kind).await {
-            bail!("{}", cli_missing_message(orphan.kind));
-        }
-        // A live session's transcript has a process appending to it; a
-        // second `--resume` of the same id would have two CLIs writing one
-        // conversation. The orphans-only list ruled this out by
-        // construction — the project-wide one has to check.
-        let running = self
-            .store
-            .agent_ids_by_session_id(&orphan.session_id)?
-            .into_iter()
-            .any(|id| self.is_alive(&SessionRef::Agent(id)));
-        if running {
-            bail!("that conversation is already running — stop its session first");
-        }
-        let agent = Agent {
-            id: AgentId::generate(),
-            worktree_id: worktree.id.clone(),
-            name: orphan.name.clone(),
-            status: AgentStatus::Fresh,
-            archived: false,
-            archived_at: 0,
-            unseen: false,
-            kind: orphan.kind,
-            model: None,
-            effort: None,
-            session_id: Some(orphan.session_id.clone()),
-            cloud_session_id: None,
-            sort_order: 0,
-            status_changed_at: epoch_ms(),
-            alive: false,
-            cloud_mirroring: false,
-            suggested_prompt: None,
-            provider_error: None,
-            routed_from: None,
-            route_suggestion: None,
-            acp_provider: None,
-        };
-        self.store.insert_agent(&agent)?;
-        // Claude only, like `relocation_prompt`: whether `codex resume` and
-        // `cursor-agent --resume` take a trailing prompt is unverified.
-        let notice = (orphan.kind == AgentKind::Claude)
-            .then(|| crate::orphans::resume_notice(&orphan, &worktree))
-            .flatten();
-        let notice = notice.as_deref();
-        let spawned = self.spawn_agent_session_with(
-            &agent,
-            &worktree,
-            DEFAULT_COLS,
-            DEFAULT_ROWS,
-            None,
-            notice,
-        );
-        self.rollback_agent_on_spawn_error(&agent.id, spawned)?;
-        // Stamped, not deleted: `arm_resume_fallback` may still find the CLI
-        // has dropped the conversation, and a row deleted here would make
-        // that loss final.
-        if let Err(e) = self.store.set_orphan_resumed(&orphan.session_id) {
-            tracing::warn!(error = %e, "stamping the resumed orphan failed");
-        }
-        let mut broadcast_agent = agent.clone();
-        broadcast_agent.alive = true;
-        self.broadcast(ServerEvent::EntityUpserted {
-            entity: Entity::Agent(Box::new(broadcast_agent)),
-        });
-        Ok(EntityId::Agent(agent.id))
-    }
-
     /// A project and the checkouts it currently has, the pair every orphan
     /// lookup needs: the scan can only call a conversation orphaned by
     /// knowing which checkouts still exist.
-    fn project_with_worktrees(&self, id: &ProjectId) -> Result<(Project, Vec<Worktree>)> {
+    pub(crate) fn project_with_worktrees(
+        &self,
+        id: &ProjectId,
+    ) -> Result<(Project, Vec<Worktree>)> {
         let project = self.store.get_project(id)?.context("project not found")?;
         let (_, worktrees, _, _) = self.store.load_tree()?;
         let live = worktrees
@@ -1232,7 +1145,11 @@ impl Daemon {
         Ok(EntityId::Agent(agent.id))
     }
 
-    fn rollback_agent_on_spawn_error<T>(&self, id: &AgentId, result: Result<T>) -> Result<T> {
+    pub(crate) fn rollback_agent_on_spawn_error<T>(
+        &self,
+        id: &AgentId,
+        result: Result<T>,
+    ) -> Result<T> {
         match result {
             Ok(value) => Ok(value),
             Err(spawn_error) => {
@@ -1304,7 +1221,7 @@ impl Daemon {
     /// A cached *hit* is trusted; a cached *miss* is re-probed, so someone who
     /// installs the CLI and immediately retries isn't told for another minute
     /// that it's missing. Misses are rare, so this costs nothing in practice.
-    async fn cli_available_for_create(&self, kind: AgentKind) -> bool {
+    pub(crate) async fn cli_available_for_create(&self, kind: AgentKind) -> bool {
         self.cli_available(kind).await || self.probe_cli(kind).await
     }
 
@@ -2276,7 +2193,7 @@ impl Daemon {
     /// persisted Agent fields — a Cloud row's `cloud_session_id` routes a
     /// restart back through `attach_cloud_agent`, everything else takes the
     /// plain local-session path.
-    fn spawn_agent_session_with(
+    pub(crate) fn spawn_agent_session_with(
         self: &Arc<Self>,
         agent: &Agent,
         worktree: &Worktree,
@@ -3001,7 +2918,7 @@ fn normalize_url(url: &str) -> Result<String> {
 /// the daemon runs with its own inherited PATH), agent CLIs are spawned
 /// through the user's login shell, so a fresh install is picked up on the
 /// next try with no daemon restart.
-fn cli_missing_message(kind: AgentKind) -> String {
+pub(crate) fn cli_missing_message(kind: AgentKind) -> String {
     format!(
         "{} was not found on your PATH — install it, then try again.",
         kind.cli_program()

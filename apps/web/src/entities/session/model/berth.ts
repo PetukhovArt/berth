@@ -189,9 +189,11 @@ function terminalNode(terminal: Terminal): SessionNode {
 
 function buildTree(entities: Entities): WorkspaceNode[] {
   const agentsOf = (worktree: string) => [...entities.agents.values()].filter((a) => a.worktree_id === worktree);
+  const agentConversations = new Set([...entities.agents.values()].flatMap((a) => (a.session_id ? [a.session_id] : [])));
+  const leftByAgent = (terminal: Terminal) => !terminal.alive && !!terminal.session_id && agentConversations.has(terminal.session_id);
   const sessionsOf = (worktree: string) => [
     ...agentsOf(worktree).filter((a) => !a.archived).sort(bySortOrder).map(agentNode),
-    ...[...entities.terminals.values()].filter((t) => t.worktree_id === worktree).sort(bySortOrder).map(terminalNode),
+    ...[...entities.terminals.values()].filter((t) => t.worktree_id === worktree && !leftByAgent(t)).sort(bySortOrder).map(terminalNode),
   ];
   const archivedOf = (worktree: string) =>
     agentsOf(worktree)

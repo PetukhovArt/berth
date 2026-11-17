@@ -986,6 +986,23 @@ async fn handle_client(
                         reply(&out_tx, req_id, created).await;
                     });
                 }
+                ClientRequest::ResumeConversation {
+                    req_id,
+                    worktree,
+                    kind,
+                    session_id,
+                    name,
+                } => {
+                    let daemon = daemon.clone();
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let created = daemon
+                            .resume_conversation(&worktree, kind, &session_id, &name)
+                            .await
+                            .map(Some);
+                        reply(&out_tx, req_id, created).await;
+                    });
+                }
                 ClientRequest::ArchiveAgent { req_id, id } => {
                     reply_done(&out_tx, req_id, daemon.archive_agent(&id)).await;
                 }

@@ -4068,3 +4068,62 @@ esac
     wait_for_exit(&mut daemon);
     assert_eq!(runs(), "4");
 }
+
+#[tokio::test]
+async fn resume_conversation_runs_an_outside_conversation_as_one_agent_and_refuses_a_second_cli() {
+    let env = TestEnv::new();
+    let repo = env.make_repo();
+    let mut daemon = env.spawn_daemon();
+    let mut c = connect(&env.sock()).await;
+    handshake(&mut c).await;
+    let worktree = add_project_get_main_worktree(&mut c, &repo).await;
+    let conversation = "cfc4eb47-0000-4000-8000-000000000001";
+    let resume = |req_id: u64| ClientRequest::ResumeConversation {
+        req_id,
+        worktree: worktree.id.clone(),
+        kind: AgentKind::Claude,
+        session_id: conversation.into(),
+        name: "sva-3.0".into(),
+    };
+
+    write_frame(&mut c, &resume(20)).await.unwrap();
+    let events = read_events_until(&mut c, SLOW_TIMEOUT, |evs| find_ack(evs, 20).is_some()).await;
+    let Some(ServerEvent::Ack {
+        created: Some(EntityId::Agent(agent)),
+        ..
+    }) = find_ack(&events, 20)
+    else {
+        panic!("the first resume must create an agent: {events:#?}");
+    };
+
+    write_frame(&mut c, &resume(21)).await.unwrap();
+    let events = read_events_until(&mut c, SLOW_TIMEOUT, |evs| find_ack(evs, 21).is_some()).await;
+    match find_ack(&events, 21) {
+        Some(ServerEvent::Error { message, .. }) => {
+            assert!(message.contains("already running"), "{message}")
+        }
+        other => panic!("a second resume while the first runs must be refused: {other:#?}"),
+    }
+
+    let mut viewer = connect(&env.sock()).await;
+    handshake(&mut viewer).await;
+    let events = subscribe(&mut viewer).await;
+    let agents = events
+        .iter()
+        .find_map(|e| match e {
+            ServerEvent::Snapshot { agents, .. } => Some(agents.clone()),
+            _ => None,
+        })
+        .expect("snapshot");
+    let owners: Vec<_> = agents
+        .iter()
+        .filter(|a| a.session_id.as_deref() == Some(conversation))
+        .collect();
+    assert_eq!(owners.len(), 1, "one conversation, one row: {agents:#?}");
+    assert_eq!(&owners[0].id, agent);
+    assert_eq!(owners[0].name, "sva-3.0");
+    assert_eq!(owners[0].worktree_id, worktree.id);
+
+    write_frame(&mut c, &ClientRequest::Shutdown).await.unwrap();
+    wait_for_exit(&mut daemon);
+}
