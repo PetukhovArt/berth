@@ -99,7 +99,34 @@ pub async fn worktree_base_source(repo: String, branch: String) -> Result<Worktr
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
+
+    struct Scratch(PathBuf);
+
+    impl Scratch {
+        fn new(tag: &str) -> Self {
+            let nanos = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+            let dir = std::env::temp_dir().join(format!(
+                "berth-worktree-base-{tag}-{}-{nanos}",
+                std::process::id()
+            ));
+            std::fs::create_dir_all(&dir).unwrap();
+            Self(dir)
+        }
+
+        fn path(&self) -> &Path {
+            &self.0
+        }
+    }
+
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
 
     fn git_in(repo: &Path, args: &[&str]) -> String {
         let out = std::process::Command::new("git")
@@ -141,7 +168,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_failed_fetch_falls_back_to_the_local_branch_with_gits_message() {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = Scratch::new("local");
         let (repo, _) = clone_with_unreachable_origin(tmp.path(), false);
         let chosen = worktree_base_source(repo, "main".to_owned()).await.unwrap();
         assert_eq!(chosen.base.as_deref(), Some("main"));
@@ -151,7 +178,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_failed_fetch_takes_a_tracking_ref_ahead_of_the_local_branch() {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = Scratch::new("tracking");
         let (repo, upstream_head) = clone_with_unreachable_origin(tmp.path(), true);
         let chosen = worktree_base_source(repo.clone(), "main".to_owned())
             .await
