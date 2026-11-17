@@ -21,15 +21,6 @@ pub fn lead_process_tree(command: &mut tokio::process::Command) -> &mut tokio::p
     command.process_group(0)
 }
 
-pub fn open_url_with(opener: &str, url: &str) -> bool {
-    Command::new(opener)
-        .arg(url)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .is_ok_and(|status| status.success())
-}
-
 pub fn open_path_with(opener: &str, path: &Path) -> io::Result<()> {
     Command::new(opener).arg(path).spawn().map(drop)
 }
@@ -44,19 +35,6 @@ pub fn resolve_program(program: &str) -> Option<PathBuf> {
     std::env::split_paths(&std::env::var_os("PATH")?)
         .map(|dir| dir.join(program))
         .find(|candidate| candidate.is_file())
-}
-
-pub fn resolve_editor_program(name: &str) -> Option<PathBuf> {
-    resolve_program(name)
-}
-
-pub fn process_rss_bytes(pid: u32) -> Option<u64> {
-    let out = Command::new("ps")
-        .args(["-o", "rss=", "-p", &pid.to_string()])
-        .output()
-        .ok()?;
-    let text = String::from_utf8(out.stdout).ok()?;
-    text.trim().parse::<u64>().ok().map(|kb| kb * 1024)
 }
 
 pub fn has_child_processes(pid: u32) -> bool {

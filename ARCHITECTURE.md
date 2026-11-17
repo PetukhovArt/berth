@@ -36,7 +36,7 @@ one hooks dialect; Cursor speaks its own. The same hook channel powers auto-titl
 
 ## Side paths
 
-In the daemon (`crates/berth-daemon/src`): cloud sessions (`claude --cloud` / `--teleport`), the
+In the daemon (`crates/berth-daemon/src`): the
 prewarm pool, the idle reaper, restoring live sessions after a restart (`restore.rs`), and the metrics
 sampler (`sampler.rs`) behind the desktop app's metrics panel. In the desktop app
 (`apps/desktop/src-tauri/src`): remote access (`remote.rs`), connectors, worktree cleanup
@@ -68,7 +68,7 @@ crates.io vt100.
 ## Platform adapters
 
 What differs between Windows, macOS and Linux goes through one adapter per layer:
-`berth-core/src/platform/` for what the crates and the desktop share (clipboard, sounds, openers,
+`berth-core/src/platform/` for what the crates and the desktop share (openers,
 program lookup, process table and memory, killing a process tree, symlinks, path case rules,
 termination signals, owner-only files) and `apps/desktop/src-tauri/src/platform/` for the desktop's
 own (child lifetime, self-update and the install dir of a running build, CLI search dirs, the login

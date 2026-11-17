@@ -122,10 +122,7 @@ async fn handle_client(
                         worktrees: vec![],
                         agents: vec![],
                         terminals: vec![],
-                        links: vec![],
-                        pr_seen: vec![],
                         archived_external_sessions: vec![],
-                        ui_state: None,
                     });
                     // Scope this client to the workspace it is being shown.
                     // First Subscribe only — a re-subscribe must not undo a
@@ -186,18 +183,6 @@ async fn handle_client(
                                     data,
                                 })
                                 .await;
-                            let _ = out_tx
-                                .send(ServerEvent::KittyFlags {
-                                    session: sref.clone(),
-                                    flags: session.kitty_flags(),
-                                })
-                                .await;
-                            let _ = out_tx
-                                .send(ServerEvent::Win32Input {
-                                    session: sref.clone(),
-                                    on: session.win32_input(),
-                                })
-                                .await;
                             let _ = session.resize_with_jiggle(cols, rows);
 
                             let rebind = attached.remove(&sref);
@@ -249,12 +234,6 @@ async fn handle_client(
                     if let Some(s) = daemon.session(&session) {
                         let _ = s.resize(cols, rows);
                     }
-                }
-                ClientRequest::SaveUiState { json } => {
-                    let _ = daemon.store.save_ui_state(&json);
-                }
-                ClientRequest::MarkPrSeen { url, marker } => {
-                    let _ = daemon.store.mark_pr_seen(&url, &marker);
                 }
                 ClientRequest::MarkAgentSeen { id } => {
                     if let Err(e) = daemon.mark_agent_seen(&id) {
@@ -598,15 +577,10 @@ async fn handle_client(
                     model,
                     effort,
                     auto_title,
-                    cloud_prompt,
                     starting_prompt,
                 } => {
                     // Logged by mode only — never the task or prompt text.
-                    let launch_mode = match (&cloud_prompt, &starting_prompt) {
-                        (Some(_), _) => Some("cloud"),
-                        (None, Some(_)) => Some("preset"),
-                        (None, None) => None,
-                    };
+                    let launch_mode = starting_prompt.is_some().then_some("preset");
                     let providers = crate::config::Config::load().providers;
                     let result =
                         match crate::acp::providers::ensure_native_enabled(&providers, kind) {
@@ -620,9 +594,7 @@ async fn handle_client(
                                         model,
                                         effort,
                                         auto_title,
-                                        cloud_prompt,
                                         starting_prompt,
-                                        pr_url: None,
                                     })
                                     .await
                             }
@@ -647,49 +619,6 @@ async fn handle_client(
                             ),
                             Ok(_) => unreachable!("CreateAgent returned a non-agent id"),
                         }
-                    }
-                    reply(&out_tx, req_id, result.map(Some)).await;
-                }
-                ClientRequest::CreatePrAgent {
-                    req_id,
-                    worktree,
-                    name,
-                    model,
-                    effort,
-                    auto_title,
-                    pr_url,
-                } => {
-                    let result = daemon
-                        .create_agent(CreateAgentSpec {
-                            worktree: worktree.clone(),
-                            name,
-                            kind: berth_core::AgentKind::Claude,
-                            model,
-                            effort,
-                            auto_title,
-                            cloud_prompt: None,
-                            starting_prompt: None,
-                            pr_url: Some(pr_url.clone()),
-                        })
-                        .await;
-                    match &result {
-                        Ok(berth_core::EntityId::Agent(agent)) => tracing::info!(
-                            req_id,
-                            agent = %agent,
-                            worktree = %worktree,
-                            pr_url = %pr_url,
-                            launch_mode = "pull_request",
-                            "agent session spawned"
-                        ),
-                        Err(error) => tracing::warn!(
-                            req_id,
-                            error = %error,
-                            worktree = %worktree,
-                            pr_url = %pr_url,
-                            launch_mode = "pull_request",
-                            "agent session spawn failed"
-                        ),
-                        Ok(_) => unreachable!("CreatePrAgent returned a non-agent id"),
                     }
                     reply(&out_tx, req_id, result.map(Some)).await;
                 }
@@ -812,12 +741,8 @@ async fn handle_client(
                         let _ = out_tx.send(ev).await;
                     });
                 }
-                ClientRequest::ListOrphanedSessions {
-                    req_id,
-                    project,
-                    include_live,
-                } => {
-                    let ev = match daemon.list_orphaned_sessions(&project, include_live) {
+                ClientRequest::ListOrphanedSessions { req_id, project } => {
+                    let ev = match daemon.list_orphaned_sessions(&project) {
                         Ok(sessions) => ServerEvent::OrphanedSessions { req_id, sessions },
                         Err(e) => ServerEvent::Error {
                             req_id: Some(req_id),
@@ -900,22 +825,6 @@ async fn handle_client(
                     let result = daemon.save_router_config(&json);
                     reply_router_config(&out_tx, req_id, result).await;
                 }
-                ClientRequest::AttachCloudAgent { req_id, id } => {
-                    reply_done(&out_tx, req_id, daemon.attach_cloud_agent(&id).await).await;
-                }
-                ClientRequest::SendCloudMessage {
-                    req_id,
-                    id,
-                    message,
-                } => {
-                    tracing::info!(agent = %id, bytes = message.len(), "send to cloud session");
-                    reply_done(
-                        &out_tx,
-                        req_id,
-                        daemon.send_cloud_message(&id, &message).await,
-                    )
-                    .await;
-                }
                 ClientRequest::CreateTerminal {
                     req_id,
                     worktree,
@@ -927,24 +836,6 @@ async fn handle_client(
                         daemon.create_terminal(&worktree, name).map(Some),
                     )
                     .await;
-                }
-                ClientRequest::CreateLink {
-                    req_id,
-                    worktree,
-                    url,
-                } => {
-                    reply(
-                        &out_tx,
-                        req_id,
-                        daemon.create_link(&worktree, &url).map(Some),
-                    )
-                    .await;
-                }
-                ClientRequest::UpdateLink { req_id, id, url } => {
-                    reply_done(&out_tx, req_id, daemon.update_link(&id, &url)).await;
-                }
-                ClientRequest::DeleteLink { req_id, id } => {
-                    reply_done(&out_tx, req_id, daemon.delete_link(&id)).await;
                 }
                 ClientRequest::RenameTerminal { req_id, id, name } => {
                     reply_done(&out_tx, req_id, daemon.rename_terminal(&id, &name)).await;
@@ -1013,41 +904,10 @@ async fn forward_pty(
                     .await;
                 break;
             }
-            Ok(PtyEvent::KittyFlags { flags }) => {
-                if out_tx
-                    .send(ServerEvent::KittyFlags {
-                        session: sref.clone(),
-                        flags,
-                    })
-                    .await
-                    .is_err()
-                {
-                    break;
-                }
-            }
-            Ok(PtyEvent::Win32Input { on }) => {
-                if out_tx
-                    .send(ServerEvent::Win32Input {
-                        session: sref.clone(),
-                        on,
-                    })
-                    .await
-                    .is_err()
-                {
-                    break;
-                }
-            }
             // Daemon-side only: the progress and title edges drive the
             // status machine and reach clients as a StatusChanged, not as
-            // session output; the cloud sightings reach them as the row's
-            // own upsert.
-            Ok(
-                PtyEvent::Progress { .. }
-                | PtyEvent::TitleIdle { .. }
-                | PtyEvent::CloudSession { .. }
-                | PtyEvent::Suggestion
-                | PtyEvent::CloudAttachRejected,
-            ) => {}
+            // session output
+            Ok(PtyEvent::Progress { .. } | PtyEvent::TitleIdle { .. } | PtyEvent::Suggestion) => {}
             Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
                 // Catch up from the ring. If the missed bytes are still
                 // retained, send them as a plain Output continuation so the

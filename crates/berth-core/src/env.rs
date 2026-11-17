@@ -25,15 +25,11 @@ pub const IDLE_REAP_MS: &str = "BERTH_IDLE_REAP_MS";
 pub const WORKTREE_SYNC_MS: &str = "BERTH_WORKTREE_SYNC_MS";
 /// Metrics sampler tick in ms; tests shorten it.
 pub const METRICS_SAMPLE_MS: &str = "BERTH_METRICS_SAMPLE_MS";
-/// Cloud-mirror refresh cadence in seconds; `0` turns it off.
-pub const CLOUD_MIRROR_SECS: &str = "BERTH_CLOUD_MIRROR_SECS";
 /// `RUST_LOG`-style tracing filter for both the daemon and the TUI.
 pub const LOG: &str = "BERTH_LOG";
 /// Overrides the install script URL `berth upgrade` / `berth ssh` fetch.
 pub const INSTALL_URL: &str = "BERTH_INSTALL_URL";
 pub const REMOTE: &str = "BERTH_REMOTE";
-/// Editor command the file modals open, ahead of the config's `editor`.
-pub const EDITOR: &str = "BERTH_EDITOR";
 
 /// Env vars that identify an agent session to the daemon. They are set on
 /// every agent PTY and must never leak into plain terminals.

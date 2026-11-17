@@ -69,20 +69,8 @@ pub struct Capabilities {
     /// The pseudo console answers a child's terminal queries (DSR, DA)
     /// itself, so a client's own answer arrives as a duplicate — ConPTY.
     pub pty_answers_terminal_queries: bool,
-    /// The console drops CSI-u (kitty) key encodings on input, so keys must
-    /// stay on legacy bytes whatever the child pushed — the Windows 10
-    /// inbox ConPTY.
-    pub console_drops_kitty_input: bool,
-    /// A paste reaches the TUI as a burst of keystrokes rather than as a
-    /// bracketed paste — the Windows console.
-    pub paste_arrives_as_keys: bool,
-    /// Keys come through the Win32 console API, which delivers chords a
-    /// unix terminal emulator would swallow, and swallows others.
-    pub win32_console_keys: bool,
     /// One directory may be spelled in any case (`D:\Repo` is `d:\repo`).
     pub paths_case_insensitive: bool,
-    /// Named system sounds exist ([`system_sound`] can answer).
-    pub system_sounds: bool,
 }
 
 pub const CAPABILITIES: Capabilities = imp::CAPABILITIES;
@@ -126,16 +114,6 @@ impl NoWindow for tokio::process::Command {
     }
 }
 
-/// Hand `url` to the desktop's default browser: `open` on macOS, `xdg-open`
-/// on Linux, `cmd /c start` on Windows. Returns whether the opener reported
-/// success (it hands off and exits; nothing waits on the browser).
-///
-/// Callers own their scheme allowlists and test shortcuts — a `cfg!(test)`
-/// here would be false in every crate that depends on this one.
-pub fn open_url(url: &str) -> bool {
-    imp::open_url(url)
-}
-
 /// Open a file with whatever the OS associates with it. Spawns and returns;
 /// nothing waits on the app.
 pub fn open_path(path: &Path) -> io::Result<()> {
@@ -160,37 +138,9 @@ fn expand_home(program: &str, home: Option<&Path>) -> String {
     }
 }
 
-/// [`resolve_program`] for the configured editor, plus whatever fallback
-/// the OS ships editors in (Git for Windows' `usr\bin`).
-pub fn resolve_editor_program(name: &str) -> Option<PathBuf> {
-    imp::resolve_editor_program(name)
-}
-
 /// Suffixes an executable file may carry, most likely first: `[""]` on
 /// unix, `.exe`/`.cmd`/`.bat` on Windows.
 pub const EXECUTABLE_SUFFIXES: &[&str] = imp::EXECUTABLE_SUFFIXES;
-
-/// Copy to *this machine's* system clipboard. macOS: pbcopy. Windows:
-/// clip.exe. Linux: wl-copy on Wayland, xclip (or xsel) on X11.
-pub fn copy_to_clipboard(text: &str) -> bool {
-    imp::copy_to_clipboard(text)
-}
-
-/// The file behind a named system sound (`Glass`), when this OS has named
-/// sounds and that one exists. `name` must already be a bare stem.
-pub fn system_sound(name: &str) -> Option<PathBuf> {
-    imp::system_sound(name)
-}
-
-/// Play a sound file detached; `false` when nothing could start.
-pub fn play_sound_file(path: &Path) -> bool {
-    imp::play_sound_file(path)
-}
-
-/// Resident set size of one process, bytes.
-pub fn process_rss_bytes(pid: u32) -> Option<u64> {
-    imp::process_rss_bytes(pid)
-}
 
 /// Physical memory installed on this machine, bytes.
 pub fn system_total_bytes() -> Option<u64> {
@@ -284,41 +234,12 @@ pub fn login_shell() -> Option<String> {
 /// a command sees the profile and rc files a terminal tab would.
 pub const LOGIN_SHELL_ARGS: [&str; 3] = ["-l", "-i", "-c"];
 
-/// Run `program args…` with `data` on its stdin; whether it took it and
-/// exited cleanly. The clipboard helpers are all this shape.
-fn pipe_into(program: &str, args: &[&str], data: &[u8]) -> bool {
-    use std::io::Write as _;
-    use std::process::{Command, Stdio};
-    let Ok(mut child) = Command::new(program)
-        .args(args)
-        .stdin(Stdio::piped())
-        .stderr(Stdio::null())
-        .no_window()
-        .spawn()
-    else {
-        return false;
-    };
-    let wrote = child
-        .stdin
-        .take()
-        .is_some_and(|mut stdin| stdin.write_all(data).is_ok());
-    wrote && child.wait().is_ok_and(|status| status.success())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// Both probes answer for *this* process and *this* machine, so a plain
-    /// sanity check is available on every platform: a running process has a
-    /// non-zero resident set, and the machine has some RAM installed.
     #[test]
-    fn this_process_and_this_machine_report_plausible_memory() {
-        let rss = process_rss_bytes(std::process::id());
-        assert!(
-            rss.is_some_and(|b| b > 0),
-            "a running process has a resident set: {rss:?}"
-        );
+    fn this_machine_reports_plausible_memory() {
         let total = system_total_bytes();
         assert!(
             total.is_some_and(|b| b > 64 * 1024 * 1024),

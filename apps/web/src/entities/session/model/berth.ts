@@ -25,7 +25,6 @@ type Agent = {
   model: string | null;
   effort: string | null;
   session_id: string | null;
-  cloud_session_id: string | null;
   sort_order: number;
   alive: boolean;
   suggested_prompt?: string | null;
@@ -40,8 +39,8 @@ type RouteAction = { type: 'switch_model'; model: string | null } | { type: 'con
 type RouteSuggestion = { rule: string; action: RouteAction };
 type Terminal = { id: string; worktree_id: string; name: string; sort_order: number; alive: boolean; session_id?: string | null };
 
-type Entity = { Workspace: Workspace } | { Project: Project } | { Worktree: Worktree } | { Agent: Agent } | { Terminal: Terminal } | { Link: unknown };
-type EntityId = { Workspace: string } | { Project: string } | { Worktree: string } | { Agent: string } | { Terminal: string } | { Link: string };
+type Entity = { Workspace: Workspace } | { Project: Project } | { Worktree: Worktree } | { Agent: Agent } | { Terminal: Terminal };
+type EntityId = { Workspace: string } | { Project: string } | { Worktree: string } | { Agent: string } | { Terminal: string };
 
 export type FeedbackRequest = { kind: 'Permission' | 'Question'; title: string; detail: string | null; options: string[] };
 
@@ -388,7 +387,6 @@ export function createAgent(agent: NewAgent): Promise<EntityId | null> {
       model: agent.model,
       effort: agent.effort,
       auto_title: agent.autoTitle,
-      cloud_prompt: null,
       starting_prompt: agent.startingPrompt,
     },
   });

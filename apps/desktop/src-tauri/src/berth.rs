@@ -737,7 +737,6 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::ListOrphanedSessions { req_id, .. }
         | ClientRequest::ResumeOrphanedSession { req_id, .. }
         | ClientRequest::CreateAgent { req_id, .. }
-        | ClientRequest::CreatePrAgent { req_id, .. }
         | ClientRequest::RenameAgent { req_id, .. }
         | ClientRequest::AutoRenameAgent { req_id, .. }
         | ClientRequest::MoveAgent { req_id, .. }
@@ -755,12 +754,7 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::ContinueAgentIn { req_id, .. }
         | ClientRequest::GetRouterConfig { req_id }
         | ClientRequest::SaveRouterConfig { req_id, .. }
-        | ClientRequest::AttachCloudAgent { req_id, .. }
-        | ClientRequest::SendCloudMessage { req_id, .. }
         | ClientRequest::CreateTerminal { req_id, .. }
-        | ClientRequest::CreateLink { req_id, .. }
-        | ClientRequest::UpdateLink { req_id, .. }
-        | ClientRequest::DeleteLink { req_id, .. }
         | ClientRequest::RenameTerminal { req_id, .. }
         | ClientRequest::CloseTerminal { req_id, .. }
         | ClientRequest::GetTaskNote { req_id, .. }
@@ -790,8 +784,6 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::Resize { .. }
         | ClientRequest::PrewarmAgent { .. }
         | ClientRequest::PrewarmWorktreeSessions { .. }
-        | ClientRequest::SaveUiState { .. }
-        | ClientRequest::MarkPrSeen { .. }
         | ClientRequest::MarkAgentSeen { .. }
         | ClientRequest::Shutdown => None,
     }

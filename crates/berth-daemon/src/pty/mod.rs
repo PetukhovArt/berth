@@ -1,5 +1,4 @@
 pub mod capture;
-pub mod cloud;
 pub mod kill;
 pub mod kitty;
 mod own_dir;
@@ -11,12 +10,10 @@ pub mod title;
 use anyhow::{Context, Result};
 use berth_core::SessionRef;
 use capture::{Capture, CaptureExt};
-use cloud::CloudScanner;
 use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, MasterPty, PtySize};
 use progress::ProgressScanner;
 use ring::ScrollbackRing;
 use std::io::{Read, Write};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use title::TitleScanner;
 use tokio::sync::{broadcast, mpsc};
@@ -70,15 +67,6 @@ pub enum PtyEvent {
     Exited {
         exit_code: Option<i32>,
     },
-    /// The child pushed/popped kitty keyboard flags; clients re-encode keys.
-    KittyFlags {
-        flags: u8,
-    },
-    /// win32-input-mode toggled (ConPTY requests it at open; a raw-VT child
-    /// may turn it off); clients re-encode keys. Never fires on Unix.
-    Win32Input {
-        on: bool,
-    },
     /// The child's OSC 9;4 progress state flipped. For agent CLIs this is a
     /// busy/idle edge the status machine trusts — notably it is the *only*
     /// end-of-turn signal after the user cancels, which fires no hook.
@@ -93,15 +81,7 @@ pub enum PtyEvent {
     TitleIdle {
         idle: bool,
     },
-    /// The child printed the id of the Claude Cloud session it created or
-    /// attached to. Only scanned for on `--cloud` launches (`arm_cloud_scan`).
-    CloudSession {
-        id: String,
-    },
     Suggestion,
-    /// The child refused to attach to a cloud session ("not enabled for
-    /// your account"); it exits right after. Likewise `--cloud` launches only.
-    CloudAttachRejected,
 }
 
 enum ReaderMsg {
@@ -133,20 +113,12 @@ pub struct PtySession {
     /// OSC 0/2 title-glyph tracking: the same news for a CLI that has
     /// stopped advertising OSC 9;4.
     title: Mutex<TitleScanner>,
-    /// Claude Cloud session id / attach-refusal scanner; `None` until a
-    /// `--cloud` launch arms it, so ordinary sessions pay nothing.
-    cloud: Mutex<Option<CloudScanner>>,
     suggestion: Mutex<Option<suggestion::SuggestionScanner>>,
     /// The child's process tree, claimed at spawn: what the kill watchdog
     /// reaches for when the child outlives its hangup (see `pty::kill`).
     group: kill::ProcessGroup,
     /// Raw-output capture, off unless `BERTH_PTY_CAPTURE` is set.
     capture: Mutex<Option<Capture>>,
-    /// Set by the first `write_input`. A Cloud mirror stops re-teleporting
-    /// once its pane has been typed into: the moment the user talks to the
-    /// local session, replacing it under them would eat their turn.
-    /// Resizes and attaches deliberately do not count.
-    input_seen: AtomicBool,
 }
 
 pub struct SpawnSpec {
@@ -227,10 +199,8 @@ impl PtySession {
             dsr: Mutex::new(berth_core::dsr::DsrScanner::new()),
             progress: Mutex::new(ProgressScanner::new()),
             title: Mutex::new(TitleScanner::new()),
-            cloud: Mutex::new(None),
             suggestion: Mutex::new(None),
             capture: Mutex::new(capture),
-            input_seen: AtomicBool::new(false),
         });
 
         let (tx, rx) = mpsc::channel::<ReaderMsg>(READER_CHANNEL_BOUND);
@@ -240,15 +210,11 @@ impl PtySession {
     }
 
     pub fn write_input(&self, data: &[u8]) -> Result<()> {
-        if !data.is_empty() {
-            self.input_seen.store(true, Ordering::Relaxed);
-        }
         self.write_reply(data)
     }
 
     /// Write bytes the *daemon* owes the child (kitty/DA1/DSR replies) —
-    /// same pipe as `write_input`, but not user input, so it must not trip
-    /// `input_seen` (the Cloud mirror's "typed into" rule).
+    /// same pipe as `write_input`, but not user input
     fn write_reply(&self, data: &[u8]) -> Result<()> {
         let mut w = self.writer.lock().unwrap();
         w.write_all(data)?;
@@ -335,16 +301,6 @@ impl PtySession {
         self.ring.lock().unwrap().snapshot_from(from_seq)
     }
 
-    /// The child's current kitty keyboard flags (0 = legacy).
-    pub fn kitty_flags(&self) -> u8 {
-        self.kitty.lock().unwrap().flags()
-    }
-
-    /// Whether the session's terminal side is in win32-input-mode.
-    pub fn win32_input(&self) -> bool {
-        self.kitty.lock().unwrap().win32_input()
-    }
-
     /// The child's advertised OSC 9;4 busy state, or `None` if it never
     /// advertised one (a CLI without a progress bar, or one not started yet).
     pub fn progress_busy(&self) -> Option<bool> {
@@ -358,17 +314,6 @@ impl PtySession {
         self.title.lock().unwrap().idle()
     }
 
-    /// Start watching this child's output for the Claude Cloud session id
-    /// it prints on creation and for an attach refusal (see `pty::cloud`).
-    /// Output that already landed in the ring is scanned first, so arming
-    /// a moment after spawn cannot miss a fast-printing child; sightings
-    /// then arrive as `PtyEvent::CloudSession` / `CloudAttachRejected`.
-    /// Whether anything has been typed into this session. Drives the
-    /// Cloud mirror's "stop refreshing once it's yours" rule.
-    pub fn input_seen(&self) -> bool {
-        self.input_seen.load(Ordering::Relaxed)
-    }
-
     pub fn arm_suggestion_scan(&self) {
         let (cols, rows) = *self.last_size.lock().unwrap();
         let mut scanner = suggestion::SuggestionScanner::new(cols, rows);
@@ -379,16 +324,6 @@ impl PtySession {
 
     pub fn suggested_prompt(&self) -> Option<String> {
         self.suggestion.lock().unwrap().as_ref()?.current()
-    }
-
-    pub fn arm_cloud_scan(&self) {
-        let mut scanner = CloudScanner::new();
-        let (_, replay) = self.snapshot(None);
-        let sightings = scanner.feed(&replay);
-        *self.cloud.lock().unwrap() = Some(scanner);
-        for sighting in sightings {
-            let _ = self.events.send(sighting.into());
-        }
     }
 }
 
@@ -474,18 +409,14 @@ async fn pump(session: Arc<PtySession>, mut rx: mpsc::Receiver<ReaderMsg>) {
         }
         // Kitty keyboard negotiation rides in the output stream; nothing else
         // would ever answer the child's queries (tmux does the same).
-        let actions = session.kitty.lock().unwrap().feed(pending);
-        if !actions.reply.is_empty() {
-            if let Err(e) = session.write_reply(&actions.reply) {
+        let reply = session.kitty.lock().unwrap().feed(pending).reply;
+        if !reply.is_empty() {
+            if let Err(e) = session.write_reply(&reply) {
                 tracing::warn!(error = %e, "kitty/DA reply write failed");
             }
         }
         let busy_edge = session.progress.lock().unwrap().feed(pending);
         let title_edge = session.title.lock().unwrap().feed(pending);
-        let cloud_sightings = match session.cloud.lock().unwrap().as_mut() {
-            Some(scanner) => scanner.feed(pending),
-            None => Vec::new(),
-        };
         let suggestion_edge = match session.suggestion.lock().unwrap().as_mut() {
             Some(scanner) => scanner.feed(pending).is_some(),
             None => false,
@@ -496,14 +427,6 @@ async fn pump(session: Arc<PtySession>, mut rx: mpsc::Receiver<ReaderMsg>) {
             seq,
             data: std::mem::take(pending),
         });
-        if let Some(flags) = actions.flags_changed {
-            tracing::debug!(session = ?session.sref, flags, "child kitty flags changed");
-            let _ = session.events.send(PtyEvent::KittyFlags { flags });
-        }
-        if let Some(on) = actions.win32_changed {
-            tracing::debug!(session = ?session.sref, on, "win32-input-mode toggled");
-            let _ = session.events.send(PtyEvent::Win32Input { on });
-        }
         if let Some(busy) = busy_edge {
             tracing::debug!(session = ?session.sref, busy, "child progress state changed");
             let _ = session.events.send(PtyEvent::Progress { busy });
@@ -514,10 +437,6 @@ async fn pump(session: Arc<PtySession>, mut rx: mpsc::Receiver<ReaderMsg>) {
         }
         if suggestion_edge {
             let _ = session.events.send(PtyEvent::Suggestion);
-        }
-        for sighting in cloud_sightings {
-            tracing::info!(session = ?session.sref, ?sighting, "cloud sighting in child output");
-            let _ = session.events.send(sighting.into());
         }
     };
 
@@ -561,43 +480,6 @@ async fn pump(session: Arc<PtySession>, mut rx: mpsc::Receiver<ReaderMsg>) {
 mod tests {
     use super::*;
     use berth_core::AgentId;
-
-    /// Any long-lived child will do — the assertions are about what the
-    /// session records, not what the child does with it. It just has to be a
-    /// program that exists: `/bin/sh` is an MSYS mapping, not a path
-    /// `CreateProcess` can resolve, so Windows idles in PowerShell.
-    fn idle_child() -> (String, Vec<String>) {
-        #[cfg(unix)]
-        {
-            ("/bin/cat".into(), vec![])
-        }
-        #[cfg(windows)]
-        {
-            (
-                "powershell.exe".into(),
-                ["-NoProfile", "-Command", "Start-Sleep 30"]
-                    .map(String::from)
-                    .to_vec(),
-            )
-        }
-    }
-
-    fn echo_session() -> Arc<PtySession> {
-        let (program, args) = idle_child();
-        PtySession::spawn(
-            SessionRef::Agent(AgentId::generate()),
-            SpawnSpec {
-                program,
-                args,
-                cwd: std::env::temp_dir(),
-                env: vec![],
-                scrub_env: &[],
-                cols: DEFAULT_COLS,
-                rows: DEFAULT_ROWS,
-            },
-        )
-        .unwrap()
-    }
 
     /// A child that prints `marker` and exits — for asserting on both ends
     /// of a session's life.
@@ -667,33 +549,6 @@ mod tests {
             text.contains("PTY_RING_MARKER"),
             "child output never reached the ring: {text:?}"
         );
-    }
-
-    /// ConPTY opens every session with `CSI ? 9001 h`; the pump must turn
-    /// that into a `Win32Input { on: true }` broadcast, or no client ever
-    /// switches to the encoding that carries Shift+Enter to cooked children.
-    #[cfg(windows)]
-    #[tokio::test]
-    async fn conpty_win32_input_mode_is_broadcast() {
-        let session = echo_session();
-        let mut rx = session.events.subscribe();
-        let seen = tokio::time::timeout(std::time::Duration::from_secs(10), async {
-            loop {
-                match rx.recv().await {
-                    Ok(PtyEvent::Win32Input { on: true }) => break,
-                    Ok(_) => continue,
-                    Err(e) => panic!("event stream ended first: {e}"),
-                }
-            }
-        })
-        .await;
-        assert!(
-            seen.is_ok(),
-            "no Win32Input within 10s — is ConPTY no longer requesting ?9001h, \
-             or did the scanner stop seeing it?"
-        );
-        assert!(session.win32_input(), "the attach-time accessor agrees");
-        session.kill();
     }
 
     /// Closing a session must take every process its agent left behind.
@@ -772,25 +627,6 @@ mod tests {
             }
             tokio::time::sleep(Duration::from_millis(200)).await;
         }
-    }
-
-    /// The Cloud mirror stops refreshing a pane once its user has typed
-    /// into it, so `input_seen` must track keystrokes only — an attach's
-    /// resize jiggle happens without anyone touching the keyboard.
-    /// Opens a real PTY; on Windows the pump's DSR reply is what lets the
-    /// ConPTY child start (and thus be reaped) at all.
-    #[tokio::test]
-    async fn input_seen_tracks_keystrokes_not_resizes() {
-        let session = echo_session();
-        assert!(!session.input_seen());
-        session.resize_with_jiggle(100, 30).unwrap();
-        session.resize(80, 24).unwrap();
-        assert!(!session.input_seen(), "a resize is not input");
-        session.write_input(b"").unwrap();
-        assert!(!session.input_seen(), "an empty write is not input");
-        session.write_input(b"x").unwrap();
-        assert!(session.input_seen());
-        session.kill();
     }
 
     /// The pane is berth's grid, not the terminal the daemon was started

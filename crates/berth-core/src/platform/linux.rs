@@ -3,52 +3,25 @@
 
 use std::ffi::OsString;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use super::{Capabilities, Os};
 
 pub use super::unix::{
     has_child_processes, is_link, kill_process_tree, lead_process_tree, no_window_std,
-    no_window_tokio, owner_only, process_rss_bytes, resolve_editor_program, resolve_program,
-    restrict_to_owner, strip_verbatim_prefix, symlink, termination_signal, EXECUTABLE_SUFFIXES,
-    PROFILE_HOME_VAR,
+    no_window_tokio, owner_only, resolve_program, restrict_to_owner, strip_verbatim_prefix,
+    symlink, termination_signal, EXECUTABLE_SUFFIXES, PROFILE_HOME_VAR,
 };
 
 pub const OS: Os = Os::Linux;
 
 pub const CAPABILITIES: Capabilities = Capabilities {
     pty_answers_terminal_queries: false,
-    console_drops_kitty_input: false,
-    paste_arrives_as_keys: false,
-    win32_console_keys: false,
     paths_case_insensitive: false,
-    system_sounds: false,
 };
-
-pub fn open_url(url: &str) -> bool {
-    super::unix::open_url_with("xdg-open", url)
-}
 
 pub fn open_path(path: &Path) -> io::Result<()> {
     super::unix::open_path_with("xdg-open", path)
-}
-
-pub fn copy_to_clipboard(text: &str) -> bool {
-    let bytes = text.as_bytes();
-    if std::env::var_os("WAYLAND_DISPLAY").is_some() {
-        return super::pipe_into("wl-copy", &[], bytes);
-    }
-    // X11: prefer xclip, fall back to xsel.
-    super::pipe_into("xclip", &["-selection", "clipboard"], bytes)
-        || super::pipe_into("xsel", &["--clipboard", "--input"], bytes)
-}
-
-pub fn system_sound(_name: &str) -> Option<PathBuf> {
-    None
-}
-
-pub fn play_sound_file(_path: &Path) -> bool {
-    false
 }
 
 pub fn system_total_bytes() -> Option<u64> {

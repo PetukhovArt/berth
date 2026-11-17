@@ -144,7 +144,6 @@ const READ_ONLY_REQUESTS: &[&str] = &[
     "Resize",
     "ListBranches",
     "ListOrphanedSessions",
-    "MarkPrSeen",
     "MarkAgentSeen",
     "GetMetrics",
     "GetUsageLimits",

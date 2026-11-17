@@ -95,10 +95,10 @@ What the terminal UI did that the desktop app does not, worth keeping once the T
   `berth browser`; the tunnel code is `crates/berth/src/tunnel.rs`.
 - Token use per Session, beside the subscription limits, so a spent window shows which Agent spent
   it. Prices only from rates the user enters, never a built-in table. Source:
-  `crates/berth-tui/src/diagnostics.rs`, `crates/berth-tui/src/price.rs`.
+  `git show d4ee7a4^:crates/berth-tui/src/diagnostics.rs` and `git show d4ee7a4^:crates/berth-tui/src/price.rs`.
 - Agent presets: a saved Agent, model, effort and text put before and after the task. The start card
-  and scheduled prompts launch from one. Source: `crates/berth-tui/src/agent_presets.rs`.
-- Mark a file reviewed in a diff, kept per merge request. Source: `crates/berth-tui/src/review.rs`.
+  and scheduled prompts launch from one. Source: `git show d4ee7a4^:crates/berth-tui/src/agent_presets.rs`.
+- Mark a file reviewed in a diff, kept per merge request. Source: `git show d4ee7a4^:crates/berth-tui/src/review.rs`.
 - Open a Project's repository page on its git host from the Project menu, the `origin` URL made
   browsable with credentials stripped.
 - A Linux build of the desktop app, since the TUI was the only interface on Linux.

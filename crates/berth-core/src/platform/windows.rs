@@ -9,17 +9,13 @@ use std::process::{Command, Stdio};
 
 use super::{Capabilities, NoWindow as _, Os};
 
-pub use resolve::{resolve_editor_program, resolve_program};
+pub use resolve::resolve_program;
 
 pub const OS: Os = Os::Windows;
 
 pub const CAPABILITIES: Capabilities = Capabilities {
     pty_answers_terminal_queries: true,
-    console_drops_kitty_input: true,
-    paste_arrives_as_keys: true,
-    win32_console_keys: true,
     paths_case_insensitive: true,
-    system_sounds: false,
 };
 
 pub const PROFILE_HOME_VAR: &str = "USERPROFILE";
@@ -40,26 +36,6 @@ pub fn lead_process_tree(command: &mut tokio::process::Command) -> &mut tokio::p
     command
 }
 
-pub fn open_url(url: &str) -> bool {
-    use std::os::windows::process::CommandExt;
-    // `start` is a cmd builtin (ShellExecute under the hood), so the URL
-    // crosses cmd's own parser. std quotes an argv item only when it has
-    // whitespace, and an unquoted `&` in a query string would split the
-    // command — so the URL is quoted by hand and passed raw. Embedded
-    // `"` are stripped, not escaped: cmd has no escape `start` survives,
-    // and no http(s) URL needs one. The empty quoted arg is `start`'s
-    // window-title slot.
-    let quoted = format!("\"{}\"", url.replace('"', ""));
-    Command::new("cmd.exe")
-        .args(["/c", "start", ""])
-        .raw_arg(quoted)
-        .no_window()
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .is_ok_and(|status| status.success())
-}
-
 pub fn open_path(path: &Path) -> io::Result<()> {
     Command::new("cmd")
         .args(["/c", "start", ""])
@@ -67,49 +43,6 @@ pub fn open_path(path: &Path) -> io::Result<()> {
         .no_window()
         .spawn()
         .map(drop)
-}
-
-/// clip.exe assumes the console codepage unless the input carries a
-/// UTF-16LE BOM, so non-ASCII text must go over as UTF-16.
-pub fn copy_to_clipboard(text: &str) -> bool {
-    let mut utf16 = vec![0xFF, 0xFE];
-    for unit in text.encode_utf16() {
-        utf16.extend_from_slice(&unit.to_le_bytes());
-    }
-    super::pipe_into("clip", &[], &utf16)
-}
-
-pub fn system_sound(_name: &str) -> Option<PathBuf> {
-    None
-}
-
-pub fn play_sound_file(_path: &Path) -> bool {
-    false
-}
-
-/// The working set is Windows' name for the resident set: the process's
-/// pages currently in physical memory, which is the number the metrics modal
-/// means by RSS everywhere else.
-pub fn process_rss_bytes(pid: u32) -> Option<u64> {
-    use windows_sys::Win32::Foundation::CloseHandle;
-    use windows_sys::Win32::System::ProcessStatus::{
-        GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS,
-    };
-    use windows_sys::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
-    unsafe {
-        let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
-        if handle.is_null() {
-            return None;
-        }
-        let mut counters: PROCESS_MEMORY_COUNTERS = std::mem::zeroed();
-        let ok = GetProcessMemoryInfo(
-            handle,
-            &mut counters,
-            std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32,
-        ) != 0;
-        CloseHandle(handle);
-        ok.then_some(counters.WorkingSetSize as u64)
-    }
 }
 
 pub fn system_total_bytes() -> Option<u64> {
@@ -268,46 +201,6 @@ mod resolve {
             .find_map(|dir| first_existing(&dir.join(program), &extensions))
     }
 
-    /// Resolve the configured editor — `resolve_program`, then Git for
-    /// Windows' `usr\bin` as a fallback for a bare name that PATH doesn't
-    /// carry. berth's audience always has Git for Windows, and it ships
-    /// `vim.exe` (and friends) in an `usr\bin` that PowerShell PATHs never
-    /// expose — only `Git\cmd` is. Editor-only on purpose: agent CLIs must
-    /// fail honestly rather than silently resolve into MSYS binaries.
-    pub fn resolve_editor_program(name: &str) -> Option<PathBuf> {
-        if let Some(found) = resolve_program(name) {
-            return Some(found);
-        }
-        if Path::new(name).components().count() > 1 {
-            return None; // An explicit path means that path, not a stand-in.
-        }
-        git_usr_bin(&resolve_program("git.exe")?, name, &pathext())
-    }
-
-    /// `<git install root>\usr\bin\<name>`, derived from where `git.exe`
-    /// resolved: `<root>\cmd`, `<root>\bin`, or `<root>\mingw64\bin` — the
-    /// three places a Git for Windows PATH entry can point.
-    fn git_usr_bin(git: &Path, name: &str, extensions: &str) -> Option<PathBuf> {
-        let dir = git.parent()?;
-        let root = match dir.file_name()?.to_str()?.to_ascii_lowercase().as_str() {
-            "cmd" => dir.parent()?,
-            "bin" => {
-                let up = dir.parent()?;
-                match up.file_name().and_then(|n| n.to_str()) {
-                    Some(n)
-                        if n.eq_ignore_ascii_case("mingw64")
-                            || n.eq_ignore_ascii_case("mingw32") =>
-                    {
-                        up.parent()?
-                    }
-                    _ => up,
-                }
-            }
-            _ => return None,
-        };
-        first_existing(&root.join("usr").join("bin").join(name), extensions)
-    }
-
     fn pathext() -> String {
         std::env::var("PATHEXT").unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".into())
     }
@@ -399,42 +292,6 @@ mod resolve {
                 None => std::env::remove_var("PATH"),
             }
             assert!(found.is_some(), "a bare name must be found down PATH");
-        }
-
-        /// The Git-for-Windows fallback must find `usr\bin\vim.exe` from any
-        /// of the three dirs a PATH entry resolves `git.exe` in, and stay
-        /// silent when the editor isn't shipped there.
-        #[test]
-        fn git_usr_bin_is_derived_from_each_git_location() {
-            let tmp = tempfile::tempdir().unwrap();
-            let root = tmp.path();
-            for dir in ["cmd", "bin", r"mingw64\bin", r"usr\bin"] {
-                std::fs::create_dir_all(root.join(dir)).unwrap();
-            }
-            let vim = root.join(r"usr\bin\vim.exe");
-            std::fs::write(&vim, b"").unwrap();
-
-            let extensions = ".COM;.EXE";
-            // Case-normalized like `assert_resolves`: PATHEXT supplies `.EXE`.
-            let normalize = |p: &Path| p.to_string_lossy().to_lowercase();
-            for git in [r"cmd\git.exe", r"bin\git.exe", r"mingw64\bin\git.exe"] {
-                let got = git_usr_bin(&root.join(git), "vim", extensions);
-                assert_eq!(
-                    got.as_deref().map(normalize),
-                    Some(normalize(&vim)),
-                    "from {git}"
-                );
-            }
-            assert_eq!(
-                git_usr_bin(&root.join(r"cmd\git.exe"), "hx", extensions),
-                None,
-                "an editor Git doesn't ship must stay unresolved"
-            );
-            assert_eq!(
-                git_usr_bin(Path::new(r"C:\somewhere\else\git.exe"), "vim", extensions),
-                None,
-                "an unrecognised git layout must not invent a root"
-            );
         }
     }
 }

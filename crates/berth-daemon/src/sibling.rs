@@ -72,9 +72,7 @@ impl Daemon {
             model,
             effort,
             auto_title: true,
-            cloud_prompt: None,
             starting_prompt: Some(starting_prompt.to_string()),
-            pr_url: None,
         })
     }
 
@@ -148,11 +146,9 @@ mod tests {
             model: model.map(str::to_string),
             effort: model.map(|_| "high".to_string()),
             session_id: Some("s1".into()),
-            cloud_session_id: None,
             sort_order: 0,
             status_changed_at: 0,
             alive: false,
-            cloud_mirroring: false,
             suggested_prompt: None,
             provider_error: None,
             routed_from: None,
@@ -196,7 +192,6 @@ mod tests {
             spec.starting_prompt.as_deref(),
             Some("Fix the login redirect")
         );
-        assert!(spec.cloud_prompt.is_none() && spec.pr_url.is_none());
     }
 
     #[test]

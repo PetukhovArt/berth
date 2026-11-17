@@ -11,15 +11,13 @@ use crate::store::Store;
 use anyhow::{bail, Context, Result};
 use berth_core::env;
 use berth_core::paths;
-use berth_core::platform::NoWindow;
 use berth_core::{
-    Agent, AgentId, AgentKind, AgentStatus, EnterOutcome, Entity, EntityId, Link, LinkId,
-    MetricsSnapshot, OrphanedSession, PrewarmInfo, Project, ProjectId, ServerEvent, SessionRef,
-    TerminalId, TerminalTab, Workspace, WorkspaceId, Worktree, WorktreeId, MAX_CLOUD_PROMPT_BYTES,
+    Agent, AgentId, AgentKind, AgentStatus, EnterOutcome, Entity, EntityId, MetricsSnapshot,
+    OrphanedSession, PrewarmInfo, Project, ProjectId, ServerEvent, SessionRef, TerminalId,
+    TerminalTab, Workspace, WorkspaceId, Worktree, WorktreeId, MAX_STARTING_PROMPT_BYTES,
 };
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast;
@@ -42,15 +40,6 @@ const PREWARM_STAGGER: Duration = Duration::from_millis(1500);
 /// Hook events buffered on a warm session before its row exists (oldest
 /// dropped beyond this).
 const PREWARM_HOOK_BUFFER_CAP: usize = 64;
-/// How often a Cloud mirror re-teleports to pick up the session's newer
-/// turns. `claude --teleport` re-fetches the transcript and re-checks-out
-/// the branch each time, so this trades freshness against a git checkout
-/// and a CLI boot per tick.
-const CLOUD_MIRROR_REFRESH: Duration = Duration::from_secs(45);
-/// Floor for the `BERTH_CLOUD_MIRROR_SECS` override. A teleport is a git
-/// checkout plus a CLI boot; below this the row would spend its life
-/// respawning.
-const CLOUD_MIRROR_MIN: Duration = Duration::from_secs(2);
 /// `$SHELL -l -i -c <cmd>`: a login *and* interactive shell, so zsh sources
 /// ~/.zprofile and ~/.zshrc both and the child sees the PATH the user's
 /// terminal has. The CLI probe and the spawn wrapper share it so they can
@@ -60,21 +49,6 @@ const CLOUD_MIRROR_MIN: Duration = Duration::from_secs(2);
 /// the spawn itself gets to report.
 const CLI_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// Mirror cadence, `BERTH_CLOUD_MIRROR_SECS` overriding the default (and
-/// `0` disabling the follow entirely — the pane is then only refreshed by
-/// hand, from the row's menu). Read once: this is a daemon-wide knob, not
-/// something to re-probe per tick.
-fn cloud_mirror_refresh() -> Option<Duration> {
-    static CADENCE: std::sync::OnceLock<Option<Duration>> = std::sync::OnceLock::new();
-    *CADENCE.get_or_init(|| {
-        match env::var(env::CLOUD_MIRROR_SECS).and_then(|v| v.trim().parse::<u64>().ok()) {
-            Some(0) => None,
-            Some(secs) => Some(Duration::from_secs(secs).max(CLOUD_MIRROR_MIN)),
-            None => Some(CLOUD_MIRROR_REFRESH),
-        }
-    })
-}
-
 pub(crate) struct CreateAgentSpec {
     pub worktree: WorktreeId,
     pub name: String,
@@ -82,10 +56,8 @@ pub(crate) struct CreateAgentSpec {
     pub model: Option<String>,
     pub effort: Option<String>,
     pub auto_title: bool,
-    pub cloud_prompt: Option<String>,
     /// The CLI's positional first prompt (an AGENT PRESET launch). Request-only.
     pub starting_prompt: Option<String>,
-    pub pr_url: Option<String>,
 }
 
 /// A pre-spawned agent CLI waiting to be adopted by the next CreateAgent for
@@ -156,16 +128,6 @@ pub struct Daemon {
     /// by any other spawn of the agent, and consulted by the cwd reparent so
     /// the old checkout's cwd can't drag the row back in the meantime.
     pending_moves: Mutex<HashMap<AgentId, Worktree>>,
-    /// Set the first time `claude --cloud <id>` refuses to attach ("not
-    /// enabled for your account"). Live attach is a server-side rollout, so
-    /// once it has been refused every later re-entry teleports straight
-    /// away rather than flashing the same error again. Deliberately not
-    /// persisted: a fresh daemon re-probes, so the day the rollout lands
-    /// berth picks it up without anyone clearing a flag.
-    cloud_attach_gated: AtomicBool,
-    /// Cloud rows currently being mirrored (periodic re-teleport). Keyed by
-    /// agent so a second follow request replaces rather than doubles up.
-    cloud_mirrors: Mutex<HashMap<AgentId, Arc<tokio_util::sync::CancellationToken>>>,
     /// Serializes the check-and-spawn inside [`Daemon::ensure_session`].
     /// Attach (the request loop) and the worktree prewarm sweep (its own
     /// task) can both reach for the same dead session; without this they
@@ -203,8 +165,6 @@ impl Daemon {
             session_interest: Mutex::new(HashMap::new()),
             last_cwd: Mutex::new(HashMap::new()),
             pending_moves: Mutex::new(HashMap::new()),
-            cloud_attach_gated: AtomicBool::new(false),
-            cloud_mirrors: Mutex::new(HashMap::new()),
             spawn_gate: Mutex::new(()),
             prewarm_sweep: Mutex::new(None),
             last_sample: Mutex::new(None),
@@ -608,17 +568,13 @@ impl Daemon {
             worktrees,
             agents,
             terminals,
-            links: self.store.load_links()?,
-            pr_seen: self.store.load_pr_seen()?,
             archived_external_sessions: self.store.load_archived_external_sessions()?,
-            ui_state: self.store.load_ui_state()?,
         })
     }
 
     fn agent_entity(&self, id: &AgentId) -> Result<Agent> {
         let mut agent = self.store.get_agent(id)?.context("agent not found")?;
         agent.alive = self.is_alive(&SessionRef::Agent(id.clone()));
-        agent.cloud_mirroring = self.cloud_mirror_active(id);
         agent.suggested_prompt = self
             .sessions
             .lock()
@@ -957,14 +913,10 @@ impl Daemon {
     // ---- orphaned sessions ----
 
     /// The resumable conversations of `project`, newest first: every
-    /// ORPHANED SESSION, plus the live worktrees' own when `include_live`.
-    pub fn list_orphaned_sessions(
-        &self,
-        project: &ProjectId,
-        include_live: bool,
-    ) -> Result<Vec<OrphanedSession>> {
+    /// ORPHANED SESSION
+    pub fn list_orphaned_sessions(&self, project: &ProjectId) -> Result<Vec<OrphanedSession>> {
         let (project, live) = self.project_with_worktrees(project)?;
-        crate::orphans::list(&self.store, &project, &live, include_live)
+        crate::orphans::list(&self.store, &project, &live, false)
     }
 
     /// Bring an ORPHANED SESSION back as an AGENT in `worktree_id`.
@@ -1016,11 +968,9 @@ impl Daemon {
             model: None,
             effort: None,
             session_id: Some(orphan.session_id.clone()),
-            cloud_session_id: None,
             sort_order: 0,
             status_changed_at: epoch_ms(),
             alive: false,
-            cloud_mirroring: false,
             suggested_prompt: None,
             provider_error: None,
             routed_from: None,
@@ -1034,14 +984,8 @@ impl Daemon {
             .then(|| crate::orphans::resume_notice(&orphan, &worktree))
             .flatten();
         let notice = notice.as_deref();
-        let spawned = self.spawn_agent_session_with(
-            &agent,
-            &worktree,
-            DEFAULT_COLS,
-            DEFAULT_ROWS,
-            None,
-            notice,
-        );
+        let spawned =
+            self.spawn_agent_session_with(&agent, &worktree, DEFAULT_COLS, DEFAULT_ROWS, notice);
         self.rollback_agent_on_spawn_error(&agent.id, spawned)?;
         // Stamped, not deleted: `arm_resume_fallback` may still find the CLI
         // has dropped the conversation, and a row deleted here would make
@@ -1175,38 +1119,13 @@ impl Daemon {
             model,
             effort,
             auto_title,
-            cloud_prompt,
             starting_prompt,
-            pr_url,
         } = spec;
         if kind == AgentKind::Acp {
             bail!("an ACP agent is created with its provider (CreateAcpAgent)");
         }
-        let cloud_prompt = match cloud_prompt {
-            Some(_) if kind != AgentKind::Claude => {
-                bail!("cloud launch is only supported for Claude")
-            }
-            Some(prompt) => {
-                let prompt = validate_cloud_text(&prompt, "task")?;
-                Some(prompt)
-            }
-            None => None,
-        };
         let starting_prompt = match starting_prompt {
-            Some(_) if cloud_prompt.is_some() => {
-                bail!("a starting prompt is not supported for Claude Cloud")
-            }
             Some(prompt) => Some(validate_starting_prompt(&prompt)?),
-            None => None,
-        };
-        let pr_url = match pr_url {
-            Some(_) if kind != AgentKind::Claude => {
-                bail!("PR launch context is only supported for Claude")
-            }
-            Some(_) if cloud_prompt.is_some() => {
-                bail!("PR launch context is not supported for Claude Cloud")
-            }
-            Some(url) => Some(validate_pr_url(&url)?),
             None => None,
         };
         let worktree = self
@@ -1220,7 +1139,7 @@ impl Daemon {
             crate::prewarm_prompt::pasteable_into_warm_cli(kind, prompt)
                 && self.warm_cli_booted(&worktree_id, kind)
         });
-        let adopted = (cloud_prompt.is_none() && pr_url.is_none() && prompt_fits_warm_cli)
+        let adopted = prompt_fits_warm_cli
             .then(|| self.take_prewarmed(&worktree_id, kind, model.as_deref(), effort.as_deref()))
             .flatten();
         let prompt_for_warm_cli = adopted.as_ref().and(starting_prompt.clone());
@@ -1250,11 +1169,9 @@ impl Daemon {
             model,
             effort,
             session_id: None,
-            cloud_session_id: None,
             sort_order: 0,
             status_changed_at: epoch_ms(),
             alive: false,
-            cloud_mirroring: false,
             suggested_prompt: None,
             provider_error: None,
             routed_from: None,
@@ -1262,7 +1179,7 @@ impl Daemon {
             acp_provider: None,
         };
         self.store
-            .insert_agent_with_launch_context(&agent, auto_title, pr_url.as_deref())?;
+            .insert_agent_with_auto_title(&agent, auto_title)?;
         if adopted.is_none() {
             // Cold path: boot the CLI right away.
             let spawned = self.spawn_agent_session_with(
@@ -1270,7 +1187,6 @@ impl Daemon {
                 &worktree,
                 DEFAULT_COLS,
                 DEFAULT_ROWS,
-                cloud_prompt.as_deref().map(CloudLaunch::Create),
                 starting_prompt.as_deref(),
             );
             self.rollback_agent_on_spawn_error(&agent.id, spawned)?;
@@ -1362,11 +1278,9 @@ impl Daemon {
             model: model.clone(),
             effort: effort.clone(),
             session_id: None,
-            cloud_session_id: None,
             sort_order: 0,
             status_changed_at: 0,
             alive: false,
-            cloud_mirroring: false,
             suggested_prompt: None,
             provider_error: None,
             routed_from: None,
@@ -1754,7 +1668,7 @@ impl Daemon {
         let prompt = relocation_prompt(&target);
         let prompt = (agent.kind == AgentKind::Claude).then_some(prompt.as_str());
         if let Err(e) =
-            self.spawn_agent_session_with(&agent, &target, DEFAULT_COLS, DEFAULT_ROWS, None, prompt)
+            self.spawn_agent_session_with(&agent, &target, DEFAULT_COLS, DEFAULT_ROWS, prompt)
         {
             tracing::warn!(agent = %id, error = %e, "respawn after worktree relocation failed");
         }
@@ -1953,20 +1867,6 @@ impl Daemon {
         if agent.archived {
             bail!("agent is archived — unarchive it first");
         }
-        // A Cloud row that never became a local session has nothing to
-        // resume here: a plain restart would boot a bare CLI with no link
-        // to the work. Re-enter the cloud session instead. Once a teleport
-        // has produced a local session id, restarts resume that.
-        // A teleport leaves a local session id on the row, so `session_id`
-        // alone stops distinguishing "never entered the cloud session" from
-        // "mirroring it". While the mirror is live the row is still the
-        // cloud session's window: restart re-enters it rather than resuming
-        // whatever the last pull happened to snapshot.
-        if agent.cloud_session_id.is_some()
-            && (agent.session_id.is_none() || self.cloud_mirror_active(id))
-        {
-            return self.attach_cloud_agent(id).await;
-        }
         let worktree = self
             .store
             .get_worktree(&agent.worktree_id)?
@@ -1979,366 +1879,6 @@ impl Daemon {
             entity: Entity::Agent(Box::new(broadcast_agent)),
         });
         Ok(())
-    }
-
-    /// Re-enter the Claude Cloud session a row launched, and keep the pane
-    /// current from there on.
-    ///
-    /// The live attach (`claude --cloud <id>`) is tried first, but only
-    /// until this daemon has seen it refused once: it is a server-side
-    /// rollout, so the second attempt on a gated account would just flash
-    /// the same red error at the user. After a refusal every re-entry goes
-    /// straight to `--teleport`, which fetches the session's transcript and
-    /// branch and renders it locally. Either CLI switches the checkout to
-    /// the cloud branch — and teleport refuses a dirty tree outright — so a
-    /// row still sitting in the main checkout is first re-homed into a
-    /// worktree of its own; the user's checkout is never the one that gets
-    /// switched.
-    ///
-    /// A teleport is a snapshot, not a live link, so the pane it produces is
-    /// registered as a *mirror*: [`Self::start_cloud_mirror`] re-teleports it
-    /// on a timer until the user types into it.
-    pub async fn attach_cloud_agent(self: &Arc<Self>, id: &AgentId) -> Result<()> {
-        let agent = self.store.get_agent(id)?.context("agent not found")?;
-        if agent.archived {
-            bail!("agent is archived — unarchive it first");
-        }
-        let Some(cloud_id) = agent.cloud_session_id.clone() else {
-            bail!("session was not launched in Claude Cloud");
-        };
-        let worktree = self.cloud_worktree_for(&agent, &cloud_id).await?;
-        self.kill_session(&SessionRef::Agent(id.clone()));
-        let launch =
-            cloud_reentry_launch(&cloud_id, self.cloud_attach_gated.load(Ordering::Relaxed));
-        self.spawn_agent_session_with(
-            &agent,
-            &worktree,
-            DEFAULT_COLS,
-            DEFAULT_ROWS,
-            Some(launch),
-            None,
-        )?;
-        self.start_cloud_mirror(id.clone());
-        self.broadcast_agent(id)?;
-        Ok(())
-    }
-
-    /// The checkout a Cloud row re-enters its session in. A row sitting in
-    /// the main checkout is re-homed into a `cloud-<id>` worktree first —
-    /// both the attach and the teleport check the cloud branch out where
-    /// they run, and the user's main checkout must never be that place.
-    async fn cloud_worktree_for(
-        self: &Arc<Self>,
-        agent: &Agent,
-        cloud_id: &str,
-    ) -> Result<Worktree> {
-        let worktree = self
-            .store
-            .get_worktree(&agent.worktree_id)?
-            .context("worktree not found")?;
-        if !worktree.is_main {
-            return Ok(worktree);
-        }
-        let branch = cloud_worktree_branch(cloud_id);
-        let EntityId::Worktree(target) = self
-            .create_worktree(&worktree.project_id, &branch, None)
-            .await?
-        else {
-            bail!("worktree create returned a non-worktree entity");
-        };
-        let moved = self
-            .store
-            .get_worktree(&target)?
-            .context("worktree not found")?;
-        // Same invalidation as a deliberate move: the remembered hook cwd
-        // points at the old checkout and would sync the row back.
-        self.last_cwd.lock().unwrap().remove(&agent.id);
-        self.store.set_agent_worktree(&agent.id, &target)?;
-        tracing::info!(agent = %agent.id, branch, "cloud row re-homed into its own worktree");
-        Ok(moved)
-    }
-
-    /// Follow a Cloud row's session: re-teleport its pane every
-    /// [`CLOUD_MIRROR_REFRESH`] so turns the cloud agent has taken since the
-    /// last pull show up without anyone opening a browser.
-    ///
-    /// The mirror stops for good the moment the pane is typed into. A
-    /// teleport is a full kill-and-respawn of the local CLI, so refreshing
-    /// under someone mid-sentence would eat their turn — the first keystroke
-    /// is the handover: from then on the pane is an ordinary local session
-    /// that happens to have started from a cloud transcript.
-    fn start_cloud_mirror(self: &Arc<Self>, id: AgentId) {
-        let Some(cadence) = cloud_mirror_refresh() else {
-            return;
-        };
-        let token = Arc::new(tokio_util::sync::CancellationToken::new());
-        if let Some(previous) = self
-            .cloud_mirrors
-            .lock()
-            .unwrap()
-            .insert(id.clone(), token.clone())
-        {
-            previous.cancel();
-        }
-        let daemon = self.clone();
-        tokio::spawn(async move {
-            loop {
-                tokio::select! {
-                    _ = token.cancelled() => break,
-                    _ = daemon.shutdown.cancelled() => break,
-                    _ = tokio::time::sleep(cadence) => {}
-                }
-                match daemon.refresh_cloud_mirror(&id).await {
-                    Ok(true) => {}
-                    Ok(false) => break,
-                    Err(e) => {
-                        tracing::warn!(agent = %id, error = %e, "cloud mirror refresh failed");
-                        break;
-                    }
-                }
-            }
-            // Only clear the slot if it is still ours: a newer mirror may
-            // have replaced (and cancelled) this one already.
-            let ours = {
-                let mut mirrors = daemon.cloud_mirrors.lock().unwrap();
-                let ours = mirrors.get(&id).is_some_and(|t| Arc::ptr_eq(t, &token));
-                if ours {
-                    mirrors.remove(&id);
-                }
-                ours
-            };
-            // The row wears a "following" badge while this task runs, so
-            // its end is news: re-broadcast so the badge goes back to a
-            // plain `cloud` instead of promising refreshes nobody is doing.
-            if ours && !daemon.shutdown.is_cancelled() {
-                daemon.try_broadcast_agent(&id);
-            }
-        });
-    }
-
-    /// Cancel a row's mirror, if it has one. Called whenever the row is
-    /// respawned as something other than a cloud re-entry — a plain restart,
-    /// an archive, a delete — so a pending tick cannot teleport over it.
-    fn stop_cloud_mirror(&self, id: &AgentId) {
-        if let Some(token) = self.cloud_mirrors.lock().unwrap().remove(id) {
-            token.cancel();
-        }
-    }
-
-    pub fn cloud_mirror_active(&self, id: &AgentId) -> bool {
-        self.cloud_mirrors.lock().unwrap().contains_key(id)
-    }
-
-    /// One mirror tick. `Ok(false)` means stop following: the row was typed
-    /// into, archived, deleted, or lost its cloud session id.
-    async fn refresh_cloud_mirror(self: &Arc<Self>, id: &AgentId) -> Result<bool> {
-        let Some(agent) = self.store.get_agent(id)? else {
-            return Ok(false);
-        };
-        if agent.archived {
-            return Ok(false);
-        }
-        let Some(cloud_id) = agent.cloud_session_id.clone() else {
-            return Ok(false);
-        };
-        let sref = SessionRef::Agent(id.clone());
-        let live = self.sessions.lock().unwrap().get(&sref).cloned();
-        match live {
-            Some(session) if session.input_seen() => {
-                tracing::info!(agent = %id, "cloud mirror adopted — the pane has been typed into");
-                return Ok(false);
-            }
-            Some(_) => {}
-            // The pane this mirror last spawned is gone. Either the idle
-            // reaper took it — nobody has looked at this row in a long
-            // time, and respawning it every tick would make cloud rows the
-            // one kind of session that can never be reaped — or the
-            // teleport itself died, in which case retrying it forever is
-            // the wrong answer too. Stop; opening the row re-enters the
-            // session and starts a fresh mirror.
-            None => {
-                tracing::info!(agent = %id, "cloud mirror stopping — its pane is gone");
-                return Ok(false);
-            }
-        }
-        let worktree = self.cloud_worktree_for(&agent, &cloud_id).await?;
-        self.kill_session(&sref);
-        self.spawn_agent_session_with(
-            &agent,
-            &worktree,
-            DEFAULT_COLS,
-            DEFAULT_ROWS,
-            Some(CloudLaunch::Teleport(&cloud_id)),
-            None,
-        )?;
-        self.try_broadcast_agent(id);
-        Ok(true)
-    }
-
-    /// Queue a message on a Cloud session without leaving berth.
-    /// `claude -p <msg> --cloud <id>` is fire-and-forget — the CLI prints
-    /// "Sent to cloud session." and returns, the reply only ever shows up in
-    /// the transcript — so the send is followed by an immediate mirror
-    /// refresh, and the answer lands in the pane on a later tick.
-    pub async fn send_cloud_message(self: &Arc<Self>, id: &AgentId, message: &str) -> Result<()> {
-        let agent = self.store.get_agent(id)?.context("agent not found")?;
-        let Some(cloud_id) = agent.cloud_session_id.clone() else {
-            bail!("session was not launched in Claude Cloud");
-        };
-        let message = validate_cloud_text(message, "message")?;
-        let worktree = self
-            .store
-            .get_worktree(&agent.worktree_id)?
-            .context("worktree not found")?;
-
-        let cmd_override = env::var(env::AGENT_CMD);
-        let (program, args) = match cmd_override.as_deref() {
-            Some(over) => (over.to_string(), Vec::new()),
-            None => launch::wrap_for_user_env(
-                "claude",
-                &[
-                    "-p".to_string(),
-                    message.clone(),
-                    format!("--cloud={cloud_id}"),
-                ],
-            ),
-        };
-        let output = tokio::process::Command::new(&program)
-            .args(&args)
-            .current_dir(&worktree.path)
-            .no_window()
-            .output()
-            .await
-            .context("run claude -p --cloud")?;
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let detail = stderr.trim().lines().last().unwrap_or("").to_string();
-            bail!(
-                "claude could not reach the cloud session{}",
-                if detail.is_empty() {
-                    String::new()
-                } else {
-                    format!(": {detail}")
-                }
-            );
-        }
-        tracing::info!(agent = %id, cloud_session = %cloud_id, bytes = message.len(), "message sent to cloud session");
-        // Pull the transcript now so the send is visibly acknowledged, and
-        // make sure the row keeps following from here even if it had been
-        // sitting dead since a create.
-        if !self.cloud_mirror_active(id) {
-            self.start_cloud_mirror(id.clone());
-        }
-        let _ = self.refresh_cloud_mirror(id).await;
-        Ok(())
-    }
-
-    /// A `claude --cloud <task>` create prints the new session's id and
-    /// exits — on this rollout it never stays attached. Left alone the row
-    /// is a dead pane whose last line is "Resume with: claude --teleport
-    /// …", which tells the user to go somewhere else to watch their own
-    /// agent work. So: capture the id off the output, wait for the create
-    /// to finish, and re-enter the session, which leaves the row mirroring
-    /// the cloud transcript.
-    ///
-    /// The id is persisted here as well as in `watch_for_exit` (both listen
-    /// to the same broadcast, in no fixed order) so the re-entry cannot read
-    /// a row the other task has not written yet. Both writes are the same
-    /// value, so whichever lands second is a no-op.
-    fn arm_cloud_follow(self: &Arc<Self>, id: AgentId, session: Arc<PtySession>) {
-        let daemon = self.clone();
-        let mut rx = session.events.subscribe();
-        tokio::spawn(async move {
-            let mut cloud_id: Option<String> = None;
-            loop {
-                match rx.recv().await {
-                    Ok(PtyEvent::CloudSession { id }) => cloud_id = Some(id),
-                    Ok(PtyEvent::Exited { .. }) => break,
-                    Ok(_) => continue,
-                    Err(broadcast::error::RecvError::Lagged(_)) => continue,
-                    Err(broadcast::error::RecvError::Closed) => break,
-                }
-            }
-            // No id means the create failed (bad task, no auth, offline).
-            // Its error text is the most useful thing the pane can show.
-            let Some(cloud_id) = cloud_id else { return };
-            if daemon.shutdown.is_cancelled() {
-                return;
-            }
-            match daemon.store.get_agent(&id) {
-                Ok(Some(agent)) if !agent.archived => {}
-                _ => return,
-            }
-            if let Err(e) = daemon
-                .store
-                .set_agent_cloud_session_id(&id, Some(&cloud_id))
-            {
-                tracing::warn!(agent = %id, error = %e, "cloud session id not persisted");
-                return;
-            }
-            tracing::info!(agent = %id, cloud_session = %cloud_id, "created — re-entering to mirror it");
-            if let Err(e) = daemon.attach_cloud_agent(&id).await {
-                tracing::warn!(agent = %id, error = %e, "cloud follow failed");
-            }
-        });
-    }
-
-    /// `claude --cloud <id>` on an account without the attach rollout
-    /// prints "Attaching to an existing cloud session is not enabled for
-    /// your account." and exits. The refusal is *read* off the output
-    /// (`pty::cloud`), not inferred from the exit: a deliberate kill of an
-    /// attach that worked looks identical by exit code and must not spawn
-    /// anything. Once the refused child is gone, the same row is respawned
-    /// as `claude --teleport <id>` in the same worktree.
-    fn arm_cloud_attach_fallback(
-        self: &Arc<Self>,
-        agent: Agent,
-        worktree: Worktree,
-        session: Arc<PtySession>,
-        cloud_id: String,
-        cols: u16,
-        rows: u16,
-    ) {
-        let daemon = self.clone();
-        let mut rx = session.events.subscribe();
-        tokio::spawn(async move {
-            let mut rejected = false;
-            loop {
-                match rx.recv().await {
-                    Ok(PtyEvent::CloudAttachRejected) => rejected = true,
-                    Ok(PtyEvent::Exited { .. }) => break,
-                    Ok(_) => continue,
-                    Err(broadcast::error::RecvError::Lagged(_)) => continue,
-                    Err(broadcast::error::RecvError::Closed) => return,
-                }
-            }
-            if !rejected {
-                return;
-            }
-            // Live attach is a server-side rollout, not a per-row accident:
-            // remember the refusal so no later re-entry shows it again.
-            daemon.cloud_attach_gated.store(true, Ordering::Relaxed);
-            // Archived, deleted, or moved inside the window: leave it be.
-            match daemon.store.get_agent(&agent.id) {
-                Ok(Some(current)) if !current.archived && current.worktree_id == worktree.id => {}
-                _ => return,
-            }
-            tracing::info!(agent = %agent.id, "cloud attach refused — teleporting the session locally");
-            match daemon.spawn_agent_session_with(
-                &agent,
-                &worktree,
-                cols,
-                rows,
-                Some(CloudLaunch::Teleport(&cloud_id)),
-                None,
-            ) {
-                Ok(_) => {
-                    daemon.start_cloud_mirror(agent.id.clone());
-                    daemon.try_broadcast_agent(&agent.id);
-                }
-                Err(e) => tracing::warn!(agent = %agent.id, error = %e, "teleport spawn failed"),
-            }
-        });
     }
 
     // ---- terminals ----
@@ -2391,44 +1931,6 @@ impl Daemon {
         self.store.delete_terminal(id)?;
         self.broadcast(ServerEvent::EntityRemoved {
             id: EntityId::Terminal(id.clone()),
-        });
-        Ok(())
-    }
-
-    // ---- links ----
-
-    pub fn create_link(self: &Arc<Self>, worktree_id: &WorktreeId, url: &str) -> Result<EntityId> {
-        let url = normalize_url(url)?;
-        self.store
-            .get_worktree(worktree_id)?
-            .context("worktree not found")?;
-        let link = Link {
-            id: LinkId::generate(),
-            worktree_id: worktree_id.clone(),
-            url,
-            sort_order: self.store.next_link_sort_order(worktree_id)?,
-        };
-        self.store.insert_link(&link)?;
-        self.broadcast(ServerEvent::EntityUpserted {
-            entity: Entity::Link(link.clone()),
-        });
-        Ok(EntityId::Link(link.id))
-    }
-
-    pub fn update_link(self: &Arc<Self>, id: &LinkId, url: &str) -> Result<()> {
-        let url = normalize_url(url)?;
-        self.store.set_link_url(id, &url)?;
-        let link = self.store.get_link(id)?.context("link not found")?;
-        self.broadcast(ServerEvent::EntityUpserted {
-            entity: Entity::Link(link),
-        });
-        Ok(())
-    }
-
-    pub fn delete_link(self: &Arc<Self>, id: &LinkId) -> Result<()> {
-        self.store.delete_link(id)?;
-        self.broadcast(ServerEvent::EntityRemoved {
-            id: EntityId::Link(id.clone()),
         });
         Ok(())
     }
@@ -2575,39 +2077,23 @@ impl Daemon {
         cols: u16,
         rows: u16,
     ) -> Result<Arc<PtySession>> {
-        self.spawn_agent_session_with(agent, worktree, cols, rows, None, None)
+        self.spawn_agent_session_with(agent, worktree, cols, rows, None)
     }
 
-    /// The general spawn: `cloud` makes it a Claude Cloud launch (the
-    /// initial dispatch, or a later attach/teleport of the session it
-    /// created), `initial_prompt` a first turn the CLI submits on its own
+    /// `initial_prompt` a first turn the CLI submits on its own
     /// (the relocation notice a `berth worktree` respawn opens with, or the
-    /// prefix + task + postfix an AGENT PRESET launch composes). Both
-    /// are intentionally transient: later restarts/resumes follow the
-    /// persisted Agent fields — a Cloud row's `cloud_session_id` routes a
-    /// restart back through `attach_cloud_agent`, everything else takes the
-    /// plain local-session path.
+    /// prefix + task + postfix an AGENT PRESET launch composes).
     fn spawn_agent_session_with(
         self: &Arc<Self>,
         agent: &Agent,
         worktree: &Worktree,
         cols: u16,
         rows: u16,
-        cloud: Option<CloudLaunch<'_>>,
         initial_prompt: Option<&str>,
     ) -> Result<Arc<PtySession>> {
         // Whatever spawns this agent, it runs in `worktree` from here: a
         // relocation still pending for it has been overtaken.
         self.pending_moves.lock().unwrap().remove(&agent.id);
-        // A spawn that isn't a cloud re-entry replaces the pane for good —
-        // a pending mirror tick must not teleport over it. (The re-entries
-        // re-arm their own mirror; a create arms one once it has an id.)
-        if !matches!(
-            cloud,
-            Some(CloudLaunch::Attach(_)) | Some(CloudLaunch::Teleport(_))
-        ) {
-            self.stop_cloud_mirror(&agent.id);
-        }
         // Managed status hooks; a failure here degrades to "no status
         // updates", never blocks the spawn.
         let reports_through_mod = agent.kind == AgentKind::Claude
@@ -2640,22 +2126,14 @@ impl Daemon {
 
         // BERTH_AGENT_CMD overrides for tests; default is the kind's CLI.
         let cmd_override = env::var(env::AGENT_CMD);
-        let pr_system_prompt = if cloud.is_none() {
-            self.store
-                .agent_pr_url(&agent.id)?
-                .as_deref()
-                .map(claude_pr_system_prompt)
-        } else {
-            None
-        };
-        let unsaved_conversation = cloud.is_none()
-            && resume_check::claude_projects_root().is_some_and(|root| {
-                resume_check::claude_transcript_missing(
-                    agent.kind,
-                    agent.session_id.as_deref(),
-                    &root,
-                )
-            });
+        let pr_system_prompt = self
+            .store
+            .agent_pr_url(&agent.id)?
+            .as_deref()
+            .map(claude_pr_system_prompt);
+        let unsaved_conversation = resume_check::claude_projects_root().is_some_and(|root| {
+            resume_check::claude_transcript_missing(agent.kind, agent.session_id.as_deref(), &root)
+        });
         let fresh_agent;
         let agent = if unsaved_conversation {
             tracing::info!(agent = %agent.id, "no transcript for the stored session id, starting fresh");
@@ -2667,24 +2145,16 @@ impl Daemon {
         } else {
             agent
         };
-        let (program, args, resumed) = match cloud {
-            Some(launch) => claude_cloud_spawn_command(
-                launch,
-                agent.model.as_deref(),
-                agent.effort.as_deref(),
-                cmd_override.as_deref(),
-            ),
-            None => agent_spawn_command_with(
-                agent.kind,
-                agent.session_id.as_deref(),
-                agent.model.as_deref(),
-                agent.effort.as_deref(),
-                cmd_override.as_deref(),
-                initial_prompt,
-                pr_system_prompt.as_deref(),
-                true,
-            ),
-        };
+        let (program, args, resumed) = agent_spawn_command_with(
+            agent.kind,
+            agent.session_id.as_deref(),
+            agent.model.as_deref(),
+            agent.effort.as_deref(),
+            cmd_override.as_deref(),
+            initial_prompt,
+            pr_system_prompt.as_deref(),
+            true,
+        );
         let args = if reports_through_mod {
             hooks::claude_mod::with_plugin_dir(&hooks::claude_mod::plugin_dir(), args)
         } else {
@@ -2729,28 +2199,6 @@ impl Daemon {
         }
         if resumed {
             self.arm_resume_fallback(agent.clone(), worktree.clone(), session.clone(), cols, rows);
-        }
-        match cloud {
-            // The create prints the session id and (on accounts without
-            // the attach rollout) exits at once: capture it off the output,
-            // then re-enter the session it just made so the row shows the
-            // cloud agent's work instead of a "resume with" hint.
-            Some(CloudLaunch::Create(_)) => {
-                session.arm_cloud_scan();
-                self.arm_cloud_follow(agent.id.clone(), session.clone());
-            }
-            Some(CloudLaunch::Attach(id)) => {
-                session.arm_cloud_scan();
-                self.arm_cloud_attach_fallback(
-                    agent.clone(),
-                    worktree.clone(),
-                    session.clone(),
-                    id.to_string(),
-                    cols,
-                    rows,
-                );
-            }
-            Some(CloudLaunch::Teleport(_)) | None => {}
         }
         Ok(session)
     }
@@ -2907,27 +2355,9 @@ impl Daemon {
                             daemon.apply_hook_event(id, HookEvent::TitleIdle { idle }, None);
                         }
                     }
-                    // The Cloud session this row launched, read off the
-                    // `claude --cloud` output. Persisted at once — the child
-                    // is typically gone within milliseconds of printing it —
-                    // and re-broadcast so the row grows its `cloud` badge and
-                    // its attach menu entry.
                     Ok(PtyEvent::Suggestion) => {
                         if let SessionRef::Agent(id) = &sref {
                             daemon.try_broadcast_agent(id);
-                        }
-                    }
-                    Ok(PtyEvent::CloudSession { id: cloud_id }) => {
-                        if let SessionRef::Agent(id) = &sref {
-                            match daemon.store.set_agent_cloud_session_id(id, Some(&cloud_id)) {
-                                Ok(()) => {
-                                    tracing::info!(agent = %id, cloud_session = %cloud_id, "cloud session id captured");
-                                    daemon.try_broadcast_agent(id);
-                                }
-                                Err(e) => {
-                                    tracing::warn!(agent = %id, error = %e, "cloud session id not persisted")
-                                }
-                            }
                         }
                     }
                     Ok(_) => {}
@@ -3130,8 +2560,7 @@ fn agent_spawn_command_with(
 }
 
 /// Validate an AGENT PRESET's composed starting prompt before it becomes the
-/// CLI's positional argument. Same bounds as a cloud task — it crosses the
-/// same login-shell `-c` string and argv — with its own wording.
+/// CLI's positional argument.
 fn validate_starting_prompt(raw: &str) -> Result<String> {
     let text = raw.trim().to_string();
     if text.is_empty() {
@@ -3140,121 +2569,13 @@ fn validate_starting_prompt(raw: &str) -> Result<String> {
     if text.contains('\0') {
         bail!("starting prompt cannot contain NUL bytes");
     }
-    if text.len() > MAX_CLOUD_PROMPT_BYTES {
+    if text.len() > MAX_STARTING_PROMPT_BYTES {
         bail!(
             "starting prompt is too long (max {} KiB)",
-            MAX_CLOUD_PROMPT_BYTES / 1024
+            MAX_STARTING_PROMPT_BYTES / 1024
         );
     }
     Ok(text)
-}
-
-/// How a Claude PTY enters the Cloud: dispatch a fresh task, attach live
-/// to the session it created, or teleport that session into a local one.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CloudLaunch<'a> {
-    Create(&'a str),
-    Attach(&'a str),
-    Teleport(&'a str),
-}
-
-/// How a Cloud row re-enters its session. The live attach is worth one
-/// try per daemon — it is a server-side rollout, so the answer can change
-/// between runs — but not a second, because a gated account answers with a
-/// red `not enabled for your account` in the user's pane every time.
-fn cloud_reentry_launch(cloud_id: &str, attach_gated: bool) -> CloudLaunch<'_> {
-    if attach_gated {
-        CloudLaunch::Teleport(cloud_id)
-    } else {
-        CloudLaunch::Attach(cloud_id)
-    }
-}
-
-/// Trim and bounds-check text handed to the Claude CLI as one argv item —
-/// a Cloud task on create, a message queued on an existing session. Both
-/// ride the login shell's `-c` string as well as Claude's argv: quoting
-/// stops injection, but a NUL would truncate the command and an unbounded
-/// string would blow the argv limit, so both are rejected here rather than
-/// at the shell.
-fn validate_cloud_text(raw: &str, what: &str) -> Result<String> {
-    let text = raw.trim().to_string();
-    if text.is_empty() {
-        bail!("Claude Cloud needs a {what}");
-    }
-    if text.contains('\0') {
-        bail!("Claude Cloud {what} cannot contain NUL bytes");
-    }
-    if text.len() > MAX_CLOUD_PROMPT_BYTES {
-        bail!(
-            "Claude Cloud {what} is too long (max {} KiB)",
-            MAX_CLOUD_PROMPT_BYTES / 1024
-        );
-    }
-    Ok(text)
-}
-
-/// Validate the persisted URL before it becomes part of Claude's argv on
-/// every spawn. OPEN PRS rows already supply HTTP(S), but the DAEMON treats
-/// IPC as a real boundary and rechecks the invariant itself.
-fn validate_pr_url(raw: &str) -> Result<String> {
-    const MAX_PR_URL_BYTES: usize = 4 * 1024;
-    let url = normalize_url(raw)?;
-    if url.len() > MAX_PR_URL_BYTES {
-        bail!("pull request URL is too long (max 4 KiB)");
-    }
-    // GitHub's `/pull/N` or GitLab's `/-/merge_requests/N`.
-    if !url.contains("/pull/") && !url.contains("/merge_requests/") {
-        bail!("not a pull request URL: {url}");
-    }
-    Ok(url)
-}
-
-/// Branch (and so directory) of the worktree a Cloud row is re-homed into
-/// before attaching: the CLI checks the cloud branch out on top of it, so
-/// the name only has to be stable per session and safe for git.
-fn cloud_worktree_branch(cloud_id: &str) -> String {
-    let suffix: String = cloud_id
-        .trim_start_matches("session_")
-        .chars()
-        .filter(|c| c.is_ascii_alphanumeric())
-        .collect();
-    let tail = suffix.len().saturating_sub(8);
-    format!("cloud-{}", &suffix[tail..])
-}
-
-/// Cloud launches are one-shot variations of the normal fresh-Claude
-/// command. Keeping them a wrapper leaves every resume/restart caller on
-/// the persisted local-session contract, and makes the no-override argument
-/// shape directly unit-testable. No worktree guidance either: the Cloud
-/// sandbox has no berth CLI to follow it with. Values bind with `=`
-/// (`--cloud=<task>`, `--cloud=<id>`, `--teleport=<id>`): both flags take an
-/// *optional* value, so a separate argv item that starts with `--` would be
-/// parsed as another Claude flag.
-fn claude_cloud_spawn_command(
-    launch: CloudLaunch<'_>,
-    model: Option<&str>,
-    effort: Option<&str>,
-    cmd_override: Option<&str>,
-) -> (String, Vec<String>, bool) {
-    let (program, mut args, resumed) = agent_spawn_command_with(
-        AgentKind::Claude,
-        None,
-        model,
-        effort,
-        cmd_override,
-        None,
-        None,
-        false,
-    );
-    if cmd_override.is_none() {
-        let flag = match launch {
-            CloudLaunch::Create(task) => format!("--cloud={task}"),
-            CloudLaunch::Attach(id) => format!("--cloud={id}"),
-            CloudLaunch::Teleport(id) => format!("--teleport={id}"),
-        };
-        args.insert(0, flag);
-    }
-    (program, args, resumed)
 }
 
 /// Normalize an agent-supplied title: control characters become spaces,
@@ -3282,41 +2603,6 @@ fn shell_has_children(session: &PtySession) -> bool {
         return true;
     };
     berth_core::platform::has_child_processes(pid)
-}
-
-/// Canonical form of a user-typed link. Pasting a URL out of a browser is
-/// the common case, but people also type `github.com/o/r/pull/7`, so a
-/// scheme-less value gets https://. Anything else — another scheme, or no
-/// host at all — is refused rather than stored: the TUI hands these to
-/// `open(1)`, and only http(s) may ever reach it.
-fn normalize_url(url: &str) -> Result<String> {
-    let url = url.trim();
-    if url.is_empty() {
-        bail!("link URL is empty");
-    }
-    if url.contains(char::is_whitespace) {
-        bail!("link URL contains whitespace");
-    }
-    let normalized = match url.split_once("://") {
-        Some(("http" | "https", _)) => url.to_string(),
-        Some((scheme, _)) => bail!("only http(s) links are supported (got {scheme}://)"),
-        // Scheme-less: a bare host is a URL people type; a bare word is not.
-        None => {
-            let host = url.split(['/', '?', '#']).next().unwrap_or_default();
-            if !host.contains('.') || host.starts_with('.') || host.ends_with('.') {
-                bail!("not a URL: {url}");
-            }
-            format!("https://{url}")
-        }
-    };
-    // Reject "https://" and friends: a scheme with nothing behind it.
-    if normalized
-        .split_once("://")
-        .is_none_or(|(_, rest)| rest.is_empty())
-    {
-        bail!("not a URL: {url}");
-    }
-    Ok(normalized)
 }
 
 /// Why a create was refused when the agent CLI isn't installed. One line —
@@ -3656,119 +2942,6 @@ mod tests {
         assert!(prompts[0].contains(pr_url));
     }
 
-    #[test]
-    fn spawn_command_claude_cloud_passes_the_task_as_one_argument() {
-        assert_eq!(
-            claude_cloud_spawn_command(
-                CloudLaunch::Create("Fix auth\nRun tests; don't stop"),
-                Some("opus"),
-                Some("high"),
-                None,
-            ),
-            (
-                "claude".into(),
-                vec![
-                    "--cloud=Fix auth\nRun tests; don't stop".to_string(),
-                    "--model".to_string(),
-                    "opus".to_string(),
-                    "--effort".to_string(),
-                    "high".to_string(),
-                ],
-                false,
-            )
-        );
-        assert_eq!(
-            claude_cloud_spawn_command(
-                CloudLaunch::Create("--dangerously-skip-permissions"),
-                None,
-                None,
-                None
-            )
-            .1,
-            vec!["--cloud=--dangerously-skip-permissions"]
-        );
-    }
-
-    #[test]
-    fn spawn_command_cloud_attach_and_teleport_bind_the_id() {
-        let id = "session_016SiQW5Lem2LbnUf1A3undt";
-        assert_eq!(
-            claude_cloud_spawn_command(CloudLaunch::Attach(id), None, None, None),
-            ("claude".into(), vec![format!("--cloud={id}")], false)
-        );
-        assert_eq!(
-            claude_cloud_spawn_command(CloudLaunch::Teleport(id), Some("opus"), None, None),
-            (
-                "claude".into(),
-                vec![format!("--teleport={id}"), "--model".into(), "opus".into()],
-                false
-            )
-        );
-        // Overrides (tests) stay verbatim — no cloud flag at all.
-        assert_eq!(
-            claude_cloud_spawn_command(CloudLaunch::Attach(id), None, None, Some("/bin/true")).1,
-            Vec::<String>::new()
-        );
-    }
-
-    #[test]
-    fn cloud_worktree_branch_is_short_and_git_safe() {
-        assert_eq!(
-            cloud_worktree_branch("session_016SiQW5Lem2LbnUf1A3undt"),
-            "cloud-f1A3undt"
-        );
-        assert_eq!(cloud_worktree_branch("session_ab"), "cloud-ab");
-        assert_eq!(cloud_worktree_branch("session_"), "cloud-");
-    }
-
-    #[tokio::test]
-    async fn attach_cloud_agent_requires_a_cloud_session() {
-        let daemon = test_daemon();
-        seed_projects(&daemon, &["p"]);
-        seed_worktree(&daemon, "p", "w", "/tmp", true);
-        seed_agent(&daemon, "local", "w", None);
-        let err = daemon
-            .attach_cloud_agent(&AgentId("local".into()))
-            .await
-            .unwrap_err();
-        assert!(
-            err.to_string().contains("not launched in Claude Cloud"),
-            "{err}"
-        );
-    }
-
-    #[test]
-    fn cloud_reentry_tries_attach_once_then_teleports() {
-        let id = "session_abc";
-        assert_eq!(cloud_reentry_launch(id, false), CloudLaunch::Attach(id));
-        // Once the account has refused, every later re-entry teleports —
-        // retrying the attach only reprints the refusal in the user's pane.
-        assert_eq!(cloud_reentry_launch(id, true), CloudLaunch::Teleport(id));
-    }
-
-    #[test]
-    fn cloud_text_is_trimmed_and_bounded() {
-        assert_eq!(
-            validate_cloud_text("  fix auth  ", "task").unwrap(),
-            "fix auth"
-        );
-        // Newlines are part of a multi-row task/message; only the ends go.
-        assert_eq!(
-            validate_cloud_text("\nline one\nline two\n", "message").unwrap(),
-            "line one\nline two"
-        );
-        for bad in ["", "   ", "\n"] {
-            assert!(validate_cloud_text(bad, "task").is_err(), "{bad:?}");
-        }
-        // A NUL would truncate the login shell's -c string.
-        assert!(validate_cloud_text("fix\0auth", "task").is_err());
-        assert!(validate_cloud_text(&"x".repeat(MAX_CLOUD_PROMPT_BYTES), "task").is_ok());
-        assert!(validate_cloud_text(&"x".repeat(MAX_CLOUD_PROMPT_BYTES + 1), "task").is_err());
-        // The label rides into the message the user sees.
-        let err = validate_cloud_text("", "message").unwrap_err().to_string();
-        assert!(err.contains("message"), "{err}");
-    }
-
     fn test_daemon() -> Arc<Daemon> {
         let store = Arc::new(Store::open_in_memory().unwrap());
         Daemon::new(
@@ -3781,88 +2954,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn cloud_create_validates_tasks_and_rejects_non_claude_kinds() {
-        let daemon = test_daemon();
-        let worktree = WorktreeId("unused".into());
-
-        let empty = daemon
-            .create_agent(CreateAgentSpec {
-                worktree: worktree.clone(),
-                name: "cloud".into(),
-                kind: AgentKind::Claude,
-                model: None,
-                effort: None,
-                auto_title: false,
-                cloud_prompt: Some(" \n ".into()),
-                starting_prompt: None,
-                pr_url: None,
-            })
-            .await
-            .unwrap_err();
-        assert!(empty.to_string().contains("needs a task"));
-
-        let nul = daemon
-            .create_agent(CreateAgentSpec {
-                worktree: worktree.clone(),
-                name: "cloud".into(),
-                kind: AgentKind::Claude,
-                model: None,
-                effort: None,
-                auto_title: false,
-                cloud_prompt: Some("fix\0auth".into()),
-                starting_prompt: None,
-                pr_url: None,
-            })
-            .await
-            .unwrap_err();
-        assert!(nul.to_string().contains("NUL"));
-
-        let too_long = daemon
-            .create_agent(CreateAgentSpec {
-                worktree: worktree.clone(),
-                name: "cloud".into(),
-                kind: AgentKind::Claude,
-                model: None,
-                effort: None,
-                auto_title: false,
-                cloud_prompt: Some("x".repeat(MAX_CLOUD_PROMPT_BYTES + 1)),
-                starting_prompt: None,
-                pr_url: None,
-            })
-            .await
-            .unwrap_err();
-        assert!(too_long.to_string().contains("too long"));
-
-        let wrong_kind = daemon
-            .create_agent(CreateAgentSpec {
-                worktree,
-                name: "cloud".into(),
-                kind: AgentKind::Codex,
-                model: None,
-                effort: None,
-                auto_title: false,
-                cloud_prompt: Some("Fix auth".into()),
-                starting_prompt: None,
-                pr_url: None,
-            })
-            .await
-            .unwrap_err();
-        assert!(wrong_kind.to_string().contains("only supported for Claude"));
-    }
-
-    #[tokio::test]
     async fn starting_prompt_is_validated_and_never_adopts_a_warm_cli() {
         let daemon = test_daemon();
-        let spec = |kind: AgentKind, cloud: Option<&str>, starting: Option<&str>| CreateAgentSpec {
+        let spec = |kind: AgentKind, starting: Option<&str>| CreateAgentSpec {
             worktree: WorktreeId("unused".into()),
             name: "preset".into(),
             kind,
             model: None,
             effort: None,
             auto_title: true,
-            cloud_prompt: cloud.map(String::from),
             starting_prompt: starting.map(String::from),
-            pr_url: None,
         };
         // Validation runs before the worktree lookup, so an unknown
         // worktree is fine here and every failure is the prompt's own.
@@ -3871,23 +2972,16 @@ mod tests {
             (AgentKind::Codex, "fix\0auth", "NUL"),
             (
                 AgentKind::Cursor,
-                &*"x".repeat(MAX_CLOUD_PROMPT_BYTES + 1),
+                &*"x".repeat(MAX_STARTING_PROMPT_BYTES + 1),
                 "too long",
             ),
         ] {
             let err = daemon
-                .create_agent(spec(kind, None, Some(starting)))
+                .create_agent(spec(kind, Some(starting)))
                 .await
                 .unwrap_err();
             assert!(err.to_string().contains(needle), "{kind:?}: {err}");
         }
-        let with_cloud = daemon
-            .create_agent(spec(AgentKind::Claude, Some("Fix auth"), Some("Fix auth")))
-            .await
-            .unwrap_err();
-        assert!(with_cloud
-            .to_string()
-            .contains("not supported for Claude Cloud"));
 
         // A starting prompt rides the CLI's argv, so a warm spare (booted
         // bare) is never adopted: the pool entry survives the create.
@@ -3904,7 +2998,7 @@ mod tests {
                 buffered_hooks: Vec::new(),
             },
         );
-        let mut preset = spec(AgentKind::Claude, None, Some("Fix auth"));
+        let mut preset = spec(AgentKind::Claude, Some("Fix auth"));
         preset.worktree = WorktreeId("w1".into());
         // Without a CLI on this box the cold path fails at the probe; the
         // result is beside the point — adoption would have emptied the pool.
@@ -3920,8 +3014,8 @@ mod tests {
         let daemon = test_daemon();
         seed_projects(&daemon, &["p"]);
         seed_worktree(&daemon, "p", "w", "/tmp", true);
-        seed_agent(&daemon, "cloud", "w", None);
-        let id = AgentId("cloud".into());
+        seed_agent(&daemon, "a1", "w", None);
+        let id = AgentId("a1".into());
 
         let error = daemon
             .rollback_agent_on_spawn_error(&id, Err::<(), _>(anyhow::anyhow!("spawn failed")))
@@ -3976,11 +3070,9 @@ mod tests {
                 model: None,
                 effort: None,
                 session_id: session_id.map(str::to_string),
-                cloud_session_id: None,
                 sort_order: 0,
                 status_changed_at: 0,
                 alive: false,
-                cloud_mirroring: false,
                 suggested_prompt: None,
                 provider_error: None,
                 routed_from: None,
@@ -4166,11 +3258,9 @@ mod tests {
                     model: None,
                     effort: None,
                     session_id: None,
-                    cloud_session_id: None,
                     sort_order: 0,
                     status_changed_at: 0,
                     alive: false,
-                    cloud_mirroring: false,
                     suggested_prompt: None,
                     provider_error: None,
                     routed_from: None,
@@ -4647,43 +3737,6 @@ mod tests {
             true,
         );
         assert_eq!(agent_worktree(&daemon, "a1"), "feat");
-    }
-
-    #[test]
-    fn normalize_url_adds_https_and_refuses_non_links() {
-        // Pasted URLs pass through untouched.
-        assert_eq!(
-            normalize_url("https://github.com/o/r/pull/7").unwrap(),
-            "https://github.com/o/r/pull/7"
-        );
-        assert_eq!(normalize_url("  http://x.dev  ").unwrap(), "http://x.dev");
-        // Typed hosts gain the scheme.
-        assert_eq!(
-            normalize_url("github.com/o/r/pull/7").unwrap(),
-            "https://github.com/o/r/pull/7"
-        );
-        // Anything that isn't an http(s) URL is refused, so `open(1)` can
-        // never be handed a scheme the user didn't intend.
-        for bad in [
-            "",
-            "   ",
-            "file:///etc/passwd",
-            "javascript:alert(1)",
-            "https://",
-            "just a note",
-            "notaurl",
-        ] {
-            assert!(normalize_url(bad).is_err(), "expected refusal: {bad:?}");
-        }
-        assert_eq!(
-            validate_pr_url("github.com/o/r/pull/7").unwrap(),
-            "https://github.com/o/r/pull/7"
-        );
-        assert_eq!(
-            validate_pr_url("http://git.vipaks.local/g/web/-/merge_requests/1697").unwrap(),
-            "http://git.vipaks.local/g/web/-/merge_requests/1697"
-        );
-        assert!(validate_pr_url("https://github.com/o/r/issues/7").is_err());
     }
 
     #[test]

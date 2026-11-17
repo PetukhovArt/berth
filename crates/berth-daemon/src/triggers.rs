@@ -189,9 +189,7 @@ impl Daemon {
                     model: None,
                     effort: None,
                     auto_title: true,
-                    cloud_prompt: None,
                     starting_prompt: Some(trigger.prompt.clone()),
-                    pr_url: None,
                 })
                 .await
                 .map(|_| ())

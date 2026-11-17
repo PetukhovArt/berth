@@ -4,9 +4,9 @@
 
 use anyhow::{Context, Result};
 use berth_core::{
-    Agent, AgentId, AgentKind, AgentStatus, ArchivedExternalSession, Link, LinkId, OrphanedSession,
-    PrSeen, Project, ProjectId, PromptTrigger, TerminalId, TerminalTab, TriggerId, TriggerTarget,
-    TriggerWhen, Workspace, WorkspaceId, Worktree, WorktreeId, DEFAULT_WORKSPACE_ID,
+    Agent, AgentId, AgentKind, AgentStatus, ArchivedExternalSession, OrphanedSession, Project,
+    ProjectId, PromptTrigger, TerminalId, TerminalTab, TriggerId, TriggerTarget, TriggerWhen,
+    Workspace, WorkspaceId, Worktree, WorktreeId, DEFAULT_WORKSPACE_ID,
 };
 use rusqlite::OptionalExtension;
 use rusqlite::{params, Connection};
@@ -848,8 +848,8 @@ impl Store {
         pr_url: Option<&str>,
     ) -> Result<()> {
         self.conn.lock().unwrap().execute(
-            "INSERT INTO agents (id, worktree_id, name, status, archived, archived_at, kind, claude_session_id, sort_order, created_at, status_changed_at, model, effort, auto_title_pending, unseen, cloud_session_id, pr_url)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
+            "INSERT INTO agents (id, worktree_id, name, status, archived, archived_at, kind, claude_session_id, sort_order, created_at, status_changed_at, model, effort, auto_title_pending, unseen, pr_url)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
             params![
                 a.id.as_str(),
                 a.worktree_id.as_str(),
@@ -866,7 +866,6 @@ impl Store {
                 a.effort,
                 auto_title as i64,
                 a.unseen as i64,
-                a.cloud_session_id,
                 pr_url,
             ],
         )?;
@@ -1078,18 +1077,6 @@ impl Store {
         Ok(changed > 0)
     }
 
-    pub fn set_agent_cloud_session_id(
-        &self,
-        id: &AgentId,
-        cloud_session_id: Option<&str>,
-    ) -> Result<()> {
-        self.conn.lock().unwrap().execute(
-            "UPDATE agents SET cloud_session_id = ?2 WHERE id = ?1",
-            params![id.as_str(), cloud_session_id],
-        )?;
-        Ok(())
-    }
-
     pub fn set_agent_session_id(&self, id: &AgentId, session_id: Option<&str>) -> Result<()> {
         self.conn.lock().unwrap().execute(
             "UPDATE agents SET claude_session_id = ?2 WHERE id = ?1",
@@ -1271,90 +1258,6 @@ impl Store {
         self.delete_by_id("terminals", id.as_str())
     }
 
-    // ---- links ----
-
-    pub fn insert_link(&self, l: &Link) -> Result<()> {
-        self.conn.lock().unwrap().execute(
-            "INSERT INTO links (id, worktree_id, url, sort_order, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![
-                l.id.as_str(),
-                l.worktree_id.as_str(),
-                l.url,
-                l.sort_order,
-                now_ms()
-            ],
-        )?;
-        Ok(())
-    }
-
-    /// Sort slot for a new link: after everything else on its worktree.
-    pub fn next_link_sort_order(&self, worktree_id: &WorktreeId) -> Result<i64> {
-        Ok(self.conn.lock().unwrap().query_row(
-            "SELECT COALESCE(MAX(sort_order) + 1, 0) FROM links WHERE worktree_id = ?1",
-            params![worktree_id.as_str()],
-            |r| r.get(0),
-        )?)
-    }
-
-    pub fn set_link_url(&self, id: &LinkId, url: &str) -> Result<()> {
-        self.conn.lock().unwrap().execute(
-            "UPDATE links SET url = ?2 WHERE id = ?1",
-            params![id.as_str(), url],
-        )?;
-        Ok(())
-    }
-
-    pub fn delete_link(&self, id: &LinkId) -> Result<()> {
-        self.delete_by_id("links", id.as_str())
-    }
-
-    pub fn get_link(&self, id: &LinkId) -> Result<Option<Link>> {
-        let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare(&format!("SELECT {LINK_COLUMNS} FROM links WHERE id = ?1"))?;
-        let mut rows = stmt.query(params![id.as_str()])?;
-        Ok(rows.next()?.map(row_to_link).transpose()?)
-    }
-
-    /// Every link, in per-worktree list order.
-    pub fn load_links(&self) -> Result<Vec<Link>> {
-        let conn = self.conn.lock().unwrap();
-        let links = conn
-            .prepare(&format!(
-                "SELECT {LINK_COLUMNS} FROM links ORDER BY worktree_id, sort_order, created_at"
-            ))?
-            .query_map([], row_to_link)?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        Ok(links)
-    }
-
-    // ---- pull-request read marks ----
-
-    /// Remember that this pull request's conversation has been read up to
-    /// `marker`. Idempotent, and an empty marker is a real answer: it says
-    /// the PR was opened while nobody had posted on it yet.
-    pub fn mark_pr_seen(&self, url: &str, marker: &str) -> Result<()> {
-        self.conn.lock().unwrap().execute(
-            "INSERT INTO pr_seen (url, marker, seen_at) VALUES (?1, ?2, ?3)
-             ON CONFLICT(url) DO UPDATE SET marker = excluded.marker, seen_at = excluded.seen_at",
-            params![url, marker, now_ms()],
-        )?;
-        Ok(())
-    }
-
-    pub fn load_pr_seen(&self) -> Result<Vec<PrSeen>> {
-        let conn = self.conn.lock().unwrap();
-        let seen = conn
-            .prepare("SELECT url, marker FROM pr_seen")?
-            .query_map([], |r| {
-                Ok(PrSeen {
-                    url: r.get(0)?,
-                    marker: r.get(1)?,
-                })
-            })?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        Ok(seen)
-    }
-
     // ---- external session archive marks ----
 
     pub fn archive_external_session(
@@ -1491,24 +1394,6 @@ impl Store {
 
         Ok((projects, worktrees, agents, terminals))
     }
-
-    // ---- ui state ----
-
-    pub fn save_ui_state(&self, json: &str) -> Result<()> {
-        self.conn.lock().unwrap().execute(
-            "INSERT INTO ui_state (id, json) VALUES (1, ?1)
-             ON CONFLICT(id) DO UPDATE SET json = excluded.json",
-            params![json],
-        )?;
-        Ok(())
-    }
-
-    pub fn load_ui_state(&self) -> Result<Option<String>> {
-        let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT json FROM ui_state WHERE id = 1")?;
-        let mut rows = stmt.query([])?;
-        Ok(rows.next()?.map(|r| r.get::<_, String>(0)).transpose()?)
-    }
 }
 
 // ---- row shapes ----
@@ -1526,9 +1411,8 @@ const PROJECT_COLUMNS: &str = "id, name, repo_path, sort_order, workspace_id, pi
 const WORKTREE_COLUMNS: &str = "id, project_id, path, branch, is_main, sort_order";
 const AGENT_COLUMNS: &str = "id, worktree_id, name, status, archived, kind, \
                              claude_session_id, sort_order, status_changed_at, model, effort, \
-                             archived_at, unseen, cloud_session_id, acp_provider";
+                             archived_at, unseen, acp_provider";
 const TERMINAL_COLUMNS: &str = "id, worktree_id, name, sort_order, session_id";
-const LINK_COLUMNS: &str = "id, worktree_id, url, sort_order";
 const ORPHAN_COLUMNS: &str =
     "session_id, project_id, kind, name, branch, worktree_path,      created_at, orphaned_at";
 
@@ -1564,8 +1448,6 @@ fn row_to_worktree(r: &rusqlite::Row) -> rusqlite::Result<Worktree> {
     })
 }
 
-/// `alive` and `cloud_mirroring` are daemon state, not columns: the
-/// registry fills them in from its session table after the read.
 fn row_to_agent(r: &rusqlite::Row) -> rusqlite::Result<Agent> {
     Ok(Agent {
         id: AgentId(r.get(0)?),
@@ -1581,14 +1463,12 @@ fn row_to_agent(r: &rusqlite::Row) -> rusqlite::Result<Agent> {
         effort: r.get(10)?,
         archived_at: r.get(11)?,
         unseen: r.get::<_, i64>(12)? != 0,
-        cloud_session_id: r.get(13)?,
         alive: false,
-        cloud_mirroring: false,
         suggested_prompt: None,
         provider_error: None,
         routed_from: None,
         route_suggestion: None,
-        acp_provider: r.get(14)?,
+        acp_provider: r.get(13)?,
     })
 }
 
@@ -1619,15 +1499,6 @@ fn row_to_orphan(r: &rusqlite::Row) -> rusqlite::Result<OrphanedSession> {
         orphaned_at: r.get(7)?,
         transcript_bytes: None,
         live: false,
-    })
-}
-
-fn row_to_link(r: &rusqlite::Row) -> rusqlite::Result<Link> {
-    Ok(Link {
-        id: LinkId(r.get(0)?),
-        worktree_id: WorktreeId(r.get(1)?),
-        url: r.get(2)?,
-        sort_order: r.get(3)?,
     })
 }
 
@@ -1668,11 +1539,9 @@ mod tests {
             model: Some("opus".into()),
             effort: Some("high".into()),
             session_id: Some("sess-123".into()),
-            cloud_session_id: None,
             sort_order: 0,
             status_changed_at: 0,
             alive: false,
-            cloud_mirroring: false,
             suggested_prompt: None,
             provider_error: None,
             routed_from: None,
@@ -1695,11 +1564,9 @@ mod tests {
             model: None,
             effort: None,
             session_id: None,
-            cloud_session_id: None,
             sort_order: 1,
             status_changed_at: 0,
             alive: false,
-            cloud_mirroring: false,
             suggested_prompt: None,
             provider_error: None,
             routed_from: None,
@@ -1719,11 +1586,9 @@ mod tests {
             model: None,
             effort: None,
             session_id: None,
-            cloud_session_id: None,
             sort_order: 2,
             status_changed_at: 0,
             alive: false,
-            cloud_mirroring: false,
             suggested_prompt: None,
             provider_error: None,
             routed_from: None,
@@ -1749,32 +1614,6 @@ mod tests {
         assert_eq!(agents[1].kind, AgentKind::Codex);
         assert_eq!(agents[1].model, None);
         assert_eq!(agents[2].kind, AgentKind::Cursor);
-    }
-
-    /// Read marks are keyed by PR URL and outlive the worktree they were
-    /// noticed on, so they live in their own table with no foreign key: no
-    /// row here is ever cascaded away by a checkout being deleted.
-    #[test]
-    fn pr_seen_marks_roundtrip_and_overwrite() {
-        let store = Store::open_in_memory().unwrap();
-        assert!(store.load_pr_seen().unwrap().is_empty());
-
-        let url = "https://github.com/o/r/pull/7";
-        store.mark_pr_seen(url, "2024-04-25T19:55:42Z").unwrap();
-        let seen = store.load_pr_seen().unwrap();
-        assert_eq!(seen.len(), 1);
-        assert_eq!(seen[0].url, url);
-        assert_eq!(seen[0].marker, "2024-04-25T19:55:42Z");
-
-        // Opening it again moves the mark rather than adding a second row.
-        store.mark_pr_seen(url, "2024-04-27T09:00:00Z").unwrap();
-        let seen = store.load_pr_seen().unwrap();
-        assert_eq!(seen.len(), 1);
-        assert_eq!(seen[0].marker, "2024-04-27T09:00:00Z");
-
-        // An empty marker is a real answer: opened, nobody had posted yet.
-        store.mark_pr_seen(url, "").unwrap();
-        assert_eq!(store.load_pr_seen().unwrap()[0].marker, "");
     }
 
     #[test]
@@ -1811,56 +1650,6 @@ mod tests {
         let marks = store.load_archived_external_sessions().unwrap();
         assert_eq!(marks.len(), 1);
         assert_eq!(marks[0].kind, AgentKind::Codex);
-    }
-
-    #[test]
-    fn link_crud_roundtrip_and_cascade() {
-        let store = Store::open_in_memory().unwrap();
-        let project = Project {
-            workspace_id: Default::default(),
-            id: ProjectId::generate(),
-            name: "demo".into(),
-            repo_path: "/tmp/demo".into(),
-            sort_order: 0,
-            pin_order: None,
-        };
-        store.insert_project(&project).unwrap();
-        let worktree = Worktree {
-            id: WorktreeId::generate(),
-            project_id: project.id.clone(),
-            path: "/tmp/demo".into(),
-            branch: "main".into(),
-            is_main: true,
-            sort_order: 0,
-        };
-        store.insert_worktree(&worktree).unwrap();
-
-        assert_eq!(store.next_link_sort_order(&worktree.id).unwrap(), 0);
-        let link = Link {
-            id: LinkId::generate(),
-            worktree_id: worktree.id.clone(),
-            url: "https://github.com/o/r/pull/7".into(),
-            sort_order: store.next_link_sort_order(&worktree.id).unwrap(),
-        };
-        store.insert_link(&link).unwrap();
-        assert_eq!(store.next_link_sort_order(&worktree.id).unwrap(), 1);
-
-        store
-            .set_link_url(&link.id, "https://example.dev/spec")
-            .unwrap();
-        let read = store.get_link(&link.id).unwrap().unwrap();
-        assert_eq!(read.url, "https://example.dev/spec");
-        assert_eq!(read.worktree_id, worktree.id);
-        assert_eq!(store.load_links().unwrap().len(), 1);
-
-        store.delete_link(&link.id).unwrap();
-        assert!(store.get_link(&link.id).unwrap().is_none());
-
-        // Links hang off the worktree: deleting the project cascades
-        // through it.
-        store.insert_link(&link).unwrap();
-        store.delete_project(&project.id).unwrap();
-        assert!(store.load_links().unwrap().is_empty());
     }
 
     /// Real upgrade path: a v9 database still carrying `todos` rows walks
@@ -2222,11 +2011,9 @@ mod tests {
             model: None,
             effort: None,
             session_id: None,
-            cloud_session_id: None,
             sort_order: 0,
             status_changed_at: 0,
             alive: false,
-            cloud_mirroring: false,
             suggested_prompt: None,
             provider_error: None,
             routed_from: None,
@@ -2375,11 +2162,9 @@ mod tests {
                     model: None,
                     effort: None,
                     session_id: None,
-                    cloud_session_id: None,
                     sort_order: 0,
                     status_changed_at: 0,
                     alive: false,
-                    cloud_mirroring: false,
                     suggested_prompt: None,
                     provider_error: None,
                     routed_from: None,
@@ -2446,11 +2231,9 @@ mod tests {
                 model: None,
                 effort: None,
                 session_id: None,
-                cloud_session_id: None,
                 sort_order: 0,
                 status_changed_at: 0,
                 alive: false,
-                cloud_mirroring: false,
                 suggested_prompt: None,
                 provider_error: None,
                 routed_from: None,
@@ -2547,11 +2330,9 @@ mod tests {
             model: None,
             effort: None,
             session_id: session_id.map(str::to_string),
-            cloud_session_id: None,
             sort_order: 0,
             status_changed_at: 0,
             alive: false,
-            cloud_mirroring: false,
             suggested_prompt: None,
             provider_error: None,
             routed_from: None,

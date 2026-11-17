@@ -1,4 +1,4 @@
-use crate::ids::{AgentId, LinkId, ProjectId, TerminalId, WorkspaceId, WorktreeId};
+use crate::ids::{AgentId, ProjectId, TerminalId, WorkspaceId, WorktreeId};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -195,23 +195,9 @@ pub struct Agent {
     pub effort: Option<String>,
     /// CLI session id used for resume (claude, codex, or cursor, per `kind`).
     pub session_id: Option<String>,
-    /// The Claude Cloud session this row launched (`claude --cloud <task>`
-    /// prints the id as it creates one). Only cloud rows have it. Restarting
-    /// such a row while it has no local `session_id` re-enters the cloud
-    /// session — `claude --cloud <id>`, or `claude --teleport <id>` when the
-    /// account cannot attach — instead of booting a bare local CLI.
-    #[serde(default)]
-    pub cloud_session_id: Option<String>,
     pub sort_order: i64,
     /// True when the daemon currently holds a live PTY for this agent.
     pub alive: bool,
-    /// True while the daemon is following this row's Claude Cloud session —
-    /// re-teleporting the pane on a timer so turns taken in the cloud show
-    /// up here. Runtime state like `alive`, never persisted: it ends the
-    /// moment the pane is typed into (the session is then the user's) and
-    /// does not survive a daemon restart.
-    #[serde(default)]
-    pub cloud_mirroring: bool,
     #[serde(default)]
     pub suggested_prompt: Option<String>,
     #[serde(default)]
@@ -277,21 +263,6 @@ pub struct TerminalTab {
     pub session_id: Option<String>,
 }
 
-/// A URL pinned to a worktree — the pull request, the ticket, the design
-/// doc for whatever that checkout is for. Berth never fetches these; they
-/// are bookmarks the user opens in a browser from the Sessions panel. The
-/// open pull request shown above them is discovered from git, not stored
-/// here (see the TUI's `PullRequest`).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Link {
-    pub id: LinkId,
-    pub worktree_id: WorktreeId,
-    /// Always http(s) — normalized on the way in, so opening one can never
-    /// hand the OS a scheme the user didn't intend.
-    pub url: String,
-    pub sort_order: i64,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Entity {
     Workspace(Workspace),
@@ -299,7 +270,6 @@ pub enum Entity {
     Worktree(Worktree),
     Agent(Box<Agent>),
     Terminal(TerminalTab),
-    Link(Link),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -309,7 +279,6 @@ pub enum EntityId {
     Worktree(WorktreeId),
     Agent(AgentId),
     Terminal(TerminalId),
-    Link(LinkId),
 }
 
 /// A Session whose Worktree was deleted: the tree row is gone, but the CLI

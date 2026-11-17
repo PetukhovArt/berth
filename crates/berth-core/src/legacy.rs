@@ -13,18 +13,15 @@ pub const AGENT_SESSION_VARS: &[&str] = &[AGENT_ID, API_URL, API_TOKEN];
 
 pub fn env_name(name: &str) -> Option<String> {
     use crate::env::{
-        AGENT_CMD, CLOUD_MIRROR_SECS, EDITOR, IDLE_REAP_MS, INSTALL_URL, LOG, METRICS_SAMPLE_MS,
-        WORKTREE_SYNC_MS,
+        AGENT_CMD, IDLE_REAP_MS, INSTALL_URL, LOG, METRICS_SAMPLE_MS, WORKTREE_SYNC_MS,
     };
     const FALLBACK: &[&str] = &[
         AGENT_CMD,
         IDLE_REAP_MS,
         WORKTREE_SYNC_MS,
         METRICS_SAMPLE_MS,
-        CLOUD_MIRROR_SECS,
         LOG,
         INSTALL_URL,
-        EDITOR,
     ];
     FALLBACK
         .contains(&name)

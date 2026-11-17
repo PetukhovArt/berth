@@ -56,13 +56,10 @@ A Session that is a plain shell in the Worktree's directory — no agent.
 _Avoid_: shell tab
 
 **PR Session**
-A Claude Agent created with a pull request URL (`pr_url`) and constrained to work only on that PR. Starts in the Root Worktree.
-
-**Link**
-A URL previously pinned to a Worktree. A legacy of older versions: existing rows stay visible and editable; new ones are not created.
+A Claude Agent that older versions created with a pull request URL (`pr_url`). A legacy: existing rows keep the PR scope on Resume; new ones are not created.
 
 **Pin**
-A Project the user pinned in the desktop app's tree. Pinned Projects sit at the top of their Workspace; their rank among pinned Projects is held by the Daemon (`Project.pin_order`, set as one ordered list by `SetProjectPins`), so every client shows the same order. Distinct from a Link ("a URL pinned to a Worktree"), which is legacy vocabulary.
+A Project the user pinned in the desktop app's tree. Pinned Projects sit at the top of their Workspace; their rank among pinned Projects is held by the Daemon (`Project.pin_order`, set as one ordered list by `SetProjectPins`), so every client shows the same order.
 
 **Archive**
 The state of an Agent whose PTY is released and whose row is moved to the ARCHIVED group. Coming back resumes the conversation.
@@ -208,20 +205,3 @@ _Avoid_: snapshot, backup
 **Channel**
 A named stream of messages on the team hub (`hub_url`) that people and Agents post to and read, with an unread count per member. The Inbox lists Channels with unread messages and opens them as a view beside the Sessions. Not the Transport.
 _Avoid_: chat room, topic
-
-## Cloud sessions
-
-**Cloud Session**
-An Agent row whose work runs in Claude's cloud rather than a local PTY.
-
-**Cloud Launch**
-Creating a Cloud Session: the task goes to the cloud as a process argument — no place for secrets.
-
-**Cloud Teleport**
-A repeatable snapshot pull of the cloud transcript and branch into a local session — a fork, not a live link. Always in a Cloud Worktree.
-
-**Cloud Worktree**
-The `cloud-<id>` Worktree a Cloud Session is re-homed into before Attach or Teleport — the cloud CLI switches branches.
-
-**Cloud Mirror**
-A periodic re-Teleport so the pane follows the cloud agent. Ends on the first keystroke into the pane.

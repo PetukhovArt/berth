@@ -179,10 +179,6 @@ pub fn daemon_log_path() -> PathBuf {
     log_dir().join("daemon.log")
 }
 
-pub fn tui_log_path() -> PathBuf {
-    log_dir().join("tui.log")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -297,7 +293,6 @@ mod tests {
         // logs beside their state.
         assert_eq!(log_dir(), data.join("state"));
         assert_eq!(daemon_log_path(), data.join("state").join("daemon.log"));
-        assert_eq!(tui_log_path(), data.join("state").join("tui.log"));
 
         std::env::set_var(crate::env::RUNTIME_DIR, "");
         std::env::set_var(crate::env::DATA_DIR, "");

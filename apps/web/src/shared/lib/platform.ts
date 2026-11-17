@@ -7,11 +7,7 @@ type HostPlatform = {
   readonly os: Os;
   readonly capabilities: {
     readonly ptyAnswersTerminalQueries: boolean;
-    readonly consoleDropsKittyInput: boolean;
-    readonly pasteArrivesAsKeys: boolean;
-    readonly win32ConsoleKeys: boolean;
     readonly pathsCaseInsensitive: boolean;
-    readonly systemSounds: boolean;
   };
   readonly selfUpdate: boolean;
   readonly windowChrome: { readonly nativeDecorations: boolean; readonly nativeMenu: boolean };
@@ -53,11 +49,7 @@ export const hostPlatform = shallowRef<HostPlatform>({
   os: clientOs,
   capabilities: {
     ptyAnswersTerminalQueries: windowsHost,
-    consoleDropsKittyInput: windowsHost,
-    pasteArrivesAsKeys: windowsHost,
-    win32ConsoleKeys: windowsHost,
     pathsCaseInsensitive: windowsHost,
-    systemSounds: isMac,
   },
   selfUpdate: false,
   windowChrome: { nativeDecorations: false, nativeMenu: false },

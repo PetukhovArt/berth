@@ -58,17 +58,6 @@ pub async fn repo_toplevel(path: &Path) -> Result<PathBuf> {
     Ok(PathBuf::from(out.trim()))
 }
 
-pub async fn current_branch(repo: &Path) -> Result<String> {
-    let out = git(repo, &["branch", "--show-current"]).await?;
-    let branch = out.trim();
-    if branch.is_empty() {
-        // Detached HEAD — fall back to the short hash.
-        let hash = git(repo, &["rev-parse", "--short", "HEAD"]).await?;
-        return Ok(format!("detached@{}", hash.trim()));
-    }
-    Ok(branch.to_string())
-}
-
 /// Local branch names, most recently committed first. Full refnames are
 /// stripped by hand rather than asked for `:short`, which turns into
 /// `heads/<name>` whenever a tag or remote shares the branch's name.

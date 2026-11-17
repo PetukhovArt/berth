@@ -117,7 +117,6 @@ your editor; hand edits apply while the app runs. `BERTH_HOME` moves the directo
 | Variable | Effect |
 |---|---|
 | `BERTH_LOG` | `RUST_LOG`-style filter for the daemon log (`BERTH_LOG=debug`) |
-| `BERTH_CLOUD_MIRROR_SECS` | cloud-mirror refresh cadence in seconds; `0` turns the follow off |
 | `BERTH_DATA_DIR` | data dir (database, config, logs), which is how tests and parallel instances isolate themselves |
 | `BERTH_RUNTIME_DIR` | runtime dir holding the socket / endpoint file and pidfile |
 | `BERTH_METRICS_SAMPLE_MS` | how often the daemon samples CPU, memory and token use; tests shorten it |

@@ -1,23 +1,20 @@
 use crate::acp::{AcpItem, AcpItemAt};
 use crate::entities::{
-    Agent, AgentKind, AgentStatus, Entity, EntityId, Link, OrphanedSession, Project, TerminalTab,
+    Agent, AgentKind, AgentStatus, Entity, EntityId, OrphanedSession, Project, TerminalTab,
     Workspace, Worktree,
 };
-use crate::ids::{AgentId, LinkId, ProjectId, TerminalId, WorkspaceId, WorktreeId};
+use crate::ids::{AgentId, ProjectId, TerminalId, WorkspaceId, WorktreeId};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 56;
+pub const PROTOCOL_VERSION: u32 = 57;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
 
-/// Cloud tasks ultimately cross an OS argv boundary (twice: the login
-/// shell's `-c` string and Claude's own argv). Leave ample room for shell
-/// quoting expansion and the rest of the environment on every platform.
-pub const MAX_CLOUD_PROMPT_BYTES: usize = 16 * 1024;
+pub const MAX_STARTING_PROMPT_BYTES: usize = 16 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SessionRef {
@@ -132,16 +129,14 @@ pub enum ClientRequest {
         req_id: u64,
         project: ProjectId,
     },
-    /// The resumable conversations of `project`: every ORPHANED SESSION,
-    /// plus — when `include_live` — the conversations of its live worktrees,
-    /// so any of them can be resumed in any checkout. Answered by one
+    /// The resumable conversations of `project`: every ORPHANED SESSION
+    /// Answered by one
     /// `OrphanedSessions`, not by deltas — the list is read when the user
     /// opens it and is half derived from the agent CLI's own transcript
     /// store, which berth does not watch.
     ListOrphanedSessions {
         req_id: u64,
         project: ProjectId,
-        include_live: bool,
     },
     /// Bring an ORPHANED SESSION back as a live AGENT in `worktree`. Creates
     /// an ordinary row there carrying the old CLI session id, so the next
@@ -164,33 +159,14 @@ pub enum ClientRequest {
         /// the session eligible for one agent-driven auto-title (the CLI
         /// runs `berth rename` on its first prompt).
         auto_title: bool,
-        /// One-shot task for a fresh `claude --cloud <task>` launch. This is
-        /// deliberately request-only: prompts are not persisted with Agent.
-        #[serde(default)]
-        cloud_prompt: Option<String>,
         /// The first turn handed to the CLI as its positional prompt
         /// (`claude "<text>"`, `codex "<text>"`, `cursor-agent "<text>"`) —
         /// what an AGENT PRESET launch composes from its prefix, the task
-        /// and its postfix. Request-only like `cloud_prompt`: never
+        /// and its postfix. Request-only: never
         /// persisted, so a RESUME can never replay it. Skips PREWARM POOL
         /// adoption, since a spare booted bare cannot be handed one.
         #[serde(default)]
         starting_prompt: Option<String>,
-    },
-    /// Create a local Claude AGENT from an OPEN PRS row. The PR URL is
-    /// persisted as launch context so every cold spawn and RESUME rebuilds
-    /// the same PR-scoped appended system prompt. Separate from CreateAgent
-    /// so ordinary callers cannot accidentally opt into a partial PR launch.
-    CreatePrAgent {
-        req_id: u64,
-        worktree: WorktreeId,
-        name: String,
-        /// Model the Claude CLI launches with; None = Claude's own default.
-        model: Option<String>,
-        /// Reasoning effort the Claude CLI launches with; None = default.
-        effort: Option<String>,
-        auto_title: bool,
-        pr_url: String,
     },
     /// Fire-and-forget: pre-spawn an agent CLI for this (worktree, kind) so
     /// the next CreateAgent adopts an already-booted session. Sent the
@@ -337,49 +313,10 @@ pub enum ClientRequest {
         req_id: u64,
         json: String,
     },
-    /// Re-enter the Claude Cloud session a row launched: `claude --cloud
-    /// <id>` for a live attach, which the daemon downgrades to `claude
-    /// --teleport <id>` when the account cannot attach. A row still sitting
-    /// in the main checkout is first re-homed into a worktree of its own,
-    /// because either CLI switches the checkout to the cloud branch.
-    /// Rejected for rows without a `cloud_session_id`.
-    AttachCloudAgent {
-        req_id: u64,
-        id: AgentId,
-    },
-    /// Queue a message on the Claude Cloud session a row launched
-    /// (`claude -p <message> --cloud <id>`), then pull the transcript so the
-    /// send is visible. Fire-and-forget by nature: the CLI acknowledges the
-    /// send and returns, and the reply only ever appears in a later pull.
-    /// Rejected for rows without a `cloud_session_id`, and bounded by
-    /// [`MAX_CLOUD_PROMPT_BYTES`] like the launch task.
-    SendCloudMessage {
-        req_id: u64,
-        id: AgentId,
-        message: String,
-    },
     CreateTerminal {
         req_id: u64,
         worktree: WorktreeId,
         name: Option<String>,
-    },
-    /// Pin a URL to a worktree. `url` is normalized daemon-side (a bare
-    /// `github.com/...` gains an https:// scheme) and refused if it can't be
-    /// made into an http(s) URL.
-    CreateLink {
-        req_id: u64,
-        worktree: WorktreeId,
-        url: String,
-    },
-    /// Rewrite a link's URL (same normalization as CreateLink).
-    UpdateLink {
-        req_id: u64,
-        id: LinkId,
-        url: String,
-    },
-    DeleteLink {
-        req_id: u64,
-        id: LinkId,
     },
     RenameTerminal {
         req_id: u64,
@@ -389,18 +326,6 @@ pub enum ClientRequest {
     CloseTerminal {
         req_id: u64,
         id: TerminalId,
-    },
-
-    /// Fire-and-forget opaque TUI blob (last selection etc.).
-    SaveUiState {
-        json: String,
-    },
-
-    /// Fire-and-forget: the user just opened this pull request, so
-    /// everything up to `marker` has now been read.
-    MarkPrSeen {
-        url: String,
-        marker: String,
     },
 
     /// Fire-and-forget: this agent's session is on screen, so a turn it
@@ -527,18 +452,6 @@ pub enum ClientRequest {
     Shutdown,
 }
 
-/// How much of a pull request's conversation the user had already seen the
-/// last time they opened it. `marker` is the newest thing anyone else had
-/// posted at that moment, as GitHub's RFC 3339 stamp — those sort
-/// lexicographically, so "arrived since" is a string compare and berth
-/// never has to consult a clock. Empty means the PR was opened while its
-/// conversation was still empty.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PrSeen {
-    pub url: String,
-    pub marker: String,
-}
-
 /// The archive mark on an EXTERNAL SESSION, keyed by its agent CLI and that
 /// CLI's own session id. `archived_at` is the daemon's epoch ms at the
 /// moment of archiving: a client that sees the transcript written after it
@@ -638,18 +551,6 @@ impl TokenUsage {
         slot.cache_read += add.cache_read;
         slot.cache_write_5m += add.cache_write_5m;
         slot.cache_write_1h += add.cache_write_1h;
-    }
-
-    /// Input, output and every cache bucket summed across models — the
-    /// three numbers the diagnostics card's columns show.
-    pub fn totals(&self) -> (u64, u64, u64) {
-        self.by_model.iter().fold((0, 0, 0), |(i, o, c), m| {
-            (
-                i + m.input,
-                o + m.output,
-                c + m.cache_read + m.cache_write_5m + m.cache_write_1h,
-            )
-        })
     }
 }
 
@@ -756,10 +657,6 @@ pub enum ServerEvent {
         worktrees: Vec<Worktree>,
         agents: Vec<Agent>,
         terminals: Vec<TerminalTab>,
-        links: Vec<Link>,
-        /// How far the user has read into each pull request they've opened.
-        pr_seen: Vec<PrSeen>,
-        ui_state: Option<String>,
         /// Every EXTERNAL SESSION the user archived.
         archived_external_sessions: Vec<ArchivedExternalSession>,
     },
@@ -834,21 +731,6 @@ pub enum ServerEvent {
     SessionExited {
         session: SessionRef,
         exit_code: Option<i32>,
-    },
-    /// The child's kitty-keyboard-protocol flags changed (or, right after
-    /// Scrollback on attach, the current value). 0 = legacy encoding.
-    KittyFlags {
-        session: SessionRef,
-        flags: u8,
-    },
-    /// win32-input-mode toggled (or, right after Scrollback on attach, the
-    /// current value). ConPTY requests it at session open, so on Windows it
-    /// is on for every cooked child; clients then encode the chords legacy
-    /// bytes flatten (Shift+Enter) as `CSI Vk;Sc;Uc;Kd;Cs;Rc _`. On Unix it
-    /// never turns on.
-    Win32Input {
-        session: SessionRef,
-        on: bool,
     },
 
     UsageLimits {

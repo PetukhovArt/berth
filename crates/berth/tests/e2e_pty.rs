@@ -23,7 +23,7 @@ use tokio::net::UnixStream;
 const EVENT_TIMEOUT: Duration = Duration::from_secs(5);
 /// Same, for events that wait on a PTY child (spawn, exit, hook round-trip).
 const SLOW_TIMEOUT: Duration = Duration::from_secs(10);
-/// Same, for chains of several respawns or a cloud-mirror follow.
+/// Same, for chains of several respawns
 const SPAWN_CHAIN_TIMEOUT: Duration = Duration::from_secs(20);
 /// Sleep between polls of the filesystem or a counter.
 const POLL_STEP: Duration = Duration::from_millis(50);
@@ -372,7 +372,6 @@ async fn full_crud_attach_and_restart_persistence() {
             model: None,
             effort: None,
             auto_title: false,
-            cloud_prompt: None,
             starting_prompt: None,
         },
     )
@@ -517,9 +516,7 @@ async fn full_crud_attach_and_restart_persistence() {
 }
 
 /// The daemon must answer a child's kitty-keyboard support query (nothing
-/// else ever would — the child talks to a virtual terminal), track pushed
-/// flags, and tell attached clients so they switch key encodings. This is
-/// what makes Cmd/Option combos reach Claude Code.
+/// else ever would — the child talks to a virtual terminal)
 #[tokio::test]
 async fn kitty_keyboard_negotiation_passthrough() {
     let env = TestEnv::new();
@@ -589,13 +586,6 @@ async fn kitty_keyboard_negotiation_passthrough() {
     )
     .await
     .unwrap();
-    // Attach reports the child's current (legacy) flags right away.
-    read_events_until(&mut c, EVENT_TIMEOUT, |evs| {
-        evs.iter()
-            .any(|e| matches!(e, ServerEvent::KittyFlags { flags: 0, .. }))
-    })
-    .await;
-
     // The child queries support and reads the daemon's reply off its own
     // stdin — the same detection recipe Claude Code uses. `tr` makes the
     // reply greppable in plain text.
@@ -612,62 +602,6 @@ async fn kitty_keyboard_negotiation_passthrough() {
     .unwrap();
     read_events_until(&mut c, SLOW_TIMEOUT, |evs| {
         String::from_utf8_lossy(&collected_output(evs)).contains("REPLY:E[?0u")
-    })
-    .await;
-
-    // Pushing flags reaches the attached client…
-    write_frame(
-        &mut c,
-        &ClientRequest::Input {
-            session: sref.clone(),
-            data: b"printf '\\033[>1u'\n".to_vec(),
-        },
-    )
-    .await
-    .unwrap();
-    read_events_until(&mut c, SLOW_TIMEOUT, |evs| {
-        evs.iter()
-            .any(|e| matches!(e, ServerEvent::KittyFlags { flags: 1, .. }))
-    })
-    .await;
-
-    // …survives a re-attach (fresh client learns the current mode)…
-    write_frame(
-        &mut c,
-        &ClientRequest::Attach {
-            session: sref.clone(),
-            from_seq: None,
-            cols: 100,
-            rows: 30,
-        },
-    )
-    .await
-    .unwrap();
-    let events = read_events_until(&mut c, EVENT_TIMEOUT, |evs| {
-        evs.iter()
-            .any(|e| matches!(e, ServerEvent::KittyFlags { .. }))
-    })
-    .await;
-    assert!(
-        events
-            .iter()
-            .any(|e| matches!(e, ServerEvent::KittyFlags { flags: 1, .. })),
-        "re-attach must report the pushed flags: {events:#?}"
-    );
-
-    // …and popping restores legacy.
-    write_frame(
-        &mut c,
-        &ClientRequest::Input {
-            session: sref.clone(),
-            data: b"printf '\\033[<u'\n".to_vec(),
-        },
-    )
-    .await
-    .unwrap();
-    read_events_until(&mut c, SLOW_TIMEOUT, |evs| {
-        evs.iter()
-            .any(|e| matches!(e, ServerEvent::KittyFlags { flags: 0, .. }))
     })
     .await;
 
@@ -731,7 +665,6 @@ async fn hook_post_from_agent_pty_drives_status() {
             model: None,
             effort: None,
             auto_title: false,
-            cloud_prompt: None,
             starting_prompt: None,
         },
     )
@@ -1054,7 +987,6 @@ async fn hook_cwd_rehomes_agent_to_other_worktree() {
             model: None,
             effort: None,
             auto_title: false,
-            cloud_prompt: None,
             starting_prompt: None,
         },
     )
@@ -1206,7 +1138,6 @@ async fn move_agent_respawns_live_session_in_target_worktree() {
             model: None,
             effort: None,
             auto_title: false,
-            cloud_prompt: None,
             starting_prompt: None,
         },
     )
@@ -1378,7 +1309,6 @@ async fn codex_hooks_install_and_drive_status() {
             model: None,
             effort: None,
             auto_title: false,
-            cloud_prompt: None,
             starting_prompt: None,
         },
     )
@@ -1955,7 +1885,6 @@ async fn prewarmed_session_is_adopted_by_create_agent() {
             model: None,
             effort: None,
             auto_title: false,
-            cloud_prompt: None,
             starting_prompt: None,
         },
     )
@@ -2078,7 +2007,6 @@ async fn dead_prewarm_falls_back_to_cold_spawn() {
             model: None,
             effort: None,
             auto_title: false,
-            cloud_prompt: None,
             starting_prompt: None,
         },
     )
@@ -2133,7 +2061,6 @@ async fn create_agent_refuses_when_the_cli_is_not_installed() {
                 model: None,
                 effort: None,
                 auto_title: false,
-                cloud_prompt: None,
                 starting_prompt: None,
             },
         )
@@ -2218,7 +2145,6 @@ async fn create_agent_succeeds_when_the_cli_is_on_the_login_shell_path() {
             model: None,
             effort: None,
             auto_title: false,
-            cloud_prompt: None,
             starting_prompt: None,
         },
     )
@@ -2288,7 +2214,6 @@ async fn create_agent_get_id(
             model: None,
             effort: None,
             auto_title: false,
-            cloud_prompt: None,
             starting_prompt: None,
         },
     )
@@ -2455,7 +2380,6 @@ async fn archive_sigkills_an_agent_that_ignores_sighup() {
             model: None,
             effort: None,
             auto_title: false,
-            cloud_prompt: None,
             starting_prompt: None,
         },
     )
@@ -2516,7 +2440,6 @@ async fn prewarm_worktree_sessions_boots_dead_sessions() {
             model: None,
             effort: None,
             auto_title: false,
-            cloud_prompt: None,
             starting_prompt: None,
         },
     )
@@ -2562,7 +2485,6 @@ async fn prewarm_worktree_sessions_boots_dead_sessions() {
             model: None,
             effort: None,
             auto_title: false,
-            cloud_prompt: None,
             starting_prompt: None,
         },
     )
@@ -2677,7 +2599,6 @@ async fn idle_sessions_reap_unwatched_but_spare_busy_and_attached() {
             model: None,
             effort: None,
             auto_title: false,
-            cloud_prompt: None,
             starting_prompt: None,
         },
     )
@@ -2919,7 +2840,6 @@ async fn auto_title_instruction_and_rename_flow() {
             model: None,
             effort: None,
             auto_title: true,
-            cloud_prompt: None,
             starting_prompt: None,
         },
     )
@@ -3021,7 +2941,6 @@ async fn berth_worktree_cli_relocates_the_session_when_the_turn_ends() {
             model: None,
             effort: None,
             auto_title: false,
-            cloud_prompt: None,
             starting_prompt: None,
         },
     )
@@ -3406,7 +3325,6 @@ async fn berth_spawn_cli_starts_a_sibling_session_in_the_same_worktree() {
             model: None,
             effort: None,
             auto_title: false,
-            cloud_prompt: None,
             starting_prompt: None,
         },
     )
@@ -3644,484 +3562,4 @@ async fn cli_add_project() {
 
     write_frame(&mut c, &ClientRequest::Shutdown).await.unwrap();
     wait_for_exit(&mut daemon);
-}
-
-/// A teleport is a snapshot of the cloud session, not a live link, so the
-/// row keeps re-teleporting to stay current — that is what makes a cloud
-/// agent's work show up in berth at all. The follow ends the moment the
-/// pane is typed into: from then on it is the user's local session, and
-/// respawning it under them would eat their turn.
-#[tokio::test]
-async fn cloud_mirror_refreshes_until_the_pane_is_typed_into() {
-    let env = TestEnv::new();
-    let repo = env.make_repo();
-    let state = env.tmp.path().join("mirror-stub");
-    std::fs::create_dir_all(&state).unwrap();
-    let stub = env.tmp.path().join("mirror-stub.sh");
-    std::fs::write(
-        &stub,
-        format!(
-            r#"#!/bin/sh
-n=$(cat "{state}/runs" 2>/dev/null || echo 0)
-n=$((n + 1))
-echo "$n" > "{state}/runs"
-case "$n" in
-  1)
-    printf 'Created cloud session: Follow me\r\n'
-    printf 'Resume with: claude --teleport session_01SQugK2HDyk33coSrfqFJk4\r\n'
-    exit 0
-    ;;
-  2)
-    printf 'Error: Attaching to an existing cloud session is not enabled for your account.\r\n'
-    exit 1
-    ;;
-  *)
-    exec sleep 300
-    ;;
-esac
-"#,
-            state = state.display()
-        ),
-    )
-    .unwrap();
-    make_executable(&stub);
-    let runs = || {
-        std::fs::read_to_string(state.join("runs"))
-            .ok()
-            .and_then(|s| s.trim().parse::<u32>().ok())
-            .unwrap_or(0)
-    };
-    let mut daemon =
-        env.spawn_daemon_with(stub.to_str().unwrap(), &[(env::CLOUD_MIRROR_SECS, "2")]);
-
-    let mut c = connect(&env.sock()).await;
-    handshake(&mut c).await;
-    let main_worktree = add_project_get_main_worktree(&mut c, &repo).await;
-
-    write_frame(
-        &mut c,
-        &ClientRequest::CreateAgent {
-            req_id: 10,
-            worktree: main_worktree.id.clone(),
-            name: "cloud".into(),
-            kind: AgentKind::Claude,
-            model: None,
-            effort: None,
-            auto_title: false,
-            cloud_prompt: Some("Follow me".into()),
-            starting_prompt: None,
-        },
-    )
-    .await
-    .unwrap();
-    let events = read_events_until(&mut c, SLOW_TIMEOUT, |evs| find_ack(evs, 10).is_some()).await;
-    let ServerEvent::Ack {
-        created: Some(EntityId::Agent(agent_id)),
-        ..
-    } = find_ack(&events, 10).unwrap()
-    else {
-        panic!("CreateAgent failed: {events:#?}");
-    };
-    let agent_id = agent_id.clone();
-
-    // create, refused attach, teleport — then the follow keeps going: each
-    // tick kills the pane and teleports it again, pulling whatever the
-    // cloud session has done since.
-    let wait_for_runs = |target: u32| async move {
-        let deadline = tokio::time::Instant::now() + SPAWN_CHAIN_TIMEOUT;
-        while runs() < target && tokio::time::Instant::now() < deadline {
-            tokio::time::sleep(POLL_STEP).await;
-        }
-        runs()
-    };
-    assert!(
-        wait_for_runs(5).await >= 5,
-        "the mirror re-teleports on its own; runs stalled at {}",
-        runs()
-    );
-
-    // Attach and type: the pane is the user's from here.
-    write_frame(
-        &mut c,
-        &ClientRequest::Attach {
-            session: SessionRef::Agent(agent_id.clone()),
-            from_seq: None,
-            cols: 80,
-            rows: 24,
-        },
-    )
-    .await
-    .unwrap();
-    write_frame(
-        &mut c,
-        &ClientRequest::Input {
-            session: SessionRef::Agent(agent_id.clone()),
-            data: b"hello".to_vec(),
-        },
-    )
-    .await
-    .unwrap();
-
-    // The badge clears when the follow gives up, so wait on that rather
-    // than on a sleep — then hold still and confirm the runs stop climbing.
-    let events = read_events_until(&mut c, SPAWN_CHAIN_TIMEOUT, |evs| {
-        evs.iter().any(|e| {
-            matches!(
-                e,
-                ServerEvent::EntityUpserted {
-                    entity: Entity::Agent(a)
-                } if a.id == agent_id && !a.cloud_mirroring
-            )
-        })
-    })
-    .await;
-    assert!(
-        events.iter().any(|e| matches!(
-            e,
-            ServerEvent::EntityUpserted { entity: Entity::Agent(a) }
-                if a.id == agent_id && !a.cloud_mirroring
-        )),
-        "the row should stop advertising a follow it has given up: {events:#?}"
-    );
-    let settled = runs();
-    tokio::time::sleep(EVENT_TIMEOUT).await;
-    assert_eq!(
-        runs(),
-        settled,
-        "an adopted pane must not be teleported over"
-    );
-
-    write_frame(&mut c, &ClientRequest::Shutdown).await.unwrap();
-    wait_for_exit(&mut daemon);
-}
-
-/// The mirror must not be able to loop forever. If the pane it last
-/// spawned is gone — the idle reaper took it because nobody has looked at
-/// this row in a long time, or the teleport itself died — following stops
-/// instead of respawning a session every tick, which would make cloud rows
-/// the one kind berth can never reap.
-#[tokio::test]
-async fn cloud_mirror_gives_up_when_its_pane_stops_coming_back() {
-    let env = TestEnv::new();
-    let repo = env.make_repo();
-    let state = env.tmp.path().join("dying-stub");
-    std::fs::create_dir_all(&state).unwrap();
-    let stub = env.tmp.path().join("dying-stub.sh");
-    std::fs::write(
-        &stub,
-        format!(
-            r#"#!/bin/sh
-n=$(cat "{state}/runs" 2>/dev/null || echo 0)
-n=$((n + 1))
-echo "$n" > "{state}/runs"
-case "$n" in
-  1)
-    printf 'Created cloud session: Follow me\r\n'
-    printf 'Resume with: claude --teleport session_01SQugK2HDyk33coSrfqFJk4\r\n'
-    exit 0
-    ;;
-  2)
-    printf 'Error: Attaching to an existing cloud session is not enabled for your account.\r\n'
-    exit 1
-    ;;
-  3)
-    exec sleep 300
-    ;;
-  *)
-    exit 0
-    ;;
-esac
-"#,
-            state = state.display()
-        ),
-    )
-    .unwrap();
-    make_executable(&stub);
-    let runs = || {
-        std::fs::read_to_string(state.join("runs"))
-            .ok()
-            .and_then(|s| s.trim().parse::<u32>().ok())
-            .unwrap_or(0)
-    };
-    let mut daemon =
-        env.spawn_daemon_with(stub.to_str().unwrap(), &[(env::CLOUD_MIRROR_SECS, "2")]);
-
-    let mut c = connect(&env.sock()).await;
-    handshake(&mut c).await;
-    let main_worktree = add_project_get_main_worktree(&mut c, &repo).await;
-    write_frame(
-        &mut c,
-        &ClientRequest::CreateAgent {
-            req_id: 10,
-            worktree: main_worktree.id.clone(),
-            name: "cloud".into(),
-            kind: AgentKind::Claude,
-            model: None,
-            effort: None,
-            auto_title: false,
-            cloud_prompt: Some("Follow me".into()),
-            starting_prompt: None,
-        },
-    )
-    .await
-    .unwrap();
-    let events = read_events_until(&mut c, SLOW_TIMEOUT, |evs| find_ack(evs, 10).is_some()).await;
-    let ServerEvent::Ack {
-        created: Some(EntityId::Agent(agent_id)),
-        ..
-    } = find_ack(&events, 10).unwrap()
-    else {
-        panic!("CreateAgent failed: {events:#?}");
-    };
-    let agent_id = agent_id.clone();
-
-    // create, refused attach, teleport — then one tick teleports again
-    // (run 4) and that child dies at once.
-    let deadline = tokio::time::Instant::now() + SPAWN_CHAIN_TIMEOUT;
-    while runs() < 4 && tokio::time::Instant::now() < deadline {
-        tokio::time::sleep(POLL_STEP).await;
-    }
-    assert!(runs() >= 4, "the mirror never got a tick in: {}", runs());
-
-    // The tick after that finds no pane and gives up. Watch for the badge
-    // going quiet *after* it was lit — a row's upserts start out unmirrored,
-    // and a spawn's upsert reaches the client before its child runs a line.
-    let events = read_events_until(&mut c, SPAWN_CHAIN_TIMEOUT, |evs| {
-        let is = |e: &ServerEvent, want: bool| {
-            matches!(
-                e,
-                ServerEvent::EntityUpserted {
-                    entity: Entity::Agent(a)
-                } if a.id == agent_id && a.cloud_mirroring == want
-            )
-        };
-        let lit = evs.iter().position(|e| is(e, true));
-        let quiet = evs.iter().rposition(|e| is(e, false));
-        matches!((lit, quiet), (Some(lit), Some(quiet)) if quiet > lit)
-    })
-    .await;
-    let settled = runs();
-    assert!(
-        !events.is_empty(),
-        "the mirror should have stopped advertising itself"
-    );
-    tokio::time::sleep(Duration::from_secs(7)).await;
-    assert_eq!(runs(), settled, "no endless respawn loop");
-
-    write_frame(&mut c, &ClientRequest::Shutdown).await.unwrap();
-    wait_for_exit(&mut daemon);
-}
-
-/// A Claude Cloud row on an account without the live-attach rollout:
-/// `claude --cloud <task>` prints the session id and exits, and the daemon
-/// captures the id off the PTY and re-enters the session *on its own* —
-/// nobody has to ask, because the alternative is a dead pane whose last
-/// line tells the user to go watch their agent somewhere else. The attach
-/// is refused (read off the output, not inferred from the exit), so the row
-/// is teleported instead, inside a `cloud-<id>` worktree of its own rather
-/// than on top of the user's main checkout. The stub stands in for all
-/// three CLI invocations in turn.
-#[tokio::test]
-async fn cloud_row_captures_its_session_id_and_reenters_it() {
-    let env = TestEnv::new();
-    let repo = env.make_repo();
-    let state = env.tmp.path().join("cloud-stub");
-    std::fs::create_dir_all(&state).unwrap();
-    let stub = env.tmp.path().join("cloud-stub.sh");
-    std::fs::write(
-        &stub,
-        format!(
-            r#"#!/bin/sh
-n=$(cat "{state}/runs" 2>/dev/null || echo 0)
-n=$((n + 1))
-echo "$n" > "{state}/runs"
-pwd >> "{state}/cwds"
-case "$n" in
-  1)
-    printf 'Created cloud session: Hello world\r\n'
-    printf 'View: https://claude.ai/code/session_016SiQW5Lem2LbnUf1A3undt?from=cli&m=0\r\n'
-    printf 'Resume with: claude --teleport session_016SiQW5Lem2LbnUf1A3undt\r\n'
-    exit 0
-    ;;
-  2)
-    printf 'Error: Attaching to an existing cloud session is not enabled for your account.\r\n'
-    exit 1
-    ;;
-  *)
-    exec sleep 300
-    ;;
-esac
-"#,
-            state = state.display()
-        ),
-    )
-    .unwrap();
-    make_executable(&stub);
-    let runs = || {
-        std::fs::read_to_string(state.join("runs"))
-            .map(|s| s.trim().to_string())
-            .unwrap_or_default()
-    };
-    // A cadence long enough that no mirror tick lands inside the test: the
-    // run counts here are about the re-entry chain, not the refresh loop
-    // (which `cloud_mirror_refreshes_until_the_pane_is_typed_into` covers).
-    let mut daemon =
-        env.spawn_daemon_with(stub.to_str().unwrap(), &[(env::CLOUD_MIRROR_SECS, "600")]);
-
-    let mut c = connect(&env.sock()).await;
-    handshake(&mut c).await;
-    let main_worktree = add_project_get_main_worktree(&mut c, &repo).await;
-
-    // The create: the stub prints the session lines and exits at once.
-    const CLOUD_ID: &str = "session_016SiQW5Lem2LbnUf1A3undt";
-    write_frame(
-        &mut c,
-        &ClientRequest::CreateAgent {
-            req_id: 10,
-            worktree: main_worktree.id.clone(),
-            name: "cloud".into(),
-            kind: AgentKind::Claude,
-            model: None,
-            effort: None,
-            auto_title: false,
-            cloud_prompt: Some("Hello world".into()),
-            starting_prompt: None,
-        },
-    )
-    .await
-    .unwrap();
-    let events = read_events_until(&mut c, SLOW_TIMEOUT, |evs| {
-        find_ack(evs, 10).is_some()
-            && evs.iter().any(|e| {
-                matches!(
-                    e,
-                    ServerEvent::EntityUpserted {
-                        entity: Entity::Agent(a)
-                    } if a.cloud_session_id.as_deref() == Some(CLOUD_ID)
-                )
-            })
-    })
-    .await;
-    let ServerEvent::Ack {
-        created: Some(EntityId::Agent(agent_id)),
-        ..
-    } = find_ack(&events, 10).unwrap()
-    else {
-        panic!("CreateAgent failed: {events:#?}");
-    };
-    let agent_id = agent_id.clone();
-
-    // Nothing more is asked of the daemon: capturing the id is what starts
-    // the re-entry. Two further respawns of the row follow — the attach,
-    // refused, and then the teleport.
-    let events = read_events_until(&mut c, SPAWN_CHAIN_TIMEOUT, |evs| {
-        let live_spawns = evs
-            .iter()
-            .filter(|e| {
-                matches!(
-                    e,
-                    ServerEvent::EntityUpserted {
-                        entity: Entity::Agent(a)
-                    } if a.id == agent_id && a.alive
-                )
-            })
-            .count();
-        live_spawns >= 2
-    })
-    .await;
-    // The spawn upsert goes out before the child has run a line; give the
-    // stub a moment to record itself.
-    let deadline = tokio::time::Instant::now() + EVENT_TIMEOUT;
-    while runs() != "3" && tokio::time::Instant::now() < deadline {
-        tokio::time::sleep(POLL_STEP).await;
-    }
-    assert_eq!(runs(), "3", "create, refused attach, teleport");
-    let cloud_worktree = events
-        .iter()
-        .find_map(|e| match e {
-            ServerEvent::EntityUpserted {
-                entity: Entity::Worktree(w),
-            } if w.branch == "cloud-f1A3undt" => Some(w.clone()),
-            _ => None,
-        })
-        .expect("a cloud-<id> worktree was created for the attach");
-    assert_eq!(cloud_worktree.project_id, main_worktree.project_id);
-    assert!(!cloud_worktree.is_main);
-    let row = events
-        .iter()
-        .rev()
-        .find_map(|e| match e {
-            ServerEvent::EntityUpserted {
-                entity: Entity::Agent(a),
-            } if a.id == agent_id => Some(a.clone()),
-            _ => None,
-        })
-        .unwrap();
-    assert_eq!(
-        row.worktree_id, cloud_worktree.id,
-        "row re-homed before attaching"
-    );
-    assert_eq!(row.cloud_session_id.as_deref(), Some(CLOUD_ID));
-    assert!(row.alive);
-    assert!(
-        row.cloud_mirroring,
-        "the teleported pane follows the cloud session from here"
-    );
-
-    // The create ran in the main checkout; the attach and the teleport both
-    // ran in the new worktree — the user's checkout never switched branch.
-    let cwds = std::fs::read_to_string(state.join("cwds")).unwrap();
-    let cwds: Vec<PathBuf> = cwds
-        .lines()
-        .map(|l| std::fs::canonicalize(l).unwrap())
-        .collect();
-    assert_eq!(
-        cwds,
-        vec![
-            std::fs::canonicalize(&main_worktree.path).unwrap(),
-            std::fs::canonicalize(&cloud_worktree.path).unwrap(),
-            std::fs::canonicalize(&cloud_worktree.path).unwrap(),
-        ]
-    );
-    let main_branch = std::process::Command::new("git")
-        .args(["-C", repo.to_str().unwrap(), "branch", "--show-current"])
-        .output()
-        .unwrap();
-    assert_eq!(String::from_utf8_lossy(&main_branch.stdout).trim(), "main");
-
-    // Restarting a row that is mirroring re-enters the cloud session rather
-    // than resuming the local session the teleport left behind — and it
-    // goes straight to the teleport, because this daemon has already seen
-    // the attach refused once. One new run, not two.
-    write_frame(
-        &mut c,
-        &ClientRequest::RestartAgent {
-            req_id: 11,
-            id: agent_id.clone(),
-        },
-    )
-    .await
-    .unwrap();
-    let events = read_events_until(&mut c, SPAWN_CHAIN_TIMEOUT, |evs| {
-        find_ack(evs, 11).is_some()
-    })
-    .await;
-    assert!(
-        matches!(find_ack(&events, 11), Some(ServerEvent::Ack { .. })),
-        "RestartAgent failed: {events:#?}"
-    );
-    let deadline = tokio::time::Instant::now() + EVENT_TIMEOUT;
-    while runs() != "4" && tokio::time::Instant::now() < deadline {
-        tokio::time::sleep(POLL_STEP).await;
-    }
-    assert_eq!(
-        runs(),
-        "4",
-        "one re-entry, and it skipped the refused attach"
-    );
-
-    // Shutting down must not spawn anything further.
-    write_frame(&mut c, &ClientRequest::Shutdown).await.unwrap();
-    wait_for_exit(&mut daemon);
-    assert_eq!(runs(), "4");
 }

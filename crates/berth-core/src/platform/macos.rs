@@ -1,65 +1,27 @@
-//! macOS. Shares the unix plumbing; differs in the openers, the clipboard,
-//! system sounds and memory probes (there is no `/proc`).
+//! macOS. Shares the unix plumbing; differs in the openers
+//! and memory probes (there is no `/proc`).
 
 use std::ffi::OsString;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use super::{Capabilities, Os};
 
 pub use super::unix::{
     has_child_processes, is_link, kill_process_tree, lead_process_tree, no_window_std,
-    no_window_tokio, owner_only, process_rss_bytes, resolve_editor_program, resolve_program,
-    restrict_to_owner, strip_verbatim_prefix, symlink, termination_signal, EXECUTABLE_SUFFIXES,
-    PROFILE_HOME_VAR,
+    no_window_tokio, owner_only, resolve_program, restrict_to_owner, strip_verbatim_prefix,
+    symlink, termination_signal, EXECUTABLE_SUFFIXES, PROFILE_HOME_VAR,
 };
 
 pub const OS: Os = Os::Macos;
 
 pub const CAPABILITIES: Capabilities = Capabilities {
     pty_answers_terminal_queries: false,
-    console_drops_kitty_input: false,
-    paste_arrives_as_keys: false,
-    win32_console_keys: false,
     paths_case_insensitive: false,
-    system_sounds: true,
 };
-
-const SOUNDS_DIR: &str = "/System/Library/Sounds";
-
-pub fn open_url(url: &str) -> bool {
-    super::unix::open_url_with("open", url)
-}
 
 pub fn open_path(path: &Path) -> io::Result<()> {
     super::unix::open_path_with("open", path)
-}
-
-pub fn copy_to_clipboard(text: &str) -> bool {
-    super::pipe_into("pbcopy", &[], text.as_bytes())
-}
-
-pub fn system_sound(name: &str) -> Option<PathBuf> {
-    let path = Path::new(SOUNDS_DIR).join(format!("{name}.aiff"));
-    path.is_file().then_some(path)
-}
-
-/// `afplay`, detached; a helper thread reaps it so no zombie lingers.
-pub fn play_sound_file(path: &Path) -> bool {
-    use std::process::{Command, Stdio};
-    let Ok(mut child) = Command::new("afplay")
-        .arg(path)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-    else {
-        return false;
-    };
-    std::thread::spawn(move || {
-        let _ = child.wait();
-    });
-    true
 }
 
 pub fn system_total_bytes() -> Option<u64> {

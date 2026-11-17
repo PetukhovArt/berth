@@ -4,7 +4,7 @@ import { acknowledged, call, BerthCallError, type BerthReply } from './berth';
 export type OrphanedSession = Extract<BerthReply, { OrphanedSessions: unknown }>['OrphanedSessions']['sessions'][number];
 
 export async function listOrphans(project: string): Promise<OrphanedSession[]> {
-  const reply = await call({ ListOrphanedSessions: { project, include_live: false } });
+  const reply = await call({ ListOrphanedSessions: { project } });
   if (!('OrphanedSessions' in reply)) throw new BerthCallError(t('agents.errors.expectedOrphans', { reply: Object.keys(reply).join('') }));
   return reply.OrphanedSessions.sessions;
 }

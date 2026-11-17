@@ -20,9 +20,9 @@ tokio = { version = "1", features = ["io-util", "net", "process", "time", "signa
 [target.'cfg(windows)'.dependencies]
 rand = "0.10"
 subtle = "2"
-# `platform`'s working-set and installed-RAM probes and its process table;
-# unix shells out to ps/sysctl or reads /proc instead.
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_ProcessStatus", "Win32_System_SystemInformation", "Win32_System_Threading"] }
+# `platform`'s installed-RAM probe and its process table;
+# unix shells out to sysctl or reads /proc instead.
+windows-sys = { version = "0.61", features = ["Win32_System_SystemInformation"] }
 sysinfo = { version = "0.37", default-features = false, features = ["system"] }
 
 # `platform`'s /proc reader needs sysconf for clock ticks and page size.
