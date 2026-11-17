@@ -189,4 +189,21 @@ mod tests {
         assert!(pending.clear(&agent));
         assert!(!pending.clear(&agent));
     }
+
+    #[test]
+    fn a_killed_session_takes_its_request_card_away() {
+        let daemon = crate::registry::tests::test_daemon();
+        let agent = AgentId("a".into());
+        let request = from_hook("PermissionRequest", Some("Bash"), None).unwrap();
+        daemon.set_feedback_request(&agent, request);
+        let mut rx = daemon.events.subscribe();
+
+        daemon.kill_session(&berth_core::SessionRef::Agent(agent.clone()));
+
+        assert!(daemon.feedback.all().is_empty(), "nobody is left to answer");
+        assert!(matches!(
+            rx.try_recv().unwrap(),
+            ServerEvent::FeedbackRequestChanged { request: None, .. }
+        ));
+    }
 }
