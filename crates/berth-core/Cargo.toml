@@ -31,7 +31,5 @@ libc = "0.2"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["io-util", "rt", "macros", "net", "time"] }
-
-# `platform`'s Windows resolver tests build fake install layouts; Unix stays dep-light.
-[target.'cfg(windows)'.dev-dependencies]
+# `platform`'s resolver tests and `claude_store`'s build fake directory layouts.
 tempfile = "3"
