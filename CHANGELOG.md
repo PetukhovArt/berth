@@ -179,6 +179,7 @@
 - Fixed a terminal running Claude Code showing one name in the desktop app's tree and another in its tab: a `/rename` in Claude Code now renames the terminal everywhere, and a rename in Berth shows in the tree too; whichever came last wins.
 - Fixed `Continue in Berth` in the desktop app opening the terminal in a new tab beside the conversation; the terminal now takes the conversation's tab.
 - Windows: Fixed `Ctrl+Enter` inserting a newline in Claude Code instead of sending the message now (needs a sideloaded `conpty.dll`).
+- Windows: Fixed a console host left running at full CPU after berth's daemon crashed or was killed.
 - Fixed agents' `git add` and `git commit` failing with `index.lock: File exists` while berth polls the checkout.
 - Fixed a session painting in no color at all when `NO_COLOR` or `FORCE_COLOR` was set in the daemon's environment or a login profile.
 - Fixed Claude Code sessions not saving their transcript (`Transcript saving is off`) when the daemon was started from inside another Claude Code session.

@@ -82,10 +82,12 @@ mod tests {
 #[cfg(test)]
 mod create_tests {
     use std::sync::Arc;
+    use std::time::Duration;
 
-    use berth_core::{EntityId, Project, ProjectId};
+    use berth_core::{EntityId, Project, ProjectId, SessionRef};
 
     use crate::hooks::HookEnv;
+    use crate::pty::PtyEvent;
     use crate::registry::Daemon;
     use crate::store::Store;
 
@@ -104,7 +106,6 @@ mod create_tests {
     }
 
     #[tokio::test]
-    #[ignore = "hangs past 60 s on Windows: the setup terminal is a real interactive shell"]
     async fn blank_branch_is_generated_and_setup_opens_a_terminal() {
         let tmp = tempfile::tempdir().unwrap();
         let repo = berth_core::paths::canonical_or_raw(tmp.path()).join("repo");
@@ -139,8 +140,19 @@ mod create_tests {
         let worktree = daemon.store.get_worktree(&id).unwrap().unwrap();
         assert_eq!(worktree.branch.split('-').count(), 3);
         let (_, _, _, terminals) = daemon.store.load_tree().unwrap();
-        assert!(terminals
+        let setup = terminals
             .iter()
-            .any(|t| t.worktree_id == id && t.name == super::SETUP_NAME));
+            .find(|t| t.worktree_id == id && t.name == super::SETUP_NAME)
+            .expect("a setup terminal row");
+        let session = daemon
+            .session(&SessionRef::Terminal(setup.id.clone()))
+            .expect("the setup terminal is running");
+        let mut events = session.events.subscribe();
+        daemon.kill_all();
+        tokio::time::timeout(Duration::from_secs(30), async {
+            while !matches!(events.recv().await, Ok(PtyEvent::Exited { .. }) | Err(_)) {}
+        })
+        .await
+        .expect("the setup terminal outlived kill_all");
     }
 }

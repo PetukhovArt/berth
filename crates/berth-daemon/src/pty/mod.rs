@@ -1,4 +1,6 @@
 pub mod capture;
+#[cfg(windows)]
+mod host_job;
 pub mod kill;
 pub mod kitty;
 mod own_dir;
@@ -55,6 +57,11 @@ fn pty_size(cols: u16, rows: u16) -> PtySize {
         pixel_width: 0,
         pixel_height: 0,
     }
+}
+
+pub fn kill_console_hosts_before_exit() {
+    #[cfg(windows)]
+    host_job::kill_every_host();
 }
 
 /// Broadcast to attached clients (and, later, the status machine).
@@ -138,6 +145,8 @@ impl PtySession {
     /// Spawn the child in a fresh PTY and start its reader thread + pump task.
     pub fn spawn(sref: SessionRef, spec: SpawnSpec) -> Result<Arc<Self>> {
         let pty_system = native_pty_system();
+        #[cfg(windows)]
+        let hosts_before = host_job::hosts_before_openpty();
         let pair = pty_system
             .openpty(pty_size(spec.cols, spec.rows))
             .context("openpty")?;
@@ -206,6 +215,8 @@ impl PtySession {
         let (tx, rx) = mpsc::channel::<ReaderMsg>(READER_CHANNEL_BOUND);
         spawn_reader_thread(reader, child, tx);
         tokio::spawn(pump(session.clone(), rx));
+        #[cfg(windows)]
+        host_job::tie_new_hosts_to_this_process(hosts_before);
         Ok(session)
     }
 

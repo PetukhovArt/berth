@@ -88,7 +88,7 @@ struct Inner {
 /// `Sync` by default; a job/process handle is safe to use from any thread
 /// (the kernel object is refcounted), so the marker is sound here.
 #[cfg(windows)]
-struct Handle(windows_sys::Win32::Foundation::HANDLE);
+pub(super) struct Handle(pub(super) windows_sys::Win32::Foundation::HANDLE);
 
 #[cfg(windows)]
 unsafe impl Send for Handle {}
@@ -99,6 +99,35 @@ unsafe impl Sync for Handle {}
 impl Drop for Handle {
     fn drop(&mut self) {
         unsafe { windows_sys::Win32::Foundation::CloseHandle(self.0) };
+    }
+}
+
+#[cfg(windows)]
+pub(super) fn kill_on_close_job() -> Option<Handle> {
+    use windows_sys::Win32::System::JobObjects::{
+        CreateJobObjectW, JobObjectExtendedLimitInformation, SetInformationJobObject,
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+    };
+    unsafe {
+        let job = CreateJobObjectW(std::ptr::null(), std::ptr::null());
+        if job.is_null() {
+            tracing::warn!(error = %std::io::Error::last_os_error(), "CreateJobObject failed");
+            return None;
+        }
+        let job = Handle(job);
+        let mut limits: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
+        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        if SetInformationJobObject(
+            job.0,
+            JobObjectExtendedLimitInformation,
+            &limits as *const _ as *const core::ffi::c_void,
+            std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+        ) == 0
+        {
+            tracing::warn!(error = %std::io::Error::last_os_error(), "SetInformationJobObject failed");
+            return None;
+        }
+        Some(job)
     }
 }
 
@@ -116,11 +145,7 @@ impl Inner {
     /// mean forking `portable-pty` to spawn suspended. Accepted, recorded
     /// here, and the smoke test asserts the common case.
     fn claim(pid: u32) -> Option<Self> {
-        use windows_sys::Win32::System::JobObjects::{
-            AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
-            SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
-            JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
-        };
+        use windows_sys::Win32::System::JobObjects::AssignProcessToJobObject;
         use windows_sys::Win32::System::Threading::{
             OpenProcess, PROCESS_SET_QUOTA, PROCESS_TERMINATE,
         };
@@ -128,33 +153,11 @@ impl Inner {
         // access rights rather than with the process-specific ones.
         use windows_sys::Win32::Storage::FileSystem::SYNCHRONIZE;
 
+        let Some(job) = kill_on_close_job() else {
+            tracing::warn!(pid, "no job for the child — the process tree is unmanaged");
+            return None;
+        };
         unsafe {
-            let job = CreateJobObjectW(std::ptr::null(), std::ptr::null());
-            if job.is_null() {
-                tracing::warn!(
-                    pid,
-                    "CreateJobObject failed — the process tree is unmanaged"
-                );
-                return None;
-            }
-            let job = Handle(job);
-
-            // Kill the tree when the last handle to the job closes. This is
-            // what Unix gets from the PTY master's hangup: a daemon that dies
-            // hard must not leave the agent CLI running headless.
-            let mut limits: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
-            limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-            if SetInformationJobObject(
-                job.0,
-                JobObjectExtendedLimitInformation,
-                &limits as *const _ as *const core::ffi::c_void,
-                std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
-            ) == 0
-            {
-                tracing::warn!(pid, "SetInformationJobObject failed");
-                return None;
-            }
-
             let leader = OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE | SYNCHRONIZE, 0, pid);
             if leader.is_null() {
                 tracing::warn!(pid, "OpenProcess failed — the process tree is unmanaged");

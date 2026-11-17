@@ -320,6 +320,7 @@ async fn serve() -> Result<()> {
     // phase 4/5 when the store exists.)
     daemon.record_live_sessions();
     daemon.kill_all();
+    pty::kill_console_hosts_before_exit();
     transport::unlink_stale();
     tracing::info!("daemon exited cleanly");
     Ok(())
