@@ -238,11 +238,21 @@ pub fn worktree_dir(repo: &Path, branch: &str) -> PathBuf {
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| "repo".into());
     let safe_branch = branch.replace('/', "-");
-    repo.parent()
+    let dir = repo
+        .parent()
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| PathBuf::from("."))
         .join(format!("{repo_name}-worktrees"))
-        .join(safe_branch)
+        .join(safe_branch);
+    in_git_spelling(dir)
+}
+
+fn in_git_spelling(path: PathBuf) -> PathBuf {
+    if cfg!(windows) {
+        PathBuf::from(path.to_string_lossy().replace('\\', "/"))
+    } else {
+        path
+    }
 }
 
 /// `git worktree add <path> -b <branch> [base]`. Falls back to checking out an
@@ -323,6 +333,28 @@ mod tests {
         git(dir, &["commit", "--allow-empty", "-m", "init"])
             .await
             .unwrap();
+    }
+
+    #[test]
+    fn a_new_worktree_dir_keeps_the_repo_paths_separators() {
+        let (repo, want) = if cfg!(windows) {
+            (
+                "C:/Users/me/repos/shop-api",
+                "C:/Users/me/repos/shop-api-worktrees/fix-cart-total",
+            )
+        } else {
+            (
+                "/home/me/repos/shop-api",
+                "/home/me/repos/shop-api-worktrees/fix-cart-total",
+            )
+        };
+        let dir = worktree_dir(Path::new(repo), "fix/cart-total");
+        assert_eq!(dir.to_str(), Some(want));
+        if cfg!(windows) {
+            let stored_mixed =
+                PathBuf::from(r"C:/Users/me/repos\shop-api-worktrees\fix-cart-total");
+            assert_eq!(dir, stored_mixed);
+        }
     }
 
     /// Captured `git worktree list --porcelain` shape: the main checkout
