@@ -5,7 +5,7 @@ import { FILE_PANEL_PREFIX, fileNameOf, filePanelId, isFilePanel, normalizePath 
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
 import { externalKey, externalTarget, isExternalPanel, useExternalSessions, type ExternalSession } from './external';
-import { markSeen, sessionKey, useBerth, type SessionNode, type SessionRef, type WorktreeNode } from './berth';
+import { markSeen, prewarmWorktreeSessions, sessionKey, useBerth, type SessionNode, type SessionRef, type WorktreeNode } from './berth';
 import { loadOpenTabs, saveOpenTabs } from './openTabs';
 import { sessionPaths } from '../lib/sessionPaths';
 
@@ -84,6 +84,12 @@ function createSessionDock() {
 
   watch(activeUnseenAgent, (agent) => {
     if (agent) void markSeen(agent);
+  });
+
+  let prewarmTimer: ReturnType<typeof setTimeout> | undefined;
+  watch(activeWorktreeId, (worktree) => {
+    clearTimeout(prewarmTimer);
+    if (worktree) prewarmTimer = setTimeout(() => prewarmWorktreeSessions(worktree), 400);
   });
 
   watch(

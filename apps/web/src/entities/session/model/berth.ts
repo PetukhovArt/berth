@@ -282,7 +282,15 @@ export function useBerth(): BerthStore | null {
   return store;
 }
 
+let lastPane = { cols: 120, rows: 40 };
+
+export function prewarmWorktreeSessions(worktree: string): void {
+  if (!hasBackend) return;
+  void invoke<null>('berth_call', { request: { PrewarmWorktreeSessions: { worktree, ...lastPane } } }).catch(() => {});
+}
+
 export async function attachSession(session: SessionRef, cols: number, rows: number, onEvent: (event: SessionEvent) => void): Promise<void> {
+  lastPane = { cols, rows };
   await watching;
   await invoke<void>('berth_attach', { session, cols, rows, onEvent: createChannel<SessionEvent>(onEvent) });
 }

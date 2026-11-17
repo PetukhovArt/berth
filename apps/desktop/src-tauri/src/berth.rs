@@ -435,7 +435,10 @@ impl Actor {
     }
 
     fn call(&mut self, mut request: ClientRequest, reply: oneshot::Sender<CallResult>) {
-        if matches!(request, ClientRequest::PrewarmAgent { .. }) {
+        if matches!(
+            request,
+            ClientRequest::PrewarmAgent { .. } | ClientRequest::PrewarmWorktreeSessions { .. }
+        ) {
             self.write(request);
             let _ = reply.send(Ok(serde_json::Value::Null));
             return;
