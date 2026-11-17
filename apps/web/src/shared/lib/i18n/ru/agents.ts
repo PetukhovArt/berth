@@ -98,6 +98,7 @@ export const agents: Translation<typeof en> = {
     alsoStart: 'Запустить также',
     startMany: 'Запустить сессий: {count}',
     baseFetchFailed: 'Не удалось получить {branch} из origin: {detail}',
+    baseFromLocalCopy: 'Worktree создан из локальной копии {copy}, потому что получить {branch} из origin не удалось: {detail}',
     branchesFailed: 'Не удалось получить список веток: {error}',
     type: 'Тип',
     typeAria: 'Тип сессии',

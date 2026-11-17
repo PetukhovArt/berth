@@ -1420,7 +1420,7 @@ impl Daemon {
         id: &AgentId,
         branch: &str,
         base: Option<&str>,
-    ) -> Result<(Worktree, EnterOutcome)> {
+    ) -> Result<(Worktree, EnterOutcome, Option<String>)> {
         let branch = branch.trim();
         if branch.is_empty() {
             bail!("branch name is empty");
@@ -1437,31 +1437,18 @@ impl Daemon {
         let existing = worktrees
             .into_iter()
             .find(|w| w.project_id == current.project_id && w.branch == branch);
-        let target = match existing {
-            Some(w) => w,
+        let (target, warning) = match existing {
+            Some(w) => (w, None),
             None => {
-                let project = self
-                    .store
-                    .get_project(&current.project_id)?
-                    .context("project not found")?;
-                let configured = crate::config::Config::load().worktree_base;
-                let base = crate::worktree_base::choose(base, &project, branch, &configured).await;
-                let created = self
-                    .create_worktree(&current.project_id, branch, base.as_deref())
-                    .await?;
-                let EntityId::Worktree(new_id) = created else {
-                    bail!("worktree creation returned a non-worktree entity");
-                };
-                self.store
-                    .get_worktree(&new_id)?
-                    .context("worktree not found")?
+                self.create_worktree_from_base(&current.project_id, branch, base)
+                    .await?
             }
         };
         if target.id == current.id {
-            return Ok((target, EnterOutcome::AlreadyThere));
+            return Ok((target, EnterOutcome::AlreadyThere, warning));
         }
         let outcome = self.relocate_agent(id, &target)?;
-        Ok((target, outcome))
+        Ok((target, outcome, warning))
     }
 
     /// Re-home the row under `target` now and leave a live PTY to follow at
@@ -3702,7 +3689,7 @@ pub(crate) mod tests {
         let a1 = AgentId("a1".into());
         let mut rx = daemon.events.subscribe();
 
-        let (target, outcome) = daemon.enter_worktree(&a1, "feat", None).await.unwrap();
+        let (target, outcome, _) = daemon.enter_worktree(&a1, "feat", None).await.unwrap();
         assert_eq!(target.id.to_string(), "feat");
         // No PTY runs here, so nothing waits on a turn end.
         assert_eq!(outcome, EnterOutcome::NextLaunch);
@@ -3716,7 +3703,7 @@ pub(crate) mod tests {
         }
 
         // Already there: a settled answer, no broadcast.
-        let (again, outcome) = daemon.enter_worktree(&a1, "feat", None).await.unwrap();
+        let (again, outcome, _) = daemon.enter_worktree(&a1, "feat", None).await.unwrap();
         assert_eq!(again.id, target.id);
         assert_eq!(outcome, EnterOutcome::AlreadyThere);
         assert!(rx.try_recv().is_err(), "no broadcast for a no-op enter");
@@ -3799,7 +3786,7 @@ pub(crate) mod tests {
         let a1 = AgentId("a1".into());
         let mut rx = daemon.events.subscribe();
 
-        let (target, _) = daemon.enter_worktree(&a1, "feat", None).await.unwrap();
+        let (target, _, _) = daemon.enter_worktree(&a1, "feat", None).await.unwrap();
         assert_eq!(target.branch, "feat");
         assert_eq!(target.path, root.join("repo-worktrees").join("feat"));
         assert!(target.path.join(".git").exists(), "a real checkout");

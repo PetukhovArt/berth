@@ -16,6 +16,7 @@ mod history_projects;
 pub mod legacy;
 pub mod merge_watch;
 mod mr_checkout;
+mod new_worktree_base;
 pub mod platform;
 mod providers;
 pub mod push;

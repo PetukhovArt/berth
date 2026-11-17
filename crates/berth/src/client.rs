@@ -439,7 +439,13 @@ async fn await_entered(
                 req_id: r,
                 worktree,
                 outcome,
-            }) if r == req_id => return Ok((worktree, outcome)),
+                warning,
+            }) if r == req_id => {
+                if let Some(warning) = warning {
+                    eprintln!("warning: the worktree was {warning}");
+                }
+                return Ok((worktree, outcome));
+            }
             Some(ServerEvent::Error {
                 req_id: Some(r),
                 message,

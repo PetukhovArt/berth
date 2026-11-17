@@ -1,7 +1,8 @@
 import { computed, shallowRef, watch, type ComputedRef, type ShallowRef } from 'vue';
 import DAEMON_DEFAULTS from '../../../../../../crates/berth-core/daemon-defaults.json';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { mrFetchSource } from '../../../shared/api/connectors/api';
+import { worktreeBaseSource } from '../../../shared/api/connectors/api';
+import { showBaseNotice } from './baseNotice';
 import { useSettings } from '../../../shared/config/settings/store';
 import { acknowledged, call, describeError, loadProjectSetup, saveProjectSetup, BerthCallError, useBerth, worktreesOfProject, type Branch, type Worktree } from '../../../entities/session';
 
@@ -183,12 +184,10 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
   async function fetchBase(id: string, branch: string): Promise<string> {
     const row = entities()?.projects.get(id);
     if (!row) throw new BerthCallError(t('agents.newSession.noTarget'));
-    const fetched = await mrFetchSource(row.repo_path, branch, '', null);
-    if (!fetched.problem && fetched.base) return `${fetched.base}^0`;
-    const local = branches.value?.some((known) => known.name === branch) ?? false;
-    if (fetched.problem === 'no_remote' || (fetched.problem === 'branch_missing' && local)) return branch;
-    const detail = (fetched.detail ?? fetched.problem ?? '').split(/\r?\n/).map((part) => part.trim()).filter(Boolean).join(' ');
-    throw new BerthCallError(t('agents.newSession.baseFetchFailed', { branch, detail }));
+    const chosen = await worktreeBaseSource(row.repo_path, branch);
+    if (chosen.base && chosen.local_copy) showBaseNotice(t('agents.newSession.baseFromLocalCopy', { branch, copy: chosen.local_copy, detail: chosen.detail ?? '' }));
+    if (chosen.base) return chosen.base;
+    throw new BerthCallError(t('agents.newSession.baseFetchFailed', { branch, detail: chosen.detail ?? '' }));
   }
 
   const sharesBranch = computed(() => {
