@@ -151,10 +151,10 @@ function remove(entities: MutableEntities, id: EntityId): boolean {
   return false;
 }
 
-function setStatus(entities: MutableEntities, id: string, status: AgentStatus, unseen: boolean): boolean {
+function setStatus(entities: MutableEntities, id: string, status: AgentStatus, unseen: boolean, changedAt: number): boolean {
   const agent = entities.agents.get(id);
-  if (!agent || (agent.status === status && agent.unseen === unseen)) return false;
-  entities.agents.set(id, { ...agent, status, unseen });
+  if (!agent || (agent.status === status && agent.unseen === unseen && agent.status_changed_at === changedAt)) return false;
+  entities.agents.set(id, { ...agent, status, unseen, status_changed_at: changedAt });
   return true;
 }
 
@@ -259,7 +259,7 @@ function createStore(): BerthStore {
         publish(remove(state, event.id));
         return;
       case 'status':
-        publish(setStatus(state, event.agent, event.status, event.unseen));
+        publish(setStatus(state, event.agent, event.status, event.unseen, event.changed_at));
         return;
       case 'feedback_request':
         feedback.value = event.request ? new Map(feedback.value).set(event.agent, event.request) : drop(feedback.value, event.agent);
