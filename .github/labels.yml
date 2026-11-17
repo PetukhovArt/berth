@@ -13,7 +13,7 @@
 - { name: design, color: "c5def5", description: "Restyle to the Berth MVP design" }
 - { name: feature, color: "a2eeef", description: "New behaviour from the Berth MVP design" }
 - { name: phone, color: "fbca04", description: "Phone web client" }
-- { name: backlog, color: "ededed", description: "Idea from BACKLOG.md" }
+- { name: backlog, color: "ededed", description: "Idea not built yet" }
 - { name: "area: daemon", color: "5319e7", description: "The daemon, PTYs, the socket and the database" }
 - { name: "area: desktop", color: "5319e7", description: "The desktop app and its UI" }
 - { name: "area: cli", color: "5319e7", description: "berth commands Agents and people run" }

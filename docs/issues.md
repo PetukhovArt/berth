@@ -36,6 +36,11 @@ An issue moves through four states: filed, triaged, fixed on `main`, released. L
 - A change a user would notice carries its `CHANGELOG.md` line under `## Unreleased`, ending with `(#<n>)`, and its `docs/` update in the same commit.
 - After the commit, the issue gets `fixed-on-main` and a comment naming the commits. Pushing `main` closes the issue.
 
+## Backlog
+
+- An idea not yet built is an issue labelled `backlog` with its `area:` label: what is built, what is missing with `file:line`, where the idea comes from, and acceptance criteria. There is no backlog file in the repository.
+- The next version has a milestone named after it (`0.21.0`). An issue planned for it, or fixed on `main` since the last release, goes into that milestone; the milestone is the release's status.
+
 ## Release
 
 - The push to `main` closes every issue named by `Fixes #<n>`. Nothing is released until a `version` bump lands, as `docs/releasing.md` describes.

@@ -78,4 +78,6 @@ comment the commits. Ask before posting to GitHub.
 
 ## Features backlog
 
-`BACKLOG.md` lists ideas not yet built and where they come from. Add new ones there.
+Ideas not yet built are GitHub issues labelled `backlog` (`gh issue list --label backlog`): what is
+built, what is missing with `file:line`, and where the idea comes from. File a new idea the same way,
+per `docs/issues.md`. The milestone of the next version collects what it will ship.
