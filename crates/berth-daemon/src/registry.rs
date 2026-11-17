@@ -2746,7 +2746,7 @@ fn validate_starting_prompt(raw: &str) -> Result<String> {
 /// How a Claude PTY enters the Cloud: dispatch a fresh task, attach live
 /// to the session it created, or teleport that session into a local one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CloudLaunch<'a> {
+pub(crate) enum CloudLaunch<'a> {
     Create(&'a str),
     Attach(&'a str),
     Teleport(&'a str),
