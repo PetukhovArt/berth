@@ -91,7 +91,7 @@ function createSessionDock() {
       if (!sessions || berth?.connection.value.state !== 'connected') return;
       const api = dock.api.value;
       if (api) reopen(api);
-      if (api) for (const panel of api.panels) if (isSessionPanel(panel.id) && !sessions.has(panel.id)) panel.api.close();
+      if (api) closeGone(api);
       const opening = openingKey.value ? sessions.get(openingKey.value) : undefined;
       if (!opening) return;
       openingKey.value = null;
@@ -200,7 +200,14 @@ function createSessionDock() {
     if (active) api.getPanel(active)?.api.setActive();
   }
 
+  function closeGone(api: DockviewApi) {
+    const sessions = berth?.sessions.value;
+    if (!sessions || berth?.connection.value.state !== 'connected') return;
+    for (const panel of api.panels) if (isSessionPanel(panel.id) && !sessions.has(panel.id)) panel.api.close();
+  }
+
   function remember(api: DockviewApi) {
+    closeGone(api);
     if (reopening) return;
     const keep = useSettings().values.value['sessions.restoreOnRestart'];
     const keys = api.panels.map((panel) => panel.id).filter((id) => isSessionPanel(id) || dock.revive(id) !== undefined);
