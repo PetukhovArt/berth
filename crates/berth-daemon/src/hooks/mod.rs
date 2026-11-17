@@ -308,8 +308,7 @@ async fn receive_hook(
             request,
             payload.permission_suggestions.as_ref(),
         )
-    })
-    .filter(|_| foreground);
+    });
     let provider_error = (query.hook_event == "StopFailure")
         .then(|| crate::router::detect::from_stop_failure(&payload))
         .filter(|_| foreground);
@@ -608,6 +607,28 @@ mod tests {
         assert_eq!(status, 200);
         let delivery = rx.recv().await.unwrap();
         assert!(delivery.cwd.is_none(), "subagent cwd: {:?}", delivery.cwd);
+    }
+
+    #[tokio::test]
+    async fn a_subagent_permission_prompt_carries_its_request() {
+        let store = seeded_store();
+        let (env, mut rx) = start_hook_server(store).await.unwrap();
+        let (status, _) = http_post(
+            env.port,
+            "/api/hooks/claude?agentId=titled&hookEvent=PermissionRequest",
+            &env.token,
+            r#"{"session_id":"s1","tool_name":"Bash","tool_input":{"command":"rm -rf dist"},"agent_id":"sub-1"}"#,
+        )
+        .await;
+        assert_eq!(status, 200);
+        let request = rx
+            .recv()
+            .await
+            .unwrap()
+            .request
+            .expect("an Allow/Deny card");
+        assert_eq!(request.title, "Bash");
+        assert_eq!(request.detail.as_deref(), Some("rm -rf dist"));
     }
 
     #[test]
