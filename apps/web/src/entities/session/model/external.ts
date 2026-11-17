@@ -42,6 +42,8 @@ const TERMINAL_NAME_CHARS = 40;
 const EARLIER_MS = 24 * 3_600_000;
 const RECENT_CLOSED = 3;
 const METRICS_DEBOUNCE_MS = 300;
+const OWNER_RETRY_MS = 5500;
+const OWNER_RETRIES = 3;
 
 export const externalKey = (session: Pick<ExternalSession, 'harness' | 'id'>) => `${EXTERNAL_PREFIX}${session.harness}:${session.id}`;
 export const isExternalPanel = (id: string) => id.startsWith(EXTERNAL_PREFIX);
@@ -196,27 +198,33 @@ function createStore(): Store {
   let metricsRun = 0;
   let metricsTimer: ReturnType<typeof setTimeout> | undefined;
 
+  function loadOwners(signature: string, attempt: number, delay: number) {
+    metricsTimer = setTimeout(() => {
+      const run = ++metricsRun;
+      getMetrics().then(
+        (snapshot) => {
+          if (run !== metricsRun) return;
+          const owners = new Map(snapshot.sessions.map((entry) => [entry.pid, sessionKey(entry.session)]));
+          pidOwners.value = owners;
+          const unmatched = berthHosted.value.some((session) => !session.berth_pids.some((pid) => owners.has(pid)));
+          if (unmatched && attempt < OWNER_RETRIES) loadOwners(signature, attempt + 1, OWNER_RETRY_MS);
+          else ownersSignature.value = signature;
+        },
+        () => {
+          if (run !== metricsRun) return;
+          pidOwners.value = new Map();
+          ownersSignature.value = signature;
+        },
+      );
+    }, delay);
+  }
+
   watch(
     refreshSignature,
     () => {
       clearTimeout(metricsTimer);
       if (!berthHosted.value.length) return;
-      const signature = refreshSignature.value;
-      metricsTimer = setTimeout(() => {
-        const run = ++metricsRun;
-        getMetrics().then(
-          (snapshot) => {
-            if (run !== metricsRun) return;
-            pidOwners.value = new Map(snapshot.sessions.map((entry) => [entry.pid, sessionKey(entry.session)]));
-            ownersSignature.value = signature;
-          },
-          () => {
-            if (run !== metricsRun) return;
-            pidOwners.value = new Map();
-            ownersSignature.value = signature;
-          },
-        );
-      }, METRICS_DEBOUNCE_MS);
+      loadOwners(refreshSignature.value, 0, METRICS_DEBOUNCE_MS);
     },
     { immediate: true },
   );
