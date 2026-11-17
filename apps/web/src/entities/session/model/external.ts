@@ -190,6 +190,7 @@ function createStore(): Store {
     return ids;
   });
   const pidOwners = shallowRef<ReadonlyMap<number, string> | null>(null);
+  const ownersSignature = shallowRef<string | null>(null);
   const berthHosted = computed(() => raw.value.filter((session) => session.in_berth && !berthIds.value.has(session.id)));
   const refreshSignature = computed(() => `${berthHosted.value.map((session) => `${externalKey(session)}@${session.berth_pids.join('.')}`).join(',')}|${[...(berth?.sessions.value.keys() ?? [])].join(',')}`);
   let metricsRun = 0;
@@ -200,14 +201,19 @@ function createStore(): Store {
     () => {
       clearTimeout(metricsTimer);
       if (!berthHosted.value.length) return;
+      const signature = refreshSignature.value;
       metricsTimer = setTimeout(() => {
         const run = ++metricsRun;
         getMetrics().then(
           (snapshot) => {
-            if (run === metricsRun) pidOwners.value = new Map(snapshot.sessions.map((entry) => [entry.pid, sessionKey(entry.session)]));
+            if (run !== metricsRun) return;
+            pidOwners.value = new Map(snapshot.sessions.map((entry) => [entry.pid, sessionKey(entry.session)]));
+            ownersSignature.value = signature;
           },
           () => {
-            if (run === metricsRun) pidOwners.value = new Map();
+            if (run !== metricsRun) return;
+            pidOwners.value = new Map();
+            ownersSignature.value = signature;
           },
         );
       }, METRICS_DEBOUNCE_MS);
@@ -249,7 +255,7 @@ function createStore(): Store {
       if (terminalOf.value.has(externalKey(session))) return false;
       if (!session.in_berth) return true;
       if (hostKey.value.has(externalKey(session))) return false;
-      return pidOwners.value !== null;
+      return pidOwners.value !== null && ownersSignature.value === refreshSignature.value;
     }),
   );
   const isArchived = (session: ExternalSession) => {
