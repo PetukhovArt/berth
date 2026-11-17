@@ -187,12 +187,21 @@ async fn a_turn_runs_through_a_permission_answer_to_finished() {
         ]
     );
 
-    let items: Vec<AcpItem> = daemon
-        .acp_transcript(&agent, 0)
-        .unwrap()
-        .into_iter()
-        .map(|i| i.item)
-        .collect();
+    let mut items: Vec<AcpItem> = Vec::new();
+    for _ in 0..200 {
+        items = daemon
+            .acp_transcript(&agent, 0)
+            .unwrap()
+            .into_iter()
+            .map(|i| i.item)
+            .collect();
+        let tool_done =
+            matches!(items.get(2), Some(AcpItem::Tool(tool)) if tool.status == "completed");
+        if items.len() >= 4 && tool_done {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
     assert_eq!(
         items[0],
         AcpItem::User {
