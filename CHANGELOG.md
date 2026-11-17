@@ -32,6 +32,8 @@
 - Added a Chat view that groups tool calls into one row that says what they did, shows paths relative to the Worktree, adds a checkpoint row with Restore files under each prompt and a Changed files card per turn that opens Changes on the file
 - Added a Changes view that compares uncommitted changes, the branch or one commit, and a merge request page that lists reviewer names, the working session with a Watch toggle and Add to prompt on threads
 - Added an `Alt+J` hint in the Inbox that opens the next waiting session, and a running and total counter on every project in the sidebar
+- Added Continue as agent in a terminal's menu: the Claude or Codex conversation running there moves into an agent in the same worktree and opens where the terminal was
+- Added Continue a conversation in New Session: pick a Claude or Codex conversation from any checkout of the project and continue it as an agent in the chosen worktree
 - Changed Channel messages and Agent mentions to arrive as soon as they are posted instead of on the next 5 second poll
 - Changed a Channel to show people who have the app open, not only those with a Session running, and to count a Session as on the task when its Worktree's Task note names the Channel key
 - Changed the hold-to-talk microphone in a Session's Chat view to work in the desktop app, not only on a phone
@@ -45,6 +47,9 @@
 - Changed the Chat composer footer to show the model chip, hint, microphone and send button across the full width, tool rows to use forward slashes and bash rows to show their exit status
 - Changed on a phone the session view to list Chat first and keep its header buttons on the tab row
 - Changed the Inbox to say a session crashed instead of stopped with an error, and the Russian status words to agree in gender
+- Changed Continue in Berth to run a Claude or Codex conversation as an agent with permission prompts and notifications, instead of typing `claude --resume` into a terminal, and to close the conversation's old idle terminal so it shows as one row
+- Fixed New Session opened from a project's `+` asking for the project again
+- Fixed a session tab showing a second Claude icon beside its status
 - Fixed the title bar and the phone header show the app icon from the taskbar and the splash screen again, instead of a letter on a blue tile
 - Fixed `ui.font_size` leaving parts of the interface at their old size: session rows, the title bar, session header buttons, the new session form, badges, diagrams and line heights now follow it too.
 - Fixed a blank web UI on a phone caused by phone-only Inbox and approval styles applying to the whole page
