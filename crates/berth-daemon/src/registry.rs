@@ -2610,7 +2610,14 @@ impl Daemon {
         }
         // Managed status hooks; a failure here degrades to "no status
         // updates", never blocks the spawn.
+        let reports_through_mod = agent.kind == AgentKind::Claude
+            && env::var(env::AGENT_CMD).is_none()
+            && hooks::claude_mod::claude_loads_mods();
         let install_result = match agent.kind {
+            AgentKind::Claude if reports_through_mod => {
+                hooks::claude_mod::install_mod(&hooks::claude_mod::plugin_dir())
+                    .and_then(|()| hooks::installer::install_claude_settings(&worktree.path))
+            }
             AgentKind::Claude => hooks::installer::install_claude_hooks(&worktree.path),
             // Codex's hooks live in its home, not the worktree, so one
             // trust approval covers every worktree (see installer docs);
@@ -2677,6 +2684,11 @@ impl Daemon {
                 pr_system_prompt.as_deref(),
                 true,
             ),
+        };
+        let args = if reports_through_mod {
+            hooks::claude_mod::with_plugin_dir(&hooks::claude_mod::plugin_dir(), args)
+        } else {
+            args
         };
         // Put the agent in the environment the user's own terminal would
         // give it (see `crate::launch`). Overrides (tests) stay verbatim.

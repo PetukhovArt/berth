@@ -1,0 +1,71 @@
+import type { Register } from 'claude-code'
+
+const STATUS_EVENTS = new Set([
+  'Stop',
+  'PermissionRequest',
+  'Notification',
+  'SubagentStart',
+  'SubagentStop',
+])
+const ASK = 'AskUserQuestion'
+const MOVES = new Set(['Bash', 'EnterWorktree', 'ExitWorktree'])
+
+let target: { url: string; agent: string; token: string } | null | undefined
+
+async function daemon($: any) {
+  if (target !== undefined) return target
+  const url = await $.env.get('BERTH_API_URL')
+  const agent = await $.env.get('BERTH_AGENT_ID')
+  const token = (await $.env.get('BERTH_API_TOKEN')) ?? ''
+  target = url && agent ? { url, agent, token } : null
+  return target
+}
+
+async function post($: any, event: string, payload: unknown) {
+  const t = await daemon($)
+  if (!t) return undefined
+  return $.http.fetch(
+    `${t.url}/api/hooks/claude?agentId=${encodeURIComponent(t.agent)}&hookEvent=${event}`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${t.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  )
+}
+
+const DAEMON_WAIT_MS = 3000
+
+async function withContext($: any, event: string, e: any, next: any) {
+  const res = await Promise.race([
+    post($, event, e).catch(() => undefined),
+    $.clock.sleep(DAEMON_WAIT_MS).then(() => undefined),
+  ])
+  const result = await next(e)
+  const text = res?.ok ? res.text : ''
+  if (!text) return result
+  let context: string | undefined
+  try {
+    context = JSON.parse(text)?.hookSpecificOutput?.additionalContext
+  } catch {
+    context = text
+  }
+  if (!context) return result
+  return { ...result, additionalContext: [...(result.additionalContext ?? []), context] }
+}
+
+export const register: Register = on => {
+  on('classic.UserPromptSubmit', ($, e, next) => withContext($, 'UserPromptSubmit', e, next))
+  on('classic.SessionStart', ($, e, next) => withContext($, 'SessionStart', e, next))
+
+  on('classic.*', ($, e: any, next) => {
+    const event = String(e.hook_event_name ?? '')
+    const tool = e.tool_name
+    const wanted =
+      STATUS_EVENTS.has(event) ||
+      ((event === 'PreToolUse' || event === 'PostToolUse') && tool === ASK) ||
+      (event === 'PostToolUse' && MOVES.has(tool))
+    if (wanted) post($, event, e).catch(() => undefined)
+    return next(e)
+  })
+}

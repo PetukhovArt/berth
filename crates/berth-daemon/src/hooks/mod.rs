@@ -7,6 +7,7 @@
 //! handler serves all three. Fail-soft on both sides — a malformed payload
 //! still gets a 200 so a broken hook never faults the user's agent turn.
 
+pub mod claude_mod;
 pub mod installer;
 pub mod opencode;
 

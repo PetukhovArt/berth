@@ -244,6 +244,36 @@ pub fn install_claude_hooks(cwd: &Path) -> Result<()> {
     )
 }
 
+pub fn install_claude_settings(cwd: &Path) -> Result<()> {
+    let dir = cwd.join(CLAUDE_DIR);
+    let path = dir.join(CLAUDE_SETTINGS_FILE);
+    let mut root = load_hooks_root(&path)?;
+    let root_obj = root_object_mut(&mut root, &path)?;
+    strip_managed_hooks(root_obj, &path)?;
+    for rule in CLAUDE_ALLOW_RULES {
+        ensure_permission_allow(root_obj, rule, &path)?;
+    }
+    write_hooks_root(&dir, CLAUDE_SETTINGS_FILE, &root)
+}
+
+fn strip_managed_hooks(root_obj: &mut Map<String, Value>, path: &Path) -> Result<()> {
+    let Some(hooks) = root_obj.get_mut("hooks") else {
+        return Ok(());
+    };
+    let hooks_obj = object_mut(hooks, "\"hooks\"", path)?;
+    hooks_obj.retain(|_, groups| match groups.as_array_mut() {
+        Some(groups) => {
+            groups.retain(|g| !is_berth_group(g));
+            !groups.is_empty()
+        }
+        None => true,
+    });
+    if hooks_obj.is_empty() {
+        root_obj.remove("hooks");
+    }
+    Ok(())
+}
+
 /// Idempotently add one entry to `permissions.allow`, preserving everything
 /// the user put there. Same abort-don't-clobber policy as the hook merge.
 fn ensure_permission_allow(
@@ -585,6 +615,29 @@ mod tests {
 
     fn read_settings(dir: &Path) -> Value {
         read_json(dir, ".claude/settings.local.json")
+    }
+
+    #[test]
+    fn claude_settings_strip_berth_hooks_and_keep_the_users() {
+        let tmp = tempfile::tempdir().unwrap();
+        install_claude_hooks(tmp.path()).unwrap();
+        let path = tmp.path().join(".claude/settings.local.json");
+        let mut settings = read_settings(tmp.path());
+        settings["hooks"]["Stop"].as_array_mut().unwrap().insert(
+            0,
+            json!({ "hooks": [{ "type": "command", "command": "say done" }] }),
+        );
+        std::fs::write(&path, serde_json::to_string(&settings).unwrap()).unwrap();
+
+        install_claude_settings(tmp.path()).unwrap();
+        let settings = read_settings(tmp.path());
+        let hooks = settings["hooks"].as_object().unwrap();
+        assert_eq!(hooks.keys().collect::<Vec<_>>(), vec!["Stop"]);
+        assert_eq!(hooks["Stop"][0]["hooks"][0]["command"], json!("say done"));
+        assert_eq!(
+            settings["permissions"]["allow"].as_array().unwrap().len(),
+            CLAUDE_ALLOW_RULES.len()
+        );
     }
 
     #[test]
