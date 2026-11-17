@@ -49,6 +49,8 @@
 - Changed on a phone the session view to list Chat first and keep its header buttons on the tab row
 - Changed the Inbox to say a session crashed instead of stopped with an error, and the Russian status words to agree in gender
 - Changed Continue in Berth to run a Claude or Codex conversation as an agent with permission prompts and notifications, instead of typing `claude --resume` into a terminal, and to close the conversation's old idle terminal so it shows as one row
+- Changed an Agent that waits for you, or has finished and nobody has looked, to keep showing that when its usage limit is spent or its provider failed; it shows the limit once seen
+- Changed a terminal whose Claude or Codex conversation has exited to show as a terminal again instead of closed
 - Fixed New Session opened from a project's `+` asking for the project again
 - Fixed the Inbox showing minutes for a status that changed seconds ago, and sorting by the old time
 - Fixed `claude --resume` in a berth terminal briefly showing as a second row in the session tree
@@ -60,6 +62,10 @@
 - Fixed `Alt+1`..`Alt+9` in the Hot sessions overview: it opens that session and closes the overview
 - Fixed `Ctrl+Tab`, Hot sessions and `Alt+1`..`Alt+9` listing agents whose process had ended; they list only running sessions
 - Fixed a Claude or Codex conversation whose turn had ended showing as waiting for you in the Inbox, the session tree, Hot sessions and the tray; it shows as finished
+- Fixed Hot sessions showing an Agent at its usage limit as Idle, a new Agent with the finished check, and a Cursor, OpenCode or Grok Agent with the terminal icon
+- Fixed Quick Open, the phone header, a merge request's session and notifications showing a terminal's own status instead of the Claude or Codex conversation running in it
+- Fixed Hot sessions and `Ctrl+Tab` listing sessions as live while the daemon cannot be reached
+- Fixed a finished session being marked as seen while the Berth window was minimized or behind other windows, and a mark lost while the daemon could not be reached
 - Fixed the Changes toolbar cutting off the commit button in a narrow pane: it shrinks to a short label and then an icon, as the git step button in the session header does
 - Fixed the session header showing no model when the agent has none set: it shows the model of the latest turn
 - Fixed Quick Open repeating a session title in its message match, matching scattered letters in long words, and missing words in session prompts and replies

@@ -5,10 +5,11 @@ export const hot = {
     empty: 'No live sessions',
   },
   status: {
-    waiting: 'Waiting for you',
+    feedback: 'Waiting for you',
     working: 'Working',
     idle: 'Idle',
     error: 'Error',
+    limit: 'Limit',
   },
   overview: {
     title: 'Hot sessions overview',

@@ -5,10 +5,11 @@ export const hot = {
     empty: 'Нет живых сессий',
   },
   status: {
-    waiting: 'Ждёт вас',
+    feedback: 'Ждёт вас',
     working: 'Работает',
     idle: 'Простаивает',
     error: 'Ошибка',
+    limit: 'Лимит',
   },
   overview: {
     title: 'Обзор горячих сессий',

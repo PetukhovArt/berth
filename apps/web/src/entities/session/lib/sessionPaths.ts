@@ -39,12 +39,12 @@ const URGENCY: Record<SessionStatus, number> = {
 
 const UNSEEN_URGENCY = 6;
 
-const urgency = (session: Pick<SessionNode, 'status' | 'unseen'>): number =>
+const urgency = (session: { status: SessionStatus; unseen: boolean }): number =>
   session.status === 'finished' && session.unseen ? UNSEEN_URGENCY : URGENCY[session.status];
 
 export type Rollup = { status: SessionStatus | undefined; unseen: boolean; running: number; feedback: number; total: number };
 
-export function rollupOf(sessions: readonly Pick<SessionNode, 'status' | 'unseen'>[]): Rollup {
+export function rollupOf(sessions: readonly { status: SessionStatus; unseen: boolean }[]): Rollup {
   let status: SessionStatus | undefined;
   let top = -1;
   let unseen = false;

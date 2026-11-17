@@ -3,7 +3,7 @@ import { computed, shallowRef, useTemplateRef } from 'vue';
 import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
 import { VContextMenu } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
-import { allowRequest, alwaysAllowRequest, chooseOption, denyRequest, isYesNoPermission, offersAlways, openChannel, restartAgent, StatusIcon, useAction, useBerth, useChannelUnread, useSessionDock } from '../../../entities/session';
+import { allowRequest, alwaysAllowRequest, chooseOption, denyRequest, isYesNoPermission, offersAlways, openChannel, restartAgent, StatusIcon, useAction, useBerth, useChannelUnread, useSessionDock, type SessionRef } from '../../../entities/session';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { shortcutLabel } from '../../../shared/lib/commands/keymap';
 import { shortAge } from '../../../shared/lib/shortAge';
@@ -18,7 +18,15 @@ const { items, now } = useInbox();
 const { unread: channels } = useChannelUnread();
 const dock = useSessionDock();
 const berth = useBerth();
-const requestOf = (entry: InboxEntry) => berth?.feedback.value.get(entry.node.id);
+const agentRef = (entry: InboxEntry): { Agent: string } | null => (entry.node && 'Agent' in entry.node.ref ? entry.node.ref : null);
+const requestOf = (entry: InboxEntry) => {
+  const ref = agentRef(entry);
+  return ref ? berth?.feedback.value.get(ref.Agent) : undefined;
+};
+function act(entry: InboxEntry, run: (ref: SessionRef) => Promise<unknown>) {
+  const ref = agentRef(entry);
+  if (ref) void run(ref);
+}
 const yesNo = (entry: InboxEntry) => {
   const request = requestOf(entry);
   return request ? isYesNoPermission(request) : false;
@@ -31,8 +39,8 @@ const resuming = useAction();
 const resumeFailed = shallowRef<string | null>(null);
 
 async function resume(entry: InboxEntry) {
-  const ref = entry.node.ref;
-  if (!('Agent' in ref)) return;
+  const ref = agentRef(entry);
+  if (!ref) return;
   resumeFailed.value = entry.key;
   if (await resuming.run(() => restartAgent(ref.Agent))) resumeFailed.value = null;
 }
@@ -52,8 +60,8 @@ function untilTomorrow(): number {
   return morning.getTime() - Date.now();
 }
 
-function age(since: number): string {
-  return shortAge(now.value, since);
+function age(since: number | null): string {
+  return since === null ? '' : shortAge(now.value, since);
 }
 
 function resetTime(until: number | undefined): string {
@@ -76,33 +84,33 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
         <kbd>{{ nextShortcut }}</kbd>
       </UiButton>
     </div>
-    <div v-for="entry in items" :key="entry.key" class="item" data-testid="inbox-item" :data-kind="entry.kind" :data-session-id="entry.node.id">
-      <UiButton class="row" :title="entry.node.name" @click="dock.openSession(entry.node)" @contextmenu.prevent="showMenu($event, entry)">
-        <StatusIcon :status="entry.status" :unseen="entry.node.unseen" />
+    <div v-for="entry in items" :key="entry.key" class="item" data-testid="inbox-item" :data-kind="entry.kind" :data-session-id="entry.node?.id">
+      <UiButton class="row" :title="entry.state.name" @click="dock.openKey(entry.key)" @contextmenu.prevent="showMenu($event, entry)">
+        <StatusIcon :status="entry.state.status" :unseen="entry.state.unseen" />
         <span class="body">
           <span class="line">
-            <span class="name">{{ entry.node.name }}</span>
+            <span class="name">{{ entry.state.name }}</span>
             <span class="age">{{ age(entry.since) }}</span>
           </span>
-          <span class="reason"><span class="kind">{{ t(`attention.inbox.${entry.kind}`, { time: resetTime(entry.until) }) }}</span><template v-if="entry.place"> · {{ entry.place }}</template></span>
+          <span class="reason"><span class="kind">{{ t(`attention.inbox.${entry.kind}`, { time: resetTime(entry.state.limitUntil) }) }}</span><template v-if="entry.place"> · {{ entry.place }}</template></span>
         </span>
       </UiButton>
       <div v-if="requestOf(entry)" class="card vr-phone-only" data-testid="inbox-request">
         <code v-if="requestOf(entry)?.detail" class="detail">{{ requestOf(entry)?.detail }}</code>
         <div class="actions">
           <template v-if="yesNo(entry)">
-            <UiButton type="button" class="action primary" data-testid="inbox-allow" @click="allowRequest(entry.node.ref)">{{ t('feedback.allow') }}</UiButton>
-            <UiButton v-if="always(entry)" type="button" class="action" :title="t('feedback.alwaysTitle')" data-testid="inbox-always" @click="alwaysAllowRequest(entry.node.ref)">{{ t('feedback.always') }}</UiButton>
-            <UiButton type="button" class="action" data-testid="inbox-deny" @click="denyRequest(entry.node.ref)">{{ t('feedback.deny') }}</UiButton>
+            <UiButton type="button" class="action primary" data-testid="inbox-allow" @click="act(entry, allowRequest)">{{ t('feedback.allow') }}</UiButton>
+            <UiButton v-if="always(entry)" type="button" class="action" :title="t('feedback.alwaysTitle')" data-testid="inbox-always" @click="act(entry, alwaysAllowRequest)">{{ t('feedback.always') }}</UiButton>
+            <UiButton type="button" class="action" data-testid="inbox-deny" @click="act(entry, denyRequest)">{{ t('feedback.deny') }}</UiButton>
           </template>
-          <UiButton v-for="(option, index) in requestOf(entry)?.options" v-else :key="index" type="button" class="action" :class="{ primary: index === 0 }" data-testid="inbox-option" @click="chooseOption(entry.node.ref, index)">{{ option }}</UiButton>
+          <UiButton v-for="(option, index) in requestOf(entry)?.options" v-else :key="index" type="button" class="action" :class="{ primary: index === 0 }" data-testid="inbox-option" @click="act(entry, (ref) => chooseOption(ref, index))">{{ option }}</UiButton>
         </div>
       </div>
-      <div v-else-if="entry.kind === 'crashed' && 'Agent' in entry.node.ref" class="card vr-phone-only" data-testid="inbox-crashed">
+      <div v-else-if="entry.kind === 'crashed' && agentRef(entry)" class="card vr-phone-only" data-testid="inbox-crashed">
         <code class="detail" data-testid="inbox-crashed-detail">{{ t('attention.inbox.crashedDetail') }}</code>
         <div class="actions">
           <UiButton type="button" class="action primary" :title="t('attention.inbox.resumeTitle')" :disabled="resuming.busy.value" data-testid="inbox-resume" @click="resume(entry)">{{ t('attention.inbox.resume') }}</UiButton>
-          <UiButton type="button" class="action" data-testid="inbox-open" @click="dock.openSession(entry.node)">{{ t('attention.inbox.open') }}</UiButton>
+          <UiButton type="button" class="action" data-testid="inbox-open" @click="dock.openKey(entry.key)">{{ t('attention.inbox.open') }}</UiButton>
         </div>
         <p v-if="resumeFailed === entry.key && resuming.error.value" class="error" role="alert" data-testid="inbox-resume-error">{{ resuming.error.value }}</p>
       </div>

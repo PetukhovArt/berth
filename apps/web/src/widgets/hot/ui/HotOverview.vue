@@ -4,7 +4,7 @@ import { SquareTerminal, X } from '../../../shared/ui/icons';
 import { HarnessIcon, StatusIcon } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { shortAge } from '../../../shared/lib/shortAge';
-import { hotDotOf, useHot, type HotItem } from '../model/hot';
+import { useHot, type HotItem } from '../model/hot';
 import { hotOverviewOpen } from '../model/view';
 
 import { UiButton } from '../../../shared/ui/UiButton';
@@ -137,7 +137,7 @@ function crumb(item: HotItem): string {
             role="option"
             :aria-selected="position === index"
             :data-current="position === index"
-            :data-status="tile.item.status"
+            :data-status="tile.item.label"
             :data-key="tile.item.key"
             data-testid="hot-overview-tile"
             :style="{ '--i': Math.min(position, 14) }"
@@ -148,16 +148,16 @@ function crumb(item: HotItem): string {
             <span class="top">
               <kbd v-if="tile.number <= 9" class="num">{{ tile.number }}</kbd>
               <span class="badge">
-                <SquareTerminal v-if="tile.item.harness === 'shell'" :size="11" class="shell" />
-                <HarnessIcon v-else :harness="tile.item.harness" :size="11" />
+                <SquareTerminal v-if="!tile.item.kind" :size="11" class="shell" />
+                <HarnessIcon v-else :harness="tile.item.kind" :size="11" />
               </span>
               <span class="title">{{ tile.item.title }}</span>
             </span>
             <span class="crumb">{{ crumb(tile.item) || ' ' }}</span>
             <span class="preview" :data-empty="!tile.item.preview" :title="tile.item.preview ?? undefined">{{ tile.item.preview ?? t('hot.overview.noPreview') }}</span>
             <span class="foot">
-              <StatusIcon class="status" :status="hotDotOf(tile.item)" :unseen="tile.item.unseen" />
-              <span class="state">{{ t(`hot.status.${tile.item.status}`) }}</span>
+              <StatusIcon class="status" :status="tile.item.status" :unseen="tile.item.unseen" />
+              <span class="state">{{ t(`hot.status.${tile.item.label}`) }}</span>
               <span v-if="ago(tile.item)" class="ago">· {{ ago(tile.item) }}</span>
             </span>
           </UiButton>
@@ -306,7 +306,7 @@ function crumb(item: HotItem): string {
   background: var(--vr-color-nav-active);
 }
 
-.tile[data-status='waiting'] {
+.tile[data-status='feedback'] {
   border-color: var(--vr-status-feedback);
 }
 
@@ -396,12 +396,16 @@ function crumb(item: HotItem): string {
   color: var(--vr-color-text-muted);
 }
 
-.tile[data-status='waiting'] .state {
+.tile[data-status='feedback'] .state {
   color: var(--vr-status-feedback);
 }
 
 .tile[data-status='error'] .state {
   color: var(--vr-status-crashed);
+}
+
+.tile[data-status='limit'] .state {
+  color: var(--vr-status-limit);
 }
 
 .ago {

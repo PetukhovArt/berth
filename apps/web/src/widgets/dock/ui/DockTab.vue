@@ -3,7 +3,7 @@ import type { DockviewPanelApi } from 'dockview-vue';
 import { FileText, GitPullRequest, Network, Ticket, X } from '../../../shared/ui/icons';
 import { isDirtyPath, settleDirty } from '../../../entities/document';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { METRICS_PANEL, useBerth, isExternalPanel, sessionDot, stopAgent, useExternalSessions, StatusDot } from '../../../entities/session';
+import { METRICS_PANEL, useBerth, isExternalPanel, stopAgent, useExternalSessions, useSessionStates, StatusDot } from '../../../entities/session';
 import { FILE_PANEL_PREFIX, isFilePanel } from '../../../shared/lib/markdownFiles';
 import { panelTitle } from '../../../shared/model/dock';
 import { SessionViewSwitch } from '../../../features/session-view-switch';
@@ -24,16 +24,9 @@ function kindOf(id: string): 'metrics' | 'file' | 'review' | 'architecture' | 'i
   return 'session';
 }
 
-const conversationDot = (id: string) => {
-  const session = external?.anyByKey.value.get(id);
-  return session ? session.status : 'closed';
-};
+const states = useSessionStates();
+const conversationDot = (id: string) => states.value.get(id)?.status ?? external?.anyByKey.value.get(id)?.status ?? 'closed';
 const session = (id: string) => berth?.sessions.value.get(id);
-const linked = (id: string) => external?.linked.value.get(id);
-const sessionTabDot = (id: string) => {
-  const node = session(id);
-  return node ? sessionDot(node, linked(id)) : undefined;
-};
 
 async function close() {
   if (isFilePanel(props.panel.id) && !(await settleDirty([props.panel.id.slice(FILE_PANEL_PREFIX.length)]))) return;
@@ -53,7 +46,7 @@ async function close() {
       <StatusDot :status="conversationDot(panel.id)" :unseen="false" />
     </template>
     <template v-else-if="session(panel.id)">
-      <StatusDot :status="sessionTabDot(panel.id)" :unseen="session(panel.id)?.unseen" data-testid="session-tab-status" />
+      <StatusDot :status="states.get(panel.id)?.status ?? session(panel.id)?.status" :unseen="states.get(panel.id)?.unseen ?? session(panel.id)?.unseen" data-testid="session-tab-status" />
     </template>
     <span class="name">{{ session(panel.id)?.name ?? external?.anyByKey.value.get(panel.id)?.title ?? panelTitle(panel.title, panel.getParameters()) }}</span>
     <SessionViewSwitch v-if="kindOf(panel.id) === 'conversation'" :panel="panel" :active="active" />

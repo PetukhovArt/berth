@@ -1,5 +1,5 @@
 import { Archive, Eye, EyeOff, Folder, FolderGit2, FolderOpen, FolderSearch, GitBranch, History, House, Inbox, Layers, Pin, UserRound } from '../../../shared/ui/icons';
-import { AGENT_KIND_LABEL, pinnedFirst, externalKey, placeExternal, splitEarlier, type ExternalSession, worktreesOfProject, type Entities, type SessionNode, type WorktreeNode, rollupOf, type Rollup, type WorkspaceNode } from '../../../entities/session';
+import { AGENT_KIND_LABEL, pinnedFirst, externalKey, placeExternal, splitEarlier, type ExternalSession, worktreesOfProject, type Entities, type SessionNode, type WorktreeNode, rollupOf, type Rollup, type SessionState, type WorkspaceNode } from '../../../entities/session';
 import type { ConnectorView, InboxItem, JiraIssueSummary, PipelineStatus } from '../../../shared/api/connectors/api';
 import { numberLabel, itemId, pipelineRollup } from '../../../entities/merge-request';
 import { t, compareText } from '../../../shared/lib/i18n/i18n';
@@ -48,6 +48,7 @@ export type Sources = {
   external: readonly ExternalSession[];
   archivedExternal: readonly ExternalSession[];
   linked: ReadonlyMap<string, ExternalSession>;
+  states: ReadonlyMap<string, SessionState>;
   remotes: ReadonlyMap<string, Remote | null>;
   connectors: readonly ConnectorView[];
   mrs: readonly InboxItem[];
@@ -147,6 +148,7 @@ type Placed = {
   now: number;
   entities: Entities | undefined;
   linked: ReadonlyMap<string, ExternalSession>;
+  states: ReadonlyMap<string, SessionState>;
   byWorktree: Map<string, ExternalSession[]>;
   byProject: Map<string, ExternalSession[]>;
   ofProject: Map<string, ExternalSession[]>;
@@ -171,19 +173,13 @@ function spread(sessions: readonly ExternalSession[], entities: Entities | undef
 }
 
 function place(sources: Sources): Placed {
-  return { now: Date.now(), entities: sources.entities, linked: sources.linked, ...spread(sources.external, sources.entities) };
+  return { now: Date.now(), entities: sources.entities, linked: sources.linked, states: sources.states, ...spread(sources.external, sources.entities) };
 }
 
 const externalText = (session: ExternalSession) => `${session.title} ${session.branch ?? ''} ${session.cwd} ${session.harness}`;
 const externalLeaf = (session: ExternalSession): WorkNode => ({ id: externalKey(session), kind: 'external', label: session.title, title: session.cwd, custom: true, data: { external: session } });
-const liveRollup = (sessions: readonly SessionNode[], external: readonly ExternalSession[], linked: ReadonlyMap<string, ExternalSession> = new Map()) =>
-  rollupOf([
-    ...sessions.map((session) => {
-      const link = linked.get(session.key);
-      return link ? { status: link.status, unseen: false } : session;
-    }),
-    ...external.filter((session) => session.running).map((session) => ({ status: session.status, unseen: false })),
-  ]);
+const liveRollup = (sessions: readonly SessionNode[], external: readonly ExternalSession[], states: ReadonlyMap<string, SessionState>) =>
+  rollupOf([...sessions.map((session) => session.key), ...external.filter((session) => session.running).map(externalKey)].flatMap((key) => states.get(key) ?? []));
 
 function externalChildren(prefix: string, sessions: readonly ExternalSession[], now: number): WorkNode[] {
   const { recent, earlier } = splitEarlier(sessions, now);
@@ -218,7 +214,7 @@ function otherFolders(prefix: string, project: ProjectNode, placed: Placed, matc
   const list = (placed.byProject.get(project.id) ?? []).filter(matches);
   if (!list.length) return [];
   const id = `${prefix}of:${project.id}`;
-  return [group(id, 'folders', t('workbench.external.otherFolders'), externalChildren(id, list, placed.now), { icon: FolderSearch, data: { rollup: liveRollup([], list) } })];
+  return [group(id, 'folders', t('workbench.external.otherFolders'), externalChildren(id, list, placed.now), { icon: FolderSearch, data: { rollup: liveRollup([], list, placed.states) } })];
 }
 
 function looseFolders(prefix: string, placed: Placed, match: (text: string) => boolean): WorkNode[] {
@@ -229,7 +225,7 @@ function looseFolders(prefix: string, placed: Placed, match: (text: string) => b
     const cwd = first.cwd.replaceAll('\\', '/').replace(/\/+$/, '');
     const cut = cwd.lastIndexOf('/');
     const id = `${prefix}|dir:${folder}`;
-    return [group(id, 'folder', cwd.slice(cut + 1) || cwd, externalChildren(id, shown, placed.now), { icon: Folder, iconOpen: FolderOpen, detail: cut > 0 ? cwd.slice(0, cut) : undefined, title: cwd, data: { rollup: liveRollup([], shown) } })];
+    return [group(id, 'folder', cwd.slice(cut + 1) || cwd, externalChildren(id, shown, placed.now), { icon: Folder, iconOpen: FolderOpen, detail: cut > 0 ? cwd.slice(0, cut) : undefined, title: cwd, data: { rollup: liveRollup([], shown, placed.states) } })];
   });
 }
 
@@ -244,7 +240,7 @@ function worktreeNodes(prefix: string, project: ProjectNode, links: Links, place
     const external = placedHere.filter((session) => match(`${externalText(session)} ${worktree.branch} ${project.name}`));
     if (filtering && !sessions.length && !external.length) return [];
     const children = [...sessions.map(sessionLeaf(placed.linked)), ...externalChildren(`${prefix}ex:${worktree.id}`, external, placed.now)];
-    const rollup = liveRollup(worktree.sessions, placedHere, placed.linked);
+    const rollup = liveRollup(worktree.sessions, placedHere, placed.states);
     return [
       {
         id: `${prefix}wt:${worktree.id}`,
@@ -318,7 +314,7 @@ export function tabCounts(sources: Sources): TabCounts {
   const rollup = liveRollup(
     sources.workspaces.flatMap((workspace) => workspace.projects.flatMap(sessionsOf)),
     sources.external,
-    sources.linked,
+    sources.states,
   );
   const kinds = reviewKinds(sources);
   const mine = sources.mrs.filter((item) => !kinds.has(itemId(item)));
@@ -358,7 +354,7 @@ export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly 
   const filtering = query.trim().length > 0;
   const pruned = filtering || liveOnly;
   const placed = place(sources);
-  const projectRollup = (project: ProjectNode) => liveRollup(sessionsOf(project), placed.ofProject.get(project.id) ?? [], placed.linked);
+  const projectRollup = (project: ProjectNode) => liveRollup(sessionsOf(project), placed.ofProject.get(project.id) ?? [], placed.states);
   const kinds = reviewKinds(sources);
   const wanted = (item: InboxItem) => (tab === 'reviews' ? kinds.has(itemId(item)) : tab === 'mrs' ? !kinds.has(itemId(item)) : true);
   const mrsOf = (key: string | null) =>
@@ -384,7 +380,7 @@ export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly 
       const rollup = liveRollup(
         workspace.projects.flatMap(sessionsOf),
         workspace.projects.flatMap((project) => placed.ofProject.get(project.id) ?? []),
-        placed.linked,
+        placed.states,
       );
       return [{ id: `ws:${workspace.id}`, kind: 'workspace', label: workspace.name, icon: Layers, children, ...sessionsCount(rollup), data: { workspaceId: workspace.id, rollup } }];
     });
@@ -397,7 +393,7 @@ export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly 
           ),
           ...sources.archivedExternal.map(archivedExternalLeaf),
         ]);
-    return [...workspaceNodes, ...(loose.length ? [group('s|orphans', 'orphans', t('workbench.notInProject'), loose, { icon: Inbox, data: { rollup: liveRollup([], [...placed.loose.values()].flat()) } })] : []), ...archived];
+    return [...workspaceNodes, ...(loose.length ? [group('s|orphans', 'orphans', t('workbench.notInProject'), loose, { icon: Inbox, data: { rollup: liveRollup([], [...placed.loose.values()].flat(), placed.states) } })] : []), ...archived];
   };
 
   const mrNodes = (): WorkNode[] => {

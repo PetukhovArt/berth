@@ -3,7 +3,7 @@ import type { ChangeRequestRef } from '../../../shared/api/connectors/api';
 import { hasChanges } from './worktreeChanged';
 import { knownMr } from '../../../entities/merge-request';
 import { useDock } from '../../../shared/model/dock';
-import { useSessionDock, useBerth, sessionDot, useExternalSessions, externalKey, type Harness, type SessionRef } from '../../../entities/session';
+import { useSessionDock, useBerth, sessionStateOf, useExternalSessions, externalKey, type Harness, type SessionRef } from '../../../entities/session';
 
 export type SessionWorktree = { path: string; branch: string };
 
@@ -22,11 +22,7 @@ function mrOf(panelId: string): ChangeRequestRef | null {
 }
 
 function statusOf(panelId: string) {
-  const external = useExternalSessions();
-  const node = useBerth()?.sessions.value.get(panelId);
-  if (node) return sessionDot(node, external?.linked.value.get(panelId));
-  const conversation = external?.anyByKey.value.get(panelId);
-  return conversation ? conversation.status : undefined;
+  return sessionStateOf(panelId)?.status ?? useBerth()?.sessions.value.get(panelId)?.status ?? useExternalSessions()?.anyByKey.value.get(panelId)?.status;
 }
 
 function acpAgentOf(panelId: string): string | null {

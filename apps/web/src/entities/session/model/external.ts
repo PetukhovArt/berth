@@ -5,7 +5,7 @@ import { useSettings } from '../../../shared/config/settings/store';
 import { getMetrics } from './metrics';
 import { resumeConversation } from './orphans';
 import { withShellBlocks, type ShellMessage } from './shellTags';
-import { archiveExternalSession, describeError, externalArchiveKey, sessionKey, unarchiveExternalSession, useBerth, worktreesOfProject, type Entities, type SessionNode, type SessionRef, type SessionStatus } from './berth';
+import { archiveExternalSession, describeError, externalArchiveKey, sessionKey, unarchiveExternalSession, useBerth, worktreesOfProject, type Entities, type SessionRef, type SessionStatus } from './berth';
 
 export type Harness = 'claude' | 'codex';
 type ExternalStatus = Extract<SessionStatus, 'running' | 'finished' | 'closed'>;
@@ -50,10 +50,6 @@ export const isExternalPanel = (id: string) => id.startsWith(EXTERNAL_PREFIX);
 
 export function resumeCommand(session: Pick<ExternalSession, 'harness' | 'id'>): string {
   return session.harness === 'claude' ? `claude --resume ${session.id}` : `codex resume ${session.id}`;
-}
-
-export function sessionDot(session: Pick<SessionNode, 'status'>, linked: ExternalSession | undefined): SessionStatus {
-  return linked ? linked.status : session.status;
 }
 
 export function externalOrigin(session: ExternalSession): string {
