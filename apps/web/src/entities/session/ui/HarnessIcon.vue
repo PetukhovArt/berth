@@ -1,19 +1,24 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
-import type { Harness } from '../model/external';
+import { AGENT_KIND_LABEL, type AgentKind } from '../model/berth';
 
-withDefaults(defineProps<{ harness: Harness; size?: number }>(), { size: 12 });
+const props = withDefaults(defineProps<{ harness: AgentKind; size?: number }>(), { size: 12 });
+const label = computed(() => (props.harness === 'claude' || props.harness === 'codex' ? t(`workbench.external.harness.${props.harness}`) : AGENT_KIND_LABEL[props.harness]));
 </script>
 
 <template>
-  <svg class="harness" :data-harness="harness" :width="size" :height="size" viewBox="0 0 24 24" role="img" :aria-label="t(`workbench.external.harness.${harness}`)">
-    <title>{{ t(`workbench.external.harness.${harness}`) }}</title>
+  <svg class="harness" :data-harness="harness" :width="size" :height="size" viewBox="0 0 24 24" role="img" :aria-label="label">
+    <title>{{ label }}</title>
     <g v-if="harness === 'claude'" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
       <path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4" />
     </g>
-    <g v-else fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+    <g v-else-if="harness === 'codex'" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
       <path d="M12 2.8 20 7.4v9.2L12 21.2 4 16.6V7.4Z" />
       <path d="m9 9.5 2.5 2.5L9 14.5M13 14.5h3" stroke-linecap="round" />
+    </g>
+    <g v-else fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+      <path d="M12 3l2.4 6.6L21 12l-6.6 2.4L12 21l-2.4-6.6L3 12l6.6-2.4Z" />
     </g>
   </svg>
 </template>
@@ -27,7 +32,7 @@ withDefaults(defineProps<{ harness: Harness; size?: number }>(), { size: 12 });
   color: var(--vr-color-conflict);
 }
 
-.harness[data-harness='codex'] {
+.harness:not([data-harness='claude']) {
   color: var(--vr-color-text-muted);
 }
 </style>

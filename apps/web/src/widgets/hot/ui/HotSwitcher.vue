@@ -3,7 +3,7 @@ import { computed, nextTick, useTemplateRef, watch } from 'vue';
 import { ChevronRight, SquareTerminal } from '../../../shared/ui/icons';
 import { HarnessIcon, StatusIcon } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { hotDotOf, useHot } from '../model/hot';
+import { useHot } from '../model/hot';
 import { chooseSwitcher, switcher } from '../model/hotkeys';
 
 const hot = useHot();
@@ -37,15 +37,15 @@ watch(
           role="option"
           :aria-selected="position === switcher?.index"
           :data-current="position === switcher?.index"
-          :data-status="item.status"
+          :data-status="item.label"
           data-testid="hot-switcher-item"
           :data-key="item.key"
           @pointermove="switcher && (switcher = { keys: switcher.keys, index: position })"
           @click="chooseSwitcher(position)"
         >
-          <StatusIcon :status="hotDotOf(item)" :unseen="item.unseen" />
-          <SquareTerminal v-if="item.harness === 'shell'" :size="12" class="shell" />
-          <HarnessIcon v-else :harness="item.harness" />
+          <StatusIcon :status="item.status" :unseen="item.unseen" />
+          <SquareTerminal v-if="!item.kind" :size="12" class="shell" />
+          <HarnessIcon v-else :harness="item.kind" />
           <span class="text">
             <span class="head">
               <span class="title">{{ item.title }}</span>

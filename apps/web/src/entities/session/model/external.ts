@@ -5,10 +5,10 @@ import { useSettings } from '../../../shared/config/settings/store';
 import { getMetrics } from './metrics';
 import { resumeConversation } from './orphans';
 import { withShellBlocks, type ShellMessage } from './shellTags';
-import { archiveExternalSession, describeError, externalArchiveKey, sessionKey, unarchiveExternalSession, useBerth, worktreesOfProject, type Entities, type SessionNode, type SessionRef, type SessionStatus } from './berth';
+import { archiveExternalSession, describeError, externalArchiveKey, sessionKey, unarchiveExternalSession, useBerth, worktreesOfProject, type Entities, type SessionRef, type SessionStatus } from './berth';
 
 export type Harness = 'claude' | 'codex';
-type ExternalStatus = 'working' | 'waiting' | 'idle';
+type ExternalStatus = Extract<SessionStatus, 'running' | 'finished' | 'closed'>;
 export type ExternalSession = {
   harness: Harness;
   id: string;
@@ -50,21 +50,6 @@ export const isExternalPanel = (id: string) => id.startsWith(EXTERNAL_PREFIX);
 
 export function resumeCommand(session: Pick<ExternalSession, 'harness' | 'id'>): string {
   return session.harness === 'claude' ? `claude --resume ${session.id}` : `codex resume ${session.id}`;
-}
-
-export function externalDot(session: ExternalSession): SessionStatus {
-  if (!session.running) return 'closed';
-  if (session.status === 'working') return 'running';
-  if (session.status === 'waiting') return 'needs_feedback';
-  return 'finished';
-}
-
-export function sessionDot(session: Pick<SessionNode, 'status'>, linked: ExternalSession | undefined): SessionStatus {
-  return linked ? externalDot(linked) : session.status;
-}
-
-export function externalStatusLabel(session: ExternalSession): string {
-  return session.running ? t(`workbench.external.status.${session.status}`) : t('workbench.external.status.closed');
 }
 
 export function externalOrigin(session: ExternalSession): string {

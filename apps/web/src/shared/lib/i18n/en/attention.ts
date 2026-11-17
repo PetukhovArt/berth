@@ -1,8 +1,8 @@
 export const attention = {
-  waiting: '{name} is waiting for you',
-  finished: '{name} finished',
+  needs_feedback: '{name} is waiting for you',
+  unseen: '{name} finished',
   crashed: '{name} crashed',
-  limited: '{name} hit the usage limit',
+  limit: '{name} hit the usage limit',
   dismiss: 'Dismiss',
   watch: {
     action: 'Watch',
@@ -15,12 +15,12 @@ export const attention = {
   },
   inbox: {
     title: 'Inbox',
-    waiting: 'waiting for you',
-    finished: 'finished, not seen yet',
+    needs_feedback: 'waiting for you',
+    unseen: 'finished, not seen yet',
     crashed: 'crashed',
-    limited: 'limit · resets at {time}',
+    limit: 'limit · resets at {time}',
     actions: 'Inbox actions',
-    next: 'Next waiting',
+    next: 'Next that needs you',
     snoozeHour: 'Snooze for 1 hour',
     snoozeDay: 'Snooze until tomorrow',
     settle: 'Settle',

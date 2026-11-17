@@ -17,7 +17,9 @@ function filePanel(path: string, hash = ''): PanelSpec {
   return { id: filePanelId(path), component: 'markdown', title: fileNameOf(path), params: { path: normalizePath(path), hash }, renderer: 'always' };
 }
 
-const reviveFile = (id: string) => (isFilePanel(id) ? filePanel(id.slice(FILE_PANEL_PREFIX.length)) : undefined);
+const isLooking = () => document.visibilityState === 'visible' && document.hasFocus();
+
+const reviveFile =(id: string) => (isFilePanel(id) ? filePanel(id.slice(FILE_PANEL_PREFIX.length)) : undefined);
 
 function createSessionDock() {
   const berth = useBerth();
@@ -76,9 +78,15 @@ function createSessionDock() {
     return session ? (externalTarget(session, berth?.entities.value)?.worktreeId ?? null) : null;
   });
 
+  const looking = shallowRef(isLooking());
+  const watchLooking = () => (looking.value = isLooking());
+  for (const event of ['focus', 'blur']) window.addEventListener(event, watchLooking);
+  document.addEventListener('visibilitychange', watchLooking);
+
   const activeUnseenAgent = computed(() => {
     const session = activeSession.value;
-    return visible.value && session?.unseen && 'Agent' in session.ref ? session.ref.Agent : null;
+    const connected = berth?.connection.value.state === 'connected';
+    return visible.value && looking.value && connected && session?.unseen && 'Agent' in session.ref ? session.ref.Agent : null;
   });
 
   watch(activeUnseenAgent, (agent) => {
@@ -163,6 +171,16 @@ function createSessionDock() {
     openPanel({ id: externalKey(session), component: 'conversation', title: session.title, params: { harness: session.harness, id: session.id } }, anchor);
   }
 
+  function openKey(key: string) {
+    const node = berth?.sessions.value.get(key);
+    if (node) {
+      openSession(node);
+      return;
+    }
+    const session = useExternalSessions()?.anyByKey.value.get(key);
+    if (session) openExternal(session);
+  }
+
   function openMetrics() {
     openPanel({ id: METRICS_PANEL, component: 'metrics', title: t('agents.metrics.title'), params: titleKey('agents.metrics.title') });
   }
@@ -228,6 +246,7 @@ function createSessionDock() {
     activeWorktreeId,
     worktreeOfFile,
     openSession,
+    openKey,
     openWhenListed,
     openLinkedConversation,
     openExternal,

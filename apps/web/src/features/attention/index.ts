@@ -1,5 +1,5 @@
 export { initAttention, onAttention } from './model/attention';
-export { openNextWaiting } from './model/inbox';
+export { openNextNeedingYou } from './model/inbox';
 export { default as InboxSection } from './ui/InboxSection.vue';
 export { default as AttentionToasts } from './ui/AttentionToasts.vue';
 export { default as OpenChannelAction } from './ui/OpenChannelAction.vue';

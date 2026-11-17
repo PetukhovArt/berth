@@ -1,5 +1,5 @@
 import { computed, effectScope, shallowRef, watch } from 'vue';
-import { useExternalSessions, useBerth, useOpenWorkspace } from '../../../entities/session';
+import { useExternalSessions, useBerth, useOpenWorkspace, useSessionStates } from '../../../entities/session';
 import { createMyIssues } from '../../../entities/jira-issue';
 import { useConnectors, type ChangeRequestRef, type InboxItem } from '../../../shared/api/connectors/api';
 import { itemId, useForgeInbox } from '../../../entities/merge-request';
@@ -62,6 +62,7 @@ type TabInfo = { id: TreeTab; label: string; count: number | undefined; tone: 'a
 function createWorkTree(scope: Scope) {
   const berth = useBerth();
   const external = useExternalSessions();
+  const states = useSessionStates();
   const openWorkspace = useOpenWorkspace();
   const { connectors } = useConnectors();
   const inbox = useForgeInbox();
@@ -185,6 +186,7 @@ function createWorkTree(scope: Scope) {
     external: external?.sessions.value ?? [],
     archivedExternal: external?.archived.value ?? [],
     linked: external?.linked.value ?? new Map(),
+    states: states.value,
     remotes: remotes.value,
     connectors: connectors.value,
     mrs: reviewMrs.value,

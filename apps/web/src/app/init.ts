@@ -31,7 +31,7 @@ export function initApp(): () => void {
   disposers.push(initKeymap());
   disposers.push(initTray());
   disposers.push(initAttention());
-  disposers.push(onAttention((event) => (event.kind === 'waiting' || event.kind === 'finished') && pushToPhones(event, event.kind, event.text)));
+  disposers.push(onAttention((event) => event.agent && (event.kind === 'needs_feedback' || event.kind === 'unseen') && pushToPhones({ key: event.key, id: event.agent }, event.kind, event.text)));
   void loadWatchedMergeRequests();
   disposers.push(initOverlaps());
   disposers.push(initCleanup());

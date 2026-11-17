@@ -1,5 +1,5 @@
 import { watch } from 'vue';
-import { useExternalSessions, useBerth } from '../entities/session';
+import { attentionOf, useBerth, useSessionStates } from '../entities/session';
 import { invoke, isDesktop, listen, type HostEvent } from '../bridge';
 import { openCleanup } from '../features/cleanup';
 import { runAction } from '../shared/lib/commands/registry';
@@ -17,22 +17,16 @@ export function initTray(): () => void {
   const scope = createScope();
   if (!isDesktop) return () => scope.dispose();
   const on = <T>(event: string, handler: (event: HostEvent<T>) => void) => void listen<T>(event, handler).then((unlisten) => scope.add(unlisten));
-  const berth = useBerth();
-  const external = useExternalSessions();
-  if (berth) {
+  if (useBerth()) {
+    const states = useSessionStates();
     scope.add(
       watch(
         () => {
           let running = 0;
           let waiting = 0;
-          for (const session of berth.sessions.value.values()) {
-            if (session.status === 'running') running += 1;
-            else if (session.status === 'needs_feedback') waiting += 1;
-          }
-          for (const session of [...(external?.sessions.value ?? []), ...(external?.linked.value.values() ?? [])]) {
-            if (!session.running) continue;
-            if (session.status === 'working') running += 1;
-            else if (session.status === 'waiting') waiting += 1;
+          for (const state of states.value.values()) {
+            if (state.status === 'running') running += 1;
+            else if (attentionOf(state) === 'needs_feedback') waiting += 1;
           }
           return `${running}:${waiting}`;
         },

@@ -1,8 +1,8 @@
 export const attention = {
-  waiting: '{name} ждёт вас',
-  finished: '{name} закончила работу',
+  needs_feedback: '{name} ждёт вас',
+  unseen: '{name} закончила работу',
   crashed: '{name} упала',
-  limited: '{name} упёрлась в лимит',
+  limit: '{name} упёрлась в лимит',
   dismiss: 'Закрыть',
   watch: {
     action: 'Следить',
@@ -15,11 +15,11 @@ export const attention = {
   },
   inbox: {
     title: 'Входящие',
-    waiting: 'ждёт вас',
-    finished: 'закончила, не просмотрено',
+    needs_feedback: 'ждёт вас',
+    unseen: 'закончила, не просмотрено',
     crashed: 'упала',
-    limited: 'лимит · сброс в {time}',
-    next: 'Следующая ждущая',
+    limit: 'лимит · сброс в {time}',
+    next: 'Следующая, где нужны вы',
     actions:'Действия с входящим',
     snoozeHour: 'Отложить на час',
     snoozeDay: 'Отложить до завтра',

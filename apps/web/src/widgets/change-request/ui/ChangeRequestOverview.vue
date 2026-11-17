@@ -9,7 +9,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { CommentComposer, ThreadView } from '../../../features/diff-review';
 import { issueKeyOf, openIssue } from '../../../entities/jira-issue';
 import { jobTone, numberLabel, pipelineLabel } from '../../../entities/merge-request';
-import { StatusIcon, useSessionDock, type SessionNode } from '../../../entities/session';
+import { StatusIcon, useSessionDock, useSessionStates, type SessionNode } from '../../../entities/session';
 import { isWatching, toggleWatch } from '../../../features/watch-merge-request';
 import { useChangeRequest } from '../model/change-request-scope';
 import { pipelineTone } from '../model/pipelineTone';
@@ -19,6 +19,8 @@ const props = defineProps<{ connector: string; request: ChangeRequest; session: 
 const emit = defineEmits<{ goto: [discussion: Discussion]; quote: [text: string] }>();
 
 const dock = useSessionDock();
+const states = useSessionStates();
+const statusOf = (session: SessionNode) => states.value.get(session.key)?.status ?? session.status;
 const watching = computed(() => isWatching(target.value));
 const number = computed(() => numberLabel(props.request));
 
@@ -102,9 +104,9 @@ const stages = computed(() => {
         <section class="fact" data-testid="cr-fact-session">
           <h3 class="fact-title">{{ t('forge.request.sessionHeading') }}</h3>
           <UiButton v-if="session" class="status-link session-link" :title="t('forge.request.openSession')" data-testid="cr-fact-session-open" @click="dock.openWhenListed(session.ref)">
-            <StatusIcon :status="session.status" :unseen="session.unseen" />
+            <StatusIcon :status="statusOf(session)" :unseen="session.unseen" />
             <span class="session-name">{{ session.name }}</span>
-            <span class="pipe-id">{{ t(`agents.status.${session.status}`) }}</span>
+            <span class="pipe-id">{{ t(`agents.status.${statusOf(session)}`) }}</span>
           </UiButton>
           <span v-else class="pipe-id" data-testid="cr-fact-no-session">{{ t('forge.request.noSession') }}</span>
           <template v-if="request.state === 'open'">

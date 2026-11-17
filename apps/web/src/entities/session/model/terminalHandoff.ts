@@ -25,7 +25,7 @@ export function clearHandoff(conversation: Pick<ExternalSession, 'harness' | 'id
 }
 
 export function canContinueAsAgent(conversation: ExternalSession | undefined): conversation is ExternalSession {
-  return !!conversation && conversation.status !== 'working' && handoffOf(conversation)?.state !== 'pending';
+  return !!conversation && conversation.status !== 'running' && handoffOf(conversation)?.state !== 'pending';
 }
 
 export async function continueTerminalAsAgent(terminal: string, conversation: ExternalSession): Promise<string> {

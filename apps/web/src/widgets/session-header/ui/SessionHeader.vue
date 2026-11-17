@@ -2,7 +2,7 @@
 import { computed, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { latestModel, modelLabel, sessionDot, StatusIcon, useAgentMessages, useBerth, useExternalSessions, type AgentKind, type SessionStatus } from '../../../entities/session';
+import { latestModel, modelLabel, sessionStateOf, StatusIcon, useAgentMessages, useBerth, type AgentKind, type SessionStatus } from '../../../entities/session';
 import { knownMr, lookupMr, numberLabel } from '../../../entities/merge-request';
 import { SessionViewSwitch } from '../../../features/session-view-switch';
 import { GitStepButton } from '../../../features/git-step';
@@ -21,7 +21,6 @@ const MODEL_TAIL = 40;
 const KIND_LABEL: Record<AgentKind, string> = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode', grok: 'Grok', acp: 'ACP' };
 
 const berth = useBerth();
-const external = useExternalSessions();
 
 const node = computed(() => berth?.sessions.value.get(props.panel.id));
 const entities = computed(() => berth?.entities.value);
@@ -38,21 +37,19 @@ const worktree = computed(() => {
 const project = computed(() => (worktree.value ? entities.value?.projects.get(worktree.value.project_id)?.name : undefined));
 const mr = computed(() => (worktree.value ? knownMr(worktree.value.path, worktree.value.branch) : null));
 
-const status = computed<SessionStatus | undefined>(() => {
-  const session = node.value;
-  return session ? sessionDot(session, external?.linked.value.get(props.panel.id)) : undefined;
-});
+const state = computed(() => sessionStateOf(props.panel.id));
+const status = computed<SessionStatus | undefined>(() => state.value?.status ?? node.value?.status);
 const tone = computed(() => {
-  if (status.value === 'finished' && node.value?.unseen) return 'unseen';
+  if (status.value === 'finished' && state.value?.unseen) return 'unseen';
   if (status.value === 'running' || status.value === 'needs_feedback' || status.value === 'terminated' || status.value === 'limit') return { running: 'running', needs_feedback: 'feedback', terminated: 'crashed', limit: 'limit' }[status.value];
   return 'neutral';
 });
 
 const statusText = computed(() => {
   if (!status.value) return '';
-  const failure = node.value?.providerError;
+  const failure = state.value?.providerError;
   const label = failure ? t(`agents.route.errorKind.${failure.kind}`) : t(`agents.status.${status.value}`);
-  const until = status.value === 'limit' ? node.value?.limitUntil : undefined;
+  const until = state.value?.limitUntil;
   return until ? `${label} · ${t('agents.metrics.resets', { time: formatTime(until) })}` : label;
 });
 
@@ -94,7 +91,7 @@ watch(
       <div class="title-row">
         <span class="title" data-testid="session-header-title">{{ node.name }}</span>
         <span v-if="status" class="pill" :data-tone="tone" data-testid="session-header-status">
-          <StatusIcon class="icon" :status="status" :unseen="node.unseen" />
+          <StatusIcon class="icon" :status="status" :unseen="state?.unseen ?? node.unseen" />
           {{ statusText }}
         </span>
         <OverlapChip v-if="agent && !inspectorShown" :agent-id="agent.id" />

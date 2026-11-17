@@ -1,59 +1,34 @@
 import { computed, shallowRef, watch, type ComputedRef } from 'vue';
-import { externalKey, externalTarget, feedbackText, readTranscript, useExternalSessions, type ExternalSession, useBerth, type SessionNode, type SessionStatus, useSessionDock } from '../../../entities/session';
+import { attentionOf, externalTarget, feedbackText, urgencyOf, readTranscript, useExternalSessions, useBerth, useSessionStates, type AgentKind, type Harness, type SessionState, type SessionStatus, useSessionDock } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
 
-type HotStatus = 'waiting' | 'working' | 'idle' | 'error';
-type HotHarness = 'claude' | 'codex' | 'shell';
+type HotLabel = 'feedback' | 'working' | 'idle' | 'error' | 'limit';
 export type HotItem = {
   key: string;
   title: string;
   project: string | null;
   branch: string | null;
-  harness: HotHarness;
-  status: HotStatus;
+  kind: AgentKind | null;
+  status: SessionStatus;
+  label: HotLabel;
   unseen: boolean;
   lastActivity: number | null;
   preview: string | null;
 };
 
-type Source = { harness: 'claude' | 'codex'; id: string };
-type Raw = Omit<HotItem, 'preview' | 'lastActivity'> & { live: boolean; seed: number | null; stamp: number; source: Source | null; notice: string | null };
-type Tracked = { seq: number; since: number; sig: string };
+type Source = { harness: Harness; id: string };
+type Entry = { state: SessionState; project: string | null; branch: string | null; source: Source | null; notice: string | null };
 
 const MRU_LIMIT = 50;
 const PREVIEW_LIMIT = 12;
 const PREVIEW_CHARS = 140;
 const NOTICE_CHARS = 300;
 const PREVIEW_DEBOUNCE_MS = 800;
-const TOAST_MS = 1800;
-const SECONDS_LIMIT = 1e11;
 
-export const hotToast = shallowRef<string | null>(null);
-let toastTimer: ReturnType<typeof setTimeout> | undefined;
+const LABELS: Partial<Record<SessionStatus, HotLabel>> = { needs_feedback: 'feedback', running: 'working', terminated: 'error', limit: 'limit' };
 
-function showToast(text: string): void {
-  hotToast.value = text;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    hotToast.value = null;
-  }, TOAST_MS);
-}
-
-const needsYou = (item: Pick<HotItem, 'status' | 'unseen'>) => item.status === 'waiting' || item.unseen;
-
-export function hotDotOf(item: Pick<HotItem, 'status' | 'harness'>): SessionStatus {
-  if (item.status === 'waiting') return 'needs_feedback';
-  if (item.status === 'working') return 'running';
-  if (item.status === 'error') return 'terminated';
-  return item.harness === 'shell' ? 'shell' : 'finished';
-}
-
-const toMillis = (value: number) => (value > 0 && value < SECONDS_LIMIT ? value * 1000 : value);
-
-function fromExternal(status: ExternalSession['status']): HotStatus {
-  return status === 'waiting' ? 'waiting' : status === 'working' ? 'working' : 'idle';
-}
+const isHarness = (kind: AgentKind | undefined): kind is Harness => kind === 'claude' || kind === 'codex';
 
 function previewOf(messages: readonly { role: string; text: string; tool: string | null }[]): string | null {
   for (let index = messages.length - 1; index >= 0; index--) {
@@ -69,131 +44,76 @@ function previewOf(messages: readonly { role: string; text: string; tool: string
 function create() {
   const berth = useBerth();
   const external = useExternalSessions();
+  const states = useSessionStates();
   const dock = useDock();
   const sessions = useSessionDock();
-  const tracked = shallowRef<ReadonlyMap<string, Tracked>>(new Map());
+  const order = shallowRef<ReadonlyMap<string, number>>(new Map());
   const previews = shallowRef<ReadonlyMap<string, string>>(new Map());
   const focused = shallowRef<string[]>([]);
   let counter = 0;
 
-  const raw = computed<Raw[]>(() => {
-    const out: Raw[] = [];
+  const entries = computed<Entry[]>(() => {
+    const out: Entry[] = [];
     const entities = berth?.entities.value;
-    const linked = external?.linked.value;
-    for (const node of berth?.sessions.value.values() ?? []) {
-      const path = sessions.paths.value.get(node.key);
-      const agent = 'Agent' in node.ref ? entities?.agents.get(node.id) : undefined;
-      const link = agent ? undefined : linked?.get(node.key);
-      let status: HotStatus = 'idle';
-      let harness: HotHarness = 'shell';
-      let source: Source | null = null;
-      let seed: number | null = null;
-      let stamp = 0;
-      if (agent) {
-        status = agent.status === 'needs_feedback' ? 'waiting' : agent.status === 'running' ? 'working' : agent.status === 'terminated' ? 'error' : 'idle';
-        harness = agent.kind === 'claude' ? 'claude' : agent.kind === 'codex' ? 'codex' : 'shell';
-        if (agent.session_id && (agent.kind === 'claude' || agent.kind === 'codex')) source = { harness: agent.kind, id: agent.session_id };
-        seed = agent.status_changed_at ? toMillis(agent.status_changed_at) : null;
-        stamp = agent.status_changed_at;
-      } else if (link?.running) {
-        status = fromExternal(link.status);
-        harness = link.harness;
-        source = { harness: link.harness, id: link.id };
-        seed = link.updated_at;
-        stamp = link.updated_at;
+    for (const state of states.value.values()) {
+      if (!state.alive) continue;
+      const node = berth?.sessions.value.get(state.key);
+      if (node) {
+        const path = sessions.paths.value.get(state.key);
+        const agent = 'Agent' in node.ref ? entities?.agents.get(node.id) : undefined;
+        const link = agent ? undefined : external?.linked.value.get(state.key);
+        const source = agent?.session_id && isHarness(agent.kind) ? { harness: agent.kind, id: agent.session_id } : link?.running ? { harness: link.harness, id: link.id } : null;
+        const request = agent && state.status === 'needs_feedback' ? berth?.feedback.value.get(node.id) : undefined;
+        const failure = node.providerError;
+        const notice = request ? (request.kind === 'Permission' && request.detail ? `${request.title}: ${request.detail}` : feedbackText(request)) : failure ? `${t(`agents.route.errorKind.${failure.kind}`)}: ${failure.message}` : null;
+        out.push({ state, project: path?.project.name ?? null, branch: path?.worktree.branch ?? null, source, notice });
+        continue;
       }
-      const request = agent && status === 'waiting' ? berth?.feedback.value.get(node.id) : undefined;
-      out.push({
-        key: node.key,
-        title: node.name,
-        project: path?.project.name ?? null,
-        branch: path?.worktree.branch ?? null,
-        harness,
-        status,
-        unseen: node.unseen,
-        live: node.alive && node.status !== 'disconnected',
-        seed,
-        stamp,
-        source,
-        notice: request ? (request.kind === 'Permission' && request.detail ? `${request.title}: ${request.detail}` : feedbackText(request)) : node.providerError ? `${t(`agents.route.errorKind.${node.providerError.kind}`)}: ${node.providerError.message}` : null,
-      });
-    }
-    for (const session of external?.anyByKey.value.values() ?? []) {
-      const key = externalKey(session);
-      if (!external?.byKey.value.has(key)) continue;
+      const session = external?.anyByKey.value.get(state.key);
+      if (!session) continue;
       const target = externalTarget(session, entities);
-      out.push({
-        key,
-        title: session.title,
-        project: target?.projectName ?? null,
-        branch: target?.branch ?? session.branch,
-        harness: session.harness,
-        status: session.running ? fromExternal(session.status) : 'idle',
-        unseen: false,
-        live: session.running,
-        seed: session.updated_at,
-        stamp: session.updated_at,
-        source: { harness: session.harness, id: session.id },
-        notice: null,
-      });
+      out.push({ state, project: target?.projectName ?? null, branch: target?.branch ?? session.branch, source: { harness: session.harness, id: session.id }, notice: null });
     }
     return out;
   });
 
   watch(
-    raw,
-    (entries) => {
-      const previous = tracked.value;
-      const next = new Map<string, Tracked>();
-      let changed = previous.size !== entries.length;
-      const now = Date.now();
-      for (const entry of entries) {
-        const sig = `${entry.status}|${entry.unseen}`;
-        const known = previous.get(entry.key);
-        if (!known) {
-          next.set(entry.key, { seq: ++counter, since: entry.seed ?? now, sig });
-          changed = true;
-        } else if (known.sig !== sig) {
-          next.set(entry.key, { seq: known.seq, since: now, sig });
-          changed = true;
-        } else next.set(entry.key, known);
-      }
-      if (changed) tracked.value = next;
+    () => entries.value.map((entry) => entry.state.key),
+    (keys) => {
+      const previous = order.value;
+      if (keys.length === previous.size && keys.every((key) => previous.has(key))) return;
+      order.value = new Map(keys.map((key) => [key, previous.get(key) ?? ++counter]));
     },
     { immediate: true, flush: 'sync' },
   );
 
   const items = computed<HotItem[]>(() => {
-    const meta = tracked.value;
-    const rank = (item: Raw) => (item.status === 'waiting' ? 0 : item.unseen ? 1 : item.status === 'working' ? 2 : item.status === 'error' ? 3 : 4);
-    const entries = raw.value
-      .filter((entry) => entry.live)
-      .map((entry) => {
-        const info = meta.get(entry.key);
-        const lastActivity = Math.max(entry.seed ?? 0, info?.since ?? 0) || null;
-        const item: HotItem = {
-          key: entry.key,
-          title: entry.title,
-          project: entry.project,
-          branch: entry.branch,
-          harness: entry.harness,
-          status: entry.status,
-          unseen: entry.unseen,
-          lastActivity,
-          preview: entry.notice?.slice(0, NOTICE_CHARS) ?? previews.value.get(entry.key) ?? null,
-        };
-        return { item, rank: rank(entry), since: info?.since ?? 0, seq: info?.seq ?? 0 };
-      });
-    entries.sort((a, b) => {
-      if (a.rank !== b.rank) return a.rank - b.rank;
-      if (a.rank <= 1) return b.since - a.since;
-      if (a.rank === 4) return (b.item.lastActivity ?? 0) - (a.item.lastActivity ?? 0) || a.seq - b.seq;
-      return a.seq - b.seq;
+    const seq = order.value;
+    const ranked = entries.value.map((entry) => {
+      const { state } = entry;
+      const item: HotItem = {
+        key: state.key,
+        title: state.name,
+        project: entry.project,
+        branch: entry.branch,
+        kind: state.kind,
+        status: state.status,
+        label: LABELS[state.status] ?? 'idle',
+        unseen: state.unseen,
+        lastActivity: state.since,
+        preview: entry.notice?.slice(0, NOTICE_CHARS) ?? previews.value.get(state.key) ?? null,
+      };
+      return { item, urgency: urgencyOf(state), attention: attentionOf(state) !== null, since: state.since ?? 0, seq: seq.get(state.key) ?? 0 };
     });
-    return entries.map((entry) => entry.item);
+    ranked.sort((a, b) => {
+      if (a.urgency !== b.urgency) return b.urgency - a.urgency;
+      if (a.attention) return b.since - a.since;
+      if (a.item.status === 'running') return a.seq - b.seq;
+      return b.since - a.since || a.seq - b.seq;
+    });
+    return ranked.map((entry) => entry.item);
   });
 
-  const waiting = computed(() => items.value.filter(needsYou));
   const keys = computed(() => new Set(items.value.map((item) => item.key)));
 
   const canonical = (key: string | null) => (key ? (external?.terminalOf.value.get(key) ?? key) : null);
@@ -215,7 +135,7 @@ function create() {
   });
 
   const previewTargets = computed(() => {
-    const byKey = new Map(raw.value.map((entry) => [entry.key, entry]));
+    const byKey = new Map(entries.value.map((entry) => [entry.state.key, entry]));
     return items.value
       .flatMap((item) => {
         const entry = byKey.get(item.key);
@@ -230,24 +150,24 @@ function create() {
 
   async function refreshPreviews() {
     const run = ++previewRun;
-    const present = new Set(raw.value.map((entry) => entry.key));
+    const present = new Set(entries.value.map((entry) => entry.state.key));
     for (const key of fetched.keys()) if (!present.has(key)) fetched.delete(key);
     if ([...previews.value.keys()].some((key) => !present.has(key))) previews.value = new Map([...previews.value].filter(([key]) => present.has(key)));
     for (const entry of previewTargets.value) {
       if (run !== previewRun) return;
       const source = entry.source;
       if (!source) continue;
-      const stamp = `${entry.stamp}|${entry.status}`;
-      if (fetched.get(entry.key) === stamp) continue;
-      fetched.set(entry.key, stamp);
+      const stamp = `${entry.state.since}|${entry.state.status}`;
+      if (fetched.get(entry.state.key) === stamp) continue;
+      fetched.set(entry.state.key, stamp);
       const text = await readTranscript(source, 6).then(previewOf, () => null);
-      if (run !== previewRun || !text || previews.value.get(entry.key) === text) continue;
-      previews.value = new Map(previews.value).set(entry.key, text);
+      if (run !== previewRun || !text || previews.value.get(entry.state.key) === text) continue;
+      previews.value = new Map(previews.value).set(entry.state.key, text);
     }
   }
 
   watch(
-    () => `${raw.value.map((entry) => `${entry.key}@${entry.stamp}|${entry.status}|${entry.live}|${entry.source?.id ?? ''}`).join(',')}#${previewTargets.value.map((entry) => entry.key).join(',')}`,
+    () => `${entries.value.map((entry) => `${entry.state.key}@${entry.state.since}|${entry.state.status}|${entry.source?.id ?? ''}`).join(',')}#${previewTargets.value.map((entry) => entry.state.key).join(',')}`,
     () => {
       clearTimeout(previewTimer);
       previewTimer = setTimeout(() => void refreshPreviews(), PREVIEW_DEBOUNCE_MS);
@@ -255,36 +175,10 @@ function create() {
     { immediate: true },
   );
 
-  function open(key: string) {
-    const node: SessionNode | undefined = berth?.sessions.value.get(key);
-    if (node) {
-      sessions.openSession(node);
-      return;
-    }
-    const session = external?.anyByKey.value.get(key);
-    if (session) sessions.openExternal(session);
-  }
-
-  function next() {
-    const list = waiting.value;
-    if (!list.length) {
-      showToast(t('hot.toast.nobody'));
-      return;
-    }
-    const current = canonical(dock.activeKey.value);
-    const index = list.findIndex((item) => item.key === current);
-    const target = list[(index + 1) % list.length];
-    if (!target) return;
-    open(target.key);
-    if (list.length > 1) showToast(t('hot.toast.waiting', { count: list.length }));
-  }
-
   return {
     items: items as ComputedRef<HotItem[]>,
-    waiting: waiting as ComputedRef<HotItem[]>,
     mru: mru as ComputedRef<string[]>,
-    open,
-    next,
+    open: sessions.openKey,
   };
 }
 

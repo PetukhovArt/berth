@@ -7,7 +7,7 @@ import { pipelineTone } from '../../../entities/merge-request';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
 import BackBar from '../../../shared/ui/BackBar.vue';
 import type { QuickItem, WorkNode } from '../../../features/work-tree';
-import { externalDot, HarnessIcon, openChannel, searchSessionText, StatusIcon, useLoadedChannelMessages, type LoadedChannelMessage, type SessionTextCandidate } from '../../../entities/session';
+import { HarnessIcon, openChannel, searchSessionText, StatusIcon, useSessionStates, useLoadedChannelMessages, type LoadedChannelMessage, type SessionTextCandidate } from '../../../entities/session';
 import type { MarkdownEntry } from '../../../shared/lib/markdownFiles';
 
 import UiInput from '../../../shared/ui/UiInput.vue';
@@ -27,6 +27,7 @@ const input = useTemplateRef<HTMLInputElement>('input');
 const list = useTemplateRef<HTMLElement>('list');
 const query = shallowRef('');
 const loadedMessages = useLoadedChannelMessages();
+const states = useSessionStates();
 const MAX_MESSAGE_HITS = 20;
 const MIN_CONTENT_QUERY = 3;
 const CONTENT_DEBOUNCE_MS = 200;
@@ -219,9 +220,9 @@ onBeforeUnmount(() => {
             @click="choose(item)"
           >
             <template v-if="item.kind === 'leaf'">
-              <StatusIcon v-if="item.entry.node.data?.session" :status="item.entry.node.data.session.status" :unseen="item.entry.node.data.session.unseen" />
+              <StatusIcon v-if="item.entry.node.data?.session" :status="states.get(item.entry.node.data.session.key)?.status ?? item.entry.node.data.session.status" :unseen="item.entry.node.data.session.unseen" />
               <template v-else-if="item.entry.node.data?.external">
-                <StatusIcon :status="externalDot(item.entry.node.data.external)" :unseen="false" />
+                <StatusIcon :status="states.get(item.entry.node.id)?.status ?? item.entry.node.data.external.status" :unseen="false" />
                 <HarnessIcon :harness="item.entry.node.data.external.harness" />
               </template>
               <component :is="iconOf(item.entry.node.kind)" v-else-if="iconOf(item.entry.node.kind)" :size="14" class="file-icon" />

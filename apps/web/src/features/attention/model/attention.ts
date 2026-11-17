@@ -1,20 +1,18 @@
 import { shallowRef, watch } from 'vue';
-import { useBerth, useSessionDock } from '../../../entities/session';
+import { attentionEdge, useBerth, useSessionDock, useSessionStates, type AttentionKind, type SessionState } from '../../../entities/session';
 import { hostWindow, isDesktop } from '../../../bridge';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
 
-export type AttentionKind = 'waiting' | 'finished' | 'crashed' | 'limited';
-type Kind = AttentionKind;
-export type AttentionToast = { id: number; key: string; kind: Kind; text: string };
+export type AttentionToast = { id: number; key: string; kind: AttentionKind; text: string };
 
 const TOAST_MS = 8000;
 const TOAST_LIMIT = 4;
 
 export const attentionToasts = shallowRef<readonly AttentionToast[]>([]);
-const listeners = new Set<(event: { key: string; id: string; kind: Kind; text: string }) => void>();
+const listeners = new Set<(event: { key: string; agent: string | null; kind: AttentionKind; text: string }) => void>();
 
-export function onAttention(listen: (event: { key: string; id: string; kind: Kind; text: string }) => void): () => void {
+export function onAttention(listen: (event: { key: string; agent: string | null; kind: AttentionKind; text: string }) => void): () => void {
   listeners.add(listen);
   return () => listeners.delete(listen);
 }
@@ -26,23 +24,8 @@ export function dismissAttention(id: number): void {
 
 export function openAttention(toast: Pick<AttentionToast, 'id' | 'key'>): void {
   dismissAttention(toast.id);
-  const node = useBerth()?.sessions.value.get(toast.key);
-  if (node) useSessionDock().openSession(node);
+  useSessionDock().openKey(toast.key);
   void hostWindow.raise().catch(() => undefined);
-}
-
-export function attentionKindOf(status: string, unseen: boolean): Kind | null {
-  if (status === 'needs_feedback') return 'waiting';
-  if (status === 'terminated') return 'crashed';
-  if (status === 'limit') return 'limited';
-  if (status === 'finished' && unseen) return 'finished';
-  return null;
-}
-
-function kindOf(previous: string | undefined, status: string, unseen: boolean): Kind | null {
-  if (previous === status) return null;
-  if (status === 'finished' && previous !== 'running') return null;
-  return attentionKindOf(status, unseen);
 }
 
 function notifyOs(toast: AttentionToast): void {
@@ -62,30 +45,30 @@ export function initAttention(): () => void {
   const berth = useBerth();
   if (!berth || !isDesktop) return () => undefined;
   const dock = useDock();
-  const seen = new Map<string, string>();
-  let ready = false;
+  const states = useSessionStates();
+  const seen = new Map<string, SessionState['phase']['name']>();
   const stop = watch(
-    () => berth.sessions.value,
-    (sessions) => {
-      for (const node of sessions.values()) {
-        if (!('Agent' in node.ref)) continue;
-        const previous = seen.get(node.key);
-        seen.set(node.key, node.status);
-        if (!ready) continue;
-        const kind = kindOf(previous, node.status, node.unseen);
+    () => states.value,
+    (current) => {
+      for (const state of current.values()) {
+        const previous = seen.get(state.key);
+        seen.set(state.key, state.phase.name);
+        if (previous === undefined) continue;
+        const kind = attentionEdge(previous, state);
         if (!kind) continue;
         const focused = document.hasFocus();
-        if (focused && dock.activeKey.value === node.key) continue;
-        const toast: AttentionToast = { id: ++counter, key: node.key, kind, text: t(`attention.${kind}`, { name: node.name }) };
+        if (focused && dock.activeKey.value === state.key) continue;
+        const toast: AttentionToast = { id: ++counter, key: state.key, kind, text: t(`attention.${kind}`, { name: state.name }) };
         if (!focused) {
-          for (const listen of listeners) listen({ key: node.key, id: node.id, kind, text: toast.text });
+          const node = berth.sessions.value.get(state.key);
+          const agent = node && 'Agent' in node.ref ? node.ref.Agent : null;
+          for (const listen of listeners) listen({ key: state.key, agent, kind, text: toast.text });
           notifyOs(toast);
           continue;
         }
-        attentionToasts.value = [...attentionToasts.value.filter((entry) => entry.key !== node.key), toast].slice(-TOAST_LIMIT);
+        attentionToasts.value = [...attentionToasts.value.filter((entry) => entry.key !== state.key), toast].slice(-TOAST_LIMIT);
         setTimeout(() => dismissAttention(toast.id), TOAST_MS);
       }
-      ready = true;
     },
     { immediate: true, flush: 'sync' },
   );
