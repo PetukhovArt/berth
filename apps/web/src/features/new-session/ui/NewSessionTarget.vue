@@ -30,6 +30,8 @@ const branchOptions = computed(() =>
   }),
 );
 
+const projectLabel = computed(() => projects.value.find((each) => each.id === project.value)?.label ?? '');
+
 const setupNote = computed(() => (plan.value.kind === 'create' && setup.value.trim() ? t('agents.newSession.planSetup', { command: setup.value.trim() }) : ''));
 
 const summary = computed(() => {
@@ -47,6 +49,7 @@ const summary = computed(() => {
   <div class="target" data-testid="new-session-target">
     <div class="chips">
       <VSelect v-if="!projectLocked" v-model="project" :options="projects" option-label="label" option-value="id" size="small" class="chip" :aria-label="t('agents.newSession.project')" data-testid="new-session-project" />
+      <span v-else class="chip fixed" data-testid="new-session-project-name">{{ projectLabel }}</span>
       <VSelect v-model="target" :options="targets" option-label="label" option-value="id" size="small" class="chip" :aria-label="t('agents.newSession.target')" data-testid="new-session-worktree" />
       <VSelect
         v-if="creating && baseOptions.length"
@@ -117,6 +120,14 @@ const summary = computed(() => {
   background: var(--vr-color-surface-muted);
   box-shadow: none;
   font-size: var(--vr-font-size-label);
+}
+
+.fixed {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 9px;
+  color: var(--vr-color-text);
+  white-space: nowrap;
 }
 
 .chip :deep(.p-select-label) {
