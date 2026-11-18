@@ -2,13 +2,14 @@
 import { computed, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { latestModel, modelLabel, sessionStateOf, StatusIcon, useAgentMessages, useBerth, type AgentKind, type SessionStatus } from '../../../entities/session';
+import { latestModel, modelLabel, sessionStateOf, StatusIcon, useAgentMessages, useBerth, useExternalSessions, type AgentKind, type SessionStatus } from '../../../entities/session';
 import { knownMr, lookupMr, numberLabel } from '../../../entities/merge-request';
 import { SessionViewSwitch } from '../../../features/session-view-switch';
 import { GitStepButton } from '../../../features/git-step';
 import TaskNoteButton from './TaskNoteButton.vue';
 import CheckpointsButton from './CheckpointsButton.vue';
 import RouteButton from './RouteButton.vue';
+import ContinueAsAgentButton from './ContinueAsAgentButton.vue';
 import { OverlapChip } from '../../../features/overlaps';
 import { ShareButton } from '../../../features/share-session';
 import { isDesktop } from '../../../bridge';
@@ -24,6 +25,15 @@ const berth = useBerth();
 
 const node = computed(() => berth?.sessions.value.get(props.panel.id));
 const entities = computed(() => berth?.entities.value);
+const external = useExternalSessions();
+const terminalId = computed(() => {
+  const ref = node.value?.ref;
+  return ref && 'Terminal' in ref ? ref.Terminal : undefined;
+});
+const lapsed = computed(() => {
+  const conversation = terminalId.value ? external?.linked.value.get(props.panel.id) : undefined;
+  return conversation && !conversation.running ? conversation : undefined;
+});
 
 const agent = computed(() => {
   const ref = node.value?.ref;
@@ -101,6 +111,7 @@ watch(
     <RouteButton v-if="agent" :agent-id="agent.id" :kind="agent.kind" :model="agent.model" :resumable="!!agent.session_id" :error="agent.provider_error ?? null" />
     <CheckpointsButton v-if="agent && !inspectorShown" :agent-id="agent.id" :name="agent.name" :kind="agent.kind" :refresh-key="status" />
     <ShareButton v-if="agent && isDesktop" :agent-id="agent.id" :name="node.name" />
+    <ContinueAsAgentButton v-if="terminalId && lapsed" :terminal="terminalId" :terminal-key="panel.id" :conversation="lapsed" />
     <TaskNoteButton v-if="worktree && !inspectorShown" :worktree-id="worktree.id" :branch="worktree.branch" />
     <GitStepButton v-if="worktree && worktree.branch" :path="worktree.path" :branch="worktree.branch" :has-request="!!mr" :refresh-key="status" />
     <SessionViewSwitch :panel="panel" :active="active" />

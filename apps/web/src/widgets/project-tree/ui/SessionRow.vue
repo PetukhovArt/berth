@@ -4,7 +4,7 @@ import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
 import { VButton, VContextMenu, VInputText } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
-import { canContinueAsAgent, continueTerminalAsAgent, externalKey, sessionStateOf, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, type SessionStatus, useAction, StatusDot } from '../../../entities/session';
+import { canContinueAsAgent, continueTerminalInDock, sessionStateOf, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, type SessionStatus, useAction, StatusDot } from '../../../entities/session';
 import { MoveAgentDialog } from '../../../features/move-agent';
 
 import { UiButton } from '../../../shared/ui/UiButton';
@@ -70,11 +70,7 @@ function continueAsAgent() {
   const session = props.session.ref;
   const linked = props.linked;
   if (!('Terminal' in session) || !linked) return;
-  dock.openExternal(linked, false, props.session.key);
-  void action.run(async () => {
-    const agent = await continueTerminalAsAgent(session.Terminal, linked);
-    dock.openWhenListed({ Agent: agent }, externalKey(linked), true);
-  });
+  void action.run(() => continueTerminalInDock(session.Terminal, props.session.key, linked));
 }
 
 function showMenu(event: MouseEvent) {

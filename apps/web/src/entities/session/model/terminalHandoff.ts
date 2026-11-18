@@ -3,6 +3,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { BerthCallError, closeTerminal, describeError, useBerth } from './berth';
 import { externalKey, useExternalSessions, type ExternalSession } from './external';
 import { resumeConversation } from './orphans';
+import { useSessionDock } from './sessionDock';
 
 type Handoff = { state: 'pending' } | { state: 'failed'; message: string };
 
@@ -28,7 +29,7 @@ export function canContinueAsAgent(conversation: ExternalSession | undefined): c
   return !!conversation && conversation.status !== 'running' && handoffOf(conversation)?.state !== 'pending';
 }
 
-export async function continueTerminalAsAgent(terminal: string, conversation: ExternalSession): Promise<string> {
+async function continueTerminalAsAgent(terminal: string, conversation: ExternalSession): Promise<string> {
   const key = externalKey(conversation);
   const worktree = useBerth()?.entities.value.terminals.get(terminal)?.worktree_id;
   setHandoff(key, { state: 'pending' });
@@ -44,6 +45,13 @@ export async function continueTerminalAsAgent(terminal: string, conversation: Ex
     setHandoff(key, { state: 'failed', message });
     throw new BerthCallError(message);
   }
+}
+
+export async function continueTerminalInDock(terminal: string, terminalKey: string, conversation: ExternalSession): Promise<void> {
+  const dock = useSessionDock();
+  dock.openExternal(conversation, false, terminalKey);
+  const agent = await continueTerminalAsAgent(terminal, conversation);
+  dock.openWhenListed({ Agent: agent }, externalKey(conversation), true);
 }
 
 function whenStopped(key: string): Promise<void> {
