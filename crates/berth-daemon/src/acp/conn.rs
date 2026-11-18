@@ -24,7 +24,25 @@ pub enum Inbound {
         method: String,
         params: Value,
     },
+    Response(Response),
     Exited(Option<i32>),
+}
+
+pub struct Response {
+    waiter: oneshot::Sender<Result<Value, RpcError>>,
+    outcome: Result<Value, RpcError>,
+}
+
+impl Response {
+    pub fn deliver(self) {
+        let _ = self.waiter.send(self.outcome);
+    }
+}
+
+impl std::fmt::Debug for Response {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Response").field(&self.outcome).finish()
+    }
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
@@ -238,6 +256,5 @@ fn route(mut message: Value, waiters: &Waiters) -> Option<Inbound> {
             .map(Value::take)
             .unwrap_or(Value::Null)),
     };
-    let _ = waiter.send(outcome);
-    None
+    Some(Inbound::Response(Response { waiter, outcome }))
 }

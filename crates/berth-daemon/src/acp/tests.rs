@@ -413,3 +413,43 @@ async fn an_agent_that_needs_sign_in_asks_and_starts_after_the_answer() {
     );
     daemon.acp.kill(&agent);
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_turn_finishes_only_after_the_answer_sent_before_its_reply() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (daemon, worktree, _) = mock_daemon(tmp.path()).await;
+    let mut events = daemon.events.subscribe();
+    let mut script = vec![
+        json!({"expect": "initialize", "result": {"protocolVersion": 1, "agentCapabilities": {}, "authMethods": []}}),
+        json!({"expect": "session/new", "result": {"sessionId": "mock-1"}}),
+        json!({"expect": "session/prompt"}),
+    ];
+    let tools = 300;
+    for n in 0..tools {
+        script.push(
+            json!({"send": update("tool_call", json!({"toolCallId": format!("t{n}"),
+            "title": "Read", "kind": "read", "status": "completed"}))}),
+        );
+    }
+    script.push(json!({"send": update("agent_message_chunk", json!({"content": {"type": "text", "text": "done"}}))}));
+    script.push(json!({"reply_to": "session/prompt", "result": {"stopReason": "end_turn"}}));
+    let provider = mock_provider(tmp.path(), "burst", json!(script));
+    let EntityId::Agent(agent) = daemon
+        .create_acp_agent_with(worktree, "mock".into(), provider, false)
+        .unwrap()
+    else {
+        panic!("expected an agent id");
+    };
+    daemon.acp_prompt(&agent, "go").await.unwrap();
+    until_finished(&mut events).await;
+
+    let items = items_of(&daemon, &agent);
+    assert_eq!(items.len(), tools + 2, "{:?}", items.last());
+    assert_eq!(
+        items.last(),
+        Some(&AcpItem::Assistant {
+            text: "done".into()
+        })
+    );
+    daemon.acp.kill(&agent);
+}

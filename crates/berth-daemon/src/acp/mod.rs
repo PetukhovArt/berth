@@ -269,6 +269,7 @@ impl Daemon {
                         .respond_error(id, METHOD_NOT_FOUND, "method not found")
                         .await;
                 }
+                Inbound::Response(response) => response.deliver(),
                 Inbound::Exited(exit_code) => {
                     self.acp_exited(&agent_id, &live, exit_code);
                     break;

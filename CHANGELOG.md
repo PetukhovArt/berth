@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed a Session's Chat view sometimes marking a turn Finished before the agent's last answer arrived, leaving that answer missing until the next turn
+
 ## 0.21.0 (2026-11-18)
 
 - Added `berth spawn --worktree <branch> [--base <ref>]`: an agent starts the new session in another worktree of its project, reusing that branch's worktree or creating it, while its own session stays where it is
