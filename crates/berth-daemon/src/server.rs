@@ -811,10 +811,11 @@ async fn handle_client(
                     id,
                     kind,
                     starting_prompt,
+                    worktree,
                 } => {
                     // Logged by mode only — never the prompt text.
                     let result = daemon
-                        .spawn_sibling_agent(&id, kind, &starting_prompt)
+                        .spawn_sibling_agent(&id, kind, &starting_prompt, worktree.as_ref())
                         .await;
                     match &result {
                         Ok(berth_core::EntityId::Agent(agent)) => tracing::info!(

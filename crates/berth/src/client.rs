@@ -321,7 +321,12 @@ async fn rename_current_agent(title: &str, mode: RenameMode) -> Result<()> {
 /// What this prints is read by the model that ran it, so it says what
 /// happened and that this session carries on. A daemon-side refusal (a
 /// blank task, a missing CLI) is a nonzero exit the model reports.
-async fn spawn_sibling_for_current_agent(task: &str, kind: Option<AgentKind>) -> Result<()> {
+async fn spawn_sibling_for_current_agent(
+    task: &str,
+    kind: Option<AgentKind>,
+    worktree: Option<String>,
+    base: Option<String>,
+) -> Result<()> {
     let agent_id = current_agent_id("spawn")?;
     let task = task.trim();
     if task.is_empty() {
@@ -329,6 +334,20 @@ async fn spawn_sibling_for_current_agent(task: &str, kind: Option<AgentKind>) ->
             "the task is empty — `berth spawn \"<task>\"` needs the work the new session starts on"
         );
     }
+    let worktree = match (worktree, base) {
+        (None, Some(_)) => {
+            bail!("--base needs --worktree: it is the start point of the new worktree's branch")
+        }
+        (None, None) => None,
+        (Some(name), base) => match berth_core::branch_name::slugify(&name) {
+            branch if branch.is_empty() => bail!("--worktree needs a branch name"),
+            branch => Some(berth_core::SpawnWorktree { branch, base }),
+        },
+    };
+    let place = match &worktree {
+        Some(w) => format!("the worktree \"{}\"", w.branch),
+        None => "this worktree".to_string(),
+    };
     let Ok(stream) = try_connect().await else {
         bail!("no berth daemon is running — no session started");
     };
@@ -341,13 +360,14 @@ async fn spawn_sibling_for_current_agent(task: &str, kind: Option<AgentKind>) ->
             id: AgentId(agent_id),
             kind,
             starting_prompt: task.to_string(),
+            worktree,
         },
     )
     .await?;
     await_ack(&mut conn, req_id).await?;
     let harness = kind.map(|k| format!("{} ", k.as_str())).unwrap_or_default();
     println!(
-        "started a new {harness}session in this worktree; it is working on that task now and \
+        "started a new {harness}session in {place}; it is working on that task now and \
          shows in the sessions list. This session is unaffected — carry on."
     );
     Ok(())
@@ -860,8 +880,13 @@ pub fn run_enter(path: String) -> Result<()> {
 
 /// `berth spawn "<task>" [--kind <kind>]` (see
 /// `spawn_sibling_for_current_agent`).
-pub fn run_spawn(task: String, kind: Option<AgentKind>) -> Result<()> {
-    runtime()?.block_on(spawn_sibling_for_current_agent(&task, kind))
+pub fn run_spawn(
+    task: String,
+    kind: Option<AgentKind>,
+    worktree: Option<String>,
+    base: Option<String>,
+) -> Result<()> {
+    runtime()?.block_on(spawn_sibling_for_current_agent(&task, kind, worktree, base))
 }
 
 /// `berth add <dir>` and bare `berth <dir>` (see `add_project`).

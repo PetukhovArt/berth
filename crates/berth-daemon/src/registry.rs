@@ -2181,7 +2181,7 @@ fn agent_spawn_command_with(
 
 /// Validate an AGENT PRESET's composed starting prompt before it becomes the
 /// CLI's positional argument.
-fn validate_starting_prompt(raw: &str) -> Result<String> {
+pub(crate) fn validate_starting_prompt(raw: &str) -> Result<String> {
     let text = raw.trim().to_string();
     if text.is_empty() {
         bail!("starting prompt is empty");

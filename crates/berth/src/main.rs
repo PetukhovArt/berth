@@ -137,6 +137,19 @@ enum Command {
         /// the same as this session's).
         #[arg(long, value_name = "KIND", value_parser = parse_agent_kind)]
         kind: Option<berth_core::AgentKind>,
+        #[arg(
+            long,
+            value_name = "BRANCH",
+            help = "Start the session in this branch's worktree of the project instead, creating the branch and worktree when there is none"
+        )]
+        worktree: Option<String>,
+        #[arg(
+            long,
+            value_name = "REF",
+            requires = "worktree",
+            help = "Start point for a new --worktree branch (default: worktree_base in config.json, else develop, main or master)"
+        )]
+        base: Option<String>,
     },
     #[command(
         about = "Type a prompt into a session, or start a new session on it, after --in (once), repeating with --every"
@@ -423,7 +436,12 @@ fn main() -> Result<()> {
         }
         Some(Command::Worktree { name, base }) => client::run_worktree(name.join(" "), base),
         Some(Command::Enter { dir }) => client::run_enter(dir),
-        Some(Command::Spawn { task, kind }) => client::run_spawn(task.join(" "), kind),
+        Some(Command::Spawn {
+            task,
+            kind,
+            worktree,
+            base,
+        }) => client::run_spawn(task.join(" "), kind, worktree, base),
         Some(Command::Schedule {
             prompt,
             delay,

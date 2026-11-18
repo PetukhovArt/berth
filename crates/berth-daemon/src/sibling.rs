@@ -7,7 +7,7 @@
 use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
-use berth_core::{AgentId, AgentKind, EntityId};
+use berth_core::{AgentId, AgentKind, EntityId, SpawnWorktree, Worktree, WorktreeId};
 
 use crate::registry::{CreateAgentSpec, Daemon};
 
@@ -21,8 +21,11 @@ session for …\"), do not launch an agent process yourself. Run this shell comm
 once:\n\n  berth spawn \"<task>\"\n\nwhere <task> is the work the user wants that session to do, \
 in their own words — the new session opens on it as its first prompt, so make it self-contained. \
 Add `--kind claude|codex|cursor|opencode|grok` only when the user names the harness; otherwise the new session \
-matches this one. berth starts it beside this session, in the same worktree, and it shows up in \
-the sessions list on its own. This session is unaffected: carry on with whatever else the user \
+matches this one. berth starts it beside this session, in the same worktree, unless the user wants \
+it in another worktree or branch of this project: then add `--worktree <branch>`, which reuses that \
+branch's worktree or creates the branch and its worktree when there is none, and `--base <ref>` \
+only when the user names the start point of a new branch. The new session shows up in the \
+sessions list on its own. This session is unaffected: carry on with whatever else the user \
 asked, and if starting the session was the whole request, tell the user in one line that it is \
 running. If the command fails, report the error.";
 
@@ -48,15 +51,17 @@ impl Daemon {
         id: &AgentId,
         kind: Option<AgentKind>,
         starting_prompt: &str,
+        target: Option<WorktreeId>,
     ) -> Result<CreateAgentSpec> {
         let caller = self.store.get_agent(id)?.context("agent not found")?;
         if caller.archived {
             bail!("agent is archived");
         }
+        let worktree = target.unwrap_or_else(|| caller.worktree_id.clone());
         let (_, _, agents, _) = self.store.load_tree()?;
         let taken = agents
             .iter()
-            .filter(|a| a.worktree_id == caller.worktree_id)
+            .filter(|a| a.worktree_id == worktree)
             .map(|a| a.name.clone())
             .collect::<Vec<_>>();
         let kind = kind.unwrap_or(caller.kind);
@@ -66,7 +71,7 @@ impl Daemon {
             (None, None)
         };
         Ok(CreateAgentSpec {
-            worktree: caller.worktree_id.clone(),
+            worktree,
             name: sibling_name(&taken),
             kind,
             model,
@@ -85,9 +90,60 @@ impl Daemon {
         id: &AgentId,
         kind: Option<AgentKind>,
         starting_prompt: &str,
+        worktree: Option<&SpawnWorktree>,
     ) -> Result<EntityId> {
-        let spec = self.sibling_spec(id, kind, starting_prompt)?;
+        crate::registry::validate_starting_prompt(starting_prompt)?;
+        let target = match worktree {
+            Some(wanted) => Some(self.spawn_worktree(id, wanted).await?.id),
+            None => None,
+        };
+        let spec = self.sibling_spec(id, kind, starting_prompt, target)?;
         self.create_agent(spec).await
+    }
+
+    async fn spawn_worktree(
+        self: &Arc<Self>,
+        id: &AgentId,
+        wanted: &SpawnWorktree,
+    ) -> Result<Worktree> {
+        let branch = wanted.branch.trim();
+        if branch.is_empty() {
+            bail!("branch name is empty");
+        }
+        let caller = self.store.get_agent(id)?.context("agent not found")?;
+        if caller.archived {
+            bail!("agent is archived");
+        }
+        let current = self
+            .store
+            .get_worktree(&caller.worktree_id)?
+            .context("worktree not found")?;
+        let project = self
+            .store
+            .get_project(&current.project_id)?
+            .context("project not found")?;
+        let find = || -> Result<Option<Worktree>> {
+            let (_, worktrees, _, _) = self.store.load_tree()?;
+            Ok(worktrees
+                .into_iter()
+                .find(|w| w.project_id == project.id && w.branch == branch))
+        };
+        if let Some(found) = find()? {
+            return Ok(found);
+        }
+        if let Err(error) = self.sync_project_worktrees(&project).await {
+            tracing::warn!(project = %project.name, error = %error, "worktree sync before spawn failed");
+        }
+        if let Some(adopted) = find()? {
+            return Ok(adopted);
+        }
+        let (created, warning) = self
+            .create_worktree_from_base(&project.id, branch, wanted.base.as_deref())
+            .await?;
+        if let Some(warning) = warning {
+            tracing::warn!(worktree = %created.id, warning = %warning, "spawn worktree base fallback");
+        }
+        Ok(created)
     }
 }
 
@@ -180,7 +236,7 @@ mod tests {
             .unwrap();
 
         let spec = daemon
-            .sibling_spec(&AgentId("agent-1".into()), None, "Fix the login redirect")
+            .sibling_spec(&AgentId("agent-1".into()), None, "Fix the login redirect", None)
             .unwrap();
         assert_eq!(spec.worktree.to_string(), "feat");
         assert_eq!(spec.name, "agent-2");
@@ -206,6 +262,7 @@ mod tests {
                 &AgentId("agent-1".into()),
                 Some(AgentKind::Codex),
                 "Run the tests",
+                None,
             )
             .unwrap();
         assert_eq!(spec.kind, AgentKind::Codex);
@@ -219,6 +276,7 @@ mod tests {
                 &AgentId("agent-1".into()),
                 Some(AgentKind::Claude),
                 "Run the tests",
+                None,
             )
             .unwrap();
         assert_eq!(same.model.as_deref(), Some("opus"));
@@ -230,7 +288,7 @@ mod tests {
         // `CreateAgentSpec` is deliberately not Debug (it carries the
         // prompt), so the Err side is taken by hand.
         let missing = daemon
-            .sibling_spec(&AgentId("nope".into()), None, "x")
+            .sibling_spec(&AgentId("nope".into()), None, "x", None)
             .err()
             .expect("an unknown caller is refused");
         assert!(missing.to_string().contains("agent not found"));
@@ -239,7 +297,7 @@ mod tests {
         archived.archived = true;
         daemon.store.insert_agent(&archived).unwrap();
         let err = daemon
-            .sibling_spec(&AgentId("agent-1".into()), None, "x")
+            .sibling_spec(&AgentId("agent-1".into()), None, "x", None)
             .err()
             .expect("an archived caller is refused");
         assert!(err.to_string().contains("archived"));
@@ -255,9 +313,102 @@ mod tests {
             .insert_agent(&agent("agent-1", "feat", AgentKind::Claude, None))
             .unwrap();
         let err = daemon
-            .spawn_sibling_agent(&AgentId("agent-1".into()), None, " \n ")
+            .spawn_sibling_agent(&AgentId("agent-1".into()), None, " \n ", None)
             .await
             .unwrap_err();
         assert!(err.to_string().contains("is empty"), "{err}");
+    }
+
+    fn git_in(repo: &std::path::Path, args: &[&str]) {
+        let out = std::process::Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .env("GIT_AUTHOR_NAME", "t")
+            .env("GIT_AUTHOR_EMAIL", "t@example.com")
+            .env("GIT_COMMITTER_NAME", "t")
+            .env("GIT_COMMITTER_EMAIL", "t@example.com")
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "git {args:?}: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+
+    #[tokio::test]
+    async fn spawn_worktree_creates_once_reuses_and_adopts() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = berth_core::paths::canonical_or_raw(tmp.path());
+        let repo = root.join("repo");
+        std::fs::create_dir(&repo).unwrap();
+        git_in(&repo, &["init", "-b", "main"]);
+        git_in(&repo, &["commit", "--allow-empty", "-m", "init"]);
+        let daemon = Daemon::new(
+            Arc::new(Store::open_in_memory().unwrap()),
+            HookEnv {
+                port: 0,
+                token: String::new(),
+            },
+        );
+        daemon
+            .store
+            .insert_project(&Project {
+                workspace_id: Default::default(),
+                id: ProjectId("p".into()),
+                name: "p".into(),
+                repo_path: repo.clone(),
+                sort_order: 0,
+                pin_order: None,
+            })
+            .unwrap();
+        daemon
+            .store
+            .insert_worktree(&Worktree {
+                id: WorktreeId("root".into()),
+                project_id: ProjectId("p".into()),
+                path: repo.clone(),
+                branch: "main".into(),
+                is_main: true,
+                sort_order: 0,
+            })
+            .unwrap();
+        daemon
+            .store
+            .insert_agent(&agent("agent-1", "root", AgentKind::Claude, None))
+            .unwrap();
+        let caller = AgentId("agent-1".into());
+        let wanted = |branch: &str| SpawnWorktree {
+            branch: branch.into(),
+            base: Some("main".into()),
+        };
+
+        let created = daemon.spawn_worktree(&caller, &wanted("feat")).await.unwrap();
+        assert_eq!(created.branch, "feat");
+        assert!(created.path.join(".git").exists(), "a real checkout");
+        let again = daemon.spawn_worktree(&caller, &wanted(" feat ")).await.unwrap();
+        assert_eq!(again.id, created.id, "the same branch reuses its worktree");
+
+        let outside = root.join("outside");
+        git_in(
+            &repo,
+            &["worktree", "add", &outside.to_string_lossy(), "-b", "other"],
+        );
+        let adopted = daemon.spawn_worktree(&caller, &wanted("other")).await.unwrap();
+        assert_eq!(adopted.branch, "other");
+        assert!(
+            !adopted.path.starts_with(root.join("repo-worktrees")),
+            "a checkout made outside berth is taken, not duplicated: {}",
+            adopted.path.display()
+        );
+
+        let spec = daemon
+            .sibling_spec(&caller, None, "Run the tests", Some(created.id.clone()))
+            .unwrap();
+        assert_eq!(spec.worktree, created.id);
+        assert_eq!(spec.name, "agent-1", "names are taken per worktree");
+        let caller_row = daemon.store.get_agent(&caller).unwrap().unwrap();
+        assert_eq!(caller_row.worktree_id.to_string(), "root");
     }
 }

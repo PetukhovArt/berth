@@ -481,7 +481,7 @@ impl Daemon {
             error: error.as_ref(),
             reason,
         });
-        let mut spec = self.sibling_spec(id, Some(kind), &prompt)?;
+        let mut spec = self.sibling_spec(id, Some(kind), &prompt, None)?;
         if model.is_some() {
             spec.model = model;
         }

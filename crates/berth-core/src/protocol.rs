@@ -23,6 +23,12 @@ pub enum SessionRef {
     Terminal(TerminalId),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SpawnWorktree {
+    pub branch: String,
+    pub base: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ClientRequest {
     Hello {
@@ -237,7 +243,7 @@ pub enum ClientRequest {
         path: PathBuf,
     },
     /// `berth spawn "<task>"`, run by the agent from inside its own
-    /// session: start a new AGENT beside it — same WORKTREE, and the same
+    /// session: start a new AGENT beside it — the same
     /// AGENT KIND / MODEL / EFFORT unless `kind` names another harness —
     /// with `starting_prompt` as the new CLI's first prompt, so it begins
     /// the task at once. The caller's own process is untouched. Answered
@@ -248,6 +254,8 @@ pub enum ClientRequest {
         id: AgentId,
         kind: Option<AgentKind>,
         starting_prompt: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        worktree: Option<SpawnWorktree>,
     },
     /// Kills the PTY, sets archived=1.
     ArchiveAgent {

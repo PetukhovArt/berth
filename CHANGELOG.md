@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added `berth spawn --worktree <branch> [--base <ref>]`: an agent starts the new session in another worktree of its project, reusing that branch's worktree or creating it, while its own session stays where it is
 - Added `berth hub devices` to list the devices paired with a team hub and `berth hub revoke <id>` to cut one off at once, together with its Agents; `berth hub approve` run again changes a device's scopes
 - Added a team hub over HTTPS: `berth hub serve --cert <pem> --key <pem>`, and `hub_url` accepts `https://`
 - Added `berth channel open [<key>]` and an `Open Channel` action on a Worktree, a merge request and a Jira issue: they create the Channel for that task or open it when it exists
