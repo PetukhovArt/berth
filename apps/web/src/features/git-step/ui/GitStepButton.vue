@@ -138,7 +138,7 @@ onBeforeUnmount(() => window.removeEventListener('focus', refresh));
         <UiButton type="submit" class="run" :disabled="!valid || busy" :data-testid="`${testid}-submit`">{{ label }}</UiButton>
       </div>
     </form>
-    <span v-if="error" class="error" role="alert" :data-testid="`${testid}-error`">{{ error }}</span>
+    <span v-if="error" class="error" role="alert" :title="error" :data-testid="`${testid}-error`">{{ error }}</span>
   </div>
 </template>
 
@@ -155,11 +155,11 @@ onBeforeUnmount(() => window.removeEventListener('focus', refresh));
 .hint,
 .error {
   font-size: var(--vr-font-size-xs);
-  white-space: nowrap;
 }
 
 .hint {
   min-width: 0;
+  white-space: nowrap;
   overflow: hidden;
   color: var(--vr-color-text-subtle);
   text-overflow: ellipsis;
@@ -170,10 +170,17 @@ onBeforeUnmount(() => window.removeEventListener('focus', refresh));
   top: 100%;
   right: 0;
   z-index: 6;
+  width: max-content;
   max-width: 360px;
-  overflow: hidden;
+  max-height: 9em;
+  padding: var(--vr-space-2) var(--vr-space-3);
+  overflow-y: auto;
   color: var(--vr-status-crashed);
-  text-overflow: ellipsis;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--vr-color-surface-raised);
+  border-radius: 7px;
+  box-shadow: var(--vr-shadow-popover);
 }
 
 .run {

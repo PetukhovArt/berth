@@ -49,7 +49,7 @@ async fn git(path: &str, args: &[&str]) -> Result<(bool, String), String> {
             )
         })?
         .map_err(|error| format!("не удалось запустить git: {error}"))?;
-    let bytes = if output.status.success() {
+    let bytes = if output.status.success() || output.stderr.trim_ascii().is_empty() {
         output.stdout
     } else {
         output.stderr
@@ -209,7 +209,29 @@ async fn git_state(path: &str, configured: &BTreeMap<String, String>) -> Result<
 async fn run(path: &str, args: &[&str]) -> Result<(), String> {
     match git(path, args).await? {
         (true, _) => Ok(()),
-        (false, error) => Err(format!("git {}: {error}", args.first().unwrap_or(&""))),
+        (false, error) => Err(format!(
+            "git {}: {}",
+            args.first().unwrap_or(&""),
+            failure_cause(&error)
+        )),
+    }
+}
+
+fn failure_cause(output: &str) -> String {
+    let causes: Vec<&str> = output
+        .lines()
+        .filter_map(|line| {
+            let line = line.trim();
+            line.strip_prefix("fatal:")
+                .or_else(|| line.strip_prefix("error:"))
+                .map(str::trim)
+        })
+        .filter(|cause| !cause.is_empty())
+        .collect();
+    if causes.is_empty() {
+        output.to_owned()
+    } else {
+        causes.join("\n")
     }
 }
 

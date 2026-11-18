@@ -88,6 +88,7 @@
 - Windows: Fixed a new worktree's path mixing `/` and `\` in the session inspector
 - Fixed New Session and `berth worktree` failing when origin cannot be fetched: the worktree is created from the local base branch and a warning shows git's error
 - Fixed a repository without an `origin` remote: new worktrees start from the local base branch, and the git step and session details compare against the local default branch
+- Fixed the git step button (Commit, Push, Pull) showing git's fetch output cut off after a failure; it now shows the reason git gave, such as `Not possible to fast-forward, aborting.`, wrapped so you can read all of it
 - Fixed berth's own hook files showing as worktree changes and making every session overlap every other
 - Fixed the Offline banner not saying why the daemon could not be reached, such as an ssh error for a remote one
 - Fixed the Channel view skipping a message posted just before your own and naming a granted Agent by its id instead of its Session name
