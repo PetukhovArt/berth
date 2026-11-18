@@ -1,4 +1,4 @@
-use crate::acp::{AcpItem, AcpItemAt};
+use crate::acp::{AcpCommand, AcpItem, AcpItemAt};
 use crate::attention::Attention;
 use crate::entities::{
     Agent, AgentKind, AgentStatus, Entity, EntityId, OrphanedSession, Project, TerminalTab,
@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 59;
+pub const PROTOCOL_VERSION: u32 = 60;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -515,6 +515,11 @@ pub enum ClientRequest {
         text: Option<String>,
         error: Option<String>,
     },
+
+    AcpCommands {
+        req_id: u64,
+        agent: AgentId,
+    },
 }
 
 /// The archive mark on an EXTERNAL SESSION, keyed by its agent CLI and that
@@ -910,6 +915,12 @@ pub enum ServerEvent {
     TranscribeVoice {
         request: u64,
         pcm_path: String,
+    },
+
+    AcpCommands {
+        req_id: u64,
+        agent: AgentId,
+        commands: Vec<AcpCommand>,
     },
 }
 

@@ -36,6 +36,12 @@ pub struct AcpPlanEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AcpCommand {
+    pub name: String,
+    pub description: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AcpItemAt {
     pub seq: u64,
     pub item: AcpItem,

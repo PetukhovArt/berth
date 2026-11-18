@@ -1,4 +1,4 @@
-use berth_core::acp::{AcpDiff, AcpPlanEntry, AcpTool};
+use berth_core::acp::{AcpCommand, AcpDiff, AcpPlanEntry, AcpTool};
 use berth_core::{FeedbackKind, FeedbackRequest};
 use serde_json::Value;
 
@@ -55,6 +55,26 @@ pub fn session_update(params: &Value) -> Update {
         Some(text) => Update::Text(text_kind, text.to_string()),
         None => Update::Ignored,
     }
+}
+
+pub fn available_commands(params: &Value) -> Option<Vec<AcpCommand>> {
+    let update = params.get("update")?;
+    if str_at(update, "sessionUpdate") != Some("available_commands_update") {
+        return None;
+    }
+    let commands = update
+        .get("availableCommands")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|c| {
+            Some(AcpCommand {
+                name: str_at(c, "name")?.trim_start_matches('/').to_string(),
+                description: str_at(c, "description").unwrap_or_default().to_string(),
+            })
+        })
+        .collect();
+    Some(commands)
 }
 
 pub fn permission(params: &Value) -> Permission {
@@ -200,6 +220,32 @@ mod tests {
         let image = json!({"update": {"sessionUpdate": "agent_thought_chunk",
             "content": {"type": "image", "data": ""}}});
         assert_eq!(session_update(&image), Update::Ignored);
+    }
+
+    #[test]
+    fn available_commands_list_name_and_description() {
+        let p = json!({"update": {"sessionUpdate": "available_commands_update",
+        "availableCommands": [
+            {"name": "review", "description": "Review changes", "input": {"hint": "path"}},
+            {"name": "/compact"},
+            {"description": "nameless"}
+        ]}});
+        let commands = available_commands(&p).unwrap();
+        assert_eq!(
+            commands,
+            vec![
+                AcpCommand {
+                    name: "review".into(),
+                    description: "Review changes".into()
+                },
+                AcpCommand {
+                    name: "compact".into(),
+                    description: String::new()
+                },
+            ]
+        );
+        let other = json!({"update": {"sessionUpdate": "plan", "entries": []}});
+        assert_eq!(available_commands(&other), None);
     }
 
     #[test]

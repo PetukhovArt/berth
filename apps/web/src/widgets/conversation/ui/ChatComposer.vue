@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, shallowRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, shallowRef, useId, useTemplateRef, watch } from 'vue';
 import { ArrowUp, Mic } from '../../../shared/ui/icons';
 import { useIsPhone } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
@@ -7,16 +7,25 @@ import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { PlainKey } from '../../../shared/lib/i18n/translate';
 import { speechLang, useHoldToTalk, type HoldToTalkIssue } from '../../../shared/lib/dictation';
-import type { TranscriptMessage } from '../../../entities/session';
+import { listSlashCommands, matchSlashCommands, type SlashCommand, type SlashSource, type TranscriptMessage } from '../../../entities/session';
 import { useVoiceLoop } from '../model/useVoiceLoop';
 
 const NOTICE_MS = 3000;
 const WAVE_BARS = [10, 22, 34, 18, 40, 26, 14, 30, 20, 8];
 
-const props = defineProps<{ messages: TranscriptMessage[]; suggestion: string | null; modelChip: string; sending: boolean; send: (text: string, spoken: boolean) => Promise<boolean> }>();
+const SLASH_QUERY = /^\/(\S*)$/;
+
+const props = defineProps<{ messages: TranscriptMessage[]; suggestion: string | null; modelChip: string; sending: boolean; slashSource: SlashSource | null; send: (text: string, spoken: boolean) => Promise<boolean> }>();
 
 const phone = useIsPhone();
 const draft = shallowRef('');
+const input = useTemplateRef<InstanceType<typeof UiTextarea>>('input');
+const slashList = useTemplateRef<HTMLElement>('slashList');
+const listId = useId();
+const commands = shallowRef<SlashCommand[]>([]);
+const dismissed = shallowRef(false);
+const active = shallowRef(0);
+let commandsRun = 0;
 const notice = shallowRef('');
 const typing = shallowRef(false);
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -86,7 +95,53 @@ function acceptSuggestion() {
   if (shownSuggestion.value) draft.value = shownSuggestion.value;
 }
 
+const slashQuery = computed(() => SLASH_QUERY.exec(draft.value)?.[1] ?? null);
+const slashMatches = computed(() => (slashQuery.value === null || dismissed.value ? [] : matchSlashCommands(commands.value, slashQuery.value)));
+const slashOpen = computed(() => slashMatches.value.length > 0);
+const activeId = computed(() => (slashOpen.value ? `${listId}-${active.value}` : undefined));
+
+async function loadCommands() {
+  const source = props.slashSource;
+  if (!source) return;
+  const run = ++commandsRun;
+  const next = await listSlashCommands(source).catch(() => []);
+  if (run === commandsRun) commands.value = next;
+}
+
+watch(slashQuery, (query, previous) => {
+  if (query === null) dismissed.value = false;
+  else if (previous === null || previous === undefined) void loadCommands();
+});
+
+watch(slashMatches, () => (active.value = 0));
+
+function moveActive(step: number) {
+  const size = slashMatches.value.length;
+  active.value = (active.value + step + size) % size;
+  void nextTick(() => slashList.value?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' }));
+}
+
+function pickCommand(command: SlashCommand) {
+  draft.value = `/${command.name} `;
+  input.value?.focus();
+}
+
+function onSlashKey(event: KeyboardEvent): boolean {
+  if (!slashOpen.value || event.isComposing) return false;
+  const current = slashMatches.value[active.value];
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') moveActive(event.key === 'ArrowDown' ? 1 : -1);
+  else if (event.key === 'Escape') {
+    event.stopPropagation();
+    dismissed.value = true;
+  } else if (event.key === 'Tab' && !event.shiftKey && current) pickCommand(current);
+  else if (event.key === 'Enter' && !event.shiftKey && current && current.name.toLowerCase() !== slashQuery.value?.toLowerCase()) pickCommand(current);
+  else return false;
+  event.preventDefault();
+  return true;
+}
+
 function onKey(event: KeyboardEvent) {
+  if (onSlashKey(event)) return;
   if (event.key === 'Tab' && !event.shiftKey && shownSuggestion.value) {
     event.preventDefault();
     acceptSuggestion();
@@ -136,7 +191,13 @@ function handsFree() {
         <p class="hint">{{ t('chat.talkHint') }}</p>
       </div>
       <div v-else class="box">
-        <UiTextarea v-model="draft" class="input" rows="2" :placeholder="t('agents.sessionView.chatPlaceholder')" :aria-label="t('agents.sessionView.chatPlaceholder')" data-testid="chat-input" @keydown="onKey" />
+        <ul v-if="slashOpen" :id="listId" ref="slashList" class="slash" role="listbox" :aria-label="t('chat.slash.list')" data-testid="chat-slash-list">
+          <li v-for="(command, index) in slashMatches" :id="`${listId}-${index}`" :key="command.name" class="slash-item" role="option" :aria-selected="index === active" :data-name="command.name" data-testid="chat-slash-item" @pointerdown.prevent @click="pickCommand(command)">
+            <span class="slash-name">/{{ command.name }}</span>
+            <span v-if="command.description" class="slash-description">{{ command.description }}</span>
+          </li>
+        </ul>
+        <UiTextarea ref="input" v-model="draft" class="input" rows="2" :placeholder="t('agents.sessionView.chatPlaceholder')" :aria-label="t('agents.sessionView.chatPlaceholder')" role="combobox" aria-autocomplete="list" :aria-expanded="slashOpen" :aria-controls="slashOpen ? listId : undefined" :aria-activedescendant="activeId" data-testid="chat-input" @keydown="onKey" />
         <div class="foot">
           <span v-if="modelChip" class="model" :title="modelChip" data-testid="chat-model">{{ modelChip }}</span>
           <span class="grow" />
@@ -168,6 +229,7 @@ function handsFree() {
 }
 
 .box {
+  position: relative;
   display: flex;
   flex-direction: column;
   background: var(--vr-color-surface);
@@ -177,6 +239,73 @@ function handsFree() {
 
 .box:focus-within {
   border-color: var(--vr-color-focus);
+}
+
+.slash {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + var(--vr-space-1));
+  left: 0;
+  z-index: 2;
+  max-height: min(320px, 45vh);
+  margin: 0;
+  padding: var(--vr-space-1);
+  overflow-y: auto;
+  list-style: none;
+  background: var(--vr-color-surface);
+  border: 1px solid var(--vr-color-border-strong);
+  border-radius: var(--vr-radius-lg);
+  box-shadow: var(--vr-shadow-popover);
+}
+
+.slash-item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--vr-space-3);
+  min-width: 0;
+  min-height: var(--vr-size-row);
+  padding: var(--vr-space-1) var(--vr-space-2);
+  font-size: var(--vr-font-size-sm);
+  cursor: pointer;
+  border-radius: var(--vr-radius-md);
+}
+
+.slash-item[aria-selected='true'] {
+  background: var(--vr-color-nav-active);
+}
+
+.slash-item:hover {
+  background: var(--vr-color-nav-hover);
+}
+
+.slash-name {
+  flex: none;
+  max-width: 50%;
+  overflow: hidden;
+  color: var(--vr-color-text);
+  font-family: var(--vr-font-mono);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.slash-description {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--vr-color-text-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+:root[data-vr-viewport='phone'] .slash-item {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0;
+}
+
+:root[data-vr-viewport='phone'] .slash-name {
+  max-width: none;
 }
 
 .input {

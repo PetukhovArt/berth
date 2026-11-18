@@ -12,7 +12,7 @@ mod tests;
 use crate::registry::Daemon;
 use crate::status::HookEvent;
 use anyhow::{bail, Context, Result};
-use berth_core::acp::{AcpItem, AcpItemAt};
+use berth_core::acp::{AcpCommand, AcpItem, AcpItemAt};
 use berth_core::{AgentId, AgentKind, EntityId, ServerEvent, WorktreeId};
 use conn::{Conn, Inbound, RpcError};
 use providers::AcpProvider;
@@ -92,6 +92,7 @@ struct AcpLive {
     notifications_handled: AtomicU64,
     replay_until: AtomicU64,
     last_active: Mutex<Instant>,
+    commands: Mutex<Vec<AcpCommand>>,
 }
 
 impl AcpLive {
@@ -221,6 +222,7 @@ impl Daemon {
             notifications_handled: AtomicU64::new(0),
             replay_until: AtomicU64::new(0),
             last_active: Mutex::new(Instant::now()),
+            commands: Mutex::new(Vec::new()),
         });
         map.insert(agent_id.clone(), live.clone());
         drop(map);
@@ -246,6 +248,9 @@ impl Daemon {
         while let Some(message) = inbound.recv().await {
             match message {
                 Inbound::Notification { method, params } if method == "session/update" => {
+                    if let Some(commands) = map::available_commands(&params) {
+                        *live.commands.lock().unwrap() = commands;
+                    }
                     let n = live.notifications_handled.fetch_add(1, Ordering::SeqCst) + 1;
                     if n > live.replay_until.load(Ordering::SeqCst) {
                         self.acp_update(&agent_id, &live, &params)
@@ -493,6 +498,13 @@ impl Daemon {
         if let Some(Pending::Permission { rpc_id, .. }) = pending {
             let _ = live.conn.respond(rpc_id, cancelled_outcome()).await;
         }
+    }
+
+    pub fn acp_commands(&self, agent_id: &AgentId) -> Vec<AcpCommand> {
+        self.acp
+            .get(agent_id)
+            .map(|live| live.commands.lock().unwrap().clone())
+            .unwrap_or_default()
     }
 
     pub fn acp_transcript(&self, agent_id: &AgentId, after: u64) -> Result<Vec<AcpItemAt>> {

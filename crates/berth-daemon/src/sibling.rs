@@ -236,7 +236,12 @@ mod tests {
             .unwrap();
 
         let spec = daemon
-            .sibling_spec(&AgentId("agent-1".into()), None, "Fix the login redirect", None)
+            .sibling_spec(
+                &AgentId("agent-1".into()),
+                None,
+                "Fix the login redirect",
+                None,
+            )
             .unwrap();
         assert_eq!(spec.worktree.to_string(), "feat");
         assert_eq!(spec.name, "agent-2");
@@ -384,10 +389,16 @@ mod tests {
             base: Some("main".into()),
         };
 
-        let created = daemon.spawn_worktree(&caller, &wanted("feat")).await.unwrap();
+        let created = daemon
+            .spawn_worktree(&caller, &wanted("feat"))
+            .await
+            .unwrap();
         assert_eq!(created.branch, "feat");
         assert!(created.path.join(".git").exists(), "a real checkout");
-        let again = daemon.spawn_worktree(&caller, &wanted(" feat ")).await.unwrap();
+        let again = daemon
+            .spawn_worktree(&caller, &wanted(" feat "))
+            .await
+            .unwrap();
         assert_eq!(again.id, created.id, "the same branch reuses its worktree");
 
         let outside = root.join("outside");
@@ -395,7 +406,10 @@ mod tests {
             &repo,
             &["worktree", "add", &outside.to_string_lossy(), "-b", "other"],
         );
-        let adopted = daemon.spawn_worktree(&caller, &wanted("other")).await.unwrap();
+        let adopted = daemon
+            .spawn_worktree(&caller, &wanted("other"))
+            .await
+            .unwrap();
         assert_eq!(adopted.branch, "other");
         assert!(
             !adopted.path.starts_with(root.join("repo-worktrees")),

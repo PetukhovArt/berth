@@ -510,6 +510,16 @@ async fn handle_client(
                     };
                     let _ = out_tx.send(ev).await;
                 }
+                ClientRequest::AcpCommands { req_id, agent } => {
+                    let commands = daemon.acp_commands(&agent);
+                    let _ = out_tx
+                        .send(ServerEvent::AcpCommands {
+                            req_id,
+                            agent,
+                            commands,
+                        })
+                        .await;
+                }
                 ClientRequest::AnswerFeedback {
                     req_id,
                     agent,

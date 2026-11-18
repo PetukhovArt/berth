@@ -9,6 +9,8 @@ export type { ExternalSession, Harness, TranscriptMessage } from './model/extern
 export { sessionStateOf, useSessionStates } from './model/sessionState';
 export type { SessionState } from './model/sessionState';
 export { derivePlan } from './model/plan';
+export { listSlashCommands, matchSlashCommands } from './model/slashCommands';
+export type { SlashCommand, SlashSource } from './model/slashCommands';
 export { acpMessages, useAcpChat } from './model/acpChat';
 export { searchSessionText } from './model/sessionText';
 export type { SessionTextCandidate } from './model/sessionText';

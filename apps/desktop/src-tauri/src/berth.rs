@@ -735,6 +735,7 @@ fn reply_req_id(event: &ServerEvent) -> Option<u64> {
         | ServerEvent::ChannelTouched { req_id, .. }
         | ServerEvent::ChannelGrants { req_id, .. }
         | ServerEvent::AcpTranscript { req_id, .. }
+        | ServerEvent::AcpCommands { req_id, .. }
         | ServerEvent::Metrics { req_id, .. } => Some(*req_id),
         ServerEvent::Error { req_id, .. } => *req_id,
         _ => None,
@@ -801,6 +802,7 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::CreateAcpAgent { req_id, .. }
         | ClientRequest::AcpPrompt { req_id, .. }
         | ClientRequest::AcpTranscript { req_id, .. }
+        | ClientRequest::AcpCommands { req_id, .. }
         | ClientRequest::AnswerFeedback { req_id, .. }
         | ClientRequest::AnswerInChannel { req_id, .. }
         | ClientRequest::GetUsageLimits { req_id }

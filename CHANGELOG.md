@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added a command list to a Session's Chat view: type `/` to pick one of the agent's skills, custom commands and built-in commands with the arrow keys, `Tab` or `Enter`
 - Changed `Ctrl+Tab`, `Alt+1` to `Alt+9` and Hot sessions to skip Claude and Codex conversations running outside berth, which berth cannot type into; they stay in the tree
 
 ## 0.21.0

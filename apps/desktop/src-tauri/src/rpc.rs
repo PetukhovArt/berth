@@ -18,7 +18,8 @@ use crate::files::{self, FileWatches};
 use crate::settings::{self, ConfigFile, SettingsWatch};
 use crate::sink::{BoxSink, Sink};
 
-const GUARDED: [(&str, &str); 18] = [
+const GUARDED: [(&str, &str); 19] = [
+    ("slash_commands", "cwd"),
     ("review_queue", "repo"),
     ("review_adapter", "repo"),
     ("fs_read_text", "path"),
