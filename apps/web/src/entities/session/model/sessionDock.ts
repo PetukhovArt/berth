@@ -83,14 +83,19 @@ function createSessionDock() {
   for (const event of ['focus', 'blur']) window.addEventListener(event, watchLooking);
   document.addEventListener('visibilitychange', watchLooking);
 
-  const activeUnseenAgent = computed(() => {
-    const session = activeSession.value;
-    const connected = berth?.connection.value.state === 'connected';
-    return visible.value && looking.value && connected && session?.unseen && 'Agent' in session.ref ? session.ref.Agent : null;
+  const shownUnseenAgents = computed(() => {
+    if (!visible.value || !looking.value || berth?.connection.value.state !== 'connected') return [];
+    const terminalOf = useExternalSessions()?.terminalOf.value;
+    const agents: string[] = [];
+    for (const id of dock.shown.value) {
+      const session = berth.sessions.value.get(terminalOf?.get(id) ?? id);
+      if (session?.unseen && 'Agent' in session.ref) agents.push(session.ref.Agent);
+    }
+    return agents;
   });
 
-  watch(activeUnseenAgent, (agent) => {
-    if (agent) void markSeen(agent);
+  watch(shownUnseenAgents, (agents, previous) => {
+    for (const agent of agents) if (!previous?.includes(agent)) void markSeen(agent);
   });
 
   watch(

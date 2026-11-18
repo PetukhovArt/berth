@@ -153,7 +153,7 @@ The flag "a turn finished and nobody has looked". Not the same as Finished: this
 _Avoid_: unread ≠ done
 
 **Mark Seen**
-Clearing Unseen — happens on Attach to the session.
+Clearing Unseen — happens when any dock panel of a focused, visible, connected client shows the session, and when its next turn starts.
 
 **Attention**
 Why an unarchived Agent wants the user: Needs Feedback, Unseen or Terminated. A status change raises Attention when the agent has a reason after it that it did not have before; the Daemon stamps it on the status event as `raised`.

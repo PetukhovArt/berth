@@ -22,6 +22,11 @@ type DockHooks = {
 type Reviver = (id: string) => PanelSpec | undefined;
 type Carried ={ id: string; component: string; title: string; params: Record<string, unknown>; renderer?: 'always' };
 
+function shownPanels(dock: DockviewApi): ReadonlySet<string> {
+  const groups = dock.hasMaximizedGroup() ? dock.groups.filter((group) => group.api.isMaximized()) : dock.groups;
+  return new Set(groups.flatMap((group) => (group.activePanel ? [group.activePanel.id] : [])));
+}
+
 export function splitPosition(api: DockviewApi): PanelPosition | undefined {
   return api.activePanel ? { referencePanel: api.activePanel.id, direction: 'right' } : undefined;
 }
@@ -33,6 +38,7 @@ function createDock() {
   const activeLabel = shallowRef<{ title?: string; params?: Record<string, unknown> }>({});
   const activeTitle = computed(() => panelTitle(activeLabel.value.title, activeLabel.value.params));
   const visible = shallowRef(false);
+  const shown = shallowRef<ReadonlySet<string>>(new Set());
   const detail = shallowRef(false);
   const switching = shallowRef(false);
   const pending: ((api: DockviewApi) => void)[] = [];
@@ -57,6 +63,7 @@ function createDock() {
   }
 
   function changed(dock: DockviewApi) {
+    shown.value = shownPanels(dock);
     for (const each of hooks) each.change?.(dock);
   }
 
@@ -116,6 +123,7 @@ function createDock() {
         }),
         dock.onDidAddPanel(() => changed(dock)),
         dock.onDidRemovePanel(() => changed(dock)),
+        dock.onDidLayoutChange(() => (shown.value = shownPanels(dock))),
       ];
       const queued = pending.splice(0);
       restore(dock);
@@ -146,13 +154,14 @@ function createDock() {
         };
       for (const listener of listeners) listener.dispose();
       api.value = null;
+      shown.value = new Set();
       visible.value = false;
     });
 
     return { onReady };
   }
 
-  return { api, activeKey, activeTitle, visible, detail, switching, hook, revivable, revive, withDock, openPanel, toggleMaximize, useHost };
+  return { api, activeKey, activeTitle, visible, shown, detail, switching, hook, revivable, revive, withDock, openPanel, toggleMaximize, useHost };
 }
 
 let store: ReturnType<typeof createDock> | null = null;
