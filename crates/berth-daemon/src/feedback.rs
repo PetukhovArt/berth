@@ -13,6 +13,7 @@ pub(crate) const MAX_OPTIONS: usize = 9;
 pub(crate) const ALLOW_KEY: &[u8] = b"1";
 pub(crate) const ALWAYS_ALLOW_KEY: &[u8] = b"2";
 pub(crate) const DENY_KEY: &[u8] = b"\x1b";
+const ENTER_KEY: &[u8] = b"\r";
 
 #[derive(Default)]
 pub struct PendingFeedback {
@@ -76,7 +77,7 @@ fn answer_in(request: &FeedbackRequest, keys: &[u8]) -> Option<HookEvent> {
     let permission = request.kind == FeedbackKind::Permission;
     let declined = match keys {
         DENY_KEY => true,
-        ALLOW_KEY if permission => false,
+        ALLOW_KEY | ENTER_KEY if permission => false,
         ALWAYS_ALLOW_KEY if permission && request.always_allow => false,
         _ => return None,
     };
@@ -249,9 +250,19 @@ mod tests {
         assert_eq!(answer_in(&request, ALWAYS_ALLOW_KEY), None);
         request.always_allow = true;
         assert_eq!(answer_in(&request, ALWAYS_ALLOW_KEY), answered(false));
-        for typed in [&b"\r"[..], b"3", b"\x1b[A", b"1\r", b"yes"] {
+        for typed in [&b"3"[..], b"\x1b[A", b"\x1b[B", b"1\r", b"yes"] {
             assert_eq!(answer_in(&request, typed), None, "{typed:?}");
         }
+    }
+
+    #[test]
+    fn enter_on_the_highlighted_choice_answers_a_permission_but_not_a_question() {
+        let request = from_hook("PermissionRequest", Some("Edit"), None).unwrap();
+        assert_eq!(answer_in(&request, ENTER_KEY), answered(false));
+        let input = json!({"questions": [{"question": "Which?", "options": [
+            {"label": "A"}, {"label": "B"}]}]});
+        let question = from_hook("PreToolUse", Some("AskUserQuestion"), Some(&input)).unwrap();
+        assert_eq!(answer_in(&question, ENTER_KEY), None);
     }
 
     #[test]

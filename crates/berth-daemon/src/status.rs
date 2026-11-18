@@ -226,7 +226,15 @@ impl AskedToolCall {
     ) -> bool {
         Some(self) == Self::of(tool_name, subagent_id, detail).as_ref()
     }
+
+    fn passed_by(&self, tool_name: &Option<String>, subagent_id: &Option<String>) -> bool {
+        tool_name.is_some()
+            && *subagent_id == self.subagent_id
+            && NEVER_RUN_IN_PARALLEL.contains(&self.tool_name.as_str())
+    }
 }
+
+const NEVER_RUN_IN_PARALLEL: [&str; 4] = ["Edit", "Write", "MultiEdit", "NotebookEdit"];
 
 #[derive(Debug, Clone, PartialEq)]
 enum State {
@@ -506,7 +514,11 @@ impl AgentStatusMachine {
                     subagent_id,
                     detail,
                 },
-            ) if asked.ran_as(tool_name, subagent_id, detail) => Some(Running(*gate)),
+            ) if asked.ran_as(tool_name, subagent_id, detail)
+                || asked.passed_by(tool_name, subagent_id) =>
+            {
+                Some(Running(*gate))
+            }
             (_, E::PostToolUse { .. }) => None,
 
             (NeedsFeedback { gate, .. }, E::FeedbackAnswered { declined: false }) => {
@@ -1679,6 +1691,48 @@ mod tests {
         assert_eq!(m.status(), AgentStatus::NeedsFeedback);
         let fx = m.handle(bash_ran(Some("sub1"), "cargo test"), Some("s1"), t0());
         assert_eq!(status_of(&fx), Some(AgentStatus::Running));
+    }
+
+    fn waiting_on_edit(subagent: Option<&str>) -> AgentStatusMachine {
+        let mut m = AgentStatusMachine::new(AgentStatus::Fresh, None);
+        let now = t0();
+        m.handle(HookEvent::UserPromptSubmit, Some("s1"), now);
+        let asked = HookEvent::PermissionRequest {
+            tool_name: Some("Edit".into()),
+            subagent_id: subagent.map(str::to_string),
+            detail: Some("D:/w/settings.json".into()),
+        };
+        m.handle(asked, Some("s1"), now);
+        m
+    }
+
+    #[test]
+    fn a_later_call_of_the_agent_that_asked_for_an_edit_ends_the_wait() {
+        let mut m = waiting_on_edit(None);
+        let fx = m.handle(bash_ran(Some("sub1"), "git status"), Some("s1"), t0());
+        assert!(status_of(&fx).is_none(), "a subagent's call: {fx:?}");
+        let fx = m.handle(bash_ran(None, "git status"), Some("s1"), t0());
+        assert_eq!(status_of(&fx), Some(AgentStatus::Running));
+
+        let mut m = waiting_on_edit(Some("sub1"));
+        let fx = m.handle(bash_ran(None, "git status"), Some("s1"), t0());
+        assert!(status_of(&fx).is_none(), "the main agent's call: {fx:?}");
+        let fx = m.handle(bash_ran(Some("sub1"), "git status"), Some("s1"), t0());
+        assert_eq!(status_of(&fx), Some(AgentStatus::Running));
+    }
+
+    #[test]
+    fn a_later_call_does_not_end_a_wait_on_a_tool_that_runs_in_parallel() {
+        let mut m = AgentStatusMachine::new(AgentStatus::Fresh, None);
+        m.handle(HookEvent::UserPromptSubmit, Some("s1"), t0());
+        let asked = HookEvent::PermissionRequest {
+            tool_name: Some("Read".into()),
+            subagent_id: None,
+            detail: Some("D:/elsewhere/notes.md".into()),
+        };
+        m.handle(asked, Some("s1"), t0());
+        let fx = m.handle(bash_ran(None, "ls"), Some("s1"), t0());
+        assert!(status_of(&fx).is_none(), "{fx:?}");
     }
 
     #[test]
