@@ -59,6 +59,7 @@
 - Fixed a session still waiting for you, with its Allow and Deny card, after you answered its permission request, until the turn ended
 - Fixed an Allow and Deny card staying under a session after its tab was closed or its process was stopped, with nothing left to answer
 - Fixed a session restored after a daemon restart staying Disconnected until its next prompt
+- Fixed a terminal where you started `claude` yourself coming back as an empty shell after a daemon restart; it now resumes that conversation
 - Fixed a crashed session staying Terminated after its agent was started again, until its next prompt
 - Fixed a session whose agent could not start again after a daemon restart showing as disconnected in the tree and crashed in the Inbox; it now shows as crashed everywhere
 - Fixed the Inbox listing sessions newest first instead of waiting for you first, then crashed, then at its limit, then finished and not seen

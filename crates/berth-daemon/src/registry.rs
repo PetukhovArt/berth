@@ -1679,6 +1679,7 @@ impl Daemon {
                     .get_worktree(&term.worktree_id)?
                     .context("worktree not found")?;
                 let session = self.spawn_terminal_session(&term, &worktree, cols, rows)?;
+                crate::terminal_resume::resume_expected_claude(id, &session);
                 let mut broadcast_term = term;
                 broadcast_term.alive = true;
                 self.broadcast(ServerEvent::EntityUpserted {

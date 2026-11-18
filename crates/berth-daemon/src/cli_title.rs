@@ -211,12 +211,12 @@ pub fn terminal_sessions(
     newest_per_terminal(table, terminals, dir, claude_pid_session)
 }
 
-fn newest_per_terminal(
+pub(crate) fn newest_per_terminal<T>(
     table: &str,
     terminals: &[(TerminalId, u32)],
     dir: &Path,
-    read: fn(&Path, u32) -> Option<(u64, String)>,
-) -> Vec<(TerminalId, String)> {
+    read: fn(&Path, u32) -> Option<(u64, T)>,
+) -> Vec<(TerminalId, T)> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return Vec::new();
     };

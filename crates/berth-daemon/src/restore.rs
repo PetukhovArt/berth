@@ -9,6 +9,7 @@ use std::time::Duration;
 use berth_core::protocol::SessionRef;
 
 use crate::registry::Daemon;
+use crate::terminal_resume::LiveSession;
 
 /// Gap between two boots: a
 /// burst of CLI starts at once is slower than the starts in turn.
@@ -27,8 +28,10 @@ impl Daemon {
             .map(|(sref, _, _)| sref)
             .chain(self.live_acp_agents().into_iter().map(SessionRef::Agent))
             .collect();
+        let running = self.terminals_running_claude();
+        let entries = crate::terminal_resume::recorded(live, &running);
         let path = berth_core::paths::live_sessions_path();
-        let written = serde_json::to_vec(&live)
+        let written = serde_json::to_vec(&entries)
             .map_err(std::io::Error::other)
             .and_then(|json| std::fs::write(&path, json));
         if let Err(err) = written {
@@ -39,20 +42,26 @@ impl Daemon {
         }
     }
 
-    /// Spawn what `record_live_sessions` wrote, one session at a time. The
-    /// list is consumed either way, so a later start never replays an old one.
-    pub async fn restore_live_sessions(self: Arc<Self>) {
+    pub fn take_live_sessions(&self) -> Vec<LiveSession> {
         let path = berth_core::paths::live_sessions_path();
         let Ok(raw) = std::fs::read(&path) else {
-            return;
+            return Vec::new();
         };
         let _ = std::fs::remove_file(&path);
         if !crate::config::Config::load().restore_sessions {
+            return Vec::new();
+        }
+        let live: Vec<LiveSession> = serde_json::from_slice(&raw).unwrap_or_default();
+        crate::terminal_resume::expect_claude(&live);
+        live
+    }
+
+    pub async fn restore_live_sessions(self: Arc<Self>, live: Vec<LiveSession>) {
+        if live.is_empty() {
             return;
         }
-        let live: Vec<SessionRef> = serde_json::from_slice(&raw).unwrap_or_default();
         tracing::info!(count = live.len(), "restoring live sessions");
-        for sref in live {
+        for sref in live.into_iter().map(|entry| entry.session_ref()) {
             if self.is_alive(&sref) {
                 continue;
             }

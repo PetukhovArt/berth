@@ -43,6 +43,7 @@ pub mod team_access;
 mod team_members;
 pub mod team_overlaps;
 mod team_pending;
+pub mod terminal_resume;
 pub mod triggers;
 pub mod usage;
 pub mod usage_limits;
@@ -120,7 +121,8 @@ async fn serve() -> Result<()> {
     tracing::info!(port = hook_env.port, "hook receiver listening");
 
     let daemon = registry::Daemon::new(store, hook_env);
-    tokio::spawn(daemon.clone().restore_live_sessions());
+    let live = daemon.take_live_sessions();
+    tokio::spawn(daemon.clone().restore_live_sessions(live));
 
     // Drain hook events into the status machines; a payload that reports a
     // cwd inside another worktree of the same project re-homes the agent row.
