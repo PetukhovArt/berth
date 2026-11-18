@@ -16,9 +16,24 @@ see [getting started](getting-started.md).
 
 ## Cutting a release
 
-Bump `version` in the root `Cargo.toml` (`[workspace.package]`), run `cargo check` so `Cargo.lock`
-follows, and land it on `main`. That is the whole procedure. The version bump is the release, so do
-not bump it as part of unrelated work.
+A release is a `version` bump in the root `Cargo.toml` (`[workspace.package]`) landing on `main`.
+The `Weekly release` workflow (`.github/workflows/release-weekly.yml`) makes that bump every Monday
+at 06:00 UTC:
+
+- With nothing under `## Unreleased` in `CHANGELOG.md` there is no release that week.
+- With CI on the head of `main` not green the week is skipped with a failed run.
+- Otherwise it picks the version: the minor goes up when the section has an `Added`, `Changed` or
+  `Removed` line, the patch when it holds fixes only. It bumps `Cargo.toml` and `Cargo.lock`, turns
+  `## Unreleased` into `## <version> (<date>)` under a new empty `## Unreleased`, opens the pull
+  request `chore: release <version>` with the section as its body, and fast-forwards `main` to it.
+
+`main` takes changes only through a pull request its owner approved. The workflow gets past that
+rule with the `RELEASE_DEPLOY_KEY` secret, a deploy key with write access that the `protect main`
+ruleset lets through. A push made with it starts the `Release` workflow, which a push made with
+`GITHUB_TOKEN` would not.
+
+`gh workflow run release-weekly.yml` releases now. A bump by hand still works the same way, so do not
+bump `version` as part of unrelated work.
 
 The `Release` workflow does the rest in one run:
 

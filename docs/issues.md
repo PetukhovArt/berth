@@ -43,5 +43,5 @@ An issue moves through four states: filed, triaged, fixed on `main`, released. L
 
 ## Release
 
-- The push to `main` closes every issue named by `Fixes #<n>`. Nothing is released until a `version` bump lands, as `docs/releasing.md` describes.
+- The push to `main` closes every issue named by `Fixes #<n>`. Nothing is released until a `version` bump lands; the `Weekly release` workflow makes it on Monday when `## Unreleased` has entries, as `docs/releasing.md` describes.
 - When the `Release` workflow publishes a version, it comments `Released in berth <version>` on every closed `fixed-on-main` issue and removes the label.

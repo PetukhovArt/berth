@@ -1,0 +1,94 @@
+name: Weekly release
+
+# Every Monday the changes under `## Unreleased` in CHANGELOG.md become a version: this workflow bumps
+# `version`, opens the version pull request and lands it on main, where the push starts `Release`.
+# main takes changes only through an approved pull request, and GITHUB_TOKEN cannot get past that
+# rule, so the landing push goes over the RELEASE_DEPLOY_KEY deploy key the main ruleset lets
+# through. A push made with that key also starts workflows, which one made with GITHUB_TOKEN does not.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  version-pr:
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
+
+      - name: Decide the version
+        id: decide
+        run: |
+          awk '
+            /^## Unreleased/ { f = 1; next }
+            f && /^## / { exit }
+            f
+          ' CHANGELOG.md > UNRELEASED.md
+          if ! grep -q '[^[:space:]]' UNRELEASED.md; then
+            echo "nothing under ## Unreleased: no release this week"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          ci=$(gh run list --workflow ci.yml --branch main --commit "$(git rev-parse HEAD)" --limit 1 --json conclusion -q '.[0].conclusion')
+          if [ "$ci" != "success" ]; then
+            echo "::error::CI on main $(git rev-parse --short HEAD) is '${ci:-not run}': no release this week"
+            exit 1
+          fi
+          current=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)
+          IFS=. read -r major minor patch <<< "$current"
+          # Before 1.0 a new or changed behaviour moves the minor version and a release of fixes only
+          # moves the patch.
+          if grep -qE '^- (Windows: )?(Added|Changed|Removed)' UNRELEASED.md; then
+            version="$major.$((minor + 1)).0"
+          else
+            version="$major.$minor.$((patch + 1))"
+          fi
+          echo "$current -> $version"
+          echo "release=true" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Bump the version
+        if: steps.decide.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.decide.outputs.version }}
+        run: |
+          sed -i "0,/^version = \".*\"/s//version = \"$VERSION\"/" Cargo.toml
+          cargo update --workspace
+          awk -v v="$VERSION" -v d="$(date -u +%F)" '
+            { print }
+            !done && /^## Unreleased/ { print ""; print "## " v " (" d ")"; done = 1 }
+          ' CHANGELOG.md > CHANGELOG.new
+          mv CHANGELOG.new CHANGELOG.md
+          git diff --stat
+
+      - name: Open the version pull request and land it on main
+        if: steps.decide.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.decide.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          branch="release/v$VERSION"
+          git switch -c "$branch"
+          git commit -qam "chore: release $VERSION"
+          git push -f origin "$branch"
+          gh pr create --base main --head "$branch" --title "chore: release $VERSION" --body-file UNRELEASED.md
+          # A fast-forward of main to the version commit marks the pull request merged. When main
+          # moved since the checkout the push is refused, and the next run starts over.
+          git push origin "$branch:main"
+          git push origin --delete "$branch"

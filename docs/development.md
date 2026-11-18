@@ -46,8 +46,10 @@ the domain vocabulary. Read both before touching IPC, hooks or the daemon.
 
 ## Releases
 
-Bump `version` in the root `Cargo.toml` and land it on `main`. CI builds macOS (arm/intel) and Windows
+Every Monday the `Weekly release` workflow bumps `version` in the root `Cargo.toml` when `CHANGELOG.md`
+has entries under `## Unreleased` and lands it on `main`. CI builds macOS (arm/intel) and Windows
 (x64) binaries, tags the commit and attaches them to a GitHub release, which is what `install.sh`
 downloads. The version bump is the release, so leave `version` alone in every other change.
+[releasing.md](releasing.md) has the details.
 
 The whole runbook is in [releasing.md](releasing.md).
