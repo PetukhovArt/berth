@@ -2,8 +2,6 @@
 
 ## Unreleased
 
-- Fixed a Session's Chat view sometimes marking a turn Finished before the agent's last answer arrived, leaving that answer missing until the next turn
-
 ## 0.21.0 (2026-11-18)
 
 - Added `berth spawn --worktree <branch> [--base <ref>]`: an agent starts the new session in another worktree of its project, reusing that branch's worktree or creating it, while its own session stays where it is
@@ -242,6 +240,7 @@
 - Fixed a second terminal with the same name after a daemon restart: a Claude conversation that ran in a terminal stays under that terminal, and Continue resumes it there instead of opening a new one.
 - Fixed a closed Claude conversation vanishing from the list while a new Claude session sits idle in the same folder.
 - Fixed the permission card and Needs Feedback staying on a Claude session after the prompt was answered in the terminal with `Enter`, or after an allowed `Edit` or `Write` when the agent went on to its next tool call
+- Fixed a Session's Chat view sometimes marking a turn Finished before the agent's last answer arrived, leaving that answer missing until the next turn
 
 ## 0.20.0 (2026-09-18)
 
