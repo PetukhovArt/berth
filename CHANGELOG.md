@@ -2,11 +2,7 @@
 
 ## Unreleased
 
-- Added a command list to a Session's Chat view: type `/` to pick one of the agent's skills, custom commands and built-in commands with the arrow keys, `Tab` or `Enter`
-- Changed `Ctrl+Tab`, `Alt+1` to `Alt+9` and Hot sessions to skip Claude and Codex conversations running outside berth, which berth cannot type into; they stay in the tree
-- Fixed the permission card and Needs Feedback staying on a Claude session after the prompt was answered in the terminal with `Enter`, or after an allowed `Edit` or `Write` when the agent went on to its next tool call
-
-## 0.21.0
+## 0.21.0 (2026-11-18)
 
 - Added `berth spawn --worktree <branch> [--base <ref>]`: an agent starts the new session in another worktree of its project, reusing that branch's worktree or creating it, while its own session stays where it is
 - Added `berth hub devices` to list the devices paired with a team hub and `berth hub revoke <id>` to cut one off at once, together with its Agents; `berth hub approve` run again changes a device's scopes
@@ -195,6 +191,7 @@
 - Added `T`, `M` and `D` buttons to a session tab in the desktop app, and `Ctrl+Space` then `t`, `m` or `d`: the tab shows its terminal, its branch's merge request, or the worktree's changes against the base branch with uncommitted and new files and a rendered Markdown preview.
 - Added replying to threads, `Resolve` and `Unresolve`, and new comments to the desktop app's merge request overview, for GitLab and GitHub; a token that can only read says which scope it needs.
 - Added `Open in Browser` to the right-click menu of a merge or pull request in the desktop app's tree.
+- Added a command list to a Session's Chat view: type `/` to pick one of the agent's skills, custom commands and built-in commands with the arrow keys, `Tab` or `Enter`
 - Windows: Added WebView2 debugging on port 9335 to the installed desktop app, so `agent-view` can attach to it.
 - Changed the desktop app's tree to widen up to half the window instead of stopping at 400px.
 - Changed the desktop app's Markdown file picker to list the most recently edited files first, each with its full name and its path on a line below.
@@ -230,6 +227,7 @@
 - Changed scrollbars in the desktop app to be wider and easier to grab with the mouse, and to darken while hovered or dragged.
 - Changed the desktop app's update dialog to list every build stage with the time it took and an estimate of what is left, instead of build ids, commits and the build log.
 - Changed bare `berth` to print help instead of opening the terminal UI.
+- Changed `Ctrl+Tab`, `Alt+1` to `Alt+9` and Hot sessions to skip Claude and Codex conversations running outside berth, which berth cannot type into; they stay in the tree
 - Removed the hot session chips from the desktop app's title bar; the `Ctrl+Shift+O` overview, `Alt+1`..`Alt+9`, `Alt+J` and `Ctrl+Tab` still switch between live sessions.
 - Removed the refresh button above the desktop app's tree; Jira issues now refresh on their own every two minutes, as pull requests and reviews already did.
 - Removed prebuilt Linux binaries from releases; on Linux `install.sh` builds berth from source with `cargo install`.
@@ -241,6 +239,7 @@
 - Fixed the chat of a Claude Code session showing background task notifications, system reminders and subagent hand-backs as your own messages.
 - Fixed a second terminal with the same name after a daemon restart: a Claude conversation that ran in a terminal stays under that terminal, and Continue resumes it there instead of opening a new one.
 - Fixed a closed Claude conversation vanishing from the list while a new Claude session sits idle in the same folder.
+- Fixed the permission card and Needs Feedback staying on a Claude session after the prompt was answered in the terminal with `Enter`, or after an allowed `Edit` or `Write` when the agent went on to its next tool call
 
 ## 0.20.0 (2026-09-18)
 
