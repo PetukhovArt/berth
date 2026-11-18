@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.21.0
 
 - Added `berth spawn --worktree <branch> [--base <ref>]`: an agent starts the new session in another worktree of its project, reusing that branch's worktree or creating it, while its own session stays where it is
 - Added `berth hub devices` to list the devices paired with a team hub and `berth hub revoke <id>` to cut one off at once, together with its Agents; `berth hub approve` run again changes a device's scopes
