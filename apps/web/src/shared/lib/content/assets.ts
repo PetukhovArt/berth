@@ -115,6 +115,7 @@ async function swapRemote(img: HTMLImageElement, connector: string | undefined, 
   const resolved = await resolveAgainst(connector, raw, baseUrl);
   if (!resolved || !isCurrent()) return;
   const absolute = baseUrl && isRelative(raw) ? toRawUrl(resolved) : resolved;
+  img.dataset.origin = absolute;
   if (!connector) {
     img.src = absolute;
     return;

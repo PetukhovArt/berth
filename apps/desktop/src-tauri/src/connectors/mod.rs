@@ -545,6 +545,10 @@ pub async fn connector_asset(state: &Connectors, id: String, url: String) -> Res
     }
     let own =
         host == base_host || Some(host.as_str()) == api_host(ctx.kind, &ctx.base_url).as_deref();
+    let target = match ctx.kind {
+        Kind::Gitlab if own => gitlab::upload_api_url(&ctx.base_url, &target).unwrap_or(target),
+        _ => target,
+    };
     let response = if own {
         ctx.api.get_with_auth(target).await
     } else {
@@ -564,6 +568,9 @@ pub async fn connector_asset(state: &Connectors, id: String, url: String) -> Res
         .map(|value| value.split(';').next().unwrap_or(value).trim().to_owned())
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| "application/octet-stream".to_owned());
+    if mime == "text/html" {
+        return Err(format!("{host} вернул страницу вместо вложения"));
+    }
     let bytes = response
         .bytes()
         .await

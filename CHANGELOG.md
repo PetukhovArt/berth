@@ -34,6 +34,7 @@
 - Added an `Alt+J` hint in the Inbox that opens the next waiting session, and a running and total counter on every project in the sidebar
 - Added Continue as agent in a terminal's menu: the Claude or Codex conversation running there moves into an agent in the same worktree and opens where the terminal was
 - Added Continue a conversation in New Session: pick a Claude or Codex conversation from any checkout of the project and continue it as an agent in the chosen worktree
+- Added a full-size view for images in merge requests, issues, Confluence pages and Markdown files: click an image to open it over the app, click again for its actual size, `Esc` to close
 - Changed Channel messages and Agent mentions to arrive as soon as they are posted instead of on the next 5 second poll
 - Changed a Channel to show people who have the app open, not only those with a Session running, and to count a Session as on the task when its Worktree's Task note names the Channel key
 - Changed the hold-to-talk microphone in a Session's Chat view to work in the desktop app, not only on a phone
@@ -54,6 +55,7 @@
 - Changed `Alt+J` to open the next session that needs you in one order, waiting for you, then crashed, then at its limit, then finished and not seen, oldest first and skipping what you snoozed in the Inbox, whether Hot sessions is on or off; it no longer shows a count hint
 - Changed Hot sessions and the tree's project and worktree rows to rank sessions in that same order, so a crashed or limited session comes before running ones
 - Changed `berth attention` to list an Agent whose process died mid-run, with `attention` set to `terminated`
+- Fixed images in a GitLab merge request description and its threads showing only their alt text: they load through the GitLab API on GitLab 17.4 or later, and on an older GitLab an image that cannot load opens in the browser on click
 - Fixed the chat bridge saying nothing when an Agent finished right after you answered its permission request or question
 - Fixed a subagent's permission prompt showing no Allow and Deny card while its session waits for you
 - Fixed a session still waiting for you, with its Allow and Deny card, after you answered its permission request, until the turn ended

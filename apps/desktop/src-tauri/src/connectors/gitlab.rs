@@ -1,4 +1,5 @@
 use futures_util::stream::{self, StreamExt};
+use reqwest::Url;
 use serde_json::{json, Value};
 
 use super::http::{encode_segment, opt, text, ApiError, ApiResult};
@@ -282,10 +283,37 @@ pub async fn branch_requests(
 }
 
 fn absolutize(ctx: &Ctx, project: &str, body: &str) -> String {
-    body.replace(
-        "](/uploads/",
-        &format!("]({}/{project}/uploads/", ctx.base_url),
-    )
+    let uploads = format!("{}/{project}/uploads/", ctx.base_url);
+    body.replace("](/uploads/", &format!("]({uploads}"))
+        .replace("src=\"/uploads/", &format!("src=\"{uploads}"))
+}
+
+pub fn upload_api_url(base_url: &str, target: &Url) -> Option<Url> {
+    let root = Url::parse(base_url).ok()?;
+    let prefix = root.path().trim_end_matches('/').to_owned();
+    let path = target
+        .path()
+        .strip_prefix(prefix.as_str())?
+        .strip_prefix('/')?;
+    let (project, upload) = path.split_once("/uploads/")?;
+    let project = project.strip_prefix("-/project/").unwrap_or(project);
+    let (secret, file) = upload.split_once('/')?;
+    if project.is_empty()
+        || project.starts_with("-/")
+        || project.contains("/-/")
+        || project.ends_with("/-")
+        || secret.is_empty()
+        || file.is_empty()
+    {
+        return None;
+    }
+    let mut api = root;
+    api.set_path(&format!(
+        "{prefix}/api/v4/projects/{}/uploads/{secret}/{file}",
+        project.replace('/', "%2F")
+    ));
+    api.set_query(None);
+    Some(api)
 }
 
 pub async fn change_request(ctx: &Ctx, project: &str, number: u64) -> ApiResult<ChangeRequest> {

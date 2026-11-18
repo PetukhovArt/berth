@@ -5,7 +5,9 @@ import { fsOpenExternal } from '../../api/fs';
 import { isRelative, loadLocalImages, loadRemoteImages, localTarget, resolveAgainst } from '../../lib/content/assets';
 import { emojiLoaded, hasShortcode, loadEmoji } from '../../lib/content/emoji';
 import { renderMath } from '../../lib/content/math';
+import ImageViewer from './ImageViewer.vue';
 import MermaidView from './MermaidView.vue';
+import { t } from '../../lib/i18n/i18n';
 import { renderRich } from '../../lib/content/render';
 
 type Diagram = { key: string; el: HTMLElement; source: string };
@@ -30,6 +32,7 @@ const emit = defineEmits<{ 'open-file': [path: string, hash: string]; rendered: 
 const body = useTemplateRef<HTMLElement>('body');
 const diagrams = shallowRef<Diagram[]>([]);
 const emojiTick = shallowRef(0);
+const viewing = shallowRef<{ src: string; alt: string; origin: string | null } | null>(null);
 const rendered = computed(() => {
   void emojiTick.value;
   return renderRich({ markdown: props.markdown, html: props.html, breaks: props.breaks });
@@ -50,7 +53,7 @@ function sync() {
     source: sources[Number(target.dataset.rcMermaid)] ?? '',
   }));
   if (props.basePath) void loadLocalImages(el, props.basePath, isCurrent);
-  else if (props.connector || props.baseUrl) void loadRemoteImages(el, props.connector, props.baseUrl, isCurrent);
+  else if (props.connector || props.baseUrl) void loadRemoteImages(el, props.connector, props.baseUrl, isCurrent).then(() => isCurrent() && settleImages(el));
   void renderMath(el, isCurrent);
   emit('rendered');
 }
@@ -86,8 +89,58 @@ async function openLocal(raw: string): Promise<boolean> {
   return true;
 }
 
+function isWeb(url: string | null | undefined): url is string {
+  return !!url && /^https?:/i.test(url);
+}
+
+async function originOf(img: HTMLImageElement): Promise<string | null> {
+  if (img.dataset.origin) return img.dataset.origin;
+  const raw = img.getAttribute('src') ?? '';
+  if (raw.startsWith('data:') || (props.basePath && isRelative(raw))) return null;
+  return resolveAgainst(props.connector, raw, props.baseUrl);
+}
+
+async function openImage(img: HTMLImageElement) {
+  const origin = await originOf(img);
+  if (img.complete && img.naturalWidth > 0) {
+    viewing.value = { src: img.currentSrc || img.src, alt: img.getAttribute('alt') ?? '', origin: isWeb(origin) ? origin : null };
+    return;
+  }
+  if (isWeb(origin)) await openUrl(origin);
+}
+
+function markFailed(img: HTMLImageElement) {
+  if (img.dataset.failed !== undefined || !isWeb(img.dataset.origin)) return;
+  img.dataset.failed = '';
+  if (!img.title) img.title = t('content.image.unavailable');
+}
+
+function settleImages(root: HTMLElement) {
+  for (const img of root.querySelectorAll('img')) {
+    img.dataset.settled = '';
+    if (img.complete && img.naturalWidth === 0) markFailed(img);
+  }
+}
+
+function onImageError(event: Event) {
+  const img = event.target;
+  if (img instanceof HTMLImageElement && img.dataset.settled !== undefined) markFailed(img);
+}
+
+function onImageLoad(event: Event) {
+  const img = event.target;
+  if (!(img instanceof HTMLImageElement) || img.dataset.failed === undefined) return;
+  delete img.dataset.failed;
+  if (img.title === t('content.image.unavailable')) img.removeAttribute('title');
+}
+
 async function onClick(event: MouseEvent) {
   if (!(event.target instanceof Element)) return;
+  if (event.target instanceof HTMLImageElement && !event.target.closest('a[href]') && body.value?.contains(event.target)) {
+    event.preventDefault();
+    await openImage(event.target);
+    return;
+  }
   const copy = event.target.closest('.rc-copy');
   if (copy && body.value?.contains(copy)) {
     event.preventDefault();
@@ -121,10 +174,11 @@ onBeforeUnmount(() => clearTimeout(copyTimer));
 
 <template>
   <div class="rich-content" :data-variant="variant" data-testid="rich-content">
-    <div ref="body" class="body" @click="onClick" v-html="rendered.html" />
+    <div ref="body" class="body" @click="onClick" @error.capture="onImageError" @load.capture="onImageLoad" v-html="rendered.html" />
     <Teleport v-for="diagram in diagrams" :key="diagram.key" :to="diagram.el">
       <MermaidView :source="diagram.source" />
     </Teleport>
+    <ImageViewer v-if="viewing" :src="viewing.src" :alt="viewing.alt" :origin="viewing.origin" @close="viewing = null" @open-origin="openUrl" />
   </div>
 </template>
 
@@ -364,6 +418,18 @@ onBeforeUnmount(() => clearTimeout(copyTimer));
 .body :deep(img) {
   max-width: 100%;
   height: auto;
+}
+
+.body :deep(:not(a) > img) {
+  cursor: zoom-in;
+}
+
+.body :deep(img[data-failed]) {
+  padding: var(--vr-space-1) var(--vr-space-2);
+  border: 1px dashed var(--vr-color-border);
+  border-radius: var(--vr-radius-sm);
+  color: var(--rc-link);
+  cursor: pointer;
 }
 
 .body :deep(strong) {

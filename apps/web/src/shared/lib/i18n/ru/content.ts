@@ -12,6 +12,13 @@ export const content: Translation<typeof en> = {
     warning: 'Предупреждение',
     caution: 'Осторожно',
   },
+  image: {
+    title: 'Изображение',
+    openInBrowser: 'Открыть в браузере',
+    actualHint: 'Щелчок по картинке: исходный размер',
+    fitHint: 'Щелчок по картинке: вписать в окно',
+    unavailable: 'Картинку не удалось загрузить здесь. Щелчок откроет её в браузере',
+  },
   mermaid: {
     copied: 'Скопировано',
     copyFailed: 'Не удалось',

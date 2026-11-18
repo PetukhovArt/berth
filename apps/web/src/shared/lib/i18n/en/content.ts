@@ -9,6 +9,13 @@ export const content = {
     warning: 'Warning',
     caution: 'Caution',
   },
+  image: {
+    title: 'Image',
+    openInBrowser: 'Open in browser',
+    actualHint: 'Click the image for actual size',
+    fitHint: 'Click the image to fit the window',
+    unavailable: 'The image could not be loaded here. Click to open it in the browser',
+  },
   mermaid: {
     copied: 'Copied',
     copyFailed: 'Copy failed',
