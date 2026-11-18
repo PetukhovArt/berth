@@ -70,7 +70,7 @@ function create() {
         continue;
       }
       const session = external?.anyByKey.value.get(state.key);
-      if (!session) continue;
+      if (!session?.in_berth) continue;
       const target = externalTarget(session, entities);
       out.push({ state, project: target?.projectName ?? null, branch: target?.branch ?? session.branch, source: { harness: session.harness, id: session.id }, notice: null });
     }

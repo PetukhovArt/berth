@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Changed `Ctrl+Tab`, `Alt+1` to `Alt+9` and Hot sessions to skip Claude and Codex conversations running outside berth, which berth cannot type into; they stay in the tree
+
 ## 0.21.0
 
 - Added `berth spawn --worktree <branch> [--base <ref>]`: an agent starts the new session in another worktree of its project, reusing that branch's worktree or creating it, while its own session stays where it is
