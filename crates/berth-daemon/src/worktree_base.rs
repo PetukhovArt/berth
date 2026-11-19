@@ -41,10 +41,16 @@ pub async fn choose(
     if local.iter().any(|name| name == branch) {
         return ChosenBase::quiet(None);
     }
+    let has_origin = git::has_remote(repo, "origin").await;
+    if has_origin {
+        if let Ok(remote) = git::fetch_origin_branch(repo, branch, FETCH_LIMIT).await {
+            return ChosenBase::quiet(Some(remote));
+        }
+    }
     let Some(base) = base_branch(project, configured, &local) else {
         return ChosenBase::quiet(None);
     };
-    if !git::has_remote(repo, "origin").await {
+    if !has_origin {
         return ChosenBase::quiet(Some(base));
     }
     let error = match git::fetch_origin_branch(repo, &base, FETCH_LIMIT).await {
@@ -246,6 +252,32 @@ mod tests {
         assert_eq!(
             git_in(&repo, &["rev-parse", &base]),
             git_in(&upstream, &["rev-parse", "HEAD"])
+        );
+    }
+
+    #[tokio::test]
+    async fn a_branch_only_on_origin_is_checked_out_tracking_it() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (upstream, repo) = clone_of_upstream(tmp.path());
+        git_in(&upstream, &["checkout", "-q", "-b", "feat"]);
+        git_in(&upstream, &["commit", "--allow-empty", "-m", "b"]);
+        git_in(&upstream, &["checkout", "-q", "main"]);
+
+        let chosen = choose(None, &project(&repo), "feat", &BTreeMap::new()).await;
+        assert_eq!(
+            chosen,
+            ChosenBase::quiet(Some("refs/remotes/origin/feat".into()))
+        );
+        let path = git::add_worktree(&repo, "feat", chosen.base.as_deref())
+            .await
+            .unwrap();
+        assert_eq!(
+            git_in(&path, &["rev-parse", "HEAD"]),
+            git_in(&upstream, &["rev-parse", "feat"])
+        );
+        assert_eq!(
+            git_in(&path, &["rev-parse", "--abbrev-ref", "@{upstream}"]),
+            "origin/feat"
         );
     }
 
