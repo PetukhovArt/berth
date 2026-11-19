@@ -3,7 +3,7 @@
 //! are the transport's business (`berth_core::transport`) — this module
 //! sees one shape on every platform.
 
-use crate::pty::PtyEvent;
+use crate::pty::{PtyEvent, PtySession};
 use crate::registry::{CreateAgentSpec, Daemon};
 use anyhow::Result;
 use berth_core::codec::{read_frame, write_frame};
@@ -12,6 +12,7 @@ use berth_core::{ClientRequest, ServerEvent, SessionRef, WorkspaceId, PROTOCOL_V
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::io::{AsyncWriteExt, BufWriter};
+use tokio::sync::broadcast::{self, error::RecvError};
 use tokio::sync::mpsc;
 
 pub async fn accept_loop(daemon: Arc<Daemon>, listener: Listener) {
@@ -169,6 +170,7 @@ async fn handle_client(
                     cols,
                     rows,
                 } => {
+                    let installed = daemon.installed_sessions.subscribe();
                     match daemon.ensure_session(&sref, cols, rows) {
                         Ok(session) => {
                             // Subscribe BEFORE snapshotting so nothing falls in
@@ -191,9 +193,10 @@ async fn handle_client(
                                 old.abort();
                             }
                             let handle = tokio::spawn(forward_pty(
+                                daemon.clone(),
                                 session.clone(),
-                                sref.clone(),
                                 events_rx,
+                                installed,
                                 out_tx.clone(),
                                 replay_end,
                             ));
@@ -1039,14 +1042,49 @@ async fn handle_client(
 /// replay already delivered. On broadcast lag, resync with a fresh
 /// Scrollback (the client resets its parser on every Scrollback frame).
 async fn forward_pty(
-    session: Arc<crate::pty::PtySession>,
-    sref: SessionRef,
-    mut rx: tokio::sync::broadcast::Receiver<PtyEvent>,
+    daemon: Arc<Daemon>,
+    mut session: Arc<PtySession>,
+    mut rx: broadcast::Receiver<PtyEvent>,
+    mut installed: broadcast::Receiver<Arc<PtySession>>,
     out_tx: mpsc::Sender<ServerEvent>,
     mut min_seq: u64,
 ) {
+    let sref = session.sref.clone();
+    let mut running = true;
     loop {
-        match rx.recv().await {
+        let event = tokio::select! {
+            event = rx.recv(), if running => event,
+            next = installed.recv() => {
+                let next = match next {
+                    Ok(next) => next,
+                    Err(RecvError::Lagged(_)) => match daemon.session(&sref) {
+                        Some(next) => next,
+                        None => continue,
+                    },
+                    Err(RecvError::Closed) => break,
+                };
+                if next.sref != sref || Arc::ptr_eq(&next, &session) {
+                    continue;
+                }
+                let (cols, rows) = session.size();
+                rx = next.events.subscribe();
+                let (base_seq, data) = next.snapshot(None);
+                min_seq = base_seq + data.len() as u64;
+                let _ = next.resize_with_jiggle(cols, rows);
+                session = next;
+                running = true;
+                let replay = ServerEvent::Scrollback {
+                    session: sref.clone(),
+                    base_seq,
+                    data,
+                };
+                if out_tx.send(replay).await.is_err() {
+                    break;
+                }
+                continue;
+            }
+        };
+        match event {
             Ok(PtyEvent::Output { seq, data }) => {
                 let end = seq + data.len() as u64;
                 if end <= min_seq {
@@ -1079,7 +1117,7 @@ async fn forward_pty(
                         exit_code,
                     })
                     .await;
-                break;
+                running = false;
             }
             // Daemon-side only: the progress and title edges drive the
             // status machine and reach clients as a StatusChanged, not as
@@ -1149,4 +1187,88 @@ async fn reply(
         },
     };
     let _ = out_tx.send(ev).await;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::pty::{SpawnSpec, DEFAULT_COLS, DEFAULT_ROWS};
+    use berth_core::AgentId;
+    use std::time::Duration;
+
+    fn print_child(sref: &SessionRef, marker: &str) -> Arc<PtySession> {
+        #[cfg(unix)]
+        let (program, args) = (
+            "/bin/sh".to_owned(),
+            vec!["-c".into(), format!("printf '{marker}'")],
+        );
+        #[cfg(windows)]
+        let (program, args) = (
+            "powershell.exe".to_owned(),
+            vec![
+                "-NoProfile".into(),
+                "-Command".into(),
+                format!("Write-Host {marker}"),
+            ],
+        );
+        PtySession::spawn(
+            sref.clone(),
+            SpawnSpec {
+                program,
+                args,
+                cwd: std::env::temp_dir(),
+                env: vec![],
+                scrub_env: &[],
+                cols: DEFAULT_COLS,
+                rows: DEFAULT_ROWS,
+            },
+        )
+        .unwrap()
+    }
+
+    async fn next_until(
+        out_rx: &mut mpsc::Receiver<ServerEvent>,
+        mut done: impl FnMut(&ServerEvent) -> bool,
+    ) {
+        tokio::time::timeout(Duration::from_secs(60), async {
+            while !done(&out_rx.recv().await.expect("forwarding ended")) {}
+        })
+        .await
+        .expect("timed out waiting for the forwarded session");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn an_attached_client_follows_its_session_into_the_respawned_process() {
+        let daemon = crate::registry::tests::test_daemon();
+        let sref = SessionRef::Agent(AgentId::generate());
+        let installed = daemon.installed_sessions.subscribe();
+        let first = print_child(&sref, "FIRST_PROCESS");
+        let events = first.events.subscribe();
+        let (out_tx, mut out_rx) = mpsc::channel(256);
+        let forward = tokio::spawn(forward_pty(
+            daemon.clone(),
+            first,
+            events,
+            installed,
+            out_tx,
+            0,
+        ));
+
+        next_until(&mut out_rx, |event| {
+            matches!(event, ServerEvent::SessionExited { .. })
+        })
+        .await;
+
+        let second = print_child(&sref, "SECOND_PROCESS");
+        assert!(daemon.installed_sessions.send(second).is_ok());
+        let mut seen = Vec::new();
+        next_until(&mut out_rx, |event| {
+            if let ServerEvent::Output { data, .. } | ServerEvent::Scrollback { data, .. } = event {
+                seen.extend_from_slice(data);
+            }
+            String::from_utf8_lossy(&seen).contains("SECOND_PROCESS")
+        })
+        .await;
+        forward.abort();
+    }
 }

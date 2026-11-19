@@ -64,6 +64,7 @@ pub struct Daemon {
     pub store: Arc<Store>,
     /// Entity/status deltas fanned out to every subscribed client.
     pub events: broadcast::Sender<ServerEvent>,
+    pub(crate) installed_sessions: broadcast::Sender<Arc<PtySession>>,
     pub shutdown: tokio_util::sync::CancellationToken,
     /// Serializes worktree create/delete with the background auto-sync so
     /// a checkout is never adopted twice while its row is mid-insert.
@@ -114,6 +115,7 @@ impl Daemon {
             hook_env,
             store,
             events,
+            installed_sessions: broadcast::channel(64).0,
             shutdown: tokio_util::sync::CancellationToken::new(),
             worktree_ops: tokio::sync::Mutex::new(()),
             prewarm: Default::default(),
@@ -1902,6 +1904,7 @@ impl Daemon {
             .lock()
             .unwrap()
             .insert(session.sref.clone(), session.clone());
+        let _ = self.installed_sessions.send(session.clone());
         self.watch_for_exit(session);
     }
 

@@ -244,6 +244,10 @@ impl PtySession {
         Ok(())
     }
 
+    pub fn size(&self) -> (u16, u16) {
+        *self.last_size.lock().unwrap()
+    }
+
     /// Resize on attach. The kernel only delivers SIGWINCH on a *change*, so
     /// when the requested size equals the current one, jiggle (rows-1 then
     /// back) to force a full-screen repaint — the dtach trick.
