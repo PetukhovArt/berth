@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
 use berth_core::{AgentId, SessionRef};
@@ -11,6 +12,8 @@ this session, run this shell command exactly once:\n\n  berth archive\n\nberth a
 once your current turn ends; the user can bring it back from the Archive in the Sessions tree. Run it only when \
 the user asks. When the command succeeds, end your turn at once with a one-line goodbye, passing on \
 any warning it printed, and make no further tool calls. If it fails, report the error.";
+
+const TRANSCRIPT_GRACE: Duration = Duration::from_secs(3);
 
 pub(crate) fn is_turn_end(event: &HookEvent) -> bool {
     match event {
@@ -39,9 +42,14 @@ impl Daemon {
         if !is_turn_end(event) || !self.pending_archives.lock().unwrap().remove(id) {
             return;
         }
-        if let Err(e) = self.archive_agent(id) {
-            tracing::warn!(agent = %id, error = %e, "archive at turn end failed");
-        }
+        let daemon = self.clone();
+        let id = id.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(TRANSCRIPT_GRACE).await;
+            if let Err(e) = daemon.archive_agent(&id) {
+                tracing::warn!(agent = %id, error = %e, "archive at turn end failed");
+            }
+        });
     }
 }
 
@@ -54,8 +62,8 @@ mod tests {
         daemon.store.get_agent(id).unwrap().unwrap().archived
     }
 
-    #[test]
-    fn a_stopped_session_is_archived_at_once_and_a_pending_one_at_its_turn_end() {
+    #[tokio::test]
+    async fn a_stopped_session_is_archived_at_once_and_a_pending_one_after_its_turn_end() {
         let daemon = test_daemon();
         seed_projects(&daemon, &["p"]);
         seed_worktree(&daemon, "p", "root", "/berth-test/p", true);
@@ -81,6 +89,11 @@ mod tests {
         );
         assert!(!archived(&daemon, &a1), "a tool hook is not a turn end");
         daemon.complete_pending_archive(&a1, &HookEvent::Stop);
+        assert!(
+            !archived(&daemon, &a1),
+            "the CLI gets time to write its last answer"
+        );
+        tokio::time::sleep(TRANSCRIPT_GRACE + Duration::from_millis(500)).await;
         assert!(archived(&daemon, &a1));
         assert!(daemon.pending_archives.lock().unwrap().is_empty());
     }
