@@ -83,7 +83,6 @@ export const workbench = {
     },
     startedIn: 'Started outside Berth ({host})',
     startedOutside: 'Started outside Berth',
-    earlier: 'Earlier',
     otherFolders: 'Other folders',
     open: 'Open conversation',
     copyResume: 'Copy resume command',

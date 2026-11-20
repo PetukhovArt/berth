@@ -217,6 +217,13 @@ export const SETTINGS = {
     description: 'settings.def.sessionsArchiveOnMerge.description',
     category: 'sessions',
   },
+  'sessions.archiveOnClose': {
+    type: 'boolean',
+    default: true,
+    label: 'settings.def.sessionsArchiveOnClose.label',
+    description: 'settings.def.sessionsArchiveOnClose.description',
+    category: 'sessions',
+  },
   'sessions.externalDays': {
     type: 'number',
     default: 14,

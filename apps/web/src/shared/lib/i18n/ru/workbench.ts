@@ -86,7 +86,6 @@ export const workbench: Translation<typeof en> = {
     },
     startedIn: 'Запущена вне Berth ({host})',
     startedOutside: 'Запущена вне Berth',
-    earlier: 'Раньше',
     otherFolders: 'Другие папки',
     open: 'Открыть разговор',
     copyResume: 'Скопировать команду продолжения',

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added `sessions.archiveOnClose`, on by default: closing the tab of an agent or a conversation moves it to its project's Archive; turned off, the close button asks whether to archive it or only close the tab
+- Changed the Sessions tree to show the Archive at the bottom of each project, and of Not in a project, instead of one Archive row for all projects
+- Removed the Earlier folder from the Sessions tree: every conversation that is not archived is listed in its worktree
 - Added drag handles on both edges of the Chat view's column: drag one to resize or move the transcript and composer together, use the arrow keys on a focused handle, double-click to go back to 920px centered; the layout is kept across restarts
 - Fixed `berth worktree <branch>` and `berth spawn --worktree <branch>` starting a new local branch from the default base when that branch already exists on origin: the worktree now checks out origin's branch and tracks it
 - Fixed a Session started by `berth spawn` getting no tab: it now opens as a tab beside the Session that ran the command, without taking focus from it

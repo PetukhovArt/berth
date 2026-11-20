@@ -39,8 +39,6 @@ type Store = {
 
 const EXTERNAL_PREFIX = 'ext:';
 const TERMINAL_NAME_CHARS = 40;
-const EARLIER_MS = 24 * 3_600_000;
-const RECENT_CLOSED = 3;
 const METRICS_DEBOUNCE_MS = 300;
 const OWNER_RETRY_MS = 5500;
 const OWNER_RETRIES = 3;
@@ -55,20 +53,6 @@ export function resumeCommand(session: Pick<ExternalSession, 'harness' | 'id'>):
 export function externalOrigin(session: ExternalSession): string {
   if (session.in_berth) return t('workbench.external.inTerminal');
   return session.host ? t('workbench.external.startedIn', { host: session.host }) : t('workbench.external.startedOutside');
-}
-
-export function splitEarlier(sessions: readonly ExternalSession[], now: number): { recent: ExternalSession[]; earlier: ExternalSession[] } {
-  const recent: ExternalSession[] = [];
-  const earlier: ExternalSession[] = [];
-  let closed = 0;
-  for (const session of sessions) {
-    if (session.running) recent.push(session);
-    else if (closed < RECENT_CLOSED && now - session.updated_at <= EARLIER_MS) {
-      closed += 1;
-      recent.push(session);
-    } else earlier.push(session);
-  }
-  return { recent, earlier };
 }
 
 const normalizeDir = (path: string) => path.replaceAll('\\', '/').replace(/^\/\/\?\//, '').replace(/\/+$/, '').toLowerCase();

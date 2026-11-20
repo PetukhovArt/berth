@@ -462,7 +462,6 @@ const moreItems = computed(() => {
 .scroll :deep(.label[data-kind='tasks']),
 .scroll :deep(.label[data-kind='section']),
 .scroll :deep(.label[data-kind='archive']),
-.scroll :deep(.label[data-kind='earlier']),
 .scroll :deep(.label[data-kind='folders']) {
   font-size: var(--vr-font-size-xs);
   font-weight: 500;
