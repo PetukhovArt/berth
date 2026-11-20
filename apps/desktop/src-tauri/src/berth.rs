@@ -69,11 +69,11 @@ pub enum WatchEvent {
         session_id: String,
     },
     Removed {
+        id: EntityId,
+    },
     Spawned {
         agent: AgentId,
         spawned_by: AgentId,
-    },
-        id: EntityId,
     },
     Status {
         agent: AgentId,
@@ -610,13 +610,13 @@ impl Actor {
             }
             ServerEvent::EntityUpserted { entity } => WatchEvent::Upserted { entity },
             ServerEvent::EntityRemoved { id } => WatchEvent::Removed { id },
+            ServerEvent::AgentSpawned { agent, spawned_by } => {
+                WatchEvent::Spawned { agent, spawned_by }
+            }
             ServerEvent::StatusChanged {
                 agent,
                 status,
                 changed_at,
-            ServerEvent::AgentSpawned { agent, spawned_by } => {
-                WatchEvent::Spawned { agent, spawned_by }
-            }
                 unseen,
                 ..
             } => WatchEvent::Status {
