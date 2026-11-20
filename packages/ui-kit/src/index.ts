@@ -51,7 +51,10 @@ const BerthPreset = definePreset(Aura, {
     focusRing: { color: v('color-accent') },
     colorScheme: { light: scheme, dark: scheme },
   },
-  components: { toggleswitch: { root: { slideDuration: v('motion-base') } } },
+  components: {
+    toggleswitch: { root: { slideDuration: v('motion-base') } },
+    button: { root: { borderRadius: v('radius-md'), gap: '6px', sm: { fontSize: v('font-size-label'), paddingX: '11px', paddingY: '3px', iconOnlyWidth: '28px' } } },
+  },
 });
 
 export type KitLocale = Partial<Omit<PrimeVueLocaleOptions, 'aria'>> & { aria?: Partial<PrimeVueLocaleAriaOptions> };

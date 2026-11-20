@@ -101,7 +101,7 @@ onMounted(() => {
             <VButton size="small" severity="secondary" text :loading="loading" :aria-label="t('common.refresh')" :title="t('common.refresh')" data-testid="cr-refresh" @click="load">
               <template #icon><RefreshCw :size="14" /></template>
             </VButton>
-            <VButton size="small" severity="secondary" :label="t('common.openInBrowser')" data-testid="cr-open-browser" @click="openUrl(cr.url)">
+            <VButton size="small" severity="secondary" :label="t('common.openInBrowser')" :title="t('forge.request.openInBrowserTitle')" data-testid="cr-open-browser" @click="openUrl(cr.url)">
               <template #icon><ExternalLink :size="14" /></template>
             </VButton>
             <OpenInSessionAction :item="cr" />

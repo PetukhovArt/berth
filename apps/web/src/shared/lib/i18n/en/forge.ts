@@ -26,6 +26,7 @@ export const forge = {
     },
     conflicts: 'Conflicts',
     conflictsTitle: 'Has merge conflicts',
+    openInBrowserTitle: "Open this request's page in the default browser",
     updated: 'updated {time}',
     reviewers: 'Reviewers:',
     reviewersHeading: 'Reviewers',

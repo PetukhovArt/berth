@@ -29,6 +29,7 @@ export const forge: Translation<typeof en> = {
     },
     conflicts: 'Конфликты',
     conflictsTitle: 'Есть конфликты слияния',
+    openInBrowserTitle: 'Открыть страницу запроса в браузере по умолчанию',
     updated: 'обновлён {time}',
     reviewers: 'Ревьюеры:',
     reviewersHeading: 'Ревьюеры',
