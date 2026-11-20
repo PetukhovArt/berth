@@ -12,6 +12,7 @@ import { readAcpAgentLog } from '../../../shared/api/providers';
 import { chatBlocks } from '../model/chatBlocks';
 import { forwardSlashes } from '../../../shared/lib/homePath';
 import { durationLabel } from '../model/duration';
+import { COLUMN_EDGES, COLUMN_GUTTER, useChatColumn, type ColumnEdge } from '../model/chatColumn';
 import ToolGroup from './ToolGroup.vue';
 import TurnFiles from './TurnFiles.vue';
 import CheckpointRow from './CheckpointRow.vue';
@@ -29,6 +30,13 @@ const berth = useBerth();
 const dock = useSessionDock();
 const action = useAction();
 const scroller = useTemplateRef<HTMLElement>('scroller');
+const column = useChatColumn(scroller);
+
+function edgeX(edge: ColumnEdge): number {
+  const box = column.box.value;
+  if (!box) return 0;
+  return edge === 'left' ? box.left : box.left + box.width;
+}
 const acp = props.harness === 'acp' ? useAcpChat(props.sessionId) : null;
 const harness = computed<Harness | null>(() => (props.harness === 'acp' ? null : props.harness));
 const transcript = shallowRef<TranscriptMessage[]>([]);
@@ -262,56 +270,80 @@ onBeforeUnmount(() => {
       <VMessage v-if="continueError" severity="error" size="small" data-testid="conversation-error">{{ continueError }}</VMessage>
     </header>
     <PlanStrip :plan="plan" />
-    <div ref="scroller" class="scroll" data-testid="conversation-scroll">
-      <p v-if="loading" class="state">{{ t('workbench.external.loading') }}</p>
-      <p v-else-if="shownError" class="state error" role="alert">{{ shownError }}</p>
-      <p v-else-if="!messages.length" class="state">{{ t('workbench.external.empty') }}</p>
-      <ol v-else class="messages" data-testid="conversation-messages">
-        <li v-for="block in blocks" :key="block.key" class="block" :data-block="block.type">
-          <div v-if="block.type === 'prompt'" class="message" data-role="user" :title="block.message.at ? formatDate(block.message.at) : undefined" data-testid="conversation-message">
-            <RichContent v-if="block.message.shell && block.message.markdown" class="shell" :data-shell="block.message.shell" :markdown="block.message.markdown" />
-            <p v-else class="user">{{ block.message.text }}</p>
-            <span v-if="spoken.has(block.message.text.trim())" class="spoken" data-testid="conversation-spoken">{{ t('chat.sentByVoice') }}</span>
-            <CheckpointRow v-if="agentId && checkpointOf.get(block.message.key)" :agent-id="agentId" :checkpoint="checkpointOf.get(block.message.key)!" @restored="loadCheckpoints" />
-          </div>
-          <div v-else-if="block.type === 'turn'" class="turn" :title="block.model ? modelLabel(block.model) : undefined" data-testid="conversation-turn">
-            <HarnessIcon v-if="harness" :harness="harness" :size="14" />
-            <Bot v-else :size="14" />
-            <span>{{ agentLabel }}</span>
-            <span v-if="block.seconds !== null" class="turn-time">· {{ durationLabel(block.seconds) }}</span>
-          </div>
-          <ToolGroup v-else-if="block.type === 'tools'" :calls="block.calls" :seconds="block.seconds" :root="root" />
-          <TurnFiles v-else-if="block.type === 'files'" :files="block.files" :root="root" :panel-id="panelId" />
-          <div v-else class="message" :data-role="block.message.role" :title="block.message.at ? formatDate(block.message.at) : undefined" data-testid="conversation-message">
-            <RichContent v-if="block.message.shell && block.message.markdown" class="shell" :data-shell="block.message.shell" :markdown="block.message.markdown" />
-            <p v-else-if="block.message.role === 'user'" class="user">{{ block.message.text }}</p>
-            <RichContent v-else class="assistant" :markdown="block.message.text" />
-          </div>
+    <div class="body" :style="column.style.value" data-testid="chat-body">
+      <div ref="scroller" class="scroll" data-testid="conversation-scroll">
+        <p v-if="loading" class="column state">{{ t('workbench.external.loading') }}</p>
+        <p v-else-if="shownError" class="column state error" role="alert">{{ shownError }}</p>
+        <p v-else-if="!messages.length" class="column state">{{ t('workbench.external.empty') }}</p>
+        <ol v-else class="column messages" data-testid="conversation-messages">
+          <li v-for="block in blocks" :key="block.key" class="block" :data-block="block.type">
+            <div v-if="block.type === 'prompt'" class="message" data-role="user" :title="block.message.at ? formatDate(block.message.at) : undefined" data-testid="conversation-message">
+              <RichContent v-if="block.message.shell && block.message.markdown" class="shell" :data-shell="block.message.shell" :markdown="block.message.markdown" />
+              <p v-else class="user">{{ block.message.text }}</p>
+              <span v-if="spoken.has(block.message.text.trim())" class="spoken" data-testid="conversation-spoken">{{ t('chat.sentByVoice') }}</span>
+              <CheckpointRow v-if="agentId && checkpointOf.get(block.message.key)" :agent-id="agentId" :checkpoint="checkpointOf.get(block.message.key)!" @restored="loadCheckpoints" />
+            </div>
+            <div v-else-if="block.type === 'turn'" class="turn" :title="block.model ? modelLabel(block.model) : undefined" data-testid="conversation-turn">
+              <HarnessIcon v-if="harness" :harness="harness" :size="14" />
+              <Bot v-else :size="14" />
+              <span>{{ agentLabel }}</span>
+              <span v-if="block.seconds !== null" class="turn-time">· {{ durationLabel(block.seconds) }}</span>
+            </div>
+            <ToolGroup v-else-if="block.type === 'tools'" :calls="block.calls" :seconds="block.seconds" :root="root" />
+            <TurnFiles v-else-if="block.type === 'files'" :files="block.files" :root="root" :panel-id="panelId" />
+            <div v-else class="message" :data-role="block.message.role" :title="block.message.at ? formatDate(block.message.at) : undefined" data-testid="conversation-message">
+              <RichContent v-if="block.message.shell && block.message.markdown" class="shell" :data-shell="block.message.shell" :markdown="block.message.markdown" />
+              <p v-else-if="block.message.role === 'user'" class="user">{{ block.message.text }}</p>
+              <RichContent v-else class="assistant" :markdown="block.message.text" />
+            </div>
+          </li>
+        </ol>
+      </div>
+      <div v-if="terminal && request" class="column feedback" data-testid="chat-feedback" :data-kind="request.kind">
+        <span class="feedback-text">{{ request.kind === 'Permission' ? t('feedback.permission', { tool: request.title }) : request.title }}</span>
+        <code v-if="request.detail" class="feedback-detail mono">{{ request.detail }}</code>
+        <template v-if="request.kind === 'Permission' && !request.options.length">
+          <UiButton type="button" class="feedback-action" data-testid="feedback-allow" @click="allowRequest(terminal)">{{ t('feedback.allow') }}</UiButton>
+          <UiButton v-if="offersAlways(request)" type="button" class="feedback-action" :title="t('feedback.alwaysTitle')" data-testid="feedback-always" @click="alwaysAllowRequest(terminal)">{{ t('feedback.always') }}</UiButton>
+          <UiButton type="button" class="feedback-action" data-testid="feedback-deny" @click="denyRequest(terminal)">{{ t('feedback.deny') }}</UiButton>
+        </template>
+        <UiButton v-for="(option, index) in request.options" v-else :key="index" type="button" class="feedback-action" data-testid="feedback-option" @click="chooseOption(terminal, index)">{{ option }}</UiButton>
+      </div>
+      <div v-if="acp" class="column agent-log" data-testid="chat-agent-log">
+        <UiButton type="button" class="agent-log-toggle" :aria-expanded="agentLog !== null" data-testid="chat-agent-log-toggle" @click="toggleAgentLog">{{ t('agents.sessionView.chatAgentLog') }}</UiButton>
+        <pre v-if="agentLog !== null" class="agent-log-text mono" data-testid="chat-agent-log-text">{{ agentLog || t('agents.sessionView.chatAgentLogEmpty') }}</pre>
+      </div>
+      <ul v-if="acp && queued.length" class="column queued" data-testid="chat-queue">
+        <li v-for="item in queued" :key="item.id" class="queued-item" data-testid="queue-item">
+          <span class="queued-text" data-testid="queue-item-text">{{ item.text }}</span>
+          <span class="queued-hint">{{ t('feedback.queue.sendsWhenFinished') }}</span>
+          <UiButton type="button" class="queued-remove" data-testid="queue-remove" @click="removeQueuedPrompt(sessionId, item.id)">{{ t('feedback.queue.remove') }}</UiButton>
         </li>
-      </ol>
-    </div>
-    <div v-if="terminal && request" class="feedback" data-testid="chat-feedback" :data-kind="request.kind">
-      <span class="feedback-text">{{ request.kind === 'Permission' ? t('feedback.permission', { tool: request.title }) : request.title }}</span>
-      <code v-if="request.detail" class="feedback-detail mono">{{ request.detail }}</code>
-      <template v-if="request.kind === 'Permission' && !request.options.length">
-        <UiButton type="button" class="feedback-action" data-testid="feedback-allow" @click="allowRequest(terminal)">{{ t('feedback.allow') }}</UiButton>
-        <UiButton v-if="offersAlways(request)" type="button" class="feedback-action" :title="t('feedback.alwaysTitle')" data-testid="feedback-always" @click="alwaysAllowRequest(terminal)">{{ t('feedback.always') }}</UiButton>
-        <UiButton type="button" class="feedback-action" data-testid="feedback-deny" @click="denyRequest(terminal)">{{ t('feedback.deny') }}</UiButton>
+      </ul>
+      <ChatComposer v-if="terminal" :messages="messages" :suggestion="suggestion" :model-chip="modelChip" :sending="sending" :slash-source="slashSource" :send="submit" />
+      <template v-if="column.box.value && !column.phone.value">
+        <div
+          v-for="edge in COLUMN_EDGES"
+          :key="edge"
+          class="column-handle vr-wide-only"
+          role="separator"
+          aria-orientation="vertical"
+          tabindex="0"
+          :data-edge="edge"
+          :data-dragging="column.dragging.value === edge || undefined"
+          :aria-label="t(`chat.column.${edge}`)"
+          :title="t('chat.column.hint')"
+          :aria-valuenow="edgeX(edge)"
+          aria-valuemin="0"
+          :aria-valuemax="column.track.value ?? 0"
+          :data-testid="`chat-column-${edge}-handle`"
+          :style="{ left: `${COLUMN_GUTTER + edgeX(edge)}px` }"
+          @pointerdown="column.startDrag(edge, $event)"
+          @dblclick="column.reset"
+          @keydown="column.nudge(edge, $event)"
+        />
       </template>
-      <UiButton v-for="(option, index) in request.options" v-else :key="index" type="button" class="feedback-action" data-testid="feedback-option" @click="chooseOption(terminal, index)">{{ option }}</UiButton>
     </div>
-    <div v-if="acp" class="agent-log" data-testid="chat-agent-log">
-      <UiButton type="button" class="agent-log-toggle" :aria-expanded="agentLog !== null" data-testid="chat-agent-log-toggle" @click="toggleAgentLog">{{ t('agents.sessionView.chatAgentLog') }}</UiButton>
-      <pre v-if="agentLog !== null" class="agent-log-text mono" data-testid="chat-agent-log-text">{{ agentLog || t('agents.sessionView.chatAgentLogEmpty') }}</pre>
-    </div>
-    <ul v-if="acp && queued.length" class="queued" data-testid="chat-queue">
-      <li v-for="item in queued" :key="item.id" class="queued-item" data-testid="queue-item">
-        <span class="queued-text" data-testid="queue-item-text">{{ item.text }}</span>
-        <span class="queued-hint">{{ t('feedback.queue.sendsWhenFinished') }}</span>
-        <UiButton type="button" class="queued-remove" data-testid="queue-remove" @click="removeQueuedPrompt(sessionId, item.id)">{{ t('feedback.queue.remove') }}</UiButton>
-      </li>
-    </ul>
-    <ChatComposer v-if="terminal" :messages="messages" :suggestion="suggestion" :model-chip="modelChip" :sending="sending" :slash-source="slashSource" :send="submit" />
   </section>
 </template>
 
@@ -322,7 +354,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: flex-start;
   gap: var(--vr-space-1);
-  padding: var(--vr-space-1) var(--vr-space-4) 0;
+  padding: var(--vr-space-1) 0 0;
 }
 
 .agent-log-toggle {
@@ -345,8 +377,9 @@ onBeforeUnmount(() => {
   flex: none;
   flex-direction: column;
   gap: var(--vr-space-1);
-  padding: var(--vr-space-2) var(--vr-space-4) 0;
-  margin: 0;
+  padding: var(--vr-space-2) 0 0;
+  margin-top: 0;
+  margin-bottom: 0;
   list-style: none;
 }
 
@@ -483,7 +516,41 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--vr-space-3) var(--vr-space-4) var(--vr-space-6);
+  scrollbar-gutter: stable;
+  padding: var(--vr-space-3) 0 var(--vr-space-6);
+}
+
+.body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.column {
+  box-sizing: border-box;
+  width: var(--chat-column-width, auto);
+  margin-left: var(--chat-column-left, var(--vr-space-4));
+  margin-right: var(--vr-space-4);
+}
+
+.column-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 6px;
+  margin-left: -3px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.column-handle:hover,
+.column-handle:focus-visible,
+.column-handle[data-dragging] {
+  outline: none;
+  background: var(--vr-color-nav-active);
 }
 
 .feedback {
@@ -492,9 +559,7 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--vr-space-2);
-  width: 100%;
-  max-width: 920px;
-  margin: 0 auto var(--vr-space-2);
+  margin-bottom: var(--vr-space-2);
   padding: var(--vr-space-2) var(--vr-space-3);
   font-size: var(--vr-font-size-sm);
   background: var(--vr-tint-feedback);
@@ -530,7 +595,8 @@ onBeforeUnmount(() => {
 }
 
 .state {
-  margin: 0;
+  margin-top: 0;
+  margin-bottom: 0;
   font-size: var(--vr-font-size-sm);
   color: var(--vr-color-text-muted);
 }
@@ -543,10 +609,14 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: var(--vr-space-2);
-  max-width: 920px;
-  margin: 0 auto;
+  margin-top: 0;
+  margin-bottom: 0;
   padding: 0;
   list-style: none;
+}
+
+.column.messages :deep(.rich-content .body :is(p, ul, ol, dl, blockquote, h1, h2, h3, h4, h5, h6)) {
+  max-width: none;
 }
 
 .block[data-block='prompt'] {

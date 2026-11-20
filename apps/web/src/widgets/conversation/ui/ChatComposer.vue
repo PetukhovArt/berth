@@ -217,13 +217,17 @@ function handsFree() {
   flex: none;
   flex-direction: column;
   gap: 10px;
-  width: 100%;
-  max-width: 920px;
-  margin: 0 auto;
-  padding: 0 var(--vr-space-4) var(--vr-space-4);
+  box-sizing: border-box;
+  width: var(--chat-column-width, auto);
+  margin-left: var(--chat-column-left, var(--vr-space-4));
+  margin-right: var(--vr-space-4);
+  padding: 0 0 var(--vr-space-4);
 }
 
 .composer[data-phone] {
+  width: auto;
+  margin-right: 0;
+  margin-left: 0;
   padding: 10px 14px var(--vr-space-3);
   border-top: 1px solid var(--vr-color-border);
 }

@@ -9,6 +9,11 @@ export const chat = {
     expand: 'Show the tool calls',
     exit: 'exit {code}',
   },
+  column: {
+    left: 'Left edge of the chat column',
+    right: 'Right edge of the chat column',
+    hint: 'Drag to resize or move the chat, double-click to reset',
+  },
   seconds: '{count}s',
   minutes: '{minutes}m {seconds}s',
   checkpoint: 'Checkpoint',

@@ -12,6 +12,11 @@ export const chat: Translation<typeof en> = {
     expand: 'Показать вызовы инструментов',
     exit: 'код {code}',
   },
+  column: {
+    left: 'Левый край колонки чата',
+    right: 'Правый край колонки чата',
+    hint: 'Перетащите, чтобы изменить ширину или положение чата; двойной щелчок сбрасывает',
+  },
   seconds: '{count} с',
   minutes: '{minutes} мин {seconds} с',
   checkpoint: 'Чекпоинт',
