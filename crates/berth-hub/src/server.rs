@@ -141,22 +141,10 @@ struct PairBody {
 }
 
 async fn pair(State(s): State<Shared>, Json(b): Json<PairBody>) -> Reply {
-    let (id, token, admins) = {
-        let store = s.store.lock().unwrap();
-        let (id, token) = store
-            .admit_device(&b.name)
-            .map_err(|e| fail(StatusCode::INTERNAL_SERVER_ERROR, e))?;
-        let admins = store
-            .admins()
-            .map_err(|e| fail(StatusCode::INTERNAL_SERVER_ERROR, e))?;
-        (id, token, admins)
-    };
-    for member in admins {
-        s.end(Ended {
-            member,
-            why: EndedWhy::RightsChanged,
-        });
-    }
+    let store = s.store.lock().unwrap();
+    let (id, token) = store
+        .admit_device(&b.name)
+        .map_err(|e| fail(StatusCode::INTERNAL_SERVER_ERROR, e))?;
     Ok(Json(json!({ "id": id, "token": token })))
 }
 

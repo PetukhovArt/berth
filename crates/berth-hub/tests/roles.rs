@@ -402,17 +402,6 @@ async fn an_admin_cannot_demote_or_revoke_its_own_device_but_the_admin_token_can
 }
 
 #[tokio::test]
-async fn a_new_device_asking_to_join_ends_the_admins_streams() {
-    let dir = tempfile::tempdir().unwrap();
-    let (_hub, url) = start(&dir.path().join("hub.db"), Some("admin-secret")).await;
-    let (_ann_id, ann) = person(&url, "ann", "admin").await;
-
-    let mut live = ann.subscribe(None).await.unwrap();
-    HubClient::pair(&url, "newcomer").await.unwrap();
-    assert_eq!(next(&mut live).await, Next::RightsChanged);
-}
-
-#[tokio::test]
 async fn a_person_without_agents_join_gets_no_mentions_for_its_agents() {
     let dir = tempfile::tempdir().unwrap();
     let (_hub, url) = start(&dir.path().join("hub.db"), Some("admin-secret")).await;

@@ -44,6 +44,9 @@ onMounted(() => void refreshHub());
       </div>
       <template v-else-if="admin">
         <div class="sections" data-testid="hub-admin-state-admin">
+          <div>
+            <VButton :label="t('common.refresh')" size="small" severity="secondary" :loading="refreshing" :disabled="refreshing" data-testid="hub-admin-refresh" @click="refreshHub" />
+          </div>
           <HubMembers :members="admin.members" :roles="admin.roles" :me="me.id" />
           <HubRoles :roles="admin.roles" :catalog="admin.catalog" />
           <HubAudit :admin="admin" />

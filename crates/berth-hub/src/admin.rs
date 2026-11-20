@@ -487,10 +487,6 @@ impl Store {
         Ok(ended)
     }
 
-    pub(crate) fn admins(&self) -> Result<Vec<String>> {
-        other_admins(&self.db, "")
-    }
-
     pub(crate) fn admin_view(&self) -> Result<AdminView> {
         Ok(AdminView {
             catalog: Permission::ALL
