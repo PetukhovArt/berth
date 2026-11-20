@@ -342,17 +342,24 @@ enum HubCommand {
     #[command(about = "Step one: admit this device; prints its token, which opens nothing yet")]
     Pair { url: String, name: String },
     #[command(
-        about = "Step two: approve an admitted device and what it may do; run it again to change the scopes"
+        about = "Step two: approve an admitted device with a role, or change the role of an approved one"
     )]
     Approve {
         url: String,
-        #[arg(long)]
+        #[arg(
+            long,
+            help = "The admin token of `berth hub serve`, or the device token of someone whose role holds admin.manage"
+        )]
         admin_token: String,
         id: String,
-        #[arg(long, value_delimiter = ',', default_value = "read,post,create")]
-        scopes: Vec<String>,
+        #[arg(
+            long,
+            default_value = "member",
+            help = "admin, member, guest, or the id of a custom role"
+        )]
+        role: String,
     },
-    #[command(about = "List the devices of the hub with their status and scopes")]
+    #[command(about = "List the devices of the hub with their status and role, and the roles")]
     Devices {
         url: String,
         #[arg(long)]
@@ -508,8 +515,8 @@ fn main() -> Result<()> {
                 url,
                 admin_token,
                 id,
-                scopes,
-            } => channel::run_hub_approve(url, admin_token, id, scopes),
+                role,
+            } => channel::run_hub_approve(url, admin_token, id, role),
             HubCommand::Devices { url, admin_token } => channel::run_hub_devices(url, admin_token),
             HubCommand::Revoke {
                 url,

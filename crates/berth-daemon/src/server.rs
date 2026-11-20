@@ -472,6 +472,20 @@ async fn handle_client(
                         .send(crate::team_access::grants_reply(req_id, result))
                         .await;
                 }
+                ClientRequest::GetHub { req_id } => {
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let result = crate::hub_admin::view().await;
+                        let _ = out_tx.send(crate::hub_admin::reply(req_id, result)).await;
+                    });
+                }
+                ClientRequest::ChangeHub { req_id, change } => {
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let result = crate::hub_admin::change(&change).await;
+                        let _ = out_tx.send(crate::hub_admin::reply(req_id, result)).await;
+                    });
+                }
                 ClientRequest::CreateAcpAgent {
                     req_id,
                     worktree,

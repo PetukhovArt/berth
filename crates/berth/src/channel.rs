@@ -3,6 +3,7 @@ use anyhow::{bail, Result};
 use berth_core::codec::{read_frame, write_frame};
 use berth_core::{AgentId, ClientRequest, ServerEvent};
 use berth_hub::client::HubClient;
+use berth_hub::{AdminChange, MemberStatus};
 use serde_json::{json, Value};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
@@ -240,10 +241,12 @@ pub fn run_hub_pair(url: String, name: String) -> Result<()> {
 
 pub fn run_hub_devices(url: String, admin_token: String) -> Result<()> {
     runtime()?.block_on(async {
-        let devices = hub_at(&url, &admin_token)?.devices().await?;
+        let view = hub_at(&url, &admin_token)?.admin_view().await?;
         println!(
             "{}",
-            serde_json::to_string_pretty(&json!({ "ok": true, "devices": devices }))?
+            serde_json::to_string_pretty(
+                &json!({ "ok": true, "devices": view.members, "roles": view.roles })
+            )?
         );
         Ok(())
     })
@@ -251,7 +254,9 @@ pub fn run_hub_devices(url: String, admin_token: String) -> Result<()> {
 
 pub fn run_hub_revoke(url: String, admin_token: String, id: String) -> Result<()> {
     runtime()?.block_on(async {
-        hub_at(&url, &admin_token)?.revoke(&id).await?;
+        hub_at(&url, &admin_token)?
+            .admin_change(&AdminChange::Revoke { member: id.clone() })
+            .await?;
         println!(
             "{}",
             serde_json::to_string_pretty(&json!({ "ok": true, "revoked": id }))?
@@ -260,20 +265,28 @@ pub fn run_hub_revoke(url: String, admin_token: String, id: String) -> Result<()
     })
 }
 
-pub fn run_hub_approve(
-    url: String,
-    admin_token: String,
-    id: String,
-    scopes: Vec<String>,
-) -> Result<()> {
+pub fn run_hub_approve(url: String, admin_token: String, id: String, role: String) -> Result<()> {
     runtime()?.block_on(async {
-        let hub = hub_at(&url, &admin_token)?;
-        let scopes: Vec<&str> = scopes.iter().map(String::as_str).collect();
-        hub.approve(&id, &scopes).await?;
-        let pending: Value = hub.pending().await?;
+        let view = hub_at(&url, &admin_token)?
+            .admin_change(&AdminChange::SetRole {
+                member: id.clone(),
+                role: role.clone(),
+            })
+            .await?;
+        let pending: Vec<Value> = view
+            .members
+            .iter()
+            .filter(|m| m.status == MemberStatus::Pending)
+            .map(|m| json!({ "id": m.id, "name": m.name }))
+            .collect();
         println!(
             "{}",
-            serde_json::to_string_pretty(&json!({ "ok": true, "still_pending": pending }))?
+            serde_json::to_string_pretty(&json!({
+                "ok": true,
+                "id": id,
+                "role": role,
+                "still_pending": pending,
+            }))?
         );
         Ok(())
     })

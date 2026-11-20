@@ -1,5 +1,5 @@
 use berth_hub::client::HubClient;
-use berth_hub::{serve, TlsFiles};
+use berth_hub::{serve, AdminChange, Next, TlsFiles};
 use rcgen::{CertificateParams, KeyPair, SanType};
 use std::path::{Path, PathBuf};
 
@@ -35,22 +35,27 @@ async fn a_self_signed_hub_is_reached_only_through_the_extra_ca() {
     let url = format!("https://{}", hub.addr);
 
     let untrusting = HubClient::new(&url, "admin-secret").unwrap();
-    assert!(untrusting.devices().await.is_err());
+    assert!(untrusting.admin_view().await.is_err());
 
     let admin = HubClient::trusting(&url, "admin-secret", Some(&ca)).unwrap();
-    assert!(admin.devices().await.unwrap().is_empty());
+    assert!(admin.admin_view().await.unwrap().members.is_empty());
 
     let device = HubClient::trusting(&url, "", Some(&ca)).unwrap();
     let (id, token) = device.pair_device("ann").await.unwrap();
     admin
-        .approve(&id, &["read", "post", "create"])
+        .admin_change(&AdminChange::SetRole {
+            member: id,
+            role: "member".into(),
+        })
         .await
         .unwrap();
     let ann = HubClient::trusting(&url, &token, Some(&ca)).unwrap();
     ann.create_channel("PROJ-1").await.unwrap();
     let mut live = ann.subscribe(None).await.unwrap();
     ann.post("PROJ-1", "over tls", None).await.unwrap();
-    let got = live.next().await.unwrap().unwrap();
+    let Next::Event(got) = live.next().await.unwrap() else {
+        panic!("expected an event");
+    };
     assert_eq!(got.content, "over tls");
 
     assert!(HubClient::trusting(&url, "x", Some(&dir.path().join("missing.pem"))).is_err());

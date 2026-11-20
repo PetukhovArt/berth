@@ -74,7 +74,7 @@ pub(crate) async fn own(store: &Store, hub: &HubClient) -> Own {
     let (me, mut members) = match cached {
         Some(cached) => cached,
         None => match hub.me().await {
-            Ok(me) => (me, HashMap::new()),
+            Ok(me) => (me.id, HashMap::new()),
             Err(_) => return Own::default(),
         },
     };

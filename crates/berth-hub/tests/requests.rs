@@ -1,11 +1,14 @@
 use berth_hub::client::HubClient;
-use berth_hub::{serve, EVENT_TAG, KIND_ANSWER, KIND_REQUEST, KIND_SETTLED};
+use berth_hub::{serve, AdminChange, EVENT_TAG, KIND_ANSWER, KIND_REQUEST, KIND_SETTLED};
 
 async fn person(url: &str, name: &str) -> (String, HubClient) {
     let (id, token) = HubClient::pair(url, name).await.unwrap();
     let admin = HubClient::new(url, "admin-secret").unwrap();
     admin
-        .approve(&id, &["read", "post", "create"])
+        .admin_change(&AdminChange::SetRole {
+            member: id.clone(),
+            role: "member".into(),
+        })
         .await
         .unwrap();
     (id, HubClient::new(url, &token).unwrap())
@@ -28,7 +31,7 @@ async fn a_request_is_posted_by_an_agent_answered_by_a_person_and_settled_by_the
     ann.create_channel("PROJ-12").await.unwrap();
     ann.add_member("PROJ-12", &bob_id).await.unwrap();
     let agent = ann.agent("agent-1").await.unwrap();
-    assert_eq!(ann.me().await.unwrap(), ann_id);
+    assert_eq!(ann.me().await.unwrap().id, ann_id);
 
     assert!(ann
         .publish("PROJ-12", KIND_REQUEST, "Bash", &[], None)

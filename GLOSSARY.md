@@ -213,3 +213,15 @@ _Avoid_: snapshot, backup
 **Channel**
 A named stream of messages on the team hub (`hub_url`) that people and Agents post to and read, with an unread count per member. The Inbox lists Channels with unread messages and opens them as a view beside the Sessions. Not the Transport.
 _Avoid_: chat room, topic
+
+**Permission**
+One thing a person may do on the team hub, named by a key from `crates/berth-hub/permissions.json` such as `channels.post` or `admin.manage`. The hub checks it on every request; an Agent acts with its owner's Permissions.
+_Avoid_: scope, right, capability
+
+**Role**
+A named set of Permissions on the team hub; every approved person holds exactly one. Admin, Member and Guest are built in and follow `permissions.json`; an admin makes custom ones. The admin token of `berth hub serve` is not a Role holder: it holds only `admin.manage`.
+_Avoid_: group, level, scopes
+
+**Instruct Ceiling**
+The hub's answer to which authors may instruct this device's Agents: those whose Role holds `agents.instruct` and who share a Channel with it. A grant in the Daemon takes effect only inside it; the owner's own messages and promoted ones do not depend on it.
+_Avoid_: instruct permission check, trust list

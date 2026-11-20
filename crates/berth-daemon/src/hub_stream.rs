@@ -2,6 +2,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use berth_core::ServerEvent;
+use berth_hub::client::HubClient;
+use berth_hub::Next;
 use tokio::sync::{watch, Notify};
 
 use crate::channels::hub;
@@ -42,43 +44,69 @@ impl HubPush {
     }
 }
 
+enum StreamEnd {
+    Shutdown,
+    Dropped,
+    RightsChanged,
+}
+
 impl Daemon {
     pub(crate) async fn run_hub_stream(self: Arc<Self>, push: Arc<HubPush>) {
         let mut last_seen: Option<i64> = None;
         loop {
-            if let Ok(hub) = hub() {
-                match hub.subscribe(last_seen).await {
-                    Ok(mut subscription) => {
-                        push.set_live(true);
-                        loop {
-                            let next = tokio::select! {
-                                _ = self.shutdown.cancelled() => return,
-                                next = subscription.next() => next,
-                            };
-                            let event = match next {
-                                Ok(Some(event)) => event,
-                                Ok(None) => break,
-                                Err(e) => {
-                                    tracing::debug!(error = %e, "hub event stream dropped");
-                                    break;
-                                }
-                            };
-                            last_seen = Some(last_seen.unwrap_or(0).max(event.seq));
-                            self.broadcast(ServerEvent::ChannelAppended {
-                                channel: event.channel,
-                                seq: event.seq,
-                            });
-                            push.appended.notify_one();
-                        }
-                        push.set_live(false);
-                    }
-                    Err(e) => tracing::debug!(error = %e, "hub event stream unavailable"),
-                }
+            let end = match hub() {
+                Ok(hub) => self.follow_stream(&hub, &push, &mut last_seen).await,
+                Err(_) => StreamEnd::Dropped,
+            };
+            match end {
+                StreamEnd::Shutdown => return,
+                StreamEnd::RightsChanged => continue,
+                StreamEnd::Dropped => {}
             }
             tokio::select! {
                 _ = self.shutdown.cancelled() => return,
                 _ = tokio::time::sleep(RETRY) => {}
             }
         }
+    }
+
+    async fn follow_stream(
+        &self,
+        hub: &HubClient,
+        push: &HubPush,
+        last_seen: &mut Option<i64>,
+    ) -> StreamEnd {
+        let mut subscription = match hub.subscribe(*last_seen).await {
+            Ok(subscription) => subscription,
+            Err(e) => {
+                tracing::debug!(error = %e, "hub event stream unavailable");
+                return StreamEnd::Dropped;
+            }
+        };
+        push.set_live(true);
+        self.broadcast(ServerEvent::HubChanged);
+        let end = loop {
+            let next = tokio::select! {
+                _ = self.shutdown.cancelled() => break StreamEnd::Shutdown,
+                next = subscription.next() => next,
+            };
+            let event = match next {
+                Ok(Next::Event(event)) => event,
+                Ok(Next::Closed) => break StreamEnd::Dropped,
+                Ok(Next::RightsChanged) => break StreamEnd::RightsChanged,
+                Err(e) => {
+                    tracing::debug!(error = %e, "hub event stream dropped");
+                    break StreamEnd::Dropped;
+                }
+            };
+            *last_seen = Some(last_seen.unwrap_or(0).max(event.seq));
+            self.broadcast(ServerEvent::ChannelAppended {
+                channel: event.channel,
+                seq: event.seq,
+            });
+            push.appended.notify_one();
+        };
+        push.set_live(false);
+        end
     }
 }

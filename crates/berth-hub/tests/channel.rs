@@ -1,5 +1,5 @@
 use berth_hub::client::HubClient;
-use berth_hub::{serve, Hub};
+use berth_hub::{serve, AdminChange, Hub, MemberStatus};
 
 async fn start(dir: &std::path::Path) -> (Hub, String) {
     let hub = serve(
@@ -14,10 +14,16 @@ async fn start(dir: &std::path::Path) -> (Hub, String) {
     (hub, url)
 }
 
-async fn person(url: &str, name: &str, scopes: &[&str]) -> (String, HubClient) {
+async fn person(url: &str, name: &str, role: &str) -> (String, HubClient) {
     let (id, token) = HubClient::pair(url, name).await.unwrap();
     let admin = HubClient::new(url, "admin-secret").unwrap();
-    admin.approve(&id, scopes).await.unwrap();
+    admin
+        .admin_change(&AdminChange::SetRole {
+            member: id.clone(),
+            role: role.into(),
+        })
+        .await
+        .unwrap();
     (id, HubClient::new(url, &token).unwrap())
 }
 
@@ -25,8 +31,8 @@ async fn person(url: &str, name: &str, scopes: &[&str]) -> (String, HubClient) {
 async fn two_people_post_and_read_in_one_channel() {
     let dir = tempfile::tempdir().unwrap();
     let (_hub, url) = start(dir.path()).await;
-    let (_ann_id, ann) = person(&url, "ann", &["read", "post", "create"]).await;
-    let (bob_id, bob) = person(&url, "bob", &["read", "post"]).await;
+    let (_ann_id, ann) = person(&url, "ann", "member").await;
+    let (bob_id, bob) = person(&url, "bob", "guest").await;
 
     ann.create_channel("PROJ-12").await.unwrap();
     assert!(bob.post("PROJ-12", "too early", None).await.is_err());
@@ -53,12 +59,12 @@ async fn two_people_post_and_read_in_one_channel() {
 }
 
 #[tokio::test]
-async fn a_device_with_the_create_scope_joins_an_existing_channel() {
+async fn a_device_whose_role_creates_channels_joins_an_existing_channel() {
     let dir = tempfile::tempdir().unwrap();
     let (_hub, url) = start(dir.path()).await;
-    let (_a, ann) = person(&url, "ann", &["read", "post", "create"]).await;
-    let (_b, bob) = person(&url, "bob", &["read", "post", "create"]).await;
-    let (_c, cy) = person(&url, "cy", &["read", "post"]).await;
+    let (_a, ann) = person(&url, "ann", "member").await;
+    let (_b, bob) = person(&url, "bob", "member").await;
+    let (_c, cy) = person(&url, "cy", "guest").await;
     ann.create_channel("PROJ-12").await.unwrap();
     ann.post("PROJ-12", "before bob", None).await.unwrap();
     assert!(bob.read("PROJ-12", 0, None).await.is_err());
@@ -75,8 +81,8 @@ async fn a_device_with_the_create_scope_joins_an_existing_channel() {
 async fn unread_counts_follow_the_read_mark() {
     let dir = tempfile::tempdir().unwrap();
     let (_hub, url) = start(dir.path()).await;
-    let (_a, ann) = person(&url, "ann", &["read", "post", "create"]).await;
-    let (bob_id, bob) = person(&url, "bob", &["read", "post"]).await;
+    let (_a, ann) = person(&url, "ann", "member").await;
+    let (bob_id, bob) = person(&url, "bob", "guest").await;
     ann.create_channel("c").await.unwrap();
     ann.add_member("c", &bob_id).await.unwrap();
     ann.post("c", "one", None).await.unwrap();
@@ -89,8 +95,8 @@ async fn unread_counts_follow_the_read_mark() {
 async fn an_agent_posts_as_a_member_marked_with_its_owner() {
     let dir = tempfile::tempdir().unwrap();
     let (_hub, url) = start(dir.path()).await;
-    let (_a, ann) = person(&url, "ann", &["read", "post", "create"]).await;
-    let (_b, bob) = person(&url, "bob", &["read", "post", "create"]).await;
+    let (_a, ann) = person(&url, "ann", "member").await;
+    let (_b, bob) = person(&url, "bob", "member").await;
     ann.create_channel("PROJ-12").await.unwrap();
 
     let agent = ann.agent("agent-7").await.unwrap();
@@ -106,7 +112,7 @@ async fn an_agent_posts_as_a_member_marked_with_its_owner() {
 }
 
 #[tokio::test]
-async fn requests_without_approval_or_scope_are_refused() {
+async fn requests_without_approval_or_permission_are_refused() {
     let dir = tempfile::tempdir().unwrap();
     let (_hub, url) = start(dir.path()).await;
     let (_id, token) = HubClient::pair(&url, "eve").await.unwrap();
@@ -117,9 +123,9 @@ async fn requests_without_approval_or_scope_are_refused() {
         .channels()
         .await
         .is_err());
-    assert!(pending.pending().await.is_err());
+    assert!(pending.admin_view().await.is_err());
 
-    let (_ann, reader) = person(&url, "ann", &["read"]).await;
+    let (_ann, reader) = person(&url, "ann", "guest").await;
     assert!(reader.create_channel("x").await.is_err());
 }
 
@@ -127,8 +133,8 @@ async fn requests_without_approval_or_scope_are_refused() {
 async fn a_mention_reaches_only_the_owner_of_that_agent_and_counts_the_agent_chain() {
     let dir = tempfile::tempdir().unwrap();
     let (_hub, url) = start(dir.path()).await;
-    let (_a, ann) = person(&url, "ann", &["read", "post", "create"]).await;
-    let (bob_id, bob) = person(&url, "bob", &["read", "post"]).await;
+    let (_a, ann) = person(&url, "ann", "member").await;
+    let (bob_id, bob) = person(&url, "bob", "member").await;
     ann.create_channel("PROJ-12").await.unwrap();
     ann.add_member("PROJ-12", &bob_id).await.unwrap();
     let a = ann.agent("agent-a").await.unwrap();
@@ -186,8 +192,8 @@ async fn a_mention_reaches_only_the_owner_of_that_agent_and_counts_the_agent_cha
 async fn a_display_name_mentions_the_agent_and_prefers_the_authors_own() {
     let dir = tempfile::tempdir().unwrap();
     let (_hub, url) = start(dir.path()).await;
-    let (_a, ann) = person(&url, "ann", &["read", "post", "create"]).await;
-    let (bob_id, bob) = person(&url, "bob", &["read", "post"]).await;
+    let (_a, ann) = person(&url, "ann", "member").await;
+    let (bob_id, bob) = person(&url, "bob", "member").await;
     ann.create_channel("PROJ-12").await.unwrap();
     ann.add_member("PROJ-12", &bob_id).await.unwrap();
     let a = ann
@@ -232,9 +238,9 @@ async fn presence_shows_who_runs_sessions_on_a_task_and_expires() {
     .await
     .unwrap();
     let url = format!("http://{}", hub.addr);
-    let (_a, ann) = person(&url, "ann", &["read", "post", "create"]).await;
-    let (bob_id, bob) = person(&url, "bob", &["read", "post"]).await;
-    let (_c, carol) = person(&url, "carol", &["read", "post"]).await;
+    let (_a, ann) = person(&url, "ann", "member").await;
+    let (bob_id, bob) = person(&url, "bob", "guest").await;
+    let (_c, carol) = person(&url, "carol", "guest").await;
     ann.create_channel("PROJ-12").await.unwrap();
     ann.add_member("PROJ-12", &bob_id).await.unwrap();
 
@@ -272,27 +278,28 @@ async fn presence_shows_who_runs_sessions_on_a_task_and_expires() {
 }
 
 #[tokio::test]
-async fn an_admin_lists_rescopes_and_revokes_devices() {
+async fn an_admin_lists_members_and_revokes_devices() {
     let dir = tempfile::tempdir().unwrap();
     let (_hub, url) = start(dir.path()).await;
     let admin = HubClient::new(&url, "admin-secret").unwrap();
-    let (_ann_id, ann) = person(&url, "ann", &["read", "post", "create"]).await;
-    let (bob_id, bob) = person(&url, "bob", &["read", "post"]).await;
+    let (_ann_id, ann) = person(&url, "ann", "member").await;
+    let (bob_id, bob) = person(&url, "bob", "member").await;
     let (_eve_id, _) = HubClient::pair(&url, "eve").await.unwrap();
-    assert!(ann.devices().await.is_err());
+    assert!(ann.admin_view().await.is_err());
     let listed: Vec<_> = admin
-        .devices()
+        .admin_view()
         .await
         .unwrap()
+        .members
         .into_iter()
-        .map(|d| (d.name, d.status, d.scopes.join(",")))
+        .map(|m| (m.name, m.status, m.role))
         .collect();
     assert_eq!(
         listed,
         [
-            ("ann".into(), "approved".into(), "read,post,create".into()),
-            ("bob".into(), "approved".into(), "read,post".into()),
-            ("eve".into(), "pending".into(), "".into()),
+            ("ann".into(), MemberStatus::Approved, Some("member".into())),
+            ("bob".into(), MemberStatus::Approved, Some("member".into())),
+            ("eve".into(), MemberStatus::Pending, None),
         ]
     );
 
@@ -301,15 +308,27 @@ async fn an_admin_lists_rescopes_and_revokes_devices() {
     let agent = bob.agent("agent-b").await.unwrap();
     bob.post("c", "hello", None).await.unwrap();
 
-    admin.approve(&bob_id, &["read"]).await.unwrap();
-    assert!(bob.post("c", "muted", None).await.is_err());
-    assert_eq!(bob.read("c", 0, None).await.unwrap().len(), 1);
-
-    admin.revoke(&bob_id).await.unwrap();
+    admin
+        .admin_change(&AdminChange::Revoke {
+            member: bob_id.clone(),
+        })
+        .await
+        .unwrap();
     assert!(bob.read("c", 0, None).await.is_err());
     assert!(bob.post("c", "again", Some(&agent)).await.is_err());
-    assert!(admin.approve(&bob_id, &["read"]).await.is_err());
-    assert!(admin.revoke("m-nobody").await.is_err());
+    assert!(admin
+        .admin_change(&AdminChange::SetRole {
+            member: bob_id.clone(),
+            role: "member".into(),
+        })
+        .await
+        .is_err());
+    assert!(admin
+        .admin_change(&AdminChange::Revoke {
+            member: "m-nobody".into(),
+        })
+        .await
+        .is_err());
     assert!(ann
         .post("c", "@agent-b still there?", None)
         .await

@@ -1,12 +1,18 @@
 use berth_hub::client::HubClient;
-use berth_hub::{serve_with_ttl, KIND_NOTE};
+use berth_hub::{serve_with_ttl, AdminChange, KIND_NOTE};
 use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 
-async fn person(url: &str, name: &str, scopes: &[&str]) -> (String, HubClient) {
+async fn person(url: &str, name: &str, role: &str) -> (String, HubClient) {
     let (id, token) = HubClient::pair(url, name).await.unwrap();
     let admin = HubClient::new(url, "admin-secret").unwrap();
-    admin.approve(&id, scopes).await.unwrap();
+    admin
+        .admin_change(&AdminChange::SetRole {
+            member: id.clone(),
+            role: role.into(),
+        })
+        .await
+        .unwrap();
     (id, HubClient::new(url, &token).unwrap())
 }
 
@@ -32,9 +38,9 @@ async fn the_latest_note_of_a_channel_is_the_one_in_force_and_an_empty_note_clea
     .await
     .unwrap();
     let url = format!("http://{}", hub.addr);
-    let (_a, ann) = person(&url, "ann", &["read", "post", "create"]).await;
-    let (bob_id, bob) = person(&url, "bob", &["read", "post"]).await;
-    let (_c, carol) = person(&url, "carol", &["read", "post"]).await;
+    let (_a, ann) = person(&url, "ann", "member").await;
+    let (bob_id, bob) = person(&url, "bob", "member").await;
+    let (_c, carol) = person(&url, "carol", "member").await;
     ann.create_channel("PROJ-12").await.unwrap();
     ann.add_member("PROJ-12", &bob_id).await.unwrap();
 
@@ -74,9 +80,9 @@ async fn touched_modules_of_other_members_are_shown_and_expire() {
     .await
     .unwrap();
     let url = format!("http://{}", hub.addr);
-    let (_a, ann) = person(&url, "ann", &["read", "post", "create"]).await;
-    let (bob_id, bob) = person(&url, "bob", &["read", "post"]).await;
-    let (_c, carol) = person(&url, "carol", &["read", "post"]).await;
+    let (_a, ann) = person(&url, "ann", "member").await;
+    let (bob_id, bob) = person(&url, "bob", "guest").await;
+    let (_c, carol) = person(&url, "carol", "guest").await;
     ann.create_channel("PROJ-12").await.unwrap();
     ann.add_member("PROJ-12", &bob_id).await.unwrap();
 

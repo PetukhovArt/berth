@@ -125,7 +125,11 @@ Channel view has a Promote button on every message that mentions an Agent.
 messages there that mention the Agent arrive as instructions. Name the colleague by their hub member
 id or by the name they write under; they must have written in the channel. `revoke` takes it back,
 and the Channel view lists the grants of the channel with a Revoke button. The same view grants too: a colleague's message has a "Let <name> instruct" action that lists your Agents in the channel. Grants live in your own
-daemon, not on the hub. Promote, grant and revoke refuse to run from inside a Session: they are for
+daemon, not on the hub, but they work only inside the colleague's role there: `grant` refuses a
+colleague whose role does not hold `agents.instruct`, and when an admin takes it from their role
+later, their messages arrive as quoted information again. While the hub cannot answer that check,
+a granted colleague's message waits instead of arriving either way. Promote does not depend on the
+colleague's role. Promote, grant and revoke refuse to run from inside a Session: they are for
 you, not for your Agents. A promoted or granted message that is a slash command still arrives as
 quoted information.
 
@@ -135,7 +139,7 @@ The desktop app's Channel view has a Task note button beside Send. Each daemon a
 berth channel open [<key>]  # create the channel for a task, or join it when it exists
 ```
 
-It needs the `create` scope on the hub. When the channel already exists without you, `open` adds your device to it and you read its whole history. The key is a Jira issue key such as `PROJ-12`, or a branch name when the
+It needs `channels.create` in your role on the hub. When the channel already exists without you, `open` adds your device to it and you read its whole history. The key is a Jira issue key such as `PROJ-12`, or a branch name when the
 task has no issue. Inside a session, with no key, it uses the issue key in the session's branch name,
 else the branch name. It prints `{"ok": true, "channel": "<key>"}`. The desktop app does the same from
 the Worktree row in the tree, the merge request menu and view, and the Jira issue view, and then
@@ -192,13 +196,13 @@ args = ["mcp"]
 
 The hub is a small service for the company network. People and their Agents post to shared Channels
 on it. Run it with `berth hub serve`; it prints its URL and an admin token. A device joins in two
-steps: it pairs, then an admin approves what it may do.
+steps: it pairs, then an admin approves it with a role.
 
 ```sh
 berth hub serve [--bind <addr:port>] [--db <file>] [--admin-token <token>] [--cert <pem> --key <pem>]  # run the hub
 berth hub pair <url> <name>                                            # step one, on the device: prints its id and token, which open nothing yet
-berth hub approve <url> --admin-token <token> <id> [--scopes read,post,create]  # step two, as admin
-berth hub devices <url> --admin-token <token>                          # list devices: id, name, status, scopes
+berth hub approve <url> --admin-token <token> <id> [--role member]     # step two, as admin
+berth hub devices <url> --admin-token <token>                          # list devices with status and role, and the roles
 berth hub revoke <url> --admin-token <token> <id>                      # cut a device off
 ```
 
@@ -210,9 +214,36 @@ make certificates; use the ones your company already issues, or make your own an
 trusted certificates of every machine that connects or point `hub_ca` at its PEM file. Clients then set
 `hub_url` to `https://...`.
 
-The scopes are `read`, `post` and `create`. Running `approve` again on an approved device replaces
-its scopes, narrower or wider, and the change applies to its next request. `devices` shows each
-device as `pending` (paired, not approved), `approved` or `revoked`.
+Every approved person holds one role, and a role is a set of permissions:
+
+| Permission | Lets the person |
+|---|---|
+| `channels.read` | read the Channels they are in, see who is here, and report their own presence |
+| `channels.post` | post in those Channels, including answers to their Agents' requests |
+| `channels.create` | create a Channel, or join one with `berth channel open` |
+| `channels.invite` | add a member to a Channel |
+| `agents.join` | register their Agents on the hub, so the Agents can read, post and be mentioned |
+| `agents.instruct` | instruct a colleague's Agent through a grant (see Team channels) |
+| `context.write` | set or clear a Channel's Task note |
+| `admin.manage` | approve devices, change roles, revoke devices, edit roles, read the audit log |
+
+The hub comes with three roles: Admin holds every permission, Member all but `admin.manage`, and
+Guest only `channels.read` and `channels.post`. `--role` takes `admin`, `member`, `guest` or the id
+of a role made in the app. Running `approve` again on an approved device changes its role, and the
+change applies to its next request. The first admin is made with the token `serve` printed:
+`berth hub approve <url> --admin-token <serve token> <id> --role admin`. After that, `--admin-token`
+also accepts the device token of anyone whose role holds `admin.manage`. `devices` shows each device
+as `pending` (paired, not approved), `approved` or `revoked`, with its role, and lists the roles.
+
+The desktop app's Settings → Team shows your role and what it allows. For someone whose role holds
+`admin.manage` it also lists the devices with a role picker that approves or changes the role, a
+Revoke button, the roles with a form to create and edit custom ones, and the latest 100 entries of
+the hub's audit log. The built-in roles cannot be edited, and a role cannot be deleted while someone
+holds it. A request the role does not allow is refused with a message naming the role and the
+missing permission.
+
+A hub from before roles keeps its data: on first start it saves a copy of its database as
+`<db>.v1.bak`, and every approved device becomes Member, whatever scopes it had.
 
 `revoke` takes effect at once: the device's token is refused and the Agents it registered on the hub
 stop posting, reading and being mentioned. Messages they already wrote stay in the Channels. A

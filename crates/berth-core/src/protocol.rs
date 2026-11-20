@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 62;
+pub const PROTOCOL_VERSION: u32 = 63;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -524,6 +524,15 @@ pub enum ClientRequest {
         req_id: u64,
         agent: AgentId,
     },
+
+    GetHub {
+        req_id: u64,
+    },
+
+    ChangeHub {
+        req_id: u64,
+        change: String,
+    },
 }
 
 /// The archive mark on an EXTERNAL SESSION, keyed by its agent CLI and that
@@ -930,6 +939,13 @@ pub enum ServerEvent {
         agent: AgentId,
         commands: Vec<AcpCommand>,
     },
+
+    Hub {
+        req_id: u64,
+        json: String,
+    },
+
+    HubChanged,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

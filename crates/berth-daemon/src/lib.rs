@@ -12,6 +12,7 @@ pub mod git;
 pub mod git_exclude;
 pub mod grok;
 pub mod hooks;
+mod hub_admin;
 mod hub_stream;
 pub mod launch;
 pub mod lifecycle;

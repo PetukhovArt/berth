@@ -98,6 +98,7 @@ pub enum WatchEvent {
         channel: String,
         seq: i64,
     },
+    HubChanged,
     Error {
         message: String,
     },
@@ -635,6 +636,7 @@ impl Actor {
             ServerEvent::ChannelAppended { channel, seq } => {
                 WatchEvent::ChannelAppended { channel, seq }
             }
+            ServerEvent::HubChanged => WatchEvent::HubChanged,
             ServerEvent::Error { message, .. } => WatchEvent::Error { message },
             ServerEvent::Scrollback {
                 session,
@@ -747,6 +749,7 @@ fn reply_req_id(event: &ServerEvent) -> Option<u64> {
         | ServerEvent::ChannelGrants { req_id, .. }
         | ServerEvent::AcpTranscript { req_id, .. }
         | ServerEvent::AcpCommands { req_id, .. }
+        | ServerEvent::Hub { req_id, .. }
         | ServerEvent::Metrics { req_id, .. } => Some(*req_id),
         ServerEvent::Error { req_id, .. } => *req_id,
         _ => None,
@@ -818,6 +821,8 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::AnswerFeedback { req_id, .. }
         | ClientRequest::AnswerInChannel { req_id, .. }
         | ClientRequest::GetUsageLimits { req_id }
+        | ClientRequest::GetHub { req_id }
+        | ClientRequest::ChangeHub { req_id, .. }
         | ClientRequest::GetMetrics { req_id } => Some(req_id),
         ClientRequest::Hello { .. }
         | ClientRequest::Subscribe
