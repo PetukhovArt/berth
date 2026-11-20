@@ -78,7 +78,10 @@ async fn another_admins_stream_ends_when_someone_else_changes_the_hub() {
     assert_eq!(next(&mut ann_live).await, Next::RightsChanged);
 
     let quiet = tokio::time::timeout(Duration::from_millis(200), bob_live.next()).await;
-    assert!(quiet.is_err(), "a member who is not an admin keeps its stream");
+    assert!(
+        quiet.is_err(),
+        "a member who is not an admin keeps its stream"
+    );
 }
 
 #[tokio::test]
@@ -372,6 +375,59 @@ async fn a_rights_change_closes_the_stream_with_rights_changed_and_a_revoke_clos
         .await
         .unwrap();
     assert_eq!(next(&mut live).await, Next::Closed);
+}
+
+#[tokio::test]
+async fn an_admin_cannot_demote_or_revoke_its_own_device_but_the_admin_token_can() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_hub, url) = start(&dir.path().join("hub.db"), Some("admin-secret")).await;
+    let (ann_id, ann) = person(&url, "ann", "admin").await;
+
+    for change in [
+        AdminChange::SetRole {
+            member: ann_id.clone(),
+            role: "guest".into(),
+        },
+        AdminChange::Revoke {
+            member: ann_id.clone(),
+        },
+    ] {
+        let refused = ann.admin_change(&change).await.unwrap_err().to_string();
+        assert!(refused.contains("(409)"), "{refused}");
+    }
+    assert!(ann.admin_view().await.is_ok());
+
+    set_role(&url, &ann_id, "guest").await;
+    assert!(ann.admin_view().await.is_err());
+}
+
+#[tokio::test]
+async fn a_new_device_asking_to_join_ends_the_admins_streams() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_hub, url) = start(&dir.path().join("hub.db"), Some("admin-secret")).await;
+    let (_ann_id, ann) = person(&url, "ann", "admin").await;
+
+    let mut live = ann.subscribe(None).await.unwrap();
+    HubClient::pair(&url, "newcomer").await.unwrap();
+    assert_eq!(next(&mut live).await, Next::RightsChanged);
+}
+
+#[tokio::test]
+async fn a_person_without_agents_join_gets_no_mentions_for_its_agents() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_hub, url) = start(&dir.path().join("hub.db"), Some("admin-secret")).await;
+    let (ann_id, ann) = person(&url, "ann", "member").await;
+    let (bob_id, bob) = person(&url, "bob", "member").await;
+    ann.create_channel("PROJ-1").await.unwrap();
+    ann.add_member("PROJ-1", &bob_id).await.unwrap();
+    ann.agent("helper").await.unwrap();
+    bob.post("PROJ-1", "@helper look at this", None)
+        .await
+        .unwrap();
+    assert_eq!(ann.mentions(0).await.unwrap().len(), 1);
+
+    set_role(&url, &ann_id, "guest").await;
+    assert!(ann.mentions(0).await.unwrap().is_empty());
 }
 
 #[tokio::test]

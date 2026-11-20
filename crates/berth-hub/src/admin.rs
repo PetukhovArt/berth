@@ -448,6 +448,17 @@ impl Store {
         actor: &Principal,
         change: AdminChange,
     ) -> Result<Vec<Ended>, Refusal> {
+        if let (
+            Principal::Member(me),
+            AdminChange::SetRole { member, .. } | AdminChange::Revoke { member },
+        ) = (actor, &change)
+        {
+            if *member == me.id {
+                return Err(Refusal::Conflict(
+                    "you cannot change your own role or revoke your own device: ask another admin, or use the admin token".into(),
+                ));
+            }
+        }
         let tx = self.db.transaction()?;
         let applied = match change {
             AdminChange::SaveRole {
@@ -474,6 +485,10 @@ impl Store {
         }
         tx.commit()?;
         Ok(ended)
+    }
+
+    pub(crate) fn admins(&self) -> Result<Vec<String>> {
+        other_admins(&self.db, "")
     }
 
     pub(crate) fn admin_view(&self) -> Result<AdminView> {

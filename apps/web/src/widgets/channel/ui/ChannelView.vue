@@ -187,7 +187,7 @@ onBeforeUnmount(() => {
     <p v-if="present.length" class="presence" data-testid="channel-presence">{{ t('attention.channel.present', { who: present.map((p) => (p.agents.length ? `${p.name} (${p.agents.join(', ')})` : p.name)).join('; ') }) }}</p>
     <p v-if="activeNote" class="note" data-testid="channel-note">
       <span class="note-text">{{ t('attention.channel.noteBy', { name: activeNote.authorName, text: activeNote.content }) }}</span>
-      <UiButton type="button" class="note-clear" :disabled="busy" data-testid="channel-note-clear" @click="clearNote">{{ t('attention.channel.noteClear') }}</UiButton>
+      <UiButton type="button" class="note-clear" :disabled="busy || !noting.ok" data-testid="channel-note-clear" @click="clearNote">{{ t('attention.channel.noteClear') }}</UiButton>
     </p>
     <p v-if="grants.length" class="grants" data-testid="channel-grants">
       <span>{{ t('attention.channel.grants') }}</span>
@@ -220,10 +220,10 @@ onBeforeUnmount(() => {
             <p v-else-if="sent.has(row.message.seq)" class="request-state" data-testid="channel-request-sent">{{ t('attention.channel.request.sent') }}</p>
             <div v-else class="actions">
               <template v-if="row.request.kind === 'permission' && !row.request.options.length">
-                <UiButton type="button" class="action primary" :disabled="busy" data-testid="channel-request-allow" @click="answer(row.message.seq, 'allow')">{{ t('feedback.allow') }}</UiButton>
-                <UiButton type="button" class="action" :disabled="busy" data-testid="channel-request-deny" @click="answer(row.message.seq, 'deny')">{{ t('feedback.deny') }}</UiButton>
+                <UiButton type="button" class="action primary" :disabled="busy || !posting.ok" data-testid="channel-request-allow" @click="answer(row.message.seq, 'allow')">{{ t('feedback.allow') }}</UiButton>
+                <UiButton type="button" class="action" :disabled="busy || !posting.ok" data-testid="channel-request-deny" @click="answer(row.message.seq, 'deny')">{{ t('feedback.deny') }}</UiButton>
               </template>
-              <UiButton v-for="(option, index) in row.request.options" v-else :key="index" type="button" class="action" :class="{ primary: index === 0 }" :disabled="busy" data-testid="channel-request-option" @click="answer(row.message.seq, String(index + 1))">{{ option }}</UiButton>
+              <UiButton v-for="(option, index) in row.request.options" v-else :key="index" type="button" class="action" :class="{ primary: index === 0 }" :disabled="busy || !posting.ok" data-testid="channel-request-option" @click="answer(row.message.seq, String(index + 1))">{{ option }}</UiButton>
             </div>
           </div>
           <p v-else class="content">{{ isNoteMessage(row.message) && !row.message.content ? t('attention.channel.noteCleared') : row.message.content }}</p>

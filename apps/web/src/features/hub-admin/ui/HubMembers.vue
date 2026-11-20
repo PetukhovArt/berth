@@ -6,7 +6,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import type { HubMember, HubRole } from '../../../entities/session';
 import { useChanges } from '../model/changes';
 
-const props = defineProps<{ members: HubMember[]; roles: HubRole[] }>();
+const props = defineProps<{ members: HubMember[]; roles: HubRole[]; me: string }>();
 
 const ORDER = { pending: 0, approved: 1, revoked: 2 } as const;
 
@@ -59,7 +59,8 @@ async function confirmRevoke() {
             class="role"
             :placeholder="t('hub.members.approveAs')"
             :aria-label="t('hub.members.role', { name: member.name })"
-            :disabled="busy.has(member.id)"
+            :disabled="busy.has(member.id) || member.id === me"
+            :title="member.id === me ? t('hub.members.self') : undefined"
             :data-testid="`hub-admin-member-role-${member.id}`"
             @update:model-value="setRole(member, $event)"
           />
@@ -68,7 +69,8 @@ async function confirmRevoke() {
             size="small"
             severity="danger"
             text
-            :disabled="busy.has(member.id)"
+            :disabled="busy.has(member.id) || member.id === me"
+            :title="member.id === me ? t('hub.members.self') : undefined"
             :data-testid="`hub-admin-member-revoke-${member.id}`"
             @click="askRevoke(member, $event)"
           />

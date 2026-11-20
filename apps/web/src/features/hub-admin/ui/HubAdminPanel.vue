@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onMounted } from 'vue';
 import { VButton, VMessage } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { permissionHint, permissionLabel, refreshHub, useHubAdmin } from '../../../entities/session';
@@ -7,6 +8,8 @@ import HubMembers from './HubMembers.vue';
 import HubRoles from './HubRoles.vue';
 
 const { me, admin, state, failure, refreshing } = useHubAdmin();
+
+onMounted(() => void refreshHub());
 </script>
 
 <template>
@@ -41,7 +44,7 @@ const { me, admin, state, failure, refreshing } = useHubAdmin();
       </div>
       <template v-else-if="admin">
         <div class="sections" data-testid="hub-admin-state-admin">
-          <HubMembers :members="admin.members" :roles="admin.roles" />
+          <HubMembers :members="admin.members" :roles="admin.roles" :me="me.id" />
           <HubRoles :roles="admin.roles" :catalog="admin.catalog" />
           <HubAudit :admin="admin" />
         </div>

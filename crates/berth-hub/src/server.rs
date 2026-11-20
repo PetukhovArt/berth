@@ -141,10 +141,22 @@ struct PairBody {
 }
 
 async fn pair(State(s): State<Shared>, Json(b): Json<PairBody>) -> Reply {
-    let store = s.store.lock().unwrap();
-    let (id, token) = store
-        .admit_device(&b.name)
-        .map_err(|e| fail(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    let (id, token, admins) = {
+        let store = s.store.lock().unwrap();
+        let (id, token) = store
+            .admit_device(&b.name)
+            .map_err(|e| fail(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        let admins = store
+            .admins()
+            .map_err(|e| fail(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        (id, token, admins)
+    };
+    for member in admins {
+        s.end(Ended {
+            member,
+            why: EndedWhy::RightsChanged,
+        });
+    }
     Ok(Json(json!({ "id": id, "token": token })))
 }
 
@@ -278,6 +290,9 @@ async fn mentions(
 ) -> Reply {
     let store = s.store.lock().unwrap();
     let m = authorize(&store, &headers, Permission::ChannelsRead)?.into_member()?;
+    if !m.holds(Permission::AgentsJoin) {
+        return Ok(Json(json!([])));
+    }
     let rows = store
         .mentions(&m.id, q.after)
         .map_err(|e| fail(StatusCode::INTERNAL_SERVER_ERROR, e))?;
