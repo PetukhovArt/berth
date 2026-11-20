@@ -6,7 +6,8 @@ use anyhow::{bail, Context, Result};
 use berth_core::codec::{read_frame, write_frame};
 use berth_core::transport::{self, Stream};
 use berth_core::{
-    env, paths, AgentId, AgentKind, ClientRequest, EnterOutcome, ServerEvent, PROTOCOL_VERSION,
+    env, paths, AgentId, AgentKind, ClientRequest, EnterOutcome, PromptTrigger, ServerEvent,
+    TriggerTarget, PROTOCOL_VERSION,
 };
 use std::time::Duration;
 
@@ -448,6 +449,54 @@ async fn enter_project_for_current_agent(path: &str) -> Result<()> {
     Ok(())
 }
 
+async fn archive_current_agent() -> Result<()> {
+    let agent_id = current_agent_id("archive")?;
+    let Ok(stream) = try_connect().await else {
+        bail!("no berth daemon is running — nothing to archive");
+    };
+    let mut conn = handshake(stream).await?;
+    let req_id = ONE_SHOT_REQ_ID;
+    let this_session = AgentId(agent_id);
+    write_frame(
+        &mut conn.stream,
+        &ClientRequest::ArchiveSelf {
+            req_id,
+            id: this_session.clone(),
+        },
+    )
+    .await?;
+    await_ack(&mut conn, req_id).await?;
+    write_frame(&mut conn.stream, &ClientRequest::ListTriggers { req_id }).await?;
+    for trigger in await_triggers(&mut conn, req_id).await? {
+        if trigger.target == TriggerTarget::Agent(this_session.clone()) {
+            eprintln!(
+                "warning: scheduled prompt \"{}\" targets this session and will stop firing \
+                 once it is archived",
+                trigger.name
+            );
+        }
+    }
+    println!("this session is archived once the current turn ends");
+    Ok(())
+}
+
+async fn await_triggers(conn: &mut Connection, req_id: u64) -> Result<Vec<PromptTrigger>> {
+    loop {
+        match read_frame::<ServerEvent, _>(&mut conn.stream).await? {
+            Some(ServerEvent::Triggers {
+                req_id: r,
+                triggers,
+            }) if r == req_id => return Ok(triggers),
+            Some(ServerEvent::Error {
+                req_id: Some(r),
+                message,
+            }) if r == req_id => bail!("{message}"),
+            Some(_) => continue,
+            None => bail!("{CLOSED_BEFORE_REPLY}"),
+        }
+    }
+}
+
 /// Read events until the daemon answers `req_id` with `WorktreeEntered`.
 async fn await_entered(
     conn: &mut Connection,
@@ -876,6 +925,10 @@ pub fn run_worktree(name: String, base: Option<String>) -> Result<()> {
 /// `berth enter <dir>` (see `enter_project_for_current_agent`).
 pub fn run_enter(path: String) -> Result<()> {
     runtime()?.block_on(enter_project_for_current_agent(&path))
+}
+
+pub fn run_archive() -> Result<()> {
+    runtime()?.block_on(archive_current_agent())
 }
 
 /// `berth spawn "<task>" [--kind <kind>]` (see

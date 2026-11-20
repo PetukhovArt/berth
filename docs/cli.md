@@ -36,6 +36,9 @@ berth worktree [name] [--base <ref>]
                          # otherwise worktree_base in config.json does (develop, main or master)
 berth enter <dir>        # move the current session into the repo at <dir>, adding it as a project
                          # when berth does not have it; the conversation resumes there
+berth archive            # archive the current session once its turn ends; unarchive it from the
+                         # Archive in the Sessions tree to resume; warns about scheduled prompts
+                         # aimed at it
 berth spawn <task> [--kind <claude|codex|cursor|opencode|grok>] [--worktree <branch> [--base <ref>]]
                          # start a new agent session beside the current one, in the same worktree,
                          # opening on <task>; --kind defaults to this session's agent kind.

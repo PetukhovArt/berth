@@ -1,0 +1,87 @@
+use std::sync::Arc;
+
+use anyhow::{bail, Context, Result};
+use berth_core::{AgentId, SessionRef};
+
+use crate::registry::Daemon;
+use crate::status::HookEvent;
+
+pub const CLAUDE_ARCHIVE_GUIDANCE: &str = "[berth] When the user asks you to close, end or archive \
+this session, run this shell command exactly once:\n\n  berth archive\n\nberth archives this session \
+once your current turn ends; the user can bring it back from the Archive in the Sessions tree. Run it only when \
+the user asks. When the command succeeds, end your turn at once with a one-line goodbye, passing on \
+any warning it printed, and make no further tool calls. If it fails, report the error.";
+
+pub(crate) fn is_turn_end(event: &HookEvent) -> bool {
+    match event {
+        HookEvent::Stop => true,
+        HookEvent::Notification { notification_type } => {
+            notification_type.as_deref() == Some("idle_prompt")
+        }
+        _ => false,
+    }
+}
+
+impl Daemon {
+    pub fn archive_self(self: &Arc<Self>, id: &AgentId) -> Result<()> {
+        let agent = self.store.get_agent(id)?.context("agent not found")?;
+        if agent.archived {
+            bail!("agent is archived");
+        }
+        if !self.is_alive(&SessionRef::Agent(id.clone())) {
+            return self.archive_agent(id);
+        }
+        self.pending_archives.lock().unwrap().insert(id.clone());
+        Ok(())
+    }
+
+    pub fn complete_pending_archive(self: &Arc<Self>, id: &AgentId, event: &HookEvent) {
+        if !is_turn_end(event) || !self.pending_archives.lock().unwrap().remove(id) {
+            return;
+        }
+        if let Err(e) = self.archive_agent(id) {
+            tracing::warn!(agent = %id, error = %e, "archive at turn end failed");
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::registry::tests::{seed_agent, seed_projects, seed_worktree, test_daemon};
+
+    fn archived(daemon: &Daemon, id: &AgentId) -> bool {
+        daemon.store.get_agent(id).unwrap().unwrap().archived
+    }
+
+    #[test]
+    fn a_stopped_session_is_archived_at_once_and_a_pending_one_at_its_turn_end() {
+        let daemon = test_daemon();
+        seed_projects(&daemon, &["p"]);
+        seed_worktree(&daemon, "p", "root", "/berth-test/p", true);
+        seed_agent(&daemon, "a1", "root", None);
+        seed_agent(&daemon, "a2", "root", None);
+        let (a1, a2) = (AgentId("a1".into()), AgentId("a2".into()));
+
+        daemon.archive_self(&a2).unwrap();
+        assert!(
+            archived(&daemon, &a2),
+            "a stopped session is archived at once"
+        );
+        assert!(daemon.archive_self(&a2).is_err());
+
+        daemon.pending_archives.lock().unwrap().insert(a1.clone());
+        daemon.complete_pending_archive(
+            &a1,
+            &HookEvent::PostToolUse {
+                tool_name: Some("Bash".into()),
+                subagent_id: None,
+                detail: None,
+            },
+        );
+        assert!(!archived(&daemon, &a1), "a tool hook is not a turn end");
+        daemon.complete_pending_archive(&a1, &HookEvent::Stop);
+        assert!(archived(&daemon, &a1));
+        assert!(daemon.pending_archives.lock().unwrap().is_empty());
+    }
+}
