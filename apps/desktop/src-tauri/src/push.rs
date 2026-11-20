@@ -52,7 +52,7 @@ fn fresh() -> Store {
 fn load() -> Result<Store, String> {
     match secrets::lookup(SECRET_ID) {
         Lookup::Found(text) => serde_json::from_str(&text)
-            .map_err(|error| format!("web push keys are unreadable: {error}")),
+            .map_err(|error| crate::host_text!("pushKeysUnreadable", error = error)),
         Lookup::Missing => {
             let store = fresh();
             persist(&store)?;
@@ -78,19 +78,20 @@ fn valid(subscription: &Subscription) -> Result<(), String> {
     let uri: Uri = subscription
         .endpoint
         .parse()
-        .map_err(|_| "invalid push endpoint".to_owned())?;
+        .map_err(|_| crate::host_text!("invalidPushSubscription"))?;
     if uri.scheme_str() != Some("https") {
-        return Err("push endpoint must be https".to_owned());
+        return Err(crate::host_text!("pushEndpointHttps"));
     }
     let public = URL_SAFE_NO_PAD
         .decode(&subscription.keys.p256dh)
-        .map_err(|_| "invalid p256dh".to_owned())?;
-    PublicKey::from_sec1_bytes(&public).map_err(|_| "invalid p256dh".to_owned())?;
+        .map_err(|_| crate::host_text!("invalidPushSubscription"))?;
+    PublicKey::from_sec1_bytes(&public)
+        .map_err(|_| crate::host_text!("invalidPushSubscription"))?;
     let auth = URL_SAFE_NO_PAD
         .decode(&subscription.keys.auth)
-        .map_err(|_| "invalid auth".to_owned())?;
+        .map_err(|_| crate::host_text!("invalidPushSubscription"))?;
     if auth.len() != 16 {
-        return Err("invalid auth".to_owned());
+        return Err(crate::host_text!("invalidPushSubscription"));
     }
     Ok(())
 }
@@ -103,7 +104,7 @@ fn request(
     let uri: Uri = subscription
         .endpoint
         .parse()
-        .map_err(|_| "invalid push endpoint".to_owned())?;
+        .map_err(|_| crate::host_text!("invalidPushSubscription"))?;
     let public = URL_SAFE_NO_PAD
         .decode(&subscription.keys.p256dh)
         .map_err(|error| error.to_string())?;
@@ -136,7 +137,7 @@ impl Push {
         }
         let store = guard
             .as_mut()
-            .ok_or_else(|| "web push unavailable".to_owned())?;
+            .ok_or_else(|| crate::host_text!("pushUnavailable"))?;
         run(store)
     }
 
@@ -172,7 +173,7 @@ impl Push {
     pub async fn notify(&self, payload: Value) -> Result<(), String> {
         let body = serde_json::to_vec(&payload).map_err(|error| error.to_string())?;
         if body.len() > PAYLOAD_LIMIT {
-            return Err("push payload too large".to_owned());
+            return Err(crate::host_text!("pushPayloadTooLarge"));
         }
         let (pair, subscriptions) =
             self.with(|store| Ok((key_pair(store)?, store.subscriptions.clone())))?;

@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { ChevronLeft, Command, Plus } from '../../../shared/ui/icons';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
+import { hostText } from '../../../shared/lib/i18n/hostText';
 import { paletteOpen } from '../../../shared/lib/commands/context';
 import { useDock } from '../../../shared/model/dock';
 import { view } from '../../../shared/model/nav';
@@ -32,7 +33,7 @@ const reviews = computed(() => tabs.value.find((tab) => tab.id === 'reviews')?.c
 const offline = computed(() => {
   const connection = berth?.connection.value;
   if (!connection || connection.state === 'connected') return null;
-  if (connection.state === 'incompatible') return connection.message ?? t('agents.notices.incompatible');
+  if (connection.state === 'incompatible') return hostText(connection.message) ?? t('agents.notices.incompatible');
   return t(`agents.notices.${connection.state}`);
 });
 

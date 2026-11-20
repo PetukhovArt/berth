@@ -50,11 +50,11 @@ pub async fn chat_bridge_write(
 ) -> Result<(), String> {
     let url = webhook_url.trim();
     if !url.is_empty() && !url.starts_with("http://") && !url.starts_with("https://") {
-        return Err("адрес вебхука должен начинаться с http:// или https://".to_owned());
+        return Err(crate::host_text!("webhookScheme"));
     }
     let owner = telegram_owner.trim();
     if !owner.is_empty() && owner.parse::<i64>().is_err() {
-        return Err("идентификатор владельца в Telegram должен быть числом".to_owned());
+        return Err(crate::host_text!("telegramOwnerNumeric"));
     }
     berth_config_update(&[
         entry(TOKEN_KEY, &telegram_token),

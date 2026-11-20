@@ -14,4 +14,5 @@ export const push: Translation<typeof en> = {
   deny: 'Отклонить',
   open: 'Открыть',
   failed: 'Не удалось связаться с Berth. Откройте приложение, чтобы ответить.',
+  setupFailed: 'Не удалось включить уведомления: Berth ответил {status} ({step}).',
 };

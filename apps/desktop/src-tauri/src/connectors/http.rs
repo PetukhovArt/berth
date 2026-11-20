@@ -27,12 +27,16 @@ impl ApiError {
     pub fn write_denied(self, hint: &str) -> Self {
         match self {
             ApiError::Failed(message)
-                if message.contains("(403)") || message.contains("not accessible") =>
+                if has_status(&message, 403) || message.contains("not accessible") =>
             {
                 ApiError::Failed(format!("{hint} ({message})"))
             }
             other => other,
         }
+    }
+
+    pub fn has_status(&self, code: u16) -> bool {
+        has_status(self.message(), code)
     }
 
     pub fn message(&self) -> &str {
@@ -57,6 +61,10 @@ impl From<ApiError> for String {
 }
 
 pub type ApiResult<T> = Result<T, ApiError>;
+
+fn has_status(message: &str, code: u16) -> bool {
+    message.contains(&format!("\"status\":\"{code}\""))
+}
 
 fn env_var(names: &[&str]) -> Option<String> {
     names
@@ -144,15 +152,15 @@ pub fn host_of(url: &Url) -> String {
 
 fn transport_error(host: &str, error: &reqwest::Error) -> ApiError {
     if error.is_timeout() {
-        ApiError::Unreachable(format!("{host} не отвечает (таймаут)"))
+        ApiError::Unreachable(crate::host_text!("hostTimeout", host = host))
     } else if error.is_connect() {
-        ApiError::Unreachable(format!("нет связи с {host}"))
+        ApiError::Unreachable(crate::host_text!("hostUnreachable", host = host))
     } else if error.is_redirect() {
-        ApiError::Failed(format!("слишком много перенаправлений от {host}"))
+        ApiError::Failed(crate::host_text!("tooManyRedirects", host = host))
     } else if error.is_decode() || error.is_body() {
-        ApiError::Unreachable(format!("обрыв соединения с {host}"))
+        ApiError::Unreachable(crate::host_text!("connectionDropped", host = host))
     } else {
-        ApiError::Unreachable(format!("нет связи с {host}"))
+        ApiError::Unreachable(crate::host_text!("hostUnreachable", host = host))
     }
 }
 
@@ -184,18 +192,20 @@ async fn status_error(host: &str, response: Response) -> ApiError {
         .and_then(|body| remote_message(&body));
     let code = status.as_u16();
     let base = match status {
-        StatusCode::UNAUTHORIZED => format!("токен отклонён (401) на {host}"),
-        StatusCode::FORBIDDEN => format!("доступ запрещён (403) на {host}"),
-        StatusCode::NOT_FOUND => format!("не найдено (404) на {host}"),
-        StatusCode::TOO_MANY_REQUESTS => format!("лимит запросов исчерпан (429) на {host}"),
+        StatusCode::UNAUTHORIZED => crate::host_text!("tokenRejected", host = host, status = code),
+        StatusCode::FORBIDDEN => crate::host_text!("httpForbidden", host = host, status = code),
+        StatusCode::NOT_FOUND => crate::host_text!("httpNotFound", host = host, status = code),
+        StatusCode::TOO_MANY_REQUESTS => {
+            crate::host_text!("rateLimited", host = host, status = code)
+        }
         StatusCode::BAD_GATEWAY | StatusCode::SERVICE_UNAVAILABLE | StatusCode::GATEWAY_TIMEOUT => {
-            let message = format!("{host} недоступен ({code})");
+            let message = crate::host_text!("hostDown", host = host, status = code);
             return ApiError::Unreachable(match detail {
                 Some(detail) => format!("{message}: {detail}"),
                 None => message,
             });
         }
-        _ => format!("ошибка {code} от {host}"),
+        _ => crate::host_text!("httpError", host = host, status = code),
     };
     let message = match detail {
         Some(detail) => format!("{base}: {detail}"),
@@ -240,8 +250,8 @@ impl Api {
     }
 
     pub fn parse_url(raw: &str, query: &[(&str, &str)]) -> ApiResult<Url> {
-        let mut url =
-            Url::parse(raw).map_err(|_| ApiError::failed(format!("некорректный адрес: {raw}")))?;
+        let mut url = Url::parse(raw)
+            .map_err(|_| ApiError::failed(crate::host_text!("invalidUrl", url = raw)))?;
         if !query.is_empty() {
             url.query_pairs_mut().extend_pairs(query);
         }
@@ -302,14 +312,14 @@ impl Api {
             .content_length()
             .is_some_and(|len| len > TEXT_LIMIT)
         {
-            return Err(ApiError::failed("файл слишком большой"));
+            return Err(ApiError::failed(crate::host_text!("fileTooLarge")));
         }
         let bytes = response
             .bytes()
             .await
-            .map_err(|_| ApiError::failed(format!("обрыв соединения с {host}")))?;
+            .map_err(|_| ApiError::failed(crate::host_text!("connectionDropped", host = host)))?;
         if bytes.len() as u64 > TEXT_LIMIT {
-            return Err(ApiError::failed("файл слишком большой"));
+            return Err(ApiError::failed(crate::host_text!("fileTooLarge")));
         }
         Ok(String::from_utf8_lossy(&bytes).into_owned())
     }
@@ -320,7 +330,7 @@ impl Api {
         response
             .json::<Value>()
             .await
-            .map_err(|_| ApiError::failed(format!("неожиданный ответ от {host}: не JSON")))
+            .map_err(|_| ApiError::failed(crate::host_text!("notJson", host = host)))
     }
 
     pub async fn post_json(&self, raw: &str, body: &Value) -> ApiResult<Value> {
@@ -348,7 +358,7 @@ impl Api {
         response
             .json::<Value>()
             .await
-            .map_err(|_| ApiError::failed(format!("неожиданный ответ от {host}: не JSON")))
+            .map_err(|_| ApiError::failed(crate::host_text!("notJson", host = host)))
     }
 }
 

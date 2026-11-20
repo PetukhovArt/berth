@@ -318,8 +318,9 @@ pub fn upload_api_url(base_url: &str, target: &Url) -> Option<Url> {
 
 pub async fn change_request(ctx: &Ctx, project: &str, number: u64) -> ApiResult<ChangeRequest> {
     let mr = ctx.api.json(&mr_url(ctx, project, number), &[]).await?;
-    let mut found = summary(ctx, &mr, project)
-        .ok_or_else(|| ApiError::failed("неожиданный ответ GitLab: нет данных MR"))?;
+    let mut found = summary(ctx, &mr, project).ok_or_else(|| {
+        ApiError::failed(crate::host_text!("unexpectedReply", service = "GitLab"))
+    })?;
     found.unresolved_threads = unresolved(ctx, project, number).await;
     let mergeable = match mr["detailed_merge_status"].as_str() {
         Some("mergeable") => Some(true),
@@ -390,7 +391,7 @@ pub async fn source(ctx: &Ctx, project: &str, number: u64) -> ApiResult<SourceRe
     };
     let source = match project_by_id(ctx, source_id).await {
         Ok(found) => found,
-        Err(ApiError::Failed(message)) if message.contains("(404)") => {
+        Err(error @ ApiError::Failed(_)) if error.has_status(404) => {
             return Ok(SourceRepo {
                 branch,
                 fork: None,
@@ -470,11 +471,7 @@ pub async fn diff(ctx: &Ctx, project: &str, number: u64) -> ApiResult<Vec<DiffFi
     let base = mr_url(ctx, project, number);
     match all_pages(ctx, &format!("{base}/diffs"), &[]).await {
         Ok(entries) => Ok(entries.iter().map(diff_file).collect()),
-        Err(error)
-            if !["(401)", "(403)"]
-                .iter()
-                .any(|code| error.message().contains(code)) =>
-        {
+        Err(error) if ![401, 403].iter().any(|code| error.has_status(*code)) => {
             let changes = ctx
                 .api
                 .json(&format!("{base}/changes"), &[("access_raw_diffs", "true")])
@@ -543,8 +540,9 @@ pub async fn discussions(ctx: &Ctx, project: &str, number: u64) -> ApiResult<Vec
         .collect())
 }
 
-const WRITE_SCOPE: &str =
-    "у токена GitLab нет права на запись: нужен токен со scope api, read_api только читает";
+fn write_scope() -> String {
+    crate::host_text!("gitlabWriteScope")
+}
 
 fn discussion_url(ctx: &Ctx, project: &str, number: u64, id: &str) -> String {
     format!(
@@ -555,9 +553,9 @@ fn discussion_url(ctx: &Ctx, project: &str, number: u64, id: &str) -> String {
 }
 
 fn written(ctx: &Ctx, project: &str, number: u64, raw: ApiResult<Value>) -> ApiResult<Discussion> {
-    let raw = raw.map_err(|error| error.write_denied(WRITE_SCOPE))?;
+    let raw = raw.map_err(|error| error.write_denied(&write_scope()))?;
     discussion(ctx, project, number, &raw)
-        .ok_or_else(|| ApiError::failed("неожиданный ответ GitLab: нет данных обсуждения"))
+        .ok_or_else(|| ApiError::failed(crate::host_text!("unexpectedReply", service = "GitLab")))
 }
 
 pub async fn reply(
@@ -571,7 +569,7 @@ pub async fn reply(
     ctx.api
         .post_json(&format!("{url}/notes"), &json!({ "body": body }))
         .await
-        .map_err(|error| error.write_denied(WRITE_SCOPE))?;
+        .map_err(|error| error.write_denied(&write_scope()))?;
     written(ctx, project, number, ctx.api.json(&url, &[]).await)
 }
 
@@ -654,10 +652,10 @@ pub async fn create(
     ctx.api
         .post_json(&url, &body)
         .await
-        .map_err(|error| error.write_denied(WRITE_SCOPE))?;
+        .map_err(|error| error.write_denied(&write_scope()))?;
     for_branch(ctx, project, branch)
         .await?
-        .ok_or_else(|| ApiError::failed("GitLab не вернул созданный merge request"))
+        .ok_or_else(|| ApiError::failed(crate::host_text!("notCreated", service = "GitLab")))
 }
 
 pub async fn issue_note(ctx: &Ctx, project: &str, iid: u64, body: &str) -> ApiResult<bool> {
@@ -672,6 +670,6 @@ pub async fn issue_note(ctx: &Ctx, project: &str, iid: u64, body: &str) -> ApiRe
     ctx.api
         .post_json(&format!("{url}/notes"), &json!({ "body": body }))
         .await
-        .map_err(|error| error.write_denied(WRITE_SCOPE))?;
+        .map_err(|error| error.write_denied(&write_scope()))?;
     Ok(true)
 }

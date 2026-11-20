@@ -18,7 +18,7 @@ pub fn load(path: &Path) -> Result<WhisperContext, String> {
         .to_str()
         .ok_or_else(|| format!("{} is not a valid path", path.display()))?;
     WhisperContext::new_with_params(path, WhisperContextParameters::default())
-        .map_err(|error| format!("could not load the speech model: {error}"))
+        .map_err(|error| crate::host_text!("speechModelLoadFailed", error = error))
 }
 
 pub fn transcribe(

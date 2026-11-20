@@ -16,7 +16,9 @@ pub const WINDOW_CHROME: WindowChrome = WindowChrome {
 
 pub const SECRETS_DEFAULT_TO_FILE: bool = false;
 pub const SELF_UPDATE: bool = true;
-pub const INSTALL_ROOT_MISSING: &str = "HOME is not set";
+pub fn install_root_missing() -> String {
+    crate::host_text!("envVarUnset", name = "HOME")
+}
 pub const INSTALLER_SCRIPT: &str = "install-app.sh";
 pub const APP_EXECUTABLE: &str = "Berth.app/Contents/MacOS/berth-desktop";
 
@@ -47,7 +49,7 @@ pub fn relaunch_command(exe: &Path, after_pid: u32) -> Result<StdCommand, String
     let bundle = exe
         .ancestors()
         .find(|dir| dir.extension().is_some_and(|ext| ext == "app"))
-        .ok_or_else(|| format!("{} is not inside an .app bundle", exe.display()))?;
+        .ok_or_else(|| crate::host_text!("notInAppBundle", path = exe.display()))?;
     let mut command = StdCommand::new("/bin/sh");
     command
         .arg("-c")
@@ -111,11 +113,11 @@ pub async fn open_login_console(command: &[&str]) -> Result<(), String> {
         .args(["-e", &script])
         .status()
         .await
-        .map_err(|error| format!("не удалось открыть Terminal: {error}"))?;
+        .map_err(|error| crate::host_text!("terminalOpenFailed", error = error))?;
     if status.success() {
         Ok(())
     } else {
-        Err("не удалось открыть Terminal".into())
+        Err(crate::host_text!("terminalOpenFailedPlain"))
     }
 }
 

@@ -32,7 +32,9 @@ pub const WINDOW_CHROME: WindowChrome = imp::WINDOW_CHROME;
 
 pub const SELF_UPDATE: bool = imp::SELF_UPDATE;
 
-pub const UNSUPPORTED: &str = "not supported on this platform yet";
+pub fn unsupported() -> String {
+    crate::host_text!("unsupportedPlatform")
+}
 
 pub const SECRETS_DEFAULT_TO_FILE: bool = imp::SECRETS_DEFAULT_TO_FILE;
 
@@ -73,7 +75,9 @@ pub fn default_install_root() -> Option<PathBuf> {
     imp::default_install_root()
 }
 
-pub const INSTALL_ROOT_MISSING: &str = imp::INSTALL_ROOT_MISSING;
+pub fn install_root_missing() -> String {
+    imp::install_root_missing()
+}
 
 pub const INSTALLER_SCRIPT: &str = imp::INSTALLER_SCRIPT;
 

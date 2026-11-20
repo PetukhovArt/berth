@@ -42,13 +42,13 @@ async fn git(path: &str, args: &[&str]) -> Result<(bool, String), String> {
     let output = tokio::time::timeout(STEP_TIMEOUT, run)
         .await
         .map_err(|_| {
-            format!(
-                "git {} не ответил за {} с",
-                args.join(" "),
-                STEP_TIMEOUT.as_secs()
+            crate::host_text!(
+                "gitTimeout",
+                command = args.join(" "),
+                seconds = STEP_TIMEOUT.as_secs()
             )
         })?
-        .map_err(|error| format!("не удалось запустить git: {error}"))?;
+        .map_err(|error| crate::host_text!("launchFailed", program = "git", error = error))?;
     let bytes = if output.status.success() || output.stderr.trim_ascii().is_empty() {
         output.stdout
     } else {
@@ -244,7 +244,7 @@ pub async fn worktree_git_step(
         "commit" => {
             let message = message.unwrap_or_default();
             if message.trim().is_empty() {
-                return Err("пустое сообщение коммита".to_owned());
+                return Err(crate::host_text!("emptyCommitMessage"));
             }
             run(&path, &["add", "-A"]).await?;
             run(&path, &["commit", "-m", message.trim()]).await
@@ -257,6 +257,6 @@ pub async fn worktree_git_step(
             }
         }
         "pull" => run(&path, &["pull", "--ff-only"]).await,
-        other => Err(format!("неизвестный шаг git: {other}")),
+        other => Err(crate::host_text!("unknownGitStep", step = other)),
     }
 }

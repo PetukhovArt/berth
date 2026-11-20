@@ -43,13 +43,13 @@ impl Git {
         let output = tokio::time::timeout(GIT_TIMEOUT, run)
             .await
             .map_err(|_| {
-                format!(
-                    "git {} не ответил за {} с",
-                    args.join(" "),
-                    GIT_TIMEOUT.as_secs()
+                crate::host_text!(
+                    "gitTimeout",
+                    command = args.join(" "),
+                    seconds = GIT_TIMEOUT.as_secs()
                 )
             })?
-            .map_err(|error| format!("не удалось запустить git: {error}"))?;
+            .map_err(|error| crate::host_text!("launchFailed", program = "git", error = error))?;
         if output.status.success() {
             Ok((true, output.stdout))
         } else {
@@ -365,7 +365,7 @@ async fn open(path: &str) -> Result<Git, String> {
     let root = probe
         .line(&["rev-parse", "--show-toplevel"])
         .await
-        .ok_or_else(|| format!("не git-репозиторий: {path}"))?;
+        .ok_or_else(|| crate::host_text!("notGitRepo", path = path))?;
     Ok(Git {
         root: PathBuf::from(root),
     })
@@ -400,7 +400,7 @@ pub async fn worktree_changes(
             let revision = other
                 .strip_prefix("commit:")
                 .filter(|revision| is_revision(revision))
-                .ok_or_else(|| format!("неизвестный охват изменений: {other}"))?;
+                .ok_or_else(|| crate::host_text!("unknownChangesScope", scope = other))?;
             let parent = format!("{revision}^");
             let has_parent = git
                 .line(&["rev-parse", "--verify", "--quiet", &parent])

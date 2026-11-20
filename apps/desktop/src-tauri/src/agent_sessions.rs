@@ -1068,7 +1068,7 @@ pub(crate) fn collect(since_days: Option<u32>) -> Vec<AgentSession> {
 
 fn locate(harness: Harness, id: &str) -> Result<PathBuf, String> {
     if !valid_id(id) {
-        return Err(format!("некорректный id сессии: {id}"));
+        return Err(crate::host_text!("badSessionId", id = id));
     }
     let cached = lock(cache())
         .iter()
@@ -1077,7 +1077,7 @@ fn locate(harness: Harness, id: &str) -> Result<PathBuf, String> {
     if let Some(path) = cached {
         return Ok(path);
     }
-    let missing = || format!("разговор не найден: {id}");
+    let missing = || crate::host_text!("conversationNotFound", id = id);
     match harness {
         Harness::Claude => {
             let root = claude_root().ok_or_else(missing)?;
@@ -1319,7 +1319,7 @@ fn read_transcript(
     let mut budget = TRANSCRIPT_BYTES;
     loop {
         let (buffer, from_start) = read_tail(&path, budget)
-            .ok_or_else(|| format!("не удалось прочитать {}", path.display()))?;
+            .ok_or_else(|| crate::host_text!("readFailedPlain", path = path.display()))?;
         let mut messages: Vec<TranscriptMessage> = Vec::new();
         let mut model: Option<String> = None;
         let mut calls: HashMap<String, usize> = HashMap::new();

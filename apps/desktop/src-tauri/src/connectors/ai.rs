@@ -388,12 +388,12 @@ async fn probe_codex(program: &str) -> Probe {
         let line = text.lines().find(|line| !line.trim().is_empty());
         return Probe::error(
             line.map(|line| line.trim().to_owned())
-                .unwrap_or_else(|| "codex login status завершился с ошибкой".into()),
+                .unwrap_or_else(|| crate::host_text!("codexStatusFailed")),
         );
     }
     let (email, plan) = codex_identity();
     let method = if lower.contains("api key") {
-        Some("API-ключ".to_owned())
+        Some(crate::host_text!("apiKey"))
     } else {
         None
     };
@@ -428,7 +428,7 @@ fn probe_gemini() -> Probe {
         .any(|name| std::env::var(name).is_ok_and(|value| !value.trim().is_empty()));
     if env_key {
         return Probe {
-            plan: Some("API-ключ из окружения".into()),
+            plan: Some(crate::host_text!("apiKeyFromEnv")),
             ..Probe::new(AiStatus::SignedIn)
         };
     }
@@ -499,7 +499,12 @@ async fn check_cli(kind: AiKind) -> AiView {
 
 fn key_tail(key: &str) -> Option<String> {
     let count = key.chars().count();
-    (count > 8).then(|| format!("ключ …{}", key.chars().skip(count - 4).collect::<String>()))
+    (count > 8).then(|| {
+        crate::host_text!(
+            "keyTail",
+            tail = key.chars().skip(count - 4).collect::<String>()
+        )
+    })
 }
 
 struct KeyInfo {
@@ -509,7 +514,7 @@ struct KeyInfo {
 async fn validate(kind: AiKind, key: &str) -> ApiResult<KeyInfo> {
     let spec = kind
         .key()
-        .ok_or_else(|| ApiError::failed("этот провайдер входит через CLI"))?;
+        .ok_or_else(|| ApiError::failed(crate::host_text!("providerUsesCli")))?;
     let headers = match kind {
         AiKind::AnthropicApi => vec![
             ("x-api-key", key.to_owned()),
@@ -521,11 +526,10 @@ async fn validate(kind: AiKind, key: &str) -> ApiResult<KeyInfo> {
     let plan = match kind {
         AiKind::Openrouter => json["data"]["is_free_tier"].as_bool().map(|free| {
             if free {
-                "бесплатный"
+                crate::host_text!("planFree")
             } else {
-                "платный"
+                crate::host_text!("planPaid")
             }
-            .to_owned()
         }),
         _ => None,
     };
@@ -540,7 +544,7 @@ fn key_view(kind: AiKind, key: &str, result: ApiResult<KeyInfo>) -> AiView {
             ..AiView::base(kind, AiStatus::SignedIn)
         },
         Err(ApiError::Rejected(message)) => AiView {
-            detail: Some(message.replacen("токен", "ключ", 1)),
+            detail: Some(message.replacen("tokenRejected", "keyRejected", 1)),
             ..AiView::base(kind, AiStatus::Rejected)
         },
         Err(ApiError::Unreachable(message)) => AiView {
@@ -580,14 +584,14 @@ async fn open_console(command: &[&str]) -> Result<(), String> {
 
 fn cli_spec(kind: AiKind) -> Result<CliSpec, String> {
     kind.cli()
-        .ok_or_else(|| format!("{}: вход по ключу, добавьте ключ", kind.label()))
+        .ok_or_else(|| crate::host_text!("providerUsesKey", provider = kind.label()))
 }
 
 fn ensure_installed(spec: &CliSpec) -> Result<(), String> {
     if find_program(spec.binary).is_some() {
         Ok(())
     } else {
-        Err(format!("{} не установлен", spec.binary))
+        Err(crate::host_text!("notInstalled", program = spec.binary))
     }
 }
 
@@ -651,12 +655,16 @@ pub async fn ai_logout(state: &Connectors, kind: AiKind) -> Result<(), String> {
     match spec.logout {
         Some(command) => open_console(command).await,
         None => {
-            let dir = gemini_dir().ok_or("не задан домашний каталог")?;
+            let dir = gemini_dir().ok_or_else(|| crate::host_text!("noHomeDir"))?;
             let file = dir.join("oauth_creds.json");
             match std::fs::remove_file(&file) {
                 Ok(()) => Ok(()),
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-                Err(error) => Err(format!("не удалось выйти из {}: {error}", kind.label())),
+                Err(error) => Err(crate::host_text!(
+                    "signOutFailed",
+                    provider = kind.label(),
+                    error = error
+                )),
             }
         }
     }
@@ -664,14 +672,17 @@ pub async fn ai_logout(state: &Connectors, kind: AiKind) -> Result<(), String> {
 
 pub async fn ai_key_set(state: &Connectors, kind: AiKind, key: String) -> Result<AiView, String> {
     if kind.key().is_none() {
-        return Err(format!("{}: вход через CLI, ключ не нужен", kind.label()));
+        return Err(crate::host_text!(
+            "providerKeyNotNeeded",
+            provider = kind.label()
+        ));
     }
     let key = key.trim().to_owned();
     if key.is_empty() {
-        return Err("не указан ключ".into());
+        return Err(crate::host_text!("noKey"));
     }
     let info = validate(kind, &key).await.map_err(|error| match error {
-        ApiError::Rejected(message) => message.replacen("токен", "ключ", 1),
+        ApiError::Rejected(message) => message.replacen("tokenRejected", "keyRejected", 1),
         other => String::from(other),
     })?;
     secrets::save(&kind.secret_id(), &key)?;
@@ -682,7 +693,10 @@ pub async fn ai_key_set(state: &Connectors, kind: AiKind, key: String) -> Result
 
 pub async fn ai_key_remove(state: &Connectors, kind: AiKind) -> Result<(), String> {
     if kind.key().is_none() {
-        return Err(format!("{}: ключ не используется", kind.label()));
+        return Err(crate::host_text!(
+            "providerKeyUnused",
+            provider = kind.label()
+        ));
     }
     secrets::delete(&kind.secret_id());
     state.ai.drop_kind(kind);

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
+import { hostText } from '../../../shared/lib/i18n/hostText';
 import { useBerth } from '../model/berth';
 
 const berth = useBerth();
@@ -16,7 +17,7 @@ const banner = computed(() => {
     case 'offline':
       return t('agents.notices.offline');
     case 'incompatible':
-      return connection.message ?? t('agents.notices.incompatible');
+      return hostText(connection.message) ?? t('agents.notices.incompatible');
     default: {
       const unknown: never = connection.state;
       return unknown;
@@ -26,7 +27,7 @@ const banner = computed(() => {
 
 const detail = computed(() => {
   const connection = berth?.connection.value;
-  return connection?.state === 'offline' ? (connection.message ?? null) : null;
+  return connection?.state === 'offline' ? (hostText(connection.message) ?? null) : null;
 });
 </script>
 
@@ -36,7 +37,7 @@ const detail = computed(() => {
       {{ banner }}
       <span v-if="detail" class="detail" data-testid="berth-banner-detail">{{ detail }}</span>
     </p>
-    <p v-if="berth.error.value" class="banner" role="alert" data-testid="berth-error">{{ berth.error.value }}</p>
+    <p v-if="berth.error.value" class="banner" role="alert" data-testid="berth-error">{{ hostText(berth.error.value) }}</p>
   </template>
 </template>
 

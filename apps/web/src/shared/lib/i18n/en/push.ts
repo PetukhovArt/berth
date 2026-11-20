@@ -11,4 +11,5 @@ export const push = {
   deny: 'Deny',
   open: 'Open',
   failed: 'Could not reach Berth. Open the app to answer.',
+  setupFailed: 'Could not turn on notifications: Berth answered {status} ({step}).',
 } as const;

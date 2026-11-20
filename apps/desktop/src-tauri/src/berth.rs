@@ -24,8 +24,6 @@ const OFFLINE_RETRY: Duration = Duration::from_secs(1);
 const INCOMPATIBLE_RETRY: Duration = Duration::from_secs(5);
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
 const CALL_TIMEOUT: Duration = Duration::from_secs(30);
-const CALL_OFFLINE: &str = "демон berth не запущен";
-const CALL_LOST: &str = "соединение с berth потеряно";
 
 type CallResult = Result<serde_json::Value, String>;
 
@@ -206,10 +204,12 @@ pub async fn berth_call(berth: &Berth, mut request: serde_json::Value) -> CallRe
         fields.entry("req_id").or_insert(serde_json::Value::from(0));
     }
     let request: ClientRequest = serde_json::from_value(request)
-        .map_err(|error| format!("некорректный запрос к berth: {error}"))?;
+        .map_err(|error| crate::host_text!("badBerthRequest", error = error))?;
     let (reply, answer) = oneshot::channel();
     berth.send(Command::Call { request, reply });
-    answer.await.unwrap_or_else(|_| Err(CALL_LOST.into()))
+    answer
+        .await
+        .unwrap_or_else(|_| Err(crate::host_text!("berthConnectionLost")))
 }
 
 enum Msg {
@@ -290,8 +290,10 @@ impl Failure {
     fn message(self) -> String {
         match self {
             Self::Absent(message) | Self::Offline(message) => message,
-            Self::Incompatible(daemon) => format!(
-                "berth daemon speaks protocol v{daemon}, Berth desktop speaks protocol v{PROTOCOL_VERSION}"
+            Self::Incompatible(daemon) => crate::host_text!(
+                "protocolMismatch",
+                daemon = daemon,
+                desktop = PROTOCOL_VERSION
             ),
         }
     }
@@ -398,9 +400,9 @@ impl Actor {
                 }
                 Msg::CallTimedOut(req_id) => {
                     if let Some(reply) = self.pending.remove(&req_id) {
-                        let _ = reply.send(Err(format!(
-                            "berth не ответил за {} с",
-                            CALL_TIMEOUT.as_secs()
+                        let _ = reply.send(Err(crate::host_text!(
+                            "berthTimeout",
+                            seconds = CALL_TIMEOUT.as_secs()
                         )));
                     }
                 }
@@ -461,20 +463,18 @@ impl Actor {
 
     fn call(&mut self, mut request: ClientRequest, reply: oneshot::Sender<CallResult>) {
         let Some(slot) = rpc_req_id(&mut request) else {
-            let _ = reply.send(Err(
-                "berth_call принимает только RPC-запросы с req_id".into()
-            ));
+            let _ = reply.send(Err(crate::host_text!("berthCallNeedsReqId")));
             return;
         };
         let Some(writer) = &self.writer else {
-            let _ = reply.send(Err(CALL_OFFLINE.into()));
+            let _ = reply.send(Err(crate::host_text!("berthOffline")));
             return;
         };
         self.next_req_id += 1;
         let req_id = self.next_req_id;
         *slot = req_id;
         if writer.send(request).is_err() {
-            let _ = reply.send(Err(CALL_LOST.into()));
+            let _ = reply.send(Err(crate::host_text!("berthConnectionLost")));
             return;
         }
         self.pending.insert(req_id, reply);
@@ -506,7 +506,11 @@ impl Actor {
                 let state = failure.state();
                 let start_error = self.start_daemon(&failure);
                 let message = match start_error {
-                    Some(error) => format!("{}; berth daemon: {error}", failure.message()),
+                    Some(error) => crate::host_text!(
+                        "daemonStartFailed",
+                        reason = failure.message(),
+                        error = error
+                    ),
                     None => failure.message(),
                 };
                 self.show(state, Some(message));
@@ -544,7 +548,7 @@ impl Actor {
                 Ok(Ok(stream)) => LinkEvent::Up(stream),
                 Ok(Err(failure)) => LinkEvent::Failed(failure),
                 Err(_) => {
-                    LinkEvent::Failed(Failure::Offline("berth daemon handshake timed out".into()))
+                    LinkEvent::Failed(Failure::Offline(crate::host_text!("handshakeTimeout")))
                 }
             };
             let _ = inbox.send(Msg::Link { epoch, event });
@@ -717,7 +721,7 @@ impl Actor {
         }
         self.writer = None;
         for (_, reply) in self.pending.drain() {
-            let _ = reply.send(Err(CALL_LOST.into()));
+            let _ = reply.send(Err(crate::host_text!("berthConnectionLost")));
         }
     }
 }
@@ -858,9 +862,7 @@ async fn handshake() -> Result<Stream, Failure> {
         Some(other) => Err(Failure::Offline(format!(
             "unexpected berth handshake reply: {other:?}"
         ))),
-        None => Err(Failure::Offline(
-            "berth daemon closed the connection during the handshake".into(),
-        )),
+        None => Err(Failure::Offline(crate::host_text!("handshakeClosed"))),
     }
 }
 

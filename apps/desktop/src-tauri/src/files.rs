@@ -86,10 +86,11 @@ fn extension(path: &Path) -> String {
 }
 
 fn read_limited(path: &Path, limit: u64) -> Result<Vec<u8>, String> {
-    let describe = |error: io::Error| format!("не удалось прочитать {}: {error}", path.display());
+    let describe =
+        |error: io::Error| crate::host_text!("readFailed", path = path.display(), error = error);
     let len = fs::metadata(path).map_err(describe)?.len();
     if len > limit {
-        return Err(format!("файл слишком большой: {}", path.display()));
+        return Err(crate::host_text!("fileTooLargeAt", path = path.display()));
     }
     fs::read(path).map_err(describe)
 }
@@ -122,22 +123,19 @@ fn read_text(path: &Path) -> Result<String, String> {
 
 fn write_text(path: &Path, text: &str, expected: &str) -> Result<String, String> {
     if !MARKDOWN_EXTENSIONS.contains(&extension(path).as_str()) {
-        return Err(format!(
-            "запись разрешена только для markdown: {}",
-            path.display()
-        ));
+        return Err(crate::host_text!("markdownOnly", path = path.display()));
     }
     if text.len() as u64 > TEXT_LIMIT {
-        return Err(format!("файл слишком большой: {}", path.display()));
+        return Err(crate::host_text!("fileTooLargeAt", path = path.display()));
     }
     let target = fs::canonicalize(path)
-        .map_err(|e| format!("не удалось открыть {}: {e}", path.display()))?;
+        .map_err(|e| crate::host_text!("openFailed", path = path.display(), error = e))?;
     if !target.is_file() {
-        return Err(format!("не файл: {}", path.display()));
+        return Err(crate::host_text!("notAFile", path = path.display()));
     }
     let current = read_limited(&target, TEXT_LIMIT)?;
     if std::str::from_utf8(&current).is_err() {
-        return Err(format!("файл не в UTF-8: {}", path.display()));
+        return Err(crate::host_text!("notUtf8", path = path.display()));
     }
     if fingerprint(&current) != expected {
         return Err(CHANGED_ON_DISK.to_owned());
@@ -149,7 +147,7 @@ fn write_text(path: &Path, text: &str, expected: &str) -> Result<String, String>
     out.extend_from_slice(text.as_bytes());
     let dir = target
         .parent()
-        .ok_or_else(|| format!("нет папки: {}", path.display()))?;
+        .ok_or_else(|| crate::host_text!("noFolder", path = path.display()))?;
     let name = target.file_name().unwrap_or_default().to_string_lossy();
     let temp = dir.join(format!(".{name}.berth-{}.tmp", std::process::id()));
     let written = (|| -> io::Result<()> {
@@ -164,7 +162,11 @@ fn write_text(path: &Path, text: &str, expected: &str) -> Result<String, String>
     })();
     if let Err(error) = written {
         let _ = fs::remove_file(&temp);
-        return Err(format!("не удалось записать {}: {error}", path.display()));
+        return Err(crate::host_text!(
+            "writeFailed",
+            path = path.display(),
+            error = error
+        ));
     }
     Ok(fingerprint(&out))
 }
@@ -280,7 +282,7 @@ pub async fn fs_list_markdown(root: String) -> Result<Vec<String>, String> {
     spawn_blocking(move || {
         let root = PathBuf::from(root);
         if !root.is_dir() {
-            return Err(format!("не папка: {}", root.display()));
+            return Err(crate::host_text!("notAFolder", path = root.display()));
         }
         Ok(collect_markdown(&root))
     })
@@ -289,8 +291,8 @@ pub async fn fs_list_markdown(root: String) -> Result<Vec<String>, String> {
 }
 
 fn collect_dirs(root: &Path) -> Result<Vec<String>, String> {
-    let entries =
-        fs::read_dir(root).map_err(|e| format!("не удалось прочитать {}: {e}", root.display()))?;
+    let entries = fs::read_dir(root)
+        .map_err(|e| crate::host_text!("readFailed", path = root.display(), error = e))?;
     let mut names: Vec<String> = entries
         .flatten()
         .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
@@ -305,7 +307,7 @@ pub async fn fs_list_dirs(root: String) -> Result<Vec<String>, String> {
     spawn_blocking(move || {
         let root = PathBuf::from(root);
         if !root.is_dir() {
-            return Err(format!("не папка: {}", root.display()));
+            return Err(crate::host_text!("notAFolder", path = root.display()));
         }
         collect_dirs(&root)
     })
@@ -316,15 +318,16 @@ pub async fn fs_list_dirs(root: String) -> Result<Vec<String>, String> {
 pub async fn fs_open_external(path: String) -> Result<(), String> {
     let path = PathBuf::from(path);
     if !path.exists() {
-        return Err(format!("файл не найден: {}", path.display()));
+        return Err(crate::host_text!("fileNotFound", path = path.display()));
     }
     if EXECUTABLE_EXTENSIONS.contains(&extension(&path).as_str()) {
-        return Err(format!(
-            "исполняемый файл не открывается: {}",
-            path.display()
+        return Err(crate::host_text!(
+            "executableBlocked",
+            path = path.display()
         ));
     }
-    open_in_default_app(&path).map_err(|e| format!("не удалось открыть {}: {e}", path.display()))
+    open_in_default_app(&path)
+        .map_err(|e| crate::host_text!("openFailed", path = path.display(), error = e))
 }
 
 fn open_in_default_app(path: &Path) -> io::Result<()> {

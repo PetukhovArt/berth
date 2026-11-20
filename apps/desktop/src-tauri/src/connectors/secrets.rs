@@ -35,7 +35,8 @@ impl Keyring {
     }
 
     fn entry(service: &str, id: &str) -> Result<Entry, String> {
-        Entry::new(service, id).map_err(|error| format!("хранилище ключей недоступно: {error}"))
+        Entry::new(service, id)
+            .map_err(|error| crate::host_text!("keychainUnavailable", error = error))
     }
 
     fn read(service: &str, id: &str) -> Lookup {
@@ -46,7 +47,7 @@ impl Keyring {
         match entry.get_password() {
             Ok(secret) => Lookup::Found(secret),
             Err(keyring::Error::NoEntry) => Lookup::Missing,
-            Err(other) => Lookup::Failed(format!("не удалось прочитать токен: {other}")),
+            Err(other) => Lookup::Failed(crate::host_text!("tokenReadFailed", error = other)),
         }
     }
 
@@ -111,7 +112,7 @@ impl SecretStore for Keyring {
     fn save(&self, id: &str, secret: &str) -> Result<(), String> {
         Self::entry(SERVICE, id)?
             .set_password(secret)
-            .map_err(|error| format!("не удалось сохранить токен в хранилище ключей: {error}"))
+            .map_err(|error| crate::host_text!("tokenSaveFailed", error = error))
     }
 
     fn load(&self, id: &str) -> Lookup {
@@ -155,19 +156,22 @@ impl FileStore {
 
     fn read(&self) -> Result<BTreeMap<String, String>, String> {
         match fs::read_to_string(&self.path) {
-            Ok(text) => serde_json::from_str(&text)
-                .map_err(|error| format!("{} повреждён: {error}", self.path.display())),
+            Ok(text) => serde_json::from_str(&text).map_err(|error| {
+                crate::host_text!("corrupted", path = self.path.display(), error = error)
+            }),
             Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(BTreeMap::new()),
-            Err(error) => Err(format!(
-                "не удалось прочитать {}: {error}",
-                self.path.display()
+            Err(error) => Err(crate::host_text!(
+                "readFailed",
+                path = self.path.display(),
+                error = error
             )),
         }
     }
 
     fn write(&self, secrets: &BTreeMap<String, String>) -> Result<(), String> {
-        let fail =
-            |error: io::Error| format!("не удалось записать {}: {error}", self.path.display());
+        let fail = |error: io::Error| {
+            crate::host_text!("writeFailed", path = self.path.display(), error = error)
+        };
         if let Some(dir) = self.path.parent() {
             fs::create_dir_all(dir).map_err(fail)?;
         }
@@ -239,9 +243,7 @@ pub fn lookup(id: &str) -> Lookup {
 pub fn load(id: &str) -> ApiResult<String> {
     match lookup(id) {
         Lookup::Found(secret) => Ok(secret),
-        Lookup::Missing => Err(ApiError::failed(
-            "токен не найден в хранилище ключей: введите его заново",
-        )),
+        Lookup::Missing => Err(ApiError::failed(crate::host_text!("tokenMissing"))),
         Lookup::Failed(message) => Err(ApiError::failed(message)),
     }
 }

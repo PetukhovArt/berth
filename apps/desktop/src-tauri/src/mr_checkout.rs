@@ -58,10 +58,17 @@ pub(crate) async fn git(repo: &str, args: &[&str], timeout: Duration) -> Result<
             stderr: String::from_utf8_lossy(&output.stderr).trim().to_owned(),
         }),
         Ok(Err(error)) if error.kind() == std::io::ErrorKind::NotFound => {
-            Err("git not found in PATH".to_owned())
+            Err(crate::host_text!("notInPath", program = "git"))
         }
-        Ok(Err(error)) => Err(format!("git: {error}")),
-        Err(_) => Err(format!("git {} timed out", args.first().unwrap_or(&""))),
+        Ok(Err(error)) => Err(crate::host_text!(
+            "launchFailed",
+            program = "git",
+            error = error
+        )),
+        Err(_) => Err(crate::host_text!(
+            "gitTimedOut",
+            command = args.first().unwrap_or(&"")
+        )),
     }
 }
 
@@ -167,7 +174,7 @@ pub async fn mr_fetch_source(
     fork: Option<Fork>,
 ) -> Result<Fetched, String> {
     if !valid_name(&branch) {
-        return Err(format!("invalid branch name: {branch}"));
+        return Err(crate::host_text!("invalidBranch", branch = branch));
     }
     let remote = match &fork {
         Some(fork) => match fork_remote(&repo, fork).await? {

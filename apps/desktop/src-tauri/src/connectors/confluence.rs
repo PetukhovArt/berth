@@ -89,7 +89,9 @@ pub async fn whoami(ctx: &Ctx) -> ApiResult<Person> {
         .await?;
     let name = opt(&me["displayName"])
         .or_else(|| opt(&me["username"]))
-        .ok_or_else(|| ApiError::failed("неожиданный ответ Confluence: нет данных пользователя"))?;
+        .ok_or_else(|| {
+            ApiError::failed(crate::host_text!("unexpectedReply", service = "Confluence"))
+        })?;
     let username = opt(&me["username"])
         .or_else(|| opt(&me["userKey"]))
         .or_else(|| opt(&me["accountId"]))
@@ -136,7 +138,7 @@ pub async fn confluence_search(
             .flatten()
             .filter_map(|item| hit_from_search(&ctx, item))
             .collect(),
-        Err(error) if error.message().contains("(404)") => {
+        Err(error) if error.has_status(404) => {
             let found = ctx
                 .api
                 .json(

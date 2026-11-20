@@ -88,7 +88,8 @@ fn person(user: &Value) -> Option<Person> {
 
 pub async fn whoami(ctx: &Ctx) -> ApiResult<Person> {
     let me = ctx.api.json(&format!("{}/myself", api(ctx)), &[]).await?;
-    person(&me).ok_or_else(|| ApiError::failed("неожиданный ответ Jira: нет данных пользователя"))
+    person(&me)
+        .ok_or_else(|| ApiError::failed(crate::host_text!("unexpectedReply", service = "Jira")))
 }
 
 fn category(status: &Value) -> &'static str {
@@ -194,7 +195,7 @@ pub async fn jira_issue(
         )
         .await?;
     let head = summary(&ctx, &issue)
-        .ok_or_else(|| String::from("неожиданный ответ Jira: нет данных задачи"))?;
+        .ok_or_else(|| crate::host_text!("unexpectedReply", service = "Jira"))?;
     let fields = &issue["fields"];
     let rendered = &issue["renderedFields"];
     let rendered_comments = rendered["comment"]["comments"].as_array();

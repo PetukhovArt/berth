@@ -21,7 +21,9 @@ pub const WINDOW_CHROME: WindowChrome = WindowChrome {
 pub const SELF_UPDATE: bool = true;
 pub const SECRETS_DEFAULT_TO_FILE: bool = false;
 pub const POWERSHELL: &str = "powershell";
-pub const INSTALL_ROOT_MISSING: &str = "LOCALAPPDATA is not set";
+pub fn install_root_missing() -> String {
+    crate::host_text!("envVarUnset", name = "LOCALAPPDATA")
+}
 pub const INSTALLER_SCRIPT: &str = "install-app.ps1";
 pub const APP_EXECUTABLE: &str = "berth-desktop.exe";
 
@@ -137,11 +139,11 @@ pub async fn open_login_console(command: &[&str]) -> Result<(), String> {
         .creation_flags(CREATE_NO_WINDOW)
         .status()
         .await
-        .map_err(|error| format!("не удалось открыть консоль: {error}"))?;
+        .map_err(|error| crate::host_text!("consoleOpenFailed", error = error))?;
     if status.success() {
         Ok(())
     } else {
-        Err("не удалось открыть консоль".into())
+        Err(crate::host_text!("consoleOpenFailedPlain"))
     }
 }
 
@@ -154,7 +156,7 @@ pub fn webview_profile_bases() -> Vec<PathBuf> {
 }
 
 pub fn bash_program() -> Result<PathBuf, String> {
-    git_bash().ok_or_else(|| "Git Bash не найден: укажите JIG_BASH".to_owned())
+    git_bash().ok_or_else(|| crate::host_text!("gitBashMissing"))
 }
 
 pub fn script_tools_path() -> Option<OsString> {

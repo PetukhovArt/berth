@@ -13,6 +13,7 @@ mod desktop;
 pub mod files;
 mod git_step;
 mod history_projects;
+pub mod host_text;
 pub mod legacy;
 pub mod merge_watch;
 mod mr_checkout;

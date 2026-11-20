@@ -709,12 +709,12 @@ fn guard(repo: &Path, path: &Path) -> Result<(), String> {
     let target = key(path);
     let repo_key = key(repo);
     if path.parent().is_none() || target.is_empty() {
-        return Err(format!("refusing to touch {}", path.display()));
+        return Err(crate::host_text!("refuseTouch", path = path.display()));
     }
     if is_within(&repo_key, &target) || is_within(&target, &repo_key) {
-        return Err(format!(
-            "refusing to touch {}: it is or holds the main checkout",
-            path.display()
+        return Err(crate::host_text!(
+            "refuseMainCheckout",
+            path = path.display()
         ));
     }
     Ok(())
@@ -733,7 +733,7 @@ fn unlink_tree(path: &Path, remove: bool) -> Result<Unlinked, String> {
     let mut left = Vec::new();
     collect_links(path, &mut left).map_err(|e| format!("{}: {e}", path.display()))?;
     if let Some(first) = left.first() {
-        return Err(format!("a link is still in place: {}", first.display()));
+        return Err(crate::host_text!("linkStillThere", path = first.display()));
     }
     let links: Vec<LinkCheck> = checks
         .into_iter()
@@ -748,10 +748,10 @@ fn unlink_tree(path: &Path, remove: bool) -> Result<Unlinked, String> {
         .iter()
         .find(|c| c.before.is_some() && c.after < c.before)
     {
-        return Err(format!(
-            "{} lost entries after unlinking {}",
-            lost.target.as_deref().unwrap_or("?"),
-            lost.link
+        return Err(crate::host_text!(
+            "lostEntries",
+            target = lost.target.as_deref().unwrap_or("?"),
+            link = lost.link
         ));
     }
     if remove {
@@ -799,12 +799,12 @@ pub async fn cleanup_finish(
     };
     let current = git_out(&repo, &["symbolic-ref", "-q", "--short", "HEAD"]).await;
     if current.as_deref() == Some(branch.as_str()) {
-        return Err(format!("{branch} is checked out in the main checkout"));
+        return Err(crate::host_text!("branchInMainCheckout", branch = branch));
     }
     match git_run(&repo, &["branch", "-D", &branch], QUICK).await {
         Some((true, _)) => Ok(true),
         Some((false, message)) => Err(message),
-        None => Err("git branch -D timed out".to_owned()),
+        None => Err(crate::host_text!("gitTimedOut", command = "branch -D")),
     }
 }
 
@@ -812,7 +812,7 @@ pub async fn cleanup_diff(path: String) -> Result<String, String> {
     let dir = PathBuf::from(&path);
     let status = git_out(&dir, &["status", "--short"])
         .await
-        .ok_or_else(|| format!("git status failed in {path}"))?;
+        .ok_or_else(|| crate::host_text!("gitStatusFailed", path = path))?;
     let diff = git_out(&dir, &["diff", "HEAD", "--no-color", "--no-ext-diff"])
         .await
         .unwrap_or_default();

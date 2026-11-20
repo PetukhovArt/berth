@@ -184,7 +184,7 @@ fn failure(stderr: &str, code: Option<i32>) -> String {
         .unwrap_or_default();
     let message = line.strip_prefix("ERROR").map_or(line, str::trim);
     if message.is_empty() {
-        format!("адаптер завершился с кодом {}", code.unwrap_or(-1))
+        crate::host_text!("adapterExit", code = code.unwrap_or(-1))
     } else {
         message.to_owned()
     }
@@ -223,7 +223,7 @@ fn parse_queue(adapter: String, stdout: &str) -> ReviewQueue {
                 Some(row) => rows.push(row),
                 None => notes.push(ReviewNote {
                     refs: Vec::new(),
-                    text: format!("не разобрана строка адаптера: {line}"),
+                    text: crate::host_text!("adapterBadLine", line = line),
                 }),
             },
             "NOTE" if columns.len() >= 3 => notes.push(ReviewNote {
@@ -256,7 +256,10 @@ pub async fn review_queue(repo: String) -> Result<ReviewQueue, String> {
     };
     let adapter = resolve_adapter(&repo, &setting);
     if !adapter.is_file() {
-        return Err(format!("адаптер не найден: {}", adapter.display()));
+        return Err(crate::host_text!(
+            "adapterNotFound",
+            path = adapter.display()
+        ));
     }
     let mut command = command_for(&adapter, &repo)?;
     let run = async {
@@ -267,13 +270,13 @@ pub async fn review_queue(repo: String) -> Result<ReviewQueue, String> {
     let output = match tokio::time::timeout(QUEUE_TIMEOUT, run).await {
         Ok(Ok(output)) => output,
         Ok(Err(error)) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Err(format!("не найден интерпретатор для {}", adapter.display()))
+            return Err(crate::host_text!("noInterpreter", path = adapter.display()))
         }
-        Ok(Err(error)) => return Err(format!("не удалось запустить адаптер: {error}")),
+        Ok(Err(error)) => return Err(crate::host_text!("adapterLaunchFailed", error = error)),
         Err(_) => {
-            return Err(format!(
-                "адаптер не ответил за {} с",
-                QUEUE_TIMEOUT.as_secs()
+            return Err(crate::host_text!(
+                "adapterTimeout",
+                seconds = QUEUE_TIMEOUT.as_secs()
             ))
         }
     };
@@ -293,5 +296,5 @@ pub async fn review_adapter(repo: String) -> Result<Option<String>, String> {
     let adapter = resolve_adapter(&repo, &setting);
     std::fs::canonicalize(&adapter)
         .map(|real| Some(real.to_string_lossy().into_owned()))
-        .map_err(|_| format!("адаптер не найден: {}", adapter.display()))
+        .map_err(|_| crate::host_text!("adapterNotFound", path = adapter.display()))
 }

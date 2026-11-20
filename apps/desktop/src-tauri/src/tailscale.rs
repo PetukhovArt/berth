@@ -53,7 +53,7 @@ async fn run(args: &[String]) -> Result<String, String> {
     let label = format!("tailscale {}", args.join(" "));
     let output = tokio::time::timeout(TIMEOUT, async { command.spawn()?.wait_with_output().await })
         .await
-        .map_err(|_| format!("{label}: no answer in {} s", TIMEOUT.as_secs()))?
+        .map_err(|_| crate::host_text!("noAnswer", program = label, seconds = TIMEOUT.as_secs()))?
         .map_err(|error| format!("{label}: {error}"))?;
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).into_owned())
@@ -67,7 +67,7 @@ async fn run(args: &[String]) -> Result<String, String> {
 
 pub async fn serve(port: u16) -> Result<String, String> {
     let status = run(&["status".to_owned(), "--json".to_owned()]).await?;
-    let name = dns_name(&status).ok_or("tailscale status has no DNS name for this machine")?;
+    let name = dns_name(&status).ok_or_else(|| crate::host_text!("tailscaleNoDnsName"))?;
     run(&serve_on_args(port)).await?;
     Ok(public_url(&name))
 }

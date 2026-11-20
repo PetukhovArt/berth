@@ -76,7 +76,7 @@ fn start(tx: mpsc::UnboundedSender<Captured>) -> Result<cpal::Stream, Failure> {
     let host = cpal::default_host();
     let device = host
         .default_input_device()
-        .ok_or_else(|| (Issue::Failed, "no microphone found".to_owned()))?;
+        .ok_or_else(|| (Issue::Failed, crate::host_text!("noMicrophone")))?;
     let supported = device.default_input_config().map_err(classify)?;
     let format = supported.sample_format();
     let config = supported.config();

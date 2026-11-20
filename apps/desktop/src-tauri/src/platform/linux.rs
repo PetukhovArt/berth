@@ -16,7 +16,9 @@ pub const WINDOW_CHROME: WindowChrome = WindowChrome {
 
 pub const SECRETS_DEFAULT_TO_FILE: bool = true;
 pub const SELF_UPDATE: bool = false;
-pub const INSTALL_ROOT_MISSING: &str = "self-update is not supported on this platform yet";
+pub fn install_root_missing() -> String {
+    crate::host_text!("selfUpdateUnsupported")
+}
 pub const INSTALLER_SCRIPT: &str = "install-app.sh";
 pub const APP_EXECUTABLE: &str = "berth-desktop";
 
@@ -25,11 +27,11 @@ pub fn default_install_root() -> Option<PathBuf> {
 }
 
 pub fn installer_command(_script: &Path) -> Result<std::process::Command, String> {
-    Err(INSTALL_ROOT_MISSING.into())
+    Err(install_root_missing())
 }
 
 pub fn relaunch_command(_exe: &Path, _after_pid: u32) -> Result<std::process::Command, String> {
-    Err(INSTALL_ROOT_MISSING.into())
+    Err(install_root_missing())
 }
 
 pub fn detach(command: &mut std::process::Command) -> io::Result<u32> {
@@ -102,7 +104,7 @@ pub async fn open_login_console(command: &[&str]) -> Result<(), String> {
             return Ok(());
         }
     }
-    Err("не найден терминал для запуска входа".into())
+    Err(crate::host_text!("noTerminal"))
 }
 
 #[cfg(feature = "desktop")]

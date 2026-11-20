@@ -1,3 +1,4 @@
+import { t } from '../../../shared/lib/i18n/i18n';
 import { BerthCallError, call } from '../../../entities/session';
 import { fromConditionList, isObject, toConditionList, type ConditionList, type Json, type JsonObject } from './conditionRows';
 
@@ -59,7 +60,7 @@ export function newRule(taken: string[]): RuleDraft {
 
 async function routerCall(request: Record<string, Record<string, unknown>>): Promise<Loaded> {
   const reply = await call(request);
-  if (!('RouterConfig' in reply)) throw new BerthCallError(Object.keys(reply).join(''));
+  if (!('RouterConfig' in reply)) throw new BerthCallError(t('agents.errors.unexpectedReply', { reply: Object.keys(reply).join('') }));
   return { draft: toDraft(reply.RouterConfig.json), path: reply.RouterConfig.path };
 }
 

@@ -128,12 +128,14 @@ fn persist(records: &[Record]) -> Result<(), String> {
     let path = registry_path()?;
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir)
-            .map_err(|e| format!("не удалось создать {}: {e}", dir.display()))?;
+            .map_err(|e| crate::host_text!("createFailed", path = dir.display(), error = e))?;
     }
     let text = serde_json::to_string_pretty(records).map_err(|e| e.to_string())?;
     let temp = path.with_extension("json.tmp");
-    fs::write(&temp, text).map_err(|e| format!("не удалось записать реестр коннекторов: {e}"))?;
-    fs::rename(&temp, &path).map_err(|e| format!("не удалось записать реестр коннекторов: {e}"))
+    fs::write(&temp, text)
+        .map_err(|e| crate::host_text!("connectorRegistryWriteFailed", error = e))?;
+    fs::rename(&temp, &path)
+        .map_err(|e| crate::host_text!("connectorRegistryWriteFailed", error = e))
 }
 
 fn view(record: &Record, health: Option<&Health>) -> ConnectorView {
@@ -154,16 +156,17 @@ fn view(record: &Record, health: Option<&Health>) -> ConnectorView {
 fn normalize_base_url(input: &str) -> Result<String, String> {
     let trimmed = input.trim();
     if trimmed.is_empty() {
-        return Err("не указан адрес сервера".into());
+        return Err(crate::host_text!("noServerUrl"));
     }
     let with_scheme = if trimmed.contains("://") {
         trimmed.to_owned()
     } else {
         format!("https://{trimmed}")
     };
-    let url = Url::parse(&with_scheme).map_err(|_| format!("некорректный адрес: {trimmed}"))?;
+    let url =
+        Url::parse(&with_scheme).map_err(|_| crate::host_text!("invalidUrl", url = trimmed))?;
     if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
-        return Err(format!("некорректный адрес: {trimmed}"));
+        return Err(crate::host_text!("invalidUrl", url = trimmed));
     }
     let host = url.host_str().unwrap_or_default();
     let port = url.port().map(|p| format!(":{p}")).unwrap_or_default();
@@ -241,7 +244,7 @@ impl Connectors {
             .iter()
             .find(|record| record.id == id)
             .cloned()
-            .ok_or_else(|| format!("коннектор {id} не найден"))
+            .ok_or_else(|| crate::host_text!("connectorGone", id = id))
     }
 
     fn views(&self) -> Vec<ConnectorView> {
@@ -285,15 +288,15 @@ impl Connectors {
     pub async fn ctx(&self, id: &str, kinds: &[Kind]) -> Result<Ctx, String> {
         let record = self.record(id)?;
         if !kinds.contains(&record.kind) {
-            return Err(format!(
-                "коннектор «{}» — это {}, а не {}",
-                record.label,
-                record.kind.title(),
-                kinds
+            return Err(crate::host_text!(
+                "connectorWrongKind",
+                label = record.label,
+                actual = record.kind.title(),
+                expected = kinds
                     .iter()
                     .map(|kind| kind.title())
                     .collect::<Vec<_>>()
-                    .join(" или ")
+                    .join(" / ")
             ));
         }
         self.build_ctx(&record, None).await.map_err(String::from)
@@ -373,12 +376,12 @@ pub async fn connector_add(
     let email = email.map(|e| e.trim().to_owned()).filter(|e| !e.is_empty());
     match auth {
         AuthMode::Cli if !kind.is_forge() => {
-            return Err(format!(
-                "{}: вход через CLI недоступен, нужен токен",
-                kind.title()
+            return Err(crate::host_text!(
+                "cliSignInUnavailable",
+                kind = kind.title()
             ))
         }
-        AuthMode::Token if token.is_none() => return Err("не указан токен".into()),
+        AuthMode::Token if token.is_none() => return Err(crate::host_text!("noToken")),
         _ => {}
     }
     let email = if matches!(kind, Kind::Jira | Kind::Confluence) {
@@ -394,7 +397,7 @@ pub async fn connector_add(
                 && cli::host_port(&r.base_url).as_deref() == Some(host.as_str())
         })
     {
-        return Err(format!("{host} уже добавлен"));
+        return Err(crate::host_text!("alreadyAdded", host = host));
     }
     let record = Record {
         id: state.unique_id(kind, &base_url),
@@ -493,7 +496,7 @@ pub async fn connector_remove(state: &Connectors, id: String) -> Result<(), Stri
     let before = records.len();
     records.retain(|record| record.id != id);
     if records.len() == before {
-        return Err(format!("коннектор {id} не найден"));
+        return Err(crate::host_text!("connectorNotFound", id = id));
     }
     persist(&records)?;
     {
@@ -533,15 +536,15 @@ pub async fn connector_asset(state: &Connectors, id: String, url: String) -> Res
             &[Kind::Github, Kind::Gitlab, Kind::Jira, Kind::Confluence],
         )
         .await?;
-    let base =
-        Url::parse(&ctx.base_url).map_err(|_| format!("некорректный адрес: {}", ctx.base_url))?;
+    let base = Url::parse(&ctx.base_url)
+        .map_err(|_| crate::host_text!("invalidUrl", url = ctx.base_url))?;
     let target = base
         .join(url.trim())
-        .map_err(|_| format!("некорректный адрес вложения: {url}"))?;
+        .map_err(|_| crate::host_text!("invalidAttachmentUrl", url = url))?;
     let base_host = base.host_str().unwrap_or_default().to_owned();
     let host = target.host_str().unwrap_or_default().to_owned();
     if !matches!(target.scheme(), "http" | "https") || !asset_allowed(ctx.kind, &base_host, &host) {
-        return Err(format!("вложение не с сервера коннектора ({base_host})"));
+        return Err(crate::host_text!("attachmentForeignHost", host = base_host));
     }
     let own =
         host == base_host || Some(host.as_str()) == api_host(ctx.kind, &ctx.base_url).as_deref();
@@ -559,7 +562,7 @@ pub async fn connector_asset(state: &Connectors, id: String, url: String) -> Res
         .content_length()
         .is_some_and(|len| len > ASSET_LIMIT)
     {
-        return Err("вложение слишком большое".into());
+        return Err(crate::host_text!("attachmentTooLarge"));
     }
     let mime = response
         .headers()
@@ -569,14 +572,14 @@ pub async fn connector_asset(state: &Connectors, id: String, url: String) -> Res
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| "application/octet-stream".to_owned());
     if mime == "text/html" {
-        return Err(format!("{host} вернул страницу вместо вложения"));
+        return Err(crate::host_text!("pageInsteadOfAttachment", host = host));
     }
     let bytes = response
         .bytes()
         .await
-        .map_err(|_| format!("обрыв соединения с {host}"))?;
+        .map_err(|_| crate::host_text!("connectionDropped", host = host))?;
     if bytes.len() as u64 > ASSET_LIMIT {
-        return Err("вложение слишком большое".into());
+        return Err(crate::host_text!("attachmentTooLarge"));
     }
     Ok(Asset {
         mime,

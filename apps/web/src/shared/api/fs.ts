@@ -1,4 +1,4 @@
-import { closeChannel, createChannel, invoke, isDesktop } from '../../bridge';
+import { closeChannel, createHostChannel, invoke, isDesktop } from '../../bridge';
 import type { DiffFile } from './connectors/api';
 
 export type BinaryFile = { mime: string; base64: string };
@@ -24,7 +24,7 @@ export const canOpenExternal = isDesktop;
 export const fsOpenExternal = (path: string) => invoke<void>('fs_open_external', { path });
 
 export async function fsWatch(path: string, onChange: (doc: FileDoc) => void): Promise<() => void> {
-  const channel = createChannel<FileDoc>(onChange);
+  const channel = createHostChannel<FileDoc>(onChange);
   const id = await invoke<number>('fs_watch', { path, onEvent: channel });
   return () => {
     closeChannel(channel);

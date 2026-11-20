@@ -231,7 +231,7 @@ impl Models {
 
     pub fn remove(&self) -> Result<(), String> {
         if self.downloading() {
-            return Err("a speech model is still downloading".to_owned());
+            return Err(crate::host_text!("speechModelDownloading"));
         }
         self.errors
             .lock()

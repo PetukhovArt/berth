@@ -1,5 +1,6 @@
 import { shallowRef } from 'vue';
 import { isDesktop, remoteFetch } from '../../../bridge';
+import { t } from '../../../shared/lib/i18n/i18n';
 
 export type PushState = 'unsupported' | 'denied' | 'off' | 'on';
 
@@ -44,12 +45,12 @@ export async function enablePush(): Promise<void> {
     return;
   }
   const keyResponse = await remoteFetch(`${BASE}/key`);
-  if (!keyResponse.ok) throw new Error(`push key ${keyResponse.status}`);
+  if (!keyResponse.ok) throw new Error(t('push.setupFailed', { step: 'key', status: keyResponse.status }));
   const key = decodeKey(await keyResponse.text());
   const worker = await registration();
   const subscription = (await worker.pushManager.getSubscription()) ?? (await worker.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }));
   const saved = await post('subscribe', subscription.toJSON());
-  if (!saved.ok) throw new Error(`push subscribe ${saved.status}`);
+  if (!saved.ok) throw new Error(t('push.setupFailed', { step: 'subscribe', status: saved.status }));
   pushState.value = 'on';
 }
 

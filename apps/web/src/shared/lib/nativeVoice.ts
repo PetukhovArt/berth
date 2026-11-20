@@ -1,5 +1,5 @@
 import { computed, shallowRef } from 'vue';
-import { closeChannel, createChannel, invoke, isDesktop, listen } from '../../bridge';
+import { closeChannel, createHostChannel, invoke, isDesktop, listen } from '../../bridge';
 import { hostPlatform } from './platform';
 import type { DictationEngine, HoldToTalkIssue, Take, TakeEvents, TakeOptions } from './speechEngine';
 
@@ -51,7 +51,7 @@ function open(options: TakeOptions, events: TakeEvents): Take {
     closeChannel(channel);
     events.end(text, issue);
   };
-  const channel = createChannel<RunEvent>((event) => {
+  const channel = createHostChannel<RunEvent>((event) => {
     if (event.kind === 'woke') {
       woke = true;
       events.woke();

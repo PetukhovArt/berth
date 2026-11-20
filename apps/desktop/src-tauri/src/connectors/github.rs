@@ -83,7 +83,7 @@ async fn graphql(ctx: &Ctx, query: &str, variables: Value) -> ApiResult<Value> {
     if response["data"].is_null() {
         let message = response["errors"][0]["message"]
             .as_str()
-            .unwrap_or("пустой ответ GraphQL");
+            .unwrap_or("empty GraphQL response");
         return Err(ApiError::failed(format!("GitHub GraphQL: {message}")));
     }
     Ok(response["data"].clone())
@@ -92,7 +92,7 @@ async fn graphql(ctx: &Ctx, query: &str, variables: Value) -> ApiResult<Value> {
 fn split_project(project: &str) -> ApiResult<(&str, &str)> {
     project
         .split_once('/')
-        .ok_or_else(|| ApiError::failed(format!("некорректный репозиторий: {project}")))
+        .ok_or_else(|| ApiError::failed(crate::host_text!("invalidRepo", project = project)))
 }
 
 fn rollup(node: &Value) -> PipelineState {
@@ -239,8 +239,10 @@ async fn pull_request(ctx: &Ctx, project: &str, number: u64, fields: &str) -> Ap
     let data = graphql(ctx, &query, json!({ "o": owner, "n": name, "num": number })).await?;
     let node = data["repository"]["pullRequest"].clone();
     if node.is_null() {
-        return Err(ApiError::failed(format!(
-            "PR {project}#{number} не найден на GitHub"
+        return Err(ApiError::failed(crate::host_text!(
+            "prNotFound",
+            project = project,
+            number = number
         )));
     }
     Ok(node)
@@ -255,8 +257,9 @@ pub async fn change_request(ctx: &Ctx, project: &str, number: u64) -> ApiResult<
         summary_fields()
     );
     let node = pull_request(ctx, project, number, &fields).await?;
-    let found = summary(&ctx.id, &node)
-        .ok_or_else(|| ApiError::failed("неожиданный ответ GitHub: нет данных PR"))?;
+    let found = summary(&ctx.id, &node).ok_or_else(|| {
+        ApiError::failed(crate::host_text!("unexpectedReply", service = "GitHub"))
+    })?;
     let mut reviewers: Vec<Person> = Vec::new();
     let requested = node["reviewRequests"]["nodes"]
         .as_array()
@@ -493,7 +496,9 @@ pub async fn discussions(ctx: &Ctx, project: &str, number: u64) -> ApiResult<Vec
     Ok(found)
 }
 
-const WRITE_ACCESS: &str = "у токена GitHub нет права на запись: нужен доступ Pull requests: Read and write (fine-grained) или scope repo (classic)";
+fn write_access() -> String {
+    crate::host_text!("githubWriteAccess")
+}
 
 async fn mutate(ctx: &Ctx, query: &str, variables: Value) -> ApiResult<Value> {
     let body = json!({ "query": query, "variables": variables });
@@ -501,19 +506,19 @@ async fn mutate(ctx: &Ctx, query: &str, variables: Value) -> ApiResult<Value> {
         .api
         .post_json(&graphql_url(ctx), &body)
         .await
-        .map_err(|error| error.write_denied(WRITE_ACCESS))?;
+        .map_err(|error| error.write_denied(&write_access()))?;
     let Some(error) = response["errors"]
         .as_array()
         .and_then(|errors| errors.first())
     else {
         return Ok(response["data"].clone());
     };
-    let message = error["message"].as_str().unwrap_or("ошибка GraphQL");
+    let message = error["message"].as_str().unwrap_or("GraphQL error");
     let denied = error["type"].as_str() == Some("FORBIDDEN")
         || message.contains("not accessible")
         || message.contains("permission");
     Err(ApiError::failed(if denied {
-        format!("{WRITE_ACCESS} ({message})")
+        format!("{} ({message})", write_access())
     } else {
         format!("GitHub GraphQL: {message}")
     }))
@@ -526,8 +531,9 @@ async fn subject(ctx: &Ctx, id: &str) -> ApiResult<Value> {
     let data = graphql(ctx, query, json!({ "id": id })).await?;
     let node = data["node"].clone();
     if node.is_null() {
-        return Err(ApiError::failed(format!(
-            "обсуждение {id} не найдено на GitHub"
+        return Err(ApiError::failed(crate::host_text!(
+            "discussionNotFound",
+            id = id
         )));
     }
     Ok(node)
@@ -566,7 +572,7 @@ pub async fn reply(
     thread_discussion(
         &data["addPullRequestReviewThreadReply"]["comment"]["pullRequestReviewThread"],
     )
-    .ok_or_else(|| ApiError::failed("неожиданный ответ GitHub: нет данных обсуждения"))
+    .ok_or_else(|| ApiError::failed(crate::host_text!("unexpectedReply", service = "GitHub")))
 }
 
 pub async fn comment(ctx: &Ctx, project: &str, number: u64, body: &str) -> ApiResult<Discussion> {
@@ -579,9 +585,10 @@ pub async fn comment(ctx: &Ctx, project: &str, number: u64, body: &str) -> ApiRe
     let data = mutate(ctx, &query, json!({ "id": pull["id"], "body": body })).await?;
     let created = &data["addComment"]["commentEdge"]["node"];
     if created.is_null() {
-        return Err(ApiError::failed(
-            "неожиданный ответ GitHub: нет данных комментария",
-        ));
+        return Err(ApiError::failed(crate::host_text!(
+            "unexpectedReply",
+            service = "GitHub"
+        )));
     }
     Ok(plain_discussion(created))
 }
@@ -598,7 +605,7 @@ pub async fn resolve(ctx: &Ctx, id: &str, resolved: bool) -> ApiResult<Discussio
     );
     let data = mutate(ctx, &query, json!({ "id": id })).await?;
     thread_discussion(&data[action]["thread"])
-        .ok_or_else(|| ApiError::failed("неожиданный ответ GitHub: нет данных обсуждения"))
+        .ok_or_else(|| ApiError::failed(crate::host_text!("unexpectedReply", service = "GitHub")))
 }
 
 fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
@@ -706,8 +713,8 @@ pub async fn create(
     ctx.api
         .post_json(&url, &body)
         .await
-        .map_err(|error| error.write_denied(WRITE_ACCESS))?;
+        .map_err(|error| error.write_denied(&write_access()))?;
     for_branch(ctx, project, branch)
         .await?
-        .ok_or_else(|| ApiError::failed("GitHub не вернул созданный pull request"))
+        .ok_or_else(|| ApiError::failed(crate::host_text!("notCreated", service = "GitHub")))
 }

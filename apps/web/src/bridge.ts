@@ -14,6 +14,7 @@ type Pending = { resolve: (value: unknown) => void; reject: (reason: unknown) =>
 
 const request = (url: string, init: RequestInit) => fetch(url, init);
 const WS_PATH = '/__berth/ws';
+const hostCode = (code: string) => `${String.fromCharCode(0x1e)}${JSON.stringify({ code, params: {} })}${String.fromCharCode(0x1f)}`;
 
 class RemoteChannel<T> implements BridgeChannel<T> {
   constructor(
@@ -59,10 +60,10 @@ function connect(): Promise<WebSocket> {
     };
     ws.onclose = () => {
       socket = null;
-      for (const call of pending.values()) call.reject('remote connection closed');
+      for (const call of pending.values()) call.reject(hostCode('remoteConnectionClosed'));
       pending.clear();
       if (opened) recoverRoute(request);
-      else reject(new Error('remote connection refused'));
+      else reject(hostCode('remoteConnectionRefused'));
     };
   });
 }
@@ -78,7 +79,14 @@ async function remoteInvoke<T>(cmd: string, args?: Record<string, unknown>): Pro
 }
 
 export function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
-  return isDesktop ? tauriInvoke<T>(cmd, args) : remoteInvoke<T>(cmd, args);
+  const call = isDesktop ? tauriInvoke<T>(cmd, args) : remoteInvoke<T>(cmd, args);
+  return call.then((value) => decodeHost(value) as T, (error: unknown) => Promise.reject(decodeHost(error)));
+}
+
+let decodeHost = (value: unknown): unknown => value;
+
+export function setHostDecoder(next: (value: unknown) => unknown): void {
+  decodeHost = next;
 }
 
 export function createChannel<T>(onMessage: (message: T) => void = () => undefined): BridgeChannel<T> {
@@ -86,6 +94,10 @@ export function createChannel<T>(onMessage: (message: T) => void = () => undefin
   const channel = new RemoteChannel<T>(nextId++, onMessage);
   channels.set(channel.id, channel as RemoteChannel<unknown>);
   return channel;
+}
+
+export function createHostChannel<T>(onMessage: (message: T) => void): BridgeChannel<T> {
+  return createChannel<T>((message) => onMessage(decodeHost(message) as T));
 }
 
 export function closeChannel<T>(channel: BridgeChannel<T>) {
@@ -110,7 +122,7 @@ export type HostEvent<T> = { payload: T };
 
 export async function listen<T>(event: string, handler: (event: HostEvent<T>) => void): Promise<() => void> {
   if (!isDesktop) return () => undefined;
-  return tauriListen<T>(event, handler);
+  return tauriListen<T>(event, (received) => handler({ payload: decodeHost(received.payload) as T }));
 }
 
 export const hostWindow = {

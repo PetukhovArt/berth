@@ -29,12 +29,17 @@ pub async fn capture(program: &str, args: &[&str]) -> Result<Output, String> {
     match tokio::time::timeout(COMMAND_TIMEOUT, run).await {
         Ok(Ok(output)) => Ok(output),
         Ok(Err(error)) if error.kind() == std::io::ErrorKind::NotFound => {
-            Err(format!("{program} не найден в PATH"))
+            Err(crate::host_text!("notInPath", program = program))
         }
-        Ok(Err(error)) => Err(format!("не удалось запустить {program}: {error}")),
-        Err(_) => Err(format!(
-            "{program} не ответил за {} с",
-            COMMAND_TIMEOUT.as_secs()
+        Ok(Err(error)) => Err(crate::host_text!(
+            "launchFailed",
+            program = program,
+            error = error
+        )),
+        Err(_) => Err(crate::host_text!(
+            "noAnswer",
+            program = program,
+            seconds = COMMAND_TIMEOUT.as_secs()
         )),
     }
 }
@@ -66,7 +71,7 @@ impl TokenCache {
 
     pub async fn token(&self, kind: Kind, base_url: &str) -> ApiResult<String> {
         let host = host_port(base_url)
-            .ok_or_else(|| ApiError::failed(format!("некорректный адрес: {base_url}")))?;
+            .ok_or_else(|| ApiError::failed(crate::host_text!("invalidUrl", url = base_url)))?;
         let key = format!("{kind:?}:{host}");
         if let Some(token) = self.fresh(&key) {
             return Ok(token);
@@ -75,18 +80,19 @@ impl TokenCache {
             Kind::Github => ("gh", vec!["auth", "token", "--hostname", &host]),
             Kind::Gitlab => ("glab", vec!["config", "get", "token", "--host", &host]),
             _ => {
-                return Err(ApiError::failed(format!(
-                    "{}: вход через CLI не поддерживается, нужен токен",
-                    kind.title()
+                return Err(ApiError::failed(crate::host_text!(
+                    "cliSignInUnavailable",
+                    kind = kind.title()
                 )))
             }
         };
         let output = capture(program, &args).await.map_err(ApiError::Failed)?;
         let token = String::from_utf8_lossy(&output.stdout).trim().to_owned();
         if !output.status.success() || token.is_empty() {
-            return Err(ApiError::Failed(format!(
-                "{program} не авторизован для {host}: выполните {} login",
-                program
+            return Err(ApiError::Failed(crate::host_text!(
+                "cliSignedOut",
+                program = program,
+                host = host
             )));
         }
         self.store(key, token.clone());

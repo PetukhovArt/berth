@@ -406,7 +406,7 @@ impl Shared {
         }
         slot.as_mut()
             .map(work)
-            .ok_or_else(|| "device list unavailable".to_owned())
+            .ok_or_else(|| crate::host_text!("deviceListUnavailable"))
     }
 
     fn token(&self) -> Result<String, String> {
@@ -416,7 +416,7 @@ impl Shared {
                 .find(|device| device.scope == Scope::Full)
                 .map(|device| device.token.clone())
         })?
-        .ok_or_else(|| "no full-access device".to_owned())
+        .ok_or_else(|| crate::host_text!("noFullAccessDevice"))
     }
 
     fn identify(&self, presented: &str) -> Option<Device> {
@@ -681,7 +681,7 @@ impl Remote {
                 | Problem::ServeFailed { message },
             ) => message,
             Some(Problem::TailscaleMissing) => "tailscale address not found".to_owned(),
-            None => "remote server is not running".to_owned(),
+            None => crate::host_text!("remoteServerStopped"),
         })
     }
 
@@ -692,7 +692,7 @@ impl Remote {
     pub fn add_device(&self, name: String, scope: Scope) -> Result<Pairing, String> {
         let name = name.trim().to_owned();
         if name.is_empty() {
-            return Err("device name is required".to_owned());
+            return Err(crate::host_text!("deviceNameRequired"));
         }
         let base = self.base_url()?;
         let token = fresh_token()?;
@@ -713,7 +713,7 @@ impl Remote {
             .urls
             .into_iter()
             .next()
-            .ok_or_else(|| "remote server is not running".to_owned())
+            .ok_or_else(|| crate::host_text!("remoteServerStopped"))
     }
 
     pub fn revoke_device(&self, id: u64) -> Result<RemoteStatus, String> {
@@ -889,7 +889,7 @@ async fn push_api(
                     .and_then(Value::as_str)
                     .map(str::to_owned)
             })
-            .ok_or_else(|| "endpoint is required".to_owned())
+            .ok_or_else(|| crate::host_text!("endpointRequired"))
             .and_then(|endpoint| push.unsubscribe(&endpoint)),
         (Method::POST, "action") => {
             let action =
@@ -906,7 +906,7 @@ async fn push_api(
                         .await
                         .map(|_| ())
                 }
-                Ok(_) => Err("not an Agent input".to_owned()),
+                Ok(_) => Err(crate::host_text!("notAgentInput")),
                 Err(error) => Err(error),
             }
         }
@@ -1099,7 +1099,7 @@ async fn session(
                         continue;
                     };
                     if !remote_devices::permits(&device.scope, &request.cmd, &request.args) {
-                        out.push(json!({ "id": request.id, "err": format!("{} is not allowed for a read-only device", request.cmd) }).to_string());
+                        out.push(json!({ "id": request.id, "err": crate::host_text!("readOnlyDevice", command = request.cmd) }).to_string());
                     } else if INLINE.contains(&request.cmd.as_str()) {
                         out.push(handle(&client, request).await);
                     } else {

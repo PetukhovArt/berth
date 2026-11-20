@@ -49,7 +49,7 @@ function builtIns(harness: Harness): SlashCommand[] {
 
 async function acpCommands(agent: string): Promise<SlashCommand[]> {
   const reply = await call({ AcpCommands: { agent } });
-  if (!('AcpCommands' in reply)) throw new BerthCallError(Object.keys(reply).join(''));
+  if (!('AcpCommands' in reply)) throw new BerthCallError(t('agents.errors.unexpectedReply', { reply: Object.keys(reply).join('') }));
   return reply.AcpCommands.commands;
 }
 

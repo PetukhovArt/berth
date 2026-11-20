@@ -117,7 +117,7 @@ pub async fn providers_read() -> Result<Vec<ProviderRow>, String> {
 pub async fn providers_write(id: String, acp: bool, enabled: bool) -> Result<(), String> {
     let known_native = NATIVE.iter().any(|(kind, _)| kind.as_str() == id);
     if !acp && !known_native {
-        return Err(format!("unknown provider `{id}`"));
+        return Err(crate::host_text!("unknownProvider", id = id));
     }
     let mut providers = providers_object()?;
     let scope = if acp {
@@ -126,7 +126,7 @@ pub async fn providers_write(id: String, acp: bool, enabled: bool) -> Result<(),
             .or_insert_with(|| Value::Object(Map::new()))
         {
             Value::Object(entries) => entries,
-            _ => return Err("providers.acp is not an object".into()),
+            _ => return Err(crate::host_text!("notJsonObject", path = "providers.acp")),
         }
     } else {
         &mut providers
@@ -147,7 +147,7 @@ fn acp_entries(providers: &mut Map<String, Value>) -> Result<&mut Map<String, Va
         .or_insert_with(|| Value::Object(Map::new()))
     {
         Value::Object(entries) => Ok(entries),
-        _ => Err("providers.acp is not an object".into()),
+        _ => Err(crate::host_text!("notJsonObject", path = "providers.acp")),
     }
 }
 
@@ -166,13 +166,11 @@ pub async fn providers_save_acp(
     args: Vec<String>,
 ) -> Result<(), String> {
     if !valid_acp_id(&id) {
-        return Err(format!(
-            "`{id}` is not a valid id: use lowercase letters, digits, - and _"
-        ));
+        return Err(crate::host_text!("invalidProviderId", id = id));
     }
     let command = command.trim().to_string();
     if command.is_empty() {
-        return Err("the command is empty".into());
+        return Err(crate::host_text!("emptyCommand"));
     }
     let built_in = BUILT_IN_PROVIDERS.iter().find(|b| b.id == id);
     let mut providers = providers_object()?;
@@ -235,7 +233,7 @@ pub async fn providers_remove_acp(id: String) -> Result<(), String> {
 
 pub async fn acp_agent_log(agent: String) -> Result<String, String> {
     if agent.is_empty() || !agent.chars().all(|c| c.is_ascii_alphanumeric()) {
-        return Err("invalid agent id".into());
+        return Err(crate::host_text!("invalidAgentId"));
     }
     let path = berth_core::paths::acp_log_path(&agent);
     let bytes = match std::fs::read(&path) {

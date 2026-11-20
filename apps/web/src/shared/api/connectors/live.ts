@@ -1,4 +1,4 @@
-import { createChannel, hasBackend, invoke } from '../../../bridge';
+import { createHostChannel, hasBackend, invoke } from '../../../bridge';
 import type { ConnectorsChanged } from './types';
 
 const listeners = new Set<(event: ConnectorsChanged) => void>();
@@ -7,7 +7,7 @@ let started = false;
 function start() {
   if (started || !hasBackend) return;
   started = true;
-  const channel = createChannel<ConnectorsChanged>((event) => {
+  const channel = createHostChannel<ConnectorsChanged>((event) => {
     for (const listener of listeners) listener(event);
   });
   invoke<void>('connectors_watch', { onEvent: channel }).catch(() => {

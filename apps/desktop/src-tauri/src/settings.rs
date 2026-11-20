@@ -79,10 +79,7 @@ pub fn set_berth_dir(dir: PathBuf) -> bool {
 
 pub fn default_berth_dir() -> Result<PathBuf, String> {
     let home = berth_core::platform::profile_home().ok_or_else(|| {
-        format!(
-            "не задана переменная {}",
-            berth_core::platform::PROFILE_HOME_VAR
-        )
+        crate::host_text!("envVarUnset", name = berth_core::platform::PROFILE_HOME_VAR)
     })?;
     let dir = home.join(DIR_NAME);
     ADOPTED.call_once(|| crate::legacy::adopt_dir(&home.join(crate::legacy::DIR_NAME), &dir));
@@ -136,16 +133,17 @@ fn write_atomic(dir: &Path, file: ConfigFile, text: &str) -> io::Result<()> {
 
 pub async fn settings_read(file: Option<ConfigFile>) -> Result<String, String> {
     let path = config_path(file.unwrap_or_default())?;
-    read_text(&path).map_err(|e| format!("не удалось прочитать {}: {e}", path.display()))
+    read_text(&path).map_err(|e| crate::host_text!("readFailed", path = path.display(), error = e))
 }
 
 pub async fn settings_write(text: String, file: Option<ConfigFile>) -> Result<(), String> {
     let file = file.unwrap_or_default();
     let dir = berth_dir()?;
     write_atomic(&dir, file, &text).map_err(|e| {
-        format!(
-            "не удалось записать {}: {e}",
-            dir.join(file.file_name()).display()
+        crate::host_text!(
+            "writeFailed",
+            path = dir.join(file.file_name()).display(),
+            error = e
         )
     })
 }
@@ -156,15 +154,19 @@ const IDLE_CHOICES: [&str; 6] = ["off", "1m", "5m", "15m", "30m", "1h"];
 pub(crate) fn berth_config_object(
     path: &Path,
 ) -> Result<serde_json::Map<String, serde_json::Value>, String> {
-    let text =
-        read_text(path).map_err(|e| format!("не удалось прочитать {}: {e}", path.display()))?;
+    let text = read_text(path)
+        .map_err(|e| crate::host_text!("readFailed", path = path.display(), error = e))?;
     if text.trim().is_empty() {
         return Ok(serde_json::Map::new());
     }
     match serde_json::from_str::<serde_json::Value>(&text) {
         Ok(serde_json::Value::Object(map)) => Ok(map),
-        Ok(_) => Err(format!("{} не является JSON-объектом", path.display())),
-        Err(e) => Err(format!("{} повреждён: {e}", path.display())),
+        Ok(_) => Err(crate::host_text!("notJsonObject", path = path.display())),
+        Err(e) => Err(crate::host_text!(
+            "corrupted",
+            path = path.display(),
+            error = e
+        )),
     }
 }
 
@@ -179,7 +181,7 @@ pub async fn berth_idle_timeout_read() -> Result<String, String> {
 
 pub async fn berth_idle_timeout_write(value: String) -> Result<(), String> {
     if !IDLE_CHOICES.contains(&value.as_str()) {
-        return Err(format!("недопустимое значение {value}"));
+        return Err(crate::host_text!("invalidValue", value = value));
     }
     berth_config_write(IDLE_KEY, serde_json::Value::String(value))
 }
@@ -208,7 +210,7 @@ fn daemon_flag(key: &str) -> Result<(&'static str, bool), String> {
     ]
     .into_iter()
     .find(|(flag, _)| *flag == key)
-    .ok_or_else(|| format!("неизвестная настройка {key}"))
+    .ok_or_else(|| crate::host_text!("unknownSetting", key = key))
 }
 
 pub async fn berth_flag_read(key: String) -> Result<bool, String> {
@@ -273,7 +275,7 @@ pub(crate) fn berth_config_update(
     };
     write().map_err(|e| {
         let _ = fs::remove_file(&temp);
-        format!("не удалось записать {}: {e}", path.display())
+        crate::host_text!("writeFailed", path = path.display(), error = e)
     })
 }
 
@@ -311,9 +313,9 @@ pub async fn settings_open_external(file: Option<ConfigFile>) -> Result<(), Stri
     let path = dir.join(file.file_name());
     if !path.exists() {
         write_atomic(&dir, file, file.empty_text())
-            .map_err(|e| format!("не удалось создать {}: {e}", path.display()))?;
+            .map_err(|e| crate::host_text!("createFailed", path = path.display(), error = e))?;
     }
-    open_in_default_app(&path).map_err(|e| format!("не удалось открыть редактор: {e}"))
+    open_in_default_app(&path).map_err(|e| crate::host_text!("editorOpenFailed", error = e))
 }
 
 fn open_in_default_app(path: &Path) -> io::Result<()> {

@@ -27,7 +27,7 @@ impl Engine {
         _hands_free: bool,
         _sink: Channel<RunEvent>,
     ) -> Result<u32, String> {
-        Err(crate::platform::UNSUPPORTED.to_owned())
+        Err(crate::platform::unsupported())
     }
 
     pub fn stop(&self, _run: u32) {}
@@ -35,7 +35,7 @@ impl Engine {
     pub fn cancel(&self, _run: u32) {}
 
     pub async fn transcribe_file(&self, _pcm: PathBuf) -> Result<String, String> {
-        Err(crate::platform::UNSUPPORTED.to_owned())
+        Err(crate::platform::unsupported())
     }
 
     pub fn remove_models(&self) -> Result<VoiceModels, String> {

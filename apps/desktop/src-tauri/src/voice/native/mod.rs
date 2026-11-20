@@ -115,7 +115,7 @@ impl Engine {
     pub fn remove_models(&self) -> Result<VoiceModels, String> {
         let active = self.inner.active.lock().unwrap_or_else(|e| e.into_inner());
         if !active.is_empty() {
-            return Err("voice input is listening: turn it off first".to_owned());
+            return Err(crate::host_text!("voiceListening"));
         }
         self.inner.unload();
         self.inner.models.remove()?;

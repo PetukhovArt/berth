@@ -173,7 +173,7 @@ fn runner(repo: &Path, linter: &Path, dir: &Path) -> Runner {
 }
 
 fn no_linter() -> String {
-    "stratum-lint не найден: установите @petukhovart/stratum-lint в репозитории или глобально (npm i -g @petukhovart/stratum-lint)".to_owned()
+    crate::host_text!("stratumMissing")
 }
 
 fn git_command(repo: &Path, args: &[&str]) -> Command {
@@ -195,10 +195,16 @@ async fn git(repo: &Path, args: &[&str], limit: Duration) -> Result<String, Stri
     let run = async { platform::spawn_tied(&mut command)?.wait_with_output().await };
     let output = tokio::time::timeout(limit, run)
         .await
-        .map_err(|_| format!("git {} не ответил за {} с", args.join(" "), limit.as_secs()))?
+        .map_err(|_| {
+            crate::host_text!(
+                "gitTimeout",
+                command = args.join(" "),
+                seconds = limit.as_secs()
+            )
+        })?
         .map_err(|error| match error.kind() {
-            std::io::ErrorKind::NotFound => "git не найден в PATH".to_owned(),
-            _ => format!("не удалось запустить git: {error}"),
+            std::io::ErrorKind::NotFound => crate::host_text!("notInPath", program = "git"),
+            _ => crate::host_text!("launchFailed", program = "git", error = error),
         })?;
     if output.status.success() {
         return Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned());
@@ -206,11 +212,7 @@ async fn git(repo: &Path, args: &[&str], limit: Duration) -> Result<String, Stri
     let stderr = String::from_utf8_lossy(&output.stderr);
     let text = stderr.trim();
     Err(if text.is_empty() {
-        format!(
-            "git {} завершился с кодом {}",
-            args.join(" "),
-            output.status
-        )
+        crate::host_text!("gitExit", command = args.join(" "), status = output.status)
     } else {
         text.to_owned()
     })
@@ -265,7 +267,7 @@ async fn remote_sha(repo: &Path, log: &Log, reference: &str, what: &str) -> Resu
             let (sha, name) = line.split_once(char::is_whitespace)?;
             (name.trim() == reference).then(|| sha.to_owned())
         })
-        .ok_or_else(|| format!("{what}: ссылка {reference} не найдена на origin"))
+        .ok_or_else(|| crate::host_text!("refNotOnOrigin", what = what, reference = reference))
 }
 
 fn reference_of(kind: Kind, number: u64) -> String {
@@ -309,7 +311,7 @@ pub async fn stratum_visualize(
         .into_iter()
         .find(|record| record.id == connector)
         .map(|record| record.kind)
-        .ok_or_else(|| format!("подключение {connector} не найдено"))?;
+        .ok_or_else(|| crate::host_text!("connectorGone", id = connector))?;
     let mr = merge_request_key(&connector, &project, number);
     let log: Log = Arc::new(Mutex::new(Progress {
         phase: "queued".to_owned(),
@@ -349,7 +351,13 @@ async fn start(
     let linter = resolve_linter(&repo).ok_or_else(no_linter)?;
     phase(&log, "fetch");
     let head_ref = reference_of(kind, number);
-    let head = remote_sha(&repo, &log, &head_ref, "запрос слияния").await?;
+    let head = remote_sha(
+        &repo,
+        &log,
+        &head_ref,
+        &crate::host_text!("refMergeRequest"),
+    )
+    .await?;
     let key = format!("{mr}@{}", short(&head));
 
     if let Some(server) = alive(&key).await {
@@ -359,7 +367,13 @@ async fn start(
     }
 
     let target_ref = format!("refs/heads/{target}");
-    let target_sha = remote_sha(&repo, &log, &target_ref, "целевая ветка").await?;
+    let target_sha = remote_sha(
+        &repo,
+        &log,
+        &target_ref,
+        &crate::host_text!("refTargetBranch"),
+    )
+    .await?;
     logged_git(
         &log,
         &repo,
@@ -380,7 +394,7 @@ async fn start(
         GIT_TIMEOUT,
     )
     .await
-    .map_err(|error| format!("не найдена общая база с {target}: {error}"))?;
+    .map_err(|error| crate::host_text!("noMergeBase", target = target, error = error))?;
     let spec = format!("{head}:{CONFIG}");
     let borrowed = if git(&repo, &["cat-file", "-e", &spec], PROBE_TIMEOUT)
         .await
@@ -389,10 +403,18 @@ async fn start(
         let target_spec = format!("{target_sha}:{CONFIG}");
         let text = git(&repo, &["show", &target_spec], PROBE_TIMEOUT)
             .await
-            .map_err(|_| format!("нет {CONFIG} ни в {project}!{number}, ни в {target}"))?;
+            .map_err(|_| {
+                crate::host_text!(
+                    "noStratumConfig",
+                    config = CONFIG,
+                    project = project,
+                    number = number,
+                    target = target
+                )
+            })?;
         push(
             &log,
-            format!("в ветке запроса нет {CONFIG}: беру его из {target}"),
+            crate::host_text!("stratumConfigFromTarget", config = CONFIG, target = target),
         );
         Some(text)
     } else {
@@ -520,9 +542,17 @@ async fn launch(
             short(base)
         ),
     );
-    let mut child = platform::spawn_tied(&mut command)
-        .map_err(|error| format!("не удалось запустить {}: {error}", runner.program.display()))?;
-    let stderr = child.stderr.take().ok_or("нет потока stderr")?;
+    let mut child = platform::spawn_tied(&mut command).map_err(|error| {
+        crate::host_text!(
+            "launchFailed",
+            program = runner.program.display(),
+            error = error
+        )
+    })?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| crate::host_text!("noStderr"))?;
     let (found, ready) = oneshot::channel::<String>();
     let sink = log.clone();
     tokio::spawn(async move {
@@ -556,11 +586,12 @@ async fn launch(
                 .collect::<Vec<_>>()
                 .join("\n");
             Err(match other {
-                Err(_) => format!(
-                    "stratum-lint не запустился за {} с\n{tail}",
-                    READY_TIMEOUT.as_secs()
+                Err(_) => crate::host_text!(
+                    "stratumTimeout",
+                    seconds = READY_TIMEOUT.as_secs(),
+                    tail = tail
                 ),
-                _ => format!("stratum-lint завершился без адреса\n{tail}"),
+                _ => crate::host_text!("stratumNoAddress", tail = tail),
             })
         }
     }

@@ -273,7 +273,7 @@ fn require_self_update() -> Result<(), String> {
     if platform::SELF_UPDATE {
         Ok(())
     } else {
-        Err(platform::UNSUPPORTED.into())
+        Err(platform::unsupported())
     }
 }
 
@@ -337,11 +337,11 @@ fn commit_change(record: &str) -> Option<CommitChange> {
 
 pub async fn app_update_changes(from: String) -> Result<Vec<CommitChange>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let to = running_build().ok_or("this copy of Berth is not a working copy")?;
+        let to = running_build().ok_or_else(|| crate::host_text!("notWorkingCopy"))?;
         if !is_commit(&from) || !is_commit(&to.commit) {
-            return Err("not a commit id".into());
+            return Err(crate::host_text!("notCommitId"));
         }
-        let repo = source_repo().ok_or("no source repository")?;
+        let repo = source_repo().ok_or_else(|| crate::host_text!("noSourceRepo"))?;
         let range = format!("{from}..{}", to.commit);
         let log = git(
             &repo,
@@ -360,7 +360,7 @@ pub async fn app_update_changes(from: String) -> Result<Vec<CommitChange>, Strin
 
 pub async fn app_update_fetch() -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(|| {
-        let repo = source_repo().ok_or("no source repository")?;
+        let repo = source_repo().ok_or_else(|| crate::host_text!("noSourceRepo"))?;
         let mut command = hidden("git");
         command
             .env("GIT_TERMINAL_PROMPT", "0")
@@ -377,11 +377,11 @@ pub async fn app_update_fetch() -> Result<(), String> {
 pub fn app_update_start() -> Result<(), String> {
     require_self_update()?;
     let script = script()?;
-    let repo = source_repo().ok_or("no source repository: set app.sourceRepo in settings")?;
-    let root = root().ok_or(platform::INSTALL_ROOT_MISSING)?;
+    let repo = source_repo().ok_or_else(|| crate::host_text!("noSourceRepoSetting"))?;
+    let root = root().ok_or_else(platform::install_root_missing)?;
     if let Some(pid) = read_status().as_ref().and_then(running_pid) {
         if alive(pid) {
-            return Err("a build is already running".into());
+            return Err(crate::host_text!("buildRunning"));
         }
     }
     let target = head(&repo).ok();
@@ -407,8 +407,8 @@ pub fn app_update_start() -> Result<(), String> {
 }
 
 pub fn app_update_cancel() -> Result<(), String> {
-    let mut map = read_status().ok_or("no build is running")?;
-    let pid = running_pid(&map).ok_or("no build is running")?;
+    let mut map = read_status().ok_or_else(|| crate::host_text!("noBuildRunning"))?;
+    let pid = running_pid(&map).ok_or_else(|| crate::host_text!("noBuildRunning"))?;
     map.insert("state".into(), "cancelled".into());
     write_status(&map).map_err(|error| error.to_string())?;
     let killed = berth_core::platform::kill_process_tree(pid);
@@ -417,7 +417,7 @@ pub fn app_update_cancel() -> Result<(), String> {
         let _ = write_status(&map);
         return Err(killed
             .err()
-            .unwrap_or_else(|| "the build is still running".into()));
+            .unwrap_or_else(|| crate::host_text!("buildStillRunning")));
     }
     Ok(())
 }
@@ -433,7 +433,7 @@ pub async fn app_daemon_update() -> Result<(), String> {
 async fn run_script(flag: &'static str) -> Result<(), String> {
     require_self_update()?;
     let script = script()?;
-    let root = root().ok_or(platform::INSTALL_ROOT_MISSING)?;
+    let root = root().ok_or_else(platform::install_root_missing)?;
     tauri::async_runtime::spawn_blocking(move || {
         let mut command = platform::installer_command(&script)?;
         command.arg(flag).arg("-Root").arg(root);
@@ -446,12 +446,12 @@ async fn run_script(flag: &'static str) -> Result<(), String> {
 pub fn app_restart(app: &AppHandle) -> Result<(), String> {
     require_self_update()?;
     let exe = root()
-        .ok_or(platform::INSTALL_ROOT_MISSING)?
+        .ok_or_else(platform::install_root_missing)?
         .join("app")
         .join("current")
         .join(platform::APP_EXECUTABLE);
     if !exe.is_file() {
-        return Err(format!("{} is missing", exe.display()));
+        return Err(crate::host_text!("fileMissing", path = exe.display()));
     }
     let mut command = platform::relaunch_command(&exe, std::process::id())?;
     platform::detach(&mut command).map_err(|error| error.to_string())?;

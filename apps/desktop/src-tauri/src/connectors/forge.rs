@@ -298,7 +298,7 @@ pub async fn forge_create_change_request(
     description: String,
 ) -> Result<ChangeRequestSummary, String> {
     let Some((ctx, project)) = worktree_forge(state, &path).await? else {
-        return Err("для этого репозитория не подключён форж".to_owned());
+        return Err(crate::host_text!("noForge"));
     };
     match ctx.kind {
         Kind::Github => {

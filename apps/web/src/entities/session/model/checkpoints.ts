@@ -1,3 +1,4 @@
+import { t } from '../../../shared/lib/i18n/i18n';
 import { computed, shallowRef, toValue, watch, type MaybeRefOrGetter } from 'vue';
 import { useSettings } from '../../../shared/config/settings/store';
 import { acknowledged, BerthCallError, call, describeError, type AgentKind } from './berth';
@@ -6,7 +7,7 @@ export type Checkpoint = { number: number; created_at: number; before_restore: b
 
 export async function listCheckpoints(agent: string): Promise<Checkpoint[]> {
   const reply = await call({ ListCheckpoints: { agent } });
-  if (!('Checkpoints' in reply)) throw new BerthCallError(Object.keys(reply).join(''));
+  if (!('Checkpoints' in reply)) throw new BerthCallError(t('agents.errors.unexpectedReply', { reply: Object.keys(reply).join('') }));
   return reply.Checkpoints.checkpoints;
 }
 

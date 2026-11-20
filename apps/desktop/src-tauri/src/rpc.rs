@@ -41,11 +41,11 @@ const GUARDED: [(&str, &str); 19] = [
 ];
 
 fn bad_args(error: serde_json::Error) -> String {
-    format!("некорректные аргументы: {error}")
+    crate::host_text!("badArguments", error = error)
 }
 
 fn refused(cmd: &str) -> String {
-    format!("{cmd} недоступна при удалённом доступе")
+    crate::host_text!("remoteRefused", command = cmd)
 }
 
 macro_rules! rpc_dispatch {
@@ -246,7 +246,7 @@ impl Client {
         if allowed {
             Ok(())
         } else {
-            Err(format!("путь вне рабочих деревьев berth: {raw}"))
+            Err(crate::host_text!("pathOutsideWorktrees", path = raw))
         }
     }
 
