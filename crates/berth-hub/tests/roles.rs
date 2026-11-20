@@ -65,6 +65,23 @@ async fn next(subscription: &mut berth_hub::Subscription) -> Next {
 }
 
 #[tokio::test]
+async fn another_admins_stream_ends_when_someone_else_changes_the_hub() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_hub, url) = start(&dir.path().join("hub.db"), Some("admin-secret")).await;
+    let (_ann_id, ann) = person(&url, "ann", "admin").await;
+    let (_bob_id, bob) = person(&url, "bob", "member").await;
+    let (cy_id, _cy) = person(&url, "cy", "member").await;
+
+    let mut ann_live = ann.subscribe(None).await.unwrap();
+    let mut bob_live = bob.subscribe(None).await.unwrap();
+    set_role(&url, &cy_id, "guest").await;
+    assert_eq!(next(&mut ann_live).await, Next::RightsChanged);
+
+    let quiet = tokio::time::timeout(Duration::from_millis(200), bob_live.next()).await;
+    assert!(quiet.is_err(), "a member who is not an admin keeps its stream");
+}
+
+#[tokio::test]
 async fn a_guest_is_refused_a_channel_until_the_admin_makes_it_a_member() {
     let dir = tempfile::tempdir().unwrap();
     let (_hub, url) = start(&dir.path().join("hub.db"), Some("admin-secret")).await;

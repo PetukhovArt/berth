@@ -265,6 +265,15 @@ fn holders(db: &Connection, role: &str) -> Result<Vec<String>> {
     Ok(ids.collect::<rusqlite::Result<_>>()?)
 }
 
+fn other_admins(db: &Connection, actor: &str) -> Result<Vec<String>> {
+    let mut st = db.prepare(
+        "SELECT m.id FROM members m JOIN role_permissions rp ON rp.role = m.role
+         WHERE m.kind = 'person' AND m.status = 'approved' AND rp.permission = ?1 AND m.id <> ?2",
+    )?;
+    let ids = st.query_map(params![Permission::AdminManage.key(), actor], |r| r.get(0))?;
+    Ok(ids.collect::<rusqlite::Result<_>>()?)
+}
+
 fn device(db: &Connection, id: &str) -> Result<Option<(String, Option<String>)>> {
     Ok(db
         .query_row(
@@ -454,8 +463,17 @@ impl Store {
             return Ok(Vec::new());
         };
         audit(&tx, actor.actor(), &applied)?;
+        let mut ended = applied.ended;
+        for member in other_admins(&tx, actor.actor().0)? {
+            if !ended.iter().any(|e| e.member == member) {
+                ended.push(Ended {
+                    member,
+                    why: EndedWhy::RightsChanged,
+                });
+            }
+        }
         tx.commit()?;
-        Ok(applied.ended)
+        Ok(ended)
     }
 
     pub(crate) fn admin_view(&self) -> Result<AdminView> {
