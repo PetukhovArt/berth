@@ -35,6 +35,17 @@ export const attention = {
     open: 'Open',
     crashedDetail: 'Exited unexpectedly',
   },
+  channels: {
+    title: 'Channels',
+    add: 'New Channel',
+    name: 'Name',
+    namePlaceholder: 'general',
+    shared: 'For the whole team',
+    sharedHint: 'Everyone approved on the hub is in it, including people approved later',
+    sharedTag: 'Team',
+    create: 'Create',
+    toggle: 'Show or hide Channels',
+  },
   channel: {
     messages: 'Channel {key}',
     empty: 'No messages yet.',

@@ -35,6 +35,17 @@ export const attention = {
     open: 'Открыть',
     crashedDetail: 'Завершилась неожиданно',
   },
+  channels: {
+    title: 'Каналы',
+    add: 'Новый канал',
+    name: 'Название',
+    namePlaceholder: 'general',
+    shared: 'Для всей команды',
+    sharedHint: 'В нём все одобренные на хабе, включая тех, кого одобрят позже',
+    sharedTag: 'Команда',
+    create: 'Создать',
+    toggle: 'Показать или скрыть каналы',
+  },
   channel: {
     messages: 'Канал {key}',
     empty: 'Сообщений пока нет.',

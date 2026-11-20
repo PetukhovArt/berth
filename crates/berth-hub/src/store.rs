@@ -32,6 +32,8 @@ pub struct ChannelSummary {
     pub key: String,
     pub head: i64,
     pub unread: i64,
+    #[serde(default)]
+    pub shared: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -90,6 +92,14 @@ impl Store {
         )?;
         if !has_member_column(&db, "display")? {
             db.execute_batch("ALTER TABLE members ADD COLUMN display TEXT;")?;
+        }
+        let has_shared: bool = db.query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('channels') WHERE name = 'shared')",
+            [],
+            |r| r.get(0),
+        )?;
+        if !has_shared {
+            db.execute_batch("ALTER TABLE channels ADD COLUMN shared INTEGER NOT NULL DEFAULT 0;")?;
         }
         prepare_roles(&mut db, path)?;
         Ok(Self { db })
@@ -190,6 +200,18 @@ impl Store {
         self.db.execute(
             "INSERT OR IGNORE INTO channel_members (channel, member) VALUES (?1, ?2)",
             params![key, creator],
+        )?;
+        Ok(())
+    }
+
+    pub fn share_channel(&self, key: &str) -> Result<()> {
+        self.db
+            .execute("UPDATE channels SET shared = 1 WHERE key = ?1", [key])?;
+        self.db.execute(
+            "INSERT OR IGNORE INTO channel_members (channel, member, last_read)
+             SELECT ?1, id, COALESCE((SELECT MAX(seq) FROM events WHERE channel = ?1), 0)
+             FROM members WHERE kind = 'person' AND status = 'approved'",
+            [key],
         )?;
         Ok(())
     }
@@ -401,14 +423,17 @@ impl Store {
             "SELECT cm.channel,
                     COALESCE((SELECT MAX(seq) FROM events WHERE channel = cm.channel), 0),
                     (SELECT COUNT(*) FROM events WHERE channel = cm.channel AND seq > cm.last_read
-                       AND author <> cm.member)
-             FROM channel_members cm WHERE cm.member = ?1 ORDER BY cm.channel",
+                       AND author <> cm.member),
+                    COALESCE(c.shared, 0)
+             FROM channel_members cm LEFT JOIN channels c ON c.key = cm.channel
+             WHERE cm.member = ?1 ORDER BY cm.channel",
         )?;
         let rows = st.query_map([member], |r| {
             Ok(ChannelSummary {
                 key: r.get(0)?,
                 head: r.get(1)?,
                 unread: r.get(2)?,
+                shared: r.get(3)?,
             })
         })?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
@@ -434,6 +459,21 @@ impl Store {
             .db
             .query_row("SELECT name FROM members WHERE id=?1", [id], |r| r.get(0))?)
     }
+}
+
+/// The newest seq of the channel bound to `channels.key` in the query, so a member
+/// joined to a Shared Channel starts with its history read.
+const HEAD: &str = "COALESCE((SELECT MAX(seq) FROM events WHERE events.channel = channels.key), 0)";
+
+pub(crate) fn join_shared_channels(db: &Connection, member: &str) -> Result<()> {
+    db.execute(
+        &format!(
+            "INSERT OR IGNORE INTO channel_members (channel, member, last_read)
+             SELECT key, ?1, {HEAD} FROM channels WHERE shared = 1"
+        ),
+        [member],
+    )?;
+    Ok(())
 }
 
 pub(crate) fn has_member_column(db: &Connection, column: &str) -> Result<bool> {

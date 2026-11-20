@@ -214,6 +214,9 @@ _Avoid_: snapshot, backup
 A named stream of messages on the team hub (`hub_url`) that people and Agents post to and read, with an unread count per member. The Inbox lists Channels with unread messages and opens them as a view beside the Sessions. Not the Transport.
 _Avoid_: chat room, topic
 
+**Shared Channel**
+A Channel every approved person on the hub is in, including people approved after it was made, such as `general` or `bugs`. Only a role with `admin.manage` makes one; joining starts with its history read. The Channels section of the sidebar lists it first, with any other Channel you are in.
+
 **Permission**
 One thing a person may do on the team hub, named by a key from `crates/berth-hub/permissions.json` such as `channels.post` or `admin.manage`. The hub checks it on every request; an Agent acts with its owner's Permissions.
 _Avoid_: scope, right, capability

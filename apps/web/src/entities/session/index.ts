@@ -27,7 +27,7 @@ export { listCheckpoints, restoreCheckpoint, useCheckpoints } from './model/chec
 export type { Checkpoint } from './model/checkpoints';
 export { checkpointsByPrompt, isPrompt, latestModel, modelLabel, promptOfCheckpoint } from './model/transcriptLinks';
 export { useAgentMessages } from './model/agentMessages';
-export { agentName, answerInChannel, channelKeys, channelRequestOf, grantChannelAccess, isAgentMessage, isChannelReply, isNoteMessage, isOwnAgentRequest, onChannelAppended, openChannel, openChannelFor, ownAgentsFor, postNote, postToChannel, promoteChannelMessage, readChannel, readChannelGrants, readPresence, readTouched, refreshChannels, revokeChannelGrant, settlementOf, useChannelUnread, useLoadedChannelMessages } from './model/channels';
+export { agentName, answerInChannel, channelKeys, createChannel, channelRequestOf, grantChannelAccess, isAgentMessage, isChannelReply, isNoteMessage, isOwnAgentRequest, onChannelAppended, openChannel, openChannelFor, ownAgentsFor, postNote, postToChannel, promoteChannelMessage, readChannel, readChannelGrants, readPresence, readTouched, refreshChannels, revokeChannelGrant, settlementOf, useChannels, useChannelUnread, useLoadedChannelMessages } from './model/channels';
 export type { ChannelGrant, ChannelMessage, ChannelPresent, ChannelRequest, ChannelSettlement, ChannelTouching, LoadedChannelMessage } from './model/channels';
 export { getMetrics } from './model/metrics';
 export type { MetricsSnapshot, SessionMetrics } from './model/metrics';

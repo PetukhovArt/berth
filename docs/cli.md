@@ -137,6 +137,7 @@ The desktop app's Channel view has a Task note button beside Send. Each daemon a
 
 ```sh
 berth channel open [<key>]  # create the channel for a task, or join it when it exists
+berth channel open general --shared  # a Shared Channel: everyone approved on the hub is in it (needs admin.manage)
 ```
 
 It needs `channels.create` in your role on the hub. When the channel already exists without you, `open` adds your device to it and you read its whole history. The key is a Jira issue key such as `PROJ-12`, or a branch name when the

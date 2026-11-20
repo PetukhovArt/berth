@@ -400,6 +400,7 @@ fn set_role(db: &Connection, member: &str, role: &str) -> Result<Option<Applied>
         "UPDATE members SET status = 'approved', role = ?2 WHERE id = ?1",
         params![member, role],
     )?;
+    crate::store::join_shared_channels(db, member)?;
     Ok(Some(Applied {
         action: AuditAction::MemberRole,
         target: member.to_string(),

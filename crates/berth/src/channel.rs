@@ -59,12 +59,13 @@ pub fn run_list() -> Result<()> {
     })
 }
 
-pub fn run_open(key: Option<String>) -> Result<()> {
+pub fn run_open(key: Option<String>, shared: bool) -> Result<()> {
     runtime()?.block_on(async {
         let ServerEvent::ChannelOpened { key, .. } = call(ClientRequest::OpenChannel {
             req_id: ONE_SHOT_REQ_ID,
             key,
             agent: own_agent(),
+            shared,
         })
         .await?
         else {

@@ -190,7 +190,7 @@ pub(crate) enum Principal {
 const ROOT_ACTOR: (&str, &str) = ("operator", "admin token");
 
 impl Principal {
-    fn require(&self, p: Permission) -> Result<(), Refusal> {
+    pub(crate) fn require(&self, p: Permission) -> Result<(), Refusal> {
         let (holds, role) = match self {
             Self::Root => (p == Permission::AdminManage, None),
             Self::Member(m) => (m.holds(p), Some(m.role.name.clone())),

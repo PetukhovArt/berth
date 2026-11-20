@@ -514,3 +514,33 @@ async fn the_catalog_json_matches_the_permission_enum_and_seeds_the_built_in_rol
         assert_eq!(seeded, expected, "{}", role.id);
     }
 }
+
+#[tokio::test]
+async fn a_shared_channel_holds_every_approved_person_now_and_later_and_only_an_admin_makes_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_hub, url) = start(&dir.path().join("hub.db"), Some("admin-secret")).await;
+    let (_ann_id, ann) = person(&url, "ann", "admin").await;
+    let (_bob_id, bob) = person(&url, "bob", "member").await;
+
+    let refused = bob
+        .create_shared_channel("general")
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(refused.contains("`admin.manage`"), "{refused}");
+
+    ann.create_shared_channel("general").await.unwrap();
+    ann.post("general", "hello", None).await.unwrap();
+    let bobs = bob.channels().await.unwrap();
+    assert_eq!(bobs.len(), 1);
+    assert!(bobs[0].shared && bobs[0].key == "general" && bobs[0].unread == 1);
+
+    let (_cy_id, cy) = person(&url, "cy", "guest").await;
+    let cys = cy.channels().await.unwrap();
+    assert_eq!(cys.len(), 1);
+    assert!(
+        cys[0].shared && cys[0].unread == 0,
+        "joins with the history read"
+    );
+    cy.post("general", "hi all", None).await.unwrap();
+}

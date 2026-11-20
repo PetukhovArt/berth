@@ -381,11 +381,16 @@ async fn handle_client(
                         let _ = out_tx.send(ev).await;
                     });
                 }
-                ClientRequest::OpenChannel { req_id, key, agent } => {
+                ClientRequest::OpenChannel {
+                    req_id,
+                    key,
+                    agent,
+                    shared,
+                } => {
                     let out_tx = out_tx.clone();
                     let daemon = daemon.clone();
                     tokio::spawn(async move {
-                        let ev = match daemon.open_channel(key, agent).await {
+                        let ev = match daemon.open_channel(key, agent, shared).await {
                             Ok(key) => ServerEvent::ChannelOpened { req_id, key },
                             Err(e) => ServerEvent::Error {
                                 req_id: Some(req_id),

@@ -22,6 +22,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import ExplorerTree from '../../../shared/ui/explorer-tree/ExplorerTree.vue';
 import { useDock } from '../../../shared/model/dock';
 import { InboxSection, OpenChannelAction } from '../../../features/attention';
+import { ChannelsSection } from '../../../features/channels';
 import { startCreate } from '../../../features/new-session';
 import { openLeaf, type ReviewMeta, type WorkNode, treeLiveOnly, treeProjectsCollapsed, treeQuery, treeTab, useWorkTree } from '../../../features/work-tree';
 
@@ -145,6 +146,7 @@ const moreItems = computed(() => {
       </MrSessionNotice>
       <p v-for="error in errors" :key="`${error.connector}:${error.message}`" class="strip" role="alert" data-testid="tree-error" :title="error.message">{{ error.connector }}: {{ error.message }}</p>
       <InboxSection v-if="withInbox && activeTab === 'sessions' && !filtering" />
+      <ChannelsSection v-if="activeTab === 'sessions' && !filtering" />
       <div v-if="activeTab === 'sessions'" class="section-head" data-testid="project-tree-head">
         <UiButton class="section-toggle" :aria-expanded="projectsOpen" :disabled="filtering" data-testid="project-tree-toggle" @click="treeProjectsCollapsed = !treeProjectsCollapsed">
           <ChevronRight :size="14" class="chevron vr-chevron" />

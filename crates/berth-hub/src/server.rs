@@ -176,6 +176,8 @@ async fn channels(State(s): State<Shared>, headers: HeaderMap) -> Reply {
 #[derive(Deserialize)]
 struct ChannelBody {
     key: String,
+    #[serde(default)]
+    shared: bool,
 }
 
 async fn create_channel(
@@ -184,8 +186,17 @@ async fn create_channel(
     Json(b): Json<ChannelBody>,
 ) -> Reply {
     let store = s.store.lock().unwrap();
-    let m = authorize(&store, &headers, Permission::ChannelsCreate)?.into_member()?;
+    let who = authorize(&store, &headers, Permission::ChannelsCreate)?;
+    if b.shared {
+        who.require(Permission::AdminManage)?;
+    }
+    let m = who.into_member()?;
     store.create_channel(&b.key, &m.id).map_err(denied)?;
+    if b.shared {
+        store
+            .share_channel(&b.key)
+            .map_err(|e| fail(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    }
     Ok(Json(json!({ "ok": true })))
 }
 

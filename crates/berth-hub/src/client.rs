@@ -119,6 +119,18 @@ impl HubClient {
         Ok(())
     }
 
+    /// Creates the channel, or takes an existing one, as a Shared Channel: every approved
+    /// person on the hub is in it, and each one approved later joins it. Needs `admin.manage`.
+    pub async fn create_shared_channel(&self, key: &str) -> Result<()> {
+        self.call(
+            "POST",
+            "/channels",
+            Some(json!({ "key": key, "shared": true })),
+        )
+        .await?;
+        Ok(())
+    }
+
     pub async fn add_member(&self, key: &str, member: &str) -> Result<()> {
         self.call(
             "POST",

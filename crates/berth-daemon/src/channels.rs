@@ -188,6 +188,7 @@ impl Daemon {
         &self,
         key: Option<String>,
         agent: Option<AgentId>,
+        shared: bool,
     ) -> Result<String> {
         let key = match (key, agent) {
             (Some(key), _) => key,
@@ -205,7 +206,11 @@ impl Daemon {
             }
             (None, None) => bail!("name a channel key, or run this inside a session"),
         };
-        hub()?.create_channel(&key).await?;
+        if shared {
+            hub()?.create_shared_channel(&key).await?;
+        } else {
+            hub()?.create_channel(&key).await?;
+        }
         Ok(key)
     }
 }
