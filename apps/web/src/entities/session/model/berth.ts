@@ -62,6 +62,7 @@ type WatchEvent =
   | { type: 'task_note'; worktree: string; text: string }
   | { type: 'acp_item'; agent: string; seq: number; item: AcpItem }
   | { type: 'channel_appended'; channel: string; seq: number }
+  | { type: 'hub_changed' }
   | { type: 'error'; message: string };
 
 type AcpTool = { id: string; title: string; kind: string; status: string; detail: string | null; diff: { path: string; old: string | null; new: string } | null; output: string | null };
@@ -88,6 +89,13 @@ const channelListeners = new Set<(channel: string) => void>();
 export function onChannelAppended(listener: (channel: string) => void): () => void {
   channelListeners.add(listener);
   return () => channelListeners.delete(listener);
+}
+
+const hubListeners = new Set<() => void>();
+
+export function onHubChanged(listener: () => void): () => void {
+  hubListeners.add(listener);
+  return () => hubListeners.delete(listener);
 }
 
 export type SessionEvent = { type: 'reset'; data: string } | { type: 'output'; data: string } | { type: 'exited'; exit_code: number | null };
@@ -283,6 +291,9 @@ function createStore(): BerthStore {
       case 'channel_appended':
         for (const listener of channelListeners) listener(event.channel);
         return;
+      case 'hub_changed':
+        for (const listener of hubListeners) listener();
+        return;
       case 'error':
         error.value = event.message;
         return;
@@ -369,11 +380,12 @@ export type BerthReply =
   | { ChannelTouched: { req_id: number; touched: { member: string; name: string; agent: string; modules: string[] }[] } }
   | { ChannelGrants: { req_id: number; grants: { channel: string; agent: string; member: string; member_name: string }[] } }
   | { AcpTranscript: { req_id: number; agent: string; items: AcpItemAt[] } }
-  | { AcpCommands: { req_id: number; agent: string; commands: { name: string; description: string }[] } };
+  | { AcpCommands: { req_id: number; agent: string; commands: { name: string; description: string }[] } }
+  | { Hub: { req_id: number; json: string } };
 
 export class BerthCallError extends Error {}
 
-const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote', 'RouterConfig', 'ProjectSetup', 'Checkpoints', 'Channels', 'ChannelEvents', 'ChannelPresence', 'ChannelOpened', 'ChannelTouched', 'ChannelGrants', 'AcpTranscript', 'AcpCommands']);
+const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote', 'RouterConfig', 'ProjectSetup', 'Checkpoints', 'Channels', 'ChannelEvents', 'ChannelPresence', 'ChannelOpened', 'ChannelTouched', 'ChannelGrants', 'AcpTranscript', 'AcpCommands', 'Hub']);
 
 function isBerthReply(value: unknown): value is BerthReply {
   if (typeof value !== 'object' || value === null) return false;

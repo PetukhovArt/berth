@@ -44,3 +44,5 @@ export { default as PlanStrip } from './ui/PlanStrip.vue';
 export { default as NavNotices } from './ui/NavNotices.vue';
 export { default as StatusDot } from './ui/StatusDot.vue';
 export { default as StatusIcon } from './ui/StatusIcon.vue';
+export { changeHub, permissionHint, permissionLabel, refreshHub, useHubAdmin, useMay } from './model/hub';
+export type { HubAdmin, HubAuditEntry, HubChange, HubMember, HubRole } from './model/hub';
