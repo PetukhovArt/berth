@@ -5,7 +5,7 @@ import { FILE_PANEL_PREFIX, fileNameOf, filePanelId, isFilePanel, normalizePath 
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
 import { externalKey, externalTarget, isExternalPanel, useExternalSessions, type ExternalSession } from './external';
-import { markSeen, sessionKey, useBerth, type SessionNode, type SessionRef, type WorktreeNode } from './berth';
+import { markSeen, onAgentSpawned, sessionKey, useBerth, type SessionNode, type SessionRef, type WorktreeNode } from './berth';
 import { loadOpenTabs, saveOpenTabs } from './openTabs';
 import { sessionPaths } from '../lib/sessionPaths';
 
@@ -136,6 +136,19 @@ function createSessionDock() {
       if (replace) anchor?.api.close();
     });
   }
+
+  function openSpawned(agent: string, spawnedBy: string) {
+    const api = dock.api.value;
+    const session = berth?.sessions.value.get(sessionKey({ Agent: agent }));
+    if (!api || !session || api.getPanel(session.key)) return;
+    const parent = sessionKey({ Agent: spawnedBy });
+    const terminalOf = useExternalSessions()?.terminalOf.value;
+    const anchor = api.panels.find((panel) => (terminalOf?.get(panel.id) ?? panel.id) === parent);
+    if (!anchor) return;
+    api.addPanel({ id: session.key, component: 'session', title: session.name, params: { session: session.ref }, renderer: 'always', position: { referencePanel: anchor.id, direction: 'within' }, inactive: true });
+  }
+
+  onAgentSpawned(openSpawned);
 
   function openLinkedConversation(session: SessionNode, linked: ExternalSession) {
     withDock((api) => {

@@ -7,7 +7,7 @@
 use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
-use berth_core::{AgentId, AgentKind, EntityId, SpawnWorktree, Worktree, WorktreeId};
+use berth_core::{AgentId, AgentKind, EntityId, ServerEvent, SpawnWorktree, Worktree, WorktreeId};
 
 use crate::registry::{CreateAgentSpec, Daemon};
 
@@ -98,7 +98,14 @@ impl Daemon {
             None => None,
         };
         let spec = self.sibling_spec(id, kind, starting_prompt, target)?;
-        self.create_agent(spec).await
+        let created = self.create_agent(spec).await?;
+        if let EntityId::Agent(agent) = &created {
+            self.broadcast(ServerEvent::AgentSpawned {
+                agent: agent.clone(),
+                spawned_by: id.clone(),
+            });
+        }
+        Ok(created)
     }
 
     async fn spawn_worktree(

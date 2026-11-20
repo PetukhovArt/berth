@@ -56,6 +56,7 @@ type WatchEvent =
   | { type: 'external_archived'; session: ArchivedExternal }
   | { type: 'external_unarchived'; kind: AgentKind; session_id: string }
   | { type: 'removed'; id: EntityId }
+  | { type: 'spawned'; agent: string; spawned_by: string }
   | { type: 'status'; agent: string; status: AgentStatus; changed_at: number; unseen: boolean }
   | { type: 'feedback_request'; agent: string; request: FeedbackRequest | null }
   | { type: 'task_note'; worktree: string; text: string }
@@ -73,6 +74,13 @@ const acpListeners = new Set<(agent: string, item: AcpItemAt) => void>();
 export function onAcpItem(listener: (agent: string, item: AcpItemAt) => void): () => void {
   acpListeners.add(listener);
   return () => acpListeners.delete(listener);
+}
+
+const spawnListeners = new Set<(agent: string, spawnedBy: string) => void>();
+
+export function onAgentSpawned(listener: (agent: string, spawnedBy: string) => void): () => void {
+  spawnListeners.add(listener);
+  return () => spawnListeners.delete(listener);
 }
 
 const channelListeners = new Set<(channel: string) => void>();
@@ -256,6 +264,9 @@ function createStore(): BerthStore {
         return;
       case 'removed':
         publish(remove(state, event.id));
+        return;
+      case 'spawned':
+        for (const listener of spawnListeners) listener(event.agent, event.spawned_by);
         return;
       case 'status':
         publish(setStatus(state, event.agent, event.status, event.unseen, event.changed_at));

@@ -71,6 +71,10 @@ pub enum WatchEvent {
         session_id: String,
     },
     Removed {
+    Spawned {
+        agent: AgentId,
+        spawned_by: AgentId,
+    },
         id: EntityId,
     },
     Status {
@@ -606,6 +610,9 @@ impl Actor {
                 agent,
                 status,
                 changed_at,
+            ServerEvent::AgentSpawned { agent, spawned_by } => {
+                WatchEvent::Spawned { agent, spawned_by }
+            }
                 unseen,
                 ..
             } => WatchEvent::Status {
