@@ -113,6 +113,14 @@ pub(crate) fn mark(event: Event, own: &Own) -> Result<ChannelEvent> {
     Ok(marked)
 }
 
+pub async fn leave_channel(key: &str) -> Result<()> {
+    hub()?.leave_channel(key).await
+}
+
+pub async fn delete_channel(key: &str) -> Result<()> {
+    hub()?.delete_channel(key).await
+}
+
 pub async fn list_channels() -> Result<Vec<ChannelSummary>> {
     convert(hub()?.channels().await?)
 }

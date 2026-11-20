@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 64;
+pub const PROTOCOL_VERSION: u32 = 65;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -444,6 +444,16 @@ pub enum ClientRequest {
         agent: Option<AgentId>,
         #[serde(default)]
         shared: bool,
+    },
+
+    LeaveChannel {
+        req_id: u64,
+        key: String,
+    },
+
+    DeleteChannel {
+        req_id: u64,
+        key: String,
     },
 
     PostChannelNote {
@@ -980,6 +990,8 @@ pub struct ChannelSummary {
     pub unread: i64,
     #[serde(default)]
     pub shared: bool,
+    #[serde(default)]
+    pub mine: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

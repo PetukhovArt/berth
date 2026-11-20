@@ -263,6 +263,14 @@ enum ChannelCommand {
         )]
         shared: bool,
     },
+    #[command(
+        about = "Leave a channel: it goes from your list and your Agents leave it. A Shared Channel cannot be left"
+    )]
+    Leave { channel: String },
+    #[command(
+        about = "Delete a channel with its messages, for everyone: one you made, or any with a role that holds channels.delete"
+    )]
+    Delete { channel: String },
     #[command(about = "Print the events of a channel after a sequence number")]
     Read {
         channel: String,
@@ -477,6 +485,8 @@ fn main() -> Result<()> {
         Some(Command::Channel { command }) => match command {
             ChannelCommand::List => channel::run_list(),
             ChannelCommand::Open { key, shared } => channel::run_open(key, shared),
+            ChannelCommand::Leave { channel } => channel::run_leave(channel),
+            ChannelCommand::Delete { channel } => channel::run_delete(channel),
             ChannelCommand::Read { channel, after } => channel::run_read(channel, after),
             ChannelCommand::Post { channel, message } => {
                 channel::run_post(channel, message.join(" "))

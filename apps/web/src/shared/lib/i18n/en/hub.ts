@@ -9,6 +9,7 @@ export const hub = {
       post: 'Post in Channels',
       create: 'Create Channels',
       invite: 'Invite to Channels',
+      delete: 'Delete Channels',
     },
     agents: {
       join: 'Bring Agents',
@@ -27,6 +28,7 @@ export const hub = {
       post: 'Write messages in a Channel.',
       create: 'Open a new Channel.',
       invite: 'Add other people to a Channel.',
+      delete: 'Delete any Channel with its messages. Without it you delete only the Channels you made.',
     },
     agents: {
       join: 'Let your Agents join Channels and act for you.',
@@ -102,6 +104,7 @@ export const hub = {
     memberApproved: '{actor} approved {member} as {role}',
     memberRole: '{actor} changed the role of {member} to {role}',
     memberRevoked: '{actor} revoked {member}',
+    channelDeleted: '{actor} deleted the Channel {channel}',
     migrated: 'The hub switched to roles. Every approved device became Member.',
     unknown: '{actor}: {action} {target}',
   },

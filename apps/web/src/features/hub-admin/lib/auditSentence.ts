@@ -37,6 +37,8 @@ export function auditSentence(entry: HubAuditEntry, admin: HubAdmin): string {
     }
     case 'member.revoked':
       return t('hub.audit.memberRevoked', { actor, member: memberOf(entry.target) });
+    case 'channel.deleted':
+      return t('hub.audit.channelDeleted', { actor, channel: entry.target });
     case 'hub.migrated':
       return t('hub.audit.migrated');
     default:

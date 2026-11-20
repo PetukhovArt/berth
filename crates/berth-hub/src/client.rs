@@ -131,6 +131,21 @@ impl HubClient {
         Ok(())
     }
 
+    /// Takes the caller and its Agents out of a channel. A Shared Channel cannot be left.
+    pub async fn leave_channel(&self, key: &str) -> Result<()> {
+        self.call("POST", "/channels/leave", Some(json!({ "key": key })))
+            .await?;
+        Ok(())
+    }
+
+    /// Deletes a channel with its messages for everyone. Allowed to the member that made
+    /// it and to a role with `channels.delete`.
+    pub async fn delete_channel(&self, key: &str) -> Result<()> {
+        self.call("POST", "/channels/delete", Some(json!({ "key": key })))
+            .await?;
+        Ok(())
+    }
+
     pub async fn add_member(&self, key: &str, member: &str) -> Result<()> {
         self.call(
             "POST",

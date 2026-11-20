@@ -1,13 +1,13 @@
 import { computed, shallowRef } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
-import { BerthCallError, call, onChannelAppended, useBerth } from './berth';
+import { acknowledged, BerthCallError, call, onChannelAppended, useBerth } from './berth';
 
 export const agentName = (agent: string) => useBerth()?.entities.value.agents.get(agent)?.name ?? agent;
 
 export { onChannelAppended };
 
-type ChannelSummary = { key: string; head: number; unread: number; shared: boolean };
+export type ChannelSummary = { key: string; head: number; unread: number; shared: boolean; mine: boolean };
 export type ChannelMessage = { seq: number; kind: number; author: string; authorName: string; authorKind: string; tags: string[][]; content: string; createdAt: number; authorAgent: string | null; mentionedAgents: string[]; promotable: boolean; grantable: boolean };
 export type ChannelTouching = { member: string; name: string; agent: string; modules: string[] };
 export type ChannelGrant = { channel: string; agent: string; member: string; member_name: string };
@@ -196,6 +196,21 @@ export function useChannelUnread() {
 export function useChannels() {
   useChannelUnread();
   return computed(() => [...channels.value].sort((a, b) => Number(b.shared) - Number(a.shared) || a.key.localeCompare(b.key)));
+}
+
+async function gone(key: string): Promise<void> {
+  useDock().withDock((dock) => dock.getPanel(channelPanelId(key))?.api.close(), false);
+  channels.value = await listChannels();
+}
+
+export async function leaveChannel(key: string): Promise<void> {
+  await acknowledged({ LeaveChannel: { key } });
+  await gone(key);
+}
+
+export async function deleteChannel(key: string): Promise<void> {
+  await acknowledged({ DeleteChannel: { key } });
+  await gone(key);
 }
 
 export async function createChannel(key: string, shared: boolean): Promise<void> {

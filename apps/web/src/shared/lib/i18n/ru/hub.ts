@@ -12,6 +12,7 @@ export const hub: Translation<typeof en> = {
       post: 'Писать в каналы',
       create: 'Создавать каналы',
       invite: 'Приглашать в каналы',
+      delete: 'Удалять каналы',
     },
     agents: {
       join: 'Подключать агентов',
@@ -30,6 +31,7 @@ export const hub: Translation<typeof en> = {
       post: 'Писать сообщения в канал.',
       create: 'Открывать новый канал.',
       invite: 'Добавлять других людей в канал.',
+      delete: 'Удалять любой канал вместе с сообщениями. Без этого права удаляются только свои каналы.',
     },
     agents: {
       join: 'Подключать своих агентов к каналам, чтобы они работали от вашего имени.',
@@ -105,6 +107,7 @@ export const hub: Translation<typeof en> = {
     memberApproved: '{actor} одобрил {member} с ролью {role}',
     memberRole: '{actor} сменил роль {member} на {role}',
     memberRevoked: '{actor} отозвал доступ у {member}',
+    channelDeleted: '{actor} удалил канал {channel}',
     migrated: 'Хаб перешёл на роли. Каждое одобренное устройство стало участником с ролью Member.',
     unknown: '{actor}: {action} {target}',
   },

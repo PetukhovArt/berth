@@ -1,4 +1,6 @@
-use crate::rights::{authorize, role_permissions, BuiltinRole, Permission, Principal, Refusal};
+use crate::rights::{
+    authorize, role_permissions, BuiltinRole, Member, Permission, Principal, Refusal,
+};
 use crate::server::{Reply, Shared};
 use crate::store::{has_member_column, now_ms, random_token, Store};
 use crate::stream::{Ended, EndedWhy};
@@ -100,15 +102,18 @@ pub enum AuditAction {
     MemberRevoked,
     #[serde(rename = "hub.migrated")]
     HubMigrated,
+    #[serde(rename = "channel.deleted")]
+    ChannelDeleted,
 }
 
 impl AuditAction {
-    const ALL: [AuditAction; 5] = [
+    const ALL: [AuditAction; 6] = [
         Self::RoleSaved,
         Self::RoleDeleted,
         Self::MemberRole,
         Self::MemberRevoked,
         Self::HubMigrated,
+        Self::ChannelDeleted,
     ];
 
     fn key(self) -> &'static str {
@@ -118,6 +123,7 @@ impl AuditAction {
             Self::MemberRole => "member.role",
             Self::MemberRevoked => "member.revoked",
             Self::HubMigrated => "hub.migrated",
+            Self::ChannelDeleted => "channel.deleted",
         }
     }
 
@@ -444,6 +450,47 @@ fn revoke(db: &Connection, member: &str) -> Result<Option<Applied>, Refusal> {
 }
 
 impl Store {
+    /// Deletes a channel with its messages and members, for the member that made it or
+    /// one whose role holds `channels.delete`, and writes the audit row in the same
+    /// transaction.
+    pub(crate) fn delete_channel(&mut self, actor: &Member, key: &str) -> Result<(), Refusal> {
+        let tx = self.db.transaction()?;
+        let found: Option<(Option<String>, bool)> = tx
+            .query_row(
+                "SELECT owner, shared FROM channels WHERE key = ?1",
+                [key],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        let Some((owner, shared)) = found else {
+            return Err(Refusal::NotFound(format!("no channel `{key}`")));
+        };
+        if owner.as_deref() != Some(actor.id.as_str()) && !actor.holds(Permission::ChannelsDelete) {
+            return Err(Refusal::Missing {
+                role: Some(actor.role.name.clone()),
+                permission: Permission::ChannelsDelete,
+            });
+        }
+        let messages = tx.execute("DELETE FROM events WHERE channel = ?1", [key])?;
+        tx.execute("DELETE FROM channel_members WHERE channel = ?1", [key])?;
+        tx.execute("DELETE FROM channels WHERE key = ?1", [key])?;
+        audit(
+            &tx,
+            (&actor.id, &actor.name),
+            &Applied {
+                action: AuditAction::ChannelDeleted,
+                target: key.to_string(),
+                detail: json!({
+                    "before": { "shared": shared, "messages": messages },
+                    "after": null,
+                }),
+                ended: Vec::new(),
+            },
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+
     pub(crate) fn apply(
         &mut self,
         actor: &Principal,

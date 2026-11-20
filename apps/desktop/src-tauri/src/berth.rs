@@ -809,6 +809,8 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::PostToChannel { req_id, .. }
         | ClientRequest::GetChannelPresence { req_id, .. }
         | ClientRequest::OpenChannel { req_id, .. }
+        | ClientRequest::LeaveChannel { req_id, .. }
+        | ClientRequest::DeleteChannel { req_id, .. }
         | ClientRequest::PostChannelNote { req_id, .. }
         | ClientRequest::GetChannelTouched { req_id, .. }
         | ClientRequest::PromoteChannelMessage { req_id, .. }

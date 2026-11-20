@@ -42,9 +42,12 @@ export const attention = {
     namePlaceholder: 'general',
     shared: 'Для всей команды',
     sharedHint: 'В нём все одобренные на хабе, включая тех, кого одобрят позже',
-    sharedTag: 'Команда',
     create: 'Создать',
     toggle: 'Показать или скрыть каналы',
+    actions: 'Действия с каналом',
+    leave: 'Покинуть канал',
+    delete: 'Удалить канал',
+    deleteQuestion: 'Удалить канал {key} вместе с сообщениями для всех? Это нельзя отменить.',
   },
   channel: {
     messages: 'Канал {key}',

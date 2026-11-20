@@ -42,9 +42,12 @@ export const attention = {
     namePlaceholder: 'general',
     shared: 'For the whole team',
     sharedHint: 'Everyone approved on the hub is in it, including people approved later',
-    sharedTag: 'Team',
     create: 'Create',
     toggle: 'Show or hide Channels',
+    actions: 'Channel actions',
+    leave: 'Leave the Channel',
+    delete: 'Delete the Channel',
+    deleteQuestion: 'Delete the Channel {key} with its messages for everyone? This cannot be undone.',
   },
   channel: {
     messages: 'Channel {key}',

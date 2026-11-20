@@ -373,7 +373,7 @@ export type BerthReply =
   | { RouterConfig: { req_id: number; json: string; path: string } }
   | { ProjectSetup: { req_id: number; project: string; command: string } }
   | { Checkpoints: { req_id: number; agent: string; checkpoints: { number: number; created_at: number; before_restore: boolean }[] } }
-  | { Channels: { req_id: number; channels: { key: string; head: number; unread: number; shared: boolean }[] } }
+  | { Channels: { req_id: number; channels: { key: string; head: number; unread: number; shared: boolean; mine: boolean }[] } }
   | { ChannelEvents: { req_id: number; events: { seq: number; kind: number; author: string; author_name: string; author_kind: string; channel: string; tags: string[][]; content: string; created_at: number; from_me: boolean; author_agent: string | null; mentioned_agents: string[] }[] } }
   | { ChannelPresence: { req_id: number; here: { member: string; name: string; agents: string[] }[] } }
   | { ChannelOpened: { req_id: number; key: string } }

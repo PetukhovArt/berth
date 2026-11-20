@@ -93,6 +93,8 @@ async fn start(
         .route("/me", get(me))
         .route("/channels", get(channels).post(create_channel))
         .route("/channels/members", post(add_member))
+        .route("/channels/leave", post(leave_channel))
+        .route("/channels/delete", post(delete_channel))
         .route("/events", get(read).post(post_event))
         .route("/mentions", get(mentions))
         .route("/presence", get(presence).post(report_presence))
@@ -197,6 +199,35 @@ async fn create_channel(
             .share_channel(&b.key)
             .map_err(|e| fail(StatusCode::INTERNAL_SERVER_ERROR, e))?;
     }
+    Ok(Json(json!({ "ok": true })))
+}
+
+#[derive(Deserialize)]
+struct KeyBody {
+    key: String,
+}
+
+async fn leave_channel(
+    State(s): State<Shared>,
+    headers: HeaderMap,
+    Json(b): Json<KeyBody>,
+) -> Reply {
+    let store = s.store.lock().unwrap();
+    let m = authorize(&store, &headers, Need::Signed)?.into_member()?;
+    store
+        .leave_channel(&b.key, &m.id)
+        .map_err(|e| fail(StatusCode::CONFLICT, e))?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+async fn delete_channel(
+    State(s): State<Shared>,
+    headers: HeaderMap,
+    Json(b): Json<KeyBody>,
+) -> Reply {
+    let mut store = s.store.lock().unwrap();
+    let m = authorize(&store, &headers, Need::Signed)?.into_member()?;
+    store.delete_channel(&m, &b.key)?;
     Ok(Json(json!({ "ok": true })))
 }
 

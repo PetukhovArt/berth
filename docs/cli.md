@@ -138,6 +138,8 @@ The desktop app's Channel view has a Task note button beside Send. Each daemon a
 ```sh
 berth channel open [<key>]  # create the channel for a task, or join it when it exists
 berth channel open general --shared  # a Shared Channel: everyone approved on the hub is in it (needs admin.manage)
+berth channel leave <key>   # leave a channel; a Shared Channel cannot be left
+berth channel delete <key>  # delete a channel with its messages for everyone: one you made, or any with channels.delete
 ```
 
 It needs `channels.create` in your role on the hub. When the channel already exists without you, `open` adds your device to it and you read its whole history. The key is a Jira issue key such as `PROJ-12`, or a branch name when the
@@ -222,6 +224,7 @@ Every approved person holds one role, and a role is a set of permissions:
 | `channels.read` | read the Channels they are in, see who is here, and report their own presence |
 | `channels.post` | post in those Channels, including answers to their Agents' requests |
 | `channels.create` | create a Channel, or join one with `berth channel open` |
+| `channels.delete` | delete any Channel with its messages; without it you delete only the Channels you made |
 | `channels.invite` | add a member to a Channel |
 | `agents.join` | register their Agents on the hub, so the Agents can read, post and be mentioned |
 | `agents.instruct` | instruct a colleague's Agent through a grant (see Team channels) |

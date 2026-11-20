@@ -1,16 +1,66 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
-import { ChevronRight, MessageSquare, Plus, Users } from '../../../shared/ui/icons';
-import { VButton, VInputText } from '../../../shared/ui/kit';
+import { ChevronRight, Ellipsis, MessageSquare, Plus, Users } from '../../../shared/ui/icons';
+import { VButton, VContextMenu, VInputText } from '../../../shared/ui/kit';
+import ConfirmPopover from '../../../shared/ui/ConfirmPopover.vue';
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiInput from '../../../shared/ui/UiInput.vue';
-import { createChannel, describeError, openChannel, useChannels, useHubAdmin } from '../../../entities/session';
+import { createChannel, deleteChannel, describeError, leaveChannel, openChannel, useChannels, useHubAdmin, useMay, type ChannelSummary } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 
 const channels = useChannels();
 const { state } = useHubAdmin();
 const onHub = computed(() => state.value === 'member' || state.value === 'admin');
 const isAdmin = computed(() => state.value === 'admin');
+const mayDelete = useMay('channels.delete');
+
+const menu = useTemplateRef<InstanceType<typeof VContextMenu>>('menu');
+const confirm = useTemplateRef<InstanceType<typeof ConfirmPopover>>('confirm');
+const target = shallowRef<ChannelSummary | null>(null);
+const anchor = shallowRef<HTMLElement | null>(null);
+const removing = shallowRef(false);
+const rowError = shallowRef<string | null>(null);
+
+const canDelete = (channel: ChannelSummary) => channel.mine || mayDelete.value.ok;
+const hasActions = (channel: ChannelSummary) => !channel.shared || canDelete(channel);
+
+const menuItems = computed(() => {
+  const channel = target.value;
+  if (!channel) return [];
+  return [
+    ...(channel.shared ? [] : [{ key: 'leave', label: t('attention.channels.leave'), command: () => void leave(channel) }]),
+    ...(canDelete(channel) ? [{ key: 'delete', label: t('attention.channels.delete'), command: () => setTimeout(() => confirm.value?.show(anchor.value), 0) }] : []),
+  ];
+});
+
+function showMenu(event: MouseEvent, channel: ChannelSummary) {
+  target.value = channel;
+  anchor.value = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+  rowError.value = null;
+  menu.value?.show(event);
+}
+
+async function leave(channel: ChannelSummary) {
+  try {
+    await leaveChannel(channel.key);
+  } catch (e) {
+    rowError.value = describeError(e);
+  }
+}
+
+async function remove() {
+  const channel = target.value;
+  if (!channel || removing.value) return;
+  removing.value = true;
+  try {
+    await deleteChannel(channel.key);
+  } catch (e) {
+    rowError.value = describeError(e);
+  } finally {
+    removing.value = false;
+    confirm.value?.hide();
+  }
+}
 
 const open = shallowRef(true);
 const form = shallowRef(false);
@@ -69,13 +119,23 @@ async function create() {
           <VButton :label="t('common.cancel')" size="small" severity="secondary" text :disabled="saving" data-testid="channels-cancel" @click="form = false" />
         </div>
       </form>
-      <UiButton v-for="channel in channels" :key="channel.key" class="row" :title="channel.shared ? `${channel.key} · ${t('attention.channels.sharedHint')}` : channel.key" :data-testid="`channel-row-${channel.key}`" @click="openChannel(channel.key)">
-        <Users v-if="channel.shared" :size="14" class="row-icon" />
-        <MessageSquare v-else :size="14" class="row-icon" />
-        <span class="name" :class="{ unread: channel.unread > 0 }"># {{ channel.key }}</span>
-        <span v-if="channel.unread > 0" class="badge">{{ channel.unread }}</span>
-      </UiButton>
+      <p v-if="rowError" class="error row-error" role="alert" data-testid="channels-row-error">{{ rowError }}</p>
+      <div v-for="channel in channels" :key="channel.key" class="item">
+        <UiButton class="row" :title="channel.shared ? `${channel.key} · ${t('attention.channels.sharedHint')}` : channel.key" :data-testid="`channel-row-${channel.key}`" @click="openChannel(channel.key)">
+          <Users v-if="channel.shared" :size="14" class="row-icon" />
+          <MessageSquare v-else :size="14" class="row-icon" />
+          <span class="name" :class="{ unread: channel.unread > 0 }"># {{ channel.key }}</span>
+          <span v-if="channel.unread > 0" class="badge">{{ channel.unread }}</span>
+        </UiButton>
+        <UiButton v-if="hasActions(channel)" class="more" :title="t('attention.channels.actions')" :aria-label="t('attention.channels.actions')" aria-haspopup="menu" :data-testid="`channel-menu-${channel.key}`" @click="showMenu($event, channel)"><Ellipsis :size="14" /></UiButton>
+      </div>
     </template>
+    <VContextMenu ref="menu" :model="menuItems">
+      <template #item="{ item, props: itemProps }">
+        <a v-bind="itemProps.action" :data-testid="`channel-menu-${item.key}`">{{ item.label }}</a>
+      </template>
+    </VContextMenu>
+    <ConfirmPopover ref="confirm" :question="t('attention.channels.deleteQuestion', { key: target?.key ?? '' })" :busy="removing" testid="channel-delete-confirm" @confirm="remove" />
   </section>
 </template>
 
@@ -176,6 +236,40 @@ async function create() {
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-danger);
   overflow-wrap: anywhere;
+}
+
+.item {
+  position: relative;
+}
+
+.more {
+  position: absolute;
+  top: 3px;
+  right: var(--vr-space-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  color: var(--vr-color-text-muted);
+  background: var(--vr-color-nav-hover);
+  border: 0;
+  border-radius: var(--vr-radius-sm);
+  opacity: 0;
+}
+
+.item:hover .more,
+.more:focus-visible {
+  opacity: 1;
+}
+
+.item:hover .badge {
+  visibility: hidden;
+}
+
+.row-error {
+  padding: 0 var(--vr-space-2) var(--vr-space-1);
 }
 
 .row {

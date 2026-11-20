@@ -544,3 +544,47 @@ async fn a_shared_channel_holds_every_approved_person_now_and_later_and_only_an_
     );
     cy.post("general", "hi all", None).await.unwrap();
 }
+
+#[tokio::test]
+async fn a_channel_is_deleted_by_its_maker_or_a_role_with_channels_delete_and_left_by_the_rest() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_hub, url) = start(&dir.path().join("hub.db"), Some("admin-secret")).await;
+    let (_ann_id, ann) = person(&url, "ann", "admin").await;
+    let (_bob_id, bob) = person(&url, "bob", "member").await;
+    let (_cy_id, cy) = person(&url, "cy", "member").await;
+
+    bob.create_channel("design").await.unwrap();
+    cy.create_channel("design").await.unwrap();
+    bob.post("design", "draft", None).await.unwrap();
+    assert!(bob.channels().await.unwrap()[0].mine);
+    assert!(!cy.channels().await.unwrap()[0].mine);
+
+    let refused = cy.delete_channel("design").await.unwrap_err().to_string();
+    assert!(
+        refused.contains("`Member`") && refused.contains("`channels.delete`"),
+        "{refused}"
+    );
+    cy.leave_channel("design").await.unwrap();
+    assert!(cy.channels().await.unwrap().is_empty());
+    assert_eq!(bob.channels().await.unwrap().len(), 1);
+
+    bob.delete_channel("design").await.unwrap();
+    assert!(bob.channels().await.unwrap().is_empty());
+    assert!(bob.read("design", 0, None).await.is_err());
+
+    cy.create_channel("ops").await.unwrap();
+    ann.delete_channel("ops").await.unwrap();
+    assert!(cy.channels().await.unwrap().is_empty());
+
+    ann.create_shared_channel("general").await.unwrap();
+    let stuck = bob.leave_channel("general").await.unwrap_err().to_string();
+    assert!(stuck.contains("(409)"), "{stuck}");
+
+    let audit = admin(&url).admin_view().await.unwrap().audit;
+    let deleted: Vec<_> = audit
+        .iter()
+        .filter(|e| e.action == AuditAction::ChannelDeleted)
+        .map(|e| (e.actor_name.as_str(), e.target.as_str()))
+        .collect();
+    assert_eq!(deleted, vec![("ann", "ops"), ("bob", "design")]);
+}

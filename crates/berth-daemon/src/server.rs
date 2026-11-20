@@ -400,6 +400,20 @@ async fn handle_client(
                         let _ = out_tx.send(ev).await;
                     });
                 }
+                ClientRequest::LeaveChannel { req_id, key } => {
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let done = crate::channels::leave_channel(&key).await;
+                        reply_done(&out_tx, req_id, done).await;
+                    });
+                }
+                ClientRequest::DeleteChannel { req_id, key } => {
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let done = crate::channels::delete_channel(&key).await;
+                        reply_done(&out_tx, req_id, done).await;
+                    });
+                }
                 ClientRequest::GetChannelTouched { req_id, channel } => {
                     let out_tx = out_tx.clone();
                     tokio::spawn(async move {

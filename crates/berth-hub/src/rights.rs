@@ -15,6 +15,7 @@ pub enum Permission {
     ChannelsPost,
     ChannelsCreate,
     ChannelsInvite,
+    ChannelsDelete,
     AgentsJoin,
     AgentsInstruct,
     ContextWrite,
@@ -22,11 +23,12 @@ pub enum Permission {
 }
 
 impl Permission {
-    pub const ALL: [Permission; 8] = [
+    pub const ALL: [Permission; 9] = [
         Self::ChannelsRead,
         Self::ChannelsPost,
         Self::ChannelsCreate,
         Self::ChannelsInvite,
+        Self::ChannelsDelete,
         Self::AgentsJoin,
         Self::AgentsInstruct,
         Self::ContextWrite,
@@ -39,6 +41,7 @@ impl Permission {
             Self::ChannelsPost => "channels.post",
             Self::ChannelsCreate => "channels.create",
             Self::ChannelsInvite => "channels.invite",
+            Self::ChannelsDelete => "channels.delete",
             Self::AgentsJoin => "agents.join",
             Self::AgentsInstruct => "agents.instruct",
             Self::ContextWrite => "context.write",

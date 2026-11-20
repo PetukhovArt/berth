@@ -99,6 +99,41 @@ pub fn run_read(channel: String, after: i64) -> Result<()> {
     })
 }
 
+fn print_done(request: ClientRequest, key: String) -> Result<()> {
+    runtime()?.block_on(async {
+        let ServerEvent::Ack { .. } = call(request).await? else {
+            bail!("unexpected reply");
+        };
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({ "ok": true, "channel": key }))?
+        );
+        Ok(())
+    })
+}
+
+pub fn run_leave(key: String) -> Result<()> {
+    owner_only("leave")?;
+    print_done(
+        ClientRequest::LeaveChannel {
+            req_id: ONE_SHOT_REQ_ID,
+            key: key.clone(),
+        },
+        key,
+    )
+}
+
+pub fn run_delete(key: String) -> Result<()> {
+    owner_only("delete")?;
+    print_done(
+        ClientRequest::DeleteChannel {
+            req_id: ONE_SHOT_REQ_ID,
+            key: key.clone(),
+        },
+        key,
+    )
+}
+
 fn print_posted(request: ClientRequest) -> Result<()> {
     runtime()?.block_on(async {
         let ServerEvent::ChannelEvents { events, .. } = call(request).await? else {
