@@ -3,21 +3,12 @@
 //! install.sh already knows how to pick the right prebuilt binary, fall back
 //! to cargo, and report where it landed — this subcommand just saves the user
 //! from remembering the curl one-liner.
-//!
-//! **The subcommand is Unix-only**, and this is the one place in the Windows
-//! port that cuts rather than `#[cfg]`s a Unix path. Everything else has a
-//! Windows spelling worth writing; this does not. It is a wrapper around a
-//! `sh` script, which this platform cannot run. A `#[cfg(windows)]` branch
-//! here would be a branch that could only ever fail, so the subcommand
-//! refuses with the reason instead.
 
-use anyhow::Result;
-#[cfg(unix)]
-use anyhow::{bail, Context};
-#[cfg(unix)]
+use anyhow::{bail, Context, Result};
 use std::path::{Path, PathBuf};
-#[cfg(unix)]
 use std::process::Command;
+
+const REPO: &str = "PetukhovArt/berth";
 
 #[cfg(unix)]
 const INSTALL_URL: &str = "https://raw.githubusercontent.com/PetukhovArt/berth/main/install.sh";
@@ -35,26 +26,138 @@ fn install_url() -> String {
 pub(crate) const KILL_HINT: &str =
     "      run 'berth kill' to restart onto the new binary (stops all sessions).";
 
-/// Refused on Windows — see the module docs. The message names the reason
-/// and the way out rather than a bare "unsupported": a user who typed this
-/// wants a newer berth, and cargo is how they get one.
+fn manifest_version() -> Result<String> {
+    let url = format!("https://github.com/{REPO}/releases/latest/download/latest.json");
+    let output = Command::new(system_tool("curl"))
+        .args(["-fsSL", &url])
+        .output()
+        .context("run curl — is it installed?")?;
+    if !output.status.success() {
+        bail!(
+            "downloading {url} failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+    parse_manifest_version(&output.stdout).with_context(|| format!("{url} has no version"))
+}
+
+fn parse_manifest_version(body: &[u8]) -> Option<String> {
+    let value: serde_json::Value = serde_json::from_slice(body).ok()?;
+    let version = value.get("version")?.as_str()?.trim();
+    let version = version.strip_prefix('v').unwrap_or(version);
+    (!version.is_empty()).then(|| version.to_owned())
+}
+
 #[cfg(windows)]
-pub fn run_upgrade(_force: bool) -> Result<()> {
-    anyhow::bail!(
-        "berth upgrade is not available on Windows: it runs install.sh, a POSIX \
-         script. Update from a checkout with `git pull && cargo install --path \
-         crates/berth`, or from the desktop app's `Update daemon`."
-    )
+fn system_tool(name: &str) -> PathBuf {
+    let root = std::env::var_os("SystemRoot").unwrap_or_else(|| r"C:\Windows".into());
+    let path = PathBuf::from(root)
+        .join("System32")
+        .join(format!("{name}.exe"));
+    if path.is_file() {
+        path
+    } else {
+        PathBuf::from(name)
+    }
 }
 
 #[cfg(unix)]
+fn system_tool(name: &str) -> PathBuf {
+    PathBuf::from(name)
+}
+
 pub fn run_upgrade(force: bool) -> Result<()> {
-    let url = install_url();
     // The runtime dir is already the 0700 auth boundary; staging the script
     // there keeps it out of a world-writable /tmp before we execute it.
     berth_daemon::lifecycle::ensure_runtime_dir()?;
-    upgrade_with(&url, &berth_core::paths::runtime_dir(), force)?;
+    install_release(&berth_core::paths::runtime_dir(), force)?;
     finish_daemon_handoff();
+    Ok(())
+}
+
+#[cfg(unix)]
+fn install_release(staging_dir: &Path, force: bool) -> Result<()> {
+    let version = match manifest_version() {
+        Ok(version) => Some(version),
+        Err(error) => {
+            println!("note: {error:#}; installing the latest release");
+            None
+        }
+    };
+    install_with(&install_url(), staging_dir, force, version.as_deref())
+}
+
+#[cfg(windows)]
+fn install_release(staging_dir: &Path, force: bool) -> Result<()> {
+    refuse_dev_build(force)?;
+    let version = manifest_version()?;
+    if version == env!("CARGO_PKG_VERSION") && !force {
+        println!("berth {version} is already installed");
+        return Ok(());
+    }
+    let exe = std::env::current_exe().context("locate the running berth.exe")?;
+    let exe = berth_core::paths::canonical_or_raw(&exe);
+    let dir = staging_dir.join(format!("upgrade-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).with_context(|| format!("create {}", dir.display()))?;
+    let swapped = download_and_swap(&version, &dir, &exe);
+    let _ = std::fs::remove_dir_all(&dir);
+    swapped?;
+    println!("installed berth {version} to {}", exe.display());
+    Ok(())
+}
+
+#[cfg(windows)]
+fn download_and_swap(version: &str, dir: &Path, exe: &Path) -> Result<()> {
+    let url = format!(
+        "https://github.com/{REPO}/releases/download/v{version}/berth-x86_64-pc-windows-msvc.zip"
+    );
+    let zip = dir.join("berth.zip");
+    println!("downloading {url}");
+    let status = Command::new(system_tool("curl"))
+        .args(["-fsSL", &url, "-o"])
+        .arg(&zip)
+        .status()
+        .context("run curl")?;
+    if !status.success() {
+        bail!("downloading {url} failed ({status})");
+    }
+    let status = Command::new(system_tool("tar"))
+        .arg("-xf")
+        .arg(&zip)
+        .arg("-C")
+        .arg(dir)
+        .status()
+        .context("run tar")?;
+    let fresh = dir.join("berth.exe");
+    if !status.success() || !fresh.is_file() {
+        bail!("{url} did not unpack to berth.exe");
+    }
+    let old = exe.with_file_name("berth.old.exe");
+    let _ = std::fs::remove_file(&old);
+    std::fs::rename(exe, &old).with_context(|| format!("move {} aside", exe.display()))?;
+    if let Err(error) = std::fs::copy(&fresh, exe) {
+        let _ = std::fs::rename(&old, exe);
+        return Err(error).with_context(|| format!("write {}", exe.display()));
+    }
+    let _ = std::fs::remove_file(&old);
+    Ok(())
+}
+
+fn refuse_dev_build(force: bool) -> Result<()> {
+    if force {
+        return Ok(());
+    }
+    if let Some(exe) = dev_build() {
+        bail!(
+            "{} is a local cargo build.\n\n\
+             Upgrading installs the published binary and would overwrite a \
+             ~/.cargo/bin symlink pointing at this build. Rebuild instead:\n\
+             \x20   cargo build --release\n\n\
+             Re-run with --force to install the published binary anyway.",
+            exe.display()
+        );
+    }
     Ok(())
 }
 
@@ -63,7 +166,6 @@ pub fn run_upgrade(force: bool) -> Result<()> {
 /// the next launch spawns the new binary; live sessions would die with the
 /// daemon, so that restart stays the user's call. Never fails the upgrade:
 /// the install already succeeded.
-#[cfg(unix)]
 fn finish_daemon_handoff() {
     use crate::client::IdleShutdown;
     match crate::client::run_shutdown_if_idle() {
@@ -86,28 +188,25 @@ fn finish_daemon_handoff() {
     }
 }
 
-#[cfg(unix)]
+#[cfg(all(test, unix))]
 fn upgrade_with(url: &str, staging_dir: &Path, force: bool) -> Result<()> {
-    if !force {
-        if let Some(exe) = dev_build() {
-            bail!(
-                "{} is a local cargo build.\n\n\
-                 Upgrading installs the published binary and would overwrite a \
-                 ~/.cargo/bin symlink pointing at this build. Rebuild instead:\n\
-                 \x20   cargo build --release\n\n\
-                 Re-run with --force to install the published binary anyway.",
-                exe.display()
-            );
-        }
-    }
+    install_with(url, staging_dir, force, None)
+}
+
+#[cfg(unix)]
+fn install_with(url: &str, staging_dir: &Path, force: bool, version: Option<&str>) -> Result<()> {
+    refuse_dev_build(force)?;
 
     let script = stage_script(url, staging_dir)?;
     // Inherited stdio: the script's own progress lines are the UI here.
     // BERTH_UPGRADE_HANDOFF tells install.sh to skip its "daemon still
     // running" note — finish_daemon_handoff owns that messaging here.
-    let result = Command::new("sh")
-        .arg(&script)
-        .env("BERTH_UPGRADE_HANDOFF", "1")
+    let mut command = Command::new("sh");
+    command.arg(&script).env("BERTH_UPGRADE_HANDOFF", "1");
+    if let Some(version) = version {
+        command.env("BERTH_VERSION", version);
+    }
+    let result = command
         .status()
         .with_context(|| format!("run {}", script.display()));
     let _ = std::fs::remove_file(&script);
@@ -156,7 +255,6 @@ fn stage_script(url: &str, dir: &Path) -> Result<PathBuf> {
 /// `target/debug`, or the `deps/` dir test binaries run from). Symlinks
 /// resolve first: the usual dev setup is a `~/.cargo/bin/berth` symlink
 /// pointing into `target/release`, and it's that symlink an upgrade replaces.
-#[cfg(unix)]
 fn dev_build() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     let exe = std::fs::canonicalize(&exe).unwrap_or(exe);
@@ -272,5 +370,24 @@ mod tests {
             !marker.exists(),
             "refusing must happen before the installer runs"
         );
+    }
+}
+
+#[cfg(test)]
+mod manifest_tests {
+    use super::parse_manifest_version;
+
+    #[test]
+    fn reads_the_version_without_a_leading_v() {
+        let tagged = br#"{"version":"v0.31.0","platforms":{}}"#;
+        assert_eq!(parse_manifest_version(tagged).as_deref(), Some("0.31.0"));
+        let plain = br#"{"version":"0.31.0"}"#;
+        assert_eq!(parse_manifest_version(plain).as_deref(), Some("0.31.0"));
+    }
+
+    #[test]
+    fn a_page_that_is_not_the_manifest_has_no_version() {
+        assert_eq!(parse_manifest_version(b"<html>sign in</html>"), None);
+        assert_eq!(parse_manifest_version(br#"{"version":""}"#), None);
     }
 }

@@ -2,6 +2,7 @@ import { ref, shallowRef } from 'vue';
 import { invoke, isDesktop } from '../../../bridge';
 import { settleAll } from '../../../entities/document';
 import { createScope } from '../../../shared/lib/scope';
+import { openRelease, releaseUpdates } from './release';
 
 type Build = { buildId: string; commit: string; subject: string; sourceRepo: string; builtAt: string; protocol: number };
 type JobState = 'running' | 'done' | 'failed' | 'cancelled';
@@ -92,6 +93,10 @@ async function attempt(work: () => Promise<unknown>): Promise<void> {
 }
 
 export function openUpdate(mode: DialogMode): void {
+  if (releaseUpdates()) {
+    if (mode === 'update') openRelease();
+    return;
+  }
   failure.value = null;
   daemonUpdated.value = false;
   dialogMode.value = mode;

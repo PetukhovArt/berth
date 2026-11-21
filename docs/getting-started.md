@@ -1,13 +1,54 @@
 # Getting started
 
 berth has two parts: the `berth` command, which runs the daemon that owns every agent's terminal, and
-the desktop app you work in. Install the command first, then build the app.
+the desktop app you work in. The desktop installer brings both.
 
-## Install the berth command
+## Install the desktop app
 
-On macOS and Linux the install script installs and updates, and `berth upgrade` runs it again later.
-Releases carry no Linux `berth` archive, so on Linux the script builds from source with `cargo install`
-(the desktop `.deb` below includes `berth`):
+Every GitHub release carries an installer for each platform, all of the same version:
+
+| Platform | File | Where `berth` lands |
+|---|---|---|
+| Windows x64 | `berth-desktop-x86_64-windows-setup.exe` | beside the app in `%LOCALAPPDATA%\Berth`, which the installer adds to your user `PATH` |
+| macOS, Apple silicon | `berth-desktop-aarch64-macos.dmg` | inside the bundle, `Berth.app/Contents/MacOS/berth` |
+| macOS, Intel | `berth-desktop-x86_64-macos.dmg` | inside the bundle, `Berth.app/Contents/MacOS/berth` |
+| Debian and Ubuntu x64 | `berth-desktop-x86_64-linux.deb` | `/usr/bin/berth` |
+
+On Debian and Ubuntu:
+
+```sh
+sudo apt install ./berth-desktop-x86_64-linux.deb
+```
+
+The macOS app is not signed with an Apple developer identity, so the first launch asks you to allow it
+in System Settings, Privacy & Security. Its `berth` is on the `PATH` of the sessions the app starts but
+not of your own shell; link it there if you want it in a terminal:
+
+```sh
+ln -s /Applications/Berth.app/Contents/MacOS/berth ~/.local/bin/berth
+```
+
+The app starts the daemon from its own `berth` when none is running, and puts that `berth` first on the
+`PATH` of every session, so agents call the same version.
+
+### Updates
+
+While `app.autoUpdate` is on (the default), the app checks the latest release a minute after it starts
+and every 10 minutes after that. A newer version downloads in the background and its signature is
+checked; then `Restart to update` appears in the title bar. Clicking it installs the new version and
+restarts the app. Sessions keep running in the daemon meanwhile. `Update Berth…` checks on demand, also
+with `app.autoUpdate` off, and shows the release notes. A failed download or a bad signature leaves the
+installed version as it is, and the next check tries again.
+
+On Linux the `.deb` install asks for your password. On Windows the installer window shows its progress
+and starts the app again when it is done.
+
+## Install only the berth command
+
+On macOS and Linux the install script installs and updates, and `berth upgrade` runs it again later,
+pinned to the version the latest release names in `latest.json`, so the command matches the desktop
+app. Releases carry no Linux `berth` archive, so on Linux the script builds from source with
+`cargo install` (the desktop `.deb` includes `berth`):
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/PetukhovArt/berth/main/install.sh | sh
@@ -28,29 +69,22 @@ You need at least one agent CLI on your `PATH`: `claude`, `codex`, `cursor-agent
 berth was called pacer up to 0.20. Its first start copies your pacer data over and leaves pacer running;
 see [Moving from pacer](configuration.md#moving-from-pacer).
 
-## Build the desktop app
+## Build from source
 
-On Debian and Ubuntu (x86_64) download `berth-desktop-x86_64-linux.deb` from the latest GitHub release and
-install it; it also puts `berth` into `/usr/bin`:
-
-```sh
-sudo apt install ./berth-desktop-x86_64-linux.deb
-```
-
-On macOS and Windows, and on other Linux distributions, the app builds from this repository and needs Node 22,
-pnpm and a Rust toolchain (on Linux also the webkit2gtk 4.1 and GTK 3 development packages):
+The app builds from this repository with Node 22, pnpm and a Rust toolchain (on Linux also the
+webkit2gtk 4.1 and GTK 3 development packages):
 
 ```sh
 pnpm install
 pnpm build:desktop
 ```
 
-For everyday use, install a working copy that you update from inside the app: `scripts\install-app.ps1`
-on Windows ([details](windows.md#desktop-working-copy)) and `scripts/install-app.sh` on macOS
-([details](macos.md)).
+To run your own `main` every day, install a working copy that rebuilds itself from inside the app:
+`scripts\install-app.ps1` on Windows ([details](windows.md#desktop-working-copy)) and
+`scripts/install-app.sh` on macOS ([details](macos.md)). A working copy does not read releases.
 
-The app talks to the daemon and needs `berth` on your `PATH`: on every platform it starts
-`berth daemon` from there when none is running.
+An app built from source talks to the daemon through `berth` on your `PATH`: it starts `berth daemon`
+from there when none is running.
 
 ## 1. Add a project
 

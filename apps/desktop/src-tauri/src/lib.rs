@@ -21,6 +21,8 @@ mod new_worktree_base;
 pub mod platform;
 mod providers;
 pub mod push;
+#[cfg(feature = "desktop")]
+mod release_update;
 pub mod remote;
 pub mod remote_devices;
 mod review;

@@ -1,14 +1,13 @@
 import { invoke, isDesktop } from '../../../bridge';
 import { useSettings } from '../../../shared/config/settings/store';
 import { info, quietBuild, refresh } from './state';
+import { checkRelease, releaseUpdates } from './release';
 import { createScope, visibleInterval } from '../../../shared/lib/scope';
 
 const FIRST_CHECK_MS = 60_000;
 const CHECK_MS = 10 * 60_000;
 
-async function check(): Promise<void> {
-  const { values } = useSettings();
-  if (!values.value['app.autoUpdate']) return;
+async function buildMain(): Promise<void> {
   await invoke('app_update_fetch').catch(() => undefined);
   await refresh();
   const state = info.value;
@@ -24,6 +23,13 @@ async function check(): Promise<void> {
     quietBuild.value = false;
   }
   await refresh();
+}
+
+async function check(): Promise<void> {
+  const { values } = useSettings();
+  if (!values.value['app.autoUpdate']) return;
+  if (releaseUpdates()) await checkRelease();
+  else await buildMain();
 }
 
 export function initAutoUpdate(): () => void {

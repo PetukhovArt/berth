@@ -29,6 +29,20 @@ type CallResult = Result<serde_json::Value, String>;
 
 static DAEMON_PROTOCOL: AtomicU32 = AtomicU32::new(0);
 
+#[cfg(feature = "desktop")]
+async fn update_older_daemon() -> Result<(), String> {
+    if crate::platform::RELEASE_UPDATE {
+        crate::release_update::daemon_update().await
+    } else {
+        crate::working_copy::app_daemon_update().await
+    }
+}
+
+#[cfg(not(feature = "desktop"))]
+async fn update_older_daemon() -> Result<(), String> {
+    Err(crate::platform::unsupported())
+}
+
 pub fn daemon_protocol() -> Option<u32> {
     Some(DAEMON_PROTOCOL.load(Ordering::Relaxed)).filter(|version| *version != 0)
 }
@@ -692,7 +706,7 @@ impl Actor {
         }
         self.updating_daemon = true;
         tokio::spawn(async {
-            if let Err(error) = crate::working_copy::app_daemon_update().await {
+            if let Err(error) = update_older_daemon().await {
                 eprintln!("berth: could not update the older berth daemon: {error}");
             }
         });

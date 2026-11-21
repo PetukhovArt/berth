@@ -234,8 +234,10 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
         ],
     )?;
     if !crate::platform::SELF_UPDATE {
-        menu.remove(&update)?;
         menu.remove(&rollback)?;
+    }
+    if !crate::platform::UPDATE_MENU {
+        menu.remove(&update)?;
         menu.remove(&tail)?;
     }
 

@@ -712,7 +712,6 @@ async fn kill_daemon() -> Result<bool> {
 }
 
 /// Outcome of `shutdown_if_idle`.
-#[cfg(unix)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IdleShutdown {
     /// Nothing listening on the socket.
@@ -730,7 +729,6 @@ pub enum IdleShutdown {
 /// handoff. An idle daemon can die safely (the next client launch spawns one
 /// from the new binary on disk); live sessions would be killed with it, so
 /// their daemon is left alone and the restart stays the user's call.
-#[cfg(unix)]
 async fn shutdown_if_idle() -> Result<IdleShutdown> {
     let Ok(stream) = try_connect().await else {
         return Ok(IdleShutdown::NoDaemon);
@@ -907,7 +905,6 @@ pub(crate) fn runtime() -> Result<tokio::runtime::Runtime> {
 
 /// Post-upgrade daemon handoff: shut the daemon down only when it holds no
 /// live sessions (see `shutdown_if_idle`).
-#[cfg(unix)]
 pub fn run_shutdown_if_idle() -> Result<IdleShutdown> {
     runtime()?.block_on(shutdown_if_idle())
 }

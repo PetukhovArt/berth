@@ -6,8 +6,13 @@ is different.
 
 ## Install
 
-Releases carry a prebuilt `berth-x86_64-pc-windows-msvc.zip`: unzip it and put `berth.exe` anywhere on
-your `PATH`.
+Releases carry `berth-desktop-x86_64-windows-setup.exe`. It installs the desktop app for your user into
+`%LOCALAPPDATA%\Berth` without asking for admin rights, puts `berth.exe` beside it and adds that folder to
+your user `PATH`. The app updates itself from later releases
+([details](getting-started.md#updates)).
+
+For the command alone, releases carry a prebuilt `berth-x86_64-pc-windows-msvc.zip`: unzip it and put
+`berth.exe` anywhere on your `PATH`.
 
 From source:
 
@@ -18,10 +23,12 @@ cargo install --git https://github.com/PetukhovArt/berth berth --locked
 That drops `berth.exe` into `~\.cargo\bin`. From a checkout, `cargo install --path crates/berth` does the
 same.
 
-There is no self-updater on this platform: `install.sh` is a POSIX script, so `berth upgrade` declines
-and points back at the commands above. The desktop app's `Update daemon` is the other way to update it.
+`berth upgrade` downloads the zip of the version the latest release names and swaps the running
+`berth.exe` for it. The old file stays as `berth.old.exe` until nothing runs it, because Windows can
+rename a running exe but not overwrite it. A daemon with no live sessions is stopped so the next launch
+starts the new binary; with live sessions it keeps running until you run `berth kill`.
 
-The desktop app is built from a checkout; see [Desktop working copy](#desktop-working-copy).
+To build the desktop app from your own `main`, see [Desktop working copy](#desktop-working-copy).
 
 You also need:
 

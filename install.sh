@@ -44,7 +44,11 @@ detect_target() {
 }
 
 install_from_release() {
-    url="https://github.com/$REPO/releases/latest/download/berth-$1.tar.gz"
+    if [ -n "${BERTH_VERSION:-}" ]; then
+        url="https://github.com/$REPO/releases/download/v${BERTH_VERSION#v}/berth-$1.tar.gz"
+    else
+        url="https://github.com/$REPO/releases/latest/download/berth-$1.tar.gz"
+    fi
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
     say "downloading $url"

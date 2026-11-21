@@ -232,6 +232,9 @@ pub async fn app_rollback() -> Result<(), String> {
 
 #[tauri::command]
 pub async fn app_daemon_update() -> Result<(), String> {
+    if crate::platform::RELEASE_UPDATE {
+        return crate::release_update::daemon_update().await;
+    }
     working_copy::app_daemon_update().await
 }
 
@@ -258,6 +261,7 @@ pub fn web_source<R: Runtime>(app: &AppHandle<R>) -> WebSource {
 
 pub fn run() {
     crate::platform::adopt_login_shell_path();
+    crate::release_update::adopt_bundled_cli();
     if !cfg!(debug_assertions) && std::env::var_os("WEBVIEW2_USER_DATA_FOLDER").is_none() {
         crate::legacy::adopt_webview_profile();
     }
@@ -270,8 +274,11 @@ pub fn run() {
     }
     let connectors = Arc::new(Connectors::load());
     let berth = tauri::async_runtime::block_on(async { Berth::spawn_starting_daemon() });
-    tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
+    let builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
+    #[cfg(feature = "updater")]
+    let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    builder
+        .manage(crate::release_update::ReleaseUpdate::default())
         .manage(connectors.clone())
         .manage(berth)
         .manage(SettingsWatch::default())
@@ -418,6 +425,9 @@ pub fn run() {
             app_rollback,
             app_daemon_update,
             app_restart,
+            crate::release_update::app_release_status,
+            crate::release_update::app_release_check,
+            crate::release_update::app_release_install,
         ])
         .build(tauri::generate_context!())
         .expect("error while building berth desktop")

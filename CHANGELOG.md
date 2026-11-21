@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added desktop app installers to every release: `berth-desktop-x86_64-windows-setup.exe`, `berth-desktop-aarch64-macos.dmg`, `berth-desktop-x86_64-macos.dmg` and `berth-desktop-x86_64-linux.deb`, each with `berth` bundled beside the app (#69)
+- Added updates for the desktop app installed from a release: while `app.autoUpdate` is on it checks the latest release every 10 minutes, downloads a newer version in the background, checks its signature and shows `Restart to update`; `Update Berth…` checks on demand and shows the release notes (#69)
 - Added a Channels section to the sidebar that lists every Channel you are in, read or not, with a button to create one by name
 - Added Shared Channels for team-wide topics such as `general` or `bugs`: everyone approved on the hub is in them, including people approved later; an admin makes one from the Channels section or with `berth channel open <name> --shared`
 - Added leaving and deleting a Channel from its row in the Channels section and with `berth channel leave` and `berth channel delete`: you delete the Channels you made, and the new `channels.delete` permission, held by Admin, deletes any
@@ -9,6 +11,7 @@
 - Added Delete forever to the menu of an agent tab's close button, which asks to confirm before it removes the session
 - Added a pinned Inbox in the sidebar: it stays at the top while the Projects tree scrolls, scrolls on its own when it grows past 40% of the window height, and collapses with the chevron on its header (`Alt+J` expands it)
 - Added a Stop button to the Chat composer: while an agent's turn runs and the message box is empty it takes the place of Send and interrupts the turn, which matters on a phone where the Terminal view and its keys are gone
+- Changed `berth upgrade` to install the version the latest release names in `latest.json`, so the command and the desktop app stay on one version (#69)
 - Changed a session's row in the sidebar, on a phone and its tab to show a green dot while its process is alive, and `stopped` with a square glyph when it is not, instead of the same `finished` for both
 - Changed the Sessions tree to show the Archive at the bottom of each project, and of Not in a project, instead of one Archive row for all projects
 - Changed the New Workspace button to sit in the workspace menu of the title bar instead of at the bottom of the Sessions tree
@@ -35,6 +38,7 @@
 - Fixed a finished Session staying in the Inbox after you read it in a split panel or came back to the window with it on screen: it is now marked seen whenever any panel of the focused window shows it
 - Fixed a Session's Chat view sometimes marking a turn Finished before the agent's last answer arrived, leaving that answer missing until the next turn
 - Fixed error messages from the desktop app (connectors, files, settings, git steps, remote access, voice, the daemon version banner) showing in one fixed language: they now follow the app language, and a tab whose connector was removed says how to bring it back
+- Windows: Added `berth upgrade`, which downloads `berth.exe` of the latest release and swaps it in place (#69)
 
 ## 0.21.0 (2026-11-18)
 

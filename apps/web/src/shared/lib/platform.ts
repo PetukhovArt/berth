@@ -11,6 +11,7 @@ type HostPlatform = {
     readonly pathsCaseInsensitive: boolean;
   };
   readonly selfUpdate: boolean;
+  readonly releaseUpdate: boolean;
   readonly windowChrome: { readonly nativeDecorations: boolean; readonly nativeMenu: boolean };
 };
 
@@ -54,6 +55,7 @@ export const hostPlatform = shallowRef<HostPlatform>({
     pathsCaseInsensitive: windowsHost,
   },
   selfUpdate: false,
+  releaseUpdate: false,
   windowChrome: { nativeDecorations: false, nativeMenu: false },
 });
 
