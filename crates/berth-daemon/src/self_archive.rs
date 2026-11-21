@@ -7,11 +7,13 @@ use berth_core::{AgentId, SessionRef};
 use crate::registry::Daemon;
 use crate::status::HookEvent;
 
-pub const CLAUDE_ARCHIVE_GUIDANCE: &str = "[berth] When the user asks you to close, end or archive \
-this session, run this shell command exactly once:\n\n  berth archive\n\nberth archives this session \
-once your current turn ends; the user can bring it back from the Archive in the Sessions tree. Run it only when \
-the user asks. When the command succeeds, end your turn at once with a one-line goodbye, passing on \
-any warning it printed, and make no further tool calls. If it fails, report the error.";
+pub const CLAUDE_ARCHIVE_GUIDANCE: &str = "[berth] When the user asks you to end, close or kill this \
+session or its agents (\"kill session\", \"end session\", \"закрой сессию\", \"закрой агентов\"), run \
+this shell command exactly once:\n\n  berth end-session\n\nberth ends this session once your current \
+turn ends and moves it to the Archive in the Sessions tree, where the user can resume it. It ends only \
+this session, never another one. Run it only when the user asks. When the command succeeds, end your \
+turn at once with a one-line goodbye, passing on any warning it printed, and make no further tool \
+calls. If it fails, report the error.";
 
 const TRANSCRIPT_GRACE: Duration = Duration::from_secs(3);
 

@@ -449,10 +449,10 @@ async fn enter_project_for_current_agent(path: &str) -> Result<()> {
     Ok(())
 }
 
-async fn archive_current_agent() -> Result<()> {
-    let agent_id = current_agent_id("archive")?;
+async fn end_current_session() -> Result<()> {
+    let agent_id = current_agent_id("end-session")?;
     let Ok(stream) = try_connect().await else {
-        bail!("no berth daemon is running — nothing to archive");
+        bail!("no berth daemon is running — nothing to end");
     };
     let mut conn = handshake(stream).await?;
     let req_id = ONE_SHOT_REQ_ID;
@@ -471,12 +471,14 @@ async fn archive_current_agent() -> Result<()> {
         if trigger.target == TriggerTarget::Agent(this_session.clone()) {
             eprintln!(
                 "warning: scheduled prompt \"{}\" targets this session and will stop firing \
-                 once it is archived",
+                 once it ends",
                 trigger.name
             );
         }
     }
-    println!("this session is archived once the current turn ends");
+    println!(
+        "this session ends once the current turn ends and moves to the Archive in the Sessions tree"
+    );
     Ok(())
 }
 
@@ -927,8 +929,8 @@ pub fn run_enter(path: String) -> Result<()> {
     runtime()?.block_on(enter_project_for_current_agent(&path))
 }
 
-pub fn run_archive() -> Result<()> {
-    runtime()?.block_on(archive_current_agent())
+pub fn run_end_session() -> Result<()> {
+    runtime()?.block_on(end_current_session())
 }
 
 /// `berth spawn "<task>" [--kind <kind>]` (see

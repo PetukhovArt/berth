@@ -14,7 +14,7 @@
 - Removed the Earlier folder from the Sessions tree: every conversation that is not archived is listed in its worktree
 - Removed `berth hub approve --scopes`: approve with `--role` instead
 - Added drag handles on both edges of the Chat view's column: drag one to resize or move the transcript and composer together, use the arrow keys on a focused handle, double-click to go back to 920px centered; the layout is kept across restarts
-- Added `berth archive`: when you ask an agent to close its session, it archives the session once its current turn ends, and warns about scheduled prompts aimed at it; unarchive it from the Archive in the Sessions tree to resume
+- Added `berth end-session`: when you ask an agent to end its session ("kill session", "закрой сессию"), the session ends once its current turn ends and moves to the Archive in the Sessions tree, where unarchiving resumes it; the agent warns about scheduled prompts aimed at it
 - Added roles on the team hub: every approved device holds one role (Admin, Member, Guest or a custom one) that sets what it may do, and `berth hub approve <url> --admin-token <token> <id> --role <role>` gives or changes it
 - Added a Team section in Settings that shows your role on the hub and lets an admin approve devices with a role, change roles, revoke devices, edit custom roles and read the hub's audit log
 - Fixed `berth worktree <branch>` and `berth spawn --worktree <branch>` starting a new local branch from the default base when that branch already exists on origin: the worktree now checks out origin's branch and tracks it

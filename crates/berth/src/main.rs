@@ -125,9 +125,9 @@ enum Command {
         dir: String,
     },
     #[command(
-        about = "Archive this session once the current turn ends (run from inside a berth agent session; agents run it when you ask them to close the session). Unarchive it from the Archive in the Sessions tree to resume the conversation"
+        about = "End this session once the current turn ends: its process stops and it moves to the Archive in the Sessions tree, where unarchiving resumes the conversation (run from inside a berth agent session; agents run it when you ask them to end or close the session)"
     )]
-    Archive,
+    EndSession,
     /// Start a new agent session beside this one — same worktree, same
     /// harness unless --kind names another — opening on the given task as
     /// its first prompt (run from inside a berth agent session; agents run
@@ -462,7 +462,7 @@ fn main() -> Result<()> {
         }
         Some(Command::Worktree { name, base }) => client::run_worktree(name.join(" "), base),
         Some(Command::Enter { dir }) => client::run_enter(dir),
-        Some(Command::Archive) => client::run_archive(),
+        Some(Command::EndSession) => client::run_end_session(),
         Some(Command::Spawn {
             task,
             kind,
