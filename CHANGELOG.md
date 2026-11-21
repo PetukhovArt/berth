@@ -7,6 +7,7 @@
 - Added leaving and deleting a Channel from its row in the Channels section and with `berth channel leave` and `berth channel delete`: you delete the Channels you made, and the new `channels.delete` permission, held by Admin, deletes any
 - Added `sessions.archiveOnClose`, on by default: closing the tab of an agent or a conversation moves it to its project's Archive; turned off, the close button asks whether to archive it or only close the tab
 - Changed the Sessions tree to show the Archive at the bottom of each project, and of Not in a project, instead of one Archive row for all projects
+- Changed the New Workspace button to sit in the workspace menu of the title bar instead of at the bottom of the Sessions tree
 - Changed `berth channel grant` to refuse a colleague whose role on the hub does not include `agents.instruct`; a granted colleague's messages arrive as quoted information again once their role loses it
 - Changed `berth hub devices` to list each device's role and the hub's roles, and `--admin-token` to also accept the device token of anyone whose role includes `admin.manage`
 - Changed the Channel view to disable Send and the Task note button, and say why, when your role on the hub does not allow them
@@ -17,6 +18,7 @@
 - Added `berth end-session`: when you ask an agent to end its session ("kill session", "закрой сессию"), the session ends once its current turn ends and moves to the Archive in the Sessions tree, where unarchiving resumes it; the agent warns about scheduled prompts aimed at it
 - Added roles on the team hub: every approved device holds one role (Admin, Member, Guest or a custom one) that sets what it may do, and `berth hub approve <url> --admin-token <token> <id> --role <role>` gives or changes it
 - Added a Team section in Settings that shows your role on the hub and lets an admin approve devices with a role, change roles, revoke devices, edit custom roles and read the hub's audit log
+- Fixed the Inbox listing Sessions from projects of other workspaces while one workspace is open; `Alt+J` now stays within it too
 - Fixed `berth worktree <branch>` and `berth spawn --worktree <branch>` starting a new local branch from the default base when that branch already exists on origin: the worktree now checks out origin's branch and tracks it
 - Fixed a Session started by `berth spawn` getting no tab: it now opens as a tab beside the Session that ran the command, without taking focus from it
 - Fixed an open terminal showing `[session ended, code 1]` after its Session was restarted, switched model or moved into a worktree by `berth worktree`, while the new process ran unseen; the terminal now switches to the new process

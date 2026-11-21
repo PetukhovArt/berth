@@ -215,7 +215,6 @@ const moreItems = computed(() => {
           <ul v-else-if="node.kind === 'review-notes' && node.data?.notes" class="review-notes" :aria-label="node.label" data-testid="review-notes">
             <li v-for="(note, index) in node.data.notes" :key="index" :title="note.text"><b v-if="note.refs.length">{{ note.refs.join(', ') }}</b> {{ note.text }}</li>
           </ul>
-          <div v-else-if="node.kind === 'add-workspace'" class="extra new-workspace"><WorkspaceActions /></div>
         </template>
         <template #badges="{ node }">
           <CleanupBadge v-if="node.kind === 'worktree' && node.data?.worktree && !node.data.worktree.main" :worktree-id="node.data.worktree.id" />
@@ -559,11 +558,6 @@ const moreItems = computed(() => {
 .pipe :deep(.status-icon) {
   width: 12px;
   height: 12px;
-}
-
-.new-workspace {
-  margin-top: var(--vr-space-2);
-  padding-left: var(--vr-space-1);
 }
 
 .line {

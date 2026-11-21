@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue';
-import { attentionOf, externalTarget, urgencyOf, useBerth, useExternalSessions, useSessionDock, useSessionStates, type AttentionKind, type SessionNode, type SessionState } from '../../../entities/session';
+import { attentionOf, externalTarget, urgencyOf, useBerth, useExternalSessions, useSessionDock, useSessionStates, useOpenWorkspace, type AttentionKind, type SessionNode, type SessionState } from '../../../entities/session';
 import { useDock } from '../../../shared/model/dock';
 
 export type InboxEntry = { key: string; state: SessionState; kind: AttentionKind; since: number | null; place: string; node: SessionNode | undefined };
@@ -53,8 +53,15 @@ function createInbox() {
     ticking = true;
     setInterval(() => (now.value = Date.now()), TICK_MS);
   }
+  const openWorkspace = useOpenWorkspace();
+  const openProjects = computed(() => {
+    const id = openWorkspace.value;
+    const workspace = id ? berth?.tree.value.find((node) => node.id === id) : undefined;
+    return workspace ? new Set(workspace.projects.map((project) => project.id)) : null;
+  });
   const entries = computed<InboxEntry[]>(() => {
     const list: InboxEntry[] = [];
+    const scope = openProjects.value;
     for (const state of states.value.values()) {
       const kind = attentionOf(state);
       if (!kind) continue;
@@ -62,6 +69,8 @@ function createInbox() {
       const path = paths.value.get(state.key);
       const conversation = node ? undefined : external?.anyByKey.value.get(state.key);
       const target = conversation ? externalTarget(conversation, berth?.entities.value) : null;
+      const projectId = path?.project.id ?? target?.projectId;
+      if (scope && projectId && !scope.has(projectId)) continue;
       const place = path ? [path.project.name, path.worktree.branch] : [target?.projectName, target?.branch];
       list.push({ key: state.key, state, kind, since: state.since, place: place.filter(Boolean).join(' › '), node });
     }

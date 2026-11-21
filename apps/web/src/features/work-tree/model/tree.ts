@@ -428,7 +428,7 @@ export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly 
     ];
   };
 
-  if (tab === 'sessions') return [...sessionNodes(), ...(sources.berth && !pruned ? [{ id: 'add-workspace', kind: 'add-workspace', label: '', custom: true, inert: true }] : [])];
+  if (tab === 'sessions') return sessionNodes();
   if (tab === 'tasks') return taskNodes();
   if (tab === 'all') return [...sessionNodes(), ...mrNodes(), ...taskNodes()];
   return mrNodes();
