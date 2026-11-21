@@ -4,15 +4,16 @@ Two channels:
 
 | Channel | Who it serves | Built by |
 |---|---|---|
-| GitHub release | `install.sh`, `berth upgrade`, manual downloads | `.github/workflows/release.yml`, on a version bump |
+| GitHub release | the desktop installers and the app's updater, `install.sh`, `berth upgrade`, manual downloads | `.github/workflows/release.yml`, on a version bump |
 | `cargo install --git` | source builds, Windows, fallback when no asset matches | nothing to do |
 
 crates.io is not a channel: the workspace pulls a patched `vt100` through `[patch.crates-io]`, and
 `cargo publish` refuses a patched dependency. `cargo install --git` is unaffected: it builds the
 workspace as it stands, vendored fork and all.
 
-The desktop app is released for Linux only, as a `.deb`. On macOS and Windows it is built from a checkout,
-see [getting started](getting-started.md).
+Every release carries the desktop app for Windows x64, macOS arm64 and x64 and Linux x64, all under the
+version in `Cargo.toml`. A working copy built from a checkout (`scripts/install-app.ps1`,
+`scripts/install-app.sh`) still updates by rebuilding `main`, see [getting started](getting-started.md).
 
 ## Cutting a release
 
@@ -40,10 +41,35 @@ The `Release` workflow does the rest in one run:
 1. `gate` reads the version and asks whether `v<version>` is already tagged. On every other push to
    `main` it is, and the run stops there: a push that changes no version costs one 30-second job.
 2. `build` compiles three targets, macOS arm64/x64 and Windows x64, and uploads the archive
-   `install.sh` downloads for each. `desktop-linux` builds the desktop app on Ubuntu 24.04 and packs it with
-   `berth` into `berth-desktop-x86_64-linux.deb` (`apps/desktop/src-tauri/tauri.linux.conf.json`).
-3. `release` tags the commit and attaches `berth-<target>.tar.gz` (and `.zip` for Windows, and the `.deb`) to a GitHub
-   release whose notes are this version's `CHANGELOG.md` section.
+   `install.sh` and `berth upgrade` download for each.
+3. `desktop` builds the desktop app on each platform with `--features updater` and
+   `apps/desktop/src-tauri/tauri.release.conf.json`, which bundles `berth` beside the app and turns on the
+   updater. It uploads the installer a person runs and the package the updater installs, each with its
+   signature:
+
+   | Platform | Installer | Updater package |
+   |---|---|---|
+   | `windows-x86_64` | `berth-desktop-x86_64-windows-setup.exe` (NSIS, per user) | the same file |
+   | `darwin-aarch64` | `berth-desktop-aarch64-macos.dmg` | `berth-desktop-aarch64-macos.app.tar.gz` |
+   | `darwin-x86_64` | `berth-desktop-x86_64-macos.dmg` | `berth-desktop-x86_64-macos.app.tar.gz` |
+   | `linux-x86_64` | `berth-desktop-x86_64-linux.deb` | the same file |
+
+4. `release` tags the commit, writes `latest.json` (version, this version's notes, and the URL and
+   signature of each platform's updater package) and attaches it with the archives and installers to a
+   GitHub release whose notes are this version's `CHANGELOG.md` section.
+
+The installed app reads `https://github.com/PetukhovArt/berth/releases/latest/download/latest.json`. The
+updater rejects the whole file when one platform entry is missing or broken, so a release ships either all
+four desktop builds or none.
+
+Packages are signed with the updater key. Its public half is `plugins.updater.pubkey` in
+`tauri.release.conf.json`; the private half is the `TAURI_SIGNING_PRIVATE_KEY` secret (with
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` when the key has one). Without the secret the `desktop` jobs fail.
+A new key pair (`pnpm --filter @berth/desktop exec tauri signer generate`) means installed copies stop
+accepting updates until their users install a release signed with the new key by hand.
+
+The macOS app is signed ad hoc (`signingIdentity: "-"`), not with an Apple identity, so on first launch
+macOS asks the user to allow it in Privacy & Security.
 
 The tag is the record of what shipped, not the trigger. It has to be, because a tag pushed with
 `GITHUB_TOKEN` starts no workflow (GitHub's guard against a workflow triggering itself). Tagging by
@@ -60,4 +86,10 @@ it is private, the script falls back to `cargo install --git`, which needs the u
 
 Upgrading while a daemon is running is safe: sessions keep running on the old binary until someone runs
 `berth kill`. `berth upgrade` says so, and refuses to replace a local `cargo build` unless passed
-`--force`.
+`--force`. It installs the version `latest.json` names, so the CLI and the desktop app stay on one
+version.
+
+The desktop app installed from a release finds the new version within 10 minutes while
+`app.autoUpdate` is on, downloads it in the background and shows `Restart to update` in the title bar.
+Its daemon keeps running across the restart; only a release that changes the daemon protocol makes the
+app restart the daemon onto the bundled `berth`.

@@ -30,7 +30,11 @@ pub struct WindowChrome {
 
 pub const WINDOW_CHROME: WindowChrome = imp::WINDOW_CHROME;
 
-pub const SELF_UPDATE: bool = imp::SELF_UPDATE;
+pub const RELEASE_UPDATE: bool = cfg!(feature = "updater");
+
+pub const SELF_UPDATE: bool = imp::SELF_UPDATE && !RELEASE_UPDATE;
+
+pub const UPDATE_MENU: bool = SELF_UPDATE || RELEASE_UPDATE;
 
 pub fn unsupported() -> String {
     crate::host_text!("unsupportedPlatform")
@@ -46,6 +50,7 @@ pub struct PlatformInfo {
     os: Os,
     capabilities: Capabilities,
     self_update: bool,
+    release_update: bool,
     window_chrome: WindowChrome,
 }
 
@@ -54,6 +59,7 @@ pub async fn platform_info() -> Result<PlatformInfo, String> {
         os: berth_core::platform::OS,
         capabilities: berth_core::platform::CAPABILITIES,
         self_update: SELF_UPDATE,
+        release_update: RELEASE_UPDATE,
         window_chrome: WINDOW_CHROME,
     })
 }

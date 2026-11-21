@@ -64,7 +64,7 @@ step.
 
 ## Publishing
 Releasing is automatic and described in `docs/releasing.md`: a `version` bump in the root
-`Cargo.toml` landing on `main` builds the three targets (macOS, Windows), tags the commit, publishes the GitHub release
+`Cargo.toml` landing on `main` builds the CLI and the desktop installers for every platform, tags the commit, publishes the GitHub release
 — one workflow, no button. The `Weekly release` workflow makes that bump every Monday from the
 `## Unreleased` entries, so never bump `version` by hand unless an extra release is what was asked
 for; every other change leaves it alone.

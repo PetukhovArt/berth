@@ -29,6 +29,8 @@ target/
 .stable-target/
 packages/ui-tokens/generated/
 apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/binaries/
+apps/desktop/src-tauri/tauri.version.conf.json
 *.log
 /.jig/*
 !/.jig/config.jsonc

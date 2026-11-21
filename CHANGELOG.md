@@ -2,13 +2,17 @@
 
 ## Unreleased
 
+- Added desktop app installers to every release: `berth-desktop-x86_64-windows-setup.exe`, `berth-desktop-aarch64-macos.dmg`, `berth-desktop-x86_64-macos.dmg` and `berth-desktop-x86_64-linux.deb`, each with `berth` bundled beside the app (#69)
+- Added updates for the desktop app installed from a release: while `app.autoUpdate` is on it checks the latest release every 10 minutes, downloads a newer version in the background, checks its signature and shows `Restart to update`; `Update Berth…` checks on demand and shows the release notes (#69)
 - Added drag handles on both edges of the Chat view's column: drag one to resize or move the transcript and composer together, use the arrow keys on a focused handle, double-click to go back to 920px centered; the layout is kept across restarts
+- Changed `berth upgrade` to install the version the latest release names in `latest.json`, so the command and the desktop app stay on one version (#69)
 - Fixed `berth worktree <branch>` and `berth spawn --worktree <branch>` starting a new local branch from the default base when that branch already exists on origin: the worktree now checks out origin's branch and tracks it
 - Fixed a Session started by `berth spawn` getting no tab: it now opens as a tab beside the Session that ran the command, without taking focus from it
 - Fixed an open terminal showing `[session ended, code 1]` after its Session was restarted, switched model or moved into a worktree by `berth worktree`, while the new process ran unseen; the terminal now switches to the new process
 - Fixed a finished Session staying in the Inbox after you read it in a split panel or came back to the window with it on screen: it is now marked seen whenever any panel of the focused window shows it
 - Fixed a Session's Chat view sometimes marking a turn Finished before the agent's last answer arrived, leaving that answer missing until the next turn
 - Fixed error messages from the desktop app (connectors, files, settings, git steps, remote access, voice, the daemon version banner) showing in one fixed language: they now follow the app language, and a tab whose connector was removed says how to bring it back
+- Windows: Added `berth upgrade`, which downloads `berth.exe` of the latest release and swaps it in place (#69)
 
 ## 0.21.0 (2026-11-18)
 
