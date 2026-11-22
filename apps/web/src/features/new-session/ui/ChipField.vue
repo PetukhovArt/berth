@@ -1,36 +1,36 @@
 <script setup lang="ts">
 import { useId } from 'vue';
 
-defineProps<{ label: string }>();
+defineProps<{ label: string; fixed?: boolean }>();
 
 const labelId = useId();
 const controlId = useId();
 </script>
 
 <template>
-  <div class="field">
-    <label :id="labelId" :for="controlId" class="field-label">{{ label }}</label>
+  <div class="chip-field">
+    <label :id="labelId" :for="fixed ? undefined : controlId"class="chip-field-label">{{ label }}</label>
     <slot :label-id="labelId" :control-id="controlId" />
   </div>
 </template>
 
 <style scoped>
-.field {
+.chip-field {
   display: contents;
 }
 
-.field-label {
+.chip-field-label {
   display: none;
 }
 
-:root[data-vr-viewport='phone'] .field {
+:root[data-vr-viewport='phone'] .chip-field {
   display: flex;
   flex-direction: column;
   gap: var(--vr-space-1);
   min-width: 0;
 }
 
-:root[data-vr-viewport='phone'] .field-label {
+:root[data-vr-viewport='phone'] .chip-field-label {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;

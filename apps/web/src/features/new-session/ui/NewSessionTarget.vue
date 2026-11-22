@@ -70,8 +70,10 @@ const summary = computed(() => {
           <VSelect v-model="project" :options="projects" option-label="label" option-value="id" size="small" class="chip" :label-id="controlId" :aria-labelledby="labelId" data-testid="new-session-project" />
         </template>
       </ChipField>
-      <ChipField v-else :label="t('agents.newSession.project')" data-testid="new-session-project-field">
-        <span class="chip fixed" data-testid="new-session-project-name">{{ projectLabel }}</span>
+      <ChipField v-else fixed :label="t('agents.newSession.project')" data-testid="new-session-project-field">
+        <template #default="{ labelId }">
+          <span class="chip fixed" role="group" :aria-labelledby="labelId" data-testid="new-session-project-name">{{ projectLabel }}</span>
+        </template>
       </ChipField>
       <ChipField :label="t('agents.newSession.target')" data-testid="new-session-worktree-field">
         <template #default="{ labelId, controlId }">
