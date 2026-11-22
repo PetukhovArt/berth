@@ -89,10 +89,17 @@ const menuItems = computed(() => [
   ...(isAgent() ? [{ separator: true }, { key: 'delete', label: t('agents.session.deleteForever'), command: () => (confirmingDelete.value = true) }] : []),
 ]);
 
+const menuOpen = shallowRef(false);
+
 function showMenuUnderCloseButton() {
   const anchor = tab.value?.querySelector('.close')?.getBoundingClientRect();
   if (!anchor) return;
   menu.value?.show(new MouseEvent('click', { clientX: anchor.left, clientY: anchor.bottom + 2 }));
+}
+
+function onMenuHide() {
+  if (!confirmingDelete.value) tab.value?.querySelector<HTMLElement>('.close')?.focus();
+  menuOpen.value = false;
 }
 
 function onClose() {
@@ -103,7 +110,7 @@ function onClose() {
 </script>
 
 <template>
-  <span ref="tab" class="tab status-host" tabindex="-1" :title="tabName()" :data-testid="`${kindOf(panel.id)}-tab`" :data-panel-id="panel.id" :data-session-id="session(panel.id)?.id" :data-active="active" @auxclick.middle="onClose">
+  <span ref="tab" class="tab status-host" tabindex="-1" :title="tabName()" :data-testid="`${kindOf(panel.id)}-tab`" :data-panel-id="panel.id" :data-session-id="session(panel.id)?.id" :data-active="active" :data-menu-open="menuOpen" @auxclick.middle="onClose">
     <FileText v-if="kindOf(panel.id) === 'file'" :size="12" />
     <GitPullRequest v-else-if="kindOf(panel.id) === 'review'" :size="12" />
     <Network v-else-if="kindOf(panel.id) === 'architecture'" :size="12" />
@@ -118,7 +125,7 @@ function onClose() {
     <SessionViewSwitch v-if="kindOf(panel.id) === 'conversation'" :panel="panel" :active="active" />
     <span v-if="isFilePanel(panel.id) && isDirtyPath(panel.id.slice(FILE_PANEL_PREFIX.length))" class="dirty" :title="t('files.editor.dirty')" data-testid="file-tab-dirty" />
     <UiButton class="close" :title="t('common.close')" :aria-label="t('common.close')" data-testid="session-tab-close" @pointerdown.stop @click.stop="onClose"><X :size="12" /></UiButton>
-    <VContextMenu ref="menu" :model="menuItems">
+    <VContextMenu ref="menu" :model="menuItems" @show="menuOpen = true" @hide="onMenuHide">
       <template #item="{ item, props: itemProps }">
         <a v-bind="itemProps.action" :class="{ danger: item.key === 'delete' }" :data-testid="`session-tab-close-${item.key}`">{{ item.label }}</a>
       </template>
@@ -200,7 +207,8 @@ function onClose() {
 }
 
 .tab:hover .close,
-.tab[data-active='true'] .close {
+.tab[data-active='true'] .close,
+.tab[data-menu-open='true'] .close {
   visibility: visible;
 }
 
