@@ -83,18 +83,26 @@ const menu = useTemplateRef<InstanceType<typeof VContextMenu>>('menu');
 const menuItems = computed(() => [
   isAgent() ? { key: 'close', label: t('agents.session.end'), command: closeAndEnd } : { key: 'close', label: t('common.close'), command: () => void close() },
   { key: 'archive', label: t('agents.session.archive'), command: closeAndArchive },
-  ...(isAgent() ? [{ key: 'delete', label: t('agents.session.deleteForever'), command: () => (confirmingDelete.value = true) }] : []),
+  ...(isAgent() ? [{ separator: true }, { key: 'delete', label: t('agents.session.deleteForever'), command: () => (confirmingDelete.value = true) }] : []),
 ]);
 
-function onClose(event: MouseEvent) {
+const tab = useTemplateRef<HTMLElement>('tab');
+
+function showMenuUnderCloseButton() {
+  const anchor = tab.value?.querySelector('.close')?.getBoundingClientRect();
+  if (!anchor) return;
+  menu.value?.show(new MouseEvent('click', { clientX: anchor.left, clientY: anchor.bottom + 2 }));
+}
+
+function onClose() {
   if (!archivable()) void close();
   else if (values.value['sessions.archiveOnClose']) (isAgent() ? closeAndEnd : closeAndArchive)();
-  else menu.value?.show(event);
+  else showMenuUnderCloseButton();
 }
 </script>
 
 <template>
-  <span class="tab status-host" :data-testid="`${kindOf(panel)}-tab`" :data-panel-id="panel.id" :data-session-id="session(panel.id)?.id" :data-active="active" @auxclick.middle="onClose">
+  <span ref="tab" class="tab status-host" :data-testid="`${kindOf(panel)}-tab`" :data-panel-id="panel.id" :data-session-id="session(panel.id)?.id" :data-active="active" @auxclick.middle="onClose">
     <Search v-if="kindOf(panel) === 'search'" :size="12" />
     <FileText v-else-if="kindOf(panel) === 'file'" :size="12" />
     <GitPullRequest v-else-if="kindOf(panel) === 'review'" :size="12" />
@@ -112,7 +120,7 @@ function onClose(event: MouseEvent) {
     <UiButton class="close" :title="t('common.close')" :aria-label="t('common.close')" data-testid="session-tab-close" @pointerdown.stop @click.stop="onClose"><X :size="12" /></UiButton>
     <VContextMenu ref="menu" :model="menuItems">
       <template #item="{ item, props: itemProps }">
-        <a v-bind="itemProps.action" :data-testid="`session-tab-close-${item.key}`">{{ item.label }}</a>
+        <a v-bind="itemProps.action" :class="{ danger: item.key === 'delete' }" :data-testid="`session-tab-close-${item.key}`">{{ item.label }}</a>
       </template>
     </VContextMenu>
     <VDialog v-if="confirmingDelete" :visible="true" modal dismissable-mask :header="t('agents.session.confirmDeleteLabel')" :style="{ width: '26rem', maxWidth: '95vw' }" data-testid="session-delete-confirm" @update:visible="cancelDelete">
@@ -120,7 +128,7 @@ function onClose(event: MouseEvent) {
       <VMessage v-if="deleting.error.value" severity="error" size="small" data-testid="session-error">{{ deleting.error.value }}</VMessage>
       <div class="actions">
         <VButton :label="t('common.cancel')" size="small" text data-testid="session-delete-no" @click="cancelDelete" />
-        <VButton :label="t('common.delete')" size="small" severity="danger" :loading="deleting.busy.value" data-testid="session-delete-yes" @click="confirmDelete" />
+        <VButton :label="t('agents.session.deleteForever')" size="small" severity="danger" :loading="deleting.busy.value" data-testid="session-delete-yes" @click="confirmDelete" />
       </div>
     </VDialog>
   </span>
@@ -193,6 +201,10 @@ function onClose(event: MouseEvent) {
 
 .confirm {
   margin: 0 0 var(--vr-space-3);
+}
+
+.danger {
+  color: var(--vr-color-danger);
 }
 
 .actions {

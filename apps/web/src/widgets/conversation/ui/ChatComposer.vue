@@ -199,7 +199,7 @@ function handsFree() {
           <UiButton v-if="stop" type="button" class="aa stop" :title="t('agents.sessionView.chatStop')" :aria-label="t('agents.sessionView.chatStop')" data-testid="chat-stop" @click="stop"><Square :size="14" fill="currentColor" /></UiButton>
           <span v-else class="aa-balance" aria-hidden="true" />
         </div>
-        <p class="hint">{{ t('chat.talkHint') }}</p>
+        <p class="hint">{{ t(stop ? 'chat.talkHintRunning' : 'chat.talkHint') }}</p>
       </div>
       <div v-else class="box">
         <ul v-if="slashOpen" :id="listId" ref="slashList" class="slash" role="listbox" :aria-label="t('chat.slash.list')" data-testid="chat-slash-list">
@@ -208,7 +208,7 @@ function handsFree() {
             <span v-if="command.description" class="slash-description">{{ command.description }}</span>
           </li>
         </ul>
-        <UiTextarea ref="input" v-model="draft" class="input" rows="2" :placeholder="t('agents.sessionView.chatPlaceholder')" :aria-label="t('agents.sessionView.chatPlaceholder')" role="combobox" aria-autocomplete="list" :aria-expanded="slashOpen" :aria-controls="slashOpen ? listId : undefined" :aria-activedescendant="activeId" data-testid="chat-input" @keydown="onKey" />
+        <UiTextarea ref="input" v-model="draft" class="input" rows="2" :placeholder="t(stop ? 'agents.sessionView.chatPlaceholderRunning' : 'agents.sessionView.chatPlaceholder')" :aria-label="t('agents.sessionView.chatPlaceholder')" role="combobox" aria-autocomplete="list" :aria-expanded="slashOpen" :aria-controls="slashOpen ? listId : undefined" :aria-activedescendant="activeId" data-testid="chat-input" @keydown="onKey" />
         <div class="foot">
           <span v-if="modelChip" class="model" :title="modelChip" data-testid="chat-model">{{ modelChip }}</span>
           <span class="grow" />
@@ -216,7 +216,7 @@ function handsFree() {
           <UiButton v-if="talkBlocked" type="button" class="talk blocked" aria-disabled="true" :aria-label="t('chat.talkMode')" :title="t(secure ? 'chat.talkUnavailable' : 'chat.talkNeedsHttps')" data-testid="chat-talk-blocked" @click="explainBlocked"><Mic :size="14" /></UiButton>
           <UiButton v-else-if="showTalk && phone" type="button" class="talk" :aria-label="t('chat.talkMode')" :title="t('chat.talkMode')" data-testid="chat-talk-mode" @click="typing = false"><Mic :size="14" /></UiButton>
           <UiButton v-else-if="showTalk" type="button" class="talk" :data-holding="talk.holding.value || undefined" :data-cancelling="talk.cancelling.value || undefined" :aria-label="t('agents.sessionView.chatTalk')" :title="t('agents.sessionView.chatTalk')" data-testid="chat-talk" @pointerdown="talk.start" @pointermove="talk.move" @pointerup="talk.release" @pointercancel="talk.release" @contextmenu.prevent><Mic :size="14" /></UiButton>
-          <UiButton v-if="stop && !draft.trim()" type="button" class="send" :aria-label="t('agents.sessionView.chatStop')" :title="t('agents.sessionView.chatStop')" data-testid="chat-stop" @click="stop"><Square :size="12" fill="currentColor" /></UiButton>
+          <UiButton v-if="stop && !draft.trim()" type="button" class="send stop" :aria-label="t('agents.sessionView.chatStop')" :title="t('agents.sessionView.chatStop')" data-testid="chat-stop" @click="stop"><Square :size="12" fill="currentColor" /></UiButton>
           <UiButton v-else type="submit" class="send" :disabled="!draft.trim() || sending" :aria-busy="sending" :aria-label="t('agents.sessionView.chatSend')" :title="t('agents.sessionView.chatSend')" data-testid="chat-send"><ArrowUp :size="14" /></UiButton>
         </div>
       </div>
@@ -344,7 +344,7 @@ function handsFree() {
 .foot {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--vr-space-2);
   min-width: 0;
   padding: var(--vr-space-1) var(--vr-space-2) var(--vr-space-2) 10px;
 }
@@ -453,12 +453,6 @@ function handsFree() {
   height: 44px;
 }
 
-.aa.stop {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .aa {
   padding: 0;
   font: inherit;
@@ -468,6 +462,18 @@ function handsFree() {
   background: var(--vr-color-surface-muted);
   border: 0;
   border-radius: 50%;
+}
+
+.stop {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--vr-color-accent-contrast);
+  background: var(--vr-color-danger);
+}
+
+.foot .stop {
+  margin-left: var(--vr-space-1);
 }
 
 .talk.big {
@@ -500,7 +506,7 @@ function handsFree() {
   align-self: center;
   padding: 2px;
   background: var(--vr-color-surface-muted);
-  border-radius: 9px;
+  border-radius: var(--vr-radius-md);
 }
 
 .mode {
@@ -514,7 +520,7 @@ function handsFree() {
   cursor: pointer;
   background: none;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--vr-radius-sm);
 }
 
 .mode[aria-pressed='true'] {

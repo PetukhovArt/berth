@@ -9,7 +9,7 @@
 - Added leaving and deleting a Channel from its row in the Channels section and with `berth channel leave` and `berth channel delete`: you delete the Channels you made, and the new `channels.delete` permission, held by Admin, deletes any
 - Added `sessions.archiveOnClose`, on by default: closing the tab of an agent ends the session and closing a conversation's tab moves it to its project's Archive; turned off, the close button asks whether to end, archive or delete it
 - Added an Ended group under each project's sessions in the Sessions tree: a session you close, end with `berth end-session` or that is archived after merge goes there, opening it resumes the conversation, and after `session_archive_after` (7 days by default) it moves to the Archive
-- Added Delete forever to the menu of an agent tab's close button, which asks to confirm before it removes the session
+- Added Delete forever in red, below a separator, to the menu of an agent tab's close button, which opens under the button and asks to confirm, saying that the session and its chat history are erased and the worktree stays
 - Added a pinned Inbox in the sidebar: it stays at the top while the Projects tree scrolls, scrolls on its own when it grows past 40% of the window height, and collapses with the chevron on its header (`Alt+J` expands it)
 - Added a Stop button to the Chat composer: while an agent's turn runs and the message box is empty it takes the place of Send and interrupts the turn, which matters on a phone where the Terminal view and its keys are gone
 - Changed `berth upgrade` to install the version the latest release names in `latest.json`, so the command and the desktop app stay on one version (#69)
@@ -23,6 +23,8 @@
 - Changed a team hub from before roles: on first start it keeps a copy of its database as `<db>.v1.bak` and makes every approved device a Member, read-only ones included; upgrade `berth` on the admin's machine together with the hub
 - Changed the New session dialog to fetch the base branch of a new Worktree while it is open, so creating the Worktree no longer waits for the fetch (it is reused for 2 minutes)
 - Changed the Session screen on a phone to hide the rows of project tabs above the Chat view: go back with the header arrow and pick another Session from the Sessions list
+- Changed the branch name field in New session to wrap long names instead of cutting them, and the line under it to stop repeating the name
+- Changed the Stop button in the Chat composer to red with the same shape in the typing and Hold to talk views, spaced from the microphone, and the message box and talk hint to say the agent is working while a turn runs
 - Removed the Terminal view and the terminal keys bar from the Session screen on a phone: it opens in Chat, so a phone no longer squeezes the Session's terminal on your computer to the phone's width; a Session with no Chat shows a notice instead
 - Removed the Earlier folder from the Sessions tree: every conversation that is not archived is listed in its worktree
 - Removed `berth hub approve --scopes`: approve with `--role` instead
@@ -38,6 +40,7 @@
 - Fixed the Chat composer on a phone in Hold to talk mode having no way to stop a running turn: the Stop button now sits beside the talk button
 - Fixed the New session dialog on a phone: it now fills the screen with every field full width, the Name field on its own row, large Cancel and Create buttons, and no keyboard shortcut hints; Enter in the prompt adds a line
 - Fixed the Setup command field in New session on a phone showing its placeholder cut off: it now says `e.g. pnpm install` and fits at 320 px
+- Fixed the branch name label in New session on a phone sliding half under the top of the scrolling area when the field is brought into view
 - Fixed the Inbox listing Sessions from projects of other workspaces while one workspace is open; `Alt+J` now stays within it too
 - Fixed the Inbox pinned above the sidebar tree having no bottom edge: tree rows scrolled under it were cut off right below it, slicing the Projects header, and the Inbox now ends in a divider
 - Fixed `berth worktree <branch>` and `berth spawn --worktree <branch>` starting a new local branch from the default base when that branch already exists on origin: the worktree now checks out origin's branch and tracks it

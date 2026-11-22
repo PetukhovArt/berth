@@ -59,6 +59,7 @@ function onWheel(event: WheelEvent) {
       v-for="option in options"
       :key="option.value"
       class="chip"
+      :class="{ empty: option.count === 0 }"
       type="button"
       role="radio"
       :aria-checked="model === option.value"
@@ -109,10 +110,23 @@ function onWheel(event: WheelEvent) {
   background: var(--vr-color-nav-hover);
 }
 
+.chip.empty,
+.chip.empty .count {
+  color: var(--vr-color-text-subtle);
+}
+
 .chip[aria-checked='true'] {
-  border-color: var(--vr-color-border-strong);
-  background: var(--vr-color-nav-active);
+  border-color: var(--vr-color-text-subtle);
+  background: var(--vr-color-chip-bg);
   color: var(--vr-color-text);
+}
+
+.chip[aria-checked='true'] .count {
+  color: inherit;
+}
+
+.chip.empty[aria-checked='true'] {
+  color: var(--vr-color-text-muted);
 }
 
 .chip:focus-visible {
