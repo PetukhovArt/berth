@@ -125,6 +125,18 @@
     },
     "idle": {
       "$value": "#868b92"
+    },
+    "live": {
+      "$value": "#4cc38a"
+    },
+    "fresh": {
+      "$value": "#8fb4ff"
+    },
+    "stopped": {
+      "$value": "#99938a"
+    },
+    "ended": {
+      "$value": "#e68dbb"
     }
   },
   "tint": {

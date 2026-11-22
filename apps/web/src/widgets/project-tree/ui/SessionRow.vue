@@ -220,6 +220,22 @@ async function confirmDelete() {
   color: var(--vr-color-text-subtle);
 }
 
+.row[data-status='running'] .label {
+  color: var(--vr-status-live);
+}
+
+.row[data-status='fresh'] .label {
+  color: var(--vr-status-fresh);
+}
+
+.row[data-status='finished'] .label {
+  color: var(--vr-status-finished);
+}
+
+.row[data-stopped='true'] .label {
+  color: var(--vr-status-stopped);
+}
+
 .row[data-status='needs_feedback'] .label {
   color: var(--vr-status-feedback);
 }

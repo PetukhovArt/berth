@@ -21,6 +21,7 @@
 - Changed `berth hub devices` to list each device's role and the hub's roles, and `--admin-token` to also accept the device token of anyone whose role includes `admin.manage`
 - Changed the Channel view to disable Send and the Task note button, and say why, when your role on the hub does not allow them
 - Changed the session tabs to stay at least 168 px wide and to show the full name in a tooltip, so similar names can be told apart; tabs that do not fit go to the overflow menu
+- Changed the status marks of sessions to differ in colour: the Sessions tree writes running in green, new in blue, finished in grey and stopped in a dim warm grey, and new and stopped sessions keep those colours on their tabs; a session in the Ended group gets its own pink mark
 - Changed a team hub from before roles: on first start it keeps a copy of its database as `<db>.v1.bak` and makes every approved device a Member, read-only ones included; upgrade `berth` on the admin's machine together with the hub
 - Changed the New session dialog to fetch the base branch of a new Worktree while it is open, so creating the Worktree no longer waits for the fetch (it is reused for 2 minutes)
 - Changed the Session screen on a phone to hide the rows of project tabs above the Chat view: go back with the header arrow and pick another Session from the Sessions list

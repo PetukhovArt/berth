@@ -2,7 +2,7 @@
 import { shallowRef } from 'vue';
 import { Archive, Trash2 } from '../../../shared/ui/icons';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { archiveAgent, deleteAgent, unarchiveAgent, type SessionNode, useAction, useSessionDock } from '../../../entities/session';
+import { archiveAgent, deleteAgent, unarchiveAgent, type SessionNode, StatusIcon, useAction, useSessionDock } from '../../../entities/session';
 import SessionDeleteConfirm from './SessionDeleteConfirm.vue';
 import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ session: SessionNode; where?: string | undefined }>();
@@ -28,6 +28,7 @@ async function confirmDelete() {
   <div class="ended" data-testid="ended-row" :data-session-id="session.id" :data-busy="action.busy.value">
     <div class="line">
       <UiButton class="open" :title="where ? `${session.name} · ${where}` : session.name" :disabled="action.busy.value" data-testid="ended-open" @click="open">
+        <StatusIcon tone="ended" />
         <span class="name">{{ session.name }}<span v-if="where" class="where"> · {{ where }}</span></span>
       </UiButton>
       <template v-if="!confirming">
@@ -53,6 +54,7 @@ async function confirmDelete() {
 .open {
   display: flex;
   flex: 1;
+  gap: 7px;
   align-items: center;
   min-width: 0;
   height: var(--vr-size-row);

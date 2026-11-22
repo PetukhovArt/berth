@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import type { SessionStatus } from '../model/berth';
 
-type Tone = 'running' | 'feedback' | 'limit' | 'unseen' | 'finished' | 'crashed' | 'idle' | 'success';
+type Tone = 'running' | 'feedback' | 'limit' | 'unseen' | 'finished' | 'crashed' | 'idle' | 'success' | 'fresh' | 'stopped' | 'ended';
 type Glyph = { tone: Tone; d: string };
 
 const props = defineProps<{ status?: SessionStatus | undefined; unseen?: boolean; tone?: Tone; stopped?: boolean }>();
@@ -16,7 +16,7 @@ const HOURGLASS = 'M4.5 2.25h7 M4.5 13.75h7 M5 2.25c0 3 3 3.5 3 5.75s-3 2.75-3 5
 const UNSEEN_D = `M13.7 7.2A5.75 5.75 0 1 1 8.8 2.3 ${CHECK} M12.9 1.9a1.3 1.3 0 1 0 .01 0Z`;
 
 const GLYPHS: Record<SessionStatus, Glyph> = {
-  fresh: { tone: 'idle', d: RING },
+  fresh: { tone: 'fresh', d: RING },
   running: { tone: 'running', d: ARC },
   needs_feedback: { tone: 'feedback', d: FEEDBACK },
   finished: { tone: 'finished', d: `${RING} ${CHECK}` },
@@ -36,10 +36,13 @@ const TONE_GLYPHS: Record<Tone, string> = {
   crashed: CRASH,
   idle: RING,
   success: `${RING} ${CHECK}`,
+  fresh: RING,
+  stopped: `${RING} M6.3 6.3h3.4v3.4H6.3z`,
+  ended: `${RING} M5.5 8h5`,
 };
 
 const UNSEEN: Glyph = { tone: 'unseen', d: UNSEEN_D };
-const STOPPED: Glyph = { tone: 'idle', d: `${RING} M6.3 6.3h3.4v3.4H6.3z` };
+const STOPPED: Glyph = { tone: 'stopped', d: TONE_GLYPHS.stopped };
 
 const glyph = computed<Glyph>(() => {
   if (props.tone) return { tone: props.tone, d: TONE_GLYPHS[props.tone] };
@@ -89,5 +92,17 @@ const glyph = computed<Glyph>(() => {
 
 .status-icon[data-tone='success'] {
   color: var(--vr-color-success);
+}
+
+.status-icon[data-tone='fresh'] {
+  color: var(--vr-status-fresh);
+}
+
+.status-icon[data-tone='stopped'] {
+  color: var(--vr-status-stopped);
+}
+
+.status-icon[data-tone='ended'] {
+  color: var(--vr-status-ended);
 }
 </style>
