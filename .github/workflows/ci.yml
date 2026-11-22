@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - run: rustup toolchain install
       - run: cargo fmt --all -- --check
 
   test:
@@ -27,6 +28,9 @@ jobs:
         runner: [ubuntu-24.04, windows-latest]
     steps:
       - uses: actions/checkout@v4
+
+      # rust-toolchain.toml pins the compiler; rustup 1.28+ does not install it on first use.
+      - run: rustup toolchain install
 
       - uses: Swatinem/rust-cache@v2
 
