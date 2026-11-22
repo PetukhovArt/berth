@@ -17,6 +17,7 @@ export const agents = {
   },
   route: {
     open: 'Switch model or agent',
+    openShort: 'Switch model',
     errorKind: {
       overloaded: 'Provider overloaded',
       server: 'Provider server error',

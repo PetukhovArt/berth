@@ -50,6 +50,7 @@ watch(
   <div v-if="visible" class="checkpoints">
     <UiButton type="button" class="chip" :title="t('checkpoints.open')" :aria-label="t('checkpoints.open')" :aria-expanded="open" data-testid="checkpoints-button" @click="toggle">
       <History :size="13" />
+      <span class="chip-label">{{ t('checkpoints.open') }}</span>
     </UiButton>
     <div v-if="open" ref="sheet" class="panel vr-sheet" data-testid="checkpoints-panel">
       <span class="heading">{{ t('checkpoints.title', { name }) }}</span>
@@ -96,6 +97,26 @@ watch(
   cursor: pointer;
 }
 
+.chip-label {
+  display: none;
+}
+
+:root[data-vr-viewport='phone'] .chip {
+  gap: var(--vr-space-1);
+  width: auto;
+  height: var(--vr-size-row-touch);
+  padding: 0 var(--vr-space-3);
+  font: inherit;
+  font-size: var(--vr-font-size-label);
+  color: var(--vr-color-text);
+  background: var(--vr-color-surface-muted);
+  border-radius: var(--vr-radius-md);
+}
+
+:root[data-vr-viewport='phone'] .chip-label {
+  display: inline;
+}
+
 .panel {
   position: absolute;
   top: 28px;
@@ -109,7 +130,7 @@ watch(
   padding: var(--vr-space-3);
   overflow-y: auto;
   background: var(--vr-color-surface-raised);
-  border-radius: 9px;
+  border-radius: var(--vr-radius-md);
   box-shadow: var(--vr-shadow-popover);
 }
 
@@ -187,7 +208,7 @@ watch(
   font: inherit;
   font-size: var(--vr-font-size-label);
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--vr-radius-sm);
   cursor: pointer;
 }
 

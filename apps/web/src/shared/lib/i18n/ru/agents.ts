@@ -20,6 +20,7 @@ export const agents: Translation<typeof en> = {
   },
   route: {
     open: 'Сменить модель или агента',
+    openShort: 'Сменить модель',
     errorKind: {
       overloaded: 'Провайдер перегружен',
       server: 'Ошибка сервера провайдера',

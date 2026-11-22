@@ -156,7 +156,7 @@ watch(
 }
 
 :root[data-vr-viewport='phone'] .session-header {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: var(--vr-space-1);
   padding: var(--vr-space-2) var(--vr-space-3);
 }

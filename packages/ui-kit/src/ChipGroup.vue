@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
+import { isMotionEnabled } from './motion';
+
+type Fade = 'none' | 'left' | 'right' | 'both';
+
 interface ChipOption {
   value: string;
   label: string;
@@ -27,19 +32,58 @@ function onKeydown(event: KeyboardEvent) {
   if (index === null || !option || !(event.currentTarget instanceof HTMLElement)) return;
   event.preventDefault();
   model.value = option.value;
-  const chip = event.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')[index];
-  chip?.focus({ preventScroll: true });
-  revealChip(chip);
-}
-
-function revealChip(chip: Element | null | undefined) {
-  chip?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  event.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')[index]?.focus({ preventScroll: true });
 }
 
 function onClick(event: MouseEvent, value: string) {
   model.value = value;
-  revealChip(event.currentTarget instanceof Element ? event.currentTarget : null);
+  if (event.currentTarget instanceof HTMLElement) revealChip(event.currentTarget, 'smooth');
 }
+
+const group = useTemplateRef<HTMLElement>('group');
+const fade = ref<Fade>('none');
+
+function updateFade() {
+  const element = group.value;
+  if (!element) return;
+  const left = element.scrollLeft > 1;
+  const right = element.scrollLeft < element.scrollWidth - element.clientWidth - 1;
+  fade.value = left && right ? 'both' : left ? 'left' : right ? 'right' : 'none';
+}
+
+function revealChip(chip: HTMLElement, behavior: ScrollBehavior) {
+  const element = group.value;
+  if (!element) return;
+  const inset = parseFloat(getComputedStyle(element).scrollPaddingLeft) || 0;
+  const start = chip.getBoundingClientRect().left - element.getBoundingClientRect().left + element.scrollLeft;
+  const end = start + chip.offsetWidth;
+  const view = element.clientWidth;
+  let left = element.scrollLeft;
+  if (start - inset < left) left = start - inset;
+  else if (end + inset > left + view) left = end + inset - view;
+  left = Math.max(0, Math.min(left, element.scrollWidth - view));
+  if (left !== element.scrollLeft) element.scrollTo({ left, behavior });
+}
+
+function revealChecked(behavior: ScrollBehavior) {
+  const chip = group.value?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]');
+  if (chip) revealChip(chip, behavior);
+}
+
+let resizeObserver: ResizeObserver | null = null;
+
+onMounted(async () => {
+  resizeObserver = new ResizeObserver(updateFade);
+  if (group.value) resizeObserver.observe(group.value);
+  await nextTick();
+  revealChecked('auto');
+  updateFade();
+});
+
+onBeforeUnmount(() => resizeObserver?.disconnect());
+
+watch(model, () => revealChecked(isMotionEnabled() ? 'smooth' : 'auto'), { flush: 'post' });
+watch(() => props.options, updateFade, { flush: 'post', deep: true });
 
 function onWheel(event: WheelEvent) {
   const group = event.currentTarget;
@@ -54,7 +98,7 @@ function onWheel(event: WheelEvent) {
 </script>
 
 <template>
-  <div class="chip-group" role="radiogroup" :aria-label="label" @keydown="onKeydown" @wheel="onWheel">
+  <div ref="group" class="chip-group" role="radiogroup" :aria-label="label" :data-fade="fade" @keydown="onKeydown" @wheel="onWheel" @scroll.passive="updateFade">
     <button
       v-for="option in options"
       :key="option.value"
@@ -76,13 +120,31 @@ function onWheel(event: WheelEvent) {
 
 <style scoped>
 .chip-group {
+  --chip-fade: var(--vr-space-6);
   display: flex;
   flex-wrap: nowrap;
   gap: var(--vr-space-1);
   min-width: 0;
   overflow-x: auto;
+  scroll-padding-inline: var(--chip-fade);
   scroll-snap-type: x proximity;
   scrollbar-width: none;
+}
+
+.chip-group:not([data-fade='none']) {
+  --fade-start: 0px;
+  --fade-end: 0px;
+  mask-image: linear-gradient(to right, transparent, var(--vr-color-text) var(--fade-start), var(--vr-color-text) calc(100% - var(--fade-end)), transparent);
+}
+
+.chip-group[data-fade='left'],
+.chip-group[data-fade='both'] {
+  --fade-start: var(--chip-fade);
+}
+
+.chip-group[data-fade='right'],
+.chip-group[data-fade='both'] {
+  --fade-end: var(--chip-fade);
 }
 
 .chip-group::-webkit-scrollbar {

@@ -82,6 +82,7 @@ watch(
   <div class="route">
     <UiButton type="button" class="chip" :class="{ alert: !!error }" :title="title" :aria-label="title" :aria-expanded="open" data-testid="route-button" @click="toggle">
       <Waypoints :size="13" />
+      <span class="chip-label">{{ t('agents.route.openShort') }}</span>
     </UiButton>
     <div v-if="open" ref="sheet" class="form vr-sheet" data-testid="route-form">
       <span v-if="errorText" class="error" data-testid="route-provider-error">{{ errorText }}</span>
@@ -130,7 +131,28 @@ watch(
   cursor: pointer;
 }
 
-.chip.alert {
+.chip-label {
+  display: none;
+}
+
+:root[data-vr-viewport='phone'] .chip {
+  gap: var(--vr-space-1);
+  width: auto;
+  height: var(--vr-size-row-touch);
+  padding: 0 var(--vr-space-3);
+  font: inherit;
+  font-size: var(--vr-font-size-label);
+  color: var(--vr-color-text);
+  background: var(--vr-color-surface-muted);
+  border-radius: var(--vr-radius-md);
+}
+
+:root[data-vr-viewport='phone'] .chip-label {
+  display: inline;
+}
+
+.chip.alert,
+:root[data-vr-viewport='phone'] .chip.alert {
   color: var(--vr-status-limit);
   background: var(--vr-color-surface-muted);
 }
@@ -146,7 +168,7 @@ watch(
   width: 360px;
   padding: var(--vr-space-3);
   background: var(--vr-color-surface-raised);
-  border-radius: 9px;
+  border-radius: var(--vr-radius-md);
   box-shadow: var(--vr-shadow-popover);
 }
 
@@ -197,7 +219,7 @@ watch(
   font: inherit;
   font-size: var(--vr-font-size-label);
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--vr-radius-sm);
   cursor: pointer;
 }
 
