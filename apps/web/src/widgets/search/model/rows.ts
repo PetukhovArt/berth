@@ -9,11 +9,13 @@ export type SearchKind = (typeof KINDS)[number];
 export type SearchScope = 'all' | (typeof SCOPE_KINDS)[number];
 export type SearchAction = { key: string; label: string };
 
+export type ConversationRow = { id: string; kind: 'messages'; head: MessageHit; hits: readonly MessageHit[] };
+
 export type SearchRow =
   | { id: string; kind: 'sessions' | 'mr' | 'tasks'; entry: QuickItem }
   | { id: string; kind: 'files'; file: MarkdownEntry }
   | { id: string; kind: 'actions'; action: SearchAction }
-  | { id: string; kind: 'messages'; hit: MessageHit }
+  | ConversationRow
   | { id: string; kind: 'channels'; message: LoadedChannelMessage };
 
 export type SearchGroup = { kind: SearchKind; total: number; rows: readonly SearchRow[]; hidden: number };

@@ -19,7 +19,14 @@ export const search = {
   searching: 'Searching conversations…',
   indexing: 'Indexed {indexed} of {total} conversations. Results may be incomplete.',
   failed: 'Could not search conversation text: {message}',
-  none: 'Nothing found',
+  empty: {
+    title: 'No results for “{query}”',
+    hint: 'Searches sessions, merge requests, tasks, channels and conversation text (from {count} characters).',
+    everywhere: 'Search everywhere',
+    clear: 'Clear',
+  },
+  matches: { one: '{count} match', other: '{count} matches' },
+  moreInConversation: '{count} more in this conversation',
   showAll: 'Show all {count}',
   role: {
     user: 'You',

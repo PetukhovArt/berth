@@ -1,9 +1,10 @@
 import { computed, shallowRef, watch, type Ref } from 'vue';
-import { MIN_MESSAGE_QUERY, useLoadedChannelMessages } from '../../../entities/session';
+import { MIN_MESSAGE_QUERY, useLoadedChannelMessages, type MessageHit } from '../../../entities/session';
 import { quickItems, useWorkTree, type QuickItem } from '../../../features/work-tree';
+import { t } from '../../../shared/lib/i18n/i18n';
 import type { MarkdownEntry } from '../../../shared/lib/markdownFiles';
 import { rank, wordsOf } from './rank';
-import { KINDS, SCOPE_KINDS, entityKindOf, type SearchAction, type SearchGroup, type SearchKind, type SearchRow, type SearchScope } from './rows';
+import { KINDS, SCOPE_KINDS, entityKindOf, type ConversationRow, type SearchAction, type SearchGroup, type SearchKind, type SearchRow, type SearchScope } from './rows';
 import { useOpener } from './useOpener';
 import { useTranscriptSearch } from './useTranscriptSearch';
 
@@ -25,6 +26,31 @@ const timeOf = (value: number | string | null | undefined): number => {
 
 const entryTime = (entry: QuickItem): number => entry.at ?? timeOf(entry.node.data?.item?.updated_at ?? entry.node.data?.issue?.updated);
 
+function withoutPlaceholder(items: readonly QuickItem[]): QuickItem[] {
+  const placeholder = t('workbench.notInProject');
+  const lead = `${placeholder.toLowerCase()} › `;
+  return items.map((item) => {
+    if (!item.crumbs.includes(placeholder)) return item;
+    return { ...item, crumbs: item.crumbs.filter((crumb) => crumb !== placeholder), search: item.search.replace(lead, '') };
+  });
+}
+
+function conversationsOf(hits: readonly MessageHit[]): ConversationRow[] {
+  const byConversation = new Map<string, MessageHit[]>();
+  for (const hit of hits) {
+    const id = `message:${hit.harness}:${hit.session}`;
+    const known = byConversation.get(id);
+    if (known) known.push(hit);
+    else byConversation.set(id, [hit]);
+  }
+  const rows: ConversationRow[] = [];
+  for (const [id, matches] of byConversation) {
+    const [head] = matches;
+    if (head) rows.push({ id, kind: 'messages', head, hits: matches });
+  }
+  return rows;
+}
+
 export function useSearch(options: SearchOptions) {
   const { query, scope } = options;
   const { all } = useWorkTree();
@@ -37,7 +63,7 @@ export function useSearch(options: SearchOptions) {
   watch([text, scope], () => (expanded.value = new Set()));
   const wantsMessages = computed(() => scope.value === 'all' || scope.value === 'messages');
   const transcripts = useTranscriptSearch(query, wantsMessages);
-  const items = computed(() => quickItems(all.value, true));
+  const items = computed(() => withoutPlaceholder(quickItems(all.value, true)));
   const hasText = computed(() => text.value.length > 0);
   const listing = computed(() => hasText.value || options.browse === true);
 
@@ -71,12 +97,19 @@ export function useSearch(options: SearchOptions) {
     }));
   });
 
-  const messageRows = computed<SearchRow[]>(() => (transcripts.result.value?.hits ?? []).map((hit) => ({ id: `message:${hit.harness}:${hit.session}:${hit.key}`, kind: 'messages', hit })));
+  const messageRows = computed<SearchRow[]>(() => conversationsOf(transcripts.result.value?.hits ?? []));
 
   const allRows = computed<Record<SearchKind, readonly SearchRow[]>>(() => ({ ...entityRows.value, files: fileRows.value, actions: actionRows.value, messages: messageRows.value, channels: channelRows.value }));
 
   const counts = computed(() => Object.fromEntries(KINDS.map((kind) => [kind, allRows.value[kind].length])) as Record<SearchKind, number>);
   const total = computed(() => SCOPE_KINDS.reduce((sum, kind) => sum + counts.value[kind], 0));
+
+  function chipCount(id: SearchScope): number | undefined {
+    if (!hasText.value) return undefined;
+    if (id === 'all') return total.value;
+    if (id === 'messages' && transcripts.result.value === null) return undefined;
+    return counts.value[id];
+  }
 
   const groups = computed<SearchGroup[]>(() =>
     KINDS.filter((kind) => scope.value === 'all' || scope.value === kind).flatMap((kind) => {
@@ -109,7 +142,7 @@ export function useSearch(options: SearchOptions) {
 
   return {
     text,
-    counts,
+    chipCount,
     total,
     groups,
     rows,

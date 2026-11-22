@@ -50,7 +50,7 @@ export function useOpener() {
 
   function open(row: SearchRow) {
     if (row.kind === 'channels') openChannel(row.message.channel);
-    else if (row.kind === 'messages') openHit(row.hit);
+    else if (row.kind === 'messages') openHit(row.head);
     else if (row.kind === 'files') dock.openFile(row.file.path, { worktreeId: dock.activeWorktree.value?.id });
     else if (row.kind === 'actions') ACTIONS[row.action.key]?.();
     else if (row.entry.node.kind === 'archived') {

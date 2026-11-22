@@ -7,6 +7,17 @@ const plain = (text: string): Segment => ({ text: text.replaceAll(CLOSE, ''), ma
 
 export const stripMarks = (text: string): string => text.replaceAll(OPEN, '').replaceAll(CLOSE, '');
 
+const ELLIPSIS = '…';
+const PARTIAL_WORD = 16;
+
+export function wholeWordStart(text: string): string {
+  if (!text.startsWith(ELLIPSIS)) return text;
+  const rest = text.slice(ELLIPSIS.length);
+  const gap = rest.search(/\s/);
+  if (gap < 0 || gap > PARTIAL_WORD || rest.slice(0, gap).includes(OPEN)) return text;
+  return `${ELLIPSIS}${rest.slice(gap).trimStart()}`;
+}
+
 export function markedSegments(text: string): Segment[] {
   const out: Segment[] = [];
   let cursor = 0;

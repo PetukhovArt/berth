@@ -19,7 +19,14 @@ export const search = {
   searching: 'Ищем по диалогам…',
   indexing: 'Проиндексировано {indexed} из {total} диалогов. Результаты могут быть неполными.',
   failed: 'Не удалось выполнить поиск по тексту диалогов: {message}',
-  none: 'Ничего не найдено',
+  empty: {
+    title: 'Ничего не найдено по «{query}»',
+    hint: 'Поиск идёт по сессиям, MR, задачам, каналам и тексту диалогов (от {count} символов).',
+    everywhere: 'Искать везде',
+    clear: 'Очистить',
+  },
+  matches: { one: '{count} совпадение', few: '{count} совпадения', many: '{count} совпадений', other: '{count} совпадения' },
+  moreInConversation: 'Ещё {count} в этом диалоге',
   showAll: 'Показать все: {count}',
   role: {
     user: 'Вы',

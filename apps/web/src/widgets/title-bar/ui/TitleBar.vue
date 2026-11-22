@@ -123,7 +123,7 @@ onUnmounted(() => stopResize?.());
 .titlebar {
   display: grid;
   flex: none;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 420px) minmax(0, 1fr);
+  grid-template-columns: minmax(min-content, 1fr) minmax(0, 420px) minmax(min-content, 1fr);
   align-items: center;
   height: 40px;
   padding-left: var(--vr-space-3);
@@ -192,6 +192,7 @@ onUnmounted(() => stopResize?.());
 
 
 .search {
+  container: titlebar-search / inline-size;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -228,6 +229,12 @@ onUnmounted(() => stopResize?.());
   color: var(--vr-color-text-muted);
   border: 1px solid var(--vr-color-border-strong);
   border-radius: 4px;
+}
+
+@container titlebar-search (max-width: 22rem) {
+  .search kbd {
+    display: none;
+  }
 }
 
 .end {

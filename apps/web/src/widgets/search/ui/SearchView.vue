@@ -11,6 +11,7 @@ import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { searchFocus, searchQuery, searchScope } from '../model/panel';
 import { SCOPE_KINDS, type SearchScope } from '../model/rows';
 import { useSearch } from '../model/useSearch';
+import SearchEmpty from './SearchEmpty.vue';
 import SearchResult from './SearchResult.vue';
 
 const SCOPES: readonly SearchScope[] = ['all', ...SCOPE_KINDS];
@@ -18,7 +19,7 @@ const GROUP_CAP = 50;
 
 const { t, formatNumber } = useI18n();
 const search = useSearch({ query: searchQuery, scope: searchScope, limit: () => GROUP_CAP });
-const { text, counts, groups, rows } = search;
+const { text, groups, rows } = search;
 const input = useTemplateRef<{ focus: () => void }>('input');
 const list = useTemplateRef<HTMLElement>('list');
 
@@ -33,9 +34,13 @@ const { index, onKey } = usePickerList({
 });
 
 const positions = computed(() => new Map(rows.value.map((row, at) => [row.id, at])));
-const countOf = (id: SearchScope) => (id === 'all' ? search.total.value : counts.value[id]);
-const scopeOptions = computed(() => SCOPES.map((id) => ({ value: id, label: t(`search.scope.${id}`), count: text.value && countOf(id) ? countOf(id) : undefined })));
+const scopeOptions = computed(() => SCOPES.map((id) => ({ value: id, label: t(`search.scope.${id}`), count: search.chipCount(id) })));
 const scope = computed({ get: () => searchScope.value, set: (value: string) => (searchScope.value = SCOPES.find((id) => id === value) ?? 'all') });
+
+function clearQuery() {
+  searchQuery.value = '';
+  input.value?.focus();
+}
 
 watch(searchFocus, () => void nextTick(() => input.value?.focus()));
 onMounted(() => input.value?.focus());
@@ -57,7 +62,7 @@ onMounted(() => input.value?.focus());
       <ErrorInline v-if="search.messageError.value" :message="t('search.failed', { message: search.messageError.value })" data-testid="search-error" @retry="search.retryMessages" />
     </div>
     <p v-if="!text" class="empty" data-testid="search-hint">{{ t('search.hint') }}</p>
-    <p v-else-if="search.nothing.value" class="empty" data-testid="search-empty">{{ t('search.none') }}</p>
+    <SearchEmpty v-else-if="search.nothing.value" :query="text" :can-widen="searchScope !== 'all'" @widen="searchScope = 'all'" @clear="clearQuery" />
     <ul v-show="rows.length" ref="list" class="results" role="listbox" :aria-label="t('search.title')">
       <template v-for="group in groups" :key="group.kind">
         <li class="group" role="presentation" :data-testid="`search-group-${group.kind}`" :data-stale="group.kind === 'messages' && search.messagesStale.value">
@@ -72,7 +77,7 @@ onMounted(() => input.value?.focus());
           :query="text"
           :current="positions.get(row.id) === index"
           :blocked="search.blockedReason(row)"
-          :heading="row.kind === 'messages' ? search.hitTitle(row.hit) : ''"
+          :heading="row.kind === 'messages' ? search.hitTitle(row.head) : ''"
           :data-stale="row.kind === 'messages' && search.messagesStale.value"
           @hover="index = positions.get(row.id) ?? 0"
           @open="search.choose(row)"

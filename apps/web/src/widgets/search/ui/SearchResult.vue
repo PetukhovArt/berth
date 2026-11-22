@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Archive, ChevronRight, FileText, GitPullRequest, MessageSquare, Ticket, Zap } from '../../../shared/ui/icons';
-import { markedSegments, stripMarks, wordSegments } from '../../../shared/lib/segments';
+import { markedSegments, stripMarks, wholeWordStart, wordSegments } from '../../../shared/lib/segments';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { HarnessIcon, StatusIcon, useSessionStates } from '../../../entities/session';
 import { pipelineTone } from '../../../entities/merge-request';
@@ -12,8 +12,16 @@ const props = defineProps<{ row: SearchRow; query: string; current: boolean; blo
 const emit = defineEmits<{ open: []; hover: [] }>();
 
 const WEEK_MS = 7 * 24 * 3_600_000;
+const SNIPPETS_SHOWN = 2;
+const PROJECT_MIN_CH = 12;
+const PROJECT_WHOLE_CHARS = 20;
 
-const { t, formatRelative, formatDate } = useI18n();
+const crumbStyle = (crumb: string, at: number) => {
+  if (at !== 0) return undefined;
+  return crumb.length > PROJECT_WHOLE_CHARS ? { minWidth: `${PROJECT_MIN_CH}ch` } : { flexShrink: 0 };
+};
+
+const { t, formatRelative, formatDate, formatNumber } = useI18n();
 const states = useSessionStates();
 
 const age = (value: number | string | null | undefined): { text: string; full: string } | null => {
@@ -46,13 +54,24 @@ const entity = computed(() => {
   };
 });
 
-const message = computed(() => {
+const conversation = computed(() => {
   const { row } = props;
   if (row.kind !== 'messages') return null;
-  const { hit } = row;
-  const project = hit.cwd?.split(/[\\/]/).findLast(Boolean);
-  const crumbs = [project, hit.branch].filter((crumb): crumb is string => Boolean(crumb));
-  return { crumbs, snippet: markedSegments(hit.snippet), plain: stripMarks(hit.snippet), role: hit.role === 'user' ? t('search.role.user') : t('search.role.assistant'), age: age(hit.at) };
+  const { head, hits } = row;
+  const project = head.cwd?.split(/[\\/]/).findLast(Boolean);
+  return {
+    crumbs: [project, head.branch].filter((crumb): crumb is string => Boolean(crumb)),
+    matches: t('search.matches', { count: hits.length }),
+    age: age(head.at),
+    snippets: hits.slice(0, SNIPPETS_SHOWN).map((hit) => ({
+      key: hit.key,
+      segments: markedSegments(wholeWordStart(hit.snippet)),
+      plain: stripMarks(hit.snippet),
+      role: hit.role === 'user' ? t('search.role.user') : t('search.role.assistant'),
+      user: hit.role === 'user',
+    })),
+    more: Math.max(0, hits.length - SNIPPETS_SHOWN),
+  };
 });
 
 const channel = computed(() => {
@@ -88,65 +107,66 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
         <Ticket v-else :size="14" />
         <HarnessIcon v-if="entity.harness" :harness="entity.harness" />
       </span>
-      <span class="text">
-        <span class="line" :title="entity.label"><Highlighted :segments="wordSegments(entity.label, query)" /></span>
-        <span v-if="entity.crumbs.length" class="sub">
-          <template v-for="(crumb, at) in entity.crumbs" :key="at">
-            <ChevronRight v-if="at > 0" :size="11" class="sep" />
-            <span class="crumb" :title="crumb"><Highlighted :segments="wordSegments(crumb, query)" /></span>
-          </template>
-        </span>
+      <span class="line" :title="entity.label"><Highlighted :segments="wordSegments(entity.label, query)" /></span>
+      <span v-if="entity.crumbs.length" class="sub">
+        <template v-for="(crumb, at) in entity.crumbs" :key="at">
+          <ChevronRight v-if="at > 0" :size="11" class="sep" />
+          <span class="crumb" :class="{ lead: at === 0 }" :style="crumbStyle(crumb, at)" :title="crumb"><Highlighted :segments="wordSegments(crumb, query)" /></span>
+        </template>
       </span>
-      <span v-if="entity.agent" class="meta">{{ entity.agent }}</span>
-      <span v-if="entity.age" class="meta age" :title="entity.age.full">{{ entity.age.text }}</span>
-      <StatusIcon v-if="entity.pipeline" :tone="entity.pipeline" />
+      <span class="aside">
+        <span v-if="entity.agent" class="meta">{{ entity.agent }}</span>
+        <span v-if="entity.age" class="meta age" :title="entity.age.full">{{ entity.age.text }}</span>
+        <StatusIcon v-if="entity.pipeline" :tone="entity.pipeline" />
+      </span>
     </template>
     <template v-else-if="row.kind === 'files'">
       <span class="icons"><FileText :size="14" /></span>
-      <span class="text">
-        <span class="line" :title="row.file.name"><Highlighted :segments="wordSegments(row.file.name, query)" /></span>
-        <span class="sub mono"><span class="crumb" :title="row.file.rel"><Highlighted :segments="wordSegments(row.file.rel, query)" /></span></span>
-      </span>
+      <span class="line" :title="row.file.name"><Highlighted :segments="wordSegments(row.file.name, query)" /></span>
+      <span class="sub mono"><span class="crumb lead" :title="row.file.rel"><Highlighted :segments="wordSegments(row.file.rel, query)" /></span></span>
     </template>
     <template v-else-if="row.kind === 'actions'">
       <span class="icons"><Zap :size="14" /></span>
-      <span class="text">
-        <span class="line" :title="row.action.label"><Highlighted :segments="wordSegments(row.action.label, query)" /></span>
-      </span>
+      <span class="line" :title="row.action.label"><Highlighted :segments="wordSegments(row.action.label, query)" /></span>
     </template>
-    <template v-else-if="message && row.kind === 'messages'">
-      <span class="icons"><HarnessIcon :harness="row.hit.harness" :size="14" /></span>
-      <span class="text">
-        <span class="line" :title="heading">
-          <span class="name">{{ heading }}</span>
-          <span class="role" :data-role="row.hit.role">{{ message.role }}</span>
-        </span>
-        <span v-if="message.crumbs.length" class="sub">
-          <template v-for="(crumb, at) in message.crumbs" :key="at">
-            <ChevronRight v-if="at > 0" :size="11" class="sep" />
-            <span class="crumb" :title="crumb">{{ crumb }}</span>
-          </template>
-        </span>
-        <span class="snippet" :title="message.plain"><Highlighted :segments="message.snippet" /></span>
+    <template v-else-if="conversation && row.kind === 'messages'">
+      <span class="icons"><HarnessIcon :harness="row.head.harness" :size="14" /></span>
+      <span class="line" :title="heading">{{ heading }}</span>
+      <span class="sub">
+        <template v-for="(crumb, at) in conversation.crumbs" :key="at">
+          <ChevronRight v-if="at > 0" :size="11" class="sep" />
+          <span class="crumb" :class="{ lead: at === 0 }" :style="crumbStyle(crumb, at)" :title="crumb">{{ crumb }}</span>
+        </template>
+        <span class="count" data-testid="search-matches">{{ conversation.matches }}</span>
       </span>
-      <span v-if="message.age" class="meta age" :title="message.age.full">{{ message.age.text }}</span>
+      <span class="aside">
+        <span v-if="conversation.age" class="meta age" :title="conversation.age.full">{{ conversation.age.text }}</span>
+      </span>
+      <span class="snippets">
+        <span v-for="snippet in conversation.snippets" :key="snippet.key" class="snippet" data-testid="search-snippet">
+          <span class="role" :data-user="snippet.user">{{ snippet.role }}</span>
+          <span class="snippet-text" :title="snippet.plain"><Highlighted :segments="snippet.segments" /></span>
+        </span>
+        <span v-if="conversation.more > 0" class="more" data-testid="search-more-matches">{{ t('search.moreInConversation', { count: formatNumber(conversation.more) }) }}</span>
+      </span>
     </template>
     <template v-else-if="channel && row.kind === 'channels'">
       <span class="icons"><MessageSquare :size="14" /></span>
-      <span class="text">
-        <span class="line" :title="channelText"><Highlighted :segments="wordSegments(channelText, query)" /></span>
-        <span class="sub"><span class="crumb" :title="channel.where">{{ channel.where }}</span></span>
+      <span class="line" :title="channelText"><Highlighted :segments="wordSegments(channelText, query)" /></span>
+      <span class="sub"><span class="crumb lead" :title="channel.where">{{ channel.where }}</span></span>
+      <span class="aside">
+        <span v-if="channel.age" class="meta age" :title="channel.age.full">{{ channel.age.text }}</span>
       </span>
-      <span v-if="channel.age" class="meta age" :title="channel.age.full">{{ channel.age.text }}</span>
     </template>
   </li>
 </template>
 
 <style scoped>
 .result {
-  display: flex;
-  align-items: center;
-  gap: var(--vr-space-3);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-content: center;
+  column-gap: var(--vr-space-3);
   min-height: var(--vr-size-row);
   box-sizing: border-box;
   padding: var(--vr-space-1) var(--vr-space-3);
@@ -166,23 +186,17 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
 
 .icons {
   display: inline-flex;
-  flex: none;
+  grid-row: 1;
+  grid-column: 1;
   align-items: center;
+  align-self: center;
   gap: var(--vr-space-1);
   color: var(--vr-color-text-subtle);
 }
 
-.text {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-
 .line {
-  display: flex;
-  align-items: baseline;
-  gap: var(--vr-space-2);
+  grid-row: 1;
+  grid-column: 2;
   min-width: 0;
   overflow: hidden;
   color: var(--vr-color-text);
@@ -191,23 +205,10 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
   white-space: nowrap;
 }
 
-.name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.role {
-  flex: none;
-  padding: 0 var(--vr-space-1);
-  color: var(--vr-color-text-muted);
-  font-size: var(--vr-font-size-2xs);
-  background: var(--vr-color-surface-muted);
-  border-radius: var(--vr-radius-sm);
-}
-
 .sub {
   display: flex;
+  grid-row: 2;
+  grid-column: 2 / -1;
   align-items: center;
   gap: var(--vr-space-1);
   min-width: 0;
@@ -223,33 +224,98 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
 }
 
 .crumb {
+  flex: 0 100 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.crumb.lead {
+  flex-shrink: 1;
 }
 
 .sep {
   flex: none;
 }
 
-.snippet {
-  display: -webkit-box;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-text-muted);
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+.count {
+  flex: none;
+  margin-inline-start: var(--vr-space-2);
+  color: var(--vr-color-text-subtle);
+}
+
+.aside {
+  display: flex;
+  grid-row: 1;
+  grid-column: 3;
+  align-items: center;
+  gap: var(--vr-space-2);
+  justify-self: end;
+  white-space: nowrap;
 }
 
 .meta {
-  flex: none;
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-subtle);
-  white-space: nowrap;
 }
 
 .age {
   font-variant-numeric: tabular-nums;
+}
+
+.snippets {
+  display: flex;
+  grid-row: 3;
+  grid-column: 2 / -1;
+  flex-direction: column;
+  gap: var(--vr-space-1);
+  min-width: 0;
+  padding-inline-start: var(--vr-space-3);
+  margin-top: var(--vr-space-1);
+}
+
+.snippet {
+  display: flex;
+  align-items: baseline;
+  gap: var(--vr-space-2);
+  min-width: 0;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-muted);
+}
+
+.role {
+  flex: none;
+  padding: 0 var(--vr-space-1);
+  color: var(--vr-color-text-muted);
+  font-size: var(--vr-font-size-2xs);
+  background: var(--vr-color-surface-muted);
+  border-radius: var(--vr-radius-sm);
+}
+
+.snippet-text {
+  display: -webkit-box;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.more {
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-subtle);
+}
+
+:root[data-vr-viewport='phone'] .line {
+  grid-column: 2 / -1;
+}
+
+:root[data-vr-viewport='phone'] .sub {
+  grid-column: 2;
+}
+
+:root[data-vr-viewport='phone'] .aside {
+  grid-row: 2;
 }
 </style>

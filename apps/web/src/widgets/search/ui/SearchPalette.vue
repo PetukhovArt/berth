@@ -11,6 +11,7 @@ import { useSessionDock } from '../../../entities/session';
 import { openSearch } from '../model/panel';
 import type { SearchAction, SearchKind, SearchRow, SearchScope } from '../model/rows';
 import { useSearch } from '../model/useSearch';
+import SearchEmpty from './SearchEmpty.vue';
 import SearchResult from './SearchResult.vue';
 
 type PaletteItem = SearchRow | { id: string; kind: 'all' };
@@ -34,8 +35,13 @@ const actions = computed<readonly SearchAction[]>(() => (isDesktop ? [{ key: 'cl
 const search = useSearch({ query, scope, files, actions, browse: true, limit: (kind: SearchKind) => (kind === 'sessions' ? SESSION_LIMIT : GROUP_LIMIT) });
 const { text, groups, rows } = search;
 
-const results = computed<readonly PaletteItem[]>(() => (text.value ? [...rows.value, ALL] : rows.value));
+const results = computed<readonly PaletteItem[]>(() => (text.value && !search.nothing.value ? [...rows.value, ALL] : rows.value));
 const positions = computed(() => new Map(results.value.map((item, at) => [item.id, at])));
+
+function clear() {
+  query.value = '';
+  input.value?.focus();
+}
 
 function openAll() {
   const typed = text.value;
@@ -106,13 +112,13 @@ onMounted(() => {
             :query="text"
             :current="positions.get(row.id) === index"
             :blocked="search.blockedReason(row)"
-            :heading="row.kind === 'messages' ? search.hitTitle(row.hit) : ''"
+            :heading="row.kind === 'messages' ? search.hitTitle(row.head) : ''"
             @hover="index = positions.get(row.id) ?? 0"
             @open="choose(row)"
           />
         </template>
-        <li v-if="search.nothing.value" class="none">{{ t('search.none') }}</li>
-        <li v-if="text" class="all" role="option" :aria-selected="positions.get(ALL.id) === index" :data-current="positions.get(ALL.id) === index" data-testid="quick-switcher-all" @pointermove="index = positions.get(ALL.id) ?? 0" @click="choose(ALL)">
+        <li v-if="search.nothing.value" class="none" role="presentation"><SearchEmpty :query="text" :can-widen="scope !== 'all'" @widen="scope = 'all'" @clear="clear" /></li>
+        <li v-if="text && !search.nothing.value" class="all" role="option" :aria-selected="positions.get(ALL.id) === index" :data-current="positions.get(ALL.id) === index" data-testid="quick-switcher-all" @pointermove="index = positions.get(ALL.id) ?? 0" @click="choose(ALL)">
           <ArrowRight :size="14" class="all-icon" />
           <span>{{ t('search.allResults', { count: formatNumber(search.total.value) }) }}</span>
         </li>
@@ -223,8 +229,7 @@ onMounted(() => {
 }
 
 .none {
-  padding: var(--vr-space-3);
-  color: var(--vr-color-text-muted);
+  display: flex;
 }
 
 .footer {

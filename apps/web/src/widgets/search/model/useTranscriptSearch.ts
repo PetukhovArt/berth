@@ -1,7 +1,7 @@
 import { computed, onScopeDispose, shallowRef, watch, type Ref } from 'vue';
 import { MIN_MESSAGE_QUERY, describeError, searchMessages, type MessageSearch } from '../../../entities/session';
 
-const MESSAGE_LIMIT = 300;
+const MESSAGE_LIMIT = 500;
 const DEBOUNCE_MS = 200;
 const POLL_MS = 3000;
 const MAX_POLLS = 10;
