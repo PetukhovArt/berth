@@ -18,6 +18,30 @@ export function wholeWordStart(text: string): string {
   return `${ELLIPSIS}${rest.slice(gap).trimStart()}`;
 }
 
+const FITS_CHARS = 44;
+const LEAD_CHARS = 20;
+
+export function revealFirstMatch(segments: readonly Segment[], fits = FITS_CHARS, lead = LEAD_CHARS): Segment[] {
+  let offset = 0;
+  for (const segment of segments) {
+    if (segment.match) break;
+    offset += segment.text.length;
+  }
+  const hit = segments.find((segment) => segment.match);
+  if (!hit || offset <= lead || offset + hit.text.length <= fits) return [...segments];
+  const full = segments.map((segment) => segment.text).join('');
+  const gap = full.slice(offset - lead, offset).search(/\s/);
+  const cut = gap < 0 ? offset - lead : offset - lead + gap + 1;
+  const out: Segment[] = [{ text: ELLIPSIS, match: false }];
+  let at = 0;
+  for (const segment of segments) {
+    const end = at + segment.text.length;
+    if (end > cut) out.push({ text: segment.text.slice(Math.max(0, cut - at)), match: segment.match });
+    at = end;
+  }
+  return out;
+}
+
 export function markedSegments(text: string): Segment[] {
   const out: Segment[] = [];
   let cursor = 0;

@@ -133,10 +133,11 @@ export function useSearch(options: SearchOptions) {
 
   const groups = computed<SearchGroup[]>(() =>
     KINDS.filter((kind) => scope.value === 'all' || scope.value === kind).flatMap((kind) => {
-      const rows = kind === 'messages' && scope.value !== 'messages' ? messageRows.value.filter((row) => !folds.value.claimed.has(row.id)) : allRows.value[kind];
+      const unfolded = kind === 'messages' && scope.value !== 'messages';
+      const rows = unfolded ? messageRows.value.filter((row) => !folds.value.claimed.has(row.id)) : allRows.value[kind];
       if (!rows.length) return [];
       const shown = capped(kind, rows);
-      return [{ kind, total: rows.length, rows: shown, hidden: rows.length - shown.length }];
+      return [{ kind, total: rows.length, rows: shown, hidden: rows.length - shown.length, folded: unfolded && folds.value.claimed.size > 0 }];
     }),
   );
 
@@ -173,6 +174,7 @@ export function useSearch(options: SearchOptions) {
     messagesStale: transcripts.stale,
     retryMessages: transcripts.retry,
     showAll,
+    groupLabel: (group: SearchGroup): string => (group.folded ? t('search.otherConversations') : t(`search.scope.${group.kind}`)),
     foldedInto: (row: SearchRow): ConversationRow | undefined => (scope.value === 'messages' ? undefined : folds.value.into.get(row.id)),
     choose,
     hitTitle: opener.hitTitle,

@@ -92,7 +92,7 @@ onMounted(() => {
           class="query"
           type="text"
           autocomplete="off"
-          :placeholder="activeWorktree ? t('files.switcher.placeholderFiles', { scope: activeWorktree.branch }) : t('workbench.quickPath')"
+          :placeholder="t('search.placeholder')"
           :aria-label="t('files.switcher.search')"
           data-testid="quick-switcher-input"
           @keydown="onKey"
@@ -101,7 +101,7 @@ onMounted(() => {
       <ul ref="list" v-auto-animate class="results vr-sheet-body" role="listbox">
         <template v-for="group in groups" :key="group.kind">
           <li class="group" role="presentation">
-            <span>{{ t(`search.scope.${group.kind}`) }}</span>
+            <span>{{ search.groupLabel(group) }}</span>
             <span class="group-count">{{ formatNumber(group.total) }}</span>
           </li>
           <SearchResult
@@ -114,6 +114,7 @@ onMounted(() => {
             :blocked="search.blockedReason(row)"
             :heading="row.kind === 'messages' ? search.hitTitle(row.head) : ''"
             :folded="search.foldedInto(row)"
+            compact
             @hover="index = positions.get(row.id) ?? 0"
             @open="choose(row)"
             @open-conversation="choose(search.foldedInto(row) ?? row)"

@@ -66,7 +66,7 @@ onMounted(() => input.value?.focus());
     <ul v-show="rows.length" ref="list" class="results" role="listbox" :aria-label="t('search.title')">
       <template v-for="group in groups" :key="group.kind">
         <li class="group" role="presentation" :data-testid="`search-group-${group.kind}`" :data-stale="group.kind === 'messages' && search.messagesStale.value">
-          <span class="group-name">{{ t(`search.scope.${group.kind}`) }}</span>
+          <span class="group-name">{{ search.groupLabel(group) }}</span>
           <span class="group-count">{{ formatNumber(group.total) }}</span>
         </li>
         <SearchResult

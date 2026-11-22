@@ -26,7 +26,8 @@ export const search = {
     clear: 'Очистить',
   },
   matches: { one: '{count} совпадение', few: '{count} совпадения', many: '{count} совпадений', other: '{count} совпадения' },
-  moreInConversation: 'Ещё {count} в этом диалоге',
+  openConversation: 'Открыть переписку',
+  otherConversations: 'Другие переписки',
   showAll: 'Показать все: {count}',
   role: {
     user: 'Вы',

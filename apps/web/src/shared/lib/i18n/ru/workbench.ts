@@ -4,6 +4,7 @@ import type { Translation } from '../types';
 export const workbench: Translation<typeof en> = {
   tree: 'Проекты',
   filter: 'Фильтр дерева и входящих',
+  clearFilter: 'Очистить фильтр',
   sessions: 'Сессии',
   mergeRequests: 'Merge requests',
   notInProject: 'Вне проектов',
@@ -67,7 +68,6 @@ export const workbench: Translation<typeof en> = {
   pickClone: 'Найдено несколько локальных клонов, выберите',
   mainCheckout: 'основной клон',
   cloneNotFound: 'Клон не найден — укажите путь к папке',
-  quickPath: 'проект › ветка › сессия, MR или задача',
   review: {
     also: 'Также ревьюер в GitLab',
     alsoTitle: 'Процесс ревью не ставит их в очередь, вы лишь ревьюер в GitLab',

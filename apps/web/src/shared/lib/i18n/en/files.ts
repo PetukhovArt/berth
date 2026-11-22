@@ -45,7 +45,6 @@ export const files = {
   },
   switcher: {
     search: 'Search sessions and files',
-    placeholderFiles: 'workspace › project › branch › session, or a Markdown file in {scope}',
     hint: 'Enter opens, Ctrl+Enter shows all results',
   },
 } as const;

@@ -1,35 +1,34 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Archive, ChevronRight, FileText, GitPullRequest, MessageSquare, Ticket, Zap } from '../../../shared/ui/icons';
-import { markedSegments, stripMarks, wholeWordStart, wordSegments } from '../../../shared/lib/segments';
+import { markedSegments, revealFirstMatch, stripMarks, wholeWordStart, wordSegments } from '../../../shared/lib/segments';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
+import { shortAge } from '../../../shared/lib/shortAge';
+import { useIsPhone } from '../../../shared/ui/kit';
 import { HarnessIcon, StatusIcon, useSessionStates } from '../../../entities/session';
 import { pipelineTone } from '../../../entities/merge-request';
 import { UiButton } from '../../../shared/ui/UiButton';
 import type { ConversationRow, SearchRow } from '../model/rows';
 import Highlighted from './Highlighted.vue';
 
-const props = defineProps<{ row: SearchRow; query: string; current: boolean; blocked: string | null; heading: string; testid: string; folded?: ConversationRow }>();
+const props = defineProps<{ row: SearchRow; query: string; current: boolean; blocked: string | null; heading: string; testid: string; folded?: ConversationRow; compact?: boolean }>();
 const emit = defineEmits<{ open: []; hover: []; openConversation: [] }>();
 
-const WEEK_MS = 7 * 24 * 3_600_000;
 const SNIPPETS_SHOWN = 2;
-const PROJECT_MIN_CH = 12;
-const PROJECT_WHOLE_CHARS = 20;
+const CRUMB_MIN_CH = 8;
 
-const crumbStyle = (crumb: string, at: number) => {
-  if (at !== 0) return undefined;
-  return crumb.length > PROJECT_WHOLE_CHARS ? { minWidth: `${PROJECT_MIN_CH}ch` } : { flexShrink: 0 };
-};
+const crumbStyle = (crumb: string) => ({ minWidth: `${Math.min(crumb.length, CRUMB_MIN_CH)}ch` });
+const titleSegments = (text: string, query: string) => revealFirstMatch(wordSegments(text, query));
 
-const { t, formatRelative, formatDate, formatNumber } = useI18n();
+const { t, formatRelative, formatDate } = useI18n();
 const states = useSessionStates();
+const phone = useIsPhone();
 
 const age = (value: number | string | null | undefined): { text: string; full: string } | null => {
   if (value === null || value === undefined) return null;
   const time = typeof value === 'number' ? value : Date.parse(value);
   if (!time || Number.isNaN(time)) return null;
-  return { text: Date.now() - time > WEEK_MS ? formatDate(time, { dateStyle: 'medium' }) : formatRelative(time), full: formatDate(time) };
+  return { text: phone.value ? shortAge(Date.now(), time) : formatRelative(time), full: formatDate(time) };
 };
 
 const entity = computed(() => {
@@ -60,7 +59,8 @@ const conversation = computed(() => {
   const source = row.kind === 'messages' ? row : props.folded;
   if (!source) return null;
   const { head, hits } = source;
-  const shown = row.kind === 'messages' ? SNIPPETS_SHOWN : 1;
+  const own = row.kind === 'messages';
+  const shown = props.compact ? (own ? 1 : 0) : own ? SNIPPETS_SHOWN : 1;
   const project = head.cwd?.split(/[\\/]/).findLast(Boolean);
   return {
     crumbs: [project, head.branch].filter((crumb): crumb is string => Boolean(crumb)),
@@ -73,7 +73,7 @@ const conversation = computed(() => {
       role: hit.role === 'user' ? t('search.role.user') : t('search.role.assistant'),
       user: hit.role === 'user',
     })),
-    more: Math.max(0, hits.length - shown),
+    link: !props.compact && (!own || hits.length > shown),
   };
 });
 
@@ -92,7 +92,7 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
     class="result"
     role="option"
     :data-testid="testid"
-    :class="{ counted: conversation !== null }"
+    :class="{ compact }"
     :data-kind="row.kind"
     :data-session-id="row.kind === 'sessions' ? row.entry.node.data?.session?.id : undefined"
     :aria-selected="current"
@@ -111,17 +111,17 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
         <Ticket v-else :size="14" />
         <HarnessIcon v-if="entity.harness" :harness="entity.harness" />
       </span>
-      <span class="line" :title="entity.label"><Highlighted :segments="wordSegments(entity.label, query)" /></span>
-      <span v-if="entity.crumbs.length || conversation" class="sub stacked">
+      <span class="line" :title="entity.label"><Highlighted :segments="titleSegments(entity.label, query)" /></span>
+      <span v-if="entity.crumbs.length" class="sub">
         <span class="place">
           <template v-for="(crumb, at) in entity.crumbs" :key="at">
             <ChevronRight v-if="at > 0" :size="11" class="sep" />
-            <span class="crumb" :class="{ lead: at === 0 }" :style="crumbStyle(crumb, at)" :title="crumb"><Highlighted :segments="wordSegments(crumb, query)" /></span>
+            <span class="crumb" :style="crumbStyle(crumb)" :title="crumb"><Highlighted :segments="wordSegments(crumb, query)" /></span>
           </template>
         </span>
-        <span v-if="conversation" class="count" data-testid="search-matches">{{ conversation.matches }}</span>
       </span>
       <span class="aside">
+        <span v-if="conversation" class="meta count" data-testid="search-matches">{{ conversation.matches }}</span>
         <span v-if="entity.agent" class="meta">{{ entity.agent }}</span>
         <span v-if="entity.age" class="meta age" :title="entity.age.full">{{ entity.age.text }}</span>
         <StatusIcon v-if="entity.pipeline" :tone="entity.pipeline" />
@@ -130,7 +130,7 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
     <template v-else-if="row.kind === 'files'">
       <span class="icons"><FileText :size="14" /></span>
       <span class="line" :title="row.file.name"><Highlighted :segments="wordSegments(row.file.name, query)" /></span>
-      <span class="sub mono"><span class="crumb lead" :title="row.file.rel"><Highlighted :segments="wordSegments(row.file.rel, query)" /></span></span>
+      <span class="sub mono"><span class="crumb" :title="row.file.rel"><Highlighted :segments="wordSegments(row.file.rel, query)" /></span></span>
     </template>
     <template v-else-if="row.kind === 'actions'">
       <span class="icons"><Zap :size="14" /></span>
@@ -139,33 +139,33 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
     <template v-else-if="conversation && row.kind === 'messages'">
       <span class="icons"><HarnessIcon :harness="row.head.harness" :size="14" /></span>
       <span class="line" :title="heading">{{ heading }}</span>
-      <span class="sub stacked">
+      <span class="sub">
         <span class="place">
           <template v-for="(crumb, at) in conversation.crumbs" :key="at">
             <ChevronRight v-if="at > 0" :size="11" class="sep" />
-            <span class="crumb" :class="{ lead: at === 0 }" :style="crumbStyle(crumb, at)" :title="crumb">{{ crumb }}</span>
+            <span class="crumb" :style="crumbStyle(crumb)" :title="crumb">{{ crumb }}</span>
           </template>
         </span>
-        <span class="count" data-testid="search-matches">{{ conversation.matches }}</span>
       </span>
       <span class="aside">
+        <span class="meta count" data-testid="search-matches">{{ conversation.matches }}</span>
         <span v-if="conversation.age" class="meta age" :title="conversation.age.full">{{ conversation.age.text }}</span>
       </span>
     </template>
     <template v-else-if="channel && row.kind === 'channels'">
       <span class="icons"><MessageSquare :size="14" /></span>
-      <span class="line" :title="channelText"><Highlighted :segments="wordSegments(channelText, query)" /></span>
-      <span class="sub"><span class="crumb lead" :title="channel.where">{{ channel.where }}</span></span>
+      <span class="line" :title="channelText"><Highlighted :segments="titleSegments(channelText, query)" /></span>
+      <span class="sub"><span class="crumb" :title="channel.where">{{ channel.where }}</span></span>
       <span class="aside">
         <span v-if="channel.age" class="meta age" :title="channel.age.full">{{ channel.age.text }}</span>
       </span>
     </template>
-    <span v-if="conversation" class="snippets">
+    <span v-if="conversation && (conversation.snippets.length || conversation.link)" class="snippets">
       <span v-for="snippet in conversation.snippets" :key="snippet.key" class="snippet" data-testid="search-snippet">
         <span class="role" :data-user="snippet.user">{{ snippet.role }}</span>
         <span class="snippet-text" :title="snippet.plain"><Highlighted :segments="snippet.segments" /></span>
       </span>
-      <UiButton v-if="conversation.more > 0" type="button" class="more" data-testid="search-more-matches" @click.stop="emit('openConversation')">{{ t('search.moreInConversation', { count: formatNumber(conversation.more) }) }}</UiButton>
+      <UiButton v-if="conversation.link" type="button" class="more" data-testid="search-more-matches" @click.stop="emit('openConversation')">{{ t('search.openConversation') }}</UiButton>
     </span>
   </li>
 </template>
@@ -242,24 +242,14 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
 }
 
 .crumb {
-  flex: 0 100 auto;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.crumb.lead {
-  flex-shrink: 1;
-}
-
 .sep {
   flex: none;
-}
-
-.count {
-  flex: none;
-  margin-inline-start: var(--vr-space-2);
-  color: var(--vr-color-text-subtle);
 }
 
 .aside {
@@ -279,6 +269,11 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
 
 .age {
   font-variant-numeric: tabular-nums;
+}
+
+.count + .age::before {
+  margin-inline-end: var(--vr-space-2);
+  content: '·';
 }
 
 .snippets {
@@ -320,6 +315,10 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
   -webkit-line-clamp: 2;
 }
 
+.compact .snippet-text {
+  -webkit-line-clamp: 1;
+}
+
 .more {
   align-self: flex-start;
   padding: 0;
@@ -347,25 +346,6 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
 
 :root[data-vr-viewport='phone'] .sub {
   grid-column: 2;
-}
-
-:root[data-vr-viewport='phone'] .stacked {
-  display: contents;
-}
-
-:root[data-vr-viewport='phone'] .place {
-  grid-row: 2;
-  grid-column: 2;
-}
-
-:root[data-vr-viewport='phone'] .counted .line {
-  grid-column: 2;
-}
-
-:root[data-vr-viewport='phone'] .count {
-  grid-row: 1;
-  grid-column: 3;
-  margin-inline-start: 0;
 }
 
 :root[data-vr-viewport='phone'] .aside {

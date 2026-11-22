@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
-import { Check, ChevronRight, Ellipsis, Eye, GitPullRequest, ListTodo, MessageSquare, Plus, RefreshCw, Search, SquareTerminal, TriangleAlert } from '../../../shared/ui/icons';
+import { Check, ChevronRight, Ellipsis, Eye, GitPullRequest, ListTodo, MessageSquare, Plus, RefreshCw, Search, SquareTerminal, TriangleAlert, X } from '../../../shared/ui/icons';
 import { sidebarSearchRequests } from '../../../shared/model/sidebar';
 import { VContextMenu, useIsPhone } from '../../../shared/ui/kit';
 import ArchivedExternalRow from './ArchivedExternalRow.vue';
@@ -81,6 +81,11 @@ function clearFilter(event: KeyboardEvent) {
   if (event.target instanceof HTMLElement) event.target.blur();
 }
 
+function clearFilterButton() {
+  treeQuery.value = '';
+  filterInput.value?.focus();
+}
+
 watch(sidebarSearchRequests, async () => {
   await nextTick();
   filterInput.value?.focus();
@@ -128,6 +133,7 @@ const moreItems = computed(() => {
     <label class="filter">
       <Search :size="14" />
       <UiInput ref="filterInput" v-model="treeQuery" :placeholder="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="tree-filter" @keydown.esc="clearFilter" />
+      <UiButton v-if="treeQuery" type="button" class="icon" :title="t('workbench.clearFilter')" :aria-label="t('workbench.clearFilter')" data-testid="tree-filter-clear" @click="clearFilterButton"><X :size="14" /></UiButton>
     </label>
     <InboxSection v-if="withInbox && activeTab === 'sessions'" class="pinned-inbox" :query="treeQuery" />
     <div class="scroll">

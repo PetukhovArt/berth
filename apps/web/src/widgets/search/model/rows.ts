@@ -18,7 +18,7 @@ export type SearchRow =
   | ConversationRow
   | { id: string; kind: 'channels'; message: LoadedChannelMessage };
 
-export type SearchGroup = { kind: SearchKind; total: number; rows: readonly SearchRow[]; hidden: number };
+export type SearchGroup = { kind: SearchKind; total: number; rows: readonly SearchRow[]; hidden: number; folded: boolean };
 
 export const entityKindOf = (nodeKind: string): 'sessions' | 'mr' | 'tasks' => {
   if (nodeKind === 'mr') return 'mr';

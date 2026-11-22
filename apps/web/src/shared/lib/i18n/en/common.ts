@@ -14,7 +14,6 @@ export const common = {
   open: 'Open',
   openInBrowser: 'Open in Browser',
   search: 'Search',
-  searchPlaceholder: 'Search sessions, merge requests, tasks and conversations',
   loading: 'Loading…',
   error: 'Error',
   noResults: 'No results',

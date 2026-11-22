@@ -17,7 +17,6 @@ export const common: Translation<typeof en> = {
   open: 'Открыть',
   openInBrowser: 'Открыть в браузере',
   search: 'Поиск',
-  searchPlaceholder: 'Поиск по сессиям, MR, задачам и перепискам',
   loading: 'Загрузка…',
   error: 'Ошибка',
   noResults: 'Ничего не найдено',

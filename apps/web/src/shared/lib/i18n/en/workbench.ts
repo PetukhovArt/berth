@@ -1,6 +1,7 @@
 export const workbench = {
   tree: 'Projects',
   filter: 'Filter tree and inbox',
+  clearFilter: 'Clear filter',
   sessions: 'Sessions',
   mergeRequests: 'Merge requests',
   notInProject: 'Not in a project',
@@ -64,7 +65,6 @@ export const workbench = {
   pickClone: 'Several local clones found, pick one',
   mainCheckout: 'main checkout',
   cloneNotFound: 'Clone not found — enter the folder path',
-  quickPath: 'project › branch › session, merge request or task',
   review: {
     also: 'Also reviewer in GitLab',
     alsoTitle: 'Your review process does not queue these; you are only a GitLab reviewer',
