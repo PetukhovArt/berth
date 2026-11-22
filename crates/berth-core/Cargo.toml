@@ -13,7 +13,7 @@ directories = { workspace = true }
 rmp-serde = { workspace = true }
 # `process`, `signal` and `macros` are for `platform`: the NoWindow knob,
 # the termination signal and the select over it.
-tokio = { version = "1", features = ["io-util", "net", "process", "time", "signal", "macros"] }
+tokio = { version = "1", features = ["io-util", "net", "process", "time", "signal", "macros", "sync"] }
 
 # Windows has no AF_UNIX socket for the DAEMON SOCKET, so `transport` falls
 # back to loopback TCP with a bearer token; these two are what mint and

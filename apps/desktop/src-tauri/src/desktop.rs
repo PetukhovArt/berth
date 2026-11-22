@@ -351,6 +351,7 @@ pub fn run() {
             forge_source,
             mr_fetch_source,
             worktree_base_source,
+            worktree_base_prefetch,
             fs_read_text,
             review_queue,
             review_adapter,

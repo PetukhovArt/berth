@@ -16,6 +16,7 @@
 - Changed `berth hub devices` to list each device's role and the hub's roles, and `--admin-token` to also accept the device token of anyone whose role includes `admin.manage`
 - Changed the Channel view to disable Send and the Task note button, and say why, when your role on the hub does not allow them
 - Changed a team hub from before roles: on first start it keeps a copy of its database as `<db>.v1.bak` and makes every approved device a Member, read-only ones included; upgrade `berth` on the admin's machine together with the hub
+- Changed the New session dialog to fetch the base branch of a new Worktree while it is open, so creating the Worktree no longer waits for the fetch (it is reused for 2 minutes)
 - Changed the Session screen on a phone to hide the rows of project tabs above the Chat view: go back with the header arrow and pick another Session from the Sessions list
 - Removed the Terminal view and the terminal keys bar from the Session screen on a phone: it opens in Chat, so a phone no longer squeezes the Session's terminal on your computer to the phone's width; a Session with no Chat shows a notice instead
 - Removed the Earlier folder from the Sessions tree: every conversation that is not archived is listed in its worktree

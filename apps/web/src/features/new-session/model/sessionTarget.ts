@@ -1,7 +1,7 @@
-import { computed, shallowRef, watch, type ComputedRef, type ShallowRef } from 'vue';
+import { computed, onScopeDispose, shallowRef, watch, type ComputedRef, type ShallowRef } from 'vue';
 import DAEMON_DEFAULTS from '../../../../../../crates/berth-core/daemon-defaults.json';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { worktreeBaseSource } from '../../../shared/api/connectors/api';
+import { worktreeBasePrefetch, worktreeBaseSource } from '../../../shared/api/connectors/api';
 import { showBaseNotice } from './baseNotice';
 import { useSettings } from '../../../shared/config/settings/store';
 import { acknowledged, call, describeError, loadProjectSetup, saveProjectSetup, BerthCallError, useBerth, worktreesOfProject, type Branch, type Worktree } from '../../../entities/session';
@@ -180,6 +180,25 @@ export function useSessionTarget(initialWorktree: string | null): SessionTarget 
       ...[...all.terminals.values()].filter((terminal) => terminal.worktree_id === id).map((terminal) => terminal.name),
     ]);
   });
+
+  const prefetchTarget = computed(() => {
+    const current = plan.value;
+    const row = project.value ? entities()?.projects.get(project.value) : undefined;
+    return current.kind === 'create' && current.fetch && current.base && row ? { repo: row.repo_path, branch: current.base } : null;
+  });
+
+  let prefetchTimer: ReturnType<typeof setTimeout> | undefined;
+  watch(
+    () => JSON.stringify(prefetchTarget.value),
+    () => {
+      clearTimeout(prefetchTimer);
+      const target = prefetchTarget.value;
+      if (!target) return;
+      prefetchTimer = setTimeout(() => worktreeBasePrefetch(target.repo, target.branch).catch(() => undefined), 150);
+    },
+    { immediate: true },
+  );
+  onScopeDispose(() => clearTimeout(prefetchTimer));
 
   async function fetchBase(id: string, branch: string): Promise<string> {
     const row = entities()?.projects.get(id);
