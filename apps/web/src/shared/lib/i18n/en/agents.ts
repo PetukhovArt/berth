@@ -12,6 +12,7 @@ export const agents = {
     disconnected: 'disconnected',
     shell: 'terminal',
     closed: 'closed',
+    stopped: 'stopped',
     limit: 'limit',
   },
   route: {

@@ -149,6 +149,10 @@ The agent process died mid-run.
 The Daemon restarted while the agent was live.
 
 **Unseen**
+**Stopped**
+An Agent whose process is no longer alive (the Idle Reaper took it, Stop, or the CLI exited by itself) while its status still reads Running or Finished. Its row shows "stopped" and no live dot; opening it resumes the conversation. Not Ended (the user's choice, its own group) and not Terminated (died mid-run).
+_Avoid_: finished (that is a turn), ended
+
 The flag "a turn finished and nobody has looked". Not the same as Finished: this is the read/unread axis.
 _Avoid_: unread ≠ done
 

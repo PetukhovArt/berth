@@ -6,7 +6,7 @@ import { hostText } from '../../../shared/lib/i18n/hostText';
 import { paletteOpen } from '../../../shared/lib/commands/context';
 import { useDock } from '../../../shared/model/dock';
 import { view } from '../../../shared/model/nav';
-import { StatusDot, useBerth, useSessionDock, useSessionStates, type SessionStatus } from '../../../entities/session';
+import { StatusDot, isRunning, isStopped, useBerth, useSessionDock, useSessionStates, type SessionStatus } from '../../../entities/session';
 import { useInbox } from '../../../features/attention';
 import { startNewSession } from '../../../features/new-session';
 import { useWorkTree } from '../../../features/work-tree';
@@ -27,7 +27,7 @@ const inDetail = computed(() => view.value.kind === 'agents' && detail.value);
 const session = computed(() => (inDetail.value ? activeSession.value : undefined));
 const states = useSessionStates();
 const state = computed(() => (session.value ? states.value.get(session.value.key) : undefined));
-const running = computed(() => [...states.value.values()].filter((entry) => entry.status === 'running').length);
+const running = computed(() => [...states.value.values()].filter(isRunning).length);
 const reviews = computed(() => tabs.value.find((tab) => tab.id === 'reviews')?.count ?? 0);
 
 const offline = computed(() => {
@@ -58,7 +58,7 @@ const statusText = computed(() => {
   if (!node) return '';
   const status = state.value?.status ?? node.status;
   const until = state.value?.limitUntil;
-  const label = t(`agents.status.${status}`);
+  const label = t(isStopped(status, state.value?.unseen ?? node.unseen, state.value?.alive ?? node.alive) ? 'agents.status.stopped' : `agents.status.${status}`);
   return until ? `${label} · ${t('agents.metrics.resets', { time: formatTime(until) })}` : label;
 });
 
@@ -89,7 +89,7 @@ const canCreate = computed(() => !inDetail.value && (phoneSection.value === 'inb
       <h1 class="title" data-testid="phone-header-title">{{ title }}</h1>
       <p v-if="offline" class="sub" data-tone="offline" role="status" data-testid="phone-header-connection">{{ offline }}</p>
       <p v-else-if="session" class="sub" data-testid="phone-header-status">
-        <StatusDot class="status-icon" :status="state?.status ?? session.status" :unseen="session.unseen" />
+        <StatusDot class="status-icon" :status="state?.status ?? session.status" :unseen="session.unseen" :alive="state?.alive ?? session.alive" />
         <span class="status" :data-tone="TONES[state?.status ?? session.status] ?? 'neutral'">{{ statusText }}</span>
         <template v-if="place"> · {{ place }}</template>
       </p>

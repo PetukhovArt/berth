@@ -1,6 +1,7 @@
 import type { SessionNode, SessionStatus, useBerth } from '../model/berth';
 import type { SessionState } from '../model/sessionState';
 import { urgencyOf } from './attention';
+import { isRunning } from './liveness';
 
 type Store = NonNullable<ReturnType<typeof useBerth>>;
 export type WorkspaceNode = Store['tree']['value'][number];
@@ -42,7 +43,7 @@ export function rollupOf(sessions: readonly Pick<SessionState, 'phase' | 'status
       status = session.status;
     }
     if (session.unseen) unseen = true;
-    if (session.status === 'running') running++;
+    if (isRunning(session)) running++;
     if (session.status === 'needs_feedback') feedback++;
   }
   return { status, unseen, running, feedback, total: sessions.length };

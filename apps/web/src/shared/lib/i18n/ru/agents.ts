@@ -15,6 +15,7 @@ export const agents: Translation<typeof en> = {
     disconnected: 'отключена',
     shell: 'терминал',
     closed: 'закрыта',
+    stopped: 'остановлена',
     limit: 'лимит',
   },
   route: {

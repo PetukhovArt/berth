@@ -4,7 +4,7 @@
     position: relative;
   }
 
-  :root[data-status-animation='blink'] .status-dot[data-status='running'] {
+  :root[data-status-animation='blink'] .status-dot[data-status='running'] > .status-icon {
     animation: status-spin 1s linear infinite;
   }
 
