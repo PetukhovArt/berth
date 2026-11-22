@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { shallowRef } from 'vue';
 import { Archive, Trash2 } from '../../../shared/ui/icons';
-import { VButton } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { archiveAgent, deleteAgent, unarchiveAgent, type SessionNode, useAction, useSessionDock } from '../../../entities/session';
-
+import SessionDeleteConfirm from './SessionDeleteConfirm.vue';
 import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ session: SessionNode; where?: string | undefined }>();
 
@@ -36,11 +35,7 @@ async function confirmDelete() {
         <UiButton class="icon danger vr-reveal" :title="t('common.delete')" :aria-label="t('common.delete')" :disabled="action.busy.value" data-testid="ended-delete" @click="confirming = true"><Trash2 :size="14" /></UiButton>
       </template>
     </div>
-    <div v-if="confirming" class="confirm" role="group" :aria-label="t('agents.session.confirmDeleteLabel')" data-testid="session-delete-confirm">
-      <span>{{ t('agents.session.confirmDelete', { name: session.name }) }}</span>
-      <VButton :label="t('common.delete')" size="small" severity="danger" :loading="action.busy.value" data-testid="session-delete-yes" @click="confirmDelete" />
-      <VButton :label="t('common.cancel')" size="small" text data-testid="session-delete-no" @click="confirming = false" />
-    </div>
+    <SessionDeleteConfirm v-if="confirming" :name="session.name" :busy="action.busy.value" @confirm="confirmDelete" @cancel="confirming = false" />
     <p v-if="action.error.value" class="row-error" role="alert" data-testid="session-error">{{ action.error.value }}</p>
   </div>
 </template>
@@ -126,15 +121,6 @@ async function confirmDelete() {
 
 .ended[data-busy='true'] .name {
   opacity: 0.6;
-}
-
-.confirm {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--vr-space-1) var(--vr-space-2);
-  padding: var(--vr-space-1) var(--vr-space-2) var(--vr-space-1) var(--vr-space-5);
-  font-size: var(--vr-font-size-xs);
 }
 
 .row-error {

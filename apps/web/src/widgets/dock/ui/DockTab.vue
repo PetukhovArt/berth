@@ -199,6 +199,7 @@ function onClose() {
 
 .confirm {
   margin: 0 0 var(--vr-space-3);
+  overflow-wrap: anywhere;
 }
 
 .danger {
