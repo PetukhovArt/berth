@@ -218,6 +218,7 @@ export const agents = {
     chat: 'Chat',
     chatPlaceholder: 'Message the Agent',
     chatSuggestion: 'Suggested next prompt, Tab to use',
+    chatPlaceholderRunning: 'Agent is working · Stop to interrupt',
     chatSend: 'Send',
     chatStop: 'Stop the agent',
     chatAgentLog: 'Agent log',

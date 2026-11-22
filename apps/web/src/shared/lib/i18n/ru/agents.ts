@@ -221,6 +221,7 @@ export const agents: Translation<typeof en> = {
     chat: 'Чат',
     chatPlaceholder: 'Сообщение агенту',
     chatSuggestion: 'Предложенный следующий запрос, Tab чтобы вставить',
+    chatPlaceholderRunning: 'Агент работает · Стоп, чтобы прервать',
     chatSend: 'Отправить',
     chatStop: 'Остановить агента',
     chatAgentLog: 'Лог агента',

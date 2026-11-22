@@ -33,6 +33,7 @@ export const chat = {
   talkNeedsHttps: 'Voice needs HTTPS. On the computer, set Listen on to Tailscale (HTTPS) in Settings > Remote access and open the new link.',
   talkUnavailable: 'This browser has no speech recognition. Open Berth in Safari or Chrome.',
   talkHint: 'Hold to talk · Aa to type',
+  talkHintRunning: 'Agent is working · Stop to interrupt',
   holdToTalk: 'Hold to talk',
   handsFree: 'Hands-free',
   voiceMode: 'Voice mode',
