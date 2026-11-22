@@ -594,6 +594,10 @@ function onVisible(visible: boolean) {
   scroll-padding-block: var(--vr-space-8);
 }
 
+:root[data-vr-viewport='phone'] .body > * {
+  flex: none;
+}
+
 :root[data-vr-viewport='phone'] .chips {
   display: grid;
   grid-template-columns: 1fr 1fr;
