@@ -28,7 +28,7 @@ export function useTranscriptSearch(query: Ref<string>) {
         answered.value = text;
         error.value = null;
         busy.value = false;
-        if (answer.indexed < answer.total_files || answer.total_files === 0) timer = setTimeout(() => fetchNow(text), INDEX_TICK_MS);
+        if (!answer.remote && (answer.indexed < answer.total_files || answer.total_files === 0)) timer = setTimeout(() => fetchNow(text), INDEX_TICK_MS);
       },
       (failure: unknown) => {
         if (mine !== run) return;

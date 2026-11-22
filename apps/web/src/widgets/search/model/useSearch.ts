@@ -135,7 +135,7 @@ export function useSearch(options: SearchOptions) {
   const nothing = computed(() => rows.value.length === 0 && !(wantsMessages.value && transcripts.busy.value) && !messageError.value);
   const progress = computed(() => {
     const found = wantsMessages.value ? transcripts.result.value : null;
-    return found && found.indexed < found.total_files ? found : null;
+    return found && (found.remote || found.indexed < found.total_files) ? found : null;
   });
 
   function showAll(kind: SearchKind) {

@@ -13,7 +13,8 @@ const { t, formatNumber } = useI18n();
   <div class="notes" :class="{ compact }">
     <p v-if="tooShort" class="note" data-testid="search-min-chars">{{ t('search.minChars', { count: MIN_MESSAGE_QUERY }) }}</p>
     <p v-if="searching" class="note" role="status" data-testid="search-searching">{{ t('search.searching') }}</p>
-    <p v-if="progress" class="note" role="status" data-testid="search-indexing">{{ t('search.indexing', { indexed: formatNumber(progress.indexed), total: formatNumber(progress.total_files) }) }}</p>
+    <p v-if="progress?.remote" class="note" role="status" data-testid="search-remote">{{ t('search.remote') }}</p>
+    <p v-else-if="progress" class="note" role="status" data-testid="search-indexing">{{ t('search.indexing', { indexed: formatNumber(progress.indexed), total: formatNumber(progress.total_files) }) }}</p>
     <ErrorInline v-if="error" :message="t('search.failed', { message: error })" data-testid="search-error" @retry="emit('retry')" />
   </div>
 </template>

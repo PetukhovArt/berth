@@ -47,6 +47,7 @@ pub struct SearchReply {
     total: u32,
     indexed: u32,
     total_files: u32,
+    remote: bool,
 }
 
 struct Terms {
@@ -228,6 +229,12 @@ fn conversations(
 }
 
 fn search(query: &str, limit: u32) -> Result<SearchReply, String> {
+    if crate::ssh_remote::target().is_some() {
+        return Ok(SearchReply {
+            remote: true,
+            ..SearchReply::default()
+        });
+    }
     let Some(conn) = store::open_reader()? else {
         return Ok(SearchReply::default());
     };
@@ -241,6 +248,7 @@ fn search(query: &str, limit: u32) -> Result<SearchReply, String> {
         total,
         indexed,
         total_files,
+        remote: false,
     })
 }
 

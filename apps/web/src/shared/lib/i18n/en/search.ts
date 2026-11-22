@@ -18,6 +18,7 @@ export const search = {
   minChars: 'Add a word of at least {count} characters to search conversation text.',
   searching: 'Searching conversations…',
   indexing: 'Indexed {indexed} of {total} conversations. Results may be incomplete.',
+  remote: 'Conversation text is not searched while Berth is connected to a remote daemon.',
   failed: 'Could not search conversation text: {message}',
   empty: {
     title: 'No results for “{query}”',

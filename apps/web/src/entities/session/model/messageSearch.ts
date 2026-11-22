@@ -17,7 +17,7 @@ export type ConversationHit = {
   at: string | null;
   snippets: MessageSnippet[];
 };
-export type ConversationSearch = { conversations: ConversationHit[]; total: number; indexed: number; total_files: number };
+export type ConversationSearch = { conversations: ConversationHit[]; total: number; indexed: number; total_files: number; remote: boolean };
 
 export const MIN_MESSAGE_QUERY = 3;
 
