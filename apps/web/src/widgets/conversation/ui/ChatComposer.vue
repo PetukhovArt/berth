@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, shallowRef, useId, useTemplateRef, watch } from 'vue';
+import { isDesktop } from '../../../bridge';
 import { ArrowUp, Mic } from '../../../shared/ui/icons';
 import { useIsPhone } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
@@ -11,6 +12,7 @@ import { listSlashCommands, matchSlashCommands, type SlashCommand, type SlashSou
 import { useVoiceLoop } from '../model/useVoiceLoop';
 
 const NOTICE_MS = 3000;
+const BLOCKED_NOTICE_MS = 8000;
 const WAVE_BARS = [10, 22, 34, 18, 40, 26, 14, 30, 20, 8];
 
 const SLASH_QUERY = /^\/(\S*)$/;
@@ -62,7 +64,9 @@ const talk = useHoldToTalk({
   },
 });
 
-const showTalk = talk.supported;
+const secure = isDesktop || window.isSecureContext;
+const showTalk = talk.supported && secure;
+const talkBlocked = !isDesktop && !showTalk;
 const showVoice = computed(() => phone.value && showTalk && voice.supported);
 const talkPanel = computed(() => phone.value && showTalk && !typing.value);
 const shownSuggestion = computed(() => (draft.value ? null : props.suggestion));
@@ -152,6 +156,12 @@ function onKey(event: KeyboardEvent) {
   void sendDraft();
 }
 
+function explainBlocked() {
+  notice.value = t(secure ? 'chat.talkUnavailable' : 'chat.talkNeedsHttps');
+  clearTimeout(noticeTimer);
+  noticeTimer = setTimeout(() => (notice.value = ''), BLOCKED_NOTICE_MS);
+}
+
 function holdMode() {
   if (voice.active.value) voice.end();
   typing.value = false;
@@ -202,7 +212,8 @@ function handsFree() {
           <span v-if="modelChip" class="model" :title="modelChip" data-testid="chat-model">{{ modelChip }}</span>
           <span class="grow" />
           <span v-if="!phone" class="keys">{{ t('chat.keysHint') }}</span>
-          <UiButton v-if="showTalk && phone" type="button" class="talk" :aria-label="t('chat.talkMode')" :title="t('chat.talkMode')" data-testid="chat-talk-mode" @click="typing = false"><Mic :size="14" /></UiButton>
+          <UiButton v-if="talkBlocked" type="button" class="talk blocked" aria-disabled="true" :aria-label="t('chat.talkMode')" :title="t(secure ? 'chat.talkUnavailable' : 'chat.talkNeedsHttps')" data-testid="chat-talk-blocked" @click="explainBlocked"><Mic :size="14" /></UiButton>
+          <UiButton v-else-if="showTalk && phone" type="button" class="talk" :aria-label="t('chat.talkMode')" :title="t('chat.talkMode')" data-testid="chat-talk-mode" @click="typing = false"><Mic :size="14" /></UiButton>
           <UiButton v-else-if="showTalk" type="button" class="talk" :data-holding="talk.holding.value || undefined" :data-cancelling="talk.cancelling.value || undefined" :aria-label="t('agents.sessionView.chatTalk')" :title="t('agents.sessionView.chatTalk')" data-testid="chat-talk" @pointerdown="talk.start" @pointermove="talk.move" @pointerup="talk.release" @pointercancel="talk.release" @contextmenu.prevent><Mic :size="14" /></UiButton>
           <UiButton type="submit" class="send" :disabled="!draft.trim() || sending" :aria-busy="sending" :aria-label="t('agents.sessionView.chatSend')" :title="t('agents.sessionView.chatSend')" data-testid="chat-send"><ArrowUp :size="14" /></UiButton>
         </div>
@@ -389,6 +400,10 @@ function handsFree() {
 .talk:hover {
   color: var(--vr-color-text);
   background: var(--vr-color-nav-hover);
+}
+
+.talk.blocked {
+  opacity: 0.5;
 }
 
 .send {

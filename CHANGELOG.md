@@ -23,6 +23,7 @@
 - Fixed `berth worktree <branch>` and `berth spawn --worktree <branch>` starting a new local branch from the default base when that branch already exists on origin: the worktree now checks out origin's branch and tracks it
 - Fixed a Session started by `berth spawn` getting no tab: it now opens as a tab beside the Session that ran the command, without taking focus from it
 - Fixed an open terminal showing `[session ended, code 1]` after its Session was restarted, switched model or moved into a worktree by `berth worktree`, while the new process ran unseen; the terminal now switches to the new process
+- Fixed the Chat composer in a browser or on a phone opened over plain HTTP hiding the microphone: the button now shows and says that voice needs `Tailscale (HTTPS)` under Remote access
 - Fixed a finished Session staying in the Inbox after you read it in a split panel or came back to the window with it on screen: it is now marked seen whenever any panel of the focused window shows it
 - Fixed a Session's Chat view sometimes marking a turn Finished before the agent's last answer arrived, leaving that answer missing until the next turn
 - Fixed error messages from the desktop app (connectors, files, settings, git steps, remote access, voice, the daemon version banner) showing in one fixed language: they now follow the app language, and a tab whose connector was removed says how to bring it back
