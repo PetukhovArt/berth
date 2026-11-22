@@ -81,6 +81,7 @@ onMounted(() => input.value?.focus());
           :data-stale="row.kind === 'messages' && search.messagesStale.value"
           @hover="index = positions.get(row.id) ?? 0"
           @open="search.choose(row)"
+          @open-conversation="search.choose(row)"
         />
         <li v-if="group.hidden > 0" role="presentation" class="more-row">
           <UiButton type="button" class="more" :data-testid="`search-show-all-${group.kind}`" @click="search.showAll(group.kind)">{{ t('search.showAll', { count: formatNumber(group.total) }) }}</UiButton>

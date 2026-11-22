@@ -32,7 +32,7 @@ const scope = shallowRef<SearchScope>('all');
 const files = shallowRef<readonly MarkdownEntry[]>([]);
 const actions = computed<readonly SearchAction[]>(() => (isDesktop ? [{ key: 'cleanup', label: t('cleanup.action') }] : []));
 
-const search = useSearch({ query, scope, files, actions, browse: true, limit: (kind: SearchKind) => (kind === 'sessions' ? SESSION_LIMIT : GROUP_LIMIT) });
+const search = useSearch({ query, scope, files, actions, browse: true, fold: true, limit: (kind: SearchKind) => (kind === 'sessions' ? SESSION_LIMIT : GROUP_LIMIT) });
 const { text, groups, rows } = search;
 
 const results = computed<readonly PaletteItem[]>(() => (text.value && !search.nothing.value ? [...rows.value, ALL] : rows.value));
@@ -82,8 +82,8 @@ onMounted(() => {
 
 <template>
   <div class="overlay" data-testid="quick-switcher" @pointerdown.self="emit('close')">
-    <div class="panel vr-sheet" role="dialog" :aria-label="t('files.switcher.dialog')" @keydown.capture="onPanelKey">
-      <BackBar class="vr-phone-only" :title="t('files.switcher.dialog')" @back="emit('close')" />
+    <div class="panel vr-sheet" role="dialog" :aria-label="t('search.title')" @keydown.capture="onPanelKey">
+      <BackBar class="vr-phone-only" :title="t('search.title')" @back="emit('close')" />
       <div class="search">
         <Search :size="14" class="search-icon" />
         <UiInput
@@ -113,8 +113,10 @@ onMounted(() => {
             :current="positions.get(row.id) === index"
             :blocked="search.blockedReason(row)"
             :heading="row.kind === 'messages' ? search.hitTitle(row.head) : ''"
+            :folded="search.foldedInto(row)"
             @hover="index = positions.get(row.id) ?? 0"
             @open="choose(row)"
+            @open-conversation="choose(search.foldedInto(row) ?? row)"
           />
         </template>
         <li v-if="search.nothing.value" class="none" role="presentation"><SearchEmpty :query="text" :can-widen="scope !== 'all'" @widen="scope = 'all'" @clear="clear" /></li>
@@ -123,7 +125,7 @@ onMounted(() => {
           <span>{{ t('search.allResults', { count: formatNumber(search.total.value) }) }}</span>
         </li>
       </ul>
-      <footer class="footer" data-testid="quick-switcher-hint">{{ t('files.switcher.hint') }}</footer>
+      <footer class="footer vr-wide-only" data-testid="quick-switcher-hint">{{ t('files.switcher.hint') }}</footer>
     </div>
   </div>
 </template>
@@ -177,11 +179,13 @@ onMounted(() => {
 }
 
 .results {
+  --all-row: calc(var(--vr-size-row) + var(--vr-space-1));
   position: relative;
   max-height: 50vh;
   margin: 0;
   padding: var(--vr-space-1) var(--vr-space-1) 0;
   overflow-y: auto;
+  scroll-padding-bottom: var(--all-row);
   list-style: none;
 }
 

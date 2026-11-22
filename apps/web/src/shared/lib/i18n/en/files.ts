@@ -44,7 +44,6 @@ export const files = {
     none: 'No Markdown files in this worktree',
   },
   switcher: {
-    dialog: 'Quick jump to a session or file',
     search: 'Search sessions and files',
     placeholderFiles: 'workspace › project › branch › session, or a Markdown file in {scope}',
     hint: 'Enter opens, Ctrl+Enter shows all results',

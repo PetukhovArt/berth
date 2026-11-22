@@ -1,6 +1,6 @@
 export const search = {
   title: 'Search',
-  placeholder: 'Search sessions, requests, tasks and messages',
+  placeholder: 'Search sessions, merge requests, tasks and conversations',
   query: 'Search query',
   scopeLabel: 'Search in',
   scope: {
@@ -8,7 +8,7 @@ export const search = {
     sessions: 'Sessions',
     mr: 'Merge requests',
     tasks: 'Tasks',
-    messages: 'Messages',
+    messages: 'Conversations',
     channels: 'Channels',
     files: 'Files',
     actions: 'Actions',

@@ -29,6 +29,14 @@ export function useOpener() {
     return agent.kind === 'claude' || agent.kind === 'codex' ? { harness: agent.kind, id: agent.session_id, title: session.name } : null;
   }
 
+  function conversationKeyOf(node: WorkNode): string | null {
+    const { session, external, linked } = node.data ?? {};
+    if (external) return `${external.harness}:${external.id}`;
+    const agent = session ? berth?.entities.value.agents.get(session.id) : undefined;
+    if (agent?.session_id) return `${agent.kind}:${agent.session_id}`;
+    return linked ? `${linked.harness}:${linked.id}` : null;
+  }
+
   function hitTitle(hit: MessageHit): string {
     const owner = owners.value.get(`${hit.harness}:${hit.session}`);
     const listed = external?.anyByKey.value.get(externalKey({ harness: hit.harness, id: hit.session }));
@@ -59,5 +67,5 @@ export function useOpener() {
     } else openLeaf(row.entry.node);
   }
 
-  return { hitTitle, blockedReason, open };
+  return { hitTitle, blockedReason, conversationKeyOf, open };
 }

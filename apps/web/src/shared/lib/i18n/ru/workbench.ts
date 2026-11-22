@@ -67,7 +67,7 @@ export const workbench: Translation<typeof en> = {
   pickClone: 'Найдено несколько локальных клонов, выберите',
   mainCheckout: 'основной клон',
   cloneNotFound: 'Клон не найден — укажите путь к папке',
-  quickPath: 'проект › ветка › сессия, запрос или задача',
+  quickPath: 'проект › ветка › сессия, MR или задача',
   review: {
     also: 'Также ревьюер в GitLab',
     alsoTitle: 'Процесс ревью не ставит их в очередь, вы лишь ревьюер в GitLab',

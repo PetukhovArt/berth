@@ -13,6 +13,7 @@ type SearchOptions = {
   scope: Ref<SearchScope>;
   limit: (kind: SearchKind) => number;
   browse?: boolean;
+  fold?: boolean;
   files?: Ref<readonly MarkdownEntry[]>;
   actions?: Ref<readonly SearchAction[]>;
 };
@@ -34,6 +35,8 @@ function withoutPlaceholder(items: readonly QuickItem[]): QuickItem[] {
     return { ...item, crumbs: item.crumbs.filter((crumb) => crumb !== placeholder), search: item.search.replace(lead, '') };
   });
 }
+
+const conversationKeyOf = (hit: MessageHit): string => `${hit.harness}:${hit.session}`;
 
 function conversationsOf(hits: readonly MessageHit[]): ConversationRow[] {
   const byConversation = new Map<string, MessageHit[]>();
@@ -97,7 +100,7 @@ export function useSearch(options: SearchOptions) {
     }));
   });
 
-  const messageRows = computed<SearchRow[]>(() => conversationsOf(transcripts.result.value?.hits ?? []));
+  const messageRows = computed(() => conversationsOf(transcripts.result.value?.hits ?? []));
 
   const allRows = computed<Record<SearchKind, readonly SearchRow[]>>(() => ({ ...entityRows.value, files: fileRows.value, actions: actionRows.value, messages: messageRows.value, channels: channelRows.value }));
 
@@ -111,12 +114,29 @@ export function useSearch(options: SearchOptions) {
     return counts.value[id];
   }
 
+  const capped = (kind: SearchKind, rows: readonly SearchRow[]) => (expanded.value.has(kind) ? rows : rows.slice(0, options.limit(kind)));
+
+  const folds = computed(() => {
+    const into = new Map<string, ConversationRow>();
+    const claimed = new Set<string>();
+    if (!options.fold || scope.value !== 'all') return { into, claimed };
+    const conversations = new Map(messageRows.value.map((row) => [conversationKeyOf(row.head), row]));
+    for (const row of capped('sessions', allRows.value.sessions)) {
+      if (row.kind !== 'sessions') continue;
+      const key = opener.conversationKeyOf(row.entry.node);
+      const conversation = key ? conversations.get(key) : undefined;
+      if (!conversation || claimed.has(conversation.id)) continue;
+      into.set(row.id, conversation);
+      claimed.add(conversation.id);
+    }
+    return { into, claimed };
+  });
+
   const groups = computed<SearchGroup[]>(() =>
     KINDS.filter((kind) => scope.value === 'all' || scope.value === kind).flatMap((kind) => {
-      const rows = allRows.value[kind];
+      const rows = kind === 'messages' ? messageRows.value.filter((row) => !folds.value.claimed.has(row.id)) : allRows.value[kind];
       if (!rows.length) return [];
-      const cap = options.limit(kind);
-      const shown = expanded.value.has(kind) ? rows : rows.slice(0, cap);
+      const shown = capped(kind, rows);
       return [{ kind, total: rows.length, rows: shown, hidden: rows.length - shown.length }];
     }),
   );
@@ -154,6 +174,7 @@ export function useSearch(options: SearchOptions) {
     messagesStale: transcripts.stale,
     retryMessages: transcripts.retry,
     showAll,
+    foldedInto: (row: SearchRow): ConversationRow | undefined => folds.value.into.get(row.id),
     choose,
     hitTitle: opener.hitTitle,
     blockedReason: opener.blockedReason,

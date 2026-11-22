@@ -47,7 +47,6 @@ export const files: Translation<typeof en> = {
     none: 'В этом рабочем дереве нет Markdown-файлов',
   },
   switcher: {
-    dialog: 'Быстрый переход к сессии или файлу',
     search: 'Поиск сессий и файлов',
     placeholderFiles: 'workspace › проект › ветка › сессия или Markdown-файл в {scope}',
     hint: 'Enter открывает, Ctrl+Enter показывает все результаты',

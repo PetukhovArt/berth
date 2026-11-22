@@ -5,11 +5,12 @@ import { markedSegments, stripMarks, wholeWordStart, wordSegments } from '../../
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { HarnessIcon, StatusIcon, useSessionStates } from '../../../entities/session';
 import { pipelineTone } from '../../../entities/merge-request';
-import type { SearchRow } from '../model/rows';
+import { UiButton } from '../../../shared/ui/UiButton';
+import type { ConversationRow, SearchRow } from '../model/rows';
 import Highlighted from './Highlighted.vue';
 
-const props = defineProps<{ row: SearchRow; query: string; current: boolean; blocked: string | null; heading: string; testid: string }>();
-const emit = defineEmits<{ open: []; hover: [] }>();
+const props = defineProps<{ row: SearchRow; query: string; current: boolean; blocked: string | null; heading: string; testid: string; folded?: ConversationRow }>();
+const emit = defineEmits<{ open: []; hover: []; openConversation: [] }>();
 
 const WEEK_MS = 7 * 24 * 3_600_000;
 const SNIPPETS_SHOWN = 2;
@@ -56,21 +57,23 @@ const entity = computed(() => {
 
 const conversation = computed(() => {
   const { row } = props;
-  if (row.kind !== 'messages') return null;
-  const { head, hits } = row;
+  const source = row.kind === 'messages' ? row : props.folded;
+  if (!source) return null;
+  const { head, hits } = source;
+  const shown = row.kind === 'messages' ? SNIPPETS_SHOWN : 1;
   const project = head.cwd?.split(/[\\/]/).findLast(Boolean);
   return {
     crumbs: [project, head.branch].filter((crumb): crumb is string => Boolean(crumb)),
     matches: t('search.matches', { count: hits.length }),
     age: age(head.at),
-    snippets: hits.slice(0, SNIPPETS_SHOWN).map((hit) => ({
+    snippets: hits.slice(0, shown).map((hit) => ({
       key: hit.key,
       segments: markedSegments(wholeWordStart(hit.snippet)),
       plain: stripMarks(hit.snippet),
       role: hit.role === 'user' ? t('search.role.user') : t('search.role.assistant'),
       user: hit.role === 'user',
     })),
-    more: Math.max(0, hits.length - SNIPPETS_SHOWN),
+    more: Math.max(0, hits.length - shown),
   };
 });
 
@@ -108,13 +111,16 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
         <HarnessIcon v-if="entity.harness" :harness="entity.harness" />
       </span>
       <span class="line" :title="entity.label"><Highlighted :segments="wordSegments(entity.label, query)" /></span>
-      <span v-if="entity.crumbs.length" class="sub">
-        <template v-for="(crumb, at) in entity.crumbs" :key="at">
-          <ChevronRight v-if="at > 0" :size="11" class="sep" />
-          <span class="crumb" :class="{ lead: at === 0 }" :style="crumbStyle(crumb, at)" :title="crumb"><Highlighted :segments="wordSegments(crumb, query)" /></span>
-        </template>
+      <span v-if="entity.crumbs.length || conversation" class="sub stacked">
+        <span class="place">
+          <template v-for="(crumb, at) in entity.crumbs" :key="at">
+            <ChevronRight v-if="at > 0" :size="11" class="sep" />
+            <span class="crumb" :class="{ lead: at === 0 }" :style="crumbStyle(crumb, at)" :title="crumb"><Highlighted :segments="wordSegments(crumb, query)" /></span>
+          </template>
+        </span>
+        <span v-if="conversation" class="count" data-testid="search-matches">{{ conversation.matches }}</span>
       </span>
-      <span class="aside">
+      <span class="aside low">
         <span v-if="entity.agent" class="meta">{{ entity.agent }}</span>
         <span v-if="entity.age" class="meta age" :title="entity.age.full">{{ entity.age.text }}</span>
         <StatusIcon v-if="entity.pipeline" :tone="entity.pipeline" />
@@ -132,22 +138,20 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
     <template v-else-if="conversation && row.kind === 'messages'">
       <span class="icons"><HarnessIcon :harness="row.head.harness" :size="14" /></span>
       <span class="line" :title="heading">{{ heading }}</span>
-      <span class="sub">
-        <template v-for="(crumb, at) in conversation.crumbs" :key="at">
-          <ChevronRight v-if="at > 0" :size="11" class="sep" />
-          <span class="crumb" :class="{ lead: at === 0 }" :style="crumbStyle(crumb, at)" :title="crumb">{{ crumb }}</span>
-        </template>
-        <span class="count" data-testid="search-matches">{{ conversation.matches }}</span>
-      </span>
-      <span class="aside">
-        <span v-if="conversation.age" class="meta age" :title="conversation.age.full">{{ conversation.age.text }}</span>
-      </span>
-      <span class="snippets">
-        <span v-for="snippet in conversation.snippets" :key="snippet.key" class="snippet" data-testid="search-snippet">
-          <span class="role" :data-user="snippet.user">{{ snippet.role }}</span>
-          <span class="snippet-text" :title="snippet.plain"><Highlighted :segments="snippet.segments" /></span>
+      <span class="sub stacked">
+        <span class="place">
+          <template v-for="(crumb, at) in conversation.crumbs" :key="at">
+            <ChevronRight v-if="at > 0" :size="11" class="sep" />
+            <span class="crumb" :class="{ lead: at === 0 }" :style="crumbStyle(crumb, at)" :title="crumb">{{ crumb }}</span>
+          </template>
         </span>
-        <span v-if="conversation.more > 0" class="more" data-testid="search-more-matches">{{ t('search.moreInConversation', { count: formatNumber(conversation.more) }) }}</span>
+        <span class="count" data-testid="search-matches">
+          {{ conversation.matches }}
+          <span v-if="conversation.age" class="vr-phone-only" :title="conversation.age.full">· {{ conversation.age.text }}</span>
+        </span>
+      </span>
+      <span class="aside low vr-wide-only">
+        <span v-if="conversation.age" class="meta age" :title="conversation.age.full">{{ conversation.age.text }}</span>
       </span>
     </template>
     <template v-else-if="channel && row.kind === 'channels'">
@@ -158,6 +162,13 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
         <span v-if="channel.age" class="meta age" :title="channel.age.full">{{ channel.age.text }}</span>
       </span>
     </template>
+    <span v-if="conversation" class="snippets">
+      <span v-for="snippet in conversation.snippets" :key="snippet.key" class="snippet" data-testid="search-snippet">
+        <span class="role" :data-user="snippet.user">{{ snippet.role }}</span>
+        <span class="snippet-text" :title="snippet.plain"><Highlighted :segments="snippet.segments" /></span>
+      </span>
+      <UiButton v-if="conversation.more > 0" type="button" class="more" data-testid="search-more-matches" @click.stop="emit('openConversation')">{{ t('search.moreInConversation', { count: formatNumber(conversation.more) }) }}</UiButton>
+    </span>
   </li>
 </template>
 
@@ -221,6 +232,15 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
 .mono {
   font-family: var(--vr-font-mono);
   font-size: var(--vr-font-size-2xs);
+}
+
+.place {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: var(--vr-space-1);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .crumb {
@@ -303,8 +323,24 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
 }
 
 .more {
+  align-self: flex-start;
+  padding: 0;
+  color: var(--vr-color-link);
+  font: inherit;
   font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-text-subtle);
+  text-align: start;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.more:hover {
+  text-decoration: underline;
+}
+
+.more:focus-visible {
+  outline: 2px solid var(--vr-color-accent);
+  outline-offset: 1px;
 }
 
 :root[data-vr-viewport='phone'] .line {
@@ -315,7 +351,30 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
   grid-column: 2;
 }
 
+:root[data-vr-viewport='phone'] .stacked {
+  display: contents;
+}
+
+:root[data-vr-viewport='phone'] .place {
+  grid-row: 2;
+  grid-column: 2 / -1;
+}
+
+:root[data-vr-viewport='phone'] .count {
+  grid-row: 3;
+  grid-column: 2;
+  margin-inline-start: 0;
+}
+
 :root[data-vr-viewport='phone'] .aside {
   grid-row: 2;
+}
+
+:root[data-vr-viewport='phone'] .aside.low {
+  grid-row: 3;
+}
+
+:root[data-vr-viewport='phone'] .snippets {
+  grid-row: 4;
 }
 </style>

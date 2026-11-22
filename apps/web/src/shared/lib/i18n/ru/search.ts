@@ -1,6 +1,6 @@
 export const search = {
   title: 'Поиск',
-  placeholder: 'Поиск по сессиям, MR, задачам и сообщениям',
+  placeholder: 'Поиск по сессиям, MR, задачам и перепискам',
   query: 'Поисковый запрос',
   scopeLabel: 'Где искать',
   scope: {
@@ -8,7 +8,7 @@ export const search = {
     sessions: 'Сессии',
     mr: 'MR',
     tasks: 'Задачи',
-    messages: 'Сообщения',
+    messages: 'Переписки',
     channels: 'Каналы',
     files: 'Файлы',
     actions: 'Действия',
