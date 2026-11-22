@@ -1,12 +1,12 @@
 import { computed, onScopeDispose, shallowRef, watch, type Ref } from 'vue';
-import { describeError, isSearchableMessageQuery, searchMessages, type MessageSearch } from '../../../entities/session';
+import { describeError, isSearchableMessageQuery, searchConversations, type ConversationSearch } from '../../../entities/session';
 
-const MESSAGE_LIMIT = 500;
+const CONVERSATION_LIMIT = 500;
 const DEBOUNCE_MS = 200;
 const INDEX_TICK_MS = 30_000;
 
 export function useTranscriptSearch(query: Ref<string>) {
-  const found = shallowRef<MessageSearch | null>(null);
+  const found = shallowRef<ConversationSearch | null>(null);
   const answered = shallowRef('');
   const error = shallowRef<string | null>(null);
   const busy = shallowRef(false);
@@ -21,14 +21,14 @@ export function useTranscriptSearch(query: Ref<string>) {
   function fetchNow(text: string) {
     const mine = ++run;
     busy.value = result.value === null;
-    searchMessages(text, MESSAGE_LIMIT).then(
+    searchConversations(text, CONVERSATION_LIMIT).then(
       (answer) => {
         if (mine !== run) return;
         found.value = answer;
         answered.value = text;
         error.value = null;
         busy.value = false;
-        if (answer.indexed < answer.total || answer.total === 0) timer = setTimeout(() => fetchNow(text), INDEX_TICK_MS);
+        if (answer.indexed < answer.total_files || answer.total_files === 0) timer = setTimeout(() => fetchNow(text), INDEX_TICK_MS);
       },
       (failure: unknown) => {
         if (mine !== run) return;

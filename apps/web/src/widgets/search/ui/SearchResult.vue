@@ -58,22 +58,22 @@ const conversation = computed(() => {
   const { row } = props;
   const source = row.kind === 'messages' ? row : props.folded;
   if (!source) return null;
-  const { head, hits } = source;
+  const { conversation: found } = source;
   const own = row.kind === 'messages';
   const shown = props.compact ? (own ? 1 : 0) : own ? SNIPPETS_SHOWN : 1;
-  const project = head.cwd?.split(/[\\/]/).findLast(Boolean);
+  const project = found.cwd?.split(/[\\/]/).findLast(Boolean);
   return {
-    crumbs: [project, head.branch].filter((crumb): crumb is string => Boolean(crumb)),
-    matches: t('search.matches', { count: hits.length }),
-    age: age(head.at),
-    snippets: hits.slice(0, shown).map((hit) => ({
-      key: hit.key,
-      segments: markedSegments(wholeWordStart(hit.snippet)),
-      plain: stripMarks(hit.snippet),
-      role: hit.role === 'user' ? t('search.role.user') : t('search.role.assistant'),
-      user: hit.role === 'user',
+    crumbs: [project, found.branch].filter((crumb): crumb is string => Boolean(crumb)),
+    matches: t('search.matches', { count: found.matches }),
+    age: age(found.at),
+    snippets: found.snippets.slice(0, shown).map((message) => ({
+      key: message.key,
+      segments: markedSegments(wholeWordStart(message.snippet)),
+      plain: stripMarks(message.snippet),
+      role: message.role === 'user' ? t('search.role.user') : t('search.role.assistant'),
+      user: message.role === 'user',
     })),
-    link: !props.compact && (!own || hits.length > shown),
+    link: !props.compact && (!own || found.matches > shown),
   };
 });
 
@@ -137,7 +137,7 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
       <span class="line" :title="row.action.label"><Highlighted :segments="wordSegments(row.action.label, query)" /></span>
     </template>
     <template v-else-if="conversation && row.kind === 'messages'">
-      <span class="icons"><HarnessIcon :harness="row.head.harness" :size="14" /></span>
+      <span class="icons"><HarnessIcon :harness="row.conversation.harness" :size="14" /></span>
       <span class="line" :title="heading">{{ heading }}</span>
       <span class="sub">
         <span class="place">

@@ -1,23 +1,28 @@
 import { invoke } from '../../../bridge';
 import type { Harness } from './external';
 
-export type MessageHit = {
-  harness: Harness | 'acp';
-  session: string;
+type MessageSnippet = {
   key: string;
   role: 'user' | 'assistant';
   at: string | null;
   snippet: string;
+};
+export type ConversationHit = {
+  harness: Harness | 'acp';
+  session: string;
   title: string | null;
   cwd: string | null;
   branch: string | null;
+  matches: number;
+  at: string | null;
+  snippets: MessageSnippet[];
 };
-export type MessageSearch = { hits: MessageHit[]; indexed: number; total: number };
+export type ConversationSearch = { conversations: ConversationHit[]; total: number; indexed: number; total_files: number };
 
 export const MIN_MESSAGE_QUERY = 3;
 
 export const isSearchableMessageQuery = (text: string): boolean => text.split(/\s+/).some((word) => Array.from(word).length >= MIN_MESSAGE_QUERY);
 
-export function searchMessages(query: string, limit: number): Promise<MessageSearch> {
-  return invoke<MessageSearch>('search_messages', { query, limit });
+export function searchConversations(query: string, limit: number): Promise<ConversationSearch> {
+  return invoke<ConversationSearch>('search_conversations', { query, limit });
 }

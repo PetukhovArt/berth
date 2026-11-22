@@ -133,7 +133,7 @@ const READ_ONLY_COMMANDS: &[&str] = &[
     "acp_agent_log",
     "agent_sessions_list",
     "agent_session_transcript",
-    "search_messages",
+    "search_conversations",
     "slash_commands",
     "review_queue",
     "review_adapter",

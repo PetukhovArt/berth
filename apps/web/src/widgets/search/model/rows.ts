@@ -1,4 +1,4 @@
-import type { LoadedChannelMessage, MessageHit } from '../../../entities/session';
+import type { ConversationHit, LoadedChannelMessage } from '../../../entities/session';
 import type { QuickItem } from '../../../features/work-tree';
 import type { MarkdownEntry } from '../../../shared/lib/markdownFiles';
 
@@ -9,7 +9,7 @@ export type SearchKind = (typeof KINDS)[number];
 export type SearchScope = 'all' | (typeof SCOPE_KINDS)[number];
 export type SearchAction = { key: string; label: string };
 
-export type ConversationRow = { id: string; kind: 'messages'; head: MessageHit; hits: readonly MessageHit[] };
+export type ConversationRow = { id: string; kind: 'messages'; conversation: ConversationHit };
 
 export type SearchRow =
   | { id: string; kind: 'sessions' | 'mr' | 'tasks'; entry: QuickItem }

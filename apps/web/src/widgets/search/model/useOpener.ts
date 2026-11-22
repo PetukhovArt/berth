@@ -1,6 +1,6 @@
 import { computed } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { externalKey, openChannel, sessionKey, useBerth, useExternalSessions, useSessionDock, type ExternalSession, type MessageHit } from '../../../entities/session';
+import { externalKey, openChannel, sessionKey, useBerth, useExternalSessions, useSessionDock, type ConversationHit, type ExternalSession } from '../../../entities/session';
 import { openCleanup } from '../../../features/cleanup';
 import { openLeaf, type WorkNode } from '../../../features/work-tree';
 import type { SearchRow } from './rows';
@@ -46,27 +46,27 @@ export function useOpener() {
     return linked ? `${linked.harness}:${linked.id}` : null;
   }
 
-  function hitTitle(hit: MessageHit): string {
-    const owner = owners.value.get(`${hit.harness}:${hit.session}`);
-    const listed = hit.harness === 'acp' ? undefined : external?.anyByKey.value.get(externalKey({ harness: hit.harness, id: hit.session }));
-    return owner?.name ?? listed?.title ?? hit.title ?? `${hit.harness} ${hit.session.slice(0, SHORT_ID)}`;
+  function hitTitle(found: ConversationHit): string {
+    const owner = owners.value.get(`${found.harness}:${found.session}`);
+    const listed = found.harness === 'acp' ? undefined : external?.anyByKey.value.get(externalKey({ harness: found.harness, id: found.session }));
+    return owner?.name ?? listed?.title ?? found.title ?? `${found.harness} ${found.session.slice(0, SHORT_ID)}`;
   }
 
-  function openHit(hit: MessageHit) {
-    const owner = owners.value.get(`${hit.harness}:${hit.session}`);
+  function openConversation(found: ConversationHit) {
+    const owner = owners.value.get(`${found.harness}:${found.session}`);
     const node = owner && !owner.archived ? berth?.sessions.value.get(sessionKey({ Agent: owner.id })) : undefined;
-    if (hit.harness === 'acp') {
+    if (found.harness === 'acp') {
       if (node) dock.openSession(node);
       return;
     }
-    const ref: Conversation = { harness: hit.harness, id: hit.session, title: hitTitle(hit) };
+    const ref: Conversation = { harness: found.harness, id: found.session, title: hitTitle(found) };
     if (node) dock.openLinkedConversation(node, ref);
     else dock.openExternal(external?.anyByKey.value.get(externalKey(ref)) ?? ref);
   }
 
   function blockedReason(row: SearchRow): string | null {
-    if (row.kind === 'messages' && row.head.harness === 'acp') {
-      const owner = owners.value.get(`acp:${row.head.session}`);
+    if (row.kind === 'messages' && row.conversation.harness === 'acp') {
+      const owner = owners.value.get(`acp:${row.conversation.session}`);
       if (!owner) return t('search.blocked.gone');
       return owner.archived ? t('search.blocked.archived') : null;
     }
@@ -76,7 +76,7 @@ export function useOpener() {
 
   function open(row: SearchRow) {
     if (row.kind === 'channels') openChannel(row.message.channel);
-    else if (row.kind === 'messages') openHit(row.head);
+    else if (row.kind === 'messages') openConversation(row.conversation);
     else if (row.kind === 'files') dock.openFile(row.file.path, { worktreeId: dock.activeWorktree.value?.id });
     else if (row.kind === 'actions') ACTIONS[row.action.key]?.();
     else if (row.entry.node.kind === 'archived') {

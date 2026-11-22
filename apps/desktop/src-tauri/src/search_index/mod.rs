@@ -4,4 +4,4 @@ mod query;
 mod store;
 
 pub use indexer::run;
-pub use query::{search_messages, MessageHit, SearchReply};
+pub use query::{search_conversations, ConversationHit, MessageSnippet, SearchReply};

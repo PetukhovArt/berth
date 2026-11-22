@@ -1,5 +1,5 @@
 import { computed, shallowRef, watch, type Ref } from 'vue';
-import { isSearchableMessageQuery, useLoadedChannelMessages, type MessageHit } from '../../../entities/session';
+import { isSearchableMessageQuery, useLoadedChannelMessages, type ConversationHit } from '../../../entities/session';
 import { quickItems, useWorkTree, type QuickItem } from '../../../features/work-tree';
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { MarkdownEntry } from '../../../shared/lib/markdownFiles';
@@ -35,23 +35,7 @@ function withoutPlaceholder(items: readonly QuickItem[]): QuickItem[] {
   });
 }
 
-const conversationKeyOf = (hit: MessageHit): string => `${hit.harness}:${hit.session}`;
-
-function conversationsOf(hits: readonly MessageHit[]): ConversationRow[] {
-  const byConversation = new Map<string, MessageHit[]>();
-  for (const hit of hits) {
-    const id = `message:${hit.harness}:${hit.session}`;
-    const known = byConversation.get(id);
-    if (known) known.push(hit);
-    else byConversation.set(id, [hit]);
-  }
-  const rows: ConversationRow[] = [];
-  for (const [id, matches] of byConversation) {
-    const [head] = matches;
-    if (head) rows.push({ id, kind: 'messages', head, hits: matches });
-  }
-  return rows;
-}
+const conversationKeyOf = (conversation: ConversationHit): string => `${conversation.harness}:${conversation.session}`;
 
 export function useSearch(options: SearchOptions) {
   const { query, scope } = options;
@@ -99,11 +83,13 @@ export function useSearch(options: SearchOptions) {
     }));
   });
 
-  const messageRows = computed(() => conversationsOf(transcripts.result.value?.hits ?? []));
+  const messageRows = computed<ConversationRow[]>(() =>
+    (transcripts.result.value?.conversations ?? []).map((conversation) => ({ id: `message:${conversationKeyOf(conversation)}`, kind: 'messages', conversation })),
+  );
 
   const allRows = computed<Record<SearchKind, readonly SearchRow[]>>(() => ({ ...entityRows.value, files: fileRows.value, actions: actionRows.value, messages: messageRows.value, channels: channelRows.value }));
 
-  const counts = computed(() => Object.fromEntries(KINDS.map((kind) => [kind, allRows.value[kind].length])) as Record<SearchKind, number>);
+  const counts = computed(() => Object.fromEntries(KINDS.map((kind) => [kind, kind === 'messages' ? (transcripts.result.value?.total ?? 0) : allRows.value[kind].length])) as Record<SearchKind, number>);
 
   function chipCount(id: SearchScope): number | undefined {
     if (!hasText.value) return undefined;
@@ -117,7 +103,7 @@ export function useSearch(options: SearchOptions) {
   const folds = computed(() => {
     const into = new Map<string, ConversationRow>();
     const claimed = new Set<string>();
-    const conversations = new Map(messageRows.value.map((row) => [conversationKeyOf(row.head), row]));
+    const conversations = new Map(messageRows.value.map((row) => [conversationKeyOf(row.conversation), row]));
     for (const row of allRows.value.sessions) {
       if (row.kind !== 'sessions') continue;
       const key = opener.conversationKeyOf(row.entry.node);
@@ -137,7 +123,8 @@ export function useSearch(options: SearchOptions) {
       const rows = unfolded ? messageRows.value.filter((row) => !folds.value.claimed.has(row.id)) : allRows.value[kind];
       if (!rows.length) return [];
       const shown = capped(kind, rows);
-      return [{ kind, total: rows.length, rows: shown, hidden: rows.length - shown.length, folded: unfolded && folds.value.claimed.size > 0 }];
+      const total = kind === 'messages' ? counts.value.messages - (unfolded ? folds.value.claimed.size : 0) : rows.length;
+      return [{ kind, total, rows: shown, hidden: rows.length - shown.length, folded: unfolded && folds.value.claimed.size > 0 }];
     }),
   );
 
@@ -148,7 +135,7 @@ export function useSearch(options: SearchOptions) {
   const nothing = computed(() => rows.value.length === 0 && !(wantsMessages.value && transcripts.busy.value) && !messageError.value);
   const progress = computed(() => {
     const found = wantsMessages.value ? transcripts.result.value : null;
-    return found && found.indexed < found.total ? found : null;
+    return found && found.indexed < found.total_files ? found : null;
   });
 
   function showAll(kind: SearchKind) {

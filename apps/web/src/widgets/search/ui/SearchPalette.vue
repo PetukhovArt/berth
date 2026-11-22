@@ -122,7 +122,7 @@ onMounted(() => {
             :query="text"
             :current="positions.get(row.id) === index"
             :blocked="search.blockedReason(row)"
-            :heading="row.kind === 'messages' ? search.hitTitle(row.head) : ''"
+            :heading="row.kind === 'messages' ? search.hitTitle(row.conversation) : ''"
             :folded="search.foldedInto(row)"
             compact
             @hover="index = positions.get(row.id) ?? 0"
