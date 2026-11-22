@@ -71,11 +71,10 @@ fn role_of(name: &str) -> Role {
     }
 }
 
-fn progress(conn: &Connection) -> (u32, u32) {
+fn progress(conn: &Connection) -> rusqlite::Result<(u32, u32)> {
     conn.query_row("SELECT indexed, total FROM progress", [], |row| {
         Ok((row.get(0)?, row.get(1)?))
     })
-    .unwrap_or_default()
 }
 
 fn hits(conn: &Connection, terms: &Terms, limit: u32) -> rusqlite::Result<Vec<MessageHit>> {
@@ -89,7 +88,7 @@ fn hits(conn: &Connection, terms: &Terms, limit: u32) -> rusqlite::Result<Vec<Me
     values.push(Value::Integer(i64::from(limit)));
     values.push(Value::Text(terms.fts.clone()));
     let sql = format!(
-        "SELECT harness, session, key, role, at, snippet(messages, 0, char(1), char(2), '…', 24) \
+        "SELECT harness, session, key, role, at, snippet(messages, 0, char(1), char(2), '…', 64) \
          FROM messages WHERE rowid IN ({newest}) AND messages MATCH ? ORDER BY at DESC"
     );
     let mut statement = conn.prepare(&sql)?;
@@ -118,7 +117,7 @@ fn search(query: &str, limit: u32) -> Result<SearchReply, String> {
     let Some(conn) = store::open_reader()? else {
         return Ok(SearchReply::default());
     };
-    let (indexed, total) = progress(&conn);
+    let (indexed, total) = progress(&conn).map_err(|e| e.to_string())?;
     let Some(terms) = terms(query) else {
         return Ok(SearchReply {
             hits: Vec::new(),

@@ -120,12 +120,11 @@ pub fn open_reader() -> Result<Option<Connection>, String> {
     if !path.is_file() {
         return Ok(None);
     }
-    let Ok(conn) = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY) else {
-        return Ok(None);
-    };
+    let conn = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .map_err(|e| format!("{}: {e}", path.display()))?;
     conn.busy_timeout(BUSY).map_err(|e| e.to_string())?;
-    match version(&conn) {
-        Ok(SCHEMA_VERSION) => Ok(Some(conn)),
+    match version(&conn).map_err(|e| format!("{}: {e}", path.display()))? {
+        SCHEMA_VERSION => Ok(Some(conn)),
         _ => Ok(None),
     }
 }
