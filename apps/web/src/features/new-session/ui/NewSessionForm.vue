@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, shallowRef, watch } from 'vue';
-import { VButton, VDialog, VInputText, VMessage, VSelect, VTextarea } from '../../../shared/ui/kit';
+import { VButton, VDialog, VInputText, VMessage, VSelect, VTextarea, useIsPhone } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
+import { X } from '../../../shared/ui/icons';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
 import { chordJoiner, modifierGlyphs, onlyPrimaryPressed, primaryModifier, primaryPressed } from '../../../shared/lib/platform';
@@ -47,6 +48,13 @@ function generatedName(kind: Kind): string {
   while (taken.has(`${base}-${n}`)) n++;
   return `${base}-${n}`;
 }
+
+const phone = useIsPhone();
+const dialogPt = computed(() =>
+  phone.value
+    ? { mask: { style: { background: 'var(--vr-overlay)' } }, root: { style: { boxShadow: 'none' } } }
+    : { mask: { style: { background: 'var(--vr-overlay)', alignItems: 'flex-start', paddingTop: '12vh' } }, root: { style: { borderRadius: '14px', boxShadow: 'var(--vr-shadow-dialog)' } } },
+);
 
 const { values } = useSettings();
 const defaultKind = computed<Kind>(() => {
@@ -207,7 +215,7 @@ function startable(): boolean {
 }
 
 function onPromptKey(event: KeyboardEvent) {
-  if (event.key !== 'Enter' || event.shiftKey || event.isComposing || primaryPressed(event)) return;
+  if (phone.value || event.key !== 'Enter' || event.shiftKey || event.isComposing || primaryPressed(event)) return;
   event.preventDefault();
   if (startable()) void submit();
 }
@@ -231,13 +239,14 @@ function onVisible(visible: boolean) {
     :closable="false"
     :aria-label="t('agents.newSession.title')"
     :style="{ width: '720px', maxWidth: '95vw' }"
-    :pt="{ mask: { style: { background: 'var(--vr-overlay)', alignItems: 'flex-start', paddingTop: '12vh' } }, root: { style: { borderRadius: '14px', boxShadow: 'var(--vr-shadow-dialog)' } } }"
+    :pt="dialogPt"
     :draggable="false"
     @update:visible="onVisible"
   >
     <template #header>
       <span class="p-dialog-title">{{ t('agents.newSession.title') }}</span>
-      <UiButton type="button" class="esc" :title="t('common.close')" :aria-label="t('common.close')" data-testid="new-session-close" @click="emit('close')">Esc</UiButton>
+      <UiButton v-if="phone" type="button" class="close" :title="t('common.close')" :aria-label="t('common.close')" data-testid="new-session-close" @click="emit('close')"><X :size="18" /></UiButton>
+      <UiButton v-else type="button" class="esc" :title="t('common.close')" :aria-label="t('common.close')" data-testid="new-session-close" @click="emit('close')">Esc</UiButton>
     </template>
     <form class="form" data-testid="new-session-form" @submit.prevent="submit()" @keydown="onFormKey">
       <ContinueConversation v-if="continuing" v-model="pickedConversation" :conversations="conversations" />
@@ -247,9 +256,9 @@ function onVisible(visible: boolean) {
         rows="3"
         auto-resize
         class="prompt"
-        autofocus
+        :autofocus="!phone"
         :aria-label="t('agents.newSession.prompt')"
-        :placeholder="t('agents.newSession.promptPlaceholder')"
+        :placeholder="phone ? t('agents.newSession.promptPlaceholderPhone') : t('agents.newSession.promptPlaceholder')"
         data-testid="new-session-prompt"
         @keydown="onPromptKey"
       />
@@ -369,9 +378,9 @@ function onVisible(visible: boolean) {
           <VInputText v-model="name" size="small" :placeholder="defaultName" data-testid="new-session-name" />
         </label>
         <span class="spacer" />
-        <span class="hint" data-testid="new-session-background-hint">{{ t('agents.newSession.backgroundHint', { key: backgroundKey }) }}</span>
-        <VButton :label="t('common.cancel')" size="small" text data-testid="new-session-cancel" @click="emit('close')" />
-        <VButton type="submit" :label="continuing ? t('agents.newSession.continueStart') : many ? t('agents.newSession.startMany', { count: kinds.length }) : t('common.create')" size="small" :loading="action.busy.value" :disabled="location.plan.value.kind === 'incomplete' || (continuing && !chosenConversation)" data-testid="new-session-submit" />
+        <span v-if="!phone" class="hint" data-testid="new-session-background-hint">{{ t('agents.newSession.backgroundHint', { key: backgroundKey }) }}</span>
+        <VButton class="action" :label="t('common.cancel')" :size="phone ? undefined : 'small'" text data-testid="new-session-cancel" @click="emit('close')" />
+        <VButton class="action" type="submit" :label="continuing ? t('agents.newSession.continueStart') : many ? t('agents.newSession.startMany', { count: kinds.length }) : t('common.create')" :size="phone ? undefined : 'small'" :loading="action.busy.value" :disabled="location.plan.value.kind === 'incomplete' || (continuing && !chosenConversation)" data-testid="new-session-submit" />
       </div>
     </form>
   </VDialog>
@@ -528,5 +537,78 @@ function onVisible(visible: boolean) {
 
 .spacer {
   flex: 1;
+}
+
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--vr-size-icon-touch);
+  height: var(--vr-size-icon-touch);
+  margin-left: auto;
+  color: var(--vr-color-text-muted);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: var(--vr-radius-md);
+}
+
+:root[data-vr-viewport='phone'] .form {
+  min-height: 100%;
+}
+
+:root[data-vr-viewport='phone'] .chips {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+:root[data-vr-viewport='phone'] .chip-input {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+:root[data-vr-viewport='phone'] .chip {
+  height: auto;
+  min-height: var(--vr-size-row-touch);
+}
+
+:root[data-vr-viewport='phone'] .row,
+:root[data-vr-viewport='phone'] .pair {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--vr-space-1);
+}
+
+:root[data-vr-viewport='phone'] .row-label {
+  width: auto;
+}
+
+:root[data-vr-viewport='phone'] .footer {
+  position: sticky;
+  bottom: 0;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-bottom: var(--vr-space-2);
+  background: var(--p-dialog-background, var(--vr-color-surface));
+}
+
+:root[data-vr-viewport='phone'] .footer .spacer {
+  display: none;
+}
+
+:root[data-vr-viewport='phone'] .name {
+  flex: 1 0 100%;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--vr-space-1);
+}
+
+:root[data-vr-viewport='phone'] .name :deep(input) {
+  width: 100%;
+}
+
+:root[data-vr-viewport='phone'] .action {
+  flex: 1 1 0;
+  min-height: var(--vr-size-row-touch);
 }
 </style>

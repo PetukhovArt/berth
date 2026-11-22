@@ -88,6 +88,7 @@ export const agents: Translation<typeof en> = {
     continueRunningIn: 'Идёт в {name}',
     continueRunningOutside: 'Идёт вне Berth',
     promptPlaceholder: 'Что должен сделать агент? Enter запускает, Shift+Enter добавляет строку',
+    promptPlaceholderPhone: 'Что должен сделать агент?',
     backgroundHint: '{key} запускает в фоне',
     pickBranch: 'Выберите ветку',
     typeBranch: 'Пусто: имя будет сгенерировано',

@@ -85,6 +85,7 @@ export const agents = {
     continueRunningIn: 'Running in {name}',
     continueRunningOutside: 'Running outside Berth',
     promptPlaceholder: 'What should the Agent do? Enter starts, Shift+Enter adds a line',
+    promptPlaceholderPhone: 'What should the Agent do?',
     backgroundHint: '{key} starts in the background',
     pickBranch: 'Pick a branch',
     typeBranch: 'Empty: a name is generated',
