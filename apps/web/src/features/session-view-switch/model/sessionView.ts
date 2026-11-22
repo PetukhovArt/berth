@@ -3,6 +3,7 @@ import type { ChangeRequestRef } from '../../../shared/api/connectors/api';
 import { hasChanges } from './worktreeChanged';
 import { knownMr } from '../../../entities/merge-request';
 import { useDock } from '../../../shared/model/dock';
+import { useIsPhone } from '../../../shared/ui/kit';
 import { useSessionDock, useBerth, sessionStateOf, useExternalSessions, externalKey, type Harness, type SessionRef } from '../../../entities/session';
 
 export type SessionWorktree = { path: string; branch: string };
@@ -47,10 +48,12 @@ function chatOf(panelId: string): { harness: Harness | 'acp'; sessionId: string;
   return own ? { harness: own.harness, sessionId: own.id, terminal: session.ref } : null;
 }
 
+const phone = useIsPhone();
+
 const SESSION_VIEWS = {
   terminal: {
     letter: 'T',
-    available: (panelId: string) => acpAgentOf(panelId) === null,
+    available: (panelId: string) => acpAgentOf(panelId) === null && !(phone.value && useBerth()?.sessions.value.has(panelId)),
     props: () => ({}),
   },
   chat: {
@@ -98,7 +101,7 @@ export function viewProps(panelId: string, view: SessionView): Record<string, un
 }
 
 function homeView(panelId: string): SessionView {
-  return acpAgentOf(panelId) === null ? 'terminal' : 'chat';
+  return acpAgentOf(panelId) === null && !(phone.value && chatOf(panelId)) ? 'terminal' : 'chat';
 }
 
 export function viewOf(panelId: string): SessionView {

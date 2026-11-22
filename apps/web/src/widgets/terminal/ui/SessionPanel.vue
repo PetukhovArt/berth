@@ -10,7 +10,6 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { openUrl } from '../../../bridge';
 import { hostPlatform } from '../../../shared/lib/platform';
 import FeedbackStrip from './FeedbackStrip.vue';
-import { applyCtrl } from '../lib/mobileKeys';
 import { useSettings } from '../../../shared/config/settings/store';
 import { terminalClipboard } from '../lib/terminalClipboard';
 import { fitTerminal } from '../lib/terminalFit';
@@ -127,7 +126,7 @@ function build(element: HTMLElement, session: SessionRef): LiveTerminal {
 
   let disposed = false;
   let fromKeyboard = false;
-  const input = (data: string) => void sendInput(session, applyCtrl(data));
+  const input = (data: string) => void sendInput(session, data);
 
   term.attachCustomKeyEventHandler((event) => {
     fromKeyboard = true;
