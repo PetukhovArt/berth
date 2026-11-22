@@ -30,6 +30,8 @@ const TRANSCRIPT_BYTES: u64 = 256 * 1024;
 const TRANSCRIPT_MAX_BYTES: u64 = 16 * 1024 * 1024;
 const TRANSCRIPT_DEFAULT: usize = 200;
 const TRANSCRIPT_MAX: usize = 1000;
+const REACH_MAX_BYTES: u64 = 64 * 1024 * 1024;
+const REACH_CONTEXT: usize = 20;
 const SESSION_LIMIT: usize = 500;
 const FRESH_MS: u64 = 10_000;
 const IDLE_MS: u64 = 4 * 3_600_000;
@@ -403,28 +405,47 @@ fn scan(since: u64) -> Vec<Found> {
     found
 }
 
-fn parse_lines(buffer: &[u8]) -> impl Iterator<Item = Value> + '_ {
-    buffer
-        .split(|byte| *byte == b'\n')
-        .filter(|line| !line.is_empty())
-        .filter_map(|line| serde_json::from_slice::<Value>(line).ok())
+fn records(buffer: &[u8], base: u64) -> impl Iterator<Item = (u64, Value)> + '_ {
+    let mut next = base;
+    buffer.split(|byte| *byte == b'\n').filter_map(move |line| {
+        let at = next;
+        next += line.len() as u64 + 1;
+        if line.is_empty() {
+            return None;
+        }
+        serde_json::from_slice::<Value>(line)
+            .ok()
+            .map(|value| (at, value))
+    })
 }
 
-fn read_tail(path: &Path, budget: u64) -> Option<(Vec<u8>, bool)> {
+struct Window {
+    buffer: Vec<u8>,
+    base: u64,
+    from_start: bool,
+}
+
+fn read_tail(path: &Path, budget: u64) -> Option<Window> {
     let mut file = File::open(path).ok()?;
     let len = file.metadata().ok()?.len();
     let start = len.saturating_sub(budget);
     file.seek(SeekFrom::Start(start)).ok()?;
     let mut buffer = Vec::new();
     file.take(budget).read_to_end(&mut buffer).ok()?;
+    let mut base = start;
     if start > 0 {
         let cut = buffer
             .iter()
             .position(|byte| *byte == b'\n')
             .map_or(buffer.len(), |at| at + 1);
         buffer.drain(..cut);
+        base += cut as u64;
     }
-    Some((buffer, start == 0))
+    Some(Window {
+        buffer,
+        base,
+        from_start: start == 0,
+    })
 }
 
 fn content_text(content: &Value) -> Option<String> {
@@ -660,10 +681,10 @@ fn read_head(path: &Path, harness: Harness) -> Head {
 
 fn read_tail_facts(path: &Path, harness: Harness) -> Tail {
     let mut tail = Tail::default();
-    let Some((buffer, _)) = read_tail(path, TAIL_BYTES) else {
+    let Some(window) = read_tail(path, TAIL_BYTES) else {
         return tail;
     };
-    for line in parse_lines(&buffer) {
+    for (_, line) in records(&window.buffer, window.base) {
         match harness {
             Harness::Claude => claude_tail(&mut tail, &line),
             Harness::Codex => codex_tail(&mut tail, &line),
@@ -1175,7 +1196,15 @@ fn tool_summary(input: &Value) -> String {
     single_line(&input.to_string(), TOOL_CHARS)
 }
 
-pub(crate) fn claude_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
+fn message_key(record: u64, part: usize) -> String {
+    format!("{record}:{part}")
+}
+
+fn record_of(key: &str) -> Option<u64> {
+    key.split(':').next()?.parse().ok()
+}
+
+pub(crate) fn claude_messages(line: &Value, record: u64, out: &mut Vec<TranscriptMessage>) {
     let role = match line["type"].as_str() {
         Some("user") => Role::User,
         Some("assistant") => Role::Assistant,
@@ -1191,7 +1220,6 @@ pub(crate) fn claude_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
     {
         return;
     }
-    let uuid = line["uuid"].as_str().unwrap_or_default();
     let at = owned(&line["timestamp"]);
     let content = &line["message"]["content"];
     let blocks: Vec<&Value> = match content {
@@ -1200,7 +1228,7 @@ pub(crate) fn claude_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
         _ => return,
     };
     for (index, block) in blocks.into_iter().enumerate() {
-        let key = format!("{uuid}:{index}");
+        let key = message_key(record, index);
         let text = block.as_str().or_else(|| {
             (block["type"].as_str() == Some("text"))
                 .then(|| block["text"].as_str())
@@ -1242,19 +1270,14 @@ pub(crate) fn claude_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
     }
 }
 
-pub(crate) fn codex_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
+pub(crate) fn codex_messages(line: &Value, record: u64, out: &mut Vec<TranscriptMessage>) {
     if line["type"].as_str() != Some("response_item") {
         return;
     }
     let payload = &line["payload"];
     let at = owned(&line["timestamp"]);
     let kind = payload["type"].as_str().unwrap_or_default();
-    let key = format!(
-        "{}:{kind}:{}:{}",
-        at.as_deref().unwrap_or_default(),
-        payload["call_id"].as_str().unwrap_or_default(),
-        out.len()
-    );
+    let key = message_key(record, 0);
     let message = match kind {
         "message" => {
             let role = match payload["role"].as_str() {
@@ -1342,26 +1365,46 @@ fn read_transcript(
     harness: Harness,
     id: &str,
     tail: Option<u32>,
+    reach: Option<&str>,
 ) -> Result<Vec<TranscriptMessage>, String> {
     let path = locate(harness, id)?;
+    read_transcript_file(harness, &path, tail, reach)
+}
+
+fn reach_budget(path: &Path, reach: Option<&str>) -> u64 {
+    let len = fs::metadata(path).map_or(0, |meta| meta.len());
+    reach
+        .and_then(record_of)
+        .filter(|record| *record < len)
+        .map_or(TRANSCRIPT_BYTES, |record| {
+            (len - record + TRANSCRIPT_BYTES).clamp(TRANSCRIPT_BYTES, REACH_MAX_BYTES)
+        })
+}
+
+fn read_transcript_file(
+    harness: Harness,
+    path: &Path,
+    tail: Option<u32>,
+    reach: Option<&str>,
+) -> Result<Vec<TranscriptMessage>, String> {
     let wanted = tail
         .map_or(TRANSCRIPT_DEFAULT, |tail| tail as usize)
         .clamp(1, TRANSCRIPT_MAX);
-    let mut budget = TRANSCRIPT_BYTES;
+    let mut budget = reach_budget(path, reach);
     loop {
-        let (buffer, from_start) = read_tail(&path, budget)
+        let window = read_tail(path, budget)
             .ok_or_else(|| crate::host_text!("readFailedPlain", path = path.display()))?;
         let mut messages: Vec<TranscriptMessage> = Vec::new();
         let mut model: Option<String> = None;
         let mut calls: HashMap<String, usize> = HashMap::new();
-        for line in parse_lines(&buffer) {
+        for (record, line) in records(&window.buffer, window.base) {
             if let Some(next) = line_model(harness, &line) {
                 model = Some(next);
             }
             let from = messages.len();
             match harness {
-                Harness::Claude => claude_messages(&line, &mut messages),
-                Harness::Codex => codex_messages(&line, &mut messages),
+                Harness::Claude => claude_messages(&line, record, &mut messages),
+                Harness::Codex => codex_messages(&line, record, &mut messages),
             }
             for message in &mut messages[from..] {
                 if message.role == Role::Assistant {
@@ -1380,8 +1423,13 @@ fn read_transcript(
                 }
             }
         }
-        if messages.len() >= wanted || from_start || budget >= TRANSCRIPT_MAX_BYTES {
-            let skip = messages.len().saturating_sub(wanted);
+        if messages.len() >= wanted || window.from_start || budget >= TRANSCRIPT_MAX_BYTES {
+            let mut skip = messages.len().saturating_sub(wanted);
+            if let Some(found) =
+                reach.and_then(|key| messages.iter().position(|message| message.key == key))
+            {
+                skip = skip.min(found.saturating_sub(REACH_CONTEXT));
+            }
             messages.drain(..skip);
             return Ok(messages);
         }
@@ -1399,8 +1447,9 @@ pub async fn agent_session_transcript(
     harness: Harness,
     id: String,
     tail: Option<u32>,
+    reach: Option<String>,
 ) -> Result<Vec<TranscriptMessage>, String> {
-    spawn_blocking(move || read_transcript(harness, &id, tail))
+    spawn_blocking(move || read_transcript(harness, &id, tail, reach.as_deref()))
         .await
         .map_err(|e| e.to_string())?
 }

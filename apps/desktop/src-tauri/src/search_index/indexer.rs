@@ -257,11 +257,11 @@ fn harness_name(harness: Harness) -> &'static str {
     }
 }
 
-fn messages_of(harness: Harness, line: &Value) -> Vec<TranscriptMessage> {
+fn messages_of(harness: Harness, line: &Value, record: u64) -> Vec<TranscriptMessage> {
     let mut out = Vec::new();
     match harness {
-        Harness::Claude => claude_messages(line, &mut out),
-        Harness::Codex => codex_messages(line, &mut out),
+        Harness::Claude => claude_messages(line, record, &mut out),
+        Harness::Codex => codex_messages(line, record, &mut out),
     }
     out.retain(|message| message.tool.is_none() && !message.text.is_empty());
     out
@@ -314,12 +314,13 @@ fn index_file(
             if line.last() != Some(&b'\n') {
                 break;
             }
+            let record = u64::try_from(offset).unwrap_or(0);
             offset += length;
             *budget = budget.saturating_sub(read as u64);
             let Ok(value) = serde_json::from_slice::<Value>(&line) else {
                 continue;
             };
-            for message in messages_of(file.harness, &value) {
+            for message in messages_of(file.harness, &value, record) {
                 insert.execute(params![
                     message.text,
                     harness_name(file.harness),

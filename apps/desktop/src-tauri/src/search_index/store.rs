@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use rusqlite::{Connection, ErrorCode, OpenFlags};
 
-const SCHEMA_VERSION: i64 = 2;
+const SCHEMA_VERSION: i64 = 3;
 const BUSY: Duration = Duration::from_secs(5);
 
 const SCHEMA: &str = "
@@ -34,7 +34,7 @@ CREATE VIRTUAL TABLE messages USING fts5(
     path UNINDEXED,
     tokenize='trigram'
 );
-PRAGMA user_version=2;
+PRAGMA user_version=3;
 COMMIT;
 ";
 

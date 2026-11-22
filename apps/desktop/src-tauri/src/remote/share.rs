@@ -120,7 +120,7 @@ impl Feed {
         let Some(id) = agent.session_id.clone() else {
             return json!({ "transcript": [] });
         };
-        let transcript = agent_sessions::agent_session_transcript(harness, id, Some(TAIL))
+        let transcript = agent_sessions::agent_session_transcript(harness, id, Some(TAIL), None)
             .await
             .unwrap_or_default();
         json!({ "transcript": transcript })

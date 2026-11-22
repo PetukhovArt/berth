@@ -192,7 +192,7 @@ pub fn index(
              VALUES (?1, ?2, ?3, ?4, ?5, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), ?6)",
         )?;
         for (seq, role, text) in &fresh {
-            let seq_key = seq.to_string();
+            let seq_key = format!("{PREFIX}{seq}");
             if known.is_some() && *seq == seen {
                 remove.execute(params![key, seq_key])?;
             }

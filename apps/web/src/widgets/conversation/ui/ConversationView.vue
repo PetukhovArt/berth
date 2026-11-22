@@ -4,7 +4,7 @@ import { Bot, Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, Triangle
 import { VButton, VMessage } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
-import { AGENT_KIND_LABEL, clearHandoff, continueInBerth, handoffOf, externalKey, externalOrigin, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, sendInput, useFeedbackRequest, allowRequest, alwaysAllowRequest, offersAlways, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, sessionKey, stopAgent, submitPrompt, useAcpChat, useQueuedPrompts, useSessionStates, type SessionRef, type SlashSource } from '../../../entities/session';
+import { AGENT_KIND_LABEL, clearHandoff, clearMessageFocus, messageFocusOf, continueInBerth, handoffOf, externalKey, externalOrigin, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, sendInput, useFeedbackRequest, allowRequest, alwaysAllowRequest, offersAlways, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, sessionKey, stopAgent, submitPrompt, useAcpChat, useQueuedPrompts, useSessionStates, type SessionRef, type SlashSource } from '../../../entities/session';
 import { worktreeOf } from '../../../features/session-view-switch';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
@@ -21,6 +21,7 @@ import ChatComposer from './ChatComposer.vue';
 const TAIL = 200;
 const PIN_PX = 48;
 const COPIED_MS = 1500;
+const FOUND_MS = 1600;
 
 const props = defineProps<{ harness: Harness | 'acp'; sessionId: string; terminal?: SessionRef; panelId?: string }>();
 
@@ -53,6 +54,13 @@ const plan = computed(() => acp?.plan.value ?? derivePlan(messages.value));
 const agentLog = shallowRef<string | null>(null);
 const checkpoints = shallowRef<Checkpoint[]>([]);
 const spoken = shallowRef<ReadonlySet<string>>(new Set());
+const focus = messageFocusOf(props.harness, props.sessionId);
+const reach = shallowRef<string | null>(null);
+const reached = shallowRef<string | null>(null);
+const seeking = shallowRef<string | null>(null);
+let seekWords: readonly string[] = [];
+const found = shallowRef<string | null>(null);
+let foundTimer: ReturnType<typeof setTimeout> | undefined;
 
 async function toggleAgentLog() {
   if (agentLog.value !== null) {
@@ -126,29 +134,91 @@ async function load() {
   const own = harness.value;
   if (!own) return;
   const current = ++generation;
+  const asked = reach.value;
   const el = scroller.value;
   const pinned = !el || el.scrollHeight - el.scrollTop - el.clientHeight < PIN_PX;
   try {
-    const next = await readTranscript({ harness: own, id: props.sessionId }, TAIL);
+    const next = await readTranscript({ harness: own, id: props.sessionId }, TAIL, asked);
     if (current !== generation) return;
     transcript.value = next;
     error.value = null;
   } catch (e) {
     if (current === generation) error.value = describeError(e);
   } finally {
-    if (current === generation) loadingTranscript.value = false;
+    if (current === generation) {
+      loadingTranscript.value = false;
+      reached.value = asked;
+    }
   }
   if (!pinned || current !== generation) return;
   await nextTick();
   const box = scroller.value;
-  if (box) box.scrollTop = box.scrollHeight;
+  if (box && !found.value) box.scrollTop = box.scrollHeight;
 }
+
+function firstMatch(row: HTMLElement, words: readonly string[]): DOMRect | null {
+  const wanted = words.map((word) => word.toLocaleLowerCase()).filter(Boolean);
+  if (!wanted.length) return null;
+  const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = (node.textContent ?? '').toLocaleLowerCase();
+    for (const word of wanted) {
+      const at = text.indexOf(word);
+      if (at < 0) continue;
+      const range = document.createRange();
+      range.setStart(node, at);
+      range.setEnd(node, at + word.length);
+      return range.getBoundingClientRect();
+    }
+  }
+  return null;
+}
+
+function reveal(key: string, words: readonly string[]) {
+  const box = scroller.value;
+  const row = box ? [...box.querySelectorAll<HTMLElement>('[data-key]')].find((el) => el.dataset.key === key) : undefined;
+  if (!box || !row) return;
+  const top = box.getBoundingClientRect().top;
+  const match = row.offsetHeight > box.clientHeight ? firstMatch(row, words) : null;
+  if (match) box.scrollTop += match.top - top - (box.clientHeight - match.height) / 2;
+  else box.scrollTop += row.getBoundingClientRect().top - top - Math.max(0, (box.clientHeight - row.offsetHeight) / 2);
+  found.value = key;
+  clearTimeout(foundTimer);
+  foundTimer = setTimeout(() => (found.value = null), FOUND_MS);
+}
+
+watch(
+  [messages, loading, seeking, reached],
+  () => {
+    const key = seeking.value;
+    if (!key || loading.value) return;
+    const present = messages.value.some((message) => message.key === key);
+    if (!present && !acp && reached.value !== key) return;
+    seeking.value = null;
+    if (present) reveal(key, seekWords);
+  },
+  { flush: 'post' },
+);
 
 const section = useTemplateRef<HTMLElement>('section');
 let loaded = false;
 let shown = true;
 let stale = false;
 let observer: IntersectionObserver | undefined;
+
+watch(
+  focus,
+  (target) => {
+    if (!target) return;
+    clearMessageFocus(target);
+    seekWords = target.words;
+    seeking.value = target.key;
+    if (acp || messages.value.some((message) => message.key === target.key)) return;
+    reach.value = target.key;
+    if (loaded) void load();
+  },
+  { immediate: true },
+);
 
 watch(
   () => [props.harness, props.sessionId, session.value?.updated_at] as const,
@@ -236,11 +306,12 @@ watch(messages, async () => {
   const el = scroller.value;
   if (!el || el.scrollHeight - el.scrollTop - el.clientHeight >= PIN_PX) return;
   await nextTick();
-  el.scrollTop = el.scrollHeight;
+  if (!found.value && !seeking.value) el.scrollTop = el.scrollHeight;
 });
 
 onBeforeUnmount(() => {
   clearTimeout(copiedTimer);
+  clearTimeout(foundTimer);
   observer?.disconnect();
 });
 </script>
@@ -288,7 +359,7 @@ onBeforeUnmount(() => {
         <p v-else-if="shownError" class="column state error" role="alert">{{ shownError }}</p>
         <p v-else-if="!messages.length" class="column state">{{ t('workbench.external.empty') }}</p>
         <ol v-else class="column messages" data-testid="conversation-messages">
-          <li v-for="block in blocks" :key="block.key" class="block" :data-block="block.type">
+          <li v-for="block in blocks" :key="block.key" class="block" :data-block="block.type" :data-key="block.key" :data-found="block.key === found || undefined">
             <div v-if="block.type === 'prompt'" class="message" data-role="user" :title="block.message.at ? formatDate(block.message.at) : undefined" data-testid="conversation-message">
               <RichContent v-if="block.message.shell && block.message.markdown" class="shell" :data-shell="block.message.shell" :markdown="block.message.markdown" />
               <p v-else class="user">{{ block.message.text }}</p>
@@ -647,6 +718,18 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+}
+
+.block > .message {
+  border-radius: var(--vr-radius-lg);
+  transition:
+    background-color var(--vr-motion-slow) var(--vr-motion-ease-standard),
+    box-shadow var(--vr-motion-slow) var(--vr-motion-ease-standard);
+}
+
+.block[data-found] > .message {
+  background-color: var(--vr-color-match-bg);
+  box-shadow: 0 0 0 var(--vr-space-1) var(--vr-color-match-bg);
 }
 
 .spoken {

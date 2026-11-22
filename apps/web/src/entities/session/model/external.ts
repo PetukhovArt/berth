@@ -105,8 +105,8 @@ export function unarchiveExternal(session: Pick<ExternalSession, 'harness' | 'id
   return unarchiveExternalSession(session.harness, session.id);
 }
 
-export function readTranscript(session: Pick<ExternalSession, 'harness' | 'id'>, tail = 200): Promise<TranscriptMessage[]> {
-  return invoke<TranscriptMessage[]>('agent_session_transcript', { harness: session.harness, id: session.id, tail }).then(withShellBlocks);
+export function readTranscript(session: Pick<ExternalSession, 'harness' | 'id'>, tail = 200, reach: string | null = null): Promise<TranscriptMessage[]> {
+  return invoke<TranscriptMessage[]>('agent_session_transcript', { harness: session.harness, id: session.id, tail, reach }).then(withShellBlocks);
 }
 
 export async function continueInBerth(session: ExternalSession, target: ExternalTarget): Promise<SessionRef> {

@@ -37,6 +37,7 @@ export { canMove, moved, pinned, pinnedFirst, unpinned } from './model/projectPi
 export { METRICS_PANEL, useSessionDock } from './model/sessionDock';
 export { MIN_MESSAGE_QUERY, isSearchableMessageQuery, searchConversations } from './model/messageSearch';
 export type { ConversationHit, ConversationSearch } from './model/messageSearch';
+export { clearMessageFocus, focusMessage, messageFocusOf } from './model/messageFocus';
 export { useAction } from './model/useAction';
 export { addProject, addWorkspace, openWorkspace, removeProject, removeWorkspace, renameProject, renameWorkspace, setProjectPins, useOpenWorkspace } from './model/workspaces';
 export { useWorktreeOptions } from './model/worktrees';

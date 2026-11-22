@@ -1,6 +1,6 @@
 import { computed } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { externalKey, openChannel, sessionKey, useBerth, useExternalSessions, useSessionDock, type ConversationHit, type ExternalSession } from '../../../entities/session';
+import { externalKey, focusMessage, openChannel, sessionKey, useBerth, useExternalSessions, useSessionDock, type ConversationHit, type ExternalSession } from '../../../entities/session';
 import { openCleanup } from '../../../features/cleanup';
 import { openLeaf, type WorkNode } from '../../../features/work-tree';
 import type { SearchRow } from './rows';
@@ -16,7 +16,7 @@ const conversationKeyOfAgent = (agent: { id: string; kind: string; session_id?: 
 
 const ACTIONS: Readonly<Record<string, () => void>> = { cleanup: openCleanup };
 
-export function useOpener() {
+export function useOpener(words: () => readonly string[]) {
   const berth = useBerth();
   const external = useExternalSessions();
   const dock = useSessionDock();
@@ -55,6 +55,8 @@ export function useOpener() {
   function openConversation(found: ConversationHit) {
     const owner = owners.value.get(`${found.harness}:${found.session}`);
     const node = owner && !owner.archived ? berth?.sessions.value.get(sessionKey({ Agent: owner.id })) : undefined;
+    const key = found.snippets[0]?.key;
+    if (key && (node || found.harness !== 'acp')) focusMessage({ harness: found.harness, session: found.session, key, words: words() });
     if (found.harness === 'acp') {
       if (node) dock.openSession(node);
       return;

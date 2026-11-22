@@ -30,7 +30,7 @@
 - Removed the Earlier folder from the Sessions tree: every conversation that is not archived is listed in its worktree
 - Removed `berth hub approve --scopes`: approve with `--role` instead
 - Added drag handles on both edges of the Chat view's column: drag one to resize or move the transcript and composer together, use the arrow keys on a focused handle, double-click to go back to 920px centered; the layout is kept across restarts
-- Added a Search view (`Ctrl+Shift+F`) that finds Sessions (archived ones too), merge requests, tasks, channel messages and the full text of Claude and Codex conversations, from an index the desktop app keeps in `search-index.db`
+- Added a Search view (`Ctrl+Shift+F`) that finds Sessions (archived ones too), merge requests, tasks, channel messages and the full text of Claude and Codex conversations, from an index the desktop app keeps in `search-index.db`; opening a conversation match shows its Chat view scrolled to the matching message, briefly highlighted
 - Added `berth end-session`: when you ask an agent to end its session ("kill session", "закрой сессию"), the session ends once its current turn ends and moves to the Ended group in the Sessions tree, where opening it resumes the conversation; the agent warns about scheduled prompts aimed at it
 - Added roles on the team hub: every approved device holds one role (Admin, Member, Guest or a custom one) that sets what it may do, and `berth hub approve <url> --admin-token <token> <id> --role <role>` gives or changes it
 - Added a Team section in Settings that shows your role on the hub and lets an admin approve devices with a role, change roles, revoke devices, edit custom roles and read the hub's audit log

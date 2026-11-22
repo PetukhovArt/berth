@@ -41,7 +41,7 @@ export function useSearch(options: SearchOptions) {
   const { query, scope } = options;
   const { all } = useWorkTree();
   const loadedChannels = useLoadedChannelMessages();
-  const opener = useOpener();
+  const opener = useOpener(() => words.value);
   const expanded = shallowRef<ReadonlySet<SearchKind>>(new Set());
 
   const text = computed(() => query.value.trim());

@@ -75,7 +75,7 @@ macro_rules! plain_commands {
             free providers_remove_acp(id: String) = $crate::providers::providers_remove_acp;
             free acp_agent_log(agent: String) = $crate::providers::acp_agent_log;
             free agent_sessions_list(since_days: Option<u32>) = $crate::agent_sessions::agent_sessions_list;
-            free agent_session_transcript(harness: $crate::agent_sessions::Harness, id: String, tail: Option<u32>) = $crate::agent_sessions::agent_session_transcript;
+            free agent_session_transcript(harness: $crate::agent_sessions::Harness, id: String, tail: Option<u32>, reach: Option<String>) = $crate::agent_sessions::agent_session_transcript;
             free search_conversations(query: String, limit: Option<u32>) = $crate::search_index::search_conversations;
             free slash_commands(harness: $crate::agent_sessions::Harness, cwd: String) = $crate::slash_commands::slash_commands;
             free review_queue(repo: String) = $crate::review::review_queue;
