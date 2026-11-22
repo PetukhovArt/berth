@@ -19,8 +19,11 @@ jobs:
       - run: rustup toolchain install
       - run: cargo fmt --all -- --check
 
-  test:
-    name: test (${{ matrix.runner }})
+  # Clippy checks and the tests build the workspace in different modes, so one
+  # runner does both serially for nothing: they run side by side, each with its
+  # own cache.
+  clippy:
+    name: clippy (${{ matrix.runner }})
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -33,6 +36,30 @@ jobs:
       - run: rustup toolchain install
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - run: cargo clippy --workspace --exclude berth-desktop --all-targets --locked -- -D warnings
+
+  test:
+    name: test (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, windows-latest]
+    env:
+      # No debug info: on Windows the PDBs add a fifth to the cache and about 20 s to the test
+      # build, and a failing test still prints its panic location.
+      CARGO_PROFILE_DEV_DEBUG: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       # Several test repos commit without setting an author, and a fresh
       # runner has no global identity to fall back on.
@@ -40,8 +67,6 @@ jobs:
         run: |
           git config --global user.name berth-ci
           git config --global user.email ci@berth.dev
-
-      - run: cargo clippy --workspace --exclude berth-desktop --all-targets --locked -- -D warnings
 
       # e2e_pty is `#![cfg(unix)]`, e2e_windows is `#![cfg(windows)]`
       # — each host runs its own half of the end-to-end grid.
