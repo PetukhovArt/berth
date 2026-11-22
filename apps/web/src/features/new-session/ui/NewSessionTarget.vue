@@ -179,6 +179,7 @@ const summary = computed(() => {
 .row-input {
   flex: 1;
   min-width: 0;
+  border-radius: var(--vr-radius-sm);
 }
 
 .mono {

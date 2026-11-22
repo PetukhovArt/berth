@@ -470,6 +470,10 @@ function onVisible(visible: boolean) {
   min-width: 0;
 }
 
+.form :deep(.p-inputtext) {
+  border-radius: var(--vr-radius-sm);
+}
+
 .mono {
   font-family: var(--vr-font-mono);
   font-size: var(--vr-font-size-label);
@@ -629,7 +633,6 @@ function onVisible(visible: boolean) {
   justify-content: space-between;
   min-height: var(--vr-size-row-touch);
   padding: 0 var(--vr-space-3);
-  border-radius: var(--vr-radius-md);
 }
 
 :root[data-vr-viewport='phone'] .row,
