@@ -1,7 +1,7 @@
 import type { DockviewApi } from 'dockview-vue';
 
-const MIN_WIDTH = 120;
-const MAX_WIDTH = 200;
+const MIN_WIDTH = 168;
+const MAX_WIDTH = 240;
 const MENU_RESERVE = 56;
 const WIDTH_VAR = '--dock-tab-width';
 

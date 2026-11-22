@@ -31,6 +31,7 @@ function kindOf(id: string): 'metrics' | 'file' | 'review' | 'architecture' | 'i
 const states = useSessionStates();
 const conversationDot = (id: string) => states.value.get(id)?.status ?? external?.anyByKey.value.get(id)?.status ?? 'closed';
 const session = (id: string) => berth?.sessions.value.get(id);
+const tabName = () => session(props.panel.id)?.name ?? external?.anyByKey.value.get(props.panel.id)?.title ?? panelTitle(props.panel.title, props.panel.getParameters());
 
 async function close() {
   if (isFilePanel(props.panel.id) && !(await settleDirty([props.panel.id.slice(FILE_PANEL_PREFIX.length)]))) return;
@@ -102,7 +103,7 @@ function onClose() {
 </script>
 
 <template>
-  <span ref="tab" class="tab status-host" tabindex="-1" :data-testid="`${kindOf(panel.id)}-tab`" :data-panel-id="panel.id" :data-session-id="session(panel.id)?.id" :data-active="active" @auxclick.middle="onClose">
+  <span ref="tab" class="tab status-host" tabindex="-1" :title="tabName()" :data-testid="`${kindOf(panel.id)}-tab`" :data-panel-id="panel.id" :data-session-id="session(panel.id)?.id" :data-active="active" @auxclick.middle="onClose">
     <FileText v-if="kindOf(panel.id) === 'file'" :size="12" />
     <GitPullRequest v-else-if="kindOf(panel.id) === 'review'" :size="12" />
     <Network v-else-if="kindOf(panel.id) === 'architecture'" :size="12" />
@@ -113,7 +114,7 @@ function onClose() {
     <template v-else-if="session(panel.id)">
       <StatusDot :status="states.get(panel.id)?.status ?? session(panel.id)?.status" :unseen="states.get(panel.id)?.unseen ?? session(panel.id)?.unseen" :alive="states.get(panel.id)?.alive ?? session(panel.id)?.alive" data-testid="session-tab-status" />
     </template>
-    <span class="name">{{ session(panel.id)?.name ?? external?.anyByKey.value.get(panel.id)?.title ?? panelTitle(panel.title, panel.getParameters()) }}</span>
+    <span class="name">{{ tabName() }}</span>
     <SessionViewSwitch v-if="kindOf(panel.id) === 'conversation'" :panel="panel" :active="active" />
     <span v-if="isFilePanel(panel.id) && isDirtyPath(panel.id.slice(FILE_PANEL_PREFIX.length))" class="dirty" :title="t('files.editor.dirty')" data-testid="file-tab-dirty" />
     <UiButton class="close" :title="t('common.close')" :aria-label="t('common.close')" data-testid="session-tab-close" @pointerdown.stop @click.stop="onClose"><X :size="12" /></UiButton>
