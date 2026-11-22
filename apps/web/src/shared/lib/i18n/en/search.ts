@@ -15,13 +15,13 @@ export const search = {
   },
   allResults: 'All results ({count})',
   hint: 'Type to search sessions, merge requests, tasks, channels and the text of Claude and Codex conversations.',
-  minChars: 'Type at least {count} characters to search conversation text.',
+  minChars: 'Add a word of at least {count} characters to search conversation text.',
   searching: 'Searching conversations…',
   indexing: 'Indexed {indexed} of {total} conversations. Results may be incomplete.',
   failed: 'Could not search conversation text: {message}',
   empty: {
     title: 'No results for “{query}”',
-    hint: 'Searches sessions, merge requests, tasks, channels and conversation text (from {count} characters).',
+    hint: 'Searches sessions, merge requests, tasks, channels and conversation text (words of {count} characters or more).',
     everywhere: 'Search everywhere',
     clear: 'Clear',
   },
@@ -35,6 +35,7 @@ export const search = {
   },
   blocked: {
     archived: 'Restore this session to open it',
+    gone: 'This session no longer exists',
   },
   channelMessage: '# {channel} · {author}',
 } as const;

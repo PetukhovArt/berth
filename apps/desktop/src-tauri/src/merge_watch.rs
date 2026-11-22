@@ -34,7 +34,7 @@ pub struct Watched {
     last_wake: Option<String>,
 }
 
-struct Forward(UnboundedSender<WatchEvent>);
+pub struct Forward(pub UnboundedSender<WatchEvent>);
 
 impl Sink<WatchEvent> for Forward {
     fn send(&self, event: WatchEvent) -> bool {

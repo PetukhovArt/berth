@@ -92,7 +92,7 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
     class="result"
     role="option"
     :data-testid="testid"
-    :class="{ compact }"
+    :class="{ compact, counted: conversation !== null }"
     :data-kind="row.kind"
     :data-session-id="row.kind === 'sessions' ? row.entry.node.data?.session?.id : undefined"
     :aria-selected="current"
@@ -120,8 +120,8 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
           </template>
         </span>
       </span>
+      <span v-if="conversation" class="meta count" data-testid="search-matches">{{ conversation.matches }}</span>
       <span class="aside">
-        <span v-if="conversation" class="meta count" data-testid="search-matches">{{ conversation.matches }}</span>
         <span v-if="entity.agent" class="meta">{{ entity.agent }}</span>
         <span v-if="entity.age" class="meta age" :title="entity.age.full">{{ entity.age.text }}</span>
         <StatusIcon v-if="entity.pipeline" :tone="entity.pipeline" />
@@ -147,8 +147,8 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
           </template>
         </span>
       </span>
+      <span class="meta count" data-testid="search-matches">{{ conversation.matches }}</span>
       <span class="aside">
-        <span class="meta count" data-testid="search-matches">{{ conversation.matches }}</span>
         <span v-if="conversation.age" class="meta age" :title="conversation.age.full">{{ conversation.age.text }}</span>
       </span>
     </template>
@@ -271,9 +271,16 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
   font-variant-numeric: tabular-nums;
 }
 
-.count + .age::before {
-  margin-inline-end: var(--vr-space-2);
-  content: '·';
+.count {
+  grid-row: 2;
+  grid-column: 3;
+  align-self: center;
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.counted .sub {
+  grid-column: 2;
 }
 
 .snippets {
@@ -340,8 +347,22 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
   outline-offset: 1px;
 }
 
+@container search-list (max-width: 900px) {
+  .count {
+    grid-row: 1;
+  }
+
+  .counted .aside {
+    grid-row: 2;
+  }
+}
+
 :root[data-vr-viewport='phone'] .line {
   grid-column: 2 / -1;
+}
+
+:root[data-vr-viewport='phone'] .counted .line {
+  grid-column: 2;
 }
 
 :root[data-vr-viewport='phone'] .sub {

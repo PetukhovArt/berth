@@ -35,7 +35,7 @@ export { canContinueAsAgent, clearHandoff, continueTerminalInDock, handoffOf } f
 export type { OrphanedSession } from './model/orphans';
 export { canMove, moved, pinned, pinnedFirst, unpinned } from './model/projectPins';
 export { METRICS_PANEL, useSessionDock } from './model/sessionDock';
-export { MIN_MESSAGE_QUERY, searchMessages } from './model/messageSearch';
+export { MIN_MESSAGE_QUERY, isSearchableMessageQuery, searchMessages } from './model/messageSearch';
 export type { MessageHit, MessageSearch } from './model/messageSearch';
 export { useAction } from './model/useAction';
 export { addProject, addWorkspace, openWorkspace, removeProject, removeWorkspace, renameProject, renameWorkspace, setProjectPins, useOpenWorkspace } from './model/workspaces';

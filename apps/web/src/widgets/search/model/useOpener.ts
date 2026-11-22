@@ -9,6 +9,11 @@ const SHORT_ID = 8;
 
 type Conversation = Pick<ExternalSession, 'harness' | 'id' | 'title'>;
 
+const conversationKeyOfAgent = (agent: { id: string; kind: string; session_id?: string | null }): string | null => {
+  if (agent.kind === 'acp') return `acp:${agent.id}`;
+  return agent.session_id ? `${agent.kind}:${agent.session_id}` : null;
+};
+
 const ACTIONS: Readonly<Record<string, () => void>> = { cleanup: openCleanup };
 
 export function useOpener() {
@@ -18,7 +23,10 @@ export function useOpener() {
 
   const owners = computed(() => {
     const byConversation = new Map<string, { id: string; name: string; archived: boolean }>();
-    for (const agent of berth?.entities.value.agents.values() ?? []) if (agent.session_id) byConversation.set(`${agent.kind}:${agent.session_id}`, agent);
+    for (const agent of berth?.entities.value.agents.values() ?? []) {
+      const key = conversationKeyOfAgent(agent);
+      if (key) byConversation.set(key, agent);
+    }
     return byConversation;
   });
 
@@ -33,25 +41,35 @@ export function useOpener() {
     const { session, external, linked } = node.data ?? {};
     if (external) return `${external.harness}:${external.id}`;
     const agent = session ? berth?.entities.value.agents.get(session.id) : undefined;
-    if (agent?.session_id) return `${agent.kind}:${agent.session_id}`;
+    const own = agent ? conversationKeyOfAgent(agent) : null;
+    if (own) return own;
     return linked ? `${linked.harness}:${linked.id}` : null;
   }
 
   function hitTitle(hit: MessageHit): string {
     const owner = owners.value.get(`${hit.harness}:${hit.session}`);
-    const listed = external?.anyByKey.value.get(externalKey({ harness: hit.harness, id: hit.session }));
+    const listed = hit.harness === 'acp' ? undefined : external?.anyByKey.value.get(externalKey({ harness: hit.harness, id: hit.session }));
     return owner?.name ?? listed?.title ?? hit.title ?? `${hit.harness} ${hit.session.slice(0, SHORT_ID)}`;
   }
 
   function openHit(hit: MessageHit) {
-    const ref: Conversation = { harness: hit.harness, id: hit.session, title: hitTitle(hit) };
     const owner = owners.value.get(`${hit.harness}:${hit.session}`);
     const node = owner && !owner.archived ? berth?.sessions.value.get(sessionKey({ Agent: owner.id })) : undefined;
+    if (hit.harness === 'acp') {
+      if (node) dock.openSession(node);
+      return;
+    }
+    const ref: Conversation = { harness: hit.harness, id: hit.session, title: hitTitle(hit) };
     if (node) dock.openLinkedConversation(node, ref);
     else dock.openExternal(external?.anyByKey.value.get(externalKey(ref)) ?? ref);
   }
 
   function blockedReason(row: SearchRow): string | null {
+    if (row.kind === 'messages' && row.head.harness === 'acp') {
+      const owner = owners.value.get(`acp:${row.head.session}`);
+      if (!owner) return t('search.blocked.gone');
+      return owner.archived ? t('search.blocked.archived') : null;
+    }
     if (row.kind !== 'sessions' || row.entry.node.kind !== 'archived') return null;
     return conversationOfArchived(row.entry.node) ? null : t('search.blocked.archived');
   }

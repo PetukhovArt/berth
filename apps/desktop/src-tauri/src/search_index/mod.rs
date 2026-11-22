@@ -1,3 +1,4 @@
+mod acp;
 mod indexer;
 mod query;
 mod store;

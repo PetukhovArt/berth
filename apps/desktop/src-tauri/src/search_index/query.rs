@@ -4,15 +4,23 @@ use serde::Serialize;
 use tokio::task::spawn_blocking;
 
 use super::store;
-use crate::agent_sessions::{Harness, Role};
+use crate::agent_sessions::Role;
 
 const DEFAULT_LIMIT: u32 = 100;
 const MAX_LIMIT: u32 = 500;
 const TERM_CHARS: usize = 3;
 
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "lowercase")]
+enum HitHarness {
+    Claude,
+    Codex,
+    Acp,
+}
+
 #[derive(Debug, Serialize)]
 pub struct MessageHit {
-    harness: Harness,
+    harness: HitHarness,
     session: String,
     key: String,
     role: Role,
@@ -58,10 +66,11 @@ fn terms(query: &str) -> Option<Terms> {
     })
 }
 
-fn harness_of(name: &str) -> Option<Harness> {
+fn harness_of(name: &str) -> Option<HitHarness> {
     match name {
-        "claude" => Some(Harness::Claude),
-        "codex" => Some(Harness::Codex),
+        "claude" => Some(HitHarness::Claude),
+        "codex" => Some(HitHarness::Codex),
+        "acp" => Some(HitHarness::Acp),
         _ => None,
     }
 }

@@ -2,17 +2,23 @@ use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use rusqlite::{params, Connection};
 use serde_json::Value;
+use tokio::runtime::Handle;
+use tokio::sync::mpsc::unbounded_channel;
 use tokio::task::spawn_blocking;
 
+use super::acp::{self, AcpAgent, Daemon, Roster};
 use super::store;
 use crate::agent_sessions::{
     claude_messages, codex_messages, session_facts, transcript_files, Harness, Role,
     TranscriptMessage,
 };
+use crate::berth::{self, Berth};
+use crate::merge_watch::Forward;
 
 const TICK: Duration = Duration::from_secs(30);
 const LOCK_RETRY: Duration = Duration::from_secs(60);
@@ -27,10 +33,10 @@ struct Listed {
     mtime: i64,
 }
 
-struct Known {
+pub struct Known {
     size: i64,
-    mtime: i64,
-    offset: i64,
+    pub mtime: i64,
+    pub offset: i64,
 }
 
 enum Plan {
@@ -48,16 +54,27 @@ pub async fn run() {
         return;
     }
     let _one_writer = writer_lock().await;
+    let berth = Arc::new(Berth::spawn());
+    let (events_tx, mut events) = unbounded_channel();
+    berth::berth_watch(&berth, Box::new(Forward(events_tx)));
+    let daemon = Arc::new(Daemon::new(berth, Handle::current()));
+    let mut roster = Roster::default();
     let mut tick = tokio::time::interval(TICK);
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     loop {
-        tick.tick().await;
-        let outcome = spawn_blocking(sweep)
-            .await
-            .map_err(|error| error.to_string())
-            .and_then(|swept| swept);
-        if let Err(error) = outcome {
-            eprintln!("search index: {error}");
+        tokio::select! {
+            Some(event) = events.recv() => roster.apply(event),
+            _ = tick.tick() => {
+                let agents = roster.acp_agents();
+                let daemon = daemon.clone();
+                let outcome = spawn_blocking(move || sweep(agents, &daemon))
+                    .await
+                    .map_err(|error| error.to_string())
+                    .and_then(|swept| swept);
+                if let Err(error) = outcome {
+                    eprintln!("search index: {error}");
+                }
+            }
         }
     }
 }
@@ -86,9 +103,9 @@ fn try_writer_lock() -> Option<File> {
     Some(file)
 }
 
-fn sweep() -> Result<(), String> {
+fn sweep(agents: Option<Vec<AcpAgent>>, daemon: &Daemon) -> Result<(), String> {
     let mut conn = store::open_writer()?;
-    match pass(&mut conn) {
+    match pass(&mut conn, agents, daemon) {
         Ok(()) => Ok(()),
         Err(error) if store::is_corrupt(&error) => {
             drop(conn);
@@ -150,15 +167,23 @@ fn plan(file: &Listed, known: Option<&Known>) -> Plan {
 fn forget_removed(
     conn: &mut Connection,
     listed: &[Listed],
+    agents: Option<&[AcpAgent]>,
     known: &mut HashMap<String, Known>,
 ) -> rusqlite::Result<()> {
-    if listed.is_empty() {
-        return Ok(());
-    }
-    let present: HashSet<&str> = listed.iter().map(|file| file.key.as_str()).collect();
+    let files: HashSet<&str> = listed.iter().map(|file| file.key.as_str()).collect();
+    let sessions: Option<HashSet<String>> =
+        agents.map(|agents| agents.iter().map(AcpAgent::key).collect());
     let gone: Vec<String> = known
         .keys()
-        .filter(|key| !present.contains(key.as_str()))
+        .filter(|key| {
+            if acp::is_key(key) {
+                sessions
+                    .as_ref()
+                    .is_some_and(|present| !present.contains(*key))
+            } else {
+                !listed.is_empty() && !files.contains(key.as_str())
+            }
+        })
         .cloned()
         .collect();
     if gone.is_empty() {
@@ -176,10 +201,14 @@ fn forget_removed(
     tx.commit()
 }
 
-fn pass(conn: &mut Connection) -> rusqlite::Result<()> {
+fn pass(
+    conn: &mut Connection,
+    agents: Option<Vec<AcpAgent>>,
+    daemon: &Daemon,
+) -> rusqlite::Result<()> {
     let listed = listing();
     let mut known = load_known(conn)?;
-    forget_removed(conn, &listed, &mut known)?;
+    forget_removed(conn, &listed, agents.as_deref(), &mut known)?;
     let mut budget = TICK_BYTES;
     let mut caught_up = 0u32;
     for file in &listed {
@@ -198,9 +227,18 @@ fn pass(conn: &mut Connection) -> rusqlite::Result<()> {
             caught_up += 1;
         }
     }
+    let conversations = agents.unwrap_or_default();
+    for agent in &conversations {
+        if acp::index(conn, daemon, agent, known.get(&agent.key()))? {
+            caught_up += 1;
+        }
+    }
     conn.execute(
         "UPDATE progress SET indexed = ?1, total = ?2",
-        params![caught_up, u32::try_from(listed.len()).unwrap_or(u32::MAX)],
+        params![
+            caught_up,
+            u32::try_from(listed.len() + conversations.len()).unwrap_or(u32::MAX)
+        ],
     )?;
     Ok(())
 }

@@ -12,6 +12,7 @@ import { openSearch } from '../model/panel';
 import type { SearchAction, SearchKind, SearchRow, SearchScope } from '../model/rows';
 import { useSearch } from '../model/useSearch';
 import SearchEmpty from './SearchEmpty.vue';
+import SearchNotes from './SearchNotes.vue';
 import SearchResult from './SearchResult.vue';
 
 type PaletteItem = SearchRow | { id: string; kind: 'all' };
@@ -35,7 +36,8 @@ const actions = computed<readonly SearchAction[]>(() => (isDesktop ? [{ key: 'cl
 const search = useSearch({ query, scope, files, actions, browse: true, limit: (kind: SearchKind) => (kind === 'sessions' ? SESSION_LIMIT : GROUP_LIMIT) });
 const { text, groups, rows } = search;
 
-const results = computed<readonly PaletteItem[]>(() => (text.value && !search.nothing.value ? [...rows.value, ALL] : rows.value));
+const showAll = computed(() => text.value.length > 0 && search.total.value > 0);
+const results = computed<readonly PaletteItem[]>(() => (showAll.value ? [...rows.value, ALL] : rows.value));
 const positions = computed(() => new Map(results.value.map((item, at) => [item.id, at])));
 
 function clear() {
@@ -56,13 +58,13 @@ function choose(item: PaletteItem | undefined) {
 }
 
 function onPanelKey(event: KeyboardEvent) {
-  if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey) || !text.value) return;
+  if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) return;
   event.preventDefault();
   event.stopPropagation();
-  openAll();
+  if (text.value) openAll();
 }
 
-const { index, onKey } = usePickerList({ results, query, list, choose, close: () => emit('close') });
+const { index, onKey } = usePickerList({ results, query, scope, idOf: (item) => item.id, list, choose, close: () => emit('close') });
 
 async function loadFiles() {
   const worktree = activeWorktree.value;
@@ -93,11 +95,19 @@ onMounted(() => {
           type="text"
           autocomplete="off"
           :placeholder="t('search.placeholder')"
-          :aria-label="t('files.switcher.search')"
+          :aria-label="t('search.query')"
           data-testid="quick-switcher-input"
           @keydown="onKey"
         />
       </div>
+      <SearchNotes
+        :too-short="search.tooShort.value"
+        :searching="search.searching.value"
+        :progress="search.progress.value"
+        :error="search.messageError.value"
+        compact
+        @retry="search.retryMessages"
+      />
       <ul ref="list" v-auto-animate class="results vr-sheet-body" role="listbox">
         <template v-for="group in groups" :key="group.kind">
           <li class="group" role="presentation">
@@ -120,8 +130,11 @@ onMounted(() => {
             @open-conversation="choose(search.foldedInto(row) ?? row)"
           />
         </template>
-        <li v-if="search.nothing.value" class="none" role="presentation"><SearchEmpty :query="text" :can-widen="scope !== 'all'" @widen="scope = 'all'" @clear="clear" /></li>
-        <li v-if="text && !search.nothing.value" class="all" role="option" :aria-selected="positions.get(ALL.id) === index" :data-current="positions.get(ALL.id) === index" data-testid="quick-switcher-all" @pointermove="index = positions.get(ALL.id) ?? 0" @click="choose(ALL)">
+        <li v-if="search.nothing.value" class="none" role="presentation">
+          <p v-if="!text" class="hint" data-testid="quick-switcher-hint-empty">{{ t('search.hint') }}</p>
+          <SearchEmpty v-else :query="text" :can-widen="scope !== 'all'" @widen="scope = 'all'" @clear="clear" />
+        </li>
+        <li v-if="showAll" class="all" role="option" :aria-selected="positions.get(ALL.id) === index" :data-current="positions.get(ALL.id) === index" data-testid="quick-switcher-all" @pointermove="index = positions.get(ALL.id) ?? 0" @click="choose(ALL)">
           <ArrowRight :size="14" class="all-icon" />
           <span>{{ t('search.allResults', { count: formatNumber(search.total.value) }) }}</span>
         </li>
@@ -180,6 +193,7 @@ onMounted(() => {
 }
 
 .results {
+  container: search-list / inline-size;
   --all-row: calc(var(--vr-size-row) + var(--vr-space-1));
   position: relative;
   max-height: 50vh;
@@ -235,6 +249,15 @@ onMounted(() => {
 
 .none {
   display: flex;
+}
+
+.hint {
+  flex: 1;
+  margin: 0;
+  padding: var(--vr-space-4) var(--vr-space-3);
+  color: var(--vr-color-text-muted);
+  font-size: var(--vr-font-size-xs);
+  text-align: center;
 }
 
 .footer {

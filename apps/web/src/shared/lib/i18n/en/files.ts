@@ -44,7 +44,6 @@ export const files = {
     none: 'No Markdown files in this worktree',
   },
   switcher: {
-    search: 'Search sessions and files',
     hint: 'Enter opens, Ctrl+Enter shows all results',
   },
 } as const;

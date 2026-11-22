@@ -1,35 +1,34 @@
 import { computed, onScopeDispose, shallowRef, watch, type Ref } from 'vue';
-import { MIN_MESSAGE_QUERY, describeError, searchMessages, type MessageSearch } from '../../../entities/session';
+import { describeError, isSearchableMessageQuery, searchMessages, type MessageSearch } from '../../../entities/session';
 
 const MESSAGE_LIMIT = 500;
 const DEBOUNCE_MS = 200;
-const POLL_MS = 3000;
-const MAX_POLLS = 10;
+const INDEX_TICK_MS = 30_000;
 
 export function useTranscriptSearch(query: Ref<string>) {
-  const result = shallowRef<MessageSearch | null>(null);
+  const found = shallowRef<MessageSearch | null>(null);
   const answered = shallowRef('');
   const error = shallowRef<string | null>(null);
   const busy = shallowRef(false);
   const needle = computed(() => {
     const text = query.value.trim();
-    return text.length >= MIN_MESSAGE_QUERY ? text : '';
+    return isSearchableMessageQuery(text) ? text : '';
   });
-  const stale = computed(() => answered.value !== needle.value);
+  const result = computed(() => (needle.value && answered.value === needle.value ? found.value : null));
   let run = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
-  function fetchNow(text: string, polls: number) {
+  function fetchNow(text: string) {
     const mine = ++run;
-    busy.value = true;
+    busy.value = result.value === null;
     searchMessages(text, MESSAGE_LIMIT).then(
-      (found) => {
+      (answer) => {
         if (mine !== run) return;
-        result.value = found;
+        found.value = answer;
         answered.value = text;
         error.value = null;
         busy.value = false;
-        if (found.indexed < found.total && polls < MAX_POLLS) timer = setTimeout(() => fetchNow(text, polls + 1), POLL_MS);
+        if (answer.indexed < answer.total || answer.total === 0) timer = setTimeout(() => fetchNow(text), INDEX_TICK_MS);
       },
       (failure: unknown) => {
         if (mine !== run) return;
@@ -44,18 +43,18 @@ export function useTranscriptSearch(query: Ref<string>) {
     run++;
     error.value = null;
     if (!text) {
-      result.value = null;
+      found.value = null;
       answered.value = '';
       busy.value = false;
       return;
     }
-    busy.value = true;
-    timer = setTimeout(() => fetchNow(text, 0), DEBOUNCE_MS);
+    busy.value = result.value === null;
+    timer = setTimeout(() => fetchNow(text), DEBOUNCE_MS);
   }, { immediate: true });
 
   function retry() {
     clearTimeout(timer);
-    if (needle.value) fetchNow(needle.value, 0);
+    if (needle.value) fetchNow(needle.value);
   }
 
   onScopeDispose(() => {
@@ -63,5 +62,5 @@ export function useTranscriptSearch(query: Ref<string>) {
     run++;
   });
 
-  return { result, error, busy, stale, retry };
+  return { result, error, busy, retry };
 }

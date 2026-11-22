@@ -1,10 +1,10 @@
 import { computed, shallowRef, watch, type Ref } from 'vue';
-import { MIN_MESSAGE_QUERY, useLoadedChannelMessages, type MessageHit } from '../../../entities/session';
+import { isSearchableMessageQuery, useLoadedChannelMessages, type MessageHit } from '../../../entities/session';
 import { quickItems, useWorkTree, type QuickItem } from '../../../features/work-tree';
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { MarkdownEntry } from '../../../shared/lib/markdownFiles';
 import { rank, wordsOf } from './rank';
-import { KINDS, entityKindOf, type ConversationRow, type SearchAction, type SearchGroup, type SearchKind, type SearchRow, type SearchScope } from './rows';
+import { KINDS, SCOPE_KINDS, entityKindOf, type ConversationRow, type SearchAction, type SearchGroup, type SearchKind, type SearchRow, type SearchScope } from './rows';
 import { useOpener } from './useOpener';
 import { useTranscriptSearch } from './useTranscriptSearch';
 
@@ -129,7 +129,7 @@ export function useSearch(options: SearchOptions) {
     return { into, claimed };
   });
 
-  const total = computed(() => KINDS.reduce((sum, kind) => sum + counts.value[kind], 0) - folds.value.claimed.size);
+  const total = computed(() => SCOPE_KINDS.reduce((sum, kind) => sum + counts.value[kind], 0) - folds.value.claimed.size);
 
   const groups = computed<SearchGroup[]>(() =>
     KINDS.filter((kind) => scope.value === 'all' || scope.value === kind).flatMap((kind) => {
@@ -142,9 +142,10 @@ export function useSearch(options: SearchOptions) {
   );
 
   const rows = computed(() => groups.value.flatMap((group) => group.rows));
-  const tooShort = computed(() => wantsMessages.value && text.value.length > 0 && text.value.length < MIN_MESSAGE_QUERY);
+  const tooShort = computed(() => wantsMessages.value && hasText.value && !isSearchableMessageQuery(text.value));
   const waiting = computed(() => wantsMessages.value && transcripts.busy.value && transcripts.result.value === null);
-  const nothing = computed(() => rows.value.length === 0 && !waiting.value && !transcripts.busy.value && !transcripts.error.value);
+  const messageError = computed(() => (wantsMessages.value ? transcripts.error.value : null));
+  const nothing = computed(() => rows.value.length === 0 && !(wantsMessages.value && transcripts.busy.value) && !messageError.value);
   const progress = computed(() => {
     const found = wantsMessages.value ? transcripts.result.value : null;
     return found && found.indexed < found.total ? found : null;
@@ -170,8 +171,7 @@ export function useSearch(options: SearchOptions) {
     searching: waiting,
     nothing,
     progress,
-    messageError: computed(() => (wantsMessages.value ? transcripts.error.value : null)),
-    messagesStale: transcripts.stale,
+    messageError,
     retryMessages: transcripts.retry,
     showAll,
     groupLabel: (group: SearchGroup): string => (group.folded ? t('search.otherConversations') : t(`search.scope.${group.kind}`)),

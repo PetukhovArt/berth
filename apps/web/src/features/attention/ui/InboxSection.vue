@@ -13,7 +13,12 @@ import { inboxCollapsed, openNextNeedingYou, settleInbox, snoozeInbox, useInbox,
 const { t, formatTime } = useI18n();
 const phone = useIsPhone();
 const props = withDefaults(defineProps<{ query?: string }>(), { query: '' });
-const open = computed(() => phone.value || !inboxCollapsed.value || props.query.trim().length > 0);
+const filtering = computed(() => props.query.trim().length > 0);
+const open = computed(() => phone.value || !inboxCollapsed.value || filtering.value);
+
+function toggle() {
+  if (!filtering.value) inboxCollapsed.value = !inboxCollapsed.value;
+}
 const nextShortcut = computed(() => shortcutLabel('inbox.nextWaiting'));
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -84,7 +89,7 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
 <template>
   <section v-if="shown.length || shownChannels.length" class="inbox" data-testid="inbox">
     <div class="head">
-      <UiButton class="toggle" :aria-expanded="open" data-testid="inbox-toggle" @click="inboxCollapsed = !inboxCollapsed">
+      <UiButton class="toggle" :aria-expanded="open" :aria-disabled="filtering" data-testid="inbox-toggle" @click="toggle">
         <ChevronRight :size="14" class="chevron vr-chevron" />
         <span class="title">{{ t('attention.inbox.title') }}</span>
         <span class="count" data-testid="inbox-count">{{ shown.length + shownChannels.length }}</span>
@@ -191,6 +196,11 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
 
 .toggle:hover {
   background: var(--vr-color-nav-hover);
+}
+
+.toggle[aria-disabled='true'] {
+  cursor: default;
+  background: none;
 }
 
 .toggle .chevron {

@@ -47,7 +47,6 @@ export const files: Translation<typeof en> = {
     none: 'В этом рабочем дереве нет Markdown-файлов',
   },
   switcher: {
-    search: 'Поиск сессий и файлов',
     hint: 'Enter открывает, Ctrl+Enter показывает все результаты',
   },
 };

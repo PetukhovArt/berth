@@ -460,7 +460,9 @@ export function quickItems(nodes: readonly WorkNode[], withArchived = false): Qu
         if (seen.has(identity)) continue;
         seen.add(identity);
         const extra = node.data?.item ? ` ${mrText(node.data.item)} ${node.data.review?.refs.join(' ') ?? ''}` : node.data?.external ? ` ${externalText(node.data.external)}` : node.data?.linked ? ` ${externalText(node.data.linked)}` : '';
-        const where = node.kind === 'archived' && node.data?.where ? node.data.where.split(' › ') : crumbs;
+        const walked = node.kind === 'archived' && node.data?.where ? [...crumbs, node.data.where] : crumbs;
+        const branch = node.data?.external?.branch;
+        const where = branch && !walked.includes(branch) ? [...walked, branch] : walked;
         out.push({ key: node.id, node, crumbs: where, search: `${where.join(' › ')} › ${node.label}${extra}`.toLowerCase(), ...quickAgent(node) });
       }
     }

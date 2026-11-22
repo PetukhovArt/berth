@@ -3,15 +3,14 @@ import { computed, nextTick, onMounted, useTemplateRef, watch } from 'vue';
 import { Search } from '../../../shared/ui/icons';
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiInput from '../../../shared/ui/UiInput.vue';
-import ErrorInline from '../../../shared/ui/ErrorInline.vue';
 import { VChipGroup } from '../../../shared/ui/kit';
-import { MIN_MESSAGE_QUERY } from '../../../entities/session';
 import { usePickerList } from '../../../shared/lib/usePickerList';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { searchFocus, searchQuery, searchScope } from '../model/panel';
 import { SCOPE_KINDS, type SearchScope } from '../model/rows';
 import { useSearch } from '../model/useSearch';
 import SearchEmpty from './SearchEmpty.vue';
+import SearchNotes from './SearchNotes.vue';
 import SearchResult from './SearchResult.vue';
 
 const SCOPES: readonly SearchScope[] = ['all', ...SCOPE_KINDS];
@@ -26,6 +25,8 @@ const list = useTemplateRef<HTMLElement>('list');
 const { index, onKey } = usePickerList({
   results: rows,
   query: searchQuery,
+  scope: searchScope,
+  idOf: (row) => row.id,
   list,
   choose: (row) => void search.choose(row),
   close: () => {
@@ -55,17 +56,12 @@ onMounted(() => input.value?.focus());
       </div>
       <VChipGroup v-model="scope" :options="scopeOptions" :label="t('search.scopeLabel')" test-id="search-scope" />
     </header>
-    <div class="notes">
-      <p v-if="search.tooShort.value" class="note" data-testid="search-min-chars">{{ t('search.minChars', { count: MIN_MESSAGE_QUERY }) }}</p>
-      <p v-if="search.searching.value" class="note" role="status" data-testid="search-searching">{{ t('search.searching') }}</p>
-      <p v-if="search.progress.value" class="note" role="status" data-testid="search-indexing">{{ t('search.indexing', { indexed: formatNumber(search.progress.value.indexed), total: formatNumber(search.progress.value.total) }) }}</p>
-      <ErrorInline v-if="search.messageError.value" :message="t('search.failed', { message: search.messageError.value })" data-testid="search-error" @retry="search.retryMessages" />
-    </div>
+    <SearchNotes :too-short="search.tooShort.value" :searching="search.searching.value" :progress="search.progress.value" :error="search.messageError.value" @retry="search.retryMessages" />
     <p v-if="!text" class="empty" data-testid="search-hint">{{ t('search.hint') }}</p>
     <SearchEmpty v-else-if="search.nothing.value" :query="text" :can-widen="searchScope !== 'all'" @widen="searchScope = 'all'" @clear="clearQuery" />
     <ul v-show="rows.length" ref="list" class="results" role="listbox" :aria-label="t('search.title')">
       <template v-for="group in groups" :key="group.kind">
-        <li class="group" role="presentation" :data-testid="`search-group-${group.kind}`" :data-stale="group.kind === 'messages' && search.messagesStale.value">
+        <li class="group" role="presentation" :data-testid="`search-group-${group.kind}`">
           <span class="group-name">{{ search.groupLabel(group) }}</span>
           <span class="group-count">{{ formatNumber(group.total) }}</span>
         </li>
@@ -79,7 +75,6 @@ onMounted(() => input.value?.focus());
           :blocked="search.blockedReason(row)"
           :heading="row.kind === 'messages' ? search.hitTitle(row.head) : ''"
           :folded="search.foldedInto(row)"
-          :data-stale="row.kind === 'messages' && search.messagesStale.value"
           @hover="index = positions.get(row.id) ?? 0"
           @open="search.choose(row)"
           @open-conversation="search.choose(search.foldedInto(row) ?? row)"
@@ -150,17 +145,6 @@ onMounted(() => input.value?.focus());
   outline-offset: 1px;
 }
 
-.notes {
-  flex: none;
-}
-
-.note {
-  margin: 0;
-  padding: var(--vr-space-2) var(--vr-page-gutter);
-  color: var(--vr-color-text-muted);
-  font-size: var(--vr-font-size-xs);
-}
-
 .empty {
   margin: 0;
   padding: var(--vr-space-4) var(--vr-page-gutter);
@@ -168,6 +152,7 @@ onMounted(() => input.value?.focus());
 }
 
 .results {
+  container: search-list / inline-size;
   flex: 1;
   min-height: 0;
   margin: 0;
@@ -189,10 +174,6 @@ onMounted(() => input.value?.focus());
 .group-count {
   font-weight: 400;
   font-variant-numeric: tabular-nums;
-}
-
-[data-stale='true'] {
-  opacity: 0.6;
 }
 
 .more-row {
