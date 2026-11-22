@@ -9,7 +9,7 @@
 - Added leaving and deleting a Channel from its row in the Channels section and with `berth channel leave` and `berth channel delete`: you delete the Channels you made, and the new `channels.delete` permission, held by Admin, deletes any
 - Added `sessions.archiveOnClose`, on by default: closing the tab of an agent ends the session and closing a conversation's tab moves it to its project's Archive; turned off, the close button asks whether to end, archive or delete it
 - Added an Ended group under each project's sessions in the Sessions tree: a session you close, end with `berth end-session` or that is archived after merge goes there, opening it resumes the conversation, and after `session_archive_after` (7 days by default) it moves to the Archive
-- Added Delete forever to the menu of an agent tab's close button, which asks to confirm before it removes the session
+- Added Delete forever in red, below a separator, to the menu of an agent tab's close button, which opens under the button and asks to confirm, saying that the session and its chat history are erased and the worktree stays
 - Added a pinned Inbox in the sidebar: it stays at the top while the Projects tree scrolls, scrolls on its own when it grows past 40% of the window height, and collapses with the chevron on its header (`Alt+J` expands it)
 - Added a Stop button to the Chat composer: while an agent's turn runs and the message box is empty it takes the place of Send and interrupts the turn, which matters on a phone where the Terminal view and its keys are gone
 - Changed `berth upgrade` to install the version the latest release names in `latest.json`, so the command and the desktop app stay on one version (#69)
