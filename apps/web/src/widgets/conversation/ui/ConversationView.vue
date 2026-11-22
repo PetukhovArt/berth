@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplate
 import { Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, TriangleAlert } from '../../../shared/ui/icons';
 import { VButton, VMessage } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
-import { AGENT_KIND_LABEL, clearHandoff, continueInBerth, handoffOf, externalKey, externalOrigin, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, sendInput, useFeedbackRequest, allowRequest, alwaysAllowRequest, offersAlways, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, sessionKey, stopAgent, submitPrompt, useAcpChat, useQueuedPrompts, useSessionStates, type SessionRef, type SlashSource } from '../../../entities/session';
+import { AGENT_KIND_LABEL, clearHandoff, continueInBerth, handoffOf, externalKey, externalOrigin, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, deriveSubagents, stripVisible, sendInput, useFeedbackRequest, allowRequest, alwaysAllowRequest, offersAlways, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, sessionKey, stopAgent, submitPrompt, useAcpChat, useQueuedPrompts, useSessionStates, type SessionRef, type SlashSource } from '../../../entities/session';
 import { worktreeOf } from '../../../features/session-view-switch';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
@@ -11,8 +11,11 @@ import { readAcpAgentLog } from '../../../shared/api/providers';
 import { chatBlocks } from '../model/chatBlocks';
 import { forwardSlashes } from '../../../shared/lib/homePath';
 import { COLUMN_EDGES, COLUMN_GUTTER, useChatColumn, type ColumnEdge } from '../model/chatColumn';
+import { useClock } from '../model/clock';
 import ChatFeed from './ChatFeed.vue';
 import ChatComposer from './ChatComposer.vue';
+import SubagentStrip from './SubagentStrip.vue';
+import SubagentView from './SubagentView.vue';
 
 const TAIL = 200;
 const PIN_PX = 48;
@@ -70,7 +73,9 @@ const running = computed(() => session.value?.running ?? false);
 const agentId = computed(() => (props.terminal && 'Agent' in props.terminal ? props.terminal.Agent : null));
 const agent = computed(() => (agentId.value ? berth?.entities.value.agents.get(agentId.value) : undefined));
 const states = useSessionStates();
-const turnRunning = computed(() => (props.terminal ? states.value.get(sessionKey(props.terminal))?.status === 'running' : false));
+const sessionState = computed(() => (props.terminal ? states.value.get(sessionKey(props.terminal)) : undefined));
+const turnRunning = computed(() => sessionState.value?.status === 'running');
+const live = computed(() => (sessionState.value ? sessionState.value.alive && (sessionState.value.status === 'running' || sessionState.value.status === 'needs_feedback') : running.value));
 const suggestion = computed(() => (agent.value?.status === 'finished' ? (agent.value.suggested_prompt ?? null) : null));
 const command = computed(() => (harness.value ? resumeCommand({ harness: harness.value, id: props.sessionId }) : ''));
 const handoff = computed(() => (session.value ? handoffOf(session.value) : undefined));
@@ -88,6 +93,13 @@ const agentLabel = computed(() => {
 });
 const blocks = computed(() => chatBlocks(messages.value));
 const promptCount = computed(() => blocks.value.filter((block) => block.type === 'prompt').length);
+const roster = computed(() => deriveSubagents(messages.value, live.value));
+const subagentOf = computed(() => new Map(roster.value.all.map((agent) => [agent.callId, agent])));
+const now = useClock((at) => stripVisible(roster.value.current, at));
+const stripAgents = computed(() => (stripVisible(roster.value.current, now.value) ? roster.value.current : []));
+const openedCall = shallowRef<string | null>(null);
+const opened = computed(() => (openedCall.value ? subagentOf.value.get(openedCall.value) : undefined));
+let savedScroll = 0;
 const checkpointOf = computed(() => checkpointsByPrompt(messages.value, checkpoints.value));
 const slashSource = computed<SlashSource | null>(() => {
   if (acp) return { acpAgent: props.sessionId };
@@ -227,6 +239,17 @@ async function sendToAcp(text: string) {
   else await submitPrompt({ Agent: props.sessionId }, text);
 }
 
+function openSubagent(callId: string) {
+  savedScroll = scroller.value?.scrollTop ?? 0;
+  openedCall.value = callId;
+}
+
+async function closeSubagent() {
+  openedCall.value = null;
+  await nextTick();
+  if (scroller.value) scroller.value.scrollTop = savedScroll;
+}
+
 watch(messages, async () => {
   if (!acp) return;
   const el = scroller.value;
@@ -278,12 +301,13 @@ onBeforeUnmount(() => {
       <VMessage v-if="continueError" severity="error" size="small" data-testid="conversation-error">{{ continueError }}</VMessage>
     </header>
     <PlanStrip :plan="plan" />
-    <div class="body" :style="column.style.value" data-testid="chat-body">
+    <SubagentView v-if="opened && harness" :harness="harness" :session-id="sessionId" :agent="opened" :agent-label="agentLabel" :root="root" :panel-id="panelId" :now="now" @close="closeSubagent" />
+    <div v-show="!opened" class="body" :style="column.style.value" data-testid="chat-body">
       <div ref="scroller" class="scroll" data-testid="conversation-scroll">
         <p v-if="loading" class="column state">{{ t('workbench.external.loading') }}</p>
         <p v-else-if="shownError" class="column state error" role="alert">{{ shownError }}</p>
         <p v-else-if="!messages.length" class="column state">{{ t('workbench.external.empty') }}</p>
-        <ChatFeed v-else class="column" :blocks="blocks" :harness="harness" :agent-label="agentLabel" :root="root" :panel-id="panelId" :agent-id="agentId" :checkpoint-of="checkpointOf" :spoken="spoken" @restored="loadCheckpoints" />
+        <ChatFeed v-else class="column" :blocks="blocks" :harness="harness" :agent-label="agentLabel" :root="root" :panel-id="panelId" :agent-id="agentId" :checkpoint-of="checkpointOf" :spoken="spoken" :subagent-of="subagentOf" :now="now" @restored="loadCheckpoints" @open-subagent="openSubagent" />
       </div>
       <div v-if="terminal && request" class="column feedback" data-testid="chat-feedback" :data-kind="request.kind">
         <span class="feedback-text">{{ request.kind === 'Permission' ? t('feedback.permission', { tool: request.title }) : request.title }}</span>
@@ -306,6 +330,7 @@ onBeforeUnmount(() => {
           <UiButton type="button" class="queued-remove" data-testid="queue-remove" @click="removeQueuedPrompt(sessionId, item.id)">{{ t('feedback.queue.remove') }}</UiButton>
         </li>
       </ul>
+      <SubagentStrip v-if="stripAgents.length" class="column" :agents="stripAgents" :now="now" @open="openSubagent" />
       <ChatComposer v-if="terminal" :messages="messages" :suggestion="suggestion" :model-chip="modelChip" :sending="sending" :slash-source="slashSource" :stop="turnRunning ? stop : null" :send="submit" />
       <template v-if="column.box.value && !column.phone.value">
         <div

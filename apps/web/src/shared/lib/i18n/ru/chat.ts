@@ -41,6 +41,20 @@ export const chat: Translation<typeof en> = {
   handsFree: 'Без рук',
   voiceMode: 'Режим голоса',
   sentByVoice: 'голосом',
+  subagents: {
+    strip: 'Агенты работают',
+    running: { one: '{count} работает', few: '{count} работают', many: '{count} работают', other: '{count} работают' },
+    done: '{count} готово',
+    failed: '{count} с ошибкой',
+    stopped: '{count} остановлено',
+    expand: 'Показать субагентов',
+    collapse: 'Скрыть субагентов',
+    open: 'Открыть переписку: {name}',
+    group: { one: '{count} субагент', few: '{count} субагента', many: '{count} субагентов', other: '{count} субагента' },
+    state: { running: 'работает', done: 'готов', failed: 'ошибка', stopped: 'остановлен' },
+    back: 'Назад к чату',
+    noType: 'субагент',
+  },
   slash: {
     list: 'Команды',
     builtIn: {

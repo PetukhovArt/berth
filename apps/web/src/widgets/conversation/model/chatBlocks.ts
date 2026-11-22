@@ -7,6 +7,7 @@ export type ChatBlock =
   | { type: 'prompt'; key: string; message: TranscriptMessage }
   | { type: 'turn'; key: string; seconds: number | null; model: string | null }
   | { type: 'tools'; key: string; calls: ToolCall[]; seconds: number | null }
+  | { type: 'subagents'; key: string; callIds: string[] }
   | { type: 'message'; key: string; message: TranscriptMessage }
   | { type: 'files'; key: string; files: ChangedFile[] };
 
@@ -77,7 +78,18 @@ function turnBlocks(prompt: TranscriptMessage | null, messages: TranscriptMessag
   const model = messages.findLast((message) => message.model)?.model ?? null;
   out.push({ type: 'turn', key: `${first.key}:turn`, seconds: secondsBetween(prompt ?? first, messages.at(-1)), model });
   let group: ToolCall[] | null = null;
+  let subagents: string[] | null = null;
   for (const message of messages) {
+    if (message.subagent) {
+      if (!subagents) {
+        subagents = [];
+        out.push({ type: 'subagents', key: `${message.key}:subagents`, callIds: subagents });
+      }
+      subagents.push(message.subagent.call_id);
+      group = null;
+      continue;
+    }
+    subagents = null;
     if (message.callOf && group) {
       const call = group.findLast((entry) => entry.message.key === message.callOf);
       if (call) {

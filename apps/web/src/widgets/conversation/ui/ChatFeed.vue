@@ -2,12 +2,13 @@
 import { Bot } from '../../../shared/ui/icons';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { HarnessIcon, modelLabel, type Checkpoint, type Harness } from '../../../entities/session';
+import { HarnessIcon, modelLabel, type Checkpoint, type Harness, type Subagent } from '../../../entities/session';
 import type { ChatBlock } from '../model/chatBlocks';
 import { durationLabel } from '../model/duration';
 import ToolGroup from './ToolGroup.vue';
 import TurnFiles from './TurnFiles.vue';
 import CheckpointRow from './CheckpointRow.vue';
+import SubagentGroup from './SubagentGroup.vue';
 
 withDefaults(
   defineProps<{
@@ -19,10 +20,13 @@ withDefaults(
     agentId?: string | null;
     checkpointOf?: ReadonlyMap<string, Checkpoint>;
     spoken?: ReadonlySet<string>;
+    subagentOf: ReadonlyMap<string, Subagent>;
+    now: number;
+    subagentsOpenable?: boolean;
   }>(),
-  { panelId: undefined, agentId: null, checkpointOf: () => new Map(), spoken: () => new Set() },
+  { panelId: undefined, agentId: null, checkpointOf: () => new Map(), spoken: () => new Set(), subagentsOpenable: true },
 );
-const emit = defineEmits<{ restored: [] }>();
+const emit = defineEmits<{ restored: []; openSubagent: [callId: string] }>();
 
 const { t, formatDate } = useI18n();
 </script>
@@ -43,6 +47,7 @@ const { t, formatDate } = useI18n();
         <span v-if="block.seconds !== null" class="turn-time">· {{ durationLabel(block.seconds) }}</span>
       </div>
       <ToolGroup v-else-if="block.type === 'tools'" :calls="block.calls" :seconds="block.seconds" :root="root" />
+      <SubagentGroup v-else-if="block.type === 'subagents'" :agents="block.callIds.flatMap((callId) => subagentOf.get(callId) ?? [])" :now="now" :openable="subagentsOpenable" @open="emit('openSubagent', $event)" />
       <TurnFiles v-else-if="block.type === 'files'" :files="block.files" :root="root" :panel-id="panelId" />
       <div v-else class="message" :data-role="block.message.role" :title="block.message.at ? formatDate(block.message.at) : undefined" data-testid="conversation-message">
         <RichContent v-if="block.message.shell && block.message.markdown" class="shell" :data-shell="block.message.shell" :markdown="block.message.markdown" />
