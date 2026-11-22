@@ -393,6 +393,7 @@ pub fn run() {
             agent_session_watch,
             agent_session_transcript,
             search_conversations,
+            agent_subagent_transcript,
             slash_commands,
             jira_search,
             jira_issue,

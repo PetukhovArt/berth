@@ -109,6 +109,10 @@ export function readTranscript(session: Pick<ExternalSession, 'harness' | 'id'>,
   return invoke<TranscriptMessage[]>('agent_session_transcript', { harness: session.harness, id: session.id, tail, reach }).then(withShellBlocks);
 }
 
+export function readSubagentTranscript(session: Pick<ExternalSession, 'harness' | 'id'>, callId: string, tail = 200): Promise<TranscriptMessage[] | null> {
+  return invoke<TranscriptMessage[] | null>('agent_subagent_transcript', { harness: session.harness, id: session.id, callId, tail }).then((messages) => (messages ? withShellBlocks(messages) : null));
+}
+
 export async function continueInBerth(session: ExternalSession, target: ExternalTarget): Promise<SessionRef> {
   return { Agent: await resumeConversation(session, target.worktreeId) };
 }

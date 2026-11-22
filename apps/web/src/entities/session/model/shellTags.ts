@@ -1,5 +1,13 @@
 type ShellKind = 'command' | 'output';
 export type FileEdit = { path: string; additions: number; deletions: number };
+export type SubagentFacts = {
+  call_id: string;
+  description: string;
+  kind: string | null;
+  model: string | null;
+  background: boolean;
+  report?: { status: string; waiting: boolean; at: string | null };
+};
 export type ShellMessage = {
   key: string;
   role: 'user' | 'assistant';
@@ -14,6 +22,7 @@ export type ShellMessage = {
   toolKind?: string;
   callOf?: string;
   exit?: number;
+  subagent?: SubagentFacts;
 };
 
 const TAGS = ['bash-input', 'bash-stdout', 'bash-stderr', 'local-command-stdout', 'local-command-stderr', 'local-command-caveat', 'command-name', 'command-message', 'command-args'] as const;

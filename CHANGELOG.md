@@ -9,6 +9,7 @@
 - Added leaving and deleting a Channel from its row in the Channels section and with `berth channel leave` and `berth channel delete`: you delete the Channels you made, and the new `channels.delete` permission, held by Admin, deletes any
 - Added `sessions.archiveOnClose`, on by default: closing the tab of an agent ends the session and closing a conversation's tab moves it to its project's Archive; turned off, the close button asks whether to end, archive or delete it
 - Added an Ended group under each project's sessions in the Sessions tree: a session you close, end with `berth end-session` or that is archived after merge goes there, opening it resumes the conversation, and after `session_archive_after` (7 days by default) it moves to the Archive
+- Added `sessions.mrEndedSession`: when Open in session finds only an Ended session in the merge request's worktree it asks whether to continue it or start a new session, or always does one of the two
 - Added Delete forever in red, below a separator, to the menu of an agent tab's close button, which opens under the button and asks to confirm, saying that the session and its chat history are erased and the worktree stays
 - Added a pinned Inbox in the sidebar: it stays at the top while the Projects tree scrolls, scrolls on its own when it grows past 40% of the window height, and collapses with the chevron on its header (`Alt+J` expands it)
 - Added a Stop button to the Chat composer: while an agent's turn runs and the message box is empty it takes the place of Send and interrupts the turn, which matters on a phone where the Terminal view and its keys are gone
@@ -20,6 +21,8 @@
 - Changed `berth channel grant` to refuse a colleague whose role on the hub does not include `agents.instruct`; a granted colleague's messages arrive as quoted information again once their role loses it
 - Changed `berth hub devices` to list each device's role and the hub's roles, and `--admin-token` to also accept the device token of anyone whose role includes `admin.manage`
 - Changed the Channel view to disable Send and the Task note button, and say why, when your role on the hub does not allow them
+- Changed the session tabs to stay at least 168 px wide and to show the full name in a tooltip, so similar names can be told apart; tabs that do not fit go to the overflow menu
+- Changed the status marks of sessions to differ in colour: the Sessions tree writes running in green, new in blue, finished in grey and stopped in a dim warm grey, and new and stopped sessions keep those colours on their tabs; a session in the Ended group gets its own pink mark
 - Changed a team hub from before roles: on first start it keeps a copy of its database as `<db>.v1.bak` and makes every approved device a Member, read-only ones included; upgrade `berth` on the admin's machine together with the hub
 - Changed the New session dialog to fetch the base branch of a new Worktree while it is open, so creating the Worktree no longer waits for the fetch (it is reused for 2 minutes)
 - Changed the Session screen on a phone to hide the rows of project tabs above the Chat view: go back with the header arrow and pick another Session from the Sessions list

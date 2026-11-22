@@ -13,7 +13,7 @@ const { open, dismiss } = useOpenInSession();
 </script>
 
 <template>
-  <div class="notice" :data-state="run.busy ? 'busy' : run.error ? 'error' : run.needsProject ? 'project' : 'warning'" role="status" data-testid="mr-session-notice">
+  <div class="notice" :data-state="run.busy ? 'busy' : run.error ? 'error' : run.needsProject ? 'project' : run.endedChoice ? 'choice' : 'warning'" role="status" data-testid="mr-session-notice">
     <div class="head">
       <LoaderCircle v-if="run.busy" :size="12" class="spin" />
       <TriangleAlert v-else :size="12" />
@@ -23,7 +23,11 @@ const { open, dismiss } = useOpenInSession();
     <p v-if="run.message" class="text" data-testid="mr-session-message">{{ run.message }}</p>
     <p v-if="run.error" class="text error" role="alert" data-testid="mr-session-error">{{ run.error }}</p>
     <p v-if="run.warning" class="text warning" data-testid="mr-session-warning">{{ run.warning }}</p>
-    <div v-if="!run.busy && (run.error || run.needsProject)" class="actions">
+    <div v-if="!run.busy && run.endedChoice" class="actions">
+      <VButton :label="t('forge.openSession.continueEnded')" size="small" severity="secondary" data-testid="mr-session-continue" @click="open(run.item, run.refs, 'continue')" />
+      <VButton :label="t('forge.openSession.newSession')" size="small" text severity="secondary" data-testid="mr-session-new" @click="open(run.item, run.refs, 'new')" />
+    </div>
+    <div v-else-if="!run.busy && (run.error || run.needsProject)" class="actions">
       <slot v-if="run.needsProject" name="project" :repo="run.needsProject" />
       <VButton :label="t('forge.openSession.retry')" size="small" text severity="secondary" data-testid="mr-session-retry" @click="open(run.item, run.refs)" />
     </div>

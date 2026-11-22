@@ -1,22 +1,21 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
-import { Bot, Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, TriangleAlert } from '../../../shared/ui/icons';
+import { Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, TriangleAlert } from '../../../shared/ui/icons';
 import { VButton, VMessage } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
-import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
-import { AGENT_KIND_LABEL, clearHandoff, clearMessageFocus, messageFocusOf, continueInBerth, handoffOf, externalKey, externalOrigin, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, sendInput, useFeedbackRequest, allowRequest, alwaysAllowRequest, offersAlways, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, sessionKey, stopAgent, submitPrompt, useAcpChat, useQueuedPrompts, useSessionStates, type SessionRef, type SlashSource } from '../../../entities/session';
+import { AGENT_KIND_LABEL, clearHandoff, clearMessageFocus, messageFocusOf, continueInBerth, handoffOf, externalKey, externalOrigin, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, deriveSubagents, stripVisible, sendInput, useFeedbackRequest, allowRequest, alwaysAllowRequest, offersAlways, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, sessionKey, stopAgent, submitPrompt, useAcpChat, useQueuedPrompts, useSessionStates, type SessionRef, type SlashSource } from '../../../entities/session';
 import { worktreeOf } from '../../../features/session-view-switch';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { readAcpAgentLog } from '../../../shared/api/providers';
 import { chatBlocks } from '../model/chatBlocks';
 import { forwardSlashes } from '../../../shared/lib/homePath';
-import { durationLabel } from '../model/duration';
 import { COLUMN_EDGES, COLUMN_GUTTER, useChatColumn, type ColumnEdge } from '../model/chatColumn';
-import ToolGroup from './ToolGroup.vue';
-import TurnFiles from './TurnFiles.vue';
-import CheckpointRow from './CheckpointRow.vue';
+import { useClock } from '../model/clock';
+import ChatFeed from './ChatFeed.vue';
 import ChatComposer from './ChatComposer.vue';
+import SubagentStrip from './SubagentStrip.vue';
+import SubagentView from './SubagentView.vue';
 
 const TAIL = 200;
 const PIN_PX = 48;
@@ -82,7 +81,9 @@ const running = computed(() => session.value?.running ?? false);
 const agentId = computed(() => (props.terminal && 'Agent' in props.terminal ? props.terminal.Agent : null));
 const agent = computed(() => (agentId.value ? berth?.entities.value.agents.get(agentId.value) : undefined));
 const states = useSessionStates();
-const turnRunning = computed(() => (props.terminal ? states.value.get(sessionKey(props.terminal))?.status === 'running' : false));
+const sessionState = computed(() => (props.terminal ? states.value.get(sessionKey(props.terminal)) : undefined));
+const turnRunning = computed(() => sessionState.value?.status === 'running');
+const live = computed(() => (sessionState.value ? sessionState.value.alive && (sessionState.value.status === 'running' || sessionState.value.status === 'needs_feedback') : running.value));
 const suggestion = computed(() => (agent.value?.status === 'finished' ? (agent.value.suggested_prompt ?? null) : null));
 const command = computed(() => (harness.value ? resumeCommand({ harness: harness.value, id: props.sessionId }) : ''));
 const handoff = computed(() => (session.value ? handoffOf(session.value) : undefined));
@@ -100,6 +101,13 @@ const agentLabel = computed(() => {
 });
 const blocks = computed(() => chatBlocks(messages.value));
 const promptCount = computed(() => blocks.value.filter((block) => block.type === 'prompt').length);
+const roster = computed(() => deriveSubagents(messages.value, live.value));
+const subagentOf = computed(() => new Map(roster.value.all.map((agent) => [agent.callId, agent])));
+const now = useClock((at) => stripVisible(roster.value.current, at));
+const stripAgents = computed(() => (stripVisible(roster.value.current, now.value) ? roster.value.current : []));
+const openedCall = shallowRef<string | null>(null);
+const opened = computed(() => (openedCall.value ? subagentOf.value.get(openedCall.value) : undefined));
+let savedScroll = 0;
 const checkpointOf = computed(() => checkpointsByPrompt(messages.value, checkpoints.value));
 const slashSource = computed<SlashSource | null>(() => {
   if (acp) return { acpAgent: props.sessionId };
@@ -301,6 +309,17 @@ async function sendToAcp(text: string) {
   else await submitPrompt({ Agent: props.sessionId }, text);
 }
 
+function openSubagent(callId: string) {
+  savedScroll = scroller.value?.scrollTop ?? 0;
+  openedCall.value = callId;
+}
+
+async function closeSubagent() {
+  openedCall.value = null;
+  await nextTick();
+  if (scroller.value) scroller.value.scrollTop = savedScroll;
+}
+
 watch(messages, async () => {
   if (!acp) return;
   const el = scroller.value;
@@ -353,34 +372,13 @@ onBeforeUnmount(() => {
       <VMessage v-if="continueError" severity="error" size="small" data-testid="conversation-error">{{ continueError }}</VMessage>
     </header>
     <PlanStrip :plan="plan" />
-    <div class="body" :style="column.style.value" data-testid="chat-body">
+    <SubagentView v-if="opened && harness" :harness="harness" :session-id="sessionId" :agent="opened" :agent-label="agentLabel" :root="root" :panel-id="panelId" :now="now" @close="closeSubagent" />
+    <div v-show="!opened" class="body" :style="column.style.value" data-testid="chat-body">
       <div ref="scroller" class="scroll" data-testid="conversation-scroll">
         <p v-if="loading" class="column state">{{ t('workbench.external.loading') }}</p>
         <p v-else-if="shownError" class="column state error" role="alert">{{ shownError }}</p>
         <p v-else-if="!messages.length" class="column state">{{ t('workbench.external.empty') }}</p>
-        <ol v-else class="column messages" data-testid="conversation-messages">
-          <li v-for="block in blocks" :key="block.key" class="block" :data-block="block.type" :data-key="block.key" :data-found="block.key === found || undefined">
-            <div v-if="block.type === 'prompt'" class="message" data-role="user" :title="block.message.at ? formatDate(block.message.at) : undefined" data-testid="conversation-message">
-              <RichContent v-if="block.message.shell && block.message.markdown" class="shell" :data-shell="block.message.shell" :markdown="block.message.markdown" />
-              <p v-else class="user">{{ block.message.text }}</p>
-              <span v-if="spoken.has(block.message.text.trim())" class="spoken" data-testid="conversation-spoken">{{ t('chat.sentByVoice') }}</span>
-              <CheckpointRow v-if="agentId && checkpointOf.get(block.message.key)" :agent-id="agentId" :checkpoint="checkpointOf.get(block.message.key)!" @restored="loadCheckpoints" />
-            </div>
-            <div v-else-if="block.type === 'turn'" class="turn" :title="block.model ? modelLabel(block.model) : undefined" data-testid="conversation-turn">
-              <HarnessIcon v-if="harness" :harness="harness" :size="14" />
-              <Bot v-else :size="14" />
-              <span>{{ agentLabel }}</span>
-              <span v-if="block.seconds !== null" class="turn-time">· {{ durationLabel(block.seconds) }}</span>
-            </div>
-            <ToolGroup v-else-if="block.type === 'tools'" :calls="block.calls" :seconds="block.seconds" :root="root" />
-            <TurnFiles v-else-if="block.type === 'files'" :files="block.files" :root="root" :panel-id="panelId" />
-            <div v-else class="message" :data-role="block.message.role" :title="block.message.at ? formatDate(block.message.at) : undefined" data-testid="conversation-message">
-              <RichContent v-if="block.message.shell && block.message.markdown" class="shell" :data-shell="block.message.shell" :markdown="block.message.markdown" />
-              <p v-else-if="block.message.role === 'user'" class="user">{{ block.message.text }}</p>
-              <RichContent v-else class="assistant" :markdown="block.message.text" />
-            </div>
-          </li>
-        </ol>
+        <ChatFeed v-else class="column" :blocks="blocks" :harness="harness" :agent-label="agentLabel" :root="root" :panel-id="panelId" :agent-id="agentId" :checkpoint-of="checkpointOf" :spoken="spoken" :subagent-of="subagentOf" :now="now" :found="found" @restored="loadCheckpoints" @open-subagent="openSubagent" />
       </div>
       <div v-if="terminal && request" class="column feedback" data-testid="chat-feedback" :data-kind="request.kind">
         <span class="feedback-text">{{ request.kind === 'Permission' ? t('feedback.permission', { tool: request.title }) : request.title }}</span>
@@ -403,6 +401,7 @@ onBeforeUnmount(() => {
           <UiButton type="button" class="queued-remove" data-testid="queue-remove" @click="removeQueuedPrompt(sessionId, item.id)">{{ t('feedback.queue.remove') }}</UiButton>
         </li>
       </ul>
+      <SubagentStrip v-if="stripAgents.length" class="column" :agents="stripAgents" :now="now" @open="openSubagent" />
       <ChatComposer v-if="terminal" :messages="messages" :suggestion="suggestion" :model-chip="modelChip" :sending="sending" :slash-source="slashSource" :stop="turnRunning ? stop : null" :send="submit" />
       <template v-if="column.box.value && !column.phone.value">
         <div
@@ -686,89 +685,6 @@ onBeforeUnmount(() => {
 
 .state.error {
   color: var(--vr-color-danger);
-}
-
-.messages {
-  display: flex;
-  flex-direction: column;
-  gap: var(--vr-space-2);
-  margin-top: 0;
-  margin-bottom: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.column.messages :deep(.rich-content .body :is(p, ul, ol, dl, blockquote, h1, h2, h3, h4, h5, h6)) {
-  max-width: none;
-}
-
-.block[data-block='prompt'] {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  align-self: flex-end;
-  max-width: 85%;
-}
-
-.block[data-block='turn'] {
-  margin-top: var(--vr-space-2);
-}
-
-.message[data-role='user'] {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.block > .message {
-  border-radius: var(--vr-radius-lg);
-  transition:
-    background-color var(--vr-motion-slow) var(--vr-motion-ease-standard),
-    box-shadow var(--vr-motion-slow) var(--vr-motion-ease-standard);
-}
-
-.block[data-found] > .message {
-  background-color: var(--vr-color-match-bg);
-  box-shadow: 0 0 0 var(--vr-space-1) var(--vr-color-match-bg);
-}
-
-.spoken {
-  font-size: var(--vr-font-size-2xs);
-  color: var(--vr-color-text-subtle);
-}
-
-.turn {
-  display: flex;
-  align-items: center;
-  gap: var(--vr-space-2);
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-text-muted);
-}
-
-.turn-time {
-  color: var(--vr-color-text-subtle);
-}
-
-.user {
-  margin: 0;
-  padding: var(--vr-space-2) var(--vr-space-3);
-  font-size: var(--vr-font-size-sm);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  background: var(--vr-color-chip-bg);
-  border-radius: var(--vr-radius-lg);
-}
-
-.shell {
-  font-size: var(--vr-font-size-xs);
-}
-
-.shell[data-shell='output'] {
-  color: var(--vr-color-text-muted);
-}
-
-.assistant {
-  font-size: var(--vr-font-size-sm);
 }
 
 </style>

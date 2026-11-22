@@ -134,6 +134,7 @@ const READ_ONLY_COMMANDS: &[&str] = &[
     "agent_sessions_list",
     "agent_session_transcript",
     "search_conversations",
+    "agent_subagent_transcript",
     "slash_commands",
     "review_queue",
     "review_adapter",

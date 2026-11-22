@@ -1,5 +1,5 @@
 import { shallowRef } from 'vue';
-import { acknowledged, createAgent, describeError, entitySessionRef, isActive, useBerth, worktreesOfProject, type AgentKind, type SessionRef, useSessionDock } from '../../../entities/session';
+import { acknowledged, createAgent, describeError, entitySessionRef, isActive, unarchiveAgent, useBerth, worktreesOfProject, type AgentKind, type SessionRef, useSessionDock } from '../../../entities/session';
 import { invoke } from '../../../bridge';
 import type { AiView } from '../../../shared/api/connectors/ai';
 import { forgeChangeRequest, forgeSource, mrFetchSource, useConnectors, type ChangeRequestRef, type ChangeRequestSummary, type FetchedSource } from '../../../shared/api/connectors/api';
@@ -22,7 +22,10 @@ export type MrRun = {
   error: string | null;
   warning: string | null;
   needsProject: RepoRef | null;
+  endedChoice: boolean;
 };
+
+export type EndedChoice = 'continue' | 'new';
 
 const DESCRIPTION_LIMIT = 1500;
 const NAME_LIMIT = 60;
@@ -105,10 +108,10 @@ export function useOpenInSession() {
   const { connectors } = useConnectors();
   const { values } = useSettings();
 
-  async function open(item: MrItem, refs: readonly string[] = []) {
+  async function open(item: MrItem, refs: readonly string[] = [], choice?: EndedChoice) {
     const id = itemId(item);
     if (mrRuns.value.get(id)?.busy) return;
-    let run: MrRun = { id, label: `${numberLabel(item)} ${item.title}`, item, refs, busy: true, message: t('forge.openSession.step.project'), error: null, warning: null, needsProject: null };
+    let run: MrRun = { id, label: `${numberLabel(item)} ${item.title}`, item, refs, busy: true, message: t('forge.openSession.step.project'), error: null, warning: null, needsProject: null, endedChoice: false };
     const update = (patch: Partial<MrRun>) => {
       run = { ...run, ...patch };
       put(run);
@@ -150,9 +153,21 @@ export function useOpenInSession() {
       const live = [...berth.entities.value.agents.values()]
         .filter((agent) => agent.worktree_id === here && isActive(agent))
         .sort((a, b) => Number(b.alive) - Number(a.alive) || b.status_changed_at - a.status_changed_at)[0];
+      const ended = live
+        ? undefined
+        : [...berth.entities.value.agents.values()].filter((agent) => agent.worktree_id === here && !agent.archived && agent.ended_at > 0).sort((a, b) => b.ended_at - a.ended_at)[0];
+      const mode = choice ?? values.value['sessions.mrEndedSession'];
+      if (ended && mode === 'ask') {
+        update({ busy: false, endedChoice: true, message: t('forge.openSession.endedAsk', { name: ended.name }) });
+        return;
+      }
       let session: SessionRef;
       if (live) session = { Agent: live.id };
-      else {
+      else if (ended && mode === 'continue') {
+        update({ message: t('forge.openSession.step.resume', { name: ended.name }) });
+        await unarchiveAgent(ended.id);
+        session = { Agent: ended.id };
+      } else {
         const kind = (enabledNativeAgent(values.value['sessions.default_kind'], await loadedProviders()) ?? 'claude') as AgentKind;
         update({ message: t('forge.openSession.step.agent', { kind: KIND_LABEL[kind] }) });
         await ensureCli(kind);

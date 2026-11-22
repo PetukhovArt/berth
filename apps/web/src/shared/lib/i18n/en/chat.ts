@@ -38,6 +38,22 @@ export const chat = {
   handsFree: 'Hands-free',
   voiceMode: 'Voice mode',
   sentByVoice: 'voice',
+  subagents: {
+    strip: 'Subagents working',
+    running: { one: '{count} working', other: '{count} working' },
+    done: '{count} done',
+    failed: '{count} failed',
+    stopped: '{count} stopped',
+    expand: 'Show the subagents',
+    collapse: 'Hide the subagents',
+    open: 'Open the transcript of {name}',
+    group: { one: '{count} subagent', other: '{count} subagents' },
+    state: { running: 'working', done: 'done', failed: 'failed', stopped: 'stopped' },
+    back: 'Back to the chat',
+    noType: 'subagent',
+    transcriptPending: 'The transcript appears once the subagent starts',
+    transcriptMissing: 'No transcript for this subagent',
+  },
   slash: {
     list: 'Commands',
     builtIn: {

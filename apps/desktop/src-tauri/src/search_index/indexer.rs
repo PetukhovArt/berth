@@ -260,7 +260,7 @@ fn harness_name(harness: Harness) -> &'static str {
 fn messages_of(harness: Harness, line: &Value, record: u64) -> Vec<TranscriptMessage> {
     let mut out = Vec::new();
     match harness {
-        Harness::Claude => claude_messages(line, record, &mut out),
+        Harness::Claude => claude_messages(line, record, false, &mut out),
         Harness::Codex => codex_messages(line, record, &mut out),
     }
     out.retain(|message| message.tool.is_none() && !message.text.is_empty());

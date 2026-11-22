@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef, useTemplateRef } from 'vue';
+import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { FileText, GitPullRequest, Network, Search, Ticket, X } from '../../../shared/ui/icons';
 import { isDirtyPath, settleDirty } from '../../../entities/document';
@@ -32,6 +32,7 @@ function kindOf({ id, component }: DockviewPanelApi): 'metrics' | 'search' | 'fi
 const states = useSessionStates();
 const conversationDot = (id: string) => states.value.get(id)?.status ?? external?.anyByKey.value.get(id)?.status ?? 'closed';
 const session = (id: string) => berth?.sessions.value.get(id);
+const tabName = () => session(props.panel.id)?.name ?? external?.anyByKey.value.get(props.panel.id)?.title ?? panelTitle(props.panel.title, props.panel.getParameters());
 
 async function close() {
   if (isFilePanel(props.panel.id) && !(await settleDirty([props.panel.id.slice(FILE_PANEL_PREFIX.length)]))) return;
@@ -74,9 +75,12 @@ async function confirmDelete() {
   if (await deleting.run(() => deleteAgent(agent))) confirmingDelete.value = false;
 }
 
+const tab = useTemplateRef<HTMLElement>('tab');
+
 function cancelDelete() {
   confirmingDelete.value = false;
   deleting.clear();
+  void nextTick(() => tab.value?.focus());
 }
 
 const menu = useTemplateRef<InstanceType<typeof VContextMenu>>('menu');
@@ -86,12 +90,17 @@ const menuItems = computed(() => [
   ...(isAgent() ? [{ separator: true }, { key: 'delete', label: t('agents.session.deleteForever'), command: () => (confirmingDelete.value = true) }] : []),
 ]);
 
-const tab = useTemplateRef<HTMLElement>('tab');
+const menuOpen = shallowRef(false);
 
 function showMenuUnderCloseButton() {
   const anchor = tab.value?.querySelector('.close')?.getBoundingClientRect();
   if (!anchor) return;
   menu.value?.show(new MouseEvent('click', { clientX: anchor.left, clientY: anchor.bottom + 2 }));
+}
+
+function onMenuHide() {
+  if (!confirmingDelete.value) tab.value?.querySelector<HTMLElement>('.close')?.focus();
+  menuOpen.value = false;
 }
 
 function onClose() {
@@ -102,7 +111,7 @@ function onClose() {
 </script>
 
 <template>
-  <span ref="tab" class="tab status-host" :data-testid="`${kindOf(panel)}-tab`" :data-panel-id="panel.id" :data-session-id="session(panel.id)?.id" :data-active="active" @auxclick.middle="onClose">
+  <span ref="tab" class="tab status-host" tabindex="-1" :title="tabName()" :data-testid="`${kindOf(panel)}-tab`" :data-panel-id="panel.id" :data-session-id="session(panel.id)?.id" :data-active="active" :data-menu-open="menuOpen" @auxclick.middle="onClose">
     <Search v-if="kindOf(panel) === 'search'" :size="12" />
     <FileText v-else-if="kindOf(panel) === 'file'" :size="12" />
     <GitPullRequest v-else-if="kindOf(panel) === 'review'" :size="12" />
@@ -114,17 +123,17 @@ function onClose() {
     <template v-else-if="session(panel.id)">
       <StatusDot :status="states.get(panel.id)?.status ?? session(panel.id)?.status" :unseen="states.get(panel.id)?.unseen ?? session(panel.id)?.unseen" :alive="states.get(panel.id)?.alive ?? session(panel.id)?.alive" data-testid="session-tab-status" />
     </template>
-    <span class="name">{{ session(panel.id)?.name ?? external?.anyByKey.value.get(panel.id)?.title ?? panelTitle(panel.title, panel.getParameters()) }}</span>
+    <span class="name">{{ tabName() }}</span>
     <SessionViewSwitch v-if="kindOf(panel) === 'conversation'" :panel="panel" :active="active" />
     <span v-if="isFilePanel(panel.id) && isDirtyPath(panel.id.slice(FILE_PANEL_PREFIX.length))" class="dirty" :title="t('files.editor.dirty')" data-testid="file-tab-dirty" />
     <UiButton class="close" :title="t('common.close')" :aria-label="t('common.close')" data-testid="session-tab-close" @pointerdown.stop @click.stop="onClose"><X :size="12" /></UiButton>
-    <VContextMenu ref="menu" :model="menuItems">
+    <VContextMenu ref="menu" :model="menuItems" @show="menuOpen = true" @hide="onMenuHide">
       <template #item="{ item, props: itemProps }">
         <a v-bind="itemProps.action" :class="{ danger: item.key === 'delete' }" :data-testid="`session-tab-close-${item.key}`">{{ item.label }}</a>
       </template>
     </VContextMenu>
     <VDialog v-if="confirmingDelete" :visible="true" modal dismissable-mask :header="t('agents.session.confirmDeleteLabel')" :style="{ width: '26rem', maxWidth: '95vw' }" data-testid="session-delete-confirm" @update:visible="cancelDelete">
-      <p class="confirm">{{ t('agents.session.confirmDelete', { name: session(panel.id)?.name ?? panel.title ?? panel.id }) }}</p>
+      <p class="confirm">{{ t((states.get(panel.id)?.alive ?? session(panel.id)?.alive) === false ? 'agents.session.confirmDeleteStopped' : 'agents.session.confirmDelete', { name: session(panel.id)?.name ?? panel.title ?? panel.id }) }}</p>
       <VMessage v-if="deleting.error.value" severity="error" size="small" data-testid="session-error">{{ deleting.error.value }}</VMessage>
       <div class="actions">
         <VButton :label="t('common.cancel')" size="small" text data-testid="session-delete-no" @click="cancelDelete" />
@@ -144,6 +153,15 @@ function onClose() {
   height: 100%;
   box-sizing: border-box;
   padding: 0 var(--vr-space-1) 0 var(--vr-space-3);
+}
+
+.tab:focus {
+  outline: none;
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--vr-color-focus);
+  outline-offset: -2px;
 }
 
 .tab[data-dragging='true'] {
@@ -191,7 +209,8 @@ function onClose() {
 }
 
 .tab:hover .close,
-.tab[data-active='true'] .close {
+.tab[data-active='true'] .close,
+.tab[data-menu-open='true'] .close {
   visibility: visible;
 }
 
@@ -201,6 +220,7 @@ function onClose() {
 
 .confirm {
   margin: 0 0 var(--vr-space-3);
+  overflow-wrap: anywhere;
 }
 
 .danger {

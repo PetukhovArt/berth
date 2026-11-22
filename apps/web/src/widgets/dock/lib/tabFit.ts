@@ -1,28 +1,38 @@
 import type { DockviewApi } from 'dockview-vue';
 
-const MIN_WIDTH = 120;
-const MAX_WIDTH = 200;
+const MIN_WIDTH = 168;
+const MAX_WIDTH = 240;
 const MENU_RESERVE = 56;
 const WIDTH_VAR = '--dock-tab-width';
 
-function otherWidth(bar: HTMLElement, tabs: HTMLElement): number {
-  let used = 0;
+const MENU = '.dv-tabs-overflow-dropdown-root';
+
+function measureBar(bar: HTMLElement, tabs: HTMLElement): { other: number; menu: number } {
+  let other = 0;
+  let menu = 0;
   for (const child of Array.from(bar.children)) {
-    if (!(child instanceof HTMLElement) || child.contains(tabs) || child.classList.contains('dv-void-container') || child.matches('.dv-tabs-overflow-dropdown-root') || child.querySelector('.dv-tabs-overflow-dropdown-root')) continue;
-    used += child.offsetWidth;
+    if (!(child instanceof HTMLElement) || child.contains(tabs) || child.classList.contains('dv-void-container')) continue;
+    const dropdown = child.matches(MENU) ? child : child.querySelector<HTMLElement>(MENU);
+    if (!dropdown) {
+      other += child.offsetWidth;
+      continue;
+    }
+    menu = dropdown.offsetWidth;
+    other += child === dropdown ? 0 : child.offsetWidth - menu;
   }
-  return used;
+  return { other, menu: menu || MENU_RESERVE };
 }
 
 function fit(tabs: HTMLElement, bar: HTMLElement) {
   const count = tabs.querySelectorAll(':scope > .dv-tab').length;
   if (!count) return;
-  const room = bar.clientWidth - otherWidth(bar, tabs);
+  const { other, menu } = measureBar(bar, tabs);
+  const room = bar.clientWidth - other;
   let width: number;
   if (count * MIN_WIDTH <= room) {
     width = Math.min(MAX_WIDTH, Math.floor(room / count));
   } else {
-    const usable = Math.max(MIN_WIDTH, room - MENU_RESERVE);
+    const usable = Math.max(MIN_WIDTH, room - menu);
     const visible = Math.max(1, Math.floor(usable / MIN_WIDTH));
     width = Math.min(MAX_WIDTH, Math.floor(usable / visible));
   }
@@ -40,6 +50,9 @@ export function trackTabFit(root: HTMLElement, api: DockviewApi): { dispose(): v
       if (!bar) continue;
       fit(tabs, bar);
       resizes.observe(bar);
+      for (const child of Array.from(bar.children)) {
+        if (!child.contains(tabs) && !child.classList.contains('dv-void-container')) resizes.observe(child);
+      }
     }
   }
 

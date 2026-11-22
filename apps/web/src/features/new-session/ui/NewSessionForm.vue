@@ -470,6 +470,10 @@ function onVisible(visible: boolean) {
   min-width: 0;
 }
 
+.form :deep(.p-inputtext) {
+  border-radius: var(--vr-radius-sm);
+}
+
 .mono {
   font-family: var(--vr-font-mono);
   font-size: var(--vr-font-size-label);
@@ -594,6 +598,10 @@ function onVisible(visible: boolean) {
   scroll-padding-block: var(--vr-space-8);
 }
 
+:root[data-vr-viewport='phone'] .body > * {
+  flex: none;
+}
+
 :root[data-vr-viewport='phone'] .chips {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -625,7 +633,6 @@ function onVisible(visible: boolean) {
   justify-content: space-between;
   min-height: var(--vr-size-row-touch);
   padding: 0 var(--vr-space-3);
-  border-radius: var(--vr-radius-md);
 }
 
 :root[data-vr-viewport='phone'] .row,

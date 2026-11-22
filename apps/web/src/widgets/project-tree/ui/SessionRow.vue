@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
-import { VButton, VContextMenu, VInputText } from '../../../shared/ui/kit';
+import { VContextMenu, VInputText } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
 import { canContinueAsAgent, continueTerminalInDock, sessionStateOf, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, isStopped, useAction, StatusDot } from '../../../entities/session';
 import { MoveAgentDialog } from '../../../features/move-agent';
+import SessionDeleteConfirm from './SessionDeleteConfirm.vue';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ session: SessionNode; active: boolean; linked?: ExternalSession }>();
@@ -61,7 +62,7 @@ const menuItems = computed<MenuAction[]>(() => {
     { key: 'rename', label: t('common.rename'), command: startRename },
     { key: 'restart', label: t('agents.session.restart'), command: () => void action.run(() => restartAgent(session.Agent)) },
     { key: 'move', label: t('agents.session.move'), command: () => (moving.value = true) },
-    { key: 'delete', label: t('common.delete'), command: () => (mode.value = 'confirming-delete') },
+    { key: 'delete', label: t('agents.session.deleteForever'), command: () => (mode.value = 'confirming-delete') },
   ];
 });
 
@@ -157,11 +158,7 @@ async function confirmDelete() {
         <a v-bind="itemProps.action" :data-testid="item.testid ?? `session-menu-${item.key}`">{{ item.label }}</a>
       </template>
     </VContextMenu>
-    <div v-if="mode === 'confirming-delete'" class="confirm" role="group" :aria-label="t('agents.session.confirmDeleteLabel')" data-testid="session-delete-confirm">
-      <span>{{ t('agents.session.confirmDelete', { name: session.name }) }}</span>
-      <VButton :label="t('common.delete')" size="small" severity="danger" :loading="action.busy.value" data-testid="session-delete-yes" @click="confirmDelete" />
-      <VButton :label="t('common.cancel')" size="small" text data-testid="session-delete-no" @click="cancel" />
-    </div>
+    <SessionDeleteConfirm v-if="mode === 'confirming-delete'" :name="session.name" :alive="alive !== false" :busy="action.busy.value" @confirm="confirmDelete" @cancel="cancel" />
     <MoveAgentDialog v-if="moving && movableAgent" :agent="movableAgent" @moved="moving = false" @close="moving = false" />
     <p v-if="action.error.value" class="row-error" role="alert" data-testid="session-error">{{ action.error.value }}</p>
   </div>
@@ -223,6 +220,22 @@ async function confirmDelete() {
   color: var(--vr-color-text-subtle);
 }
 
+.row[data-status='running'] .label {
+  color: var(--vr-status-live);
+}
+
+.row[data-status='fresh'] .label {
+  color: var(--vr-status-fresh);
+}
+
+.row[data-status='finished'] .label {
+  color: var(--vr-status-finished);
+}
+
+.row[data-stopped='true'] .label {
+  color: var(--vr-status-stopped);
+}
+
 .row[data-status='needs_feedback'] .label {
   color: var(--vr-status-feedback);
 }
@@ -265,15 +278,6 @@ async function confirmDelete() {
 .rename {
   margin-left: var(--vr-space-4);
   width: calc(100% - var(--vr-space-4));
-}
-
-.confirm {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--vr-space-1) var(--vr-space-2);
-  padding: var(--vr-space-1) var(--vr-space-2) var(--vr-space-1) var(--vr-space-5);
-  font-size: var(--vr-font-size-xs);
 }
 
 .suggestion {

@@ -46,12 +46,12 @@ fn codex_exit(payload: &Value) -> Option<i32> {
     int_after(head, "process exited with code").or_else(|| int_after(head, "exit code"))
 }
 
-pub fn call_ids(harness: Harness, line: &Value) -> Vec<String> {
+pub fn call_ids(harness: Harness, line: &Value, in_subagent: bool) -> Vec<String> {
     match harness {
         Harness::Claude => {
             if line["type"].as_str() != Some("assistant")
                 || line["isMeta"].as_bool() == Some(true)
-                || line["isSidechain"].as_bool() == Some(true)
+                || (line["isSidechain"].as_bool() == Some(true) && !in_subagent)
             {
                 return Vec::new();
             }

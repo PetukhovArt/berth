@@ -84,12 +84,18 @@ fn install_release(staging_dir: &Path, force: bool) -> Result<()> {
             None
         }
     };
-    install_with(&install_url(), staging_dir, force, version.as_deref())
+    install_with(
+        &install_url(),
+        staging_dir,
+        force,
+        version.as_deref(),
+        dev_build(),
+    )
 }
 
 #[cfg(windows)]
 fn install_release(staging_dir: &Path, force: bool) -> Result<()> {
-    refuse_dev_build(force)?;
+    refuse_dev_build(force, dev_build())?;
     let version = manifest_version()?;
     if version == env!("CARGO_PKG_VERSION") && !force {
         println!("berth {version} is already installed");
@@ -144,11 +150,11 @@ fn download_and_swap(version: &str, dir: &Path, exe: &Path) -> Result<()> {
     Ok(())
 }
 
-fn refuse_dev_build(force: bool) -> Result<()> {
+fn refuse_dev_build(force: bool, running: Option<PathBuf>) -> Result<()> {
     if force {
         return Ok(());
     }
-    if let Some(exe) = dev_build() {
+    if let Some(exe) = running {
         bail!(
             "{} is a local cargo build.\n\n\
              Upgrading installs the published binary and would overwrite a \
@@ -190,12 +196,18 @@ fn finish_daemon_handoff() {
 
 #[cfg(all(test, unix))]
 fn upgrade_with(url: &str, staging_dir: &Path, force: bool) -> Result<()> {
-    install_with(url, staging_dir, force, None)
+    install_with(url, staging_dir, force, None, dev_build())
 }
 
 #[cfg(unix)]
-fn install_with(url: &str, staging_dir: &Path, force: bool, version: Option<&str>) -> Result<()> {
-    refuse_dev_build(force)?;
+fn install_with(
+    url: &str,
+    staging_dir: &Path,
+    force: bool,
+    version: Option<&str>,
+    running: Option<PathBuf>,
+) -> Result<()> {
+    refuse_dev_build(force, running)?;
 
     let script = stage_script(url, staging_dir)?;
     // Inherited stdio: the script's own progress lines are the UI here.
@@ -256,7 +268,10 @@ fn stage_script(url: &str, dir: &Path) -> Result<PathBuf> {
 /// resolve first: the usual dev setup is a `~/.cargo/bin/berth` symlink
 /// pointing into `target/release`, and it's that symlink an upgrade replaces.
 fn dev_build() -> Option<PathBuf> {
-    let exe = std::env::current_exe().ok()?;
+    dev_build_at(std::env::current_exe().ok()?)
+}
+
+fn dev_build_at(exe: PathBuf) -> Option<PathBuf> {
     let exe = std::fs::canonicalize(&exe).unwrap_or(exe);
     let dir = exe.parent()?;
     let dir = if dir.file_name()? == "deps" {
@@ -349,13 +364,37 @@ mod tests {
     }
 
     #[test]
-    fn dev_builds_are_refused_without_force() {
-        // Cargo runs this binary from <target>/debug/deps, so the guard sees
-        // exactly what it would see for a symlinked target/release build.
-        assert!(
-            dev_build().is_some(),
-            "test binary should look like a cargo build"
+    fn cargo_build_dirs_are_told_from_installed_binaries() {
+        let tmp = tempfile::tempdir().unwrap();
+        let touch = |rel: &str| {
+            let path = tmp.path().join(rel);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, "").unwrap();
+            path
+        };
+        for rel in [
+            "target/release/berth",
+            "target/debug/berth",
+            "target/debug/deps/berth-0123abcd",
+        ] {
+            assert!(dev_build_at(touch(rel)).is_some(), "{rel} is a cargo build");
+        }
+
+        assert!(dev_build_at(touch("home/.cargo/bin/berth")).is_none());
+
+        let release = touch("src/target/release/berth");
+        let link = tmp.path().join("home/.cargo/bin/linked");
+        std::os::unix::fs::symlink(&release, &link).unwrap();
+        assert_eq!(
+            dev_build_at(link),
+            Some(std::fs::canonicalize(&release).unwrap()),
+            "a symlink into target/release is the dev build it points at"
         );
+    }
+
+    #[test]
+    fn dev_builds_are_refused_without_force() {
+        let build = Some(PathBuf::from("/work/berth/target/release/berth"));
 
         let tmp = tempfile::tempdir().unwrap();
         let marker = tmp.path().join("ran");
@@ -364,7 +403,7 @@ mod tests {
             &format!("#!/bin/sh\n: > '{}'\n", marker.display()),
         );
 
-        let err = upgrade_with(&url_of(&script), tmp.path(), false).unwrap_err();
+        let err = install_with(&url_of(&script), tmp.path(), false, None, build).unwrap_err();
         assert!(err.to_string().contains("local cargo build"), "{err}");
         assert!(
             !marker.exists(),
