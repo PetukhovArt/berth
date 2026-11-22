@@ -11,7 +11,16 @@ const emit = defineEmits<{ enter: [] }>();
 function onBranchEnter(event: KeyboardEvent) {
   if (event.isComposing) return;
   event.preventDefault();
-  emit('enter');
+  if (!event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey) emit('enter');
+}
+
+function onBranchPaste(event: ClipboardEvent) {
+  const field = event.target;
+  const text = event.clipboardData?.getData('text');
+  if (!(field instanceof HTMLTextAreaElement) || !text || !/[\r\n]/.test(text)) return;
+  event.preventDefault();
+  field.setRangeText(text.replace(/^[\r\n]+|[\r\n]+$/g, '').replace(/[\r\n]+/g, '-'), field.selectionStart, field.selectionEnd, 'end');
+  field.dispatchEvent(new Event('input', { bubbles: true }));
 }
 const berth = useBerth();
 const { project, target, mode, existing, fresh, setup, base, baseOptions, baseChoice, branches, branchesError, loading, count, sharesBranch, projects, targets, creating, plan } = props.state;
@@ -93,7 +102,7 @@ const summary = computed(() => {
     </label>
     <label v-if="creating || mode === 'new'" class="row">
       <span class="row-label">{{ t('agents.newSession.newBranch') }}</span>
-      <VTextarea v-model="fresh" rows="1" auto-resize size="small" :placeholder="t('agents.newSession.typeBranch')" class="row-input mono branch" data-testid="new-session-new-branch" @keydown.enter.exact="onBranchEnter" />
+      <VTextarea v-model="fresh" rows="1" auto-resize size="small" :placeholder="t('agents.newSession.typeBranch')" class="row-input mono branch" data-testid="new-session-new-branch" @keydown.enter="onBranchEnter" @paste="onBranchPaste" />
     </label>
     <VMessage v-if="branchesError" severity="warn" size="small" data-testid="new-session-branches-error">{{ t('agents.newSession.branchesFailed', { error: branchesError }) }}</VMessage>
     <div class="summary" :data-plan="plan.kind" data-testid="new-session-plan">
