@@ -23,6 +23,7 @@
 - Changed a team hub from before roles: on first start it keeps a copy of its database as `<db>.v1.bak` and makes every approved device a Member, read-only ones included; upgrade `berth` on the admin's machine together with the hub
 - Changed the New session dialog to fetch the base branch of a new Worktree while it is open, so creating the Worktree no longer waits for the fetch (it is reused for 2 minutes)
 - Changed the Session screen on a phone to hide the rows of project tabs above the Chat view: go back with the header arrow and pick another Session from the Sessions list
+- Changed the branch name field in New session to wrap long names instead of cutting them, and the line under it to stop repeating the name
 - Removed the Terminal view and the terminal keys bar from the Session screen on a phone: it opens in Chat, so a phone no longer squeezes the Session's terminal on your computer to the phone's width; a Session with no Chat shows a notice instead
 - Removed the Earlier folder from the Sessions tree: every conversation that is not archived is listed in its worktree
 - Removed `berth hub approve --scopes`: approve with `--role` instead
@@ -35,6 +36,7 @@
 - Fixed the Chat composer on a phone in Hold to talk mode having no way to stop a running turn: the Stop button now sits beside the talk button
 - Fixed the New session dialog on a phone: it now fills the screen with every field full width, the Name field on its own row, large Cancel and Create buttons, and no keyboard shortcut hints; Enter in the prompt adds a line
 - Fixed the Setup command field in New session on a phone showing its placeholder cut off: it now says `e.g. pnpm install` and fits at 320 px
+- Fixed the branch name label in New session on a phone sliding half under the top of the scrolling area when the field is brought into view
 - Fixed the Inbox listing Sessions from projects of other workspaces while one workspace is open; `Alt+J` now stays within it too
 - Fixed the Inbox pinned above the sidebar tree having no bottom edge: tree rows scrolled under it were cut off right below it, slicing the Projects header, and the Inbox now ends in a divider
 - Fixed `berth worktree <branch>` and `berth spawn --worktree <branch>` starting a new local branch from the default base when that branch already exists on origin: the worktree now checks out origin's branch and tracks it

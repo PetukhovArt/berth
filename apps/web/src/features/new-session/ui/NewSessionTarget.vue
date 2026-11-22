@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { VInputText, VMessage, VSelect } from '../../../shared/ui/kit';
+import { VMessage, VSelect, VTextarea } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useBerth } from '../../../entities/session';
 import type { BranchMode, SessionTarget } from '../model/sessionTarget';
 
 const props = defineProps<{ state: SessionTarget; projectLocked: boolean }>();
+const emit = defineEmits<{ enter: [] }>();
+
+function onBranchEnter(event: KeyboardEvent) {
+  if (event.isComposing) return;
+  event.preventDefault();
+  emit('enter');
+}
 const berth = useBerth();
 const { project, target, mode, existing, fresh, setup, base, baseOptions, baseChoice, branches, branchesError, loading, count, sharesBranch, projects, targets, creating, plan } = props.state;
 
@@ -39,9 +46,9 @@ const summary = computed(() => {
   if (current.kind === 'incomplete') return current.reason;
   if (current.kind === 'use') return t(current.worktree.is_main ? 'agents.newSession.planMain' : 'agents.newSession.planUse', { branch: current.worktree.branch });
   if (!current.branch) return current.base ? t('agents.newSession.planCreateGeneratedFrom', { base: current.base }) : t('agents.newSession.planCreateGenerated');
-  if (count.value > 1 && !sharesBranch.value) return t('agents.newSession.planCreateEach', { branch: current.branch });
-  if (current.fetch && current.base) return t('agents.newSession.planCreateFresh', { branch: current.branch, base: current.base });
-  return current.base ? t('agents.newSession.planCreateFrom', { branch: current.branch, base: current.base }) : t('agents.newSession.planCreate', { branch: current.branch });
+  if (count.value > 1 && !sharesBranch.value) return t('agents.newSession.planCreateEach');
+  if (current.fetch && current.base) return t('agents.newSession.planCreateFresh', { base: current.base });
+  return current.base ? t('agents.newSession.planCreateFrom', { base: current.base }) : t('agents.newSession.planCreate');
 });
 </script>
 
@@ -86,7 +93,7 @@ const summary = computed(() => {
     </label>
     <label v-if="creating || mode === 'new'" class="row">
       <span class="row-label">{{ t('agents.newSession.newBranch') }}</span>
-      <VInputText v-model="fresh" size="small" :placeholder="t('agents.newSession.typeBranch')" class="row-input mono" data-testid="new-session-new-branch" />
+      <VTextarea v-model="fresh" rows="1" auto-resize size="small" :placeholder="t('agents.newSession.typeBranch')" class="row-input mono branch" data-testid="new-session-new-branch" @keydown.enter.exact="onBranchEnter" />
     </label>
     <VMessage v-if="branchesError" severity="warn" size="small" data-testid="new-session-branches-error">{{ t('agents.newSession.branchesFailed', { error: branchesError }) }}</VMessage>
     <div class="summary" :data-plan="plan.kind" data-testid="new-session-plan">
@@ -168,6 +175,11 @@ const summary = computed(() => {
 .mono {
   font-family: var(--vr-font-mono);
   font-size: var(--vr-font-size-label);
+}
+
+.branch {
+  resize: none;
+  overflow-wrap: anywhere;
 }
 
 .summary {

@@ -220,6 +220,10 @@ function onPromptKey(event: KeyboardEvent) {
   if (startable()) void submit();
 }
 
+function onBranchEnter() {
+  if (startable()) void submit();
+}
+
 function onFormKey(event: KeyboardEvent) {
   if (event.key !== 'Enter' || event.isComposing || !onlyPrimaryPressed(event)) return;
   event.preventDefault();
@@ -263,7 +267,7 @@ function onVisible(visible: boolean) {
           data-testid="new-session-prompt"
           @keydown="onPromptKey"
         />
-        <NewSessionTarget :state="location" :project-locked="projectLocked">
+        <NewSessionTarget :state="location" :project-locked="projectLocked" @enter="onBranchEnter">
           <template #type>
             <VSelect
               v-if="!continuing"
@@ -587,6 +591,7 @@ function onVisible(visible: boolean) {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  scroll-padding-block: var(--vr-space-8);
 }
 
 :root[data-vr-viewport='phone'] .chips {
