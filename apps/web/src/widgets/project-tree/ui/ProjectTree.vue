@@ -139,13 +139,13 @@ const moreItems = computed(() => {
       <Search :size="14" />
       <UiInput ref="filterInput" v-model="treeQuery" :placeholder="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="tree-filter" @keydown.esc="closeFilter" />
     </label>
+    <InboxSection v-if="withInbox && activeTab === 'sessions' && !filtering" class="pinned-inbox" />
     <div class="scroll">
       <NavNotices />
       <MrSessionNotice v-for="run in mrSession.runs.value.values()" :key="run.id" :run="run">
         <template #project="{ repo }"><RepoActions :repo="repo" /></template>
       </MrSessionNotice>
       <p v-for="error in errors" :key="`${error.connector}:${error.message}`" class="strip" role="alert" data-testid="tree-error" :title="error.message">{{ error.connector }}: {{ error.message }}</p>
-      <InboxSection v-if="withInbox && activeTab === 'sessions' && !filtering" />
       <ChannelsSection v-if="activeTab === 'sessions' && !filtering" />
       <div v-if="activeTab === 'sessions'" class="section-head" data-testid="project-tree-head">
         <UiButton class="section-toggle" :aria-expanded="projectsOpen" :disabled="filtering" data-testid="project-tree-toggle" @click="treeProjectsCollapsed = !treeProjectsCollapsed">
@@ -426,6 +426,11 @@ const moreItems = computed(() => {
   to {
     transform: rotate(360deg);
   }
+}
+
+.pinned-inbox {
+  flex: none;
+  margin-inline: var(--vr-space-1);
 }
 
 .scroll {

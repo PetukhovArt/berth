@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue';
+import { computed, ref, shallowRef, watch } from 'vue';
 import { attentionOf, externalTarget, urgencyOf, useBerth, useExternalSessions, useSessionDock, useSessionStates, useOpenWorkspace, type AttentionKind, type SessionNode, type SessionState } from '../../../entities/session';
 import { useDock } from '../../../shared/model/dock';
 
@@ -7,7 +7,11 @@ export type InboxEntry = { key: string; state: SessionState; kind: AttentionKind
 type Mark = { sig: string; until: number | null };
 
 const STORE_KEY = 'berth.inbox.marks';
+const COLLAPSED_KEY = 'berth.inbox.collapsed';
 const TICK_MS = 30_000;
+
+export const inboxCollapsed = shallowRef(localStorage.getItem(COLLAPSED_KEY) === '1');
+watch(inboxCollapsed, (on) => localStorage.setItem(COLLAPSED_KEY, on ? '1' : '0'));
 
 const now = ref(Date.now());
 const marks = ref<Record<string, Mark>>(readMarks());
@@ -93,5 +97,7 @@ export function openNextNeedingYou(): void {
   const next = useInbox()
     .items.value.filter((entry) => entry.key !== current)
     .sort((a, b) => urgencyOf(b.state) - urgencyOf(a.state) || (a.since ?? 0) - (b.since ?? 0))[0];
-  if (next) useSessionDock().openKey(next.key);
+  if (!next) return;
+  inboxCollapsed.value = false;
+  useSessionDock().openKey(next.key);
 }
