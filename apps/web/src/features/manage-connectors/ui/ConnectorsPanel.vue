@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, shallowRef, type Component } from 'vue';
 import { BookOpen, ExternalLink, Github, Gitlab, Plug, Plus, RefreshCw, Ticket } from '../../../shared/ui/icons';
-import { VButton, VInputText, VMessage, VSelect } from '../../../shared/ui/kit';
+import { VButton, VChipGroup, VInputText, VMessage, VSelect } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import AiAccounts from './AiAccounts.vue';
 import PersonAvatar from '../../../shared/ui/PersonAvatar.vue';
 import { useAiAccounts } from '../../../shared/api/connectors/ai';
 import { describeError, openUrl, useConnectors, type ConnectorKind, type ConnectorStatus, type ConnectorView, type Detected } from '../../../shared/api/connectors/api';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 const { connectors, detected, loading, checking, error, check, add, update, remove, refresh } = useConnectors();
 const ai = useAiAccounts();
 const checkingAll = computed(() => checking.value || ai.checking.value);
@@ -60,6 +59,14 @@ function pickKind(kind: ConnectorKind) {
   form.email = '';
   formError.value = null;
 }
+
+const formKind = computed({
+  get: () => form.kind,
+  set: (value: string) => {
+    const meta = KINDS.find((k) => k.value === value);
+    if (meta) pickKind(meta.value);
+  },
+});
 
 function openForm() {
   pickKind('github');
@@ -197,21 +204,11 @@ onMounted(() => void refresh());
 
     <form v-if="adding" class="block form" data-testid="connector-form" @submit.prevent="submit">
       <h3>{{ t('connectors.panel.newTitle') }}</h3>
-      <div class="kinds" role="radiogroup" :aria-label="t('connectors.panel.typeLabel')">
-        <UiButton
-          v-for="k in KINDS"
-          :key="k.value"
-          type="button"
-          class="kind"
-          role="radio"
-          :aria-checked="form.kind === k.value"
-          :data-active="form.kind === k.value"
-          :data-testid="`kind-${k.value}`"
-          @click="pickKind(k.value)"
-        >
-          <component :is="k.icon" :size="14" />{{ k.label }}
-        </UiButton>
-      </div>
+      <VChipGroup v-model="formKind" class="kinds" :options="KINDS" :label="t('connectors.panel.typeLabel')" test-id="kind">
+        <template #option="{ option }">
+          <component :is="KINDS.find((k) => k.value === option.value)?.icon" :size="14" />{{ option.label }}
+        </template>
+      </VChipGroup>
 
       <label class="field">
         <span>{{ t('connectors.panel.url') }}</span>
@@ -395,28 +392,7 @@ h3 {
 }
 
 .kinds {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--vr-space-1);
   margin-bottom: var(--vr-space-2);
-}
-
-.kind {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--vr-space-1);
-  padding: var(--vr-space-1) var(--vr-space-2);
-  color: var(--vr-color-text-muted);
-  font: inherit;
-  background: none;
-  border: 1px solid var(--vr-color-border);
-  border-radius: var(--vr-radius-sm);
-  cursor: pointer;
-}
-
-.kind[data-active='true'] {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-active);
 }
 
 .field {
