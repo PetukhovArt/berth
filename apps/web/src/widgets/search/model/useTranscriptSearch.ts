@@ -6,14 +6,14 @@ const DEBOUNCE_MS = 200;
 const POLL_MS = 3000;
 const MAX_POLLS = 10;
 
-export function useTranscriptSearch(query: Ref<string>, enabled: Ref<boolean>) {
+export function useTranscriptSearch(query: Ref<string>) {
   const result = shallowRef<MessageSearch | null>(null);
   const answered = shallowRef('');
   const error = shallowRef<string | null>(null);
   const busy = shallowRef(false);
   const needle = computed(() => {
     const text = query.value.trim();
-    return enabled.value && text.length >= MIN_MESSAGE_QUERY ? text : '';
+    return text.length >= MIN_MESSAGE_QUERY ? text : '';
   });
   const stale = computed(() => answered.value !== needle.value);
   let run = 0;

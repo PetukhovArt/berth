@@ -32,7 +32,7 @@ const scope = shallowRef<SearchScope>('all');
 const files = shallowRef<readonly MarkdownEntry[]>([]);
 const actions = computed<readonly SearchAction[]>(() => (isDesktop ? [{ key: 'cleanup', label: t('cleanup.action') }] : []));
 
-const search = useSearch({ query, scope, files, actions, browse: true, fold: true, limit: (kind: SearchKind) => (kind === 'sessions' ? SESSION_LIMIT : GROUP_LIMIT) });
+const search = useSearch({ query, scope, files, actions, browse: true, limit: (kind: SearchKind) => (kind === 'sessions' ? SESSION_LIMIT : GROUP_LIMIT) });
 const { text, groups, rows } = search;
 
 const results = computed<readonly PaletteItem[]>(() => (text.value && !search.nothing.value ? [...rows.value, ALL] : rows.value));

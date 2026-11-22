@@ -78,10 +78,11 @@ onMounted(() => input.value?.focus());
           :current="positions.get(row.id) === index"
           :blocked="search.blockedReason(row)"
           :heading="row.kind === 'messages' ? search.hitTitle(row.head) : ''"
+          :folded="search.foldedInto(row)"
           :data-stale="row.kind === 'messages' && search.messagesStale.value"
           @hover="index = positions.get(row.id) ?? 0"
           @open="search.choose(row)"
-          @open-conversation="search.choose(row)"
+          @open-conversation="search.choose(search.foldedInto(row) ?? row)"
         />
         <li v-if="group.hidden > 0" role="presentation" class="more-row">
           <UiButton type="button" class="more" :data-testid="`search-show-all-${group.kind}`" @click="search.showAll(group.kind)">{{ t('search.showAll', { count: formatNumber(group.total) }) }}</UiButton>

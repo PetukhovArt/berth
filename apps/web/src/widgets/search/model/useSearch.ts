@@ -4,7 +4,7 @@ import { quickItems, useWorkTree, type QuickItem } from '../../../features/work-
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { MarkdownEntry } from '../../../shared/lib/markdownFiles';
 import { rank, wordsOf } from './rank';
-import { KINDS, SCOPE_KINDS, entityKindOf, type ConversationRow, type SearchAction, type SearchGroup, type SearchKind, type SearchRow, type SearchScope } from './rows';
+import { KINDS, entityKindOf, type ConversationRow, type SearchAction, type SearchGroup, type SearchKind, type SearchRow, type SearchScope } from './rows';
 import { useOpener } from './useOpener';
 import { useTranscriptSearch } from './useTranscriptSearch';
 
@@ -13,7 +13,6 @@ type SearchOptions = {
   scope: Ref<SearchScope>;
   limit: (kind: SearchKind) => number;
   browse?: boolean;
-  fold?: boolean;
   files?: Ref<readonly MarkdownEntry[]>;
   actions?: Ref<readonly SearchAction[]>;
 };
@@ -64,8 +63,8 @@ export function useSearch(options: SearchOptions) {
   const text = computed(() => query.value.trim());
   const words = computed(() => wordsOf(text.value));
   watch([text, scope], () => (expanded.value = new Set()));
-  const wantsMessages = computed(() => scope.value === 'all' || scope.value === 'messages');
-  const transcripts = useTranscriptSearch(query, wantsMessages);
+  const wantsMessages = computed(() => scope.value === 'all' || scope.value === 'sessions' || scope.value === 'messages');
+  const transcripts = useTranscriptSearch(query);
   const items = computed(() => withoutPlaceholder(quickItems(all.value, true)));
   const hasText = computed(() => text.value.length > 0);
   const listing = computed(() => hasText.value || options.browse === true);
@@ -105,7 +104,6 @@ export function useSearch(options: SearchOptions) {
   const allRows = computed<Record<SearchKind, readonly SearchRow[]>>(() => ({ ...entityRows.value, files: fileRows.value, actions: actionRows.value, messages: messageRows.value, channels: channelRows.value }));
 
   const counts = computed(() => Object.fromEntries(KINDS.map((kind) => [kind, allRows.value[kind].length])) as Record<SearchKind, number>);
-  const total = computed(() => SCOPE_KINDS.reduce((sum, kind) => sum + counts.value[kind], 0));
 
   function chipCount(id: SearchScope): number | undefined {
     if (!hasText.value) return undefined;
@@ -119,9 +117,8 @@ export function useSearch(options: SearchOptions) {
   const folds = computed(() => {
     const into = new Map<string, ConversationRow>();
     const claimed = new Set<string>();
-    if (!options.fold || scope.value !== 'all') return { into, claimed };
     const conversations = new Map(messageRows.value.map((row) => [conversationKeyOf(row.head), row]));
-    for (const row of capped('sessions', allRows.value.sessions)) {
+    for (const row of allRows.value.sessions) {
       if (row.kind !== 'sessions') continue;
       const key = opener.conversationKeyOf(row.entry.node);
       const conversation = key ? conversations.get(key) : undefined;
@@ -132,9 +129,11 @@ export function useSearch(options: SearchOptions) {
     return { into, claimed };
   });
 
+  const total = computed(() => KINDS.reduce((sum, kind) => sum + counts.value[kind], 0) - folds.value.claimed.size);
+
   const groups = computed<SearchGroup[]>(() =>
     KINDS.filter((kind) => scope.value === 'all' || scope.value === kind).flatMap((kind) => {
-      const rows = kind === 'messages' ? messageRows.value.filter((row) => !folds.value.claimed.has(row.id)) : allRows.value[kind];
+      const rows = kind === 'messages' && scope.value !== 'messages' ? messageRows.value.filter((row) => !folds.value.claimed.has(row.id)) : allRows.value[kind];
       if (!rows.length) return [];
       const shown = capped(kind, rows);
       return [{ kind, total: rows.length, rows: shown, hidden: rows.length - shown.length }];
@@ -174,7 +173,7 @@ export function useSearch(options: SearchOptions) {
     messagesStale: transcripts.stale,
     retryMessages: transcripts.retry,
     showAll,
-    foldedInto: (row: SearchRow): ConversationRow | undefined => folds.value.into.get(row.id),
+    foldedInto: (row: SearchRow): ConversationRow | undefined => (scope.value === 'messages' ? undefined : folds.value.into.get(row.id)),
     choose,
     hitTitle: opener.hitTitle,
     blockedReason: opener.blockedReason,

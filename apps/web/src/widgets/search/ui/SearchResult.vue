@@ -92,6 +92,7 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
     class="result"
     role="option"
     :data-testid="testid"
+    :class="{ counted: conversation !== null }"
     :data-kind="row.kind"
     :data-session-id="row.kind === 'sessions' ? row.entry.node.data?.session?.id : undefined"
     :aria-selected="current"
@@ -120,7 +121,7 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
         </span>
         <span v-if="conversation" class="count" data-testid="search-matches">{{ conversation.matches }}</span>
       </span>
-      <span class="aside low">
+      <span class="aside">
         <span v-if="entity.agent" class="meta">{{ entity.agent }}</span>
         <span v-if="entity.age" class="meta age" :title="entity.age.full">{{ entity.age.text }}</span>
         <StatusIcon v-if="entity.pipeline" :tone="entity.pipeline" />
@@ -145,12 +146,9 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
             <span class="crumb" :class="{ lead: at === 0 }" :style="crumbStyle(crumb, at)" :title="crumb">{{ crumb }}</span>
           </template>
         </span>
-        <span class="count" data-testid="search-matches">
-          {{ conversation.matches }}
-          <span v-if="conversation.age" class="vr-phone-only" :title="conversation.age.full">· {{ conversation.age.text }}</span>
-        </span>
+        <span class="count" data-testid="search-matches">{{ conversation.matches }}</span>
       </span>
-      <span class="aside low vr-wide-only">
+      <span class="aside">
         <span v-if="conversation.age" class="meta age" :title="conversation.age.full">{{ conversation.age.text }}</span>
       </span>
     </template>
@@ -357,24 +355,20 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
 
 :root[data-vr-viewport='phone'] .place {
   grid-row: 2;
-  grid-column: 2 / -1;
+  grid-column: 2;
+}
+
+:root[data-vr-viewport='phone'] .counted .line {
+  grid-column: 2;
 }
 
 :root[data-vr-viewport='phone'] .count {
-  grid-row: 3;
-  grid-column: 2;
+  grid-row: 1;
+  grid-column: 3;
   margin-inline-start: 0;
 }
 
 :root[data-vr-viewport='phone'] .aside {
   grid-row: 2;
-}
-
-:root[data-vr-viewport='phone'] .aside.low {
-  grid-row: 3;
-}
-
-:root[data-vr-viewport='phone'] .snippets {
-  grid-row: 4;
 }
 </style>
