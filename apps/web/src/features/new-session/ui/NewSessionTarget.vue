@@ -4,6 +4,7 @@ import { VMessage, VSelect, VTextarea } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useBerth } from '../../../entities/session';
 import type { BranchMode, SessionTarget } from '../model/sessionTarget';
+import ChipField from './ChipField.vue';
 
 const props = defineProps<{ state: SessionTarget; projectLocked: boolean }>();
 const emit = defineEmits<{ enter: [] }>();
@@ -64,24 +65,42 @@ const summary = computed(() => {
 <template>
   <div class="target" data-testid="new-session-target">
     <div class="chips">
-      <VSelect v-if="!projectLocked" v-model="project" :options="projects" option-label="label" option-value="id" size="small" class="chip" :aria-label="t('agents.newSession.project')" data-testid="new-session-project" />
-      <span v-else class="chip fixed" data-testid="new-session-project-name">{{ projectLabel }}</span>
-      <VSelect v-model="target" :options="targets" option-label="label" option-value="id" size="small" class="chip" :aria-label="t('agents.newSession.target')" data-testid="new-session-worktree" />
-      <VSelect
-        v-if="creating && baseOptions.length"
-        v-model="baseModel"
-        :options="baseOptions"
-        option-label="label"
-        option-value="id"
-        filter
-        size="small"
-        class="chip"
-        :aria-label="t('agents.newSession.base')"
-        data-testid="new-session-base"
-      >
-        <template #value="{ value }">{{ t('agents.newSession.branchFrom', { base: value }) }}</template>
-      </VSelect>
-      <VSelect v-if="!creating" v-model="mode" :options="MODES" option-label="label" option-value="value" option-disabled="disabled" size="small" class="chip" :aria-label="t('agents.newSession.branch')" data-testid="new-session-branch-mode" />
+      <ChipField v-if="!projectLocked" :label="t('agents.newSession.project')" data-testid="new-session-project-field">
+        <template #default="{ labelId, controlId }">
+          <VSelect v-model="project" :options="projects" option-label="label" option-value="id" size="small" class="chip" :label-id="controlId" :aria-labelledby="labelId" data-testid="new-session-project" />
+        </template>
+      </ChipField>
+      <ChipField v-else :label="t('agents.newSession.project')" data-testid="new-session-project-field">
+        <span class="chip fixed" data-testid="new-session-project-name">{{ projectLabel }}</span>
+      </ChipField>
+      <ChipField :label="t('agents.newSession.target')" data-testid="new-session-worktree-field">
+        <template #default="{ labelId, controlId }">
+          <VSelect v-model="target" :options="targets" option-label="label" option-value="id" size="small" class="chip" :label-id="controlId" :aria-labelledby="labelId" data-testid="new-session-worktree" />
+        </template>
+      </ChipField>
+      <ChipField v-if="creating && baseOptions.length" :label="t('agents.newSession.base')" data-testid="new-session-base-field">
+        <template #default="{ labelId, controlId }">
+          <VSelect
+            v-model="baseModel"
+            :options="baseOptions"
+            option-label="label"
+            option-value="id"
+            filter
+            size="small"
+            class="chip"
+            :label-id="controlId"
+            :aria-labelledby="labelId"
+            data-testid="new-session-base"
+          >
+            <template #value="{ value }">{{ t('agents.newSession.branchFrom', { base: value }) }}</template>
+          </VSelect>
+        </template>
+      </ChipField>
+      <ChipField v-if="!creating" :label="t('agents.newSession.branch')" data-testid="new-session-branch-field">
+        <template #default="{ labelId, controlId }">
+          <VSelect v-model="mode" :options="MODES" option-label="label" option-value="value" option-disabled="disabled" size="small" class="chip" :label-id="controlId" :aria-labelledby="labelId" data-testid="new-session-branch-mode" />
+        </template>
+      </ChipField>
       <slot name="type" />
     </div>
     <label v-if="!creating && mode === 'existing'" class="row">

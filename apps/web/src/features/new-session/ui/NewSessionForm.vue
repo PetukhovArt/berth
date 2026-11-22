@@ -14,6 +14,7 @@ import { useProjectConversations } from '../model/conversations';
 import { deletePreset, presets, savePreset, withPromptFrame, type AgentPreset } from '../model/presets';
 import NewSessionTarget from './NewSessionTarget.vue';
 import ContinueConversation from './ContinueConversation.vue';
+import ChipField from './ChipField.vue';
 
 const props = defineProps<{ worktree: string | null; projectLocked: boolean }>();
 const emit = defineEmits<{ close: []; created: [session: SessionRef] }>();
@@ -269,42 +270,56 @@ function onVisible(visible: boolean) {
         />
         <NewSessionTarget :state="location" :project-locked="projectLocked" @enter="onBranchEnter">
           <template #type>
-            <VSelect
-              v-if="!continuing"
-              :model-value="kind"
-              :options="KINDS"
-              option-label="label"
-              option-value="value"
-              size="small"
-              class="chip"
-              :aria-label="t('agents.newSession.typeAria')"
-              data-testid="new-session-kind"
-              @update:model-value="pickKind"
-            />
+            <ChipField v-if="!continuing" :label="t('agents.newSession.agent')" data-testid="new-session-kind-field">
+              <template #default="{ labelId, controlId }">
+                <VSelect
+                  :model-value="kind"
+                  :options="KINDS"
+                  option-label="label"
+                  option-value="value"
+                  size="small"
+                  class="chip"
+                  :label-id="controlId"
+                  :aria-labelledby="labelId"
+                  data-testid="new-session-kind"
+                  @update:model-value="pickKind"
+                />
+              </template>
+            </ChipField>
           </template>
         </NewSessionTarget>
         <div class="chips" data-testid="new-session-options">
           <template v-if="kind !== 'terminal' && !acpProviderOf(kind) && !continuing">
-            <VSelect
-              v-model="model"
-              :options="modelOptions"
-              editable
-              size="small"
-              class="chip chip-input"
-              :placeholder="t('agents.newSession.defaultModel')"
-              :aria-label="t('agents.newSession.model')"
-              data-testid="new-session-model"
-            />
-            <VSelect
-              v-model="effort"
-              :options="EFFORT_SUGGESTIONS"
-              editable
-              size="small"
-              class="chip chip-input"
-              :placeholder="t('agents.newSession.defaultEffort')"
-              :aria-label="t('agents.newSession.effort')"
-              data-testid="new-session-effort"
-            />
+            <ChipField class="field-input" :label="t('agents.newSession.model')" data-testid="new-session-model-field">
+              <template #default="{ labelId, controlId }">
+                <VSelect
+                  v-model="model"
+                  :options="modelOptions"
+                  editable
+                  size="small"
+                  class="chip chip-input"
+                  :placeholder="t('agents.newSession.defaultModel')"
+                  :label-id="controlId"
+                  :aria-labelledby="labelId"
+                  data-testid="new-session-model"
+                />
+              </template>
+            </ChipField>
+            <ChipField class="field-input" :label="t('agents.newSession.effort')" data-testid="new-session-effort-field">
+              <template #default="{ labelId, controlId }">
+                <VSelect
+                  v-model="effort"
+                  :options="EFFORT_SUGGESTIONS"
+                  editable
+                  size="small"
+                  class="chip chip-input"
+                  :placeholder="t('agents.newSession.defaultEffort')"
+                  :label-id="controlId"
+                  :aria-labelledby="labelId"
+                  data-testid="new-session-effort"
+                />
+              </template>
+            </ChipField>
           </template>
           <span class="spacer" />
           <UiButton type="button" class="chips-action" :aria-pressed="continuing" data-testid="new-session-continue" @click="continuing = !continuing">
@@ -607,8 +622,11 @@ function onVisible(visible: boolean) {
   grid-template-columns: 1fr 1fr;
 }
 
-:root[data-vr-viewport='phone'] .chip-input {
+:root[data-vr-viewport='phone'] .field-input {
   grid-column: 1 / -1;
+}
+
+:root[data-vr-viewport='phone'] .chip-input {
   width: 100%;
 }
 

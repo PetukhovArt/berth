@@ -115,7 +115,7 @@ export const agents = {
     baseFromLocalCopy: 'The worktree was created from the local {copy}, because fetching {branch} from origin failed: {detail}',
     branchesFailed: 'Could not list branches: {error}',
     type: 'Type',
-    typeAria: 'Session type',
+    agent: 'Agent',
     name: 'Name',
     model: 'Model',
     effort: 'Effort',

@@ -18,6 +18,7 @@
 - Changed `Continue a conversation` and `More options` in New session from bare text into buttons with a chevron, so they read as controls on a phone and on the desktop
 - Changed the Sessions tree to show the Archive at the bottom of each project, and of Not in a project, instead of one Archive row for all projects
 - Changed the New Workspace button to sit in the workspace menu of the title bar instead of at the bottom of the Sessions tree
+- Changed the New session form on a phone to put a small label above each chip: Project, Worktree, Branch, Agent, Model and Effort, so a bare `demo-app` or `Keep its current branch` says what it sets
 - Changed `berth channel grant` to refuse a colleague whose role on the hub does not include `agents.instruct`; a granted colleague's messages arrive as quoted information again once their role loses it
 - Changed `berth hub devices` to list each device's role and the hub's roles, and `--admin-token` to also accept the device token of anyone whose role includes `admin.manage`
 - Changed the Channel view to disable Send and the Task note button, and say why, when your role on the hub does not allow them

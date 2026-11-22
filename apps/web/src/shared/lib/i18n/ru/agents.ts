@@ -118,7 +118,7 @@ export const agents: Translation<typeof en> = {
     baseFromLocalCopy: 'Worktree создан из локальной копии {copy}, потому что получить {branch} из origin не удалось: {detail}',
     branchesFailed: 'Не удалось получить список веток: {error}',
     type: 'Тип',
-    typeAria: 'Тип сессии',
+    agent: 'Агент',
     name: 'Имя',
     model: 'Модель',
     effort: 'Effort',
