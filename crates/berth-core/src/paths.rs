@@ -86,6 +86,10 @@ pub fn data_dir() -> PathBuf {
         .unwrap_or_else(|| env::home_dir().unwrap_or_default().join(".berth"))
 }
 
+pub fn search_index_db() -> PathBuf {
+    data_dir().join("search-index.db")
+}
+
 pub fn db_path() -> PathBuf {
     data_dir().join("berth.db")
 }

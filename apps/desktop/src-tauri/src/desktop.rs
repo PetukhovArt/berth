@@ -280,6 +280,7 @@ pub fn run() {
         .setup(move |app| {
             tauri::async_runtime::spawn(monitor::run(connectors.clone()));
             tauri::async_runtime::spawn(crate::merge_watch::run(connectors.clone()));
+            tauri::async_runtime::spawn(crate::search_index::run());
             tauri::async_runtime::spawn(crate::stratum::sweep_once());
             let remote = Remote::new(connectors, web_source(app.handle()));
             let watcher = remote.clone();
@@ -381,6 +382,7 @@ pub fn run() {
             history_projects,
             agent_session_watch,
             agent_session_transcript,
+            search_messages,
             slash_commands,
             jira_search,
             jira_issue,

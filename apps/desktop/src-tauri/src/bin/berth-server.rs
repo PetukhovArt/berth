@@ -225,6 +225,7 @@ async fn serve(options: Options, token_note: String) -> ExitCode {
     let connectors = Arc::new(Connectors::load());
     tokio::spawn(monitor::run(connectors.clone()));
     tokio::spawn(merge_watch::run(connectors.clone()));
+    tokio::spawn(berth_desktop_lib::search_index::run());
     tokio::spawn(berth_desktop_lib::stratum::sweep_once());
     let remote = Remote::pinned(
         connectors,

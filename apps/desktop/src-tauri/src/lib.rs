@@ -25,6 +25,7 @@ pub mod remote;
 pub mod remote_devices;
 mod review;
 pub mod rpc;
+pub mod search_index;
 pub mod settings;
 pub mod sink;
 pub mod slash_commands;

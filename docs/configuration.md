@@ -11,7 +11,7 @@ app's own, in `~/.berth`.
 | Linux | `~/.local/share/berth/` (data), `~/.local/state/berth/` (logs) |
 | Windows | `%APPDATA%\berth\data\` |
 
-That directory holds `config.json`, `berth.db`, and a `state/` subdirectory with `daemon.log`.
+That directory holds `config.json`, `berth.db`, `search-index.db` (the desktop app's full-text index of Claude and Codex transcripts, a cache it rebuilds when missing), and a `state/` subdirectory with `daemon.log`.
 
 ## Moving from pacer
 

@@ -132,11 +132,11 @@ pub enum Role {
 
 #[derive(Debug, Serialize)]
 pub struct TranscriptMessage {
-    key: String,
-    role: Role,
-    text: String,
-    tool: Option<String>,
-    at: Option<String>,
+    pub(crate) key: String,
+    pub(crate) role: Role,
+    pub(crate) text: String,
+    pub(crate) tool: Option<String>,
+    pub(crate) at: Option<String>,
     input: Option<Value>,
     model: Option<String>,
     edits: Vec<FileEdit>,
@@ -1066,6 +1066,17 @@ pub(crate) fn collect(since_days: Option<u32>) -> Vec<AgentSession> {
         .collect()
 }
 
+pub(crate) fn transcript_files() -> Vec<(Harness, PathBuf)> {
+    scan(0)
+        .into_iter()
+        .map(|found| (found.harness, found.path))
+        .collect()
+}
+
+pub(crate) fn session_id(harness: Harness, path: &Path) -> String {
+    id_of(harness, path, &read_head(path, harness))
+}
+
 fn locate(harness: Harness, id: &str) -> Result<PathBuf, String> {
     if !valid_id(id) {
         return Err(crate::host_text!("badSessionId", id = id));
@@ -1144,7 +1155,7 @@ fn tool_summary(input: &Value) -> String {
     single_line(&input.to_string(), TOOL_CHARS)
 }
 
-fn claude_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
+pub(crate) fn claude_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
     let role = match line["type"].as_str() {
         Some("user") => Role::User,
         Some("assistant") => Role::Assistant,
@@ -1211,7 +1222,7 @@ fn claude_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
     }
 }
 
-fn codex_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
+pub(crate) fn codex_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
     if line["type"].as_str() != Some("response_item") {
         return;
     }
