@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, shallowRef, useId, useTemplateRef, watch } from 'vue';
 import { isDesktop } from '../../../bridge';
-import { ArrowUp, Mic } from '../../../shared/ui/icons';
+import { ArrowUp, Mic, Square } from '../../../shared/ui/icons';
 import { useIsPhone } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiTextarea from '../../../shared/ui/UiTextarea.vue';
@@ -17,7 +17,7 @@ const WAVE_BARS = [10, 22, 34, 18, 40, 26, 14, 30, 20, 8];
 
 const SLASH_QUERY = /^\/(\S*)$/;
 
-const props = defineProps<{ messages: TranscriptMessage[]; suggestion: string | null; modelChip: string; sending: boolean; slashSource: SlashSource | null; send: (text: string, spoken: boolean) => Promise<boolean> }>();
+const props = defineProps<{ messages: TranscriptMessage[]; suggestion: string | null; modelChip: string; sending: boolean; slashSource: SlashSource | null; stop: (() => Promise<void>) | null; send: (text: string, spoken: boolean) => Promise<boolean> }>();
 
 const phone = useIsPhone();
 const draft = shallowRef('');
@@ -215,7 +215,8 @@ function handsFree() {
           <UiButton v-if="talkBlocked" type="button" class="talk blocked" aria-disabled="true" :aria-label="t('chat.talkMode')" :title="t(secure ? 'chat.talkUnavailable' : 'chat.talkNeedsHttps')" data-testid="chat-talk-blocked" @click="explainBlocked"><Mic :size="14" /></UiButton>
           <UiButton v-else-if="showTalk && phone" type="button" class="talk" :aria-label="t('chat.talkMode')" :title="t('chat.talkMode')" data-testid="chat-talk-mode" @click="typing = false"><Mic :size="14" /></UiButton>
           <UiButton v-else-if="showTalk" type="button" class="talk" :data-holding="talk.holding.value || undefined" :data-cancelling="talk.cancelling.value || undefined" :aria-label="t('agents.sessionView.chatTalk')" :title="t('agents.sessionView.chatTalk')" data-testid="chat-talk" @pointerdown="talk.start" @pointermove="talk.move" @pointerup="talk.release" @pointercancel="talk.release" @contextmenu.prevent><Mic :size="14" /></UiButton>
-          <UiButton type="submit" class="send" :disabled="!draft.trim() || sending" :aria-busy="sending" :aria-label="t('agents.sessionView.chatSend')" :title="t('agents.sessionView.chatSend')" data-testid="chat-send"><ArrowUp :size="14" /></UiButton>
+          <UiButton v-if="stop && !draft.trim()" type="button" class="send" :aria-label="t('agents.sessionView.chatStop')" :title="t('agents.sessionView.chatStop')" data-testid="chat-stop" @click="stop"><Square :size="12" fill="currentColor" /></UiButton>
+          <UiButton v-else type="submit" class="send" :disabled="!draft.trim() || sending" :aria-busy="sending" :aria-label="t('agents.sessionView.chatSend')" :title="t('agents.sessionView.chatSend')" data-testid="chat-send"><ArrowUp :size="14" /></UiButton>
         </div>
       </div>
     </template>
@@ -389,6 +390,11 @@ function handsFree() {
   background: var(--vr-color-surface-muted);
   border: 0;
   border-radius: 50%;
+}
+
+:root[data-vr-viewport='phone'] .send {
+  width: 44px;
+  height: 44px;
 }
 
 .talk {

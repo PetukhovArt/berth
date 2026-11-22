@@ -220,6 +220,7 @@ export const agents: Translation<typeof en> = {
     chatSuggestion: 'Предложенный следующий запрос, Tab чтобы вставить',
     chatSend: 'Отправить',
     chatAgentLog: 'Лог агента',
+    chatStop: 'Остановить агента',
     chatAgentLogEmpty: 'Агент ничего не записал в лог.',
     chatTalk: 'Удерживайте, чтобы говорить',
     chatTalkHint: 'Отпустите, чтобы отправить, отведите палец, чтобы отменить',

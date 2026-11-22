@@ -217,6 +217,7 @@ export const agents = {
     chatSuggestion: 'Suggested next prompt, Tab to use',
     chatSend: 'Send',
     chatAgentLog: 'Agent log',
+    chatStop: 'Stop the agent',
     chatAgentLogEmpty: 'The agent has written nothing to its log.',
     chatTalk: 'Hold to talk',
     chatTalkHint: 'Release to send, slide away to cancel',
