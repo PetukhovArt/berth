@@ -186,6 +186,25 @@ pub async fn berth_idle_timeout_write(value: String) -> Result<(), String> {
     berth_config_write(IDLE_KEY, serde_json::Value::String(value))
 }
 
+const ARCHIVE_AFTER_KEY: &str = "session_archive_after";
+const ARCHIVE_AFTER_CHOICES: [&str; 6] = ["off", "1d", "3d", "7d", "14d", "30d"];
+
+pub async fn berth_session_archive_after_read() -> Result<String, String> {
+    let map = berth_config_object(&berth_core::paths::config_path())?;
+    Ok(map
+        .get(ARCHIVE_AFTER_KEY)
+        .and_then(|value| value.as_str())
+        .unwrap_or(&daemon_defaults().session_archive_after)
+        .to_owned())
+}
+
+pub async fn berth_session_archive_after_write(value: String) -> Result<(), String> {
+    if !ARCHIVE_AFTER_CHOICES.contains(&value.as_str()) {
+        return Err(crate::host_text!("invalidValue", value = value));
+    }
+    berth_config_write(ARCHIVE_AFTER_KEY, serde_json::Value::String(value))
+}
+
 const RESTORE_KEY: &str = "restore_sessions";
 
 pub async fn berth_restore_sessions_read() -> Result<bool, String> {

@@ -59,6 +59,8 @@ macro_rules! plain_commands {
             free settings_write(text: String, file: Option<$crate::settings::ConfigFile>) = $crate::settings::settings_write;
             free berth_idle_timeout_read() = $crate::settings::berth_idle_timeout_read;
             free berth_idle_timeout_write(value: String) = $crate::settings::berth_idle_timeout_write;
+            free berth_session_archive_after_read() = $crate::settings::berth_session_archive_after_read;
+            free berth_session_archive_after_write(value: String) = $crate::settings::berth_session_archive_after_write;
             free berth_restore_sessions_read() = $crate::settings::berth_restore_sessions_read;
             free berth_restore_sessions_write(value: bool) = $crate::settings::berth_restore_sessions_write;
             free berth_flag_read(key: String) = $crate::settings::berth_flag_read;

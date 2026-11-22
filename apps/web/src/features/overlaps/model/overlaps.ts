@@ -1,6 +1,6 @@
 import { computed, shallowRef, watch } from 'vue';
 import { isDesktop } from '../../../bridge';
-import { channelKeys, readTouched, useBerth, type ChannelTouching } from '../../../entities/session';
+import { channelKeys, isActive, readTouched, useBerth, type ChannelTouching } from '../../../entities/session';
 import { worktreeChanges } from '../../../shared/api/fs';
 import { createScope, visibleInterval } from '../../../shared/lib/scope';
 
@@ -55,7 +55,7 @@ function membersOf(): Member[] {
   const { agents, worktrees } = berth.entities.value;
   const list: Member[] = [];
   for (const agent of agents.values()) {
-    if (agent.archived) continue;
+    if (!isActive(agent)) continue;
     const worktree = worktrees.get(agent.worktree_id);
     if (worktree) list.push({ id: agent.id, name: agent.name, worktree: worktree.id, project: worktree.project_id, path: worktree.path, branch: worktree.branch });
   }

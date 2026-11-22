@@ -125,7 +125,7 @@ enum Command {
         dir: String,
     },
     #[command(
-        about = "End this session once the current turn ends: its process stops and it moves to the Archive in the Sessions tree, where unarchiving resumes the conversation (run from inside a berth agent session; agents run it when you ask them to end or close the session)"
+        about = "End this session once the current turn ends: its process stops and it moves to Ended in the Sessions tree, where opening it resumes the conversation, and later to the Archive per the session_archive_after setting (run from inside a berth agent session; agents run it when you ask them to end or close the session)"
     )]
     EndSession,
     /// Start a new agent session beside this one — same worktree, same
@@ -198,9 +198,9 @@ enum Command {
         #[command(subcommand)]
         command: HubCommand,
     },
-    #[command(about = "List sessions as JSON (live ones; --all adds archived)")]
+    #[command(about = "List sessions as JSON (live ones; --all adds ended and archived)")]
     Sessions {
-        #[arg(long, help = "Include archived sessions")]
+        #[arg(long, help = "Include ended and archived sessions")]
         all: bool,
     },
     #[command(

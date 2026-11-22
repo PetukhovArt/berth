@@ -245,9 +245,9 @@ impl Daemon {
                     .iter()
                     .find(|(id, _)| *id == agent.id)
                     .map(|(_, request)| request.options.len()),
+                archived: agent.archived || agent.is_ended(),
                 id: agent.id,
                 status: agent.status,
-                archived: agent.archived,
                 changed_at: agent.status_changed_at,
             })
             .collect()
@@ -354,7 +354,7 @@ impl Daemon {
                 (note, Some(agent))
             }
             Route::Gone => (
-                format!("{heard}That session is archived or gone; nothing was sent."),
+                format!("{heard}That session is ended, archived or gone; nothing was sent."),
                 None,
             ),
             Route::Forgotten => (

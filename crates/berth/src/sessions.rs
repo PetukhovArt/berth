@@ -27,6 +27,7 @@ fn session_json(
         "attention": agent.attention().map(Attention::as_str),
         "alive": agent.alive,
         "archived": agent.archived,
+        "ended": agent.is_ended(),
         "kind": agent.kind.as_str(),
         "model": agent.model,
         "status_changed_at": agent.status_changed_at,
@@ -47,7 +48,7 @@ pub fn sessions_document(
 ) -> Value {
     let rows: Vec<Value> = agents
         .iter()
-        .filter(|a| all || !a.archived)
+        .filter(|a| all || !(a.archived || a.is_ended()))
         .filter(|a| !only_attention || a.attention().is_some())
         .map(|a| session_json(a, workspaces, projects, worktrees))
         .collect();
@@ -55,7 +56,10 @@ pub fn sessions_document(
 }
 
 pub fn resolve_session<'a>(agents: &'a [Agent], query: &str) -> Result<&'a Agent> {
-    let live: Vec<&Agent> = agents.iter().filter(|a| !a.archived).collect();
+    let live: Vec<&Agent> = agents
+        .iter()
+        .filter(|a| !(a.archived || a.is_ended()))
+        .collect();
     if let Some(a) = live.iter().find(|a| a.id.as_str() == query) {
         return Ok(a);
     }
@@ -280,6 +284,7 @@ mod tests {
             status,
             archived,
             archived_at: 0,
+            ended_at: 0,
             unseen,
             status_changed_at: 7,
             kind: AgentKind::default(),
@@ -342,6 +347,7 @@ mod tests {
                 "attention": "needs_feedback",
                 "alive": true,
                 "archived": false,
+                "ended": false,
                 "kind": AgentKind::default().as_str(),
                 "model": null,
                 "status_changed_at": 7,
@@ -373,16 +379,23 @@ mod tests {
     }
 
     #[test]
-    fn sessions_hide_archived_unless_all() {
+    fn sessions_hide_ended_and_archived_unless_all() {
         let (ws, ps, wts) = world();
         let agents = vec![
             agent("a1", "x", AgentStatus::Fresh, false, false),
             agent("a2", "y", AgentStatus::Fresh, false, true),
+            Agent {
+                ended_at: 5,
+                ..agent("a3", "z", AgentStatus::Fresh, false, false)
+            },
         ];
         let live = sessions_document(&ws, &ps, &wts, &agents, false, false);
         assert_eq!(live["sessions"].as_array().unwrap().len(), 1);
         let all = sessions_document(&ws, &ps, &wts, &agents, true, false);
-        assert_eq!(all["sessions"].as_array().unwrap().len(), 2);
+        let rows = all["sessions"].as_array().unwrap();
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[2]["ended"], true);
+        assert_eq!(rows[0]["ended"], false);
     }
 
     #[test]

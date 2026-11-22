@@ -981,8 +981,11 @@ async fn handle_client(
                         reply(&out_tx, req_id, created).await;
                     });
                 }
-                ClientRequest::ArchiveSelf { req_id, id } => {
-                    reply_done(&out_tx, req_id, daemon.archive_self(&id)).await;
+                ClientRequest::EndSelf { req_id, id } => {
+                    reply_done(&out_tx, req_id, daemon.end_self(&id)).await;
+                }
+                ClientRequest::EndAgent { req_id, id } => {
+                    reply_done(&out_tx, req_id, daemon.end_agent(&id)).await;
                 }
                 ClientRequest::ArchiveAgent { req_id, id } => {
                     reply_done(&out_tx, req_id, daemon.archive_agent(&id)).await;

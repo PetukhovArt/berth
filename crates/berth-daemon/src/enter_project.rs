@@ -160,6 +160,7 @@ mod tests {
                 status: AgentStatus::Running,
                 archived: false,
                 archived_at: 0,
+                ended_at: 0,
                 unseen: false,
                 kind: AgentKind::Claude,
                 model: None,

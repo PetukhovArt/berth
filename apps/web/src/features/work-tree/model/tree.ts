@@ -1,4 +1,4 @@
-import { Archive, Eye, EyeOff, Folder, FolderGit2, FolderOpen, FolderSearch, GitBranch, House, Inbox, Layers, Pin, UserRound } from '../../../shared/ui/icons';
+import { Archive, Eye, EyeOff, Folder, FolderGit2, FolderOpen, FolderSearch, GitBranch, History, House, Inbox, Layers, Pin, UserRound } from '../../../shared/ui/icons';
 import { AGENT_KIND_LABEL, pinnedFirst, externalKey, placeExternal, type ExternalSession, worktreesOfProject, type Entities, type SessionNode, type WorktreeNode, rollupOf, type Rollup, type SessionState, type WorkspaceNode } from '../../../entities/session';
 import type { ConnectorView, InboxItem, JiraIssueSummary, PipelineStatus } from '../../../shared/api/connectors/api';
 import { numberLabel, itemId, pipelineRollup } from '../../../entities/merge-request';
@@ -112,7 +112,7 @@ function matcher(query: string): (text: string) => boolean {
 }
 
 function countLeaves(nodes: readonly WorkNode[]): number {
-  return nodes.reduce((sum, node) => sum + (node.kind === 'archive' ? 0 : node.children ? countLeaves(node.children) : node.inert ? 0 : 1), 0);
+  return nodes.reduce((sum, node) => sum + (node.kind === 'archive' || node.kind === 'ended' ? 0 : node.children ? countLeaves(node.children) : node.inert ? 0 : 1), 0);
 }
 
 function group(id: string, kind: string, label: string, children: WorkNode[], extra: Partial<WorkNode> = {}): WorkNode {
@@ -129,6 +129,9 @@ const sessionLeaf =
     return { id: session.key, kind: 'session', label: session.name, custom: true, data: link ? { session, linked: link } : { session } };
   };
 const archivedLeaf = (session: SessionNode, where: string): WorkNode => ({ id: `arch:${session.key}`, kind: 'archived', label: session.name, custom: true, data: { session, where } });
+const endedLeaf = (session: SessionNode, where: string): WorkNode => ({ id: `end:${session.key}`, kind: 'ended-session', label: session.name, custom: true, data: { session, where } });
+const endedGroup = (id: string, children: WorkNode[]): WorkNode[] =>
+  children.length ? [{ id, kind: 'ended', label: t('agents.layouts.ended'), icon: History, children, count: children.length, countTitle: t('agents.layouts.endedCount'), defaultExpanded: true }] : [];
 const archivedExternalLeaf = (session: ExternalSession): WorkNode => ({ id: `arch:${externalKey(session)}`, kind: 'archived-external', label: session.title, title: session.cwd, custom: true, data: { external: session } });
 const archiveGroup = (id: string, children: WorkNode[]): WorkNode[] =>
   children.length ? [{ id, kind: 'archive', label: t('agents.layouts.archive'), icon: Archive, children, count: children.length, countTitle: t('agents.layouts.archivedCount'), defaultExpanded: false, forgetExpanded: true }] : [];
@@ -187,7 +190,7 @@ function projectWorktrees(project: ProjectNode, placed: Placed): WorktreeNode[] 
   return worktreesOfProject(placed.entities, project.id).flatMap((worktree) => {
     const node = known.get(worktree.id);
     if (node) return [node];
-    return placed.byWorktree.has(worktree.id) ? [{ id: worktree.id, path: worktree.path, branch: worktree.branch, main: worktree.is_main, sessions: [], archived: [] }] : [];
+    return placed.byWorktree.has(worktree.id) ? [{ id: worktree.id, path: worktree.path, branch: worktree.branch, main: worktree.is_main, sessions: [], ended: [], archived: [] }] : [];
   });
 }
 
@@ -243,6 +246,11 @@ function projectArchive(prefix: string, project: ProjectNode, placed: Placed, ma
   const berth = project.worktrees.flatMap((worktree) => worktree.archived.filter((session) => match(`${session.name} ${worktree.branch} ${project.name}`)).map((session) => archivedLeaf(session, worktree.branch)));
   const external = (placed.archived.ofProject.get(project.id) ?? []).filter((session) => match(`${externalText(session)} ${project.name}`));
   return archiveGroup(`${prefix}ar:${project.id}`, [...berth, ...external.map(archivedExternalLeaf)]);
+}
+
+function projectEnded(prefix: string, project: ProjectNode, match: (text: string) => boolean): WorkNode[] {
+  const berth = project.worktrees.flatMap((worktree) => worktree.ended.filter((session) => match(`${session.name} ${worktree.branch} ${project.name}`)).map((session) => endedLeaf(session, worktree.branch)));
+  return endedGroup(`${prefix}en:${project.id}`, berth);
 }
 
 function mrSections(prefix: string, items: readonly InboxItem[], kinds: ReadonlyMap<string, ReviewKind>, reviews: ReadonlyMap<string, ReviewMeta>): WorkNode[] {
@@ -328,7 +336,7 @@ function liveSources(sources: Sources): Sources {
       ...workspace,
       projects: workspace.projects.map((project) => ({
         ...project,
-        worktrees: project.worktrees.map((worktree) => ({ ...worktree, sessions: worktree.sessions.filter((session) => session.alive), archived: [] })),
+        worktrees: project.worktrees.map((worktree) => ({ ...worktree, sessions: worktree.sessions.filter((session) => session.alive), ended: [], archived: [] })),
       })),
     })),
     external: sources.external.filter((session) => session.running),
@@ -358,7 +366,7 @@ export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly 
     if (!sources.berth && !sources.external.length && !sources.archivedExternal.length) return [];
     const workspaceNodes = sources.workspaces.flatMap((workspace): WorkNode[] => {
       const children = pinnedFirst(workspace.projects, sources.entities?.projects).flatMap((project): WorkNode[] => {
-        const worktrees = [...worktreeNodes('s|', project, links, placed, match, pruned), ...otherFolders('s|', project, placed, match), ...projectArchive('s|', project, placed, match)];
+        const worktrees = [...worktreeNodes('s|', project, links, placed, match, pruned), ...projectEnded('s|', project, match), ...otherFolders('s|', project, placed, match), ...projectArchive('s|', project, placed, match)];
         if (pruned && !worktrees.length) return [];
         const rollup = projectRollup(project);
         const pin = (sources.entities?.projects.get(project.id)?.pin_order ?? null) !== null;

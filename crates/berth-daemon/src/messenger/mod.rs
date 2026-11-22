@@ -315,6 +315,7 @@ mod tests {
                 status: from,
                 unseen: false,
                 archived: false,
+                ended: false,
             };
             turned_to(before.change(to).raised)
         };

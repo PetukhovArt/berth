@@ -319,6 +319,8 @@ pub fn run() {
             settings_write,
             berth_idle_timeout_read,
             berth_idle_timeout_write,
+            berth_session_archive_after_read,
+            berth_session_archive_after_write,
             berth_restore_sessions_read,
             berth_restore_sessions_write,
             berth_flag_read,

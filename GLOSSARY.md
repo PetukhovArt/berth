@@ -61,6 +61,10 @@ A Claude Agent that older versions created with a pull request URL (`pr_url`). A
 **Pin**
 A Project the user pinned in the desktop app's tree. Pinned Projects sit at the top of their Workspace; their rank among pinned Projects is held by the Daemon (`Project.pin_order`, set as one ordered list by `SetProjectPins`), so every client shows the same order.
 
+**Ended**
+The state of an Agent the user is done with for now but may come back to soon: its PTY is released and its row sits in the project's ENDED group under the live Sessions, expanded. Opening the row resumes the conversation in one step. An Ended Agent raises no Attention and counts in no Rollup. Ending is the user's choice (`berth end-session`, the tab close, archive after merge) and is kept as `ended_at` beside `archived`; after a set time (7 days by default) an Ended Agent becomes Archived. Different from Stopped (the process is gone but the row stays among the live Sessions) and from Archive (out of sight, two steps back).
+_Avoid_: closed, stopped (that is Stopped), settled, Finished (that is a turn, not a session)
+
 **Archive**
 The state of an Agent whose PTY is released and whose row is moved to the ARCHIVED group. Coming back resumes the conversation.
 _Avoid_: deletion (Archive is reversible)

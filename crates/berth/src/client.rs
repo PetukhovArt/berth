@@ -459,7 +459,7 @@ async fn end_current_session() -> Result<()> {
     let this_session = AgentId(agent_id);
     write_frame(
         &mut conn.stream,
-        &ClientRequest::ArchiveSelf {
+        &ClientRequest::EndSelf {
             req_id,
             id: this_session.clone(),
         },
@@ -477,7 +477,7 @@ async fn end_current_session() -> Result<()> {
         }
     }
     println!(
-        "this session ends once the current turn ends and moves to the Archive in the Sessions tree"
+        "this session ends once the current turn ends and moves to Ended in the Sessions tree, where opening it resumes the conversation; it later moves to the Archive (setting session_archive_after)"
     );
     Ok(())
 }

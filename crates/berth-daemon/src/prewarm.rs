@@ -191,6 +191,7 @@ impl Daemon {
             status: AgentStatus::Fresh,
             archived: false,
             archived_at: 0,
+            ended_at: 0,
             unseen: false,
             kind,
             model: target.model.clone(),

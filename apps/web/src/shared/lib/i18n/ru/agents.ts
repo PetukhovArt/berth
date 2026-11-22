@@ -48,6 +48,7 @@ export const agents: Translation<typeof en> = {
   session: {
     restart: 'Перезапустить',
     move: 'Перенести…',
+    end: 'Завершить',
     archive: 'В архив',
     restore: 'Восстановить',
     deleteForever: 'Удалить навсегда',
@@ -201,6 +202,8 @@ export const agents: Translation<typeof en> = {
     mainCheckout: 'Основной checkout',
   },
   layouts: {
+    ended: 'Завершённые',
+    endedCount: 'завершено',
     archive: 'Архив',
     archivedCount: 'в архиве',
     runningTotal: 'работает / всего',
@@ -219,8 +222,8 @@ export const agents: Translation<typeof en> = {
     chatPlaceholder: 'Сообщение агенту',
     chatSuggestion: 'Предложенный следующий запрос, Tab чтобы вставить',
     chatSend: 'Отправить',
-    chatAgentLog: 'Лог агента',
     chatStop: 'Остановить агента',
+    chatAgentLog: 'Лог агента',
     chatAgentLogEmpty: 'Агент ничего не записал в лог.',
     chatTalk: 'Удерживайте, чтобы говорить',
     chatTalkHint: 'Отпустите, чтобы отправить, отведите палец, чтобы отменить',

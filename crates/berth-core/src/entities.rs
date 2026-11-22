@@ -132,6 +132,12 @@ pub struct Project {
     pub pin_order: Option<i64>,
 }
 
+impl Agent {
+    pub fn is_ended(&self) -> bool {
+        self.ended_at > 0 && !self.archived
+    }
+}
+
 impl Project {
     /// The name a project takes from disk: the last component of its repo
     /// path. This is the default `name`, and it stays the truth about where
@@ -172,6 +178,8 @@ pub struct Agent {
     /// this field existed). Orders the ARCHIVED group newest-first.
     #[serde(default)]
     pub archived_at: i64,
+    #[serde(default)]
+    pub ended_at: i64,
     /// Finished a turn (running or needs-feedback → finished) that no client
     /// has looked at since. The Projects and Worktrees rows count these so
     /// the user knows how many terminals to go read; the pane landing on

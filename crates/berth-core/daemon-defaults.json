@@ -1,5 +1,6 @@
 {
   "session_idle_timeout": "5m",
+  "session_archive_after": "7d",
   "restore_sessions": true,
   "git_init_on_create": true,
   "prewarm": true,

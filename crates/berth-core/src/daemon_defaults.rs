@@ -7,6 +7,7 @@ use serde::Deserialize;
 #[serde(deny_unknown_fields)]
 pub struct DaemonDefaults {
     pub session_idle_timeout: String,
+    pub session_archive_after: String,
     pub restore_sessions: bool,
     pub git_init_on_create: bool,
     pub prewarm: bool,

@@ -1,5 +1,5 @@
 import { computed } from 'vue';
-import { sessionKey, useBerth, type SessionNode } from '../../../entities/session';
+import { isActive, sessionKey, useBerth, type SessionNode } from '../../../entities/session';
 import { itemId, knownMr } from '../../../entities/merge-request';
 import type { ChangeRequestRef } from '../../../shared/api/connectors/api';
 
@@ -13,7 +13,7 @@ export function useMrSession(target: () => ChangeRequestRef) {
       const mr = knownMr(worktree.path, worktree.branch);
       if (!mr || itemId(mr) !== id) continue;
       const agent = [...agents.values()]
-        .filter((candidate) => candidate.worktree_id === worktree.id && !candidate.archived)
+        .filter((candidate) => candidate.worktree_id === worktree.id && isActive(candidate))
         .sort((a, b) => Number(b.alive) - Number(a.alive) || b.status_changed_at - a.status_changed_at)[0];
       const node = agent ? berth.sessions.value.get(sessionKey({ Agent: agent.id })) : undefined;
       if (node) return node;
