@@ -196,7 +196,8 @@ function handsFree() {
         <div class="talk-row">
           <UiButton type="button" class="aa" :title="t('chat.typeMode')" :aria-label="t('chat.typeMode')" data-testid="chat-type-mode" @click="typing = true">{{ t('chat.typeGlyph') }}</UiButton>
           <UiButton type="button" class="talk big" :data-holding="talk.holding.value || undefined" :data-cancelling="talk.cancelling.value || undefined" :aria-label="t('agents.sessionView.chatTalk')" :title="t('agents.sessionView.chatTalk')" data-testid="chat-talk" @pointerdown="talk.start" @pointermove="talk.move" @pointerup="talk.release" @pointercancel="talk.release" @contextmenu.prevent><Mic :size="26" /></UiButton>
-          <span class="aa-balance" aria-hidden="true" />
+          <UiButton v-if="stop" type="button" class="aa stop" :title="t('agents.sessionView.chatStop')" :aria-label="t('agents.sessionView.chatStop')" data-testid="chat-stop" @click="stop"><Square :size="14" fill="currentColor" /></UiButton>
+          <span v-else class="aa-balance" aria-hidden="true" />
         </div>
         <p class="hint">{{ t('chat.talkHint') }}</p>
       </div>
@@ -450,6 +451,12 @@ function handsFree() {
 .aa-balance {
   width: 44px;
   height: 44px;
+}
+
+.aa.stop {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .aa {
