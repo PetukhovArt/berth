@@ -242,4 +242,8 @@ const summary = computed(() => {
 :root[data-vr-viewport='phone'] .row-label {
   width: auto;
 }
+
+:root[data-vr-viewport='phone'] .row-input {
+  flex: none;
+}
 </style>
