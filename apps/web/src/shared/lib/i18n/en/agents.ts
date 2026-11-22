@@ -91,7 +91,7 @@ export const agents = {
     pickBranch: 'Pick a branch',
     typeBranch: 'Empty: a name is generated',
     setupCommand: 'Setup command',
-    setupPlaceholder: 'Runs once in the new worktree, e.g. pnpm install',
+    setupPlaceholder: 'e.g. pnpm install',
     planSetup: 'Then runs in a setup terminal: {command}',
     planCreateGenerated: 'Creates a worktree on a generated branch, then starts there',
     planCreateGeneratedFrom: 'Creates a worktree on a generated branch from {base}, then starts there',

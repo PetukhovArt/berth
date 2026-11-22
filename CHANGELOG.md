@@ -30,6 +30,7 @@
 - Added a Team section in Settings that shows your role on the hub and lets an admin approve devices with a role, change roles, revoke devices, edit custom roles and read the hub's audit log
 - Fixed the running count in the Sessions tab, the phone header and the tray counting a session as running after its process had stopped
 - Fixed the New session dialog on a phone: it now fills the screen with every field full width, the Name field on its own row, large Cancel and Create buttons, and no keyboard shortcut hints; Enter in the prompt adds a line
+- Fixed the Setup command field in New session on a phone showing its placeholder cut off: it now says `e.g. pnpm install` and fits at 320 px
 - Fixed the Inbox listing Sessions from projects of other workspaces while one workspace is open; `Alt+J` now stays within it too
 - Fixed `berth worktree <branch>` and `berth spawn --worktree <branch>` starting a new local branch from the default base when that branch already exists on origin: the worktree now checks out origin's branch and tracks it
 - Fixed a Session started by `berth spawn` getting no tab: it now opens as a tab beside the Session that ran the command, without taking focus from it

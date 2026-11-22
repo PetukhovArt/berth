@@ -94,7 +94,7 @@ export const agents: Translation<typeof en> = {
     pickBranch: 'Выберите ветку',
     typeBranch: 'Пусто: имя будет сгенерировано',
     setupCommand: 'Команда настройки',
-    setupPlaceholder: 'Выполнится один раз в новом worktree, например pnpm install',
+    setupPlaceholder: 'например pnpm install',
     planSetup: 'Затем выполнит в терминале setup: {command}',
     planCreateGenerated: 'Создаст worktree на сгенерированной ветке и запустится там',
     planCreateGeneratedFrom: 'Создаст worktree на сгенерированной ветке от {base} и запустится там',
