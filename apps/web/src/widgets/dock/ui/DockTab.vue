@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef, useTemplateRef } from 'vue';
+import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { FileText, GitPullRequest, Network, Ticket, X } from '../../../shared/ui/icons';
 import { isDirtyPath, settleDirty } from '../../../entities/document';
@@ -73,9 +73,12 @@ async function confirmDelete() {
   if (await deleting.run(() => deleteAgent(agent))) confirmingDelete.value = false;
 }
 
+const tab = useTemplateRef<HTMLElement>('tab');
+
 function cancelDelete() {
   confirmingDelete.value = false;
   deleting.clear();
+  void nextTick(() => tab.value?.focus());
 }
 
 const menu = useTemplateRef<InstanceType<typeof VContextMenu>>('menu');
@@ -84,8 +87,6 @@ const menuItems = computed(() => [
   { key: 'archive', label: t('agents.session.archive'), command: closeAndArchive },
   ...(isAgent() ? [{ separator: true }, { key: 'delete', label: t('agents.session.deleteForever'), command: () => (confirmingDelete.value = true) }] : []),
 ]);
-
-const tab = useTemplateRef<HTMLElement>('tab');
 
 function showMenuUnderCloseButton() {
   const anchor = tab.value?.querySelector('.close')?.getBoundingClientRect();
@@ -101,7 +102,7 @@ function onClose() {
 </script>
 
 <template>
-  <span ref="tab" class="tab status-host" :data-testid="`${kindOf(panel.id)}-tab`" :data-panel-id="panel.id" :data-session-id="session(panel.id)?.id" :data-active="active" @auxclick.middle="onClose">
+  <span ref="tab" class="tab status-host" tabindex="-1" :data-testid="`${kindOf(panel.id)}-tab`" :data-panel-id="panel.id" :data-session-id="session(panel.id)?.id" :data-active="active" @auxclick.middle="onClose">
     <FileText v-if="kindOf(panel.id) === 'file'" :size="12" />
     <GitPullRequest v-else-if="kindOf(panel.id) === 'review'" :size="12" />
     <Network v-else-if="kindOf(panel.id) === 'architecture'" :size="12" />
@@ -142,6 +143,15 @@ function onClose() {
   height: 100%;
   box-sizing: border-box;
   padding: 0 var(--vr-space-1) 0 var(--vr-space-3);
+}
+
+.tab:focus {
+  outline: none;
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--vr-color-focus);
+  outline-offset: -2px;
 }
 
 .tab[data-dragging='true'] {

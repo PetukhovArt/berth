@@ -62,7 +62,7 @@ const menuItems = computed<MenuAction[]>(() => {
     { key: 'rename', label: t('common.rename'), command: startRename },
     { key: 'restart', label: t('agents.session.restart'), command: () => void action.run(() => restartAgent(session.Agent)) },
     { key: 'move', label: t('agents.session.move'), command: () => (moving.value = true) },
-    { key: 'delete', label: t('common.delete'), command: () => (mode.value = 'confirming-delete') },
+    { key: 'delete', label: t('agents.session.deleteForever'), command: () => (mode.value = 'confirming-delete') },
   ];
 });
 
