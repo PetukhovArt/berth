@@ -230,7 +230,7 @@ onBeforeUnmount(() => clearTimeout(timer));
 }
 
 .excerpt :deep(mark) {
-  background: var(--vr-color-pin-bg);
-  color: var(--vr-color-conflict);
+  background: var(--vr-color-match-bg);
+  color: var(--vr-color-match-text);
 }
 </style>

@@ -4,6 +4,7 @@ import { Search } from '../../../shared/ui/icons';
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiInput from '../../../shared/ui/UiInput.vue';
 import ErrorInline from '../../../shared/ui/ErrorInline.vue';
+import { VChipGroup } from '../../../shared/ui/kit';
 import { MIN_MESSAGE_QUERY } from '../../../entities/session';
 import { usePickerList } from '../../../shared/lib/usePickerList';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
@@ -33,6 +34,8 @@ const { index, onKey } = usePickerList({
 
 const positions = computed(() => new Map(rows.value.map((row, at) => [row.id, at])));
 const countOf = (id: SearchScope) => (id === 'all' ? search.total.value : counts.value[id]);
+const scopeOptions = computed(() => SCOPES.map((id) => ({ value: id, label: t(`search.scope.${id}`), count: text.value && countOf(id) ? countOf(id) : undefined })));
+const scope = computed({ get: () => searchScope.value, set: (value: string) => (searchScope.value = SCOPES.find((id) => id === value) ?? 'all') });
 
 watch(searchFocus, () => void nextTick(() => input.value?.focus()));
 onMounted(() => input.value?.focus());
@@ -45,21 +48,7 @@ onMounted(() => input.value?.focus());
         <Search :size="14" class="field-icon" />
         <UiInput ref="input" v-model="searchQuery" class="query" type="text" autocomplete="off" :placeholder="t('search.placeholder')" :aria-label="t('search.query')" data-testid="search-input" @keydown="onKey" />
       </div>
-      <div class="scopes vr-toolbar" role="radiogroup" :aria-label="t('search.scopeLabel')">
-        <UiButton
-          v-for="id in SCOPES"
-          :key="id"
-          type="button"
-          class="scope"
-          role="radio"
-          :aria-checked="searchScope === id"
-          :data-active="searchScope === id"
-          :data-testid="`search-scope-${id}`"
-          @click="searchScope = id"
-        >
-          {{ t(`search.scope.${id}`) }}<span v-if="text && countOf(id)" class="count">{{ formatNumber(countOf(id)) }}</span>
-        </UiButton>
-      </div>
+      <VChipGroup v-model="scope" :options="scopeOptions" :label="t('search.scopeLabel')" test-id="search-scope" />
     </header>
     <div class="notes">
       <p v-if="search.tooShort.value" class="note" data-testid="search-min-chars">{{ t('search.minChars', { count: MIN_MESSAGE_QUERY }) }}</p>
@@ -149,39 +138,9 @@ onMounted(() => input.value?.focus());
   outline: none;
 }
 
-.scopes {
-  gap: var(--vr-space-1);
-}
-
-.scope {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--vr-space-1);
-  padding: var(--vr-space-1) var(--vr-space-2);
-  color: var(--vr-color-text-muted);
-  font: inherit;
-  font-size: var(--vr-font-size-xs);
-  white-space: nowrap;
-  cursor: pointer;
-  background: none;
-  border: 1px solid var(--vr-color-border);
-  border-radius: var(--vr-radius-sm);
-}
-
-.scope[data-active='true'] {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-active);
-}
-
-.scope:focus-visible,
 .more:focus-visible {
   outline: 2px solid var(--vr-color-accent);
   outline-offset: 1px;
-}
-
-.count {
-  color: var(--vr-color-text-subtle);
-  font-variant-numeric: tabular-nums;
 }
 
 .notes {

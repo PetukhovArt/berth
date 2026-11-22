@@ -10,8 +10,8 @@ defineProps<{ segments: readonly Segment[] }>();
 
 <style scoped>
 mark {
-  color: var(--vr-color-text);
-  background: var(--vr-color-pin-bg);
+  color: var(--vr-color-match-text);
+  background: var(--vr-color-match-bg);
   border-radius: var(--vr-radius-sm);
 }
 </style>
