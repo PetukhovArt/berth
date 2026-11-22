@@ -14,9 +14,11 @@ use tokio::task::{spawn_blocking, JoinHandle};
 use crate::connectors::ai::{claude_dir, codex_home};
 use crate::sink::BoxSink;
 
+mod subagents;
 mod tool_exit;
 mod turn_files;
 
+use subagents::Subagent;
 use turn_files::{file_edits, line_model, FileEdit};
 
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
@@ -142,6 +144,8 @@ pub struct TranscriptMessage {
     edits: Vec<FileEdit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     exit: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    subagent: Option<Subagent>,
 }
 
 #[derive(Default)]
@@ -1144,13 +1148,15 @@ fn tool_summary(input: &Value) -> String {
     single_line(&input.to_string(), TOOL_CHARS)
 }
 
-fn claude_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
+fn claude_messages(line: &Value, in_subagent: bool, out: &mut Vec<TranscriptMessage>) {
     let role = match line["type"].as_str() {
         Some("user") => Role::User,
         Some("assistant") => Role::Assistant,
         _ => return,
     };
-    if line["isMeta"].as_bool() == Some(true) || line["isSidechain"].as_bool() == Some(true) {
+    if line["isMeta"].as_bool() == Some(true)
+        || (line["isSidechain"].as_bool() == Some(true) && !in_subagent)
+    {
         return;
     }
     if role == Role::User
@@ -1193,6 +1199,7 @@ fn claude_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
                     model: None,
                     edits: Vec::new(),
                     exit: None,
+                    subagent: None,
                 });
             }
         } else if block["type"].as_str() == Some("tool_use") {
@@ -1206,6 +1213,7 @@ fn claude_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
                 model: None,
                 edits: file_edits(block["name"].as_str(), &block["input"]),
                 exit: None,
+                subagent: subagents::launch(Harness::Claude, block),
             });
         }
     }
@@ -1260,6 +1268,7 @@ fn codex_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
                 model: None,
                 edits: Vec::new(),
                 exit: None,
+                subagent: None,
             }
         }
         "function_call" | "custom_tool_call" => TranscriptMessage {
@@ -1290,6 +1299,7 @@ fn codex_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
                 },
             ),
             exit: None,
+            subagent: None,
         },
         "local_shell_call" => TranscriptMessage {
             key,
@@ -1301,6 +1311,7 @@ fn codex_messages(line: &Value, out: &mut Vec<TranscriptMessage>) {
             model: None,
             edits: file_edits(None, &payload["action"]),
             exit: None,
+            subagent: None,
         },
         _ => return,
     };
@@ -1312,24 +1323,44 @@ fn read_transcript(
     id: &str,
     tail: Option<u32>,
 ) -> Result<Vec<TranscriptMessage>, String> {
-    let path = locate(harness, id)?;
+    read_messages(harness, &locate(harness, id)?, tail, false)
+}
+
+fn read_subagent_transcript(
+    harness: Harness,
+    id: &str,
+    call_id: &str,
+    tail: Option<u32>,
+) -> Result<Vec<TranscriptMessage>, String> {
+    let path = subagents::transcript_of(&locate(harness, id)?, call_id)
+        .ok_or_else(|| crate::host_text!("conversationNotFound", id = call_id))?;
+    read_messages(harness, &path, tail, true)
+}
+
+fn read_messages(
+    harness: Harness,
+    path: &Path,
+    tail: Option<u32>,
+    in_subagent: bool,
+) -> Result<Vec<TranscriptMessage>, String> {
     let wanted = tail
         .map_or(TRANSCRIPT_DEFAULT, |tail| tail as usize)
         .clamp(1, TRANSCRIPT_MAX);
     let mut budget = TRANSCRIPT_BYTES;
     loop {
-        let (buffer, from_start) = read_tail(&path, budget)
+        let (buffer, from_start) = read_tail(path, budget)
             .ok_or_else(|| crate::host_text!("readFailedPlain", path = path.display()))?;
         let mut messages: Vec<TranscriptMessage> = Vec::new();
         let mut model: Option<String> = None;
         let mut calls: HashMap<String, usize> = HashMap::new();
+        let mut agents: HashMap<String, usize> = HashMap::new();
         for line in parse_lines(&buffer) {
             if let Some(next) = line_model(harness, &line) {
                 model = Some(next);
             }
             let from = messages.len();
             match harness {
-                Harness::Claude => claude_messages(&line, &mut messages),
+                Harness::Claude => claude_messages(&line, in_subagent, &mut messages),
                 Harness::Codex => codex_messages(&line, &mut messages),
             }
             for message in &mut messages[from..] {
@@ -1338,7 +1369,7 @@ fn read_transcript(
                 }
             }
             let tools = (from..messages.len()).filter(|&index| messages[index].tool.is_some());
-            for (index, id) in tools.zip(tool_exit::call_ids(harness, &line)) {
+            for (index, id) in tools.zip(tool_exit::call_ids(harness, &line, in_subagent)) {
                 if !id.is_empty() {
                     calls.insert(id, index);
                 }
@@ -1346,6 +1377,19 @@ fn read_transcript(
             for (id, code) in tool_exit::results(harness, &line) {
                 if let Some(&index) = calls.get(&id) {
                     messages[index].exit = Some(code);
+                }
+            }
+            for settled in subagents::settled(harness, &line) {
+                let by_call = settled.call_id.as_ref().and_then(|id| calls.get(id));
+                let by_agent = settled.agent_id.as_ref().and_then(|id| agents.get(id));
+                let Some(&index) = by_call.or(by_agent) else {
+                    continue;
+                };
+                if let Some(id) = settled.agent_id {
+                    agents.insert(id, index);
+                }
+                if let Some(subagent) = messages[index].subagent.as_mut() {
+                    subagent.settle(settled.report);
                 }
             }
         }
@@ -1370,6 +1414,17 @@ pub async fn agent_session_transcript(
     tail: Option<u32>,
 ) -> Result<Vec<TranscriptMessage>, String> {
     spawn_blocking(move || read_transcript(harness, &id, tail))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+pub async fn agent_subagent_transcript(
+    harness: Harness,
+    id: String,
+    call_id: String,
+    tail: Option<u32>,
+) -> Result<Vec<TranscriptMessage>, String> {
+    spawn_blocking(move || read_subagent_transcript(harness, &id, &call_id, tail))
         .await
         .map_err(|e| e.to_string())?
 }

@@ -391,6 +391,7 @@ pub fn run() {
             history_projects,
             agent_session_watch,
             agent_session_transcript,
+            agent_subagent_transcript,
             slash_commands,
             jira_search,
             jira_issue,
