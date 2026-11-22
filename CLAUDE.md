@@ -47,6 +47,9 @@ Work on `main` only: no feature branches, no worktrees, jig slots included.
 Commit every finished fix or feature on your own, without being asked, once its checks pass: stage only
 the files and hunks the task touched, since other sessions leave uncommitted work in the same checkout.
 
+After pushing to `main`, wait for that push's CI run (`gh run watch <id> --exit-status`, in the
+background, no polling loop) and fix a red run before starting other work.
+
 The desktop app (`apps/`, `packages/`, `docker/`) has its own rules in `.claude/rules/desktop.md`.
 
 ## On-disk names
