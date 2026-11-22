@@ -51,6 +51,7 @@ file or a missing key means the default.
 | Key | Default | What it does |
 |---|---|---|
 | `session_idle_timeout` | `5m` | how long an unwatched idle session keeps its terminal before it is released (`off` never releases). The desktop app sets it in its settings |
+| `session_archive_after` | `7d` | how long an Ended session stays in the Ended group before it moves to the Archive (`off` keeps it there). The desktop app sets it in its settings |
 | `restore_sessions` | `true` | start the sessions that were running when the daemon stopped again when it starts (agents resume their conversation). The desktop app's `sessions.restoreOnRestart` sets it |
 | `prewarm` | `true` | while a new session form is open, start the agent it targets ahead of time so the session opens instantly. The daemon keeps one such agent at most, a few hundred MB for Claude, and stops it after 15 minutes if no session takes it. Older configs spell it `prewarm_agents`; the daemon renames the key on start. The desktop app's `daemon.prewarm` sets it |
 | `claude_limits` | `false` | let the daemon read Claude Code's sign-in and ask Anthropic for your 5-hour and weekly usage every minute; off means no file read and no network call |

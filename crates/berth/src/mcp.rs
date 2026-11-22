@@ -38,7 +38,7 @@ fn tool_list() -> Value {
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "all": { "type": "boolean", "description": "Include archived sessions" }
+                    "all": { "type": "boolean", "description": "Include ended and archived sessions" }
                 }
             }
         },

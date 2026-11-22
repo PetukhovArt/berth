@@ -91,6 +91,7 @@ impl Daemon {
             TriggerTarget::Agent(id) => {
                 let agent = self.store.get_agent(id)?.context("agent not found")?;
                 ensure!(!agent.archived, "agent is archived");
+                ensure!(!agent.is_ended(), "agent is ended");
             }
             TriggerTarget::NewAgent { worktree, .. } => {
                 self.store
@@ -159,6 +160,7 @@ impl Daemon {
         id: &AgentId,
         prompt: &str,
     ) -> Result<()> {
+        self.ensure_not_ended(id)?;
         let sref = SessionRef::Agent(id.clone());
         let was_alive = self.is_alive(&sref);
         let session = self.ensure_session(&sref, DEFAULT_COLS, DEFAULT_ROWS)?;
@@ -479,6 +481,24 @@ mod tests {
             repeat_secs: Some(1),
         };
         assert!(daemon.create_trigger(new_trigger(fast)).is_err());
+    }
+
+    #[tokio::test]
+    async fn a_prompt_aimed_at_an_ended_agent_is_refused_and_leaves_it_ended() {
+        let daemon = daemon();
+        crate::registry::tests::seed_agent(&daemon, "a1", "w", None);
+        let id = AgentId("a1".into());
+        let mut aimed = new_trigger(TriggerWhen::Webhook);
+        aimed.target = TriggerTarget::Agent(id.clone());
+        let (trigger, _) = daemon.create_trigger(aimed.clone()).unwrap();
+        daemon.end_agent(&id).unwrap();
+
+        let error = daemon.fire_trigger(&trigger).await.unwrap_err();
+        assert!(error.to_string().contains("ended"), "{error}");
+        let agent = daemon.store.get_agent(&id).unwrap().unwrap();
+        assert!(agent.is_ended(), "firing did not pull it out of Ended");
+        assert!(!daemon.is_alive(&SessionRef::Agent(id)));
+        assert!(daemon.create_trigger(aimed).is_err());
     }
 
     #[tokio::test]

@@ -1,7 +1,7 @@
 import { computed, shallowRef } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
-import { acknowledged, BerthCallError, call, onChannelAppended, useBerth } from './berth';
+import { acknowledged, BerthCallError, call, isActive, onChannelAppended, useBerth } from './berth';
 
 export const agentName = (agent: string) => useBerth()?.entities.value.agents.get(agent)?.name ?? agent;
 
@@ -151,7 +151,7 @@ export type OwnAgent = { id: string; name: string };
 export function ownAgentsFor(channel: string, thread: readonly ChannelMessage[]): OwnAgent[] {
   const entities = useBerth()?.entities.value;
   if (!entities) return [];
-  const live = [...entities.agents.values()].filter((agent) => !agent.archived);
+  const live = [...entities.agents.values()].filter(isActive);
   const seen = new Set(thread.flatMap((message) => [message.authorAgent, ...message.mentionedAgents]));
   const key = channel.toUpperCase();
   const here = live.filter((agent) => seen.has(agent.id) || (entities.worktrees.get(agent.worktree_id)?.branch.toUpperCase().includes(key) ?? false));

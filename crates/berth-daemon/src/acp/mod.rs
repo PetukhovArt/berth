@@ -173,6 +173,9 @@ impl Daemon {
         if agent.archived {
             bail!("agent is archived — unarchive it first");
         }
+        if agent.is_ended() {
+            bail!("agent is ended");
+        }
         let provider_id = self
             .store
             .agent_acp_provider(agent_id)?

@@ -22,6 +22,7 @@ type Agent = {
   status: AgentStatus;
   archived: boolean;
   archived_at: number;
+  ended_at: number;
   unseen: boolean;
   status_changed_at: number;
   kind: AgentKind;
@@ -103,7 +104,7 @@ export type SessionEvent = { type: 'reset'; data: string } | { type: 'output'; d
 type NodeStatus = AgentStatus | 'shell' | 'closed';
 export type SessionStatus = NodeStatus | 'limit';
 export type SessionNode = { key: string; id: string; ref: SessionRef; name: string; status: NodeStatus; unseen: boolean; alive: boolean; kind?: AgentKind; changedAt?: number; providerError?: ProviderError; suggestion?: RouteSuggestion };
-export type WorktreeNode = { id: string; path: string; branch: string; main: boolean; sessions: SessionNode[]; archived: SessionNode[] };
+export type WorktreeNode = { id: string; path: string; branch: string; main: boolean; sessions: SessionNode[]; ended: SessionNode[]; archived: SessionNode[] };
 type ProjectNode = { id: string; name: string; worktrees: WorktreeNode[] };
 type WorkspaceNode = { id: string; name: string; projects: ProjectNode[] };
 
@@ -202,14 +203,23 @@ function terminalNode(terminal: Terminal): SessionNode {
   return { key: sessionKey(ref), id: terminal.id, ref, name: terminal.name, status: terminal.alive ? 'shell' : 'closed', unseen: false, alive: terminal.alive };
 }
 
+const isEnded = (agent: Pick<Agent, 'archived' | 'ended_at'>) => agent.ended_at > 0 && !agent.archived;
+
+export const isActive = (agent: Pick<Agent, 'archived' | 'ended_at'>) => !agent.archived && !isEnded(agent);
+
 function buildTree(entities: Entities): WorkspaceNode[] {
   const agentsOf = (worktree: string) => [...entities.agents.values()].filter((a) => a.worktree_id === worktree);
   const agentConversations = new Set([...entities.agents.values()].flatMap((a) => (a.session_id ? [a.session_id] : [])));
   const leftByAgent = (terminal: Terminal) => !terminal.alive && !!terminal.session_id && agentConversations.has(terminal.session_id);
   const sessionsOf = (worktree: string) => [
-    ...agentsOf(worktree).filter((a) => !a.archived).sort(bySortOrder).map(agentNode),
+    ...agentsOf(worktree).filter(isActive).sort(bySortOrder).map(agentNode),
     ...[...entities.terminals.values()].filter((t) => t.worktree_id === worktree && !leftByAgent(t)).sort(bySortOrder).map(terminalNode),
   ];
+  const endedOf = (worktree: string) =>
+    agentsOf(worktree)
+      .filter(isEnded)
+      .sort((a, b) => b.ended_at - a.ended_at)
+      .map(agentNode);
   const archivedOf = (worktree: string) =>
     agentsOf(worktree)
       .filter((a) => a.archived)
@@ -217,8 +227,8 @@ function buildTree(entities: Entities): WorkspaceNode[] {
       .map(agentNode);
   const worktreesOf = (project: string) =>
     worktreesOfProject(entities, project).flatMap((w) => {
-      const node = { id: w.id, path: w.path, branch: w.branch, main: w.is_main, sessions: sessionsOf(w.id), archived: archivedOf(w.id) };
-      return w.is_main || node.sessions.length > 0 || node.archived.length > 0 ? [node] : [];
+      const node = { id: w.id, path: w.path, branch: w.branch, main: w.is_main, sessions: sessionsOf(w.id), ended: endedOf(w.id), archived: archivedOf(w.id) };
+      return w.is_main || node.sessions.length > 0 || node.ended.length > 0 || node.archived.length > 0 ? [node] : [];
     });
   const projectsOf = (workspace: string) =>
     [...entities.projects.values()]
@@ -475,6 +485,10 @@ export async function applyRouteSuggestion(id: string, action: RouteAction): Pro
 
 export async function archiveAgent(id: string): Promise<void> {
   await acknowledged({ ArchiveAgent: { id } });
+}
+
+export async function endAgent(id: string): Promise<void> {
+  await acknowledged({ EndAgent: { id } });
 }
 
 export async function stopAgent(id: string): Promise<void> {

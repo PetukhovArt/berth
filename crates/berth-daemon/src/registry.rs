@@ -93,7 +93,7 @@ pub struct Daemon {
     /// by any other spawn of the agent, and consulted by the cwd reparent so
     /// the old checkout's cwd can't drag the row back in the meantime.
     pending_moves: Mutex<HashMap<AgentId, Worktree>>,
-    pub(crate) pending_archives: Mutex<HashSet<AgentId>>,
+    pub(crate) pending_ends: Mutex<HashSet<AgentId>>,
     /// Serializes the check-and-spawn inside [`Daemon::ensure_session`].
     spawn_gate: Mutex<()>,
     /// The last reading [`crate::sampler`] published. `GetMetrics` answers
@@ -125,7 +125,7 @@ impl Daemon {
             session_interest: Mutex::new(HashMap::new()),
             last_cwd: Mutex::new(HashMap::new()),
             pending_moves: Mutex::new(HashMap::new()),
-            pending_archives: Mutex::new(HashSet::new()),
+            pending_ends: Mutex::new(HashSet::new()),
             spawn_gate: Mutex::new(()),
             last_sample: Mutex::new(None),
             acp: Default::default(),
@@ -1031,6 +1031,7 @@ impl Daemon {
             status: AgentStatus::Fresh,
             archived: false,
             archived_at: 0,
+            ended_at: 0,
             unseen: false,
             kind,
             model,
@@ -1334,13 +1335,13 @@ impl Daemon {
     /// turn-end hooks — Stop, and the idle notification a Stop-less end
     /// still fires — so a Bash hook from the same turn never triggers it.
     pub fn complete_pending_move(self: &Arc<Self>, id: &AgentId, event: &HookEvent) {
-        if !crate::self_archive::is_turn_end(event) {
+        if !crate::self_end::is_turn_end(event) {
             return;
         }
         let Some(target) = self.pending_moves.lock().unwrap().remove(id) else {
             return;
         };
-        if self.pending_archives.lock().unwrap().contains(id) {
+        if self.pending_ends.lock().unwrap().contains(id) {
             return;
         }
         let agent = match self.store.get_agent(id) {
@@ -1418,7 +1419,7 @@ impl Daemon {
             self.last_cwd.lock().unwrap().remove(agent_id);
             return Ok(());
         };
-        if agent.archived {
+        if agent.archived || agent.is_ended() {
             self.last_cwd.lock().unwrap().remove(agent_id);
             return Ok(());
         }
@@ -1508,7 +1509,7 @@ impl Daemon {
                     continue;
                 }
             };
-            if agent.archived {
+            if agent.archived || agent.is_ended() {
                 continue;
             }
             let in_project = matches!(
@@ -1525,7 +1526,7 @@ impl Daemon {
     }
 
     pub fn archive_agent(self: &Arc<Self>, id: &AgentId) -> Result<()> {
-        self.pending_archives.lock().unwrap().remove(id);
+        self.pending_ends.lock().unwrap().remove(id);
         self.kill_session(&SessionRef::Agent(id.clone()));
         self.store.set_agent_archived(id, true)?;
         self.broadcast_agent(id)?;
@@ -1533,8 +1534,9 @@ impl Daemon {
     }
 
     pub fn unarchive_agent(self: &Arc<Self>, id: &AgentId) -> Result<()> {
-        self.pending_archives.lock().unwrap().remove(id);
+        self.pending_ends.lock().unwrap().remove(id);
         self.store.set_agent_archived(id, false)?;
+        self.store.set_agent_ended(id, false)?;
         self.broadcast_agent(id)?;
         Ok(())
     }
@@ -1554,7 +1556,7 @@ impl Daemon {
         self.kill_session(&SessionRef::Agent(id.clone()));
         self.last_cwd.lock().unwrap().remove(id);
         self.pending_moves.lock().unwrap().remove(id);
-        self.pending_archives.lock().unwrap().remove(id);
+        self.pending_ends.lock().unwrap().remove(id);
         self.store.delete_agent(id)?;
         self.broadcast(ServerEvent::EntityRemoved {
             id: EntityId::Agent(id.clone()),
@@ -1575,6 +1577,7 @@ impl Daemon {
         self.spawn_agent_session(&agent, &worktree, DEFAULT_COLS, DEFAULT_ROWS)?;
         let mut broadcast_agent = agent.clone();
         broadcast_agent.alive = true;
+        broadcast_agent.ended_at = 0;
         self.broadcast(ServerEvent::EntityUpserted {
             entity: Entity::Agent(Box::new(broadcast_agent)),
         });
@@ -1670,6 +1673,7 @@ impl Daemon {
                 let session = self.spawn_agent_session(&agent, &worktree, cols, rows)?;
                 let mut broadcast_agent = agent;
                 broadcast_agent.alive = true;
+                broadcast_agent.ended_at = 0;
                 self.broadcast(ServerEvent::EntityUpserted {
                     entity: Entity::Agent(Box::new(broadcast_agent)),
                 });
@@ -1717,7 +1721,7 @@ impl Daemon {
         // Whatever spawns this agent, it runs in `worktree` from here: a
         // relocation still pending for it has been overtaken.
         self.pending_moves.lock().unwrap().remove(&agent.id);
-        self.pending_archives.lock().unwrap().remove(&agent.id);
+        self.pending_ends.lock().unwrap().remove(&agent.id);
         // Managed status hooks; a failure here degrades to "no status
         // updates", never blocks the spawn.
         let reports_through_mod = agent.kind == AgentKind::Claude
@@ -1815,6 +1819,7 @@ impl Daemon {
         let sref = SessionRef::Agent(agent.id.clone());
         let session = PtySession::spawn(sref, spec)?;
         self.install_session(session.clone());
+        self.leave_ended(&agent.id);
         if unsaved_conversation {
             session.print_notice(resume_check::FRESH_START_NOTICE);
         }
@@ -1860,7 +1865,7 @@ impl Daemon {
             // the agent may have been archived or deleted inside the window —
             // never resurrect those.
             match daemon.store.get_agent(&agent.id) {
-                Ok(Some(current)) if !current.archived => {}
+                Ok(Some(current)) if !current.archived && !current.is_ended() => {}
                 _ => return,
             }
             tracing::info!(agent = %agent.id, "resume failed fast — respawning fresh");
@@ -1870,6 +1875,7 @@ impl Daemon {
             if let Ok(_session) = daemon.spawn_agent_session(&fresh, &worktree, cols, rows) {
                 let mut broadcast_agent = fresh;
                 broadcast_agent.alive = true;
+                broadcast_agent.ended_at = 0;
                 daemon.broadcast(ServerEvent::EntityUpserted {
                     entity: Entity::Agent(Box::new(broadcast_agent)),
                 });
@@ -2144,7 +2150,7 @@ fn agent_spawn_command_with(
                 system_prompt.push(CLAUDE_WORKTREE_GUIDANCE);
                 system_prompt.push(crate::sibling::CLAUDE_SPAWN_GUIDANCE);
                 system_prompt.push(crate::enter_project::CLAUDE_ENTER_GUIDANCE);
-                system_prompt.push(crate::self_archive::CLAUDE_ARCHIVE_GUIDANCE);
+                system_prompt.push(crate::self_end::CLAUDE_END_GUIDANCE);
             }
             if let Some(prompt) = additional_system_prompt {
                 system_prompt.push(prompt);
@@ -2258,7 +2264,7 @@ pub(crate) mod tests {
                     CLAUDE_WORKTREE_GUIDANCE,
                     crate::sibling::CLAUDE_SPAWN_GUIDANCE,
                     crate::enter_project::CLAUDE_ENTER_GUIDANCE,
-                    crate::self_archive::CLAUDE_ARCHIVE_GUIDANCE,
+                    crate::self_end::CLAUDE_END_GUIDANCE,
                 ]
                 .join("\n\n"),
             ])
@@ -2565,7 +2571,7 @@ pub(crate) mod tests {
         assert_eq!(prompts.len(), 1, "Claude gets one composed system prompt");
         assert!(prompts[0].contains(CLAUDE_WORKTREE_GUIDANCE));
         assert!(prompts[0].contains(crate::sibling::CLAUDE_SPAWN_GUIDANCE));
-        assert!(prompts[0].contains(crate::self_archive::CLAUDE_ARCHIVE_GUIDANCE));
+        assert!(prompts[0].contains(crate::self_end::CLAUDE_END_GUIDANCE));
         assert!(prompts[0].contains("All work in this session must be scoped"));
         assert!(prompts[0].contains(pr_url));
     }
@@ -2674,6 +2680,7 @@ pub(crate) mod tests {
                 status: AgentStatus::Running,
                 archived: false,
                 archived_at: 0,
+                ended_at: 0,
                 unseen: false,
                 kind: AgentKind::Claude,
                 model: None,
@@ -2863,6 +2870,7 @@ pub(crate) mod tests {
                     status: AgentStatus::Fresh,
                     archived: false,
                     archived_at: 0,
+                    ended_at: 0,
                     unseen: false,
                     kind: AgentKind::Claude,
                     model: None,

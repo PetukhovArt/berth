@@ -217,6 +217,7 @@ mod tests {
             status: AgentStatus::Finished,
             archived: false,
             archived_at: 0,
+            ended_at: 0,
             unseen: false,
             status_changed_at: 0,
             kind: AgentKind::Claude,

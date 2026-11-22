@@ -56,7 +56,7 @@ impl Daemon {
         let Ok((_, _, agents, _)) = self.store.load_tree() else {
             return;
         };
-        for agent in agents.iter().filter(|a| !a.archived) {
+        for agent in agents.iter().filter(|a| !a.archived && !a.is_ended()) {
             if registered.0.get(&agent.id) == Some(&agent.name) {
                 continue;
             }

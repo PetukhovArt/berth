@@ -88,6 +88,7 @@ impl Daemon {
         if has_control(text) {
             bail!("refusing control characters");
         }
+        self.ensure_not_ended(id)?;
         if self.is_acp_agent(id) {
             return self.acp_prompt(id, text).await;
         }

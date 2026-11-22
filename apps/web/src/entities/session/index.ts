@@ -3,7 +3,7 @@ export { attentionEdge, attentionOf, urgencyOf } from './lib/attention';
 export { isRunning, isStopped } from './lib/liveness';
 export type { AttentionKind } from './lib/attention';
 export type { Rollup, WorkspaceNode } from './lib/sessionPaths';
-export { AGENT_KIND_LABEL, acknowledged, acpPrompt, archiveAgent, createAcpAgent, attachSession, BerthCallError, call, closeTerminal, createAgent, createTerminal, deleteAgent, describeError, detachSession, entitySessionRef, isSessionRef, renameSession, resizeSession, restartAgent, sendInput, switchAgentModel, continueAgentIn, applyRouteSuggestion, sessionId, sessionKey, stopAgent, unarchiveAgent, useBerth, worktreesOfProject } from './model/berth';
+export { AGENT_KIND_LABEL, acknowledged, isActive, acpPrompt, archiveAgent, createAcpAgent, attachSession, BerthCallError, call, closeTerminal, createAgent, createTerminal, deleteAgent, describeError, endAgent, detachSession, entitySessionRef, isSessionRef, renameSession, resizeSession, restartAgent, sendInput, switchAgentModel, continueAgentIn, applyRouteSuggestion, sessionId, sessionKey, stopAgent, unarchiveAgent, useBerth, worktreesOfProject } from './model/berth';
 export type { AcpItemAt, AgentKind, Branch, Entities, ProviderError, SessionEvent, SessionNode, SessionRef, SessionStatus, Worktree, WorktreeNode } from './model/berth';
 export { archiveExternal, continueInBerth, externalKey, externalOrigin, externalTarget, isExternalPanel, placeExternal, readTranscript, resumeCommand, unarchiveExternal, useExternalSessions } from './model/external';
 export type { ExternalSession, Harness, TranscriptMessage } from './model/external';

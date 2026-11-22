@@ -159,12 +159,12 @@ export const settings = {
       description: 'First prompt of a session opened from a merge request. Placeholders: {url} {title} {description} {branch} {target} {issue} {author}. Empty: the built-in prompt in the interface language.',
     },
     sessionsArchiveOnMerge: {
-      label: 'Archive sessions after merge',
-      description: 'When the merge request of a worktree is merged, its idle sessions move to the archive and leave the Inbox. The worktree and its branch stay; unarchive a session to bring it back.',
+      label: 'End sessions after merge',
+      description: 'When the merge request of a worktree is merged, its idle sessions move to Ended and leave the Inbox. The worktree and its branch stay; open an ended session to bring it back.',
     },
     sessionsArchiveOnClose: {
-      label: 'Archive sessions when their tab closes',
-      description: 'Closing the tab of an agent or a conversation moves it to the archive of its project. Off: the close button asks whether to archive it or only close the tab.',
+      label: 'End sessions when their tab closes',
+      description: 'Closing the tab of an agent ends its session: it moves to Ended, then to the Archive after the time set below. Closing the tab of a conversation archives it. Off: the close button asks what to do: end, archive or delete forever for an agent, close or archive for a conversation.',
     },
     sessionsExternalDays: {
       label: 'Sessions started outside Berth',
@@ -199,6 +199,16 @@ export const settings = {
       m15: '15 minutes',
       m30: '30 minutes',
       h1: '1 hour',
+    },
+    sessionsArchiveEndedAfter: {
+      label: 'Archive ended sessions after',
+      description: 'An ended session that nobody opened for this long moves from Ended to the Archive. Off keeps ended sessions in Ended until you archive or delete them. Stored in the berth config, so it applies to every client.',
+      off: 'Off',
+      d1: '1 day',
+      d3: '3 days',
+      d7: '7 days',
+      d14: '14 days',
+      d30: '30 days',
     },
     trackerWriteBack: {
       label: 'Comment on the tracker issue when an Agent finishes',

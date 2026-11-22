@@ -1,5 +1,5 @@
 import { shallowRef } from 'vue';
-import { acknowledged, createAgent, describeError, entitySessionRef, useBerth, worktreesOfProject, type AgentKind, type SessionRef, useSessionDock } from '../../../entities/session';
+import { acknowledged, createAgent, describeError, entitySessionRef, isActive, useBerth, worktreesOfProject, type AgentKind, type SessionRef, useSessionDock } from '../../../entities/session';
 import { invoke } from '../../../bridge';
 import type { AiView } from '../../../shared/api/connectors/ai';
 import { forgeChangeRequest, forgeSource, mrFetchSource, useConnectors, type ChangeRequestRef, type ChangeRequestSummary, type FetchedSource } from '../../../shared/api/connectors/api';
@@ -148,7 +148,7 @@ export function useOpenInSession() {
 
       const here = worktree;
       const live = [...berth.entities.value.agents.values()]
-        .filter((agent) => agent.worktree_id === here && !agent.archived)
+        .filter((agent) => agent.worktree_id === here && isActive(agent))
         .sort((a, b) => Number(b.alive) - Number(a.alive) || b.status_changed_at - a.status_changed_at)[0];
       let session: SessionRef;
       if (live) session = { Agent: live.id };

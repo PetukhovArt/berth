@@ -360,6 +360,9 @@ const MIGRATIONS: &[&str] = &[
       request  TEXT NOT NULL
     );
     ",
+    "
+    ALTER TABLE agents ADD COLUMN ended_at INTEGER NOT NULL DEFAULT 0;
+    ",
 ];
 
 pub struct Store {
@@ -1091,6 +1094,17 @@ impl Store {
         Ok(())
     }
 
+    pub fn set_agent_ended(&self, id: &AgentId, ended: bool) -> Result<()> {
+        let ended_at = if ended { now_ms() } else { 0 };
+        self.conn.lock().unwrap().execute(
+            "UPDATE agents SET ended_at = ?2,
+                    unseen = CASE WHEN ?2 > 0 THEN 0 ELSE unseen END
+             WHERE id = ?1",
+            params![id.as_str(), ended_at],
+        )?;
+        Ok(())
+    }
+
     /// Returns the epoch-ms stamp written to `status_changed_at` and the
     /// row's `unseen` flag after the change, so the caller can broadcast
     /// exactly what it persisted.
@@ -1103,14 +1117,16 @@ impl Store {
         let conn = self.conn.lock().unwrap();
         let before = conn
             .query_row(
-                "SELECT status, unseen, archived FROM agents WHERE id = ?1",
+                "SELECT status, unseen, archived, ended_at FROM agents WHERE id = ?1",
                 params![id.as_str()],
                 |r| {
+                    let archived = r.get::<_, i64>(2)? != 0;
                     Ok(AttentionState {
                         status: AgentStatus::parse(&r.get::<_, String>(0)?)
                             .unwrap_or(AgentStatus::Fresh),
                         unseen: r.get::<_, i64>(1)? != 0,
-                        archived: r.get::<_, i64>(2)? != 0,
+                        archived,
+                        ended: r.get::<_, i64>(3)? > 0 && !archived,
                     })
                 },
             )
@@ -1120,6 +1136,7 @@ impl Store {
                 status,
                 unseen: false,
                 archived: false,
+                ended: false,
             };
             return Ok((
                 stamp,
@@ -1494,7 +1511,7 @@ const PROJECT_COLUMNS: &str = "id, name, repo_path, sort_order, workspace_id, pi
 const WORKTREE_COLUMNS: &str = "id, project_id, path, branch, is_main, sort_order";
 const AGENT_COLUMNS: &str = "id, worktree_id, name, status, archived, kind, \
                              claude_session_id, sort_order, status_changed_at, model, effort, \
-                             archived_at, unseen, acp_provider";
+                             archived_at, unseen, acp_provider, ended_at";
 const TERMINAL_COLUMNS: &str = "id, worktree_id, name, sort_order, session_id";
 const ORPHAN_COLUMNS: &str =
     "session_id, project_id, kind, name, branch, worktree_path,      created_at, orphaned_at";
@@ -1545,6 +1562,7 @@ fn row_to_agent(r: &rusqlite::Row) -> rusqlite::Result<Agent> {
         model: r.get(9)?,
         effort: r.get(10)?,
         archived_at: r.get(11)?,
+        ended_at: r.get(14)?,
         unseen: r.get::<_, i64>(12)? != 0,
         alive: false,
         suggested_prompt: None,
@@ -1617,6 +1635,7 @@ mod tests {
             status: AgentStatus::Running,
             archived: false,
             archived_at: 0,
+            ended_at: 0,
             unseen: false,
             kind: AgentKind::Claude,
             model: Some("opus".into()),
@@ -1642,6 +1661,7 @@ mod tests {
             status: AgentStatus::Fresh,
             archived: false,
             archived_at: 0,
+            ended_at: 0,
             unseen: false,
             kind: AgentKind::Codex,
             model: None,
@@ -1664,6 +1684,7 @@ mod tests {
             status: AgentStatus::Fresh,
             archived: false,
             archived_at: 0,
+            ended_at: 0,
             unseen: false,
             kind: AgentKind::Cursor,
             model: None,
@@ -2089,6 +2110,7 @@ mod tests {
             status: AgentStatus::Fresh,
             archived: false,
             archived_at: 0,
+            ended_at: 0,
             unseen: false,
             kind: AgentKind::Claude,
             model: None,
@@ -2240,6 +2262,7 @@ mod tests {
                     status,
                     archived: false,
                     archived_at: 0,
+                    ended_at: 0,
                     unseen: false,
                     kind: AgentKind::Claude,
                     model: None,
@@ -2311,6 +2334,7 @@ mod tests {
                 status,
                 archived: false,
                 archived_at: 0,
+                ended_at: 0,
                 unseen: false,
                 kind: AgentKind::Claude,
                 model: None,
@@ -2370,6 +2394,20 @@ mod tests {
             "archived rows are out of sight"
         );
 
+        let d = seed("d", AgentStatus::Fresh);
+        flip(&d, AgentStatus::Running);
+        assert!(flip(&d, AgentStatus::Finished));
+        store.set_agent_ended(&d, true).unwrap();
+        assert!(!unseen(&d), "ending takes it away");
+        assert!(store.get_agent(&d).unwrap().unwrap().is_ended());
+        flip(&d, AgentStatus::Running);
+        assert!(
+            !flip(&d, AgentStatus::Finished),
+            "ended rows are out of sight"
+        );
+        store.set_agent_ended(&d, false).unwrap();
+        assert_eq!(store.get_agent(&d).unwrap().unwrap().ended_at, 0);
+
         // A Stop berth never saw the prompt for is not a yellow → green.
         let b = seed("b", AgentStatus::Fresh);
         assert!(!flip(&b, AgentStatus::Finished));
@@ -2413,6 +2451,7 @@ mod tests {
             status: AgentStatus::Finished,
             archived: false,
             archived_at: 0,
+            ended_at: 0,
             unseen: false,
             kind: AgentKind::Codex,
             model: None,

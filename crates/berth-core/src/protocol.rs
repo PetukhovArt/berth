@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 65;
+pub const PROTOCOL_VERSION: u32 = 66;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -257,7 +257,11 @@ pub enum ClientRequest {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         worktree: Option<SpawnWorktree>,
     },
-    ArchiveSelf {
+    EndSelf {
+        req_id: u64,
+        id: AgentId,
+    },
+    EndAgent {
         req_id: u64,
         id: AgentId,
     },

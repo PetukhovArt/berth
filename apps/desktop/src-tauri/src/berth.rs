@@ -793,7 +793,8 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::EnterWorktree { req_id, .. }
         | ClientRequest::EnterProject { req_id, .. }
         | ClientRequest::SpawnSiblingAgent { req_id, .. }
-        | ClientRequest::ArchiveSelf { req_id, .. }
+        | ClientRequest::EndSelf { req_id, .. }
+        | ClientRequest::EndAgent { req_id, .. }
         | ClientRequest::ArchiveAgent { req_id, .. }
         | ClientRequest::UnarchiveAgent { req_id, .. }
         | ClientRequest::StopAgent { req_id, .. }

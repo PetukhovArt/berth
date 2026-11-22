@@ -45,6 +45,7 @@ export const agents = {
   session: {
     restart: 'Restart',
     move: 'Move…',
+    end: 'End session',
     archive: 'Archive',
     restore: 'Restore',
     deleteForever: 'Delete forever',
@@ -198,6 +199,8 @@ export const agents = {
     mainCheckout: 'Main checkout',
   },
   layouts: {
+    ended: 'Ended',
+    endedCount: 'ended',
     archive: 'Archive',
     archivedCount: 'archived',
     runningTotal: 'running / total',
@@ -216,8 +219,8 @@ export const agents = {
     chatPlaceholder: 'Message the Agent',
     chatSuggestion: 'Suggested next prompt, Tab to use',
     chatSend: 'Send',
-    chatAgentLog: 'Agent log',
     chatStop: 'Stop the agent',
+    chatAgentLog: 'Agent log',
     chatAgentLogEmpty: 'The agent has written nothing to its log.',
     chatTalk: 'Hold to talk',
     chatTalkHint: 'Release to send, slide away to cancel',

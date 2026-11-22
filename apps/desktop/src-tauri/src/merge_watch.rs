@@ -323,7 +323,7 @@ async fn carry_out(berth: &Berth, connectors: &Arc<Connectors>, effects: Vec<Eff
                     eprintln!("berth: merge-request watcher could not save {error}");
                 }
             }
-            Effect::Archive(id) => archive(berth, id).await,
+            Effect::End(id) => end(berth, id).await,
             Effect::Prompt(prompt) => type_prompt(berth, prompt).await,
             Effect::Comment(turn) => {
                 tokio::spawn(post_comment(connectors.clone(), turn));
@@ -332,8 +332,8 @@ async fn carry_out(berth: &Berth, connectors: &Arc<Connectors>, effects: Vec<Eff
     }
 }
 
-async fn archive(berth: &Berth, id: AgentId) {
-    let request = match serde_json::to_value(ClientRequest::ArchiveAgent { req_id: 0, id }) {
+async fn end(berth: &Berth, id: AgentId) {
+    let request = match serde_json::to_value(ClientRequest::EndAgent { req_id: 0, id }) {
         Ok(request) => request,
         Err(error) => {
             eprintln!("berth: archive on merge: {error}");

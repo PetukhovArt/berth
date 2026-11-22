@@ -1,4 +1,5 @@
 pub mod acp;
+pub mod auto_archive;
 pub mod branches;
 pub mod channel_requests;
 pub mod channels;
@@ -30,7 +31,7 @@ pub mod resume_check;
 pub mod resume_conversation;
 pub mod router;
 pub mod sampler;
-pub mod self_archive;
+pub mod self_end;
 pub mod server;
 pub mod shared_notes;
 pub mod shared_setup;
@@ -182,7 +183,7 @@ async fn serve() -> Result<()> {
                 // (and ignored) while the relocation is still pending.
                 daemon.complete_pending_move(&agent_id, &event);
                 daemon.route_hook_event(&agent_id, &event, provider_error);
-                daemon.complete_pending_archive(&agent_id, &event);
+                daemon.complete_pending_end(&agent_id, &event);
             }
         });
     }
@@ -255,6 +256,19 @@ async fn serve() -> Result<()> {
                 tokio::select! {
                     _ = daemon.shutdown.cancelled() => break,
                     _ = interval.tick() => daemon.reap_idle_sessions(),
+                }
+            }
+        });
+    }
+
+    {
+        let daemon = daemon.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(300));
+            loop {
+                tokio::select! {
+                    _ = daemon.shutdown.cancelled() => break,
+                    _ = interval.tick() => daemon.archive_stale_ended_sessions(),
                 }
             }
         });

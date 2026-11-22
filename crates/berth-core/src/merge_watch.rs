@@ -196,7 +196,7 @@ pub struct FinishedTurn {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Effect {
     Save(Memory),
-    Archive(AgentId),
+    End(AgentId),
     Comment(FinishedTurn),
     Prompt(Prompt),
 }
@@ -361,7 +361,7 @@ impl MergeWatch {
             archived.pop_front();
         }
         let mut effects = vec![Effect::Save(self.memory.clone())];
-        effects.extend(agents.into_iter().map(Effect::Archive));
+        effects.extend(agents.into_iter().map(Effect::End));
         effects
     }
 
@@ -495,7 +495,7 @@ impl MergeWatch {
         let mut ids: Vec<AgentId> = self
             .agents
             .values()
-            .filter(|agent| &agent.worktree_id == worktree && !agent.archived)
+            .filter(|agent| &agent.worktree_id == worktree && !agent.archived && !agent.is_ended())
             .filter(|agent| {
                 !matches!(
                     agent.status,
@@ -581,7 +581,7 @@ mod tests {
         forge: HashMap<WorktreeId, ForgeAnswer>,
         daemon_worktrees: Vec<Worktree>,
         daemon_agents: Vec<Agent>,
-        archived: Vec<AgentId>,
+        ended: Vec<AgentId>,
         comments: Vec<FinishedTurn>,
         lookups: usize,
         watched: Vec<MergeRequestRef>,
@@ -599,7 +599,7 @@ mod tests {
                 forge: HashMap::new(),
                 daemon_worktrees: worktrees,
                 daemon_agents: agents,
-                archived: Vec::new(),
+                ended: Vec::new(),
                 comments: Vec::new(),
                 lookups: 0,
                 watched: Vec::new(),
@@ -633,9 +633,9 @@ mod tests {
                 match effect {
                     Effect::Save(memory) => self.disk = Some(memory),
                     Effect::Prompt(prompt) => self.prompts.push(prompt),
-                    Effect::Archive(id) => {
-                        self.archived.push(id.clone());
-                        let agent = self.set_archived(&id, true);
+                    Effect::End(id) => {
+                        self.ended.push(id.clone());
+                        let agent = self.set_ended(&id, true);
                         self.send(Event::Agent(Box::new(agent)));
                     }
                     Effect::Comment(turn) => self.comments.push(turn),
@@ -643,18 +643,18 @@ mod tests {
             }
         }
 
-        fn set_archived(&mut self, id: &AgentId, archived: bool) -> Agent {
+        fn set_ended(&mut self, id: &AgentId, ended: bool) -> Agent {
             let agent = self
                 .daemon_agents
                 .iter_mut()
                 .find(|agent| &agent.id == id)
                 .expect("known agent");
-            agent.archived = archived;
+            agent.ended_at = i64::from(ended);
             agent.clone()
         }
 
-        fn unarchive(&mut self, id: &str) {
-            let agent = self.set_archived(&AgentId(id.into()), false);
+        fn reopen(&mut self, id: &str) {
+            let agent = self.set_ended(&AgentId(id.into()), false);
             self.send(Event::Agent(Box::new(agent)));
         }
 
@@ -707,30 +707,34 @@ mod tests {
     }
 
     #[test]
-    fn a_merged_merge_request_archives_its_idle_agents_once() {
+    fn a_merged_merge_request_ends_its_idle_agents_once() {
         let mut world = FakeWorld::new(
             BOTH,
             vec![worktree("w", "feat")],
             vec![
                 agent("a", "w", AgentStatus::Finished),
                 agent("b", "w", AgentStatus::Fresh),
+                Agent {
+                    ended_at: 1,
+                    ..agent("c", "w", AgentStatus::Finished)
+                },
             ],
         );
         world.poll();
-        assert!(world.archived.is_empty(), "an open branch archives nothing");
+        assert!(world.ended.is_empty(), "an open branch ends nothing");
         world.merged("w");
         world.later(CHECK_EVERY);
         world.poll();
-        assert_eq!(world.archived, ids(&["a", "b"]));
+        assert_eq!(world.ended, ids(&["a", "b"]));
         for _ in 0..3 {
             world.later(CHECK_EVERY);
             world.poll();
         }
-        assert_eq!(world.archived, ids(&["a", "b"]));
+        assert_eq!(world.ended, ids(&["a", "b"]));
     }
 
     #[test]
-    fn an_agent_brought_back_after_the_merge_stays_unarchived() {
+    fn an_agent_brought_back_after_the_merge_stays_open() {
         let mut world = FakeWorld::new(
             BOTH,
             vec![worktree("w", "feat")],
@@ -738,14 +742,14 @@ mod tests {
         );
         world.merged("w");
         world.poll();
-        world.unarchive("a");
+        world.reopen("a");
         world.later(CHECK_EVERY);
         world.poll();
-        assert_eq!(world.archived, ids(&["a"]));
+        assert_eq!(world.ended, ids(&["a"]));
     }
 
     #[test]
-    fn a_restart_reads_the_saved_memory_and_does_not_archive_again() {
+    fn a_restart_reads_the_saved_memory_and_does_not_end_again() {
         let mut world = FakeWorld::new(
             BOTH,
             vec![worktree("w", "feat")],
@@ -753,10 +757,10 @@ mod tests {
         );
         world.merged("w");
         world.poll();
-        world.unarchive("a");
+        world.reopen("a");
         world.restart_from_disk();
         world.poll();
-        assert_eq!(world.archived, ids(&["a"]));
+        assert_eq!(world.ended, ids(&["a"]));
     }
 
     #[test]
@@ -775,7 +779,7 @@ mod tests {
         world.merged("w");
         world.merged("m");
         world.poll();
-        assert!(world.archived.is_empty());
+        assert!(world.ended.is_empty());
         assert_eq!(world.lookups, 0);
     }
 
@@ -792,7 +796,7 @@ mod tests {
         world.merged("w");
         world.poll();
         world.status("b", AgentStatus::Finished);
-        assert!(world.archived.is_empty());
+        assert!(world.ended.is_empty());
         assert!(world.comments.is_empty());
         assert_eq!(world.lookups, 0);
         assert_eq!(world.disk, None);
@@ -967,7 +971,7 @@ mod tests {
     }
 
     #[test]
-    fn write_back_alone_comments_but_never_archives() {
+    fn write_back_alone_comments_but_never_ends() {
         let mut world = FakeWorld::new(
             WRITE_BACK_ONLY,
             vec![worktree("w", "feat")],
@@ -977,7 +981,7 @@ mod tests {
         world.status("a", AgentStatus::Finished);
         world.poll();
         assert_eq!(world.comments.len(), 1);
-        assert!(world.archived.is_empty());
+        assert!(world.ended.is_empty());
     }
 
     #[test]

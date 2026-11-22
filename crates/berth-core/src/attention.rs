@@ -24,6 +24,7 @@ pub struct AttentionState {
     pub status: AgentStatus,
     pub unseen: bool,
     pub archived: bool,
+    pub ended: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,8 +34,12 @@ pub struct StatusChange {
 }
 
 impl AttentionState {
+    fn out_of_sight(self) -> bool {
+        self.archived || self.ended
+    }
+
     pub fn attention(self) -> Option<Attention> {
-        if self.archived {
+        if self.out_of_sight() {
             return None;
         }
         match self.status {
@@ -50,12 +55,13 @@ impl AttentionState {
             self.status,
             AgentStatus::Running | AgentStatus::NeedsFeedback
         );
-        let unseen =
-            status == AgentStatus::Finished && (self.unseen || turn_was_live && !self.archived);
+        let unseen = status == AgentStatus::Finished
+            && (self.unseen || turn_was_live && !self.out_of_sight());
         let after = AttentionState {
             status,
             unseen,
             archived: self.archived,
+            ended: self.ended,
         };
         let raised = after
             .attention()
@@ -70,6 +76,7 @@ impl Agent {
             status: self.status,
             unseen: self.unseen,
             archived: self.archived,
+            ended: self.is_ended(),
         }
         .attention()
     }
@@ -85,6 +92,7 @@ mod tests {
             status,
             unseen: false,
             archived: false,
+            ended: false,
         }
     }
 
@@ -148,6 +156,19 @@ mod tests {
         assert_eq!(change.raised, None);
         assert_eq!(archived.change(NeedsFeedback).raised, None);
         assert_eq!(archived.change(Terminated).raised, None);
+    }
+
+    #[test]
+    fn ended_agents_never_want_the_user() {
+        let ended = AttentionState {
+            ended: true,
+            ..state(Running)
+        };
+        let change = ended.change(Finished);
+        assert!(!change.after.unseen);
+        assert_eq!(change.raised, None);
+        assert_eq!(ended.change(NeedsFeedback).raised, None);
+        assert_eq!(ended.change(Terminated).raised, None);
     }
 
     #[test]

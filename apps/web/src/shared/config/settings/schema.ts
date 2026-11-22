@@ -295,6 +295,21 @@ export const SETTINGS = {
       { value: '1h', label: 'settings.def.sessionsUnloadIdleAfter.h1' },
     ],
   },
+  'sessions.archiveEndedAfter': {
+    type: 'enum',
+    default: DAEMON_DEFAULTS.session_archive_after,
+    label: 'settings.def.sessionsArchiveEndedAfter.label',
+    description: 'settings.def.sessionsArchiveEndedAfter.description',
+    category: 'sessions',
+    options: [
+      { value: 'off', label: 'settings.def.sessionsArchiveEndedAfter.off' },
+      { value: '1d', label: 'settings.def.sessionsArchiveEndedAfter.d1' },
+      { value: '3d', label: 'settings.def.sessionsArchiveEndedAfter.d3' },
+      { value: '7d', label: 'settings.def.sessionsArchiveEndedAfter.d7' },
+      { value: '14d', label: 'settings.def.sessionsArchiveEndedAfter.d14' },
+      { value: '30d', label: 'settings.def.sessionsArchiveEndedAfter.d30' },
+    ],
+  },
   'workbench.hot': {
     type: 'enum',
     default: 'titlebar',

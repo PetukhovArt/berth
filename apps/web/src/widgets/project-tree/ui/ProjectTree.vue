@@ -5,6 +5,7 @@ import { sidebarSearchRequests } from '../../../shared/model/sidebar';
 import { VContextMenu, useIsPhone } from '../../../shared/ui/kit';
 import ArchivedExternalRow from './ArchivedExternalRow.vue';
 import ArchivedRow from './ArchivedRow.vue';
+import EndedRow from './EndedRow.vue';
 import ExternalSessionRow from './ExternalSessionRow.vue';
 import MarkdownPicker from './MarkdownPicker.vue';
 import SessionRow from './SessionRow.vue';
@@ -194,6 +195,7 @@ const moreItems = computed(() => {
             @open-conversation="node.data.linked && sessions.openLinkedConversation(node.data.session, node.data.linked)"
           />
           <ExternalSessionRow v-else-if="node.kind === 'external' && node.data?.external" :session="node.data.external" :active="node.id === dock.activeKey.value" @open="(split) => node.data?.external && sessions.openExternal(node.data.external, split)" />
+          <EndedRow v-else-if="node.kind === 'ended-session' && node.data?.session" :session="node.data.session" :where="node.data.where" />
           <ArchivedRow v-else-if="node.kind === 'archived' && node.data?.session" :session="node.data.session" :where="node.data.where" />
           <ArchivedExternalRow v-else-if="node.kind === 'archived-external' && node.data?.external" :session="node.data.external" @open="(split) => node.data?.external && sessions.openExternal(node.data.external, split)" />
           <div v-else-if="node.kind === 'review-state' && node.data?.reviewState" class="review-state" :data-error="!!node.data.reviewState.error" :title="node.data.reviewState.error ?? undefined" role="status" data-testid="review-state">
@@ -456,6 +458,7 @@ const moreItems = computed(() => {
 .scroll :deep(.label[data-kind='tasks']),
 .scroll :deep(.label[data-kind='section']),
 .scroll :deep(.label[data-kind='archive']),
+.scroll :deep(.label[data-kind='ended']),
 .scroll :deep(.label[data-kind='folders']) {
   font-size: var(--vr-font-size-xs);
   font-weight: 500;
@@ -473,7 +476,8 @@ const moreItems = computed(() => {
   padding-left: var(--vr-space-2);
 }
 
-.scroll :deep(.custom .archived .line) {
+.scroll :deep(.custom .archived .line),
+.scroll :deep(.custom .ended .line) {
   padding-left: var(--vr-space-2);
 }
 

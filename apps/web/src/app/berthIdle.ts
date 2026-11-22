@@ -6,11 +6,14 @@ import { createScope } from '../shared/lib/scope';
 
 const IDLE_CHOICES = new Set<unknown>(SETTINGS['sessions.unloadIdleAfter'].options.map((option) => option.value));
 
+const ARCHIVE_AFTER_CHOICES = new Set<unknown>(SETTINGS['sessions.archiveEndedAfter'].options.map((option) => option.value));
+
 const isBoolean = (value: unknown) => typeof value === 'boolean';
 const same = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b);
 
 const SYNCED: { key: SettingKey; command: string; args?: Record<string, unknown>; accepts: (value: unknown) => boolean }[] = [
   { key: 'sessions.unloadIdleAfter', command: 'berth_idle_timeout', accepts: (value) => IDLE_CHOICES.has(value) },
+  { key: 'sessions.archiveEndedAfter', command: 'berth_session_archive_after', accepts: (value) => ARCHIVE_AFTER_CHOICES.has(value) },
   { key: 'sessions.restoreOnRestart', command: 'berth_restore_sessions', accepts: isBoolean },
   { key: 'daemon.gitInitOnCreate', command: 'berth_flag', args: { key: 'git_init_on_create' }, accepts: isBoolean },
   { key: 'daemon.prewarm', command: 'berth_flag', args: { key: 'prewarm' }, accepts: isBoolean },

@@ -221,7 +221,10 @@ impl Daemon {
     }
 
     fn route_suggestion_for(&self, agent: &Agent) -> Option<RouteSuggestion> {
-        if agent.archived || self.store.was_routed_on(&agent.id).unwrap_or(false) {
+        if agent.archived
+            || agent.is_ended()
+            || self.store.was_routed_on(&agent.id).unwrap_or(false)
+        {
             return None;
         }
         let error = self.provider_errors.get(&agent.id);
@@ -281,7 +284,10 @@ impl Daemon {
 
     fn auto_route(self: &Arc<Self>, agent: &Agent) {
         let file = self.provider_errors.router_file();
-        if !file.is_auto() || agent.archived || self.store.was_routed_on(&agent.id).unwrap_or(false)
+        if !file.is_auto()
+            || agent.archived
+            || agent.is_ended()
+            || self.store.was_routed_on(&agent.id).unwrap_or(false)
         {
             return;
         }
@@ -400,7 +406,7 @@ impl Daemon {
         let Ok((_, _, agents, _)) = self.store.load_tree() else {
             return;
         };
-        for agent in agents.iter().filter(|a| !a.archived) {
+        for agent in agents.iter().filter(|a| !a.archived && !a.is_ended()) {
             if agent.status == AgentStatus::Running {
                 match self.screen_error(agent) {
                     Some(found) => {

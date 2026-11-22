@@ -23,6 +23,7 @@ pub struct Config {
     /// attach (agents resume their conversation). Malformed
     /// values fall back to the 5m default.
     pub session_idle_timeout: String,
+    pub session_archive_after: String,
     /// Spawn the sessions that were live when the daemon stopped again when
     /// it starts, so a daemon restart brings them back without an attach.
     pub restore_sessions: bool,
@@ -51,6 +52,7 @@ impl Default for Config {
             git_init_on_create: shared.git_init_on_create,
             prewarm: shared.prewarm,
             session_idle_timeout: shared.session_idle_timeout.clone(),
+            session_archive_after: shared.session_archive_after.clone(),
             restore_sessions: shared.restore_sessions,
             claude_limits: shared.claude_limits,
             webhooks: false,
@@ -90,6 +92,12 @@ impl Config {
     pub fn session_idle_timeout(&self) -> Option<std::time::Duration> {
         parse_timeout(&self.session_idle_timeout).unwrap_or_else(|| {
             parse_timeout(&daemon_defaults().session_idle_timeout).expect("default parses")
+        })
+    }
+
+    pub fn session_archive_after(&self) -> Option<std::time::Duration> {
+        parse_timeout(&self.session_archive_after).unwrap_or_else(|| {
+            parse_timeout(&daemon_defaults().session_archive_after).expect("default parses")
         })
     }
 }
@@ -137,7 +145,10 @@ fn parse_timeout(s: &str) -> Option<Option<std::time::Duration>> {
         Some(d) => (d, 1),
         None => match s.strip_suffix(['m', 'M']) {
             Some(d) => (d, 60),
-            None => (s.strip_suffix(['h', 'H'])?, 3_600),
+            None => match s.strip_suffix(['h', 'H']) {
+                Some(d) => (d, 3_600),
+                None => (s.strip_suffix(['d', 'D'])?, 86_400),
+            },
         },
     };
     let n: u64 = digits.trim().parse().ok()?;
@@ -190,6 +201,25 @@ mod tests {
         assert_eq!(
             adopted(r#"{"prewarm": true, "prewarm_agents": false}"#),
             serde_json::json!({"prewarm": true})
+        );
+    }
+
+    #[test]
+    fn session_archive_after_parses_days_and_falls_back_to_seven() {
+        use std::time::Duration;
+        let after = |v: &str| {
+            let cfg: Config =
+                serde_json::from_str(&format!(r#"{{"session_archive_after": "{v}"}}"#)).unwrap();
+            cfg.session_archive_after()
+        };
+        assert_eq!(after("1d"), Some(Duration::from_secs(86_400)));
+        assert_eq!(after("7d"), Some(Duration::from_secs(7 * 86_400)));
+        assert_eq!(after("30d"), Some(Duration::from_secs(30 * 86_400)));
+        assert_eq!(after("off"), None);
+        assert_eq!(after("later"), Some(Duration::from_secs(7 * 86_400)));
+        assert_eq!(
+            Config::default().session_archive_after(),
+            Some(Duration::from_secs(7 * 86_400))
         );
     }
 

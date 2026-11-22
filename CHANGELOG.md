@@ -7,7 +7,8 @@
 - Added a Channels section to the sidebar that lists every Channel you are in, read or not, with a button to create one by name
 - Added Shared Channels for team-wide topics such as `general` or `bugs`: everyone approved on the hub is in them, including people approved later; an admin makes one from the Channels section or with `berth channel open <name> --shared`
 - Added leaving and deleting a Channel from its row in the Channels section and with `berth channel leave` and `berth channel delete`: you delete the Channels you made, and the new `channels.delete` permission, held by Admin, deletes any
-- Added `sessions.archiveOnClose`, on by default: closing the tab of an agent or a conversation moves it to its project's Archive; turned off, the close button asks whether to archive it or only close the tab
+- Added `sessions.archiveOnClose`, on by default: closing the tab of an agent ends the session and closing a conversation's tab moves it to its project's Archive; turned off, the close button asks whether to end, archive or delete it
+- Added an Ended group under each project's sessions in the Sessions tree: a session you close, end with `berth end-session` or that is archived after merge goes there, opening it resumes the conversation, and after `session_archive_after` (7 days by default) it moves to the Archive
 - Added Delete forever to the menu of an agent tab's close button, which asks to confirm before it removes the session
 - Added a pinned Inbox in the sidebar: it stays at the top while the Projects tree scrolls, scrolls on its own when it grows past 40% of the window height, and collapses with the chevron on its header (`Alt+J` expands it)
 - Added a Stop button to the Chat composer: while an agent's turn runs and the message box is empty it takes the place of Send and interrupts the turn, which matters on a phone where the Terminal view and its keys are gone
@@ -27,12 +28,14 @@
 - Removed `berth hub approve --scopes`: approve with `--role` instead
 - Added drag handles on both edges of the Chat view's column: drag one to resize or move the transcript and composer together, use the arrow keys on a focused handle, double-click to go back to 920px centered; the layout is kept across restarts
 - Added a Search view (`Ctrl+Shift+F`) that finds Sessions (archived ones too), merge requests, tasks, channel messages and the full text of Claude and Codex conversations, from an index the desktop app keeps in `search-index.db`
-- Added `berth end-session`: when you ask an agent to end its session ("kill session", "закрой сессию"), the session ends once its current turn ends and moves to the Archive in the Sessions tree, where unarchiving resumes it; the agent warns about scheduled prompts aimed at it
+- Added `berth end-session`: when you ask an agent to end its session ("kill session", "закрой сессию"), the session ends once its current turn ends and moves to the Ended group in the Sessions tree, where opening it resumes the conversation; the agent warns about scheduled prompts aimed at it
 - Added roles on the team hub: every approved device holds one role (Admin, Member, Guest or a custom one) that sets what it may do, and `berth hub approve <url> --admin-token <token> <id> --role <role>` gives or changes it
 - Added a Team section in Settings that shows your role on the hub and lets an admin approve devices with a role, change roles, revoke devices, edit custom roles and read the hub's audit log
 - Changed Quick Open (`Ctrl+P`) to search conversation text through the same index, with an "All results" row (`Ctrl+Enter`) that opens the Search view on the same query
 - Changed the sidebar filter to an always visible field that filters the Inbox as well as the tree; `Ctrl+K` focuses it
 - Fixed the running count in the Sessions tab, the phone header and the tray counting a session as running after its process had stopped
+- Fixed the Chat composer in a browser or on a phone opened over plain HTTP hiding the microphone: the button now shows and says that voice needs `Tailscale (HTTPS)` under Remote access
+- Fixed the Chat composer on a phone in Hold to talk mode having no way to stop a running turn: the Stop button now sits beside the talk button
 - Fixed the New session dialog on a phone: it now fills the screen with every field full width, the Name field on its own row, large Cancel and Create buttons, and no keyboard shortcut hints; Enter in the prompt adds a line
 - Fixed the Setup command field in New session on a phone showing its placeholder cut off: it now says `e.g. pnpm install` and fits at 320 px
 - Fixed the Inbox listing Sessions from projects of other workspaces while one workspace is open; `Alt+J` now stays within it too
@@ -40,8 +43,6 @@
 - Fixed `berth worktree <branch>` and `berth spawn --worktree <branch>` starting a new local branch from the default base when that branch already exists on origin: the worktree now checks out origin's branch and tracks it
 - Fixed a Session started by `berth spawn` getting no tab: it now opens as a tab beside the Session that ran the command, without taking focus from it
 - Fixed an open terminal showing `[session ended, code 1]` after its Session was restarted, switched model or moved into a worktree by `berth worktree`, while the new process ran unseen; the terminal now switches to the new process
-- Fixed the Chat composer on a phone in Hold to talk mode having no way to stop a running turn: the Stop button now sits beside the talk button
-- Fixed the Chat composer in a browser or on a phone opened over plain HTTP hiding the microphone: the button now shows and says that voice needs `Tailscale (HTTPS)` under Remote access
 - Fixed a finished Session staying in the Inbox after you read it in a split panel or came back to the window with it on screen: it is now marked seen whenever any panel of the focused window shows it
 - Fixed a Session's Chat view sometimes marking a turn Finished before the agent's last answer arrived, leaving that answer missing until the next turn
 - Fixed error messages from the desktop app (connectors, files, settings, git steps, remote access, voice, the daemon version banner) showing in one fixed language: they now follow the app language, and a tab whose connector was removed says how to bring it back
