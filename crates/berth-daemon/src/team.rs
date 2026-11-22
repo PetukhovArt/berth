@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use anyhow::{bail, Result};
 use berth_core::{AgentId, AgentStatus, SessionRef};
+use berth_hub::client::HubClient;
 use berth_hub::{mention_key, mentions_in, Mention};
 
 use crate::channels::hub;
@@ -10,6 +11,7 @@ use crate::config::Config;
 use crate::hub_stream::HubPush;
 use crate::pty::{DEFAULT_COLS, DEFAULT_ROWS};
 use crate::registry::Daemon;
+use crate::team_access;
 use crate::team_members::{MentionCursor, RegisteredAgents};
 use crate::team_pending::{self, Pending};
 use crate::triggers::{type_prompt, BOOT_GRACE, PASTE_GAP};
@@ -40,8 +42,18 @@ fn as_command(content: &str, agent_names: &[&str]) -> Option<String> {
     command.starts_with('/').then_some(command)
 }
 
-fn instructs(m: &Mention, agent_names: &[&str], granted: impl FnOnce() -> bool) -> bool {
-    m.from_owner || (as_command(&m.event.content, agent_names).is_none() && granted())
+fn instructs(
+    m: &Mention,
+    agent_names: &[&str],
+    granted: impl FnOnce() -> Option<bool>,
+) -> Option<bool> {
+    if m.from_owner {
+        return Some(true);
+    }
+    if as_command(&m.event.content, agent_names).is_some() {
+        return Some(false);
+    }
+    granted()
 }
 
 pub fn decide(m: &Mention, agent_names: &[&str], chain_limit: u32, idle: bool) -> Decision {
@@ -93,7 +105,7 @@ impl Daemon {
         type_prompt(&session, text).await
     }
 
-    async fn deliver_pending(self: &Arc<Self>, hub_url: &str, limit: u32) {
+    async fn deliver_pending(self: &Arc<Self>, hub: &HubClient, hub_url: &str, limit: u32) {
         let pending = match team_pending::load(&self.store, hub_url) {
             Ok(pending) => pending,
             Err(e) => {
@@ -101,6 +113,7 @@ impl Daemon {
                 return;
             }
         };
+        let ceiling = team_access::ceiling_for(hub, &self.store, &pending).await;
         let mut served: Vec<String> = Vec::new();
         for Pending {
             mention: mut m,
@@ -113,9 +126,13 @@ impl Daemon {
                 None => Decision::Drop,
                 Some(agent) => {
                     let names = [id.as_str(), agent.name.as_str()];
-                    m.from_owner = instructs(&m, &names, || {
-                        promoted || crate::team_access::may_instruct(&self.store, &m)
+                    let instructs = instructs(&m, &names, || {
+                        team_access::may_instruct(&self.store, ceiling.as_ref(), &m, promoted)
                     });
+                    let Some(instructs) = instructs else {
+                        continue;
+                    };
+                    m.from_owner = instructs;
                     let idle = matches!(agent.status, AgentStatus::Finished | AgentStatus::Fresh)
                         && !served.contains(&m.agent);
                     decide(&m, &names, limit, idle)
@@ -162,7 +179,7 @@ impl Daemon {
                 }
             }
             let limit = Config::load().channel_chain_limit;
-            self.deliver_pending(cursor.hub_url(), limit).await;
+            self.deliver_pending(&hub, cursor.hub_url(), limit).await;
         }
     }
 }
@@ -202,12 +219,22 @@ mod tests {
     #[test]
     fn a_granted_colleague_instructs_but_a_slash_command_stays_the_owners() {
         let granted = mention("bob", "person", false, 0, "@agent-1 use the v2 api");
-        assert!(instructs(&granted, NAMES, || true));
-        assert!(!instructs(&granted, NAMES, || false));
+        assert_eq!(instructs(&granted, NAMES, || Some(true)), Some(true));
+        assert_eq!(instructs(&granted, NAMES, || Some(false)), Some(false));
         let command = mention("bob", "person", false, 0, "@agent-1 /clear");
-        assert!(!instructs(&command, NAMES, || true));
+        assert_eq!(instructs(&command, NAMES, || Some(true)), Some(false));
         let own = mention("ann", "person", true, 0, "@agent-1 /clear");
-        assert!(instructs(&own, NAMES, || false));
+        assert_eq!(instructs(&own, NAMES, || Some(false)), Some(true));
+    }
+
+    #[test]
+    fn a_colleague_mention_waits_while_the_ceiling_is_unknown_but_the_owners_does_not() {
+        let granted = mention("bob", "person", false, 0, "@agent-1 use the v2 api");
+        assert_eq!(instructs(&granted, NAMES, || None), None);
+        let command = mention("bob", "person", false, 0, "@agent-1 /clear");
+        assert_eq!(instructs(&command, NAMES, || None), Some(false));
+        let own = mention("ann", "person", true, 0, "run the tests");
+        assert_eq!(instructs(&own, NAMES, || None), Some(true));
     }
 
     fn mention(author: &str, kind: &str, from_owner: bool, chain: u32, content: &str) -> Mention {

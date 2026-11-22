@@ -4,20 +4,19 @@ import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
 import { VButton, VContextMenu, VInputText } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
-import { canContinueAsAgent, continueTerminalInDock, sessionStateOf, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, type SessionStatus, useAction, StatusDot } from '../../../entities/session';
+import { canContinueAsAgent, continueTerminalInDock, sessionStateOf, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, isStopped, useAction, StatusDot } from '../../../entities/session';
 import { MoveAgentDialog } from '../../../features/move-agent';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ session: SessionNode; active: boolean; linked?: ExternalSession }>();
 const emit = defineEmits<{ open: [split: boolean]; 'open-conversation': [] }>();
 
-function statusLabel(status: SessionStatus): string {
-  return t(`agents.status.${status}`);
-}
-
 const state = computed(() => sessionStateOf(props.session.key));
 const status = computed(() => state.value?.status ?? props.session.status);
 const unseen = computed(() => state.value?.unseen ?? props.session.unseen);
+const alive = computed(() => state.value?.alive ?? props.session.alive);
+const stopped = computed(() => isStopped(status.value, unseen.value, alive.value));
+const label = computed(() => t(stopped.value ? 'agents.status.stopped' : `agents.status.${status.value}`));
 
 type Mode = 'idle' | 'renaming' | 'confirming-delete';
 type MenuAction = { key: string; label: string; command: () => void; testid?: string };
@@ -127,17 +126,19 @@ async function confirmDelete() {
         :data-session-id="session.id"
         :data-status="status"
         :data-unseen="unseen"
+        :data-alive="alive"
+        :data-stopped="stopped"
         :data-active="active"
         :data-linked-harness="linked?.harness"
         :data-linked-session-id="linked?.id"
         :data-linked-status="linked?.status"
-        :title="`${session.name} — ${statusLabel(status)}`"
+        :title="`${session.name} — ${label}`"
         @click="emit('open', primaryPressed($event))"
         @contextmenu.prevent="showMenu"
       >
-        <StatusDot :status="status" :unseen="unseen" />
+        <StatusDot :status="status" :unseen="unseen" :alive="alive" />
         <span class="name">{{ session.name }}</span>
-        <span class="label">{{ statusLabel(status) }}</span>
+        <span class="label" data-testid="session-row-label">{{ label }}</span>
       </UiButton>
       <UiButton v-if="linked" class="more conversation" :title="t('workbench.external.open')" :aria-label="t('workbench.external.open')" data-testid="session-open-conversation" @click="emit('open-conversation')"><MessageSquare :size="14" /></UiButton>
       <UiButton class="more" :title="t('agents.session.actions')" :aria-label="t('agents.session.actions')" aria-haspopup="menu" data-testid="session-menu" @click="showMenu"><Ellipsis :size="14" /></UiButton>
@@ -216,6 +217,10 @@ async function confirmDelete() {
 .session:hover .label,
 .session:focus-within .label {
   visibility: hidden;
+}
+
+.row[data-stopped='true']:not([data-active='true']) .name {
+  color: var(--vr-color-text-subtle);
 }
 
 .row[data-status='needs_feedback'] .label {

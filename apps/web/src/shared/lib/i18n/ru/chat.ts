@@ -33,6 +33,8 @@ export const chat: Translation<typeof en> = {
   typeGlyph: 'Аа',
   heard: 'Слушаю… «{text}»',
   talkMode: 'Голос',
+  talkNeedsHttps: 'Для голоса нужен HTTPS. На компьютере выберите «Слушать» Tailscale (HTTPS) в Настройки > Удалённый доступ и откройте новую ссылку.',
+  talkUnavailable: 'В этом браузере нет распознавания речи. Откройте Berth в Safari или Chrome.',
   talkHint: 'Удерживайте, чтобы говорить · Аа для текста',
   holdToTalk: 'Удерживать',
   handsFree: 'Без рук',

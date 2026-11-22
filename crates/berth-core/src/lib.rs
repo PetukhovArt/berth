@@ -8,6 +8,7 @@ pub mod daemon_defaults;
 pub mod dsr;
 pub mod entities;
 pub mod env;
+pub mod fetch_gate;
 pub mod ids;
 pub mod legacy;
 pub mod merge_watch;

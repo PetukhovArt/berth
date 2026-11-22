@@ -161,7 +161,9 @@ fn hook_command(endpoint: &str, event: &str) -> String {
     // Grok discards a UserPromptSubmit hook's stdout instead, so it stays silent.
     let tail = if matches!(event, "UserPromptSubmit" | "SessionStart") && endpoint != "grok" {
         "2>/dev/null || true"
-    } else if EVENTS_THE_DAEMON_MUST_SEE_IN_ORDER.contains(&event) {
+    } else if EVENTS_THE_DAEMON_MUST_SEE_IN_ORDER.contains(&event)
+        || endpoint == ENDPOINT_THAT_KILLS_BACKGROUND_HOOKS
+    {
         ">/dev/null 2>&1 || true"
     } else {
         "<&0 >/dev/null 2>&1 &"
@@ -172,6 +174,8 @@ fn hook_command(endpoint: &str, event: &str) -> String {
         hook_curl(endpoint, event)
     )
 }
+
+const ENDPOINT_THAT_KILLS_BACKGROUND_HOOKS: &str = "grok";
 
 const EVENTS_THE_DAEMON_MUST_SEE_IN_ORDER: &[&str] = &[
     "UserPromptSubmit",
@@ -623,6 +627,14 @@ mod tests {
              curl -sS -m 3 --noproxy '*' -X POST -H \"Authorization: Bearer $BERTH_API_TOKEN\" \
              -H \"Content-Type: application/json\" --data-binary @- \
              \"$BERTH_API_URL/api/hooks/claude?agentId=$BERTH_AGENT_ID&hookEvent=SubagentStop\" \
+             >/dev/null 2>&1 || true"
+        );
+        assert_eq!(
+            hook_command("grok", "Stop"),
+            "if [ -z \"$BERTH_AGENT_ID\" ] || [ -z \"$BERTH_API_URL\" ]; then exit 0; fi; \
+             curl -sS -m 3 --noproxy '*' -X POST -H \"Authorization: Bearer $BERTH_API_TOKEN\" \
+             -H \"Content-Type: application/json\" --data-binary @- \
+             \"$BERTH_API_URL/api/hooks/grok?agentId=$BERTH_AGENT_ID&hookEvent=Stop\" \
              >/dev/null 2>&1 || true"
         );
         assert_eq!(

@@ -189,4 +189,35 @@ const summary = computed(() => {
   margin-top: 2px;
   color: currentColor;
 }
+
+:root[data-vr-viewport='phone'] .chips {
+  flex-direction: column;
+}
+
+:root[data-vr-viewport='phone'] .chip {
+  height: auto;
+  min-height: var(--vr-size-row-touch);
+}
+
+:root[data-vr-viewport='phone'] .chip :deep(.p-select-label) {
+  min-height: var(--vr-size-row-touch);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+:root[data-vr-viewport='phone'] .fixed {
+  min-height: var(--vr-size-row-touch);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+:root[data-vr-viewport='phone'] .row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--vr-space-1);
+}
+
+:root[data-vr-viewport='phone'] .row-label {
+  width: auto;
+}
 </style>

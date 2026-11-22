@@ -19,15 +19,5 @@ export const mobile: Translation<typeof en> = {
   },
   connected: 'Подключено к berth',
   inboxEmpty: 'Сейчас ничего не ждёт вас.',
-  keysLabel: 'Клавиши терминала',
-  key: {
-    esc: 'Esc',
-    tab: 'Tab',
-    ctrl: 'Ctrl',
-    up: 'Вверх',
-    down: 'Вниз',
-    left: 'Влево',
-    right: 'Вправо',
-    newline: 'Shift+Enter',
-  },
+  noChat: 'У этой сессии нет чата. Откройте её на компьютере, чтобы работать в терминале.',
 };

@@ -74,7 +74,7 @@ pub(crate) async fn own(store: &Store, hub: &HubClient) -> Own {
     let (me, mut members) = match cached {
         Some(cached) => cached,
         None => match hub.me().await {
-            Ok(me) => (me, HashMap::new()),
+            Ok(me) => (me.id, HashMap::new()),
             Err(_) => return Own::default(),
         },
     };
@@ -111,6 +111,14 @@ pub(crate) fn mark(event: Event, own: &Own) -> Result<ChannelEvent> {
         .filter_map(|t| own.agents.get(&t[1]).cloned())
         .collect();
     Ok(marked)
+}
+
+pub async fn leave_channel(key: &str) -> Result<()> {
+    hub()?.leave_channel(key).await
+}
+
+pub async fn delete_channel(key: &str) -> Result<()> {
+    hub()?.delete_channel(key).await
 }
 
 pub async fn list_channels() -> Result<Vec<ChannelSummary>> {
@@ -188,6 +196,7 @@ impl Daemon {
         &self,
         key: Option<String>,
         agent: Option<AgentId>,
+        shared: bool,
     ) -> Result<String> {
         let key = match (key, agent) {
             (Some(key), _) => key,
@@ -205,7 +214,11 @@ impl Daemon {
             }
             (None, None) => bail!("name a channel key, or run this inside a session"),
         };
-        hub()?.create_channel(&key).await?;
+        if shared {
+            hub()?.create_shared_channel(&key).await?;
+        } else {
+            hub()?.create_channel(&key).await?;
+        }
         Ok(key)
     }
 }

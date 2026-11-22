@@ -1,5 +1,5 @@
 import { watch } from 'vue';
-import { attentionOf, useBerth, useSessionStates } from '../entities/session';
+import { attentionOf, isRunning, useBerth, useSessionStates } from '../entities/session';
 import { invoke, isDesktop, listen, type HostEvent } from '../bridge';
 import { openCleanup } from '../features/cleanup';
 import { runAction } from '../shared/lib/commands/registry';
@@ -25,7 +25,7 @@ export function initTray(): () => void {
           let running = 0;
           let waiting = 0;
           for (const state of states.value.values()) {
-            if (state.status === 'running') running += 1;
+            if (isRunning(state)) running += 1;
             else if (attentionOf(state) === 'needs_feedback') waiting += 1;
           }
           return `${running}:${waiting}`;

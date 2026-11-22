@@ -5,6 +5,7 @@ import { VPopover } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { compareText, t } from '../../../shared/lib/i18n/i18n';
 import { describeError, openWorkspace, useBerth, useOpenWorkspace } from '../../../entities/session';
+import WorkspaceActions from './WorkspaceActions.vue';
 
 const berth = useBerth();
 const open = useOpenWorkspace();
@@ -63,6 +64,7 @@ async function choose(id: string | null) {
           <Check v-if="open === workspace.id || (open === null && workspaces.length === 1)" :size="13" />
         </UiButton>
         <p v-if="error" class="error" role="alert" data-testid="workspace-switch-error">{{ error }}</p>
+        <div class="create"><WorkspaceActions /></div>
       </div>
     </VPopover>
   </template>
@@ -130,6 +132,16 @@ async function choose(id: string | null) {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.create {
+  margin-top: var(--vr-space-1);
+  padding-top: var(--vr-space-1);
+  border-top: 1px solid var(--vr-color-border);
+}
+
+.create :deep(.actions) {
+  justify-content: flex-start;
 }
 
 .error {

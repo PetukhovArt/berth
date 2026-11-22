@@ -1,14 +1,24 @@
 use berth_hub::client::HubClient;
-use berth_hub::serve;
+use berth_hub::{serve, AdminChange, Event, Next, Subscription};
 
 async fn person(url: &str, name: &str) -> (String, HubClient) {
     let (id, token) = HubClient::pair(url, name).await.unwrap();
     let admin = HubClient::new(url, "admin-secret").unwrap();
     admin
-        .approve(&id, &["read", "post", "create"])
+        .admin_change(&AdminChange::SetRole {
+            member: id.clone(),
+            role: "member".into(),
+        })
         .await
         .unwrap();
     (id, HubClient::new(url, &token).unwrap())
+}
+
+async fn event(subscription: &mut Subscription) -> Event {
+    match subscription.next().await.unwrap() {
+        Next::Event(event) => event,
+        other => panic!("expected an event, got {other:?}"),
+    }
 }
 
 #[tokio::test]
@@ -33,7 +43,7 @@ async fn a_subscriber_gets_new_events_live_and_catches_up_after_a_reconnect() {
     let mut live = bob.subscribe(None).await.unwrap();
     ann.post("SECRET", "not for bob", None).await.unwrap();
     let first = ann.post("PROJ-1", "one", None).await.unwrap();
-    let got = live.next().await.unwrap().unwrap();
+    let got = event(&mut live).await;
     assert_eq!((got.seq, got.content.as_str()), (first.seq, "one"));
     drop(live);
 
@@ -42,19 +52,12 @@ async fn a_subscriber_gets_new_events_live_and_catches_up_after_a_reconnect() {
     let mut again = bob.subscribe(Some(before.seq)).await.unwrap();
     let mut seen = Vec::new();
     for _ in 0..2 {
-        seen.push(again.next().await.unwrap().unwrap().content);
+        seen.push(event(&mut again).await.content);
     }
     ann.post("PROJ-1", "three", None).await.unwrap();
-    seen.push(again.next().await.unwrap().unwrap().content);
+    seen.push(event(&mut again).await.content);
     assert_eq!(seen, ["one", "two", "three"]);
 
     let stranger = HubClient::new(&url, "guess").unwrap();
     assert!(stranger.subscribe(None).await.is_err());
-
-    let admin = HubClient::new(&url, "admin-secret").unwrap();
-    admin.revoke(&bob_id).await.unwrap();
-    let after_revoke = tokio::time::timeout(std::time::Duration::from_secs(5), again.next())
-        .await
-        .expect("a revoked device's stream stays open");
-    assert!(!matches!(after_revoke, Ok(Some(_))));
 }

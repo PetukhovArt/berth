@@ -5,6 +5,7 @@ import { DockviewVue, themeLight, type DockviewApi, type DockviewPanelApi, type 
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
 import { isDesktop } from '../../../bridge';
+import { useIsPhone } from '../../../shared/ui/kit';
 import { useSettings } from '../../../shared/config/settings/store';
 import { startTabDrag, trackTabOrder } from '../lib/tabOrder';
 import { trackTabFit } from '../lib/tabFit';
@@ -17,6 +18,7 @@ defineSlots<Record<`panel-${string}`, (props: { params: Record<string, unknown>;
 const emit = defineEmits<{ ready: [event: DockviewReadyEvent] }>();
 
 const dock = useDock();
+const phone = useIsPhone();
 const slots = useSlots();
 const panelSlots = computed(() => Object.keys(slots).filter((name): name is `panel-${string}` => name.startsWith('panel-')));
 const { values } = useSettings();
@@ -47,7 +49,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="host" class="dock" :data-tabs="values['workbench.tabs']">
-    <ProjectTabRows v-if="values['workbench.tabs'] === 'projects'" :api="readyApi" />
+    <ProjectTabRows v-if="values['workbench.tabs'] === 'projects' && !phone" :api="readyApi" />
     <DockviewVue class="dockview" :theme="themeLight" :disable-dnd="isDesktop" @ready="onReady">
       <template v-for="name in panelSlots" :key="name" #[name]="scope">
         <slot :name="name" v-bind="scope" />

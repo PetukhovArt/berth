@@ -1,5 +1,5 @@
-import { computed, ref } from 'vue';
-import { attentionOf, externalTarget, urgencyOf, useBerth, useExternalSessions, useSessionDock, useSessionStates, type AttentionKind, type SessionNode, type SessionState } from '../../../entities/session';
+import { computed, ref, shallowRef, watch } from 'vue';
+import { attentionOf, externalTarget, urgencyOf, useBerth, useExternalSessions, useSessionDock, useSessionStates, useOpenWorkspace, type AttentionKind, type SessionNode, type SessionState } from '../../../entities/session';
 import { useDock } from '../../../shared/model/dock';
 
 export type InboxEntry = { key: string; state: SessionState; kind: AttentionKind; since: number | null; place: string; node: SessionNode | undefined };
@@ -7,7 +7,11 @@ export type InboxEntry = { key: string; state: SessionState; kind: AttentionKind
 type Mark = { sig: string; until: number | null };
 
 const STORE_KEY = 'berth.inbox.marks';
+const COLLAPSED_KEY = 'berth.inbox.collapsed';
 const TICK_MS = 30_000;
+
+export const inboxCollapsed = shallowRef(localStorage.getItem(COLLAPSED_KEY) === '1');
+watch(inboxCollapsed, (on) => localStorage.setItem(COLLAPSED_KEY, on ? '1' : '0'));
 
 const now = ref(Date.now());
 const marks = ref<Record<string, Mark>>(readMarks());
@@ -53,8 +57,15 @@ function createInbox() {
     ticking = true;
     setInterval(() => (now.value = Date.now()), TICK_MS);
   }
+  const openWorkspace = useOpenWorkspace();
+  const openProjects = computed(() => {
+    const id = openWorkspace.value;
+    const workspace = id ? berth?.tree.value.find((node) => node.id === id) : undefined;
+    return workspace ? new Set(workspace.projects.map((project) => project.id)) : null;
+  });
   const entries = computed<InboxEntry[]>(() => {
     const list: InboxEntry[] = [];
+    const scope = openProjects.value;
     for (const state of states.value.values()) {
       const kind = attentionOf(state);
       if (!kind) continue;
@@ -62,6 +73,8 @@ function createInbox() {
       const path = paths.value.get(state.key);
       const conversation = node ? undefined : external?.anyByKey.value.get(state.key);
       const target = conversation ? externalTarget(conversation, berth?.entities.value) : null;
+      const projectId = path?.project.id ?? target?.projectId;
+      if (scope && projectId && !scope.has(projectId)) continue;
       const place = path ? [path.project.name, path.worktree.branch] : [target?.projectName, target?.branch];
       list.push({ key: state.key, state, kind, since: state.since, place: place.filter(Boolean).join(' › '), node });
     }
@@ -84,5 +97,7 @@ export function openNextNeedingYou(): void {
   const next = useInbox()
     .items.value.filter((entry) => entry.key !== current)
     .sort((a, b) => urgencyOf(b.state) - urgencyOf(a.state) || (a.since ?? 0) - (b.since ?? 0))[0];
-  if (next) useSessionDock().openKey(next.key);
+  if (!next) return;
+  inboxCollapsed.value = false;
+  useSessionDock().openKey(next.key);
 }

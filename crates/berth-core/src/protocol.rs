@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 61;
+pub const PROTOCOL_VERSION: u32 = 65;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -257,6 +257,10 @@ pub enum ClientRequest {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         worktree: Option<SpawnWorktree>,
     },
+    ArchiveSelf {
+        req_id: u64,
+        id: AgentId,
+    },
     /// Kills the PTY, sets archived=1.
     ArchiveAgent {
         req_id: u64,
@@ -438,6 +442,18 @@ pub enum ClientRequest {
         req_id: u64,
         key: Option<String>,
         agent: Option<AgentId>,
+        #[serde(default)]
+        shared: bool,
+    },
+
+    LeaveChannel {
+        req_id: u64,
+        key: String,
+    },
+
+    DeleteChannel {
+        req_id: u64,
+        key: String,
     },
 
     PostChannelNote {
@@ -519,6 +535,15 @@ pub enum ClientRequest {
     AcpCommands {
         req_id: u64,
         agent: AgentId,
+    },
+
+    GetHub {
+        req_id: u64,
+    },
+
+    ChangeHub {
+        req_id: u64,
+        change: String,
     },
 }
 
@@ -926,6 +951,13 @@ pub enum ServerEvent {
         agent: AgentId,
         commands: Vec<AcpCommand>,
     },
+
+    Hub {
+        req_id: u64,
+        json: String,
+    },
+
+    HubChanged,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -956,6 +988,10 @@ pub struct ChannelSummary {
     pub key: String,
     pub head: i64,
     pub unread: i64,
+    #[serde(default)]
+    pub shared: bool,
+    #[serde(default)]
+    pub mine: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

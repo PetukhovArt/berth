@@ -6,7 +6,8 @@ use anyhow::{bail, Context, Result};
 use berth_core::codec::{read_frame, write_frame};
 use berth_core::transport::{self, Stream};
 use berth_core::{
-    env, paths, AgentId, AgentKind, ClientRequest, EnterOutcome, ServerEvent, PROTOCOL_VERSION,
+    env, paths, AgentId, AgentKind, ClientRequest, EnterOutcome, PromptTrigger, ServerEvent,
+    TriggerTarget, PROTOCOL_VERSION,
 };
 use std::time::Duration;
 
@@ -448,6 +449,56 @@ async fn enter_project_for_current_agent(path: &str) -> Result<()> {
     Ok(())
 }
 
+async fn end_current_session() -> Result<()> {
+    let agent_id = current_agent_id("end-session")?;
+    let Ok(stream) = try_connect().await else {
+        bail!("no berth daemon is running — nothing to end");
+    };
+    let mut conn = handshake(stream).await?;
+    let req_id = ONE_SHOT_REQ_ID;
+    let this_session = AgentId(agent_id);
+    write_frame(
+        &mut conn.stream,
+        &ClientRequest::ArchiveSelf {
+            req_id,
+            id: this_session.clone(),
+        },
+    )
+    .await?;
+    await_ack(&mut conn, req_id).await?;
+    write_frame(&mut conn.stream, &ClientRequest::ListTriggers { req_id }).await?;
+    for trigger in await_triggers(&mut conn, req_id).await? {
+        if trigger.target == TriggerTarget::Agent(this_session.clone()) {
+            eprintln!(
+                "warning: scheduled prompt \"{}\" targets this session and will stop firing \
+                 once it ends",
+                trigger.name
+            );
+        }
+    }
+    println!(
+        "this session ends once the current turn ends and moves to the Archive in the Sessions tree"
+    );
+    Ok(())
+}
+
+async fn await_triggers(conn: &mut Connection, req_id: u64) -> Result<Vec<PromptTrigger>> {
+    loop {
+        match read_frame::<ServerEvent, _>(&mut conn.stream).await? {
+            Some(ServerEvent::Triggers {
+                req_id: r,
+                triggers,
+            }) if r == req_id => return Ok(triggers),
+            Some(ServerEvent::Error {
+                req_id: Some(r),
+                message,
+            }) if r == req_id => bail!("{message}"),
+            Some(_) => continue,
+            None => bail!("{CLOSED_BEFORE_REPLY}"),
+        }
+    }
+}
+
 /// Read events until the daemon answers `req_id` with `WorktreeEntered`.
 async fn await_entered(
     conn: &mut Connection,
@@ -661,7 +712,6 @@ async fn kill_daemon() -> Result<bool> {
 }
 
 /// Outcome of `shutdown_if_idle`.
-#[cfg(unix)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IdleShutdown {
     /// Nothing listening on the socket.
@@ -679,7 +729,6 @@ pub enum IdleShutdown {
 /// handoff. An idle daemon can die safely (the next client launch spawns one
 /// from the new binary on disk); live sessions would be killed with it, so
 /// their daemon is left alone and the restart stays the user's call.
-#[cfg(unix)]
 async fn shutdown_if_idle() -> Result<IdleShutdown> {
     let Ok(stream) = try_connect().await else {
         return Ok(IdleShutdown::NoDaemon);
@@ -856,7 +905,6 @@ pub(crate) fn runtime() -> Result<tokio::runtime::Runtime> {
 
 /// Post-upgrade daemon handoff: shut the daemon down only when it holds no
 /// live sessions (see `shutdown_if_idle`).
-#[cfg(unix)]
 pub fn run_shutdown_if_idle() -> Result<IdleShutdown> {
     runtime()?.block_on(shutdown_if_idle())
 }
@@ -876,6 +924,10 @@ pub fn run_worktree(name: String, base: Option<String>) -> Result<()> {
 /// `berth enter <dir>` (see `enter_project_for_current_agent`).
 pub fn run_enter(path: String) -> Result<()> {
     runtime()?.block_on(enter_project_for_current_agent(&path))
+}
+
+pub fn run_end_session() -> Result<()> {
+    runtime()?.block_on(end_current_session())
 }
 
 /// `berth spawn "<task>" [--kind <kind>]` (see

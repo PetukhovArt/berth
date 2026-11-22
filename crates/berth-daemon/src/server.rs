@@ -381,11 +381,16 @@ async fn handle_client(
                         let _ = out_tx.send(ev).await;
                     });
                 }
-                ClientRequest::OpenChannel { req_id, key, agent } => {
+                ClientRequest::OpenChannel {
+                    req_id,
+                    key,
+                    agent,
+                    shared,
+                } => {
                     let out_tx = out_tx.clone();
                     let daemon = daemon.clone();
                     tokio::spawn(async move {
-                        let ev = match daemon.open_channel(key, agent).await {
+                        let ev = match daemon.open_channel(key, agent, shared).await {
                             Ok(key) => ServerEvent::ChannelOpened { req_id, key },
                             Err(e) => ServerEvent::Error {
                                 req_id: Some(req_id),
@@ -393,6 +398,20 @@ async fn handle_client(
                             },
                         };
                         let _ = out_tx.send(ev).await;
+                    });
+                }
+                ClientRequest::LeaveChannel { req_id, key } => {
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let done = crate::channels::leave_channel(&key).await;
+                        reply_done(&out_tx, req_id, done).await;
+                    });
+                }
+                ClientRequest::DeleteChannel { req_id, key } => {
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let done = crate::channels::delete_channel(&key).await;
+                        reply_done(&out_tx, req_id, done).await;
                     });
                 }
                 ClientRequest::GetChannelTouched { req_id, channel } => {
@@ -471,6 +490,20 @@ async fn handle_client(
                     let _ = out_tx
                         .send(crate::team_access::grants_reply(req_id, result))
                         .await;
+                }
+                ClientRequest::GetHub { req_id } => {
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let result = crate::hub_admin::view().await;
+                        let _ = out_tx.send(crate::hub_admin::reply(req_id, result)).await;
+                    });
+                }
+                ClientRequest::ChangeHub { req_id, change } => {
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let result = crate::hub_admin::change(&change).await;
+                        let _ = out_tx.send(crate::hub_admin::reply(req_id, result)).await;
+                    });
                 }
                 ClientRequest::CreateAcpAgent {
                     req_id,
@@ -947,6 +980,9 @@ async fn handle_client(
                             .map(Some);
                         reply(&out_tx, req_id, created).await;
                     });
+                }
+                ClientRequest::ArchiveSelf { req_id, id } => {
+                    reply_done(&out_tx, req_id, daemon.archive_self(&id)).await;
                 }
                 ClientRequest::ArchiveAgent { req_id, id } => {
                     reply_done(&out_tx, req_id, daemon.archive_agent(&id)).await;

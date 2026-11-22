@@ -16,7 +16,7 @@ use berth_core::{
     OrphanedSession, PrewarmInfo, Project, ProjectId, ServerEvent, SessionRef, TerminalId,
     TerminalTab, Workspace, WorkspaceId, Worktree, WorktreeId, MAX_STARTING_PROMPT_BYTES,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -93,6 +93,7 @@ pub struct Daemon {
     /// by any other spawn of the agent, and consulted by the cwd reparent so
     /// the old checkout's cwd can't drag the row back in the meantime.
     pending_moves: Mutex<HashMap<AgentId, Worktree>>,
+    pub(crate) pending_archives: Mutex<HashSet<AgentId>>,
     /// Serializes the check-and-spawn inside [`Daemon::ensure_session`].
     spawn_gate: Mutex<()>,
     /// The last reading [`crate::sampler`] published. `GetMetrics` answers
@@ -124,6 +125,7 @@ impl Daemon {
             session_interest: Mutex::new(HashMap::new()),
             last_cwd: Mutex::new(HashMap::new()),
             pending_moves: Mutex::new(HashMap::new()),
+            pending_archives: Mutex::new(HashSet::new()),
             spawn_gate: Mutex::new(()),
             last_sample: Mutex::new(None),
             acp: Default::default(),
@@ -1332,19 +1334,15 @@ impl Daemon {
     /// turn-end hooks — Stop, and the idle notification a Stop-less end
     /// still fires — so a Bash hook from the same turn never triggers it.
     pub fn complete_pending_move(self: &Arc<Self>, id: &AgentId, event: &HookEvent) {
-        let turn_over = match event {
-            HookEvent::Stop => true,
-            HookEvent::Notification { notification_type } => {
-                notification_type.as_deref() == Some("idle_prompt")
-            }
-            _ => false,
-        };
-        if !turn_over {
+        if !crate::self_archive::is_turn_end(event) {
             return;
         }
         let Some(target) = self.pending_moves.lock().unwrap().remove(id) else {
             return;
         };
+        if self.pending_archives.lock().unwrap().contains(id) {
+            return;
+        }
         let agent = match self.store.get_agent(id) {
             Ok(Some(agent)) if !agent.archived && agent.worktree_id == target.id => agent,
             // Archived, deleted, or moved elsewhere by hand since: the
@@ -1527,6 +1525,7 @@ impl Daemon {
     }
 
     pub fn archive_agent(self: &Arc<Self>, id: &AgentId) -> Result<()> {
+        self.pending_archives.lock().unwrap().remove(id);
         self.kill_session(&SessionRef::Agent(id.clone()));
         self.store.set_agent_archived(id, true)?;
         self.broadcast_agent(id)?;
@@ -1534,6 +1533,7 @@ impl Daemon {
     }
 
     pub fn unarchive_agent(self: &Arc<Self>, id: &AgentId) -> Result<()> {
+        self.pending_archives.lock().unwrap().remove(id);
         self.store.set_agent_archived(id, false)?;
         self.broadcast_agent(id)?;
         Ok(())
@@ -1554,6 +1554,7 @@ impl Daemon {
         self.kill_session(&SessionRef::Agent(id.clone()));
         self.last_cwd.lock().unwrap().remove(id);
         self.pending_moves.lock().unwrap().remove(id);
+        self.pending_archives.lock().unwrap().remove(id);
         self.store.delete_agent(id)?;
         self.broadcast(ServerEvent::EntityRemoved {
             id: EntityId::Agent(id.clone()),
@@ -1716,6 +1717,7 @@ impl Daemon {
         // Whatever spawns this agent, it runs in `worktree` from here: a
         // relocation still pending for it has been overtaken.
         self.pending_moves.lock().unwrap().remove(&agent.id);
+        self.pending_archives.lock().unwrap().remove(&agent.id);
         // Managed status hooks; a failure here degrades to "no status
         // updates", never blocks the spawn.
         let reports_through_mod = agent.kind == AgentKind::Claude
@@ -2142,6 +2144,7 @@ fn agent_spawn_command_with(
                 system_prompt.push(CLAUDE_WORKTREE_GUIDANCE);
                 system_prompt.push(crate::sibling::CLAUDE_SPAWN_GUIDANCE);
                 system_prompt.push(crate::enter_project::CLAUDE_ENTER_GUIDANCE);
+                system_prompt.push(crate::self_archive::CLAUDE_ARCHIVE_GUIDANCE);
             }
             if let Some(prompt) = additional_system_prompt {
                 system_prompt.push(prompt);
@@ -2255,6 +2258,7 @@ pub(crate) mod tests {
                     CLAUDE_WORKTREE_GUIDANCE,
                     crate::sibling::CLAUDE_SPAWN_GUIDANCE,
                     crate::enter_project::CLAUDE_ENTER_GUIDANCE,
+                    crate::self_archive::CLAUDE_ARCHIVE_GUIDANCE,
                 ]
                 .join("\n\n"),
             ])
@@ -2561,6 +2565,7 @@ pub(crate) mod tests {
         assert_eq!(prompts.len(), 1, "Claude gets one composed system prompt");
         assert!(prompts[0].contains(CLAUDE_WORKTREE_GUIDANCE));
         assert!(prompts[0].contains(crate::sibling::CLAUDE_SPAWN_GUIDANCE));
+        assert!(prompts[0].contains(crate::self_archive::CLAUDE_ARCHIVE_GUIDANCE));
         assert!(prompts[0].contains("All work in this session must be scoped"));
         assert!(prompts[0].contains(pr_url));
     }

@@ -162,6 +162,10 @@ export const settings = {
       label: 'Archive sessions after merge',
       description: 'When the merge request of a worktree is merged, its idle sessions move to the archive and leave the Inbox. The worktree and its branch stay; unarchive a session to bring it back.',
     },
+    sessionsArchiveOnClose: {
+      label: 'Archive sessions when their tab closes',
+      description: 'Closing the tab of an agent or a conversation moves it to the archive of its project. Off: the close button asks whether to archive it or only close the tab.',
+    },
     sessionsExternalDays: {
       label: 'Sessions started outside Berth',
       description: 'How many days back the tree shows Claude Code and Codex sessions started in a terminal or an IDE. 0 hides them.',

@@ -1,4 +1,4 @@
-import { computed, shallowRef, watch } from 'vue';
+import { computed, effectScope, shallowRef, watch } from 'vue';
 import type { DockviewApi } from 'dockview-vue';
 import { splitPosition, titleKey, useDock, type PanelPosition, type PanelSpec } from '../../../shared/model/dock';
 import { FILE_PANEL_PREFIX, fileNameOf, filePanelId, isFilePanel, normalizePath } from '../../../shared/lib/markdownFiles';
@@ -275,6 +275,6 @@ function createSessionDock() {
 let store: ReturnType<typeof createSessionDock> | null = null;
 
 export function useSessionDock() {
-  store ??= createSessionDock();
+  store ??= effectScope(true).run(createSessionDock) as ReturnType<typeof createSessionDock>;
   return store;
 }

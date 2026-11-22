@@ -30,5 +30,6 @@ import { titleBar } from './en/titleBar';
 import { chat } from './en/chat';
 import { host } from './en/host';
 import { search } from './en/search';
+import { hub } from './en/hub';
 
-export const en = { common, shell, settings, commands, agents, connectors, atlassian, jira, confluence, reviews, forge, content, files, remote, push, mobile, workbench, hot, update, cleanup, attention, feedback, gitStep, taskNote, checkpoints, router, voice, inspector, titleBar, chat, host, search } as const;
+export const en = { common, shell, settings, commands, agents, connectors, atlassian, jira, confluence, reviews, forge, content, files, remote, push, mobile, workbench, hot, update, cleanup, attention, feedback, gitStep, taskNote, checkpoints, router, voice, inspector, titleBar, chat, host, hub, search } as const;

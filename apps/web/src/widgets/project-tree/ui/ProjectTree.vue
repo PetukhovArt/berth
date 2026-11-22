@@ -21,6 +21,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import ExplorerTree from '../../../shared/ui/explorer-tree/ExplorerTree.vue';
 import { useDock } from '../../../shared/model/dock';
 import { InboxSection, OpenChannelAction } from '../../../features/attention';
+import { ChannelsSection } from '../../../features/channels';
 import { startCreate } from '../../../features/new-session';
 import { openLeaf, type ReviewMeta, type WorkNode, treeLiveOnly, treeProjectsCollapsed, treeQuery, treeTab, useWorkTree } from '../../../features/work-tree';
 
@@ -127,13 +128,14 @@ const moreItems = computed(() => {
       <Search :size="14" />
       <UiInput ref="filterInput" v-model="treeQuery" :placeholder="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="tree-filter" @keydown.esc="clearFilter" />
     </label>
+    <InboxSection v-if="withInbox && activeTab === 'sessions'" class="pinned-inbox" :query="treeQuery" />
     <div class="scroll">
       <NavNotices />
       <MrSessionNotice v-for="run in mrSession.runs.value.values()" :key="run.id" :run="run">
         <template #project="{ repo }"><RepoActions :repo="repo" /></template>
       </MrSessionNotice>
       <p v-for="error in errors" :key="`${error.connector}:${error.message}`" class="strip" role="alert" data-testid="tree-error" :title="error.message">{{ error.connector }}: {{ error.message }}</p>
-      <InboxSection v-if="withInbox && activeTab === 'sessions'" :query="treeQuery" />
+      <ChannelsSection v-if="activeTab === 'sessions' && !filtering" />
       <div v-if="activeTab === 'sessions'" class="section-head" data-testid="project-tree-head">
         <UiButton class="section-toggle" :aria-expanded="projectsOpen" :disabled="filtering" data-testid="project-tree-toggle" @click="treeProjectsCollapsed = !treeProjectsCollapsed">
           <ChevronRight :size="14" class="chevron vr-chevron" />
@@ -201,7 +203,6 @@ const moreItems = computed(() => {
           <ul v-else-if="node.kind === 'review-notes' && node.data?.notes" class="review-notes" :aria-label="node.label" data-testid="review-notes">
             <li v-for="(note, index) in node.data.notes" :key="index" :title="note.text"><b v-if="note.refs.length">{{ note.refs.join(', ') }}</b> {{ note.text }}</li>
           </ul>
-          <div v-else-if="node.kind === 'add-workspace'" class="extra new-workspace"><WorkspaceActions /></div>
         </template>
         <template #badges="{ node }">
           <CleanupBadge v-if="node.kind === 'worktree' && node.data?.worktree && !node.data.worktree.main" :worktree-id="node.data.worktree.id" />
@@ -415,6 +416,11 @@ const moreItems = computed(() => {
   }
 }
 
+.pinned-inbox {
+  flex: none;
+  margin-inline: var(--vr-space-1);
+}
+
 .scroll {
   flex: 1;
   min-height: 0;
@@ -450,7 +456,6 @@ const moreItems = computed(() => {
 .scroll :deep(.label[data-kind='tasks']),
 .scroll :deep(.label[data-kind='section']),
 .scroll :deep(.label[data-kind='archive']),
-.scroll :deep(.label[data-kind='earlier']),
 .scroll :deep(.label[data-kind='folders']) {
   font-size: var(--vr-font-size-xs);
   font-weight: 500;
@@ -546,11 +551,6 @@ const moreItems = computed(() => {
 .pipe :deep(.status-icon) {
   width: 12px;
   height: 12px;
-}
-
-.new-workspace {
-  margin-top: var(--vr-space-2);
-  padding-left: var(--vr-space-1);
 }
 
 .line {

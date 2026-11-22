@@ -1,6 +1,14 @@
+use std::sync::LazyLock;
+use std::time::Duration;
+
+use berth_core::fetch_gate::FetchGate;
 use serde::Serialize;
 
-use crate::mr_checkout::{git, mr_fetch_source, FetchProblem, QUICK_TIMEOUT};
+use crate::mr_checkout::{git, mr_fetch_source, FetchProblem, Fetched, QUICK_TIMEOUT};
+
+const BASE_FRESH_FOR: Duration = Duration::from_secs(120);
+
+static BASE_FETCHES: LazyLock<FetchGate> = LazyLock::new(|| FetchGate::new(BASE_FRESH_FOR));
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct WorktreeBase {
@@ -52,8 +60,35 @@ fn one_line(text: &str) -> String {
         .join(" ")
 }
 
+async fn fetch_base(repo: &str, branch: &str) -> Result<Fetched, String> {
+    let ran = BASE_FETCHES
+        .fetch_unless_fresh(repo, branch, || async {
+            let result =
+                mr_fetch_source(repo.to_owned(), branch.to_owned(), String::new(), None).await;
+            let fetched = matches!(&result, Ok(fetched) if fetched.problem.is_none());
+            (result, fetched)
+        })
+        .await;
+    ran.unwrap_or_else(|| {
+        Ok(Fetched {
+            remote: "origin".to_owned(),
+            base: Some(format!("refs/remotes/origin/{branch}")),
+            problem: None,
+            detail: None,
+            diverged: false,
+        })
+    })
+}
+
+pub async fn worktree_base_prefetch(repo: String, branch: String) -> Result<(), String> {
+    tokio::spawn(async move {
+        let _ = fetch_base(&repo, &branch).await;
+    });
+    Ok(())
+}
+
 pub async fn worktree_base_source(repo: String, branch: String) -> Result<WorktreeBase, String> {
-    let fetched = mr_fetch_source(repo.clone(), branch.clone(), String::new(), None).await?;
+    let fetched = fetch_base(&repo, &branch).await?;
     if let Some(base) = fetched.base {
         return Ok(WorktreeBase {
             base: Some(format!("{base}^0")),

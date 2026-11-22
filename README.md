@@ -13,7 +13,18 @@ use to title themselves, move into a worktree or start another session.
 
 ## Install
 
-Install the `berth` command. On macOS and Linux:
+Download the desktop app from the [latest release](https://github.com/PetukhovArt/berth/releases/latest):
+
+- Windows: `berth-desktop-x86_64-windows-setup.exe`
+- macOS: `berth-desktop-aarch64-macos.dmg` (Apple silicon) or `berth-desktop-x86_64-macos.dmg` (Intel)
+- Debian and Ubuntu: `berth-desktop-x86_64-linux.deb`
+
+The app brings the `berth` command with it, starts the daemon when none is running and updates itself
+from new releases ([details](docs/getting-started.md#install-the-desktop-app)).
+
+You need at least one agent CLI on your `PATH`: `claude`, `codex`, `cursor-agent`, `opencode` or `grok`.
+
+To install only the `berth` command, on macOS and Linux:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/PetukhovArt/berth/main/install.sh | sh
@@ -25,19 +36,8 @@ On any platform, with a Rust toolchain:
 cargo install --git https://github.com/PetukhovArt/berth berth --locked
 ```
 
-You need at least one agent CLI on your `PATH`: `claude`, `codex`, `cursor-agent`, `opencode` or `grok`.
-
-Then build the desktop app from this repository, with Node 22, pnpm and a Rust toolchain:
-
-```sh
-pnpm install
-pnpm build:desktop
-```
-
-On Windows, `scripts\install-app.ps1` installs a copy that updates itself from your local `main`
-([details](docs/windows.md#desktop-working-copy)), and on macOS `scripts/install-app.sh` does the same
-([details](docs/macos.md)). On both, the app starts `berth daemon` from your `PATH` when none is
-running; on Linux, run `berth daemon` yourself.
+To build the app from this repository, or to run a copy that rebuilds your local `main`, see
+[Build from source](docs/getting-started.md#build-from-source).
 
 ## Quickstart
 

@@ -1,0 +1,11 @@
+{
+  "channels.read":   { "builtin": ["admin", "member", "guest"] },
+  "channels.post":   { "builtin": ["admin", "member", "guest"] },
+  "channels.create": { "builtin": ["admin", "member"] },
+  "channels.invite": { "builtin": ["admin", "member"] },
+  "channels.delete": { "builtin": ["admin"] },
+  "agents.join":     { "builtin": ["admin", "member"] },
+  "agents.instruct": { "builtin": ["admin", "member"] },
+  "context.write":   { "builtin": ["admin", "member"] },
+  "admin.manage":    { "builtin": ["admin"] }
+}

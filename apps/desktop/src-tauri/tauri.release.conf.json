@@ -1,0 +1,24 @@
+{
+  "bundle": {
+    "createUpdaterArtifacts": true,
+    "externalBin": ["binaries/berth"],
+    "macOS": {
+      "signingIdentity": "-"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "installerHooks": "./nsis/hooks.nsh"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM0Qjk2M0VENTBBRjY4RjIKUldUeWFLOVE3V081eEJkaFpYRjlpYnBSS01hZ3cwS2l2aUFkbFh4Q2pNY2xFbFRMOGlaZzRQR2UK",
+      "endpoints": ["https://github.com/PetukhovArt/berth/releases/latest/download/latest.json"],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

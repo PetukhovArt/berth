@@ -1,4 +1,5 @@
-use crate::server::{denied, fail, member, Reply, Shared};
+use crate::rights::{authorize, Permission};
+use crate::server::{denied, fail, Reply, Shared};
 use crate::store::KIND_NOTE;
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -88,10 +89,8 @@ pub(crate) async fn post_note(
         ));
     }
     let store = s.store.lock().unwrap();
-    let m = member(&store, &headers, "post")?;
-    let author = store
-        .acting_member(&m, b.as_agent.as_deref())
-        .map_err(denied)?;
+    let m = authorize(&store, &headers, Permission::ContextWrite)?.into_member()?;
+    let author = m.acting_for(&store, b.as_agent.as_deref())?;
     let event = store
         .post(&b.channel, &author, KIND_NOTE, content, &[])
         .map_err(denied)?;
@@ -101,9 +100,9 @@ pub(crate) async fn post_note(
 
 pub(crate) async fn notes(State(s): State<Shared>, headers: HeaderMap) -> Reply {
     let store = s.store.lock().unwrap();
-    let m = member(&store, &headers, "read")?;
+    let m = authorize(&store, &headers, Permission::ChannelsRead)?.into_member()?;
     let rows = store
-        .latest_notes(&m)
+        .latest_notes(&m.id)
         .map_err(|e| fail(StatusCode::INTERNAL_SERVER_ERROR, e))?;
     Ok(Json(json!(rows)))
 }
@@ -120,7 +119,7 @@ pub(crate) async fn report_touched(
 ) -> Reply {
     let (id, known) = {
         let store = s.store.lock().unwrap();
-        let m = member(&store, &headers, "post")?;
+        let m = authorize(&store, &headers, Permission::ChannelsRead)?.into_member()?;
         let mut known = HashMap::new();
         for (key, agents) in b.channels {
             if store.is_member(&key, &m.id).map_err(denied)? {
@@ -144,7 +143,7 @@ pub(crate) async fn touched(
     Query(q): Query<TouchedQuery>,
 ) -> Reply {
     let store = s.store.lock().unwrap();
-    let m = member(&store, &headers, "read")?;
+    let m = authorize(&store, &headers, Permission::ChannelsRead)?.into_member()?;
     if !store.is_member(&q.channel, &m.id).map_err(denied)? {
         return Err(denied(anyhow::anyhow!("not a member of this channel")));
     }

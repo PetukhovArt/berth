@@ -56,7 +56,7 @@ defineAction({ id: 'voice.wakeWord', title: 'voice.action.wakeWord', category: '
 
 defineAction({ id: 'keymap.openSettings', title: 'commands.action.keymapOpenSettings', category: KEYS, run: () => openSettings('keymap') });
 if (isDesktop) {
-  defineAction({ id: 'app.update', title: 'update.action.update', category: APP, run: () => openUpdate('update'), when: 'selfUpdate' });
+  defineAction({ id: 'app.update', title: 'update.action.update', category: APP, run: () => openUpdate('update'), when: 'selfUpdate || releaseUpdate' });
   defineAction({ id: 'app.rollback', title: 'update.action.rollback', category: APP, run: () => openUpdate('rollback'), when: 'selfUpdate' });
   defineAction({ id: 'worktrees.cleanup', title: 'cleanup.action', category: APP, run: openCleanup });
 }

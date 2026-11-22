@@ -39,7 +39,7 @@ fn app_submenu(app: &AppHandle) -> tauri::Result<Submenu<Wry>> {
             &PredefinedMenuItem::quit(app, None)?,
         ],
     )?;
-    if crate::platform::SELF_UPDATE {
+    if crate::platform::UPDATE_MENU {
         menu.insert(&action(app, "app.update", "Update Berth…", None)?, 2)?;
     }
     Ok(menu)

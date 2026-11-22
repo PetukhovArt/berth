@@ -12,6 +12,7 @@ pub mod git;
 pub mod git_exclude;
 pub mod grok;
 pub mod hooks;
+mod hub_admin;
 mod hub_stream;
 pub mod launch;
 pub mod lifecycle;
@@ -29,6 +30,7 @@ pub mod resume_check;
 pub mod resume_conversation;
 pub mod router;
 pub mod sampler;
+pub mod self_archive;
 pub mod server;
 pub mod shared_notes;
 pub mod shared_setup;
@@ -180,6 +182,7 @@ async fn serve() -> Result<()> {
                 // (and ignored) while the relocation is still pending.
                 daemon.complete_pending_move(&agent_id, &event);
                 daemon.route_hook_event(&agent_id, &event, provider_error);
+                daemon.complete_pending_archive(&agent_id, &event);
             }
         });
     }

@@ -1,13 +1,54 @@
+use std::collections::BTreeSet;
+
 use anyhow::{anyhow, bail, Result};
 use berth_core::{AgentId, ChannelGrant, ServerEvent};
-use berth_hub::{Event, Mention, KIND_MESSAGE};
+use berth_hub::client::HubClient;
+use berth_hub::{Ceiling, Event, Mention, KIND_MESSAGE};
 use rusqlite::{params, OptionalExtension};
 
 use crate::channels::hub;
 use crate::config::Config;
 use crate::store::Store;
+use crate::team_pending::Pending;
 
-pub(crate) fn may_instruct(store: &Store, m: &Mention) -> bool {
+pub(crate) fn may_instruct(
+    store: &Store,
+    ceiling: Option<&Ceiling>,
+    m: &Mention,
+    promoted: bool,
+) -> Option<bool> {
+    if promoted {
+        return Some(true);
+    }
+    if !has_grant(store, m) {
+        return Some(false);
+    }
+    ceiling.map(|c| c.allows(&m.event.author))
+}
+
+pub(crate) async fn ceiling_for(
+    hub: &HubClient,
+    store: &Store,
+    pending: &[Pending],
+) -> Option<Ceiling> {
+    let authors: BTreeSet<String> = pending
+        .iter()
+        .filter(|p| !p.mention.from_owner && !p.promoted && has_grant(store, &p.mention))
+        .map(|p| p.mention.event.author.clone())
+        .collect();
+    if authors.is_empty() {
+        return None;
+    }
+    match hub.ceiling(&authors.into_iter().collect::<Vec<_>>()).await {
+        Ok(ceiling) => Some(ceiling),
+        Err(e) => {
+            tracing::debug!(error = %e, "reading the instruct ceiling failed");
+            None
+        }
+    }
+}
+
+fn has_grant(store: &Store, m: &Mention) -> bool {
     store
         .conn()
         .query_row(
@@ -154,6 +195,13 @@ pub async fn set_grant(
         let reader = hub.agent(agent.as_str()).await?;
         let events = hub.read(channel, 0, Some(reader.as_str())).await?;
         let (member, name) = colleague(&events, who)?;
+        if !hub
+            .ceiling(std::slice::from_ref(&member))
+            .await?
+            .allows(&member)
+        {
+            bail!("{name} cannot instruct Agents: their role on this hub does not include it");
+        }
         insert_grant(store, channel, agent, &member, &name)?;
     } else {
         delete_grant(store, channel, agent, who)?;
@@ -204,24 +252,64 @@ mod tests {
         let (member, name) = colleague(&history, "bob").unwrap();
         insert_grant(&store, "PROJ-1", &agent, &member, &name).unwrap();
 
-        assert!(may_instruct(
+        assert!(has_grant(
             &store,
             &mention(event(5, "m-bob", "bob", "person", "PROJ-1"))
         ));
-        assert!(!may_instruct(
+        assert!(!has_grant(
             &store,
             &mention(event(6, "m-bob", "bob", "person", "PROJ-2"))
         ));
-        assert!(!may_instruct(
+        assert!(!has_grant(
             &store,
             &mention(event(7, "m-eve", "eve", "person", "PROJ-1"))
         ));
 
         delete_grant(&store, "PROJ-1", &agent, "bob").unwrap();
-        assert!(!may_instruct(
+        assert!(!has_grant(
             &store,
             &mention(event(8, "m-bob", "bob", "person", "PROJ-1"))
         ));
         assert!(list_grants(&store, None).unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_grant_instructs_only_inside_the_hub_ceiling_and_waits_while_it_is_unknown() {
+        let store = Store::open_in_memory().unwrap();
+        store
+            .conn()
+            .pragma_update(None, "foreign_keys", "OFF")
+            .unwrap();
+        let agent = AgentId("agent-1".into());
+        insert_grant(&store, "PROJ-1", &agent, "m-bob", "bob").unwrap();
+        let granted = mention(event(5, "m-bob", "bob", "person", "PROJ-1"));
+        let stranger = mention(event(6, "m-eve", "eve", "person", "PROJ-1"));
+        let bob_may = Ceiling::Only(BTreeSet::from(["m-bob".to_string()]));
+        let nobody_may = Ceiling::Only(BTreeSet::new());
+
+        assert_eq!(
+            may_instruct(&store, Some(&bob_may), &granted, false),
+            Some(true)
+        );
+        assert_eq!(
+            may_instruct(&store, Some(&Ceiling::Unlimited), &granted, false),
+            Some(true)
+        );
+        assert_eq!(
+            may_instruct(&store, Some(&nobody_may), &granted, false),
+            Some(false)
+        );
+        assert_eq!(
+            may_instruct(&store, Some(&bob_may), &stranger, false),
+            Some(false)
+        );
+        assert_eq!(
+            may_instruct(&store, Some(&nobody_may), &stranger, true),
+            Some(true)
+        );
+
+        assert_eq!(may_instruct(&store, None, &granted, false), None);
+        assert_eq!(may_instruct(&store, None, &stranger, false), Some(false));
+        assert_eq!(may_instruct(&store, None, &granted, true), Some(true));
     }
 }

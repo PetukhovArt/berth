@@ -32,5 +32,6 @@ import { titleBar } from './ru/titleBar';
 import { chat } from './ru/chat';
 import { host } from './ru/host';
 import { search } from './ru/search';
+import { hub } from './ru/hub';
 
-export const ru: Translation<typeof en> = { common, shell, settings, commands, agents, connectors, atlassian, jira, confluence, reviews, forge, content, files, remote, push, mobile, workbench, hot, update, cleanup, attention, feedback, gitStep, taskNote, checkpoints, router, voice, inspector, titleBar, chat, host, search };
+export const ru: Translation<typeof en> = { common, shell, settings, commands, agents, connectors, atlassian, jira, confluence, reviews, forge, content, files, remote, push, mobile, workbench, hot, update, cleanup, attention, feedback, gitStep, taskNote, checkpoints, router, voice, inspector, titleBar, chat, host, hub, search };

@@ -1,3 +1,4 @@
+use crate::admin::prepare_roles;
 use crate::mention::{mention_key, mentions_in};
 use anyhow::{anyhow, bail, Result};
 use rand::Rng;
@@ -31,6 +32,11 @@ pub struct ChannelSummary {
     pub key: String,
     pub head: i64,
     pub unread: i64,
+    #[serde(default)]
+    pub shared: bool,
+    /// The caller made this channel, so it may delete it without `channels.delete`.
+    #[serde(default)]
+    pub mine: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -42,42 +48,22 @@ pub struct Mention {
     pub chain: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Device {
-    pub id: String,
-    pub name: String,
-    pub status: String,
-    pub scopes: Vec<String>,
-}
-
 pub const MENTION_TAG: &str = "p";
 const CHAIN_SCAN: i64 = 100;
 const CHANNELS_SEEN_BY: &str = "SELECT channel FROM channel_members WHERE member = ?1
      OR member IN (SELECT id FROM members WHERE kind='agent' AND status='agent' AND owner = ?1)";
 
-#[derive(Debug, Clone)]
-pub struct Member {
-    pub id: String,
-    pub scopes: Vec<String>,
-}
-
-impl Member {
-    pub fn can(&self, scope: &str) -> bool {
-        self.scopes.iter().any(|s| s == scope)
-    }
-}
-
 pub struct Store {
-    db: Connection,
+    pub(crate) db: Connection,
 }
 
-pub fn random_token() -> String {
+pub(crate) fn random_token() -> String {
     let mut bytes = [0u8; 24];
     rand::rng().fill_bytes(&mut bytes);
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-fn now_ms() -> i64 {
+pub(crate) fn now_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
@@ -86,17 +72,17 @@ fn now_ms() -> i64 {
 
 impl Store {
     pub fn open(path: &Path) -> Result<Self> {
-        Self::init(Connection::open(path)?)
+        Self::init(Connection::open(path)?, path)
     }
 
-    fn init(db: Connection) -> Result<Self> {
+    fn init(mut db: Connection, path: &Path) -> Result<Self> {
         db.execute_batch(
             "PRAGMA journal_mode=WAL;
              CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);
              CREATE TABLE IF NOT EXISTS members (
                id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL,
                owner TEXT, token TEXT NOT NULL, status TEXT NOT NULL,
-               scopes TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL);
+               role TEXT, created_at INTEGER NOT NULL);
              CREATE TABLE IF NOT EXISTS channels (key TEXT PRIMARY KEY, created_at INTEGER NOT NULL);
              CREATE TABLE IF NOT EXISTS channel_members (
                channel TEXT NOT NULL, member TEXT NOT NULL, last_read INTEGER NOT NULL DEFAULT 0,
@@ -107,14 +93,26 @@ impl Store {
                created_at INTEGER NOT NULL);
              CREATE INDEX IF NOT EXISTS events_channel ON events (channel, seq);",
         )?;
-        let has_display: bool = db.query_row(
-            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('members') WHERE name='display')",
+        if !has_member_column(&db, "display")? {
+            db.execute_batch("ALTER TABLE members ADD COLUMN display TEXT;")?;
+        }
+        let has_shared: bool = db.query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('channels') WHERE name = 'shared')",
             [],
             |r| r.get(0),
         )?;
-        if !has_display {
-            db.execute_batch("ALTER TABLE members ADD COLUMN display TEXT;")?;
+        if !has_shared {
+            db.execute_batch("ALTER TABLE channels ADD COLUMN shared INTEGER NOT NULL DEFAULT 0;")?;
         }
+        let has_owner: bool = db.query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('channels') WHERE name = 'owner')",
+            [],
+            |r| r.get(0),
+        )?;
+        if !has_owner {
+            db.execute_batch("ALTER TABLE channels ADD COLUMN owner TEXT;")?;
+        }
+        prepare_roles(&mut db, path)?;
         Ok(Self { db })
     }
 
@@ -140,7 +138,7 @@ impl Store {
         Ok(t)
     }
 
-    pub fn is_admin(&self, presented: &str) -> bool {
+    pub(crate) fn is_admin_token(&self, presented: &str) -> bool {
         let stored: Option<String> = self
             .db
             .query_row("SELECT v FROM meta WHERE k='admin_token'", [], |r| r.get(0))
@@ -161,95 +159,12 @@ impl Store {
         Ok((id, token))
     }
 
-    pub fn pending(&self) -> Result<Vec<(String, String)>> {
-        let mut st = self
-            .db
-            .prepare("SELECT id, name FROM members WHERE status='pending' ORDER BY created_at")?;
-        let rows = st.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
-        Ok(rows.collect::<rusqlite::Result<_>>()?)
-    }
-
-    pub fn devices(&self) -> Result<Vec<Device>> {
-        let mut st = self.db.prepare(
-            "SELECT id, name, status, scopes FROM members WHERE kind='person' ORDER BY created_at",
-        )?;
-        let rows = st.query_map([], |r| {
-            let scopes: String = r.get(3)?;
-            Ok(Device {
-                id: r.get(0)?,
-                name: r.get(1)?,
-                status: r.get(2)?,
-                scopes: scopes
-                    .split(',')
-                    .filter(|s| !s.is_empty())
-                    .map(String::from)
-                    .collect(),
-            })
-        })?;
-        Ok(rows.collect::<rusqlite::Result<_>>()?)
-    }
-
-    pub fn approve_scopes(&self, id: &str, scopes: &[String]) -> Result<()> {
-        let n = self.db.execute(
-            "UPDATE members SET status='approved', scopes=?2
-             WHERE id=?1 AND kind='person' AND status <> 'revoked'",
-            params![id, scopes.join(",")],
-        )?;
-        if n == 0 {
-            bail!("no such device, or it was revoked: pair again");
-        }
-        Ok(())
-    }
-
-    pub fn revoke_device(&self, id: &str) -> Result<()> {
-        let n = self.db.execute(
-            "UPDATE members SET status='revoked' WHERE id=?1 AND kind='person'",
-            [id],
-        )?;
-        if n == 0 {
-            bail!("no such device");
-        }
-        self.db.execute(
-            "UPDATE members SET status='revoked' WHERE owner=?1 AND kind='agent'",
-            [id],
-        )?;
-        Ok(())
-    }
-
-    pub fn member_by_token(&self, presented: &str) -> Result<Option<Member>> {
-        let mut st = self
-            .db
-            .prepare("SELECT id, scopes, token FROM members WHERE status = 'approved'")?;
-        let mut rows = st.query([])?;
-        let mut found = None;
-        while let Some(r) = rows.next()? {
-            let token: String = r.get(2)?;
-            if bool::from(token.as_bytes().ct_eq(presented.as_bytes())) {
-                let scopes: String = r.get(1)?;
-                found = Some(Member {
-                    id: r.get(0)?,
-                    scopes: scopes
-                        .split(',')
-                        .filter(|s| !s.is_empty())
-                        .map(String::from)
-                        .collect(),
-                });
-            }
-        }
-        Ok(found)
-    }
-
-    pub fn ensure_agent(
-        &self,
-        owner: &Member,
-        name: &str,
-        display: Option<&str>,
-    ) -> Result<String> {
+    pub fn ensure_agent(&self, owner: &str, name: &str, display: Option<&str>) -> Result<String> {
         let existing: Option<String> = self
             .db
             .query_row(
                 "SELECT id FROM members WHERE kind='agent' AND owner=?1 AND name=?2",
-                params![owner.id, name],
+                params![owner, name],
                 |r| r.get(0),
             )
             .optional()?;
@@ -258,9 +173,9 @@ impl Store {
             None => {
                 let id = format!("a-{}", &random_token()[..12]);
                 self.db.execute(
-                    "INSERT INTO members (id, name, kind, owner, token, status, scopes, created_at)
-                     VALUES (?1, ?2, 'agent', ?3, ?4, 'agent', '', ?5)",
-                    params![id, name, owner.id, random_token(), now_ms()],
+                    "INSERT INTO members (id, name, kind, owner, token, status, created_at)
+                     VALUES (?1, ?2, 'agent', ?3, ?4, 'agent', ?5)",
+                    params![id, name, owner, random_token(), now_ms()],
                 )?;
                 id
             }
@@ -274,7 +189,7 @@ impl Store {
         Ok(id)
     }
 
-    fn agent_owner(&self, agent: &str) -> Result<Option<String>> {
+    pub(crate) fn agent_owner(&self, agent: &str) -> Result<Option<String>> {
         Ok(self
             .db
             .query_row(
@@ -285,33 +200,53 @@ impl Store {
             .optional()?)
     }
 
-    pub fn acting_member(&self, caller: &Member, as_agent: Option<&str>) -> Result<String> {
-        let Some(agent) = as_agent else {
-            return Ok(caller.id.clone());
-        };
-        match self.agent_owner(agent)? {
-            Some(owner) if owner == caller.id => Ok(agent.to_string()),
-            _ => bail!("not your Agent"),
-        }
-    }
-
-    pub fn create_channel(&self, key: &str, creator: &Member) -> Result<()> {
+    pub fn create_channel(&self, key: &str, creator: &str) -> Result<()> {
         if key.trim().is_empty() {
             bail!("empty channel key");
         }
         self.db.execute(
-            "INSERT OR IGNORE INTO channels (key, created_at) VALUES (?1, ?2)",
-            params![key, now_ms()],
+            "INSERT OR IGNORE INTO channels (key, created_at, owner) VALUES (?1, ?2, ?3)",
+            params![key, now_ms(), creator],
         )?;
         self.db.execute(
             "INSERT OR IGNORE INTO channel_members (channel, member) VALUES (?1, ?2)",
-            params![key, creator.id],
+            params![key, creator],
         )?;
         Ok(())
     }
 
-    pub fn add_member(&self, key: &str, by: &Member, member: &str) -> Result<()> {
-        if !self.is_member(key, &by.id)? {
+    pub fn leave_channel(&self, key: &str, member: &str) -> Result<()> {
+        let shared: Option<bool> = self
+            .db
+            .query_row("SELECT shared FROM channels WHERE key = ?1", [key], |r| {
+                r.get(0)
+            })
+            .optional()?;
+        if shared == Some(true) {
+            bail!("a Shared Channel holds everyone on the hub: it cannot be left");
+        }
+        self.db.execute(
+            "DELETE FROM channel_members WHERE channel = ?1 AND (member = ?2
+               OR member IN (SELECT id FROM members WHERE kind = 'agent' AND owner = ?2))",
+            params![key, member],
+        )?;
+        Ok(())
+    }
+
+    pub fn share_channel(&self, key: &str) -> Result<()> {
+        self.db
+            .execute("UPDATE channels SET shared = 1 WHERE key = ?1", [key])?;
+        self.db.execute(
+            "INSERT OR IGNORE INTO channel_members (channel, member, last_read)
+             SELECT ?1, id, COALESCE((SELECT MAX(seq) FROM events WHERE channel = ?1), 0)
+             FROM members WHERE kind = 'person' AND status = 'approved'",
+            [key],
+        )?;
+        Ok(())
+    }
+
+    pub fn add_member(&self, key: &str, by: &str, member: &str) -> Result<()> {
+        if !self.is_member(key, by)? {
             bail!("not a member of this channel");
         }
         self.db.execute(
@@ -455,7 +390,7 @@ impl Store {
         Ok(n)
     }
 
-    pub fn mentions(&self, caller: &Member, after: i64) -> Result<Vec<Mention>> {
+    pub fn mentions(&self, caller: &str, after: i64) -> Result<Vec<Mention>> {
         let events = self.events_where("e.seq > ?1 AND e.tags LIKE '%\"p\"%'", params![after])?;
         let mut out = Vec::new();
         for event in events {
@@ -468,7 +403,7 @@ impl Store {
                 let Some(owner) = self.agent_owner(agent)? else {
                     continue;
                 };
-                if owner != caller.id || !self.can_access(&event.channel, agent)? {
+                if owner != caller || !self.can_access(&event.channel, agent)? {
                     continue;
                 }
                 let agent_name: String =
@@ -488,8 +423,8 @@ impl Store {
         Ok(out)
     }
 
-    pub fn read_after(&self, key: &str, reader: &Member, after: i64) -> Result<Vec<Event>> {
-        if !self.can_access(key, &reader.id)? {
+    pub fn read_after(&self, key: &str, reader: &str, after: i64) -> Result<Vec<Event>> {
+        if !self.can_access(key, reader)? {
             bail!("not a member of this channel");
         }
         let events = self.events_where("e.channel = ?1 AND e.seq > ?2", params![key, after])?;
@@ -497,34 +432,39 @@ impl Store {
             self.db.execute(
                 "UPDATE channel_members SET last_read = MAX(last_read, ?3)
                  WHERE channel=?1 AND member=?2",
-                params![key, reader.id, last.seq],
+                params![key, reader, last.seq],
             )?;
         }
         Ok(events)
     }
 
-    pub fn latest_notes(&self, caller: &Member) -> Result<Vec<Event>> {
+    pub fn latest_notes(&self, caller: &str) -> Result<Vec<Event>> {
         self.events_where(
             "e.kind = ?1 AND e.content <> ''
              AND e.seq = (SELECT MAX(n.seq) FROM events n WHERE n.channel = e.channel AND n.kind = ?1)
              AND e.channel IN (SELECT channel FROM channel_members WHERE member = ?2)",
-            params![KIND_NOTE, caller.id],
+            params![KIND_NOTE, caller],
         )
     }
 
-    pub fn channels(&self, member: &Member) -> Result<Vec<ChannelSummary>> {
+    pub fn channels(&self, member: &str) -> Result<Vec<ChannelSummary>> {
         let mut st = self.db.prepare(
             "SELECT cm.channel,
                     COALESCE((SELECT MAX(seq) FROM events WHERE channel = cm.channel), 0),
                     (SELECT COUNT(*) FROM events WHERE channel = cm.channel AND seq > cm.last_read
-                       AND author <> cm.member)
-             FROM channel_members cm WHERE cm.member = ?1 ORDER BY cm.channel",
+                       AND author <> cm.member),
+                    COALESCE(c.shared, 0),
+                    COALESCE(c.owner = cm.member, 0)
+             FROM channel_members cm LEFT JOIN channels c ON c.key = cm.channel
+             WHERE cm.member = ?1 ORDER BY cm.channel",
         )?;
-        let rows = st.query_map([&member.id], |r| {
+        let rows = st.query_map([member], |r| {
             Ok(ChannelSummary {
                 key: r.get(0)?,
                 head: r.get(1)?,
                 unread: r.get(2)?,
+                shared: r.get(3)?,
+                mine: r.get(4)?,
             })
         })?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
@@ -550,4 +490,27 @@ impl Store {
             .db
             .query_row("SELECT name FROM members WHERE id=?1", [id], |r| r.get(0))?)
     }
+}
+
+/// The newest seq of the channel bound to `channels.key` in the query, so a member
+/// joined to a Shared Channel starts with its history read.
+const HEAD: &str = "COALESCE((SELECT MAX(seq) FROM events WHERE events.channel = channels.key), 0)";
+
+pub(crate) fn join_shared_channels(db: &Connection, member: &str) -> Result<()> {
+    db.execute(
+        &format!(
+            "INSERT OR IGNORE INTO channel_members (channel, member, last_read)
+             SELECT key, ?1, {HEAD} FROM channels WHERE shared = 1"
+        ),
+        [member],
+    )?;
+    Ok(())
+}
+
+pub(crate) fn has_member_column(db: &Connection, column: &str) -> Result<bool> {
+    Ok(db.query_row(
+        "SELECT EXISTS(SELECT 1 FROM pragma_table_info('members') WHERE name = ?1)",
+        [column],
+        |r| r.get(0),
+    )?)
 }

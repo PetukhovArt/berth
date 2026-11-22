@@ -4,7 +4,7 @@ import { UiButton } from '../../../shared/ui/UiButton';
 import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { Bot, UserRound } from '../../../shared/ui/icons';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
-import { agentName, answerInChannel, channelRequestOf, describeError, grantChannelAccess, isAgentMessage, isChannelReply, isNoteMessage, isOwnAgentRequest, onChannelAppended, ownAgentsFor, postNote, postToChannel, promoteChannelMessage, readChannel, readChannelGrants, readPresence, refreshChannels, revokeChannelGrant, settlementOf, type ChannelGrant, type ChannelMessage, type ChannelPresent, type ChannelRequest, type ChannelSettlement } from '../../../entities/session';
+import { agentName, answerInChannel, channelRequestOf, describeError, grantChannelAccess, isAgentMessage, isChannelReply, isNoteMessage, isOwnAgentRequest, onChannelAppended, ownAgentsFor, postNote, postToChannel, promoteChannelMessage, readChannel, readChannelGrants, readPresence, refreshChannels, revokeChannelGrant, settlementOf, useMay, type ChannelGrant, type ChannelMessage, type ChannelPresent, type ChannelRequest, type ChannelSettlement } from '../../../entities/session';
 
 const POLL_MS = 4000;
 
@@ -16,6 +16,8 @@ const draft = shallowRef('');
 const error = shallowRef<string | null>(null);
 const present = shallowRef<ChannelPresent[]>([]);
 const busy = shallowRef(false);
+const posting = useMay('channels.post');
+const noting = useMay('context.write');
 const sent = shallowRef<ReadonlySet<number>>(new Set());
 const rows = computed(() =>
   messages.value
@@ -116,12 +118,12 @@ async function run(action: () => Promise<ChannelMessage[]>, clearDraft: boolean)
 
 function send() {
   const content = draft.value.trim();
-  if (content) void run(() => postToChannel(props.channel, content), true);
+  if (content && posting.value.ok) void run(() => postToChannel(props.channel, content), true);
 }
 
 function sendNote() {
   const content = draft.value.trim();
-  if (content) void run(() => postNote(props.channel, content), true);
+  if (content && noting.value.ok) void run(() => postNote(props.channel, content), true);
 }
 
 function clearNote() {
@@ -185,7 +187,7 @@ onBeforeUnmount(() => {
     <p v-if="present.length" class="presence" data-testid="channel-presence">{{ t('attention.channel.present', { who: present.map((p) => (p.agents.length ? `${p.name} (${p.agents.join(', ')})` : p.name)).join('; ') }) }}</p>
     <p v-if="activeNote" class="note" data-testid="channel-note">
       <span class="note-text">{{ t('attention.channel.noteBy', { name: activeNote.authorName, text: activeNote.content }) }}</span>
-      <UiButton type="button" class="note-clear" :disabled="busy" data-testid="channel-note-clear" @click="clearNote">{{ t('attention.channel.noteClear') }}</UiButton>
+      <UiButton type="button" class="note-clear" :disabled="busy || !noting.ok" data-testid="channel-note-clear" @click="clearNote">{{ t('attention.channel.noteClear') }}</UiButton>
     </p>
     <p v-if="grants.length" class="grants" data-testid="channel-grants">
       <span>{{ t('attention.channel.grants') }}</span>
@@ -218,10 +220,10 @@ onBeforeUnmount(() => {
             <p v-else-if="sent.has(row.message.seq)" class="request-state" data-testid="channel-request-sent">{{ t('attention.channel.request.sent') }}</p>
             <div v-else class="actions">
               <template v-if="row.request.kind === 'permission' && !row.request.options.length">
-                <UiButton type="button" class="action primary" :disabled="busy" data-testid="channel-request-allow" @click="answer(row.message.seq, 'allow')">{{ t('feedback.allow') }}</UiButton>
-                <UiButton type="button" class="action" :disabled="busy" data-testid="channel-request-deny" @click="answer(row.message.seq, 'deny')">{{ t('feedback.deny') }}</UiButton>
+                <UiButton type="button" class="action primary" :disabled="busy || !posting.ok" data-testid="channel-request-allow" @click="answer(row.message.seq, 'allow')">{{ t('feedback.allow') }}</UiButton>
+                <UiButton type="button" class="action" :disabled="busy || !posting.ok" data-testid="channel-request-deny" @click="answer(row.message.seq, 'deny')">{{ t('feedback.deny') }}</UiButton>
               </template>
-              <UiButton v-for="(option, index) in row.request.options" v-else :key="index" type="button" class="action" :class="{ primary: index === 0 }" :disabled="busy" data-testid="channel-request-option" @click="answer(row.message.seq, String(index + 1))">{{ option }}</UiButton>
+              <UiButton v-for="(option, index) in row.request.options" v-else :key="index" type="button" class="action" :class="{ primary: index === 0 }" :disabled="busy || !posting.ok" data-testid="channel-request-option" @click="answer(row.message.seq, String(index + 1))">{{ option }}</UiButton>
             </div>
           </div>
           <p v-else class="content">{{ isNoteMessage(row.message) && !row.message.content ? t('attention.channel.noteCleared') : row.message.content }}</p>
@@ -232,10 +234,12 @@ onBeforeUnmount(() => {
       </li>
     </ol>
     <span v-if="error" class="error" role="alert" data-testid="channel-error">{{ error }}</span>
+    <p v-if="!posting.ok" class="denied" role="status" data-testid="channel-post-denied">{{ posting.reason }}</p>
+    <p v-if="!noting.ok" class="denied" role="status" data-testid="channel-note-denied">{{ noting.reason }}</p>
     <form class="post" @submit.prevent="send">
-      <UiTextarea v-model="draft" class="input" rows="2" :placeholder="t('attention.channel.placeholder')" :aria-label="t('attention.channel.placeholder')" data-testid="channel-input" @keydown="onKeydown" />
-      <UiButton type="button" class="send" :disabled="busy || !draft.trim()" :title="t('attention.channel.noteHint')" data-testid="channel-note-send" @click="sendNote">{{ t('attention.channel.note') }}</UiButton>
-      <UiButton type="submit" class="send" :disabled="busy || !draft.trim()" data-testid="channel-send">{{ t('attention.channel.send') }}</UiButton>
+      <UiTextarea v-model="draft" class="input" rows="2" :placeholder="t('attention.channel.placeholder')" :aria-label="t('attention.channel.placeholder')" :disabled="!posting.ok && !noting.ok" data-testid="channel-input" @keydown="onKeydown" />
+      <UiButton type="button" class="send" :disabled="busy || !noting.ok || !draft.trim()" :title="noting.ok ? t('attention.channel.noteHint') : noting.reason" data-testid="channel-note-send" @click="sendNote">{{ t('attention.channel.note') }}</UiButton>
+      <UiButton type="submit" class="send" :disabled="busy || !posting.ok || !draft.trim()" data-testid="channel-send">{{ t('attention.channel.send') }}</UiButton>
     </form>
   </section>
 </template>
@@ -445,6 +449,14 @@ onBeforeUnmount(() => {
   padding: 0 var(--vr-space-3);
   font-size: var(--vr-font-size-xs);
   color: var(--vr-status-crashed);
+}
+
+.denied {
+  padding: var(--vr-space-1) var(--vr-space-3) 0;
+  margin: 0;
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-muted);
+  overflow-wrap: anywhere;
 }
 
 .post {

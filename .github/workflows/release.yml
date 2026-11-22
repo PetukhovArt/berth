@@ -109,18 +109,46 @@ jobs:
           name: archive-${{ matrix.target }}
           path: berth-${{ matrix.target }}.*
 
-  # The desktop app for Linux, as a .deb that also installs `berth` into
-  # /usr/bin: the app starts the daemon by running `berth daemon` from PATH.
-  desktop-linux:
+  # The desktop app for every platform, with `berth` bundled beside it (the
+  # app starts the daemon from that copy), as the installer a person runs and
+  # the signed package the app's updater installs. `latest.json`, written in
+  # the release job, points each platform at its package.
+  desktop:
     needs: gate
     if: needs.gate.outputs.build == 'true'
-    runs-on: ubuntu-24.04
+    name: desktop (${{ matrix.asset }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - asset: x86_64-windows
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+          - asset: aarch64-macos
+            runner: macos-latest
+            target: aarch64-apple-darwin
+            bundles: app,dmg
+          - asset: x86_64-macos
+            runner: macos-latest
+            target: x86_64-apple-darwin
+            bundles: app,dmg
+          - asset: x86_64-linux
+            runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            bundles: deb
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: ${{ needs.gate.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: desktop-linux
+          key: desktop-${{ matrix.target }}
 
       - uses: pnpm/action-setup@v4
 
@@ -130,31 +158,68 @@ jobs:
           cache: pnpm
 
       - name: System libraries
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev patchelf
 
+      - name: Add rust target
+        run: rustup target add ${{ matrix.target }}
+
       - run: pnpm install --frozen-lockfile
 
-      # The .deb packs target/release/berth (tauri.linux.conf.json).
-      - run: cargo build --release --locked -p berth
-
-      - run: pnpm build:desktop
-
-      - name: Name the package
+      # `bundle.externalBin` in tauri.release.conf.json packs this file as
+      # `berth` beside the app executable.
+      - name: Bundled CLI
         run: |
-          deb=$(ls target/release/bundle/deb/*.deb)
-          test "$(echo "$deb" | wc -l)" = 1
-          cp "$deb" berth-desktop-x86_64-linux.deb
+          cargo build --release --locked -p berth --target ${{ matrix.target }}
+          ext=""
+          if [ "$RUNNER_OS" = Windows ]; then ext=.exe; fi
+          mkdir -p apps/desktop/src-tauri/binaries
+          cp "target/${{ matrix.target }}/release/berth$ext" "apps/desktop/src-tauri/binaries/berth-${{ matrix.target }}$ext"
+
+      # The app compares this version with the one latest.json names.
+      - name: App version
+        run: printf '{"version":"%s"}\n' "$VERSION" > apps/desktop/src-tauri/tauri.version.conf.json
+
+      - run: pnpm build:tokens
+
+      - name: Build
+        working-directory: apps/desktop
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: >-
+          pnpm exec tauri build
+          --target ${{ matrix.target }}
+          --bundles ${{ matrix.bundles }}
+          --features updater
+          --config src-tauri/tauri.release.conf.json
+          --config src-tauri/tauri.version.conf.json
+
+      - name: Name the files
+        run: |
+          bundle="target/${{ matrix.target }}/release/bundle"
+          name="berth-desktop-${{ matrix.asset }}"
+          one() { test "$(ls $1 | wc -l)" -eq 1 && ls $1; }
+          mkdir out
+          case "$RUNNER_OS" in
+            Windows) package=$(one "$bundle/nsis/*-setup.exe"); file="$name-setup.exe" ;;
+            macOS)
+              cp "$(one "$bundle/dmg/*.dmg")" "out/$name.dmg"
+              package=$(one "$bundle/macos/*.app.tar.gz"); file="$name.app.tar.gz" ;;
+            Linux) package=$(one "$bundle/deb/*.deb"); file="$name.deb" ;;
+          esac
+          cp "$package" "out/$file"
+          cp "$package.sig" "out/$file.sig"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: archive-desktop-linux
-          path: berth-desktop-x86_64-linux.deb
-
+          name: archive-desktop-${{ matrix.asset }}
+          path: out/*
 
   release:
-    needs: [gate, build, desktop-linux]
+    needs: [gate, build, desktop]
     if: needs.gate.outputs.release == 'true'
     runs-on: ubuntu-24.04
     steps:
@@ -181,6 +246,28 @@ jobs:
           grep -q '[^[:space:]]' RELEASE_NOTES.md ||
             { echo "::error::CHANGELOG.md has no '## $VERSION (YYYY-MM-DD)' section"; exit 1; }
 
+      # What the desktop app's updater reads from the latest release: one
+      # package per platform with the signature of its bytes. A platform
+      # missing here would make the updater reject the whole file.
+      - name: Update manifest
+        env:
+          VERSION: ${{ needs.gate.outputs.version }}
+        run: |
+          base="https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION"
+          entry() {
+            jq -n --arg key "$1" --arg url "$base/$2" --rawfile sig "$2.sig" \
+              '{($key): {url: $url, signature: ($sig | gsub("\\s"; ""))}}'
+          }
+          {
+            entry windows-x86_64 berth-desktop-x86_64-windows-setup.exe
+            entry darwin-aarch64 berth-desktop-aarch64-macos.app.tar.gz
+            entry darwin-x86_64 berth-desktop-x86_64-macos.app.tar.gz
+            entry linux-x86_64 berth-desktop-x86_64-linux.deb
+          } | jq -s --arg version "$VERSION" --rawfile notes RELEASE_NOTES.md \
+            --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{version: $version, notes: ($notes | gsub("^\\s+|\\s+$"; "")), pub_date: $date, platforms: add}' > latest.json
+          cat latest.json
+
       # Only when the run came from main — a tag push already has one.
       - name: Tag this version
         if: github.ref == 'refs/heads/main'
@@ -198,6 +285,9 @@ jobs:
             berth-*.tar.gz
             berth-*.zip
             berth-desktop-*.deb
+            berth-desktop-*.exe
+            berth-desktop-*.dmg
+            latest.json
           body_path: RELEASE_NOTES.md
 
       - name: Note the release on its fixed issues

@@ -3,6 +3,7 @@ use anyhow::{bail, Result};
 use berth_core::codec::{read_frame, write_frame};
 use berth_core::{AgentId, ClientRequest, ServerEvent};
 use berth_hub::client::HubClient;
+use berth_hub::{AdminChange, MemberStatus};
 use serde_json::{json, Value};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
@@ -58,12 +59,13 @@ pub fn run_list() -> Result<()> {
     })
 }
 
-pub fn run_open(key: Option<String>) -> Result<()> {
+pub fn run_open(key: Option<String>, shared: bool) -> Result<()> {
     runtime()?.block_on(async {
         let ServerEvent::ChannelOpened { key, .. } = call(ClientRequest::OpenChannel {
             req_id: ONE_SHOT_REQ_ID,
             key,
             agent: own_agent(),
+            shared,
         })
         .await?
         else {
@@ -95,6 +97,41 @@ pub fn run_read(channel: String, after: i64) -> Result<()> {
         );
         Ok(())
     })
+}
+
+fn print_done(request: ClientRequest, key: String) -> Result<()> {
+    runtime()?.block_on(async {
+        let ServerEvent::Ack { .. } = call(request).await? else {
+            bail!("unexpected reply");
+        };
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({ "ok": true, "channel": key }))?
+        );
+        Ok(())
+    })
+}
+
+pub fn run_leave(key: String) -> Result<()> {
+    owner_only("leave")?;
+    print_done(
+        ClientRequest::LeaveChannel {
+            req_id: ONE_SHOT_REQ_ID,
+            key: key.clone(),
+        },
+        key,
+    )
+}
+
+pub fn run_delete(key: String) -> Result<()> {
+    owner_only("delete")?;
+    print_done(
+        ClientRequest::DeleteChannel {
+            req_id: ONE_SHOT_REQ_ID,
+            key: key.clone(),
+        },
+        key,
+    )
 }
 
 fn print_posted(request: ClientRequest) -> Result<()> {
@@ -240,10 +277,12 @@ pub fn run_hub_pair(url: String, name: String) -> Result<()> {
 
 pub fn run_hub_devices(url: String, admin_token: String) -> Result<()> {
     runtime()?.block_on(async {
-        let devices = hub_at(&url, &admin_token)?.devices().await?;
+        let view = hub_at(&url, &admin_token)?.admin_view().await?;
         println!(
             "{}",
-            serde_json::to_string_pretty(&json!({ "ok": true, "devices": devices }))?
+            serde_json::to_string_pretty(
+                &json!({ "ok": true, "devices": view.members, "roles": view.roles })
+            )?
         );
         Ok(())
     })
@@ -251,7 +290,9 @@ pub fn run_hub_devices(url: String, admin_token: String) -> Result<()> {
 
 pub fn run_hub_revoke(url: String, admin_token: String, id: String) -> Result<()> {
     runtime()?.block_on(async {
-        hub_at(&url, &admin_token)?.revoke(&id).await?;
+        hub_at(&url, &admin_token)?
+            .admin_change(&AdminChange::Revoke { member: id.clone() })
+            .await?;
         println!(
             "{}",
             serde_json::to_string_pretty(&json!({ "ok": true, "revoked": id }))?
@@ -260,20 +301,28 @@ pub fn run_hub_revoke(url: String, admin_token: String, id: String) -> Result<()
     })
 }
 
-pub fn run_hub_approve(
-    url: String,
-    admin_token: String,
-    id: String,
-    scopes: Vec<String>,
-) -> Result<()> {
+pub fn run_hub_approve(url: String, admin_token: String, id: String, role: String) -> Result<()> {
     runtime()?.block_on(async {
-        let hub = hub_at(&url, &admin_token)?;
-        let scopes: Vec<&str> = scopes.iter().map(String::as_str).collect();
-        hub.approve(&id, &scopes).await?;
-        let pending: Value = hub.pending().await?;
+        let view = hub_at(&url, &admin_token)?
+            .admin_change(&AdminChange::SetRole {
+                member: id.clone(),
+                role: role.clone(),
+            })
+            .await?;
+        let pending: Vec<Value> = view
+            .members
+            .iter()
+            .filter(|m| m.status == MemberStatus::Pending)
+            .map(|m| json!({ "id": m.id, "name": m.name }))
+            .collect();
         println!(
             "{}",
-            serde_json::to_string_pretty(&json!({ "ok": true, "still_pending": pending }))?
+            serde_json::to_string_pretty(&json!({
+                "ok": true,
+                "id": id,
+                "role": role,
+                "still_pending": pending,
+            }))?
         );
         Ok(())
     })

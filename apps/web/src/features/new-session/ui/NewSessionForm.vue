@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, shallowRef, watch } from 'vue';
-import { VButton, VDialog, VInputText, VMessage, VSelect, VTextarea } from '../../../shared/ui/kit';
+import { VButton, VDialog, VInputText, VMessage, VSelect, VTextarea, useIsPhone } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, X } from '../../../shared/ui/icons';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
 import { chordJoiner, modifierGlyphs, onlyPrimaryPressed, primaryModifier, primaryPressed } from '../../../shared/lib/platform';
@@ -47,6 +48,13 @@ function generatedName(kind: Kind): string {
   while (taken.has(`${base}-${n}`)) n++;
   return `${base}-${n}`;
 }
+
+const phone = useIsPhone();
+const dialogPt = computed(() =>
+  phone.value
+    ? { mask: { style: { background: 'var(--vr-overlay)' } }, root: { style: { boxShadow: 'none' } }, content: { style: { display: 'flex', flexDirection: 'column', overflow: 'hidden' } } }
+    : { mask: { style: { background: 'var(--vr-overlay)', alignItems: 'flex-start', paddingTop: '12vh' } }, root: { style: { borderRadius: '14px', boxShadow: 'var(--vr-shadow-dialog)' } } },
+);
 
 const { values } = useSettings();
 const defaultKind = computed<Kind>(() => {
@@ -207,7 +215,7 @@ function startable(): boolean {
 }
 
 function onPromptKey(event: KeyboardEvent) {
-  if (event.key !== 'Enter' || event.shiftKey || event.isComposing || primaryPressed(event)) return;
+  if (phone.value || event.key !== 'Enter' || event.shiftKey || event.isComposing || primaryPressed(event)) return;
   event.preventDefault();
   if (startable()) void submit();
 }
@@ -231,136 +239,131 @@ function onVisible(visible: boolean) {
     :closable="false"
     :aria-label="t('agents.newSession.title')"
     :style="{ width: '720px', maxWidth: '95vw' }"
-    :pt="{ mask: { style: { background: 'var(--vr-overlay)', alignItems: 'flex-start', paddingTop: '12vh' } }, root: { style: { borderRadius: '14px', boxShadow: 'var(--vr-shadow-dialog)' } } }"
+    :pt="dialogPt"
     :draggable="false"
     @update:visible="onVisible"
   >
     <template #header>
       <span class="p-dialog-title">{{ t('agents.newSession.title') }}</span>
-      <UiButton type="button" class="esc" :title="t('common.close')" :aria-label="t('common.close')" data-testid="new-session-close" @click="emit('close')">Esc</UiButton>
+      <UiButton v-if="phone" type="button" class="close" :title="t('common.close')" :aria-label="t('common.close')" data-testid="new-session-close" @click="emit('close')"><X :size="18" /></UiButton>
+      <UiButton v-else type="button" class="esc" :title="t('common.close')" :aria-label="t('common.close')" data-testid="new-session-close" @click="emit('close')">Esc</UiButton>
     </template>
     <form class="form" data-testid="new-session-form" @submit.prevent="submit()" @keydown="onFormKey">
-      <ContinueConversation v-if="continuing" v-model="pickedConversation" :conversations="conversations" />
-      <VTextarea
-        v-else-if="kind !== 'terminal'"
-        v-model="prompt"
-        rows="3"
-        auto-resize
-        class="prompt"
-        autofocus
-        :aria-label="t('agents.newSession.prompt')"
-        :placeholder="t('agents.newSession.promptPlaceholder')"
-        data-testid="new-session-prompt"
-        @keydown="onPromptKey"
-      />
-      <NewSessionTarget :state="location" :project-locked="projectLocked">
-        <template #type>
-          <VSelect
-            v-if="!continuing"
-            :model-value="kind"
-            :options="KINDS"
-            option-label="label"
-            option-value="value"
-            size="small"
-            class="chip"
-            :aria-label="t('agents.newSession.typeAria')"
-            data-testid="new-session-kind"
-            @update:model-value="pickKind"
-          />
-        </template>
-      </NewSessionTarget>
-      <div class="chips" data-testid="new-session-options">
-        <template v-if="kind !== 'terminal' && !acpProviderOf(kind) && !continuing">
-          <VSelect
-            v-model="model"
-            :options="modelOptions"
-            editable
-            size="small"
-            class="chip chip-input"
-            :placeholder="t('agents.newSession.defaultModel')"
-            :aria-label="t('agents.newSession.model')"
-            data-testid="new-session-model"
-          />
-          <VSelect
-            v-model="effort"
-            :options="EFFORT_SUGGESTIONS"
-            editable
-            size="small"
-            class="chip chip-input"
-            :placeholder="t('agents.newSession.defaultEffort')"
-            :aria-label="t('agents.newSession.effort')"
-            data-testid="new-session-effort"
-          />
-        </template>
-        <span class="spacer" />
-        <VButton
-          :label="continuing ? t('agents.newSession.newTask') : t('agents.newSession.continueMode')"
-          size="small"
-          text
-          :aria-pressed="continuing"
-          data-testid="new-session-continue"
-          @click="continuing = !continuing"
+      <div class="body">
+        <ContinueConversation v-if="continuing" v-model="pickedConversation" :conversations="conversations" />
+        <VTextarea
+          v-else-if="kind !== 'terminal'"
+          v-model="prompt"
+          rows="3"
+          auto-resize
+          class="prompt"
+          :autofocus="!phone"
+          :aria-label="t('agents.newSession.prompt')"
+          :placeholder="phone ? t('agents.newSession.promptPlaceholderPhone') : t('agents.newSession.promptPlaceholder')"
+          data-testid="new-session-prompt"
+          @keydown="onPromptKey"
         />
-        <VButton
-          :label="expanded ? t('agents.newSession.fewer') : t('agents.newSession.more')"
-          size="small"
-          text
-          :aria-expanded="expanded"
-          data-testid="new-session-more"
-          @click="expanded = !expanded"
-        />
-      </div>
-      <label v-if="expanded && location.plan.value.kind === 'create'" class="row">
-        <span class="row-label">{{ t('agents.newSession.setupCommand') }}</span>
-        <VInputText v-model="location.setup.value" size="small" :placeholder="t('agents.newSession.setupPlaceholder')" class="row-input mono" data-testid="new-session-setup" />
-      </label>
-      <div v-if="expanded && kind !== 'terminal' && !continuing" class="extras" data-testid="new-session-extras">
-        <span class="extras-label">{{ t('agents.newSession.alsoStart') }}</span>
-        <VButton
-          v-for="option in extraOptions"
-          :key="option.value"
-          :label="option.label"
-          size="small"
-          :outlined="!extras.includes(option.value)"
-          :aria-pressed="extras.includes(option.value)"
-          :data-testid="`new-session-extra-${option.value}`"
-          @click="toggleExtra(option.value)"
-        />
-      </div>
-      <div v-if="expanded && presets.length && !continuing" class="extras" data-testid="new-session-presets">
-        <span class="extras-label">{{ t('agents.newSession.presets') }}</span>
-        <span v-for="preset in presets" :key="preset.name" class="preset">
-          <VButton
-            :label="preset.name"
-            size="small"
-            :outlined="activePreset !== preset.name"
-            :aria-pressed="activePreset === preset.name"
-            :data-testid="`new-session-preset-${preset.name}`"
-            @click="applyPreset(preset)"
-          />
-          <VButton
-            icon="pi pi-times"
-            size="small"
-            text
-            :aria-label="t('agents.newSession.deletePreset', { name: preset.name })"
-            :data-testid="`new-session-preset-delete-${preset.name}`"
-            @click="removePreset(preset.name)"
-          />
-        </span>
-      </div>
-      <div v-if="expanded && kind !== 'terminal' && !continuing" class="pair">
-        <label class="field">
-          <span>{{ t('agents.newSession.before') }}</span>
-          <VInputText v-model="before" size="small" data-testid="new-session-before" />
+        <NewSessionTarget :state="location" :project-locked="projectLocked">
+          <template #type>
+            <VSelect
+              v-if="!continuing"
+              :model-value="kind"
+              :options="KINDS"
+              option-label="label"
+              option-value="value"
+              size="small"
+              class="chip"
+              :aria-label="t('agents.newSession.typeAria')"
+              data-testid="new-session-kind"
+              @update:model-value="pickKind"
+            />
+          </template>
+        </NewSessionTarget>
+        <div class="chips" data-testid="new-session-options">
+          <template v-if="kind !== 'terminal' && !acpProviderOf(kind) && !continuing">
+            <VSelect
+              v-model="model"
+              :options="modelOptions"
+              editable
+              size="small"
+              class="chip chip-input"
+              :placeholder="t('agents.newSession.defaultModel')"
+              :aria-label="t('agents.newSession.model')"
+              data-testid="new-session-model"
+            />
+            <VSelect
+              v-model="effort"
+              :options="EFFORT_SUGGESTIONS"
+              editable
+              size="small"
+              class="chip chip-input"
+              :placeholder="t('agents.newSession.defaultEffort')"
+              :aria-label="t('agents.newSession.effort')"
+              data-testid="new-session-effort"
+            />
+          </template>
+          <span class="spacer" />
+          <UiButton type="button" class="chips-action" :aria-pressed="continuing" data-testid="new-session-continue" @click="continuing = !continuing">
+            <span>{{ continuing ? t('agents.newSession.newTask') : t('agents.newSession.continueMode') }}</span>
+            <component :is="continuing ? ChevronLeft : ChevronRight" :size="14" aria-hidden="true" />
+          </UiButton>
+          <UiButton type="button" class="chips-action" :aria-expanded="expanded" data-testid="new-session-more" @click="expanded = !expanded">
+            <span>{{ expanded ? t('agents.newSession.fewer') : t('agents.newSession.more') }}</span>
+            <component :is="expanded ? ChevronUp : ChevronDown" :size="14" aria-hidden="true" />
+          </UiButton>
+        </div>
+        <label v-if="expanded && location.plan.value.kind === 'create'" class="row">
+          <span class="row-label">{{ t('agents.newSession.setupCommand') }}</span>
+          <VInputText v-model="location.setup.value" size="small" :placeholder="t('agents.newSession.setupPlaceholder')" class="row-input mono" data-testid="new-session-setup" />
         </label>
-        <label class="field">
-          <span>{{ t('agents.newSession.after') }}</span>
-          <VInputText v-model="after" size="small" data-testid="new-session-after" />
-        </label>
-      </div>
-      <div v-if="expanded && kind !== 'terminal' && !continuing" class="extras">
-        <VInputText v-model="presetName" size="small" :placeholder="t('agents.newSession.presetName')" data-testid="new-session-preset-name" @keydown.enter.prevent="saveCurrent" />
-        <VButton :label="t('agents.newSession.savePreset')" size="small" outlined :disabled="!presetName.trim()" data-testid="new-session-preset-save" @click="saveCurrent" />
+        <div v-if="expanded && kind !== 'terminal' && !continuing" class="extras" data-testid="new-session-extras">
+          <span class="extras-label">{{ t('agents.newSession.alsoStart') }}</span>
+          <VButton
+            v-for="option in extraOptions"
+            :key="option.value"
+            :label="option.label"
+            size="small"
+            :outlined="!extras.includes(option.value)"
+            :aria-pressed="extras.includes(option.value)"
+            :data-testid="`new-session-extra-${option.value}`"
+            @click="toggleExtra(option.value)"
+          />
+        </div>
+        <div v-if="expanded && presets.length && !continuing" class="extras" data-testid="new-session-presets">
+          <span class="extras-label">{{ t('agents.newSession.presets') }}</span>
+          <span v-for="preset in presets" :key="preset.name" class="preset">
+            <VButton
+              :label="preset.name"
+              size="small"
+              :outlined="activePreset !== preset.name"
+              :aria-pressed="activePreset === preset.name"
+              :data-testid="`new-session-preset-${preset.name}`"
+              @click="applyPreset(preset)"
+            />
+            <VButton
+              icon="pi pi-times"
+              size="small"
+              text
+              :aria-label="t('agents.newSession.deletePreset', { name: preset.name })"
+              :data-testid="`new-session-preset-delete-${preset.name}`"
+              @click="removePreset(preset.name)"
+            />
+          </span>
+        </div>
+        <div v-if="expanded && kind !== 'terminal' && !continuing" class="pair">
+          <label class="field">
+            <span>{{ t('agents.newSession.before') }}</span>
+            <VInputText v-model="before" size="small" data-testid="new-session-before" />
+          </label>
+          <label class="field">
+            <span>{{ t('agents.newSession.after') }}</span>
+            <VInputText v-model="after" size="small" data-testid="new-session-after" />
+          </label>
+        </div>
+        <div v-if="expanded && kind !== 'terminal' && !continuing" class="extras">
+          <VInputText v-model="presetName" size="small" :placeholder="t('agents.newSession.presetName')" data-testid="new-session-preset-name" @keydown.enter.prevent="saveCurrent" />
+          <VButton :label="t('agents.newSession.savePreset')" size="small" outlined :disabled="!presetName.trim()" data-testid="new-session-preset-save" @click="saveCurrent" />
+        </div>
       </div>
       <VMessage v-if="action.error.value" severity="error" size="small" data-testid="new-session-error">{{ action.error.value }}</VMessage>
       <div class="footer">
@@ -369,9 +372,9 @@ function onVisible(visible: boolean) {
           <VInputText v-model="name" size="small" :placeholder="defaultName" data-testid="new-session-name" />
         </label>
         <span class="spacer" />
-        <span class="hint" data-testid="new-session-background-hint">{{ t('agents.newSession.backgroundHint', { key: backgroundKey }) }}</span>
-        <VButton :label="t('common.cancel')" size="small" text data-testid="new-session-cancel" @click="emit('close')" />
-        <VButton type="submit" :label="continuing ? t('agents.newSession.continueStart') : many ? t('agents.newSession.startMany', { count: kinds.length }) : t('common.create')" size="small" :loading="action.busy.value" :disabled="location.plan.value.kind === 'incomplete' || (continuing && !chosenConversation)" data-testid="new-session-submit" />
+        <span v-if="!phone" class="hint" data-testid="new-session-background-hint">{{ t('agents.newSession.backgroundHint', { key: backgroundKey }) }}</span>
+        <VButton class="action" :label="t('common.cancel')" :size="phone ? undefined : 'small'" text data-testid="new-session-cancel" @click="emit('close')" />
+        <VButton class="action" type="submit" :label="continuing ? t('agents.newSession.continueStart') : many ? t('agents.newSession.startMany', { count: kinds.length }) : t('common.create')" :size="phone ? undefined : 'small'" :loading="action.busy.value" :disabled="location.plan.value.kind === 'incomplete' || (continuing && !chosenConversation)" data-testid="new-session-submit" />
       </div>
     </form>
   </VDialog>
@@ -379,6 +382,12 @@ function onVisible(visible: boolean) {
 
 <style scoped>
 .form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vr-space-3);
+}
+
+.body {
   display: flex;
   flex-direction: column;
   gap: var(--vr-space-3);
@@ -393,6 +402,31 @@ function onVisible(visible: boolean) {
 
 .chip-input {
   width: 10.5rem;
+}
+
+.chips-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vr-space-1);
+  height: 28px;
+  padding: 0 var(--vr-space-2) 0 var(--vr-space-3);
+  font: inherit;
+  font-size: var(--vr-font-size-label);
+  color: var(--vr-color-text);
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--vr-color-surface-muted);
+  border: 0;
+  border-radius: 7px;
+}
+
+.chips-action:hover {
+  background: var(--vr-color-nav-hover);
+}
+
+.chips-action svg {
+  flex: none;
+  color: var(--vr-color-text-muted);
 }
 
 .esc {
@@ -528,5 +562,101 @@ function onVisible(visible: boolean) {
 
 .spacer {
   flex: 1;
+}
+
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--vr-size-icon-touch);
+  height: var(--vr-size-icon-touch);
+  margin-left: auto;
+  color: var(--vr-color-text-muted);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: var(--vr-radius-md);
+}
+
+:root[data-vr-viewport='phone'] .form {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+:root[data-vr-viewport='phone'] .body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+:root[data-vr-viewport='phone'] .chips {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+:root[data-vr-viewport='phone'] .chip-input {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+:root[data-vr-viewport='phone'] .chip {
+  height: auto;
+  min-height: var(--vr-size-row-touch);
+}
+
+:root[data-vr-viewport='phone'] .chip:not(.chip-input) :deep(.p-select-label) {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  min-height: var(--vr-size-row-touch);
+}
+
+:root[data-vr-viewport='phone'] .chips .spacer {
+  display: none;
+}
+
+:root[data-vr-viewport='phone'] .chips-action {
+  grid-column: 1 / -1;
+  justify-content: space-between;
+  min-height: var(--vr-size-row-touch);
+  padding: 0 var(--vr-space-3);
+  border-radius: var(--vr-radius-md);
+}
+
+:root[data-vr-viewport='phone'] .row,
+:root[data-vr-viewport='phone'] .pair {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--vr-space-1);
+}
+
+:root[data-vr-viewport='phone'] .row-label {
+  width: auto;
+}
+
+:root[data-vr-viewport='phone'] .footer {
+  flex: none;
+  flex-wrap: wrap;
+  padding-bottom: var(--vr-space-2);
+}
+
+:root[data-vr-viewport='phone'] .footer .spacer {
+  display: none;
+}
+
+:root[data-vr-viewport='phone'] .name {
+  flex: 1 0 100%;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--vr-space-1);
+}
+
+:root[data-vr-viewport='phone'] .name :deep(input) {
+  width: 100%;
+}
+
+:root[data-vr-viewport='phone'] .action {
+  flex: 1 1 0;
+  min-height: var(--vr-size-row-touch);
 }
 </style>

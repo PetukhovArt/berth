@@ -52,9 +52,19 @@ export const update = {
     buildingHint: 'Berth is building an update in the background. Click for details.',
     restart: 'Restart to update',
   },
+  release: {
+    checking: 'Checking for a new version…',
+    downloading: 'Downloading Berth {version}…',
+    ready: 'Berth {version} is downloaded.',
+    restartHint: 'Restart Berth to install it. Sessions keep running in the daemon.',
+    installing: 'Installing Berth {version}…',
+    failed: 'Could not get the update: {error}. The installed version stays as it is.',
+    notes: 'Release notes',
+    check: 'Check again',
+  },
   autoSetting: {
     label: 'Update automatically',
-    description: 'Every 10 minutes Berth checks main in the source repository and on GitHub, builds the newer one in the background and offers a restart when it is ready.',
+    description: 'Every 10 minutes Berth checks for a newer version and gets it ready in the background: a copy installed from a release downloads it, a working copy builds main from the source repository. Berth then offers a restart.',
   },
   setting: {
     label: 'Source repository',

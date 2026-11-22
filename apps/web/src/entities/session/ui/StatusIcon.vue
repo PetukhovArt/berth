@@ -5,7 +5,7 @@ import type { SessionStatus } from '../model/berth';
 type Tone = 'running' | 'feedback' | 'limit' | 'unseen' | 'finished' | 'crashed' | 'idle' | 'success';
 type Glyph = { tone: Tone; d: string };
 
-const props = defineProps<{ status?: SessionStatus | undefined; unseen?: boolean; tone?: Tone }>();
+const props = defineProps<{ status?: SessionStatus | undefined; unseen?: boolean; tone?: Tone; stopped?: boolean }>();
 
 const RING = 'M8 2.25a5.75 5.75 0 1 0 0 11.5a5.75 5.75 0 1 0 0-11.5Z';
 const CHECK = 'M5.6 8.2l1.7 1.7 3.2-3.5';
@@ -39,9 +39,11 @@ const TONE_GLYPHS: Record<Tone, string> = {
 };
 
 const UNSEEN: Glyph = { tone: 'unseen', d: UNSEEN_D };
+const STOPPED: Glyph = { tone: 'idle', d: `${RING} M6.3 6.3h3.4v3.4H6.3z` };
 
 const glyph = computed<Glyph>(() => {
   if (props.tone) return { tone: props.tone, d: TONE_GLYPHS[props.tone] };
+  if (props.stopped) return STOPPED;
   if (props.status === 'finished' && props.unseen) return UNSEEN;
   return props.status ? GLYPHS[props.status] : { tone: 'idle', d: RING };
 });

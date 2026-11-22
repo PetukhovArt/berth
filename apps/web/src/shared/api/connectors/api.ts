@@ -154,6 +154,7 @@ export const forgeSource = (ref: ChangeRequestRef) => invoke<SourceRepo>('forge_
 export const mrFetchSource = (repo: string, branch: string, local: string, fork: ForkSource | null) => invoke<FetchedSource>('mr_fetch_source', { repo, branch, local, fork });
 export type WorktreeBase = { base: string | null; local_copy: string | null; detail: string | null };
 export const worktreeBaseSource = (repo: string, branch: string) => invoke<WorktreeBase>('worktree_base_source', { repo, branch });
+export const worktreeBasePrefetch = (repo: string, branch: string) => invoke<void>('worktree_base_prefetch', { repo, branch });
 
 export const jiraSearch = (connector: string, jql: string, start: number, limit: number) =>
   invoke<{ total: number; issues: JiraIssueSummary[] }>('jira_search', { connector, jql, start, limit });

@@ -1,13 +1,14 @@
-use crate::server::{member, Shared};
-use crate::store::{Event, Member};
+use crate::rights::{authorize, Member, Need, Permission, Principal};
+use crate::server::Shared;
+use crate::store::Event;
 use crate::tls::{Endpoint, Io};
 use anyhow::{bail, Context, Result};
-use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use axum::extract::ws::{close_code, CloseFrame, Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Query, State};
-use axum::http::HeaderMap;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use futures_util::StreamExt;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
@@ -17,6 +18,39 @@ use tokio_tungstenite::WebSocketStream;
 
 const PING_EVERY: Duration = Duration::from_secs(30);
 const SILENT_HUB: Duration = Duration::from_secs(90);
+const RIGHTS_CHANGED: u16 = 4001;
+
+#[derive(Debug, Clone)]
+pub(crate) struct Ended {
+    pub(crate) member: String,
+    pub(crate) why: EndedWhy,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum EndedWhy {
+    Revoked,
+    RightsChanged,
+}
+
+impl EndedWhy {
+    fn close_frame(self) -> CloseFrame {
+        let (code, reason) = match self {
+            Self::Revoked => (close_code::POLICY, "revoked"),
+            Self::RightsChanged => (RIGHTS_CHANGED, "rights changed"),
+        };
+        CloseFrame {
+            code,
+            reason: reason.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Next {
+    Event(Event),
+    Closed,
+    RightsChanged,
+}
 
 #[derive(Deserialize)]
 pub(crate) struct StreamQuery {
@@ -29,13 +63,14 @@ pub(crate) async fn stream(
     Query(q): Query<StreamQuery>,
     ws: WebSocketUpgrade,
 ) -> Response {
-    let reader = match member(&s.store.lock().unwrap(), &headers, "read") {
+    let signed = authorize(&s.store.lock().unwrap(), &headers, Need::Signed);
+    let reader = match signed.and_then(Principal::into_member) {
         Ok(m) => m,
-        Err(e) => return e.into_response(),
+        Err(e) => return <(StatusCode, String)>::from(e).into_response(),
     };
     let appended = s.appended.subscribe();
-    let revoked = s.revoked.subscribe();
-    ws.on_upgrade(move |socket| feed(s, (appended, revoked), reader, q.after, socket))
+    let ended = s.ended.subscribe();
+    ws.on_upgrade(move |socket| feed(s, (appended, ended), reader, q.after, socket))
 }
 
 async fn send(socket: &mut WebSocket, event: &Event) -> Result<()> {
@@ -46,14 +81,15 @@ async fn send(socket: &mut WebSocket, event: &Event) -> Result<()> {
 
 async fn feed(
     s: Shared,
-    (mut appended, mut revoked): (Receiver<Event>, Receiver<String>),
+    (mut appended, mut ended): (Receiver<Event>, Receiver<Ended>),
     reader: Member,
     after: Option<i64>,
     mut socket: WebSocket,
 ) {
+    let reads = reader.holds(Permission::ChannelsRead);
     let backlog = match after {
-        Some(after) => s.store.lock().unwrap().seen_after(&reader.id, after),
-        None => Ok(Vec::new()),
+        Some(after) if reads => s.store.lock().unwrap().seen_after(&reader.id, after),
+        _ => Ok(Vec::new()),
     };
     let Ok(backlog) = backlog else { return };
     let mut last = after.unwrap_or(0);
@@ -72,7 +108,7 @@ async fn feed(
                     Ok(event) => event,
                     Err(RecvError::Lagged(_)) | Err(RecvError::Closed) => return,
                 };
-                if event.seq <= last {
+                if !reads || event.seq <= last {
                     continue;
                 }
                 let sees = s.store.lock().unwrap().sees(&reader.id, &event.channel);
@@ -84,9 +120,13 @@ async fn feed(
                     return;
                 }
             }
-            gone = revoked.recv() => match gone {
-                Ok(id) if id != reader.id => {}
-                _ => return,
+            gone = ended.recv() => match gone {
+                Ok(e) if e.member != reader.id => {}
+                Ok(e) => {
+                    let _ = socket.send(Message::Close(Some(e.why.close_frame()))).await;
+                    return;
+                }
+                Err(_) => return,
             },
             incoming = socket.recv() => match incoming {
                 None | Some(Err(_)) | Some(Ok(Message::Close(_))) => return,
@@ -122,15 +162,20 @@ impl Subscription {
         Ok(Self { socket })
     }
 
-    pub async fn next(&mut self) -> Result<Option<Event>> {
+    pub async fn next(&mut self) -> Result<Next> {
         loop {
             let Ok(incoming) = tokio::time::timeout(SILENT_HUB, self.socket.next()).await else {
                 bail!("the hub went silent");
             };
             match incoming {
-                None | Some(Ok(tungstenite::Message::Close(_))) => return Ok(None),
+                Some(Ok(tungstenite::Message::Close(Some(frame))))
+                    if u16::from(frame.code) == RIGHTS_CHANGED =>
+                {
+                    return Ok(Next::RightsChanged)
+                }
+                None | Some(Ok(tungstenite::Message::Close(_))) => return Ok(Next::Closed),
                 Some(Ok(tungstenite::Message::Text(text))) => {
-                    return Ok(Some(serde_json::from_str(&text)?))
+                    return Ok(Next::Event(serde_json::from_str(&text)?))
                 }
                 Some(Ok(_)) => {}
                 Some(Err(e)) => return Err(e.into()),

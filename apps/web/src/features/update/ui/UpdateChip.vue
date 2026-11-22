@@ -4,9 +4,12 @@ import { RotateCw } from '../../../shared/ui/icons';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { busy, info, openUpdate, restart } from '../model/state';
 import { totals } from '../model/stages';
+import { installRelease, releaseStatus } from '../model/release';
 
 import { UiButton } from '../../../shared/ui/UiButton';
+const releaseState = computed(() => releaseStatus.value.state);
 const mode = computed(() => {
+  if (releaseState.value === 'ready' || releaseState.value === 'installing') return 'release';
   const state = info.value;
   if (!state?.running) return null;
   if (state.job?.state === 'running') return 'building';
@@ -19,6 +22,10 @@ const mode = computed(() => {
   <UiButton v-if="mode === 'building'" type="button" class="chip" data-testid="update-chip-building" :title="t('update.chip.buildingHint')" @click="openUpdate('update')">
     <span class="track" aria-hidden="true"><span class="fill" :style="{ width: `${totals.progress}%` }" /></span>
     {{ t('update.chip.building') }}
+  </UiButton>
+  <UiButton v-else-if="mode === 'release'" type="button" class="chip ready" data-testid="release-chip-restart" :title="t('update.release.restartHint')" :disabled="releaseState === 'installing'" @click="installRelease">
+    <RotateCw :size="12" :stroke-width="2" aria-hidden="true" />
+    {{ t('update.chip.restart') }}
   </UiButton>
   <UiButton v-else-if="mode === 'ready'" type="button" class="chip ready" data-testid="update-chip-restart" :title="t('update.restartHint')" :disabled="busy" @click="restart">
     <RotateCw :size="12" :stroke-width="2" aria-hidden="true" />

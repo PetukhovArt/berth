@@ -1,1 +1,1 @@
-export { DARK_CLASS, VButton, VContextMenu, VDialog, VInputText, VMessage, VPopover, VSelect, VTextarea, VToggleSwitch, installUiKit, isMotionEnabled, type KitLocale, setMotionEnabled, useIsPhone } from '@ui/kit';
+export { DARK_CLASS, VButton, VChipGroup, VContextMenu, VDialog, VInputText, VMessage, VPopover, VSelect, VTextarea, VToggleSwitch, installUiKit, isMotionEnabled, type KitLocale, setMotionEnabled, useIsPhone } from '@ui/kit';

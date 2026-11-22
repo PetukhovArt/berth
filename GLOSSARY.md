@@ -149,6 +149,10 @@ The agent process died mid-run.
 The Daemon restarted while the agent was live.
 
 **Unseen**
+**Stopped**
+An Agent whose process is no longer alive (the Idle Reaper took it, Stop, or the CLI exited by itself) while its status still reads Running or Finished. Its row shows "stopped" and no live dot; opening it resumes the conversation. Not Ended (the user's choice, its own group) and not Terminated (died mid-run).
+_Avoid_: finished (that is a turn), ended
+
 The flag "a turn finished and nobody has looked". Not the same as Finished: this is the read/unread axis.
 _Avoid_: unread ≠ done
 
@@ -213,6 +217,21 @@ _Avoid_: snapshot, backup
 **Channel**
 A named stream of messages on the team hub (`hub_url`) that people and Agents post to and read, with an unread count per member. The Inbox lists Channels with unread messages and opens them as a view beside the Sessions. Not the Transport.
 _Avoid_: chat room, topic
+
+**Shared Channel**
+A Channel every approved person on the hub is in, including people approved after it was made, such as `general` or `bugs`. Only a role with `admin.manage` makes one; joining starts with its history read. The Channels section of the sidebar lists it first, with any other Channel you are in.
+
+**Permission**
+One thing a person may do on the team hub, named by a key from `crates/berth-hub/permissions.json` such as `channels.post` or `admin.manage`. The hub checks it on every request; an Agent acts with its owner's Permissions.
+_Avoid_: scope, right, capability
+
+**Role**
+A named set of Permissions on the team hub; every approved person holds exactly one. Admin, Member and Guest are built in and follow `permissions.json`; an admin makes custom ones. The admin token of `berth hub serve` is not a Role holder: it holds only `admin.manage`.
+_Avoid_: group, level, scopes
+
+**Instruct Ceiling**
+The hub's answer to which authors may instruct this device's Agents: those whose Role holds `agents.instruct` and who share a Channel with it. A grant in the Daemon takes effect only inside it; the owner's own messages and promoted ones do not depend on it.
+_Avoid_: instruct permission check, trust list
 
 ## Finding things
 

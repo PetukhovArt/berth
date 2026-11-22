@@ -1,18 +1,19 @@
 <script setup lang="ts">
 import { computed, shallowRef, useTemplateRef } from 'vue';
-import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
-import { VContextMenu } from '../../../shared/ui/kit';
+import { ChevronRight, Ellipsis, MessageSquare } from '../../../shared/ui/icons';
+import { useIsPhone, VContextMenu } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { allowRequest, alwaysAllowRequest, chooseOption, denyRequest, isYesNoPermission, offersAlways, openChannel, restartAgent, StatusIcon, useAction, useBerth, useChannelUnread, useSessionDock, type SessionRef } from '../../../entities/session';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { shortcutLabel } from '../../../shared/lib/commands/keymap';
 import { shortAge } from '../../../shared/lib/shortAge';
 import { matchesWords } from '../../../shared/lib/fuzzy';
-import { openNextNeedingYou, settleInbox, snoozeInbox, useInbox, type InboxEntry } from '../model/inbox';
-
-const props = withDefaults(defineProps<{ query?: string }>(), { query: '' });
+import { inboxCollapsed, openNextNeedingYou, settleInbox, snoozeInbox, useInbox, type InboxEntry } from '../model/inbox';
 
 const { t, formatTime } = useI18n();
+const phone = useIsPhone();
+const props = withDefaults(defineProps<{ query?: string }>(), { query: '' });
+const open = computed(() => phone.value || !inboxCollapsed.value || props.query.trim().length > 0);
 const nextShortcut = computed(() => shortcutLabel('inbox.nextWaiting'));
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -83,55 +84,59 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
 <template>
   <section v-if="shown.length || shownChannels.length" class="inbox" data-testid="inbox">
     <div class="head">
-      <span class="title">{{ t('attention.inbox.title') }}</span>
-      <span class="count" data-testid="inbox-count">{{ shown.length + shownChannels.length }}</span>
-      <span class="spacer" />
+      <UiButton class="toggle" :aria-expanded="open" data-testid="inbox-toggle" @click="inboxCollapsed = !inboxCollapsed">
+        <ChevronRight :size="14" class="chevron vr-chevron" />
+        <span class="title">{{ t('attention.inbox.title') }}</span>
+        <span class="count" data-testid="inbox-count">{{ shown.length + shownChannels.length }}</span>
+      </UiButton>
       <UiButton v-if="nextShortcut" class="next" :title="t('attention.inbox.next')" :aria-label="t('attention.inbox.next')" data-testid="inbox-next-waiting" @click="openNextNeedingYou">
         <kbd>{{ nextShortcut }}</kbd>
       </UiButton>
     </div>
-    <div v-for="entry in shown" :key="entry.key" class="item" data-testid="inbox-item" :data-kind="entry.kind" :data-session-id="entry.node?.id">
-      <UiButton class="row" :title="entry.state.name" @click="dock.openKey(entry.key)" @contextmenu.prevent="showMenu($event, entry)">
-        <StatusIcon :status="entry.state.status" :unseen="entry.state.unseen" />
-        <span class="body">
-          <span class="line">
-            <span class="name">{{ entry.state.name }}</span>
-            <span class="age">{{ age(entry.since) }}</span>
+    <div v-if="open" class="items" data-testid="inbox-items">
+      <div v-for="entry in shown" :key="entry.key" class="item" data-testid="inbox-item" :data-kind="entry.kind" :data-session-id="entry.node?.id">
+        <UiButton class="row" :title="entry.state.name" @click="dock.openKey(entry.key)" @contextmenu.prevent="showMenu($event, entry)">
+          <StatusIcon :status="entry.state.status" :unseen="entry.state.unseen" />
+          <span class="body">
+            <span class="line">
+              <span class="name">{{ entry.state.name }}</span>
+              <span class="age">{{ age(entry.since) }}</span>
+            </span>
+            <span class="reason"><span class="kind">{{ reason(entry) }}</span><template v-if="entry.place"> · {{ entry.place }}</template></span>
           </span>
-          <span class="reason"><span class="kind">{{ reason(entry) }}</span><template v-if="entry.place"> · {{ entry.place }}</template></span>
-        </span>
-      </UiButton>
-      <div v-if="requestOf(entry)" class="card vr-phone-only" data-testid="inbox-request">
-        <code v-if="requestOf(entry)?.detail" class="detail">{{ requestOf(entry)?.detail }}</code>
-        <div class="actions">
-          <template v-if="yesNo(entry)">
-            <UiButton type="button" class="action primary" data-testid="inbox-allow" @click="act(entry, allowRequest)">{{ t('feedback.allow') }}</UiButton>
-            <UiButton v-if="always(entry)" type="button" class="action" :title="t('feedback.alwaysTitle')" data-testid="inbox-always" @click="act(entry, alwaysAllowRequest)">{{ t('feedback.always') }}</UiButton>
-            <UiButton type="button" class="action" data-testid="inbox-deny" @click="act(entry, denyRequest)">{{ t('feedback.deny') }}</UiButton>
-          </template>
-          <UiButton v-for="(option, index) in requestOf(entry)?.options" v-else :key="index" type="button" class="action" :class="{ primary: index === 0 }" data-testid="inbox-option" @click="act(entry, (ref) => chooseOption(ref, index))">{{ option }}</UiButton>
+        </UiButton>
+        <div v-if="requestOf(entry)" class="card vr-phone-only" data-testid="inbox-request">
+          <code v-if="requestOf(entry)?.detail" class="detail">{{ requestOf(entry)?.detail }}</code>
+          <div class="actions">
+            <template v-if="yesNo(entry)">
+              <UiButton type="button" class="action primary" data-testid="inbox-allow" @click="act(entry, allowRequest)">{{ t('feedback.allow') }}</UiButton>
+              <UiButton v-if="always(entry)" type="button" class="action" :title="t('feedback.alwaysTitle')" data-testid="inbox-always" @click="act(entry, alwaysAllowRequest)">{{ t('feedback.always') }}</UiButton>
+              <UiButton type="button" class="action" data-testid="inbox-deny" @click="act(entry, denyRequest)">{{ t('feedback.deny') }}</UiButton>
+            </template>
+            <UiButton v-for="(option, index) in requestOf(entry)?.options" v-else :key="index" type="button" class="action" :class="{ primary: index === 0 }" data-testid="inbox-option" @click="act(entry, (ref) => chooseOption(ref, index))">{{ option }}</UiButton>
+          </div>
         </div>
-      </div>
-      <div v-else-if="entry.kind === 'crashed' && agentRef(entry)" class="card vr-phone-only" data-testid="inbox-crashed">
-        <code class="detail" data-testid="inbox-crashed-detail">{{ t('attention.inbox.crashedDetail') }}</code>
-        <div class="actions">
-          <UiButton type="button" class="action primary" :title="t('attention.inbox.resumeTitle')" :disabled="resuming.busy.value" data-testid="inbox-resume" @click="resume(entry)">{{ t('attention.inbox.resume') }}</UiButton>
-          <UiButton type="button" class="action" data-testid="inbox-open" @click="dock.openKey(entry.key)">{{ t('attention.inbox.open') }}</UiButton>
+        <div v-else-if="entry.kind === 'crashed' && agentRef(entry)" class="card vr-phone-only" data-testid="inbox-crashed">
+          <code class="detail" data-testid="inbox-crashed-detail">{{ t('attention.inbox.crashedDetail') }}</code>
+          <div class="actions">
+            <UiButton type="button" class="action primary" :title="t('attention.inbox.resumeTitle')" :disabled="resuming.busy.value" data-testid="inbox-resume" @click="resume(entry)">{{ t('attention.inbox.resume') }}</UiButton>
+            <UiButton type="button" class="action" data-testid="inbox-open" @click="dock.openKey(entry.key)">{{ t('attention.inbox.open') }}</UiButton>
+          </div>
+          <p v-if="resumeFailed === entry.key && resuming.error.value" class="error" role="alert" data-testid="inbox-resume-error">{{ resuming.error.value }}</p>
         </div>
-        <p v-if="resumeFailed === entry.key && resuming.error.value" class="error" role="alert" data-testid="inbox-resume-error">{{ resuming.error.value }}</p>
+        <UiButton class="more" :title="t('attention.inbox.actions')" :aria-label="t('attention.inbox.actions')" aria-haspopup="menu" data-testid="inbox-menu" @click="showMenu($event, entry)"><Ellipsis :size="14" /></UiButton>
       </div>
-      <UiButton class="more" :title="t('attention.inbox.actions')" :aria-label="t('attention.inbox.actions')" aria-haspopup="menu" data-testid="inbox-menu" @click="showMenu($event, entry)"><Ellipsis :size="14" /></UiButton>
-    </div>
-    <div v-for="channel in shownChannels" :key="channel.key" class="item" data-testid="inbox-channel" data-kind="channel">
-      <UiButton class="row" :title="channel.key" @click="openChannel(channel.key)">
-        <MessageSquare :size="14" class="channel-icon" />
-        <span class="body">
-          <span class="line">
-            <span class="name"># {{ channel.key }}</span>
+      <div v-for="channel in shownChannels" :key="channel.key" class="item" data-testid="inbox-channel" data-kind="channel">
+        <UiButton class="row" :title="channel.key" @click="openChannel(channel.key)">
+          <MessageSquare :size="14" class="channel-icon" />
+          <span class="body">
+            <span class="line">
+              <span class="name"># {{ channel.key }}</span>
+            </span>
+            <span class="reason">{{ t('attention.inbox.channelUnread', { count: channel.unread }) }}</span>
           </span>
-          <span class="reason">{{ t('attention.inbox.channelUnread', { count: channel.unread }) }}</span>
-        </span>
-      </UiButton>
+        </UiButton>
+      </div>
     </div>
     <VContextMenu ref="menu" :model="menuItems">
       <template #item="{ item, props: itemProps }">
@@ -143,22 +148,63 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
 
 <style scoped>
 .inbox {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 40dvh;
   margin-bottom: var(--vr-space-2);
+}
+
+.inbox.pinned-inbox {
+  padding-bottom: var(--vr-space-1);
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--vr-color-border);
 }
 
 .head {
   display: flex;
+  flex: none;
   align-items: center;
   gap: var(--vr-space-2);
   height: 28px;
-  padding-left: var(--vr-space-2);
   font-size: var(--vr-font-size-xs);
   font-weight: 500;
   color: var(--vr-color-text-muted);
 }
 
-.spacer {
+.toggle {
+  display: flex;
   flex: 1;
+  align-items: center;
+  gap: var(--vr-space-2);
+  min-width: 0;
+  height: 28px;
+  padding: 0 4px 0 6px;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: var(--vr-radius-md);
+  cursor: pointer;
+}
+
+.toggle:hover {
+  background: var(--vr-color-nav-hover);
+}
+
+.toggle .chevron {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  color: var(--vr-color-text-subtle);
+}
+
+.items {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .next {
@@ -383,6 +429,14 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
 
 :root[data-vr-viewport='phone'] .head {
   display: none;
+}
+
+:root[data-vr-viewport='phone'] .inbox {
+  max-height: none;
+}
+
+:root[data-vr-viewport='phone'] .items {
+  overflow: visible;
 }
 
 .action:disabled {

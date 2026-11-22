@@ -1,6 +1,9 @@
+use crate::admin::{AdminChange, AdminView};
+use crate::ceiling::{Ceiling, CeilingBody, CeilingReply};
 use crate::context::Touching;
 use crate::presence::Present;
-use crate::store::{ChannelSummary, Device, Event, Mention, KIND_MESSAGE};
+use crate::rights::Me;
+use crate::store::{ChannelSummary, Event, Mention, KIND_MESSAGE};
 use crate::stream::Subscription;
 use crate::tls::Endpoint;
 use anyhow::{anyhow, bail, Result};
@@ -39,6 +42,19 @@ impl HubClient {
     }
 
     async fn call(&self, method: &str, path: &str, body: Option<Value>) -> Result<Value> {
+        let (status, body) = self.exchange(method, path, body).await?;
+        if status >= 300 {
+            bail!("hub: {} ({status})", body.trim());
+        }
+        Ok(serde_json::from_str(&body)?)
+    }
+
+    async fn exchange(
+        &self,
+        method: &str,
+        path: &str,
+        body: Option<Value>,
+    ) -> Result<(u16, String)> {
         let mut stream = self.endpoint.connect().await?;
         let payload = body.map(|b| b.to_string()).unwrap_or_default();
         let request = format!(
@@ -65,10 +81,7 @@ impl HubClient {
             .nth(1)
             .and_then(|s| s.parse().ok())
             .ok_or_else(|| anyhow!("the hub sent a malformed response"))?;
-        if status >= 300 {
-            bail!("hub: {} ({status})", body.trim());
-        }
-        Ok(serde_json::from_str(body)?)
+        Ok((status, body.to_string()))
     }
 
     pub async fn pair(url: &str, name: &str) -> Result<(String, String)> {
@@ -83,32 +96,6 @@ impl HubClient {
             v["id"].as_str().unwrap_or("").into(),
             v["token"].as_str().unwrap_or("").into(),
         ))
-    }
-
-    pub async fn pending(&self) -> Result<Value> {
-        self.call("GET", "/admin/pending", None).await
-    }
-
-    pub async fn approve(&self, id: &str, scopes: &[&str]) -> Result<()> {
-        self.call(
-            "POST",
-            "/admin/approve",
-            Some(json!({ "id": id, "scopes": scopes })),
-        )
-        .await?;
-        Ok(())
-    }
-
-    pub async fn devices(&self) -> Result<Vec<Device>> {
-        Ok(serde_json::from_value(
-            self.call("GET", "/admin/devices", None).await?,
-        )?)
-    }
-
-    pub async fn revoke(&self, id: &str) -> Result<()> {
-        self.call("POST", "/admin/revoke", Some(json!({ "id": id })))
-            .await?;
-        Ok(())
     }
 
     pub async fn agent(&self, name: &str) -> Result<String> {
@@ -128,6 +115,33 @@ impl HubClient {
 
     pub async fn create_channel(&self, key: &str) -> Result<()> {
         self.call("POST", "/channels", Some(json!({ "key": key })))
+            .await?;
+        Ok(())
+    }
+
+    /// Creates the channel, or takes an existing one, as a Shared Channel: every approved
+    /// person on the hub is in it, and each one approved later joins it. Needs `admin.manage`.
+    pub async fn create_shared_channel(&self, key: &str) -> Result<()> {
+        self.call(
+            "POST",
+            "/channels",
+            Some(json!({ "key": key, "shared": true })),
+        )
+        .await?;
+        Ok(())
+    }
+
+    /// Takes the caller and its Agents out of a channel. A Shared Channel cannot be left.
+    pub async fn leave_channel(&self, key: &str) -> Result<()> {
+        self.call("POST", "/channels/leave", Some(json!({ "key": key })))
+            .await?;
+        Ok(())
+    }
+
+    /// Deletes a channel with its messages for everyone. Allowed to the member that made
+    /// it and to a role with `channels.delete`.
+    pub async fn delete_channel(&self, key: &str) -> Result<()> {
+        self.call("POST", "/channels/delete", Some(json!({ "key": key })))
             .await?;
         Ok(())
     }
@@ -182,12 +196,39 @@ impl HubClient {
         Ok(serde_json::from_value(v)?)
     }
 
-    pub async fn me(&self) -> Result<String> {
-        let v = self.call("GET", "/me", None).await?;
-        v["id"]
-            .as_str()
-            .map(str::to_string)
-            .ok_or_else(|| anyhow!("the hub did not say who this device is"))
+    pub async fn me(&self) -> Result<Me> {
+        Ok(serde_json::from_value(
+            self.call("GET", "/me", None).await?,
+        )?)
+    }
+
+    pub async fn admin_view(&self) -> Result<AdminView> {
+        Ok(serde_json::from_value(
+            self.call("GET", "/admin", None).await?,
+        )?)
+    }
+
+    pub async fn admin_change(&self, change: &AdminChange) -> Result<AdminView> {
+        Ok(serde_json::from_value(
+            self.call("POST", "/admin/change", Some(json!(change)))
+                .await?,
+        )?)
+    }
+
+    pub async fn ceiling(&self, members: &[String]) -> Result<Ceiling> {
+        let body = json!(CeilingBody {
+            members: members.to_vec()
+        });
+        let (status, reply) = self
+            .exchange("POST", "/instruct/ceiling", Some(body))
+            .await?;
+        match status {
+            404 => Ok(Ceiling::Unlimited),
+            300.. => bail!("hub: {} ({status})", reply.trim()),
+            _ => Ok(Ceiling::Only(
+                serde_json::from_str::<CeilingReply>(&reply)?.allowed,
+            )),
+        }
     }
 
     pub async fn mentions(&self, after: i64) -> Result<Vec<Mention>> {

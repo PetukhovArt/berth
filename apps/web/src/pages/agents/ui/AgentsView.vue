@@ -3,7 +3,7 @@ import { defineAsyncComponent } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { PhoneInbox } from '../../../features/attention';
 import { phoneSection } from '../../../widgets/mobile-nav';
-import { TerminalKeys, SessionPanel } from '../../../widgets/terminal';
+import { SessionPanel } from '../../../widgets/terminal';
 import { useIsPhone } from '../../../shared/ui/kit';
 import { useDock } from '../../../shared/model/dock';
 import { useSessionDock, isSessionRef, useBerth, type Harness } from '../../../entities/session';
@@ -11,7 +11,7 @@ import { openIssue } from '../../../entities/jira-issue';
 import { ProjectTree } from '../../../widgets/project-tree';
 import { BaseNotice, NewSessionForm, cancelCreate, creatingIn, onCreated } from '../../../features/new-session';
 import { ArchitectureView } from '../../../features/architecture';
-import { SessionViews, viewOf } from '../../../features/session-view-switch';
+import { SessionViews } from '../../../features/session-view-switch';
 import { DockArea } from '../../../widgets/dock';
 import { SessionHeader } from '../../../widgets/session-header';
 import { SessionInspector } from '../../../widgets/session-inspector';
@@ -35,7 +35,6 @@ const sessions = useSessionDock();
 const { onReady } = dock.useHost();
 const mobile = useIsPhone();
 const { activeKey, detail } = dock;
-const { activeSession } = sessions;
 const isHarness = (value: unknown): value is Harness => value === 'claude' || value === 'codex';
 const str = (value: unknown) => (typeof value === 'string' ? value : '');
 </script>
@@ -96,7 +95,6 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
       </template>
     </DockArea>
     <SessionInspector v-if="!mobile" />
-    <TerminalKeys v-if="mobile && detail && activeSession && !(activeKey && viewOf(activeKey) === 'chat')" :session="activeSession.ref" />
     <NewSessionForm v-if="creatingIn" :key="creatingIn.worktree ?? ''" :worktree="creatingIn.worktree" :project-locked="creatingIn.projectLocked" @close="cancelCreate" @created="onCreated" />
     <BaseNotice />
   </div>

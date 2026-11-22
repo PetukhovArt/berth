@@ -29,6 +29,20 @@ type CallResult = Result<serde_json::Value, String>;
 
 static DAEMON_PROTOCOL: AtomicU32 = AtomicU32::new(0);
 
+#[cfg(feature = "desktop")]
+async fn update_older_daemon() -> Result<(), String> {
+    if crate::platform::RELEASE_UPDATE {
+        crate::release_update::daemon_update().await
+    } else {
+        crate::working_copy::app_daemon_update().await
+    }
+}
+
+#[cfg(not(feature = "desktop"))]
+async fn update_older_daemon() -> Result<(), String> {
+    Err(crate::platform::unsupported())
+}
+
 pub fn daemon_protocol() -> Option<u32> {
     Some(DAEMON_PROTOCOL.load(Ordering::Relaxed)).filter(|version| *version != 0)
 }
@@ -98,6 +112,7 @@ pub enum WatchEvent {
         channel: String,
         seq: i64,
     },
+    HubChanged,
     Error {
         message: String,
     },
@@ -635,6 +650,7 @@ impl Actor {
             ServerEvent::ChannelAppended { channel, seq } => {
                 WatchEvent::ChannelAppended { channel, seq }
             }
+            ServerEvent::HubChanged => WatchEvent::HubChanged,
             ServerEvent::Error { message, .. } => WatchEvent::Error { message },
             ServerEvent::Scrollback {
                 session,
@@ -690,7 +706,7 @@ impl Actor {
         }
         self.updating_daemon = true;
         tokio::spawn(async {
-            if let Err(error) = crate::working_copy::app_daemon_update().await {
+            if let Err(error) = update_older_daemon().await {
                 eprintln!("berth: could not update the older berth daemon: {error}");
             }
         });
@@ -747,6 +763,7 @@ fn reply_req_id(event: &ServerEvent) -> Option<u64> {
         | ServerEvent::ChannelGrants { req_id, .. }
         | ServerEvent::AcpTranscript { req_id, .. }
         | ServerEvent::AcpCommands { req_id, .. }
+        | ServerEvent::Hub { req_id, .. }
         | ServerEvent::Metrics { req_id, .. } => Some(*req_id),
         ServerEvent::Error { req_id, .. } => *req_id,
         _ => None,
@@ -776,6 +793,7 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::EnterWorktree { req_id, .. }
         | ClientRequest::EnterProject { req_id, .. }
         | ClientRequest::SpawnSiblingAgent { req_id, .. }
+        | ClientRequest::ArchiveSelf { req_id, .. }
         | ClientRequest::ArchiveAgent { req_id, .. }
         | ClientRequest::UnarchiveAgent { req_id, .. }
         | ClientRequest::StopAgent { req_id, .. }
@@ -805,6 +823,8 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::PostToChannel { req_id, .. }
         | ClientRequest::GetChannelPresence { req_id, .. }
         | ClientRequest::OpenChannel { req_id, .. }
+        | ClientRequest::LeaveChannel { req_id, .. }
+        | ClientRequest::DeleteChannel { req_id, .. }
         | ClientRequest::PostChannelNote { req_id, .. }
         | ClientRequest::GetChannelTouched { req_id, .. }
         | ClientRequest::PromoteChannelMessage { req_id, .. }
@@ -817,6 +837,8 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::AnswerFeedback { req_id, .. }
         | ClientRequest::AnswerInChannel { req_id, .. }
         | ClientRequest::GetUsageLimits { req_id }
+        | ClientRequest::GetHub { req_id }
+        | ClientRequest::ChangeHub { req_id, .. }
         | ClientRequest::GetMetrics { req_id } => Some(req_id),
         ClientRequest::Hello { .. }
         | ClientRequest::Subscribe

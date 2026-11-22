@@ -435,7 +435,7 @@ impl Daemon {
         if idle(tracked) {
             return false;
         }
-        let Ok(owner) = hub.me().await else {
+        let Ok(owner) = hub.me().await.map(|me| me.id) else {
             return true;
         };
         self.settle_answered_locally(&hub, &pending, tracked).await;

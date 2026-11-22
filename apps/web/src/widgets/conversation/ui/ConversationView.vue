@@ -4,7 +4,7 @@ import { Bot, Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, Triangle
 import { VButton, VMessage } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
-import { AGENT_KIND_LABEL, clearHandoff, continueInBerth, handoffOf, externalKey, externalOrigin, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, sendInput, useFeedbackRequest, allowRequest, alwaysAllowRequest, offersAlways, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, submitPrompt, useAcpChat, useQueuedPrompts, type SessionRef, type SlashSource } from '../../../entities/session';
+import { AGENT_KIND_LABEL, clearHandoff, continueInBerth, handoffOf, externalKey, externalOrigin, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, sendInput, useFeedbackRequest, allowRequest, alwaysAllowRequest, offersAlways, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, sessionKey, stopAgent, submitPrompt, useAcpChat, useQueuedPrompts, useSessionStates, type SessionRef, type SlashSource } from '../../../entities/session';
 import { worktreeOf } from '../../../features/session-view-switch';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
@@ -73,6 +73,8 @@ const target = computed(() => (session.value ? externalTarget(session.value, ber
 const running = computed(() => session.value?.running ?? false);
 const agentId = computed(() => (props.terminal && 'Agent' in props.terminal ? props.terminal.Agent : null));
 const agent = computed(() => (agentId.value ? berth?.entities.value.agents.get(agentId.value) : undefined));
+const states = useSessionStates();
+const turnRunning = computed(() => (props.terminal ? states.value.get(sessionKey(props.terminal))?.status === 'running' : false));
 const suggestion = computed(() => (agent.value?.status === 'finished' ? (agent.value.suggested_prompt ?? null) : null));
 const command = computed(() => (harness.value ? resumeCommand({ harness: harness.value, id: props.sessionId }) : ''));
 const handoff = computed(() => (session.value ? handoffOf(session.value) : undefined));
@@ -213,6 +215,16 @@ async function submit(text: string, viaVoice: boolean): Promise<boolean> {
   }
 }
 
+async function stop() {
+  if (!props.terminal) return;
+  try {
+    if (acp) await stopAgent(props.sessionId);
+    else await sendInput(props.terminal, '\x1b');
+  } catch (e) {
+    error.value = describeError(e);
+  }
+}
+
 async function sendToAcp(text: string) {
   const status = berth?.entities.value.agents.get(props.sessionId)?.status;
   if (status === 'running' || status === 'needs_feedback') enqueuePrompt(props.sessionId, text);
@@ -320,7 +332,7 @@ onBeforeUnmount(() => {
           <UiButton type="button" class="queued-remove" data-testid="queue-remove" @click="removeQueuedPrompt(sessionId, item.id)">{{ t('feedback.queue.remove') }}</UiButton>
         </li>
       </ul>
-      <ChatComposer v-if="terminal" :messages="messages" :suggestion="suggestion" :model-chip="modelChip" :sending="sending" :slash-source="slashSource" :send="submit" />
+      <ChatComposer v-if="terminal" :messages="messages" :suggestion="suggestion" :model-chip="modelChip" :sending="sending" :slash-source="slashSource" :stop="turnRunning ? stop : null" :send="submit" />
       <template v-if="column.box.value && !column.phone.value">
         <div
           v-for="edge in COLUMN_EDGES"

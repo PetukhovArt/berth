@@ -16,15 +16,5 @@ export const mobile = {
   },
   connected: 'Connected to berth',
   inboxEmpty: 'Nothing needs you right now.',
-  keysLabel: 'Terminal keys',
-  key: {
-    esc: 'Esc',
-    tab: 'Tab',
-    ctrl: 'Ctrl',
-    up: 'Up',
-    down: 'Down',
-    left: 'Left',
-    right: 'Right',
-    newline: 'Shift+Enter',
-  },
+  noChat: 'This session has no chat view. Open it on your computer to use its terminal.',
 } as const;

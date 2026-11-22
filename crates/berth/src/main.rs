@@ -124,6 +124,10 @@ enum Command {
         /// The repo's directory, or one of its worktrees.
         dir: String,
     },
+    #[command(
+        about = "End this session once the current turn ends: its process stops and it moves to the Archive in the Sessions tree, where unarchiving resumes the conversation (run from inside a berth agent session; agents run it when you ask them to end or close the session)"
+    )]
+    EndSession,
     /// Start a new agent session beside this one — same worktree, same
     /// harness unless --kind names another — opening on the given task as
     /// its first prompt (run from inside a berth agent session; agents run
@@ -251,7 +255,22 @@ enum ChannelCommand {
     #[command(
         about = "Create the channel for a Jira issue key, a merge request branch or a Worktree, or open it when it exists; with no key, inside a session, the key of the session's branch"
     )]
-    Open { key: Option<String> },
+    Open {
+        key: Option<String>,
+        #[arg(
+            long,
+            help = "Make it a Shared Channel: everyone approved on the hub is in it, now and later. Needs admin.manage"
+        )]
+        shared: bool,
+    },
+    #[command(
+        about = "Leave a channel: it goes from your list and your Agents leave it. A Shared Channel cannot be left"
+    )]
+    Leave { channel: String },
+    #[command(
+        about = "Delete a channel with its messages, for everyone: one you made, or any with a role that holds channels.delete"
+    )]
+    Delete { channel: String },
     #[command(about = "Print the events of a channel after a sequence number")]
     Read {
         channel: String,
@@ -338,17 +357,24 @@ enum HubCommand {
     #[command(about = "Step one: admit this device; prints its token, which opens nothing yet")]
     Pair { url: String, name: String },
     #[command(
-        about = "Step two: approve an admitted device and what it may do; run it again to change the scopes"
+        about = "Step two: approve an admitted device with a role, or change the role of an approved one"
     )]
     Approve {
         url: String,
-        #[arg(long)]
+        #[arg(
+            long,
+            help = "The admin token of `berth hub serve`, or the device token of someone whose role holds admin.manage"
+        )]
         admin_token: String,
         id: String,
-        #[arg(long, value_delimiter = ',', default_value = "read,post,create")]
-        scopes: Vec<String>,
+        #[arg(
+            long,
+            default_value = "member",
+            help = "admin, member, guest, or the id of a custom role"
+        )]
+        role: String,
     },
-    #[command(about = "List the devices of the hub with their status and scopes")]
+    #[command(about = "List the devices of the hub with their status and role, and the roles")]
     Devices {
         url: String,
         #[arg(long)]
@@ -436,6 +462,7 @@ fn main() -> Result<()> {
         }
         Some(Command::Worktree { name, base }) => client::run_worktree(name.join(" "), base),
         Some(Command::Enter { dir }) => client::run_enter(dir),
+        Some(Command::EndSession) => client::run_end_session(),
         Some(Command::Spawn {
             task,
             kind,
@@ -457,7 +484,9 @@ fn main() -> Result<()> {
         Some(Command::Triggers { remove }) => triggers::run_triggers(remove),
         Some(Command::Channel { command }) => match command {
             ChannelCommand::List => channel::run_list(),
-            ChannelCommand::Open { key } => channel::run_open(key),
+            ChannelCommand::Open { key, shared } => channel::run_open(key, shared),
+            ChannelCommand::Leave { channel } => channel::run_leave(channel),
+            ChannelCommand::Delete { channel } => channel::run_delete(channel),
             ChannelCommand::Read { channel, after } => channel::run_read(channel, after),
             ChannelCommand::Post { channel, message } => {
                 channel::run_post(channel, message.join(" "))
@@ -503,8 +532,8 @@ fn main() -> Result<()> {
                 url,
                 admin_token,
                 id,
-                scopes,
-            } => channel::run_hub_approve(url, admin_token, id, scopes),
+                role,
+            } => channel::run_hub_approve(url, admin_token, id, role),
             HubCommand::Devices { url, admin_token } => channel::run_hub_devices(url, admin_token),
             HubCommand::Revoke {
                 url,

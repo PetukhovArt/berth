@@ -1,12 +1,5 @@
 {
   "bundle": {
-    "targets": ["deb"],
-    "linux": {
-      "deb": {
-        "files": {
-          "/usr/bin/berth": "../../../target/release/berth"
-        }
-      }
-    }
+    "targets": ["deb"]
   }
 }

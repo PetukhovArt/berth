@@ -13,7 +13,7 @@ import { MobileNav, PhoneHeader } from '../../widgets/mobile-nav';
 import { useIsPhone } from '../../shared/ui/kit';
 import { Sidebar } from '../../widgets/project-tree';
 import { TitleBar } from '../../widgets/title-bar';
-import { ChangesDialog, UpdateDialog } from '../../features/update';
+import { ChangesDialog, ReleaseDialog, UpdateDialog } from '../../features/update';
 import { view, type View } from '../../shared/model/nav';
 import { firstRunActive } from '../../shared/model/firstRun';
 import { isDark, toggleTheme } from '../../shared/ui/appearance';
@@ -74,6 +74,7 @@ watch(
     <SearchPopup />
     <UnsavedDialog />
     <UpdateDialog v-if="inTauri" />
+    <ReleaseDialog v-if="inTauri" />
     <ChangesDialog v-if="inTauri" />
     <CleanupDialog v-if="inTauri" />
     <HotHost />
