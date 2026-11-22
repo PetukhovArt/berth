@@ -27,12 +27,34 @@ function onKeydown(event: KeyboardEvent) {
   if (index === null || !option || !(event.currentTarget instanceof HTMLElement)) return;
   event.preventDefault();
   model.value = option.value;
-  event.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')[index]?.focus();
+  const chip = event.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')[index];
+  chip?.focus({ preventScroll: true });
+  revealChip(chip);
+}
+
+function revealChip(chip: Element | null | undefined) {
+  chip?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+function onClick(event: MouseEvent, value: string) {
+  model.value = value;
+  revealChip(event.currentTarget instanceof Element ? event.currentTarget : null);
+}
+
+function onWheel(event: WheelEvent) {
+  const group = event.currentTarget;
+  if (!(group instanceof HTMLElement) || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+  const max = group.scrollWidth - group.clientWidth;
+  if (max <= 0) return;
+  const next = Math.min(max, Math.max(0, group.scrollLeft + event.deltaY));
+  if (next === group.scrollLeft) return;
+  event.preventDefault();
+  group.scrollLeft = next;
 }
 </script>
 
 <template>
-  <div class="chip-group" role="radiogroup" :aria-label="label" @keydown="onKeydown">
+  <div class="chip-group" role="radiogroup" :aria-label="label" @keydown="onKeydown" @wheel="onWheel">
     <button
       v-for="option in options"
       :key="option.value"
@@ -43,7 +65,7 @@ function onKeydown(event: KeyboardEvent) {
       :tabindex="tabbable(option.value) ? 0 : -1"
       :title="option.title"
       :data-testid="`${testId}-${option.value}`"
-      @click="model = option.value"
+      @click="onClick($event, option.value)"
     >
       <slot name="option" :option="option">{{ option.label }}</slot>
       <span v-if="option.count !== undefined" class="count">{{ option.count }}</span>
@@ -54,16 +76,25 @@ function onKeydown(event: KeyboardEvent) {
 <style scoped>
 .chip-group {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--vr-space-1);
   min-width: 0;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.chip-group::-webkit-scrollbar {
+  display: none;
 }
 
 .chip {
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: var(--vr-space-1);
-  max-width: 100%;
+  scroll-snap-align: start;
+  white-space: nowrap;
   padding: var(--vr-space-1) var(--vr-space-2);
   border: 1px solid var(--vr-color-border);
   border-radius: var(--vr-radius-sm);
@@ -86,7 +117,7 @@ function onKeydown(event: KeyboardEvent) {
 
 .chip:focus-visible {
   outline: 2px solid var(--vr-color-focus);
-  outline-offset: 1px;
+  outline-offset: -2px;
 }
 
 .count {
