@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, shallowRef, watch } from 'vue';
 import { VButton, VDialog, VInputText, VMessage, VSelect, VTextarea, useIsPhone } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
-import { X } from '../../../shared/ui/icons';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, X } from '../../../shared/ui/icons';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
 import { chordJoiner, modifierGlyphs, onlyPrimaryPressed, primaryModifier, primaryPressed } from '../../../shared/lib/platform';
@@ -303,24 +303,14 @@ function onVisible(visible: boolean) {
             />
           </template>
           <span class="spacer" />
-          <VButton
-            :label="continuing ? t('agents.newSession.newTask') : t('agents.newSession.continueMode')"
-            size="small"
-            text
-            class="chips-action"
-            :aria-pressed="continuing"
-            data-testid="new-session-continue"
-            @click="continuing = !continuing"
-          />
-          <VButton
-            :label="expanded ? t('agents.newSession.fewer') : t('agents.newSession.more')"
-            size="small"
-            text
-            class="chips-action"
-            :aria-expanded="expanded"
-            data-testid="new-session-more"
-            @click="expanded = !expanded"
-          />
+          <UiButton type="button" class="chips-action" :aria-pressed="continuing" data-testid="new-session-continue" @click="continuing = !continuing">
+            <span>{{ continuing ? t('agents.newSession.newTask') : t('agents.newSession.continueMode') }}</span>
+            <component :is="continuing ? ChevronLeft : ChevronRight" :size="14" aria-hidden="true" />
+          </UiButton>
+          <UiButton type="button" class="chips-action" :aria-expanded="expanded" data-testid="new-session-more" @click="expanded = !expanded">
+            <span>{{ expanded ? t('agents.newSession.fewer') : t('agents.newSession.more') }}</span>
+            <component :is="expanded ? ChevronUp : ChevronDown" :size="14" aria-hidden="true" />
+          </UiButton>
         </div>
         <label v-if="expanded && location.plan.value.kind === 'create'" class="row">
           <span class="row-label">{{ t('agents.newSession.setupCommand') }}</span>
@@ -412,6 +402,31 @@ function onVisible(visible: boolean) {
 
 .chip-input {
   width: 10.5rem;
+}
+
+.chips-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vr-space-1);
+  height: 28px;
+  padding: 0 var(--vr-space-2) 0 var(--vr-space-3);
+  font: inherit;
+  font-size: var(--vr-font-size-label);
+  color: var(--vr-color-text);
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--vr-color-surface-muted);
+  border: 0;
+  border-radius: 7px;
+}
+
+.chips-action:hover {
+  background: var(--vr-color-nav-hover);
+}
+
+.chips-action svg {
+  flex: none;
+  color: var(--vr-color-text-muted);
 }
 
 .esc {
@@ -602,9 +617,10 @@ function onVisible(visible: boolean) {
 
 :root[data-vr-viewport='phone'] .chips-action {
   grid-column: 1 / -1;
-  justify-content: flex-start;
+  justify-content: space-between;
   min-height: var(--vr-size-row-touch);
-  white-space: nowrap;
+  padding: 0 var(--vr-space-3);
+  border-radius: var(--vr-radius-md);
 }
 
 :root[data-vr-viewport='phone'] .row,
