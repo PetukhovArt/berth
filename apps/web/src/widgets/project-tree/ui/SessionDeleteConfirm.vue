@@ -2,14 +2,14 @@
 import { VButton } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 
-defineProps<{ name: string; busy: boolean }>();
+defineProps<{ name: string; busy: boolean; alive?: boolean }>();
 const emit = defineEmits<{ confirm: []; cancel: [] }>();
 </script>
 
 <template>
   <div class="confirm" role="group" :aria-label="t('agents.session.confirmDeleteLabel')" data-testid="session-delete-confirm">
-    <span class="text">{{ t('agents.session.confirmDelete', { name }) }}</span>
-    <VButton :label="t('common.delete')" size="small" severity="danger" :loading="busy" data-testid="session-delete-yes" @click="emit('confirm')" />
+    <span class="text">{{ t(alive ? 'agents.session.confirmDelete' : 'agents.session.confirmDeleteStopped', { name }) }}</span>
+    <VButton :label="t('agents.session.deleteForever')" size="small" severity="danger" :loading="busy" data-testid="session-delete-yes" @click="emit('confirm')" />
     <VButton :label="t('common.cancel')" size="small" text data-testid="session-delete-no" @click="emit('cancel')" />
   </div>
 </template>

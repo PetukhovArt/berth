@@ -158,7 +158,7 @@ async function confirmDelete() {
         <a v-bind="itemProps.action" :data-testid="item.testid ?? `session-menu-${item.key}`">{{ item.label }}</a>
       </template>
     </VContextMenu>
-    <SessionDeleteConfirm v-if="mode === 'confirming-delete'" :name="session.name" :busy="action.busy.value" @confirm="confirmDelete" @cancel="cancel" />
+    <SessionDeleteConfirm v-if="mode === 'confirming-delete'" :name="session.name" :alive="alive !== false" :busy="action.busy.value" @confirm="confirmDelete" @cancel="cancel" />
     <MoveAgentDialog v-if="moving && movableAgent" :agent="movableAgent" @moved="moving = false" @close="moving = false" />
     <p v-if="action.error.value" class="row-error" role="alert" data-testid="session-error">{{ action.error.value }}</p>
   </div>

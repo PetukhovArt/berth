@@ -122,7 +122,7 @@ function onClose() {
       </template>
     </VContextMenu>
     <VDialog v-if="confirmingDelete" :visible="true" modal dismissable-mask :header="t('agents.session.confirmDeleteLabel')" :style="{ width: '26rem', maxWidth: '95vw' }" data-testid="session-delete-confirm" @update:visible="cancelDelete">
-      <p class="confirm">{{ t('agents.session.confirmDelete', { name: session(panel.id)?.name ?? panel.title ?? panel.id }) }}</p>
+      <p class="confirm">{{ t((states.get(panel.id)?.alive ?? session(panel.id)?.alive) === false ? 'agents.session.confirmDeleteStopped' : 'agents.session.confirmDelete', { name: session(panel.id)?.name ?? panel.title ?? panel.id }) }}</p>
       <VMessage v-if="deleting.error.value" severity="error" size="small" data-testid="session-error">{{ deleting.error.value }}</VMessage>
       <div class="actions">
         <VButton :label="t('common.cancel')" size="small" text data-testid="session-delete-no" @click="cancelDelete" />
