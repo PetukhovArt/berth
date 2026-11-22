@@ -26,7 +26,6 @@ export const search = {
     clear: 'Clear',
   },
   matches: { one: '{count} match', other: '{count} matches' },
-  openConversation: 'Open conversation',
   otherConversations: 'Other conversations',
   showAll: 'Show all {count}',
   role: {

@@ -3,16 +3,15 @@ import { computed } from 'vue';
 import { Archive, ChevronRight, FileText, GitPullRequest, MessageSquare, Ticket, Zap } from '../../../shared/ui/icons';
 import { markedSegments, revealFirstMatch, stripMarks, wholeWordStart, wordSegments } from '../../../shared/lib/segments';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { shortAge } from '../../../shared/lib/shortAge';
 import { useIsPhone } from '../../../shared/ui/kit';
 import { HarnessIcon, StatusIcon, useSessionStates } from '../../../entities/session';
 import { pipelineTone } from '../../../entities/merge-request';
-import { UiButton } from '../../../shared/ui/UiButton';
 import type { ConversationRow, SearchRow } from '../model/rows';
+import { UiButton } from '../../../shared/ui/UiButton';
 import Highlighted from './Highlighted.vue';
 
 const props = defineProps<{ row: SearchRow; query: string; current: boolean; blocked: string | null; heading: string; testid: string; folded?: ConversationRow; compact?: boolean }>();
-const emit = defineEmits<{ open: []; hover: []; openConversation: [] }>();
+const emit = defineEmits<{ open: []; hover: []; openConversation: [key: string] }>();
 
 const SNIPPETS_SHOWN = 2;
 const CRUMB_MIN_CH = 8;
@@ -28,7 +27,7 @@ const age = (value: number | string | null | undefined): { text: string; full: s
   if (value === null || value === undefined) return null;
   const time = typeof value === 'number' ? value : Date.parse(value);
   if (!time || Number.isNaN(time)) return null;
-  return { text: phone.value ? shortAge(Date.now(), time) : formatRelative(time), full: formatDate(time) };
+  return { text: formatRelative(time, phone.value ? 'narrow' : 'long'), full: formatDate(time) };
 };
 
 const entity = computed(() => {
@@ -73,7 +72,6 @@ const conversation = computed(() => {
       role: message.role === 'user' ? t('search.role.user') : t('search.role.assistant'),
       user: message.role === 'user',
     })),
-    link: !props.compact && (!own || found.matches > shown),
   };
 });
 
@@ -111,7 +109,10 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
         <Ticket v-else :size="14" />
         <HarnessIcon v-if="entity.harness" :harness="entity.harness" />
       </span>
-      <span class="line" :title="entity.label"><Highlighted :segments="titleSegments(entity.label, query)" /></span>
+      <span class="line" :class="{ tallied: conversation !== null }">
+        <span class="title" :title="entity.label"><Highlighted :segments="titleSegments(entity.label, query)" /></span>
+        <span v-if="conversation" class="meta count" data-testid="search-matches">{{ conversation.matches }}</span>
+      </span>
       <span v-if="entity.crumbs.length" class="sub">
         <span class="place">
           <template v-for="(crumb, at) in entity.crumbs" :key="at">
@@ -120,7 +121,6 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
           </template>
         </span>
       </span>
-      <span v-if="conversation" class="meta count" data-testid="search-matches">{{ conversation.matches }}</span>
       <span class="aside">
         <span v-if="entity.agent" class="meta">{{ entity.agent }}</span>
         <span v-if="entity.age" class="meta age" :title="entity.age.full">{{ entity.age.text }}</span>
@@ -138,7 +138,10 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
     </template>
     <template v-else-if="conversation && row.kind === 'messages'">
       <span class="icons"><HarnessIcon :harness="row.conversation.harness" :size="14" /></span>
-      <span class="line" :title="heading">{{ heading }}</span>
+      <span class="line tallied">
+        <span class="title" :title="heading">{{ heading }}</span>
+        <span class="meta count" data-testid="search-matches">{{ conversation.matches }}</span>
+      </span>
       <span class="sub">
         <span class="place">
           <template v-for="(crumb, at) in conversation.crumbs" :key="at">
@@ -147,7 +150,6 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
           </template>
         </span>
       </span>
-      <span class="meta count" data-testid="search-matches">{{ conversation.matches }}</span>
       <span class="aside">
         <span v-if="conversation.age" class="meta age" :title="conversation.age.full">{{ conversation.age.text }}</span>
       </span>
@@ -160,12 +162,11 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
         <span v-if="channel.age" class="meta age" :title="channel.age.full">{{ channel.age.text }}</span>
       </span>
     </template>
-    <span v-if="conversation && (conversation.snippets.length || conversation.link)" class="snippets">
-      <span v-for="snippet in conversation.snippets" :key="snippet.key" class="snippet" data-testid="search-snippet">
+    <span v-if="conversation?.snippets.length" class="snippets">
+      <UiButton v-for="snippet in conversation.snippets" :key="snippet.key" type="button" class="snippet" data-testid="search-snippet" @click.stop="emit('openConversation', snippet.key)">
         <span class="role" :data-user="snippet.user">{{ snippet.role }}</span>
         <span class="snippet-text" :title="snippet.plain"><Highlighted :segments="snippet.segments" /></span>
-      </span>
-      <UiButton v-if="conversation.link" type="button" class="more" data-testid="search-more-matches" @click.stop="emit('openConversation')">{{ t('search.openConversation') }}</UiButton>
+      </UiButton>
     </span>
   </li>
 </template>
@@ -214,6 +215,19 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
   white-space: nowrap;
 }
 
+.tallied {
+  display: flex;
+  align-items: baseline;
+  gap: var(--vr-space-2);
+}
+
+.title {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .sub {
   display: flex;
   grid-row: 2;
@@ -248,6 +262,11 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
   text-overflow: ellipsis;
 }
 
+.crumb:last-child {
+  flex-shrink: 0;
+  max-width: 100%;
+}
+
 .sep {
   flex: none;
 }
@@ -272,15 +291,9 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
 }
 
 .count {
-  grid-row: 2;
-  grid-column: 3;
-  align-self: center;
-  justify-self: end;
+  flex: none;
+  margin-inline-start: auto;
   white-space: nowrap;
-}
-
-.counted .sub {
-  grid-column: 2;
 }
 
 .snippets {
@@ -299,8 +312,24 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
   align-items: baseline;
   gap: var(--vr-space-2);
   min-width: 0;
-  font-size: var(--vr-font-size-xs);
+  padding: var(--vr-space-1) var(--vr-space-2);
   color: var(--vr-color-text-muted);
+  font: inherit;
+  font-size: var(--vr-font-size-xs);
+  text-align: start;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: var(--vr-radius-sm);
+}
+
+.snippet:hover {
+  background: var(--vr-color-nav-hover);
+}
+
+.snippet:focus-visible {
+  outline: 2px solid var(--vr-color-accent);
+  outline-offset: -2px;
 }
 
 .role {
@@ -326,43 +355,8 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
   -webkit-line-clamp: 1;
 }
 
-.more {
-  align-self: flex-start;
-  padding: 0;
-  color: var(--vr-color-link);
-  font: inherit;
-  font-size: var(--vr-font-size-xs);
-  text-align: start;
-  cursor: pointer;
-  background: none;
-  border: 0;
-}
-
-.more:hover {
-  text-decoration: underline;
-}
-
-.more:focus-visible {
-  outline: 2px solid var(--vr-color-accent);
-  outline-offset: 1px;
-}
-
-@container search-list (max-width: 900px) {
-  .count {
-    grid-row: 1;
-  }
-
-  .counted .aside {
-    grid-row: 2;
-  }
-}
-
 :root[data-vr-viewport='phone'] .line {
   grid-column: 2 / -1;
-}
-
-:root[data-vr-viewport='phone'] .counted .line {
-  grid-column: 2;
 }
 
 :root[data-vr-viewport='phone'] .sub {
@@ -371,5 +365,17 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
 
 :root[data-vr-viewport='phone'] .aside {
   grid-row: 2;
+}
+
+:root[data-vr-viewport='phone'] .counted .line {
+  grid-column: 2;
+}
+
+:root[data-vr-viewport='phone'] .counted .sub {
+  grid-column: 2 / -1;
+}
+
+:root[data-vr-viewport='phone'] .counted .aside {
+  grid-row: 1;
 }
 </style>

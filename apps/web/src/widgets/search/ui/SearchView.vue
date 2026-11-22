@@ -35,7 +35,9 @@ const { index, onKey } = usePickerList({
 });
 
 const positions = computed(() => new Map(rows.value.map((row, at) => [row.id, at])));
-const scopeOptions = computed(() => SCOPES.map((id) => ({ value: id, label: t(`search.scope.${id}`), count: search.chipCount(id) })));
+const scopeOptions = computed(() =>
+  SCOPES.map((id) => ({ value: id, label: t(`search.scope.${id}`), count: search.chipCount(id) })).filter((option) => option.count !== 0 || option.value === 'all' || option.value === searchScope.value),
+);
 const scope = computed({ get: () => searchScope.value, set: (value: string) => (searchScope.value = SCOPES.find((id) => id === value) ?? 'all') });
 
 function clearQuery() {
@@ -77,7 +79,7 @@ onMounted(() => input.value?.focus());
           :folded="search.foldedInto(row)"
           @hover="index = positions.get(row.id) ?? 0"
           @open="search.choose(row)"
-          @open-conversation="search.choose(search.foldedInto(row) ?? row)"
+          @open-conversation="search.choose(search.foldedInto(row) ?? row, $event)"
         />
         <li v-if="group.hidden > 0" role="presentation" class="more-row">
           <UiButton type="button" class="more" :data-testid="`search-show-all-${group.kind}`" @click="search.showAll(group.kind)">{{ t('search.showAll', { count: formatNumber(group.total) }) }}</UiButton>

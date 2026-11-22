@@ -75,13 +75,13 @@ function setLocale(next: Locale): void {
   source.value.write(next);
 }
 
-function formatRelative(value: Date | string | number): string {
+function formatRelative(value: Date | string | number, style: Intl.RelativeTimeFormatStyle = 'long'): string {
   const time = toTime(value);
   if (Number.isNaN(time)) return '';
   const seconds = Math.round((time - Date.now()) / 1000);
   const abs = Math.abs(seconds);
   if (abs < 45) return t('common.time.justNow');
-  const format = new Intl.RelativeTimeFormat(INTL_TAG[locale.value], { numeric: 'auto' });
+  const format = new Intl.RelativeTimeFormat(INTL_TAG[locale.value], { numeric: 'auto', style });
   for (const [unit, size] of RELATIVE_UNITS) {
     if (abs >= size) return format.format(Math.round(seconds / size), unit);
   }

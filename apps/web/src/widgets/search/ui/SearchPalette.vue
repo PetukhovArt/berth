@@ -51,10 +51,10 @@ function openAll() {
   openSearch(typed);
 }
 
-function choose(item: PaletteItem | undefined) {
+function choose(item: PaletteItem | undefined, messageKey?: string) {
   if (!item) return;
   if (item.kind === 'all') openAll();
-  else if (search.choose(item)) emit('close');
+  else if (search.choose(item, messageKey)) emit('close');
 }
 
 function onPanelKey(event: KeyboardEvent) {
@@ -127,7 +127,7 @@ onMounted(() => {
             compact
             @hover="index = positions.get(row.id) ?? 0"
             @open="choose(row)"
-            @open-conversation="choose(search.foldedInto(row) ?? row)"
+            @open-conversation="choose(search.foldedInto(row) ?? row, $event)"
           />
         </template>
         <li v-if="search.nothing.value" class="none" role="presentation">

@@ -52,10 +52,10 @@ export function useOpener(words: () => readonly string[]) {
     return owner?.name ?? listed?.title ?? found.title ?? `${found.harness} ${found.session.slice(0, SHORT_ID)}`;
   }
 
-  function openConversation(found: ConversationHit) {
+  function openConversation(found: ConversationHit, messageKey?: string) {
     const owner = owners.value.get(`${found.harness}:${found.session}`);
     const node = owner && !owner.archived ? berth?.sessions.value.get(sessionKey({ Agent: owner.id })) : undefined;
-    const key = found.snippets[0]?.key;
+    const key = messageKey ?? found.snippets[0]?.key;
     if (key && (node || found.harness !== 'acp')) focusMessage({ harness: found.harness, session: found.session, key, words: words() });
     if (found.harness === 'acp') {
       if (node) dock.openSession(node);
@@ -76,9 +76,9 @@ export function useOpener(words: () => readonly string[]) {
     return conversationOfArchived(row.entry.node) ? null : t('search.blocked.archived');
   }
 
-  function open(row: SearchRow) {
+  function open(row: SearchRow, messageKey?: string) {
     if (row.kind === 'channels') openChannel(row.message.channel);
-    else if (row.kind === 'messages') openConversation(row.conversation);
+    else if (row.kind === 'messages') openConversation(row.conversation, messageKey);
     else if (row.kind === 'files') dock.openFile(row.file.path, { worktreeId: dock.activeWorktree.value?.id });
     else if (row.kind === 'actions') ACTIONS[row.action.key]?.();
     else if (row.entry.node.kind === 'archived') {

@@ -142,9 +142,9 @@ export function useSearch(options: SearchOptions) {
     expanded.value = new Set(expanded.value).add(kind);
   }
 
-  function choose(row: SearchRow | undefined): boolean {
+  function choose(row: SearchRow | undefined, messageKey?: string): boolean {
     if (!row || opener.blockedReason(row)) return false;
-    opener.open(row);
+    opener.open(row, messageKey);
     return true;
   }
 
