@@ -25,6 +25,7 @@ export const commands: Translation<typeof en> = {
     agentsQuickOpen: 'Быстрый переход к сессии, запросу или задаче',
     agentsNewSession: 'Новая сессия в активном worktree',
     inboxNextWaiting: 'Открыть следующую сессию, где нужны вы',
+    searchOpen: 'Поиск по сессиям, запросам, задачам и тексту диалогов',
     dockToggleMaximize: 'Развернуть или вернуть активную группу панелей',
     keymapOpenSettings: 'Настроить сочетания клавиш',
     keymapOpenFile: 'Открыть keymap.json в редакторе',

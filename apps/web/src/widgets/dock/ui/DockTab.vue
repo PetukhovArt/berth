@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DockviewPanelApi } from 'dockview-vue';
-import { FileText, GitPullRequest, Network, Ticket, X } from '../../../shared/ui/icons';
+import { FileText, GitPullRequest, Network, Search, Ticket, X } from '../../../shared/ui/icons';
 import { isDirtyPath, settleDirty } from '../../../entities/document';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { METRICS_PANEL, useBerth, isExternalPanel, stopAgent, useExternalSessions, useSessionStates, StatusDot } from '../../../entities/session';
@@ -14,8 +14,9 @@ const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
 const berth = useBerth();
 const external = useExternalSessions();
 
-function kindOf(id: string): 'metrics' | 'file' | 'review' | 'architecture' | 'issue' | 'conversation' | 'session' {
+function kindOf({ id, component }: DockviewPanelApi): 'metrics' | 'search' | 'file' | 'review' | 'architecture' | 'issue' | 'conversation' | 'session' {
   if (id === METRICS_PANEL) return 'metrics';
+  if (component === 'search') return 'search';
   if (id.startsWith('arch:')) return 'architecture';
   if (isExternalPanel(id)) return 'conversation';
   if (isFilePanel(id)) return 'file';
@@ -37,19 +38,20 @@ async function close() {
 </script>
 
 <template>
-  <span class="tab status-host" :data-testid="`${kindOf(panel.id)}-tab`" :data-panel-id="panel.id" :data-session-id="session(panel.id)?.id" :data-active="active" @auxclick.middle="close">
-    <FileText v-if="kindOf(panel.id) === 'file'" :size="12" />
-    <GitPullRequest v-else-if="kindOf(panel.id) === 'review'" :size="12" />
-    <Network v-else-if="kindOf(panel.id) === 'architecture'" :size="12" />
-    <Ticket v-else-if="kindOf(panel.id) === 'issue'" :size="12" />
-    <template v-else-if="kindOf(panel.id) === 'conversation'">
+  <span class="tab status-host" :data-testid="`${kindOf(panel)}-tab`" :data-panel-id="panel.id" :data-session-id="session(panel.id)?.id" :data-active="active" @auxclick.middle="close">
+    <Search v-if="kindOf(panel) === 'search'" :size="12" />
+    <FileText v-else-if="kindOf(panel) === 'file'" :size="12" />
+    <GitPullRequest v-else-if="kindOf(panel) === 'review'" :size="12" />
+    <Network v-else-if="kindOf(panel) === 'architecture'" :size="12" />
+    <Ticket v-else-if="kindOf(panel) === 'issue'" :size="12" />
+    <template v-else-if="kindOf(panel) === 'conversation'">
       <StatusDot :status="conversationDot(panel.id)" :unseen="false" />
     </template>
     <template v-else-if="session(panel.id)">
       <StatusDot :status="states.get(panel.id)?.status ?? session(panel.id)?.status" :unseen="states.get(panel.id)?.unseen ?? session(panel.id)?.unseen" data-testid="session-tab-status" />
     </template>
     <span class="name">{{ session(panel.id)?.name ?? external?.anyByKey.value.get(panel.id)?.title ?? panelTitle(panel.title, panel.getParameters()) }}</span>
-    <SessionViewSwitch v-if="kindOf(panel.id) === 'conversation'" :panel="panel" :active="active" />
+    <SessionViewSwitch v-if="kindOf(panel) === 'conversation'" :panel="panel" :active="active" />
     <span v-if="isFilePanel(panel.id) && isDirtyPath(panel.id.slice(FILE_PANEL_PREFIX.length))" class="dirty" :title="t('files.editor.dirty')" data-testid="file-tab-dirty" />
     <UiButton class="close" :title="t('common.close')" :aria-label="t('common.close')" data-testid="session-tab-close" @pointerdown.stop @click.stop="close"><X :size="12" /></UiButton>
   </span>

@@ -19,7 +19,7 @@ import { firstRunActive } from '../../shared/model/firstRun';
 import { isDark, toggleTheme } from '../../shared/ui/appearance';
 import { openReview, reviveReview } from '../../entities/merge-request';
 import { useDock } from '../../shared/model/dock';
-import { QuickOpen } from '../../widgets/quick-open';
+import { SearchPopup, reviveSearch } from '../../widgets/search';
 import { VoiceIndicator } from '../../features/voice-input';
 
 const SettingsView = defineAsyncComponent(() => import('../../pages/settings').then((m) => m.SettingsView));
@@ -34,6 +34,7 @@ watch(firstRun, (value) => (firstRunActive.value = value), { immediate: true });
 const viewKey = 'berth.view.v2';
 
 useDock().revivable(reviveReview);
+useDock().revivable(reviveSearch);
 
 try {
   view.value = JSON.parse(localStorage.getItem(viewKey) ?? '') as View;
@@ -70,7 +71,7 @@ watch(
       </main>
       <MobileNav v-if="mobile" class="mobile-nav" />
     </div>
-    <QuickOpen />
+    <SearchPopup />
     <UnsavedDialog />
     <UpdateDialog v-if="inTauri" />
     <ChangesDialog v-if="inTauri" />

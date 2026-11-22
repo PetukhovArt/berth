@@ -3,7 +3,7 @@ import type { Translation } from '../types';
 
 export const workbench: Translation<typeof en> = {
   tree: 'Проекты',
-  filter: 'Фильтр сессий, запросов, задач',
+  filter: 'Фильтр дерева и входящих',
   sessions: 'Сессии',
   mergeRequests: 'Merge requests',
   notInProject: 'Вне проектов',

@@ -3,6 +3,7 @@ import { AGENT_KIND_LABEL, pinnedFirst, externalKey, placeExternal, splitEarlier
 import type { ConnectorView, InboxItem, JiraIssueSummary, PipelineStatus } from '../../../shared/api/connectors/api';
 import { numberLabel, itemId, pipelineRollup } from '../../../entities/merge-request';
 import { t, compareText } from '../../../shared/lib/i18n/i18n';
+import { matchesWords } from '../../../shared/lib/fuzzy';
 import type { TreeNode } from '../../../shared/ui/explorer-tree/types';
 import { type RepoRef, projectOfRepo, repoRefOf, connectorBase, type Remote } from '../../../entities/repo';
 import { issuePanelId } from '../../../entities/jira-issue';
@@ -101,14 +102,6 @@ function link(sources: Sources): Links {
 
   for (const issue of sources.issues) push(links.work, projectOfKey(issue.key), issue);
   return links;
-}
-
-function matcher(query: string): (text: string) => boolean {
-  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  return (text) => {
-    const haystack = text.toLowerCase();
-    return words.every((word) => haystack.includes(word));
-  };
 }
 
 function countLeaves(nodes: readonly WorkNode[]): number {
@@ -350,7 +343,7 @@ function liveSources(sources: Sources): Sources {
 export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly = false): WorkNode[] {
   const sources = liveOnly ? liveSources(given) : given;
   const links = link(sources);
-  const match = matcher(query);
+  const match = (text: string) => matchesWords(query, text);
   const filtering = query.trim().length > 0;
   const pruned = filtering || liveOnly;
   const placed = place(sources);
@@ -451,7 +444,8 @@ export type QuickItem = { key: string; node: WorkNode; crumbs: string[]; search:
 
 const CRUMB_KINDS = new Set(['workspace', 'project', 'worktree', 'orphans', 'repo', 'folder', 'folders']);
 const QUICK_KINDS = new Set(['session', 'external', 'mr', 'issue']);
-const QUICK_RANK: Readonly<Record<string, number>> = { session: 0, external: 1, mr: 2 };
+const ARCHIVED_KINDS = new Set(['archived', 'archived-external']);
+const QUICK_RANK: Readonly<Record<string, number>> = { session: 0, external: 1, mr: 2, issue: 3 };
 
 const quickAgent = (node: WorkNode): Pick<QuickItem, 'agent' | 'at'> => {
   const { session, external } = node.data ?? {};
@@ -460,22 +454,23 @@ const quickAgent = (node: WorkNode): Pick<QuickItem, 'agent' | 'at'> => {
   return { agent: null, at: null };
 };
 
-export function quickItems(nodes: readonly WorkNode[]): QuickItem[] {
+export function quickItems(nodes: readonly WorkNode[], withArchived = false): QuickItem[] {
   const out: QuickItem[] = [];
   const seen = new Set<string>();
   const walk = (list: readonly WorkNode[], crumbs: string[]) => {
     for (const node of list) {
       if (node.children) walk(node.children, CRUMB_KINDS.has(node.kind) ? [...crumbs, node.label] : crumbs);
-      else if (QUICK_KINDS.has(node.kind)) {
+      else if (QUICK_KINDS.has(node.kind) || (withArchived && ARCHIVED_KINDS.has(node.kind))) {
         const identity = node.data?.session?.key ?? (node.data?.external ? externalKey(node.data.external) : node.id);
         if (seen.has(identity)) continue;
         seen.add(identity);
         const extra = node.data?.item ? ` ${mrText(node.data.item)} ${node.data.review?.refs.join(' ') ?? ''}` : node.data?.external ? ` ${externalText(node.data.external)}` : node.data?.linked ? ` ${externalText(node.data.linked)}` : '';
-        out.push({ key: node.id, node, crumbs, search: `${crumbs.join(' › ')} › ${node.label}${extra}`.toLowerCase(), ...quickAgent(node) });
+        const where = node.kind === 'archived' && node.data?.where ? node.data.where.split(' › ') : crumbs;
+        out.push({ key: node.id, node, crumbs: where, search: `${where.join(' › ')} › ${node.label}${extra}`.toLowerCase(), ...quickAgent(node) });
       }
     }
   };
   walk(nodes, []);
-  const rank = (item: QuickItem) => QUICK_RANK[item.node.kind] ?? 3;
+  const rank = (item: QuickItem) => QUICK_RANK[item.node.kind] ?? 4;
   return out.sort((a, b) => rank(a) - rank(b));
 }

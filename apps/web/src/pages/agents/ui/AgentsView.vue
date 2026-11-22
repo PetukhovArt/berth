@@ -21,6 +21,7 @@ const ChangeRequestView = defineAsyncComponent(() => import('../../../widgets/ch
 const WorktreeChanges = defineAsyncComponent(() => import('../../../widgets/worktree-changes').then((m) => m.WorktreeChanges));
 const JiraIssueView = defineAsyncComponent(() => import('../../../widgets/jira-browser').then((m) => m.JiraIssueView));
 const ConversationView = defineAsyncComponent(() => import('../../../widgets/conversation').then((m) => m.ConversationView));
+const SearchView = defineAsyncComponent(() => import('../../../widgets/search').then((m) => m.SearchView));
 const MetricsPanel = defineAsyncComponent(() => import('../../../widgets/metrics').then((m) => m.MetricsPanel));
 const ChannelView = defineAsyncComponent(() => import('../../../widgets/channel').then((m) => m.ChannelView));
 const MarkdownFile =defineAsyncComponent(() => import('../../../widgets/markdown-file').then((m) => m.MarkdownFile));
@@ -44,7 +45,7 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
   <FirstRun v-else-if="isFirstRun(berth.entities.value)" />
   <div v-else class="workbench vr-master-detail" data-testid="workbench" :data-detail="detail">
     <PhoneInbox v-if="mobile && phoneSection === 'inbox'" class="vr-master" />
-    <ProjectTree v-else-if="mobile" class="vr-master" with-filter :tabs-shown="phoneSection === 'reviews' ? ['reviews'] : ['sessions', 'mrs', 'tasks']" :with-inbox="false" />
+    <ProjectTree v-else-if="mobile" class="vr-master" :tabs-shown="phoneSection === 'reviews' ? ['reviews'] : ['sessions', 'mrs', 'tasks']" :with-inbox="false" />
     <DockArea class="vr-detail" :active-key="activeKey" @ready="onReady">
       <template #panel-session="{ params, api }">
         <div class="session">
@@ -83,6 +84,9 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
       </template>
       <template #panel-metrics>
         <MetricsPanel class="vr-fade-in" />
+      </template>
+      <template #panel-search>
+        <SearchView class="vr-fade-in" />
       </template>
       <template #panel-channel="{ params }">
         <ChannelView v-if="typeof params.key === 'string'" class="vr-fade-in" :channel="params.key" />

@@ -1,0 +1,32 @@
+export const search = {
+  title: 'Search',
+  placeholder: 'Search sessions, requests, tasks and messages',
+  query: 'Search query',
+  scopeLabel: 'Search in',
+  scope: {
+    all: 'All',
+    sessions: 'Sessions',
+    mr: 'Merge requests',
+    tasks: 'Tasks',
+    messages: 'Messages',
+    channels: 'Channels',
+    files: 'Files',
+    actions: 'Actions',
+  },
+  allResults: 'All results ({count})',
+  hint: 'Type to search sessions, merge requests, tasks, channels and the text of Claude and Codex conversations.',
+  minChars: 'Type at least {count} characters to search conversation text.',
+  searching: 'Searching conversations…',
+  indexing: 'Indexed {indexed} of {total} conversations. Results may be incomplete.',
+  failed: 'Could not search conversation text: {message}',
+  none: 'Nothing found',
+  showAll: 'Show all {count}',
+  role: {
+    user: 'You',
+    assistant: 'Agent',
+  },
+  blocked: {
+    archived: 'Restore this session to open it',
+  },
+  channelMessage: '# {channel} · {author}',
+} as const;

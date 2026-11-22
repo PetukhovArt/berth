@@ -50,14 +50,6 @@ export const files: Translation<typeof en> = {
     dialog: 'Быстрый переход к сессии или файлу',
     search: 'Поиск сессий и файлов',
     placeholderFiles: 'workspace › проект › ветка › сессия или Markdown-файл в {scope}',
-    groups: {
-      sessions: 'Сессии',
-      mergeRequests: 'Merge requests',
-      tasks: 'Задачи',
-      files: 'Файлы',
-      actions: 'Действия',
-      messages: 'Сообщения',
-    },
-    hint: 'Enter открывает',
+    hint: 'Enter открывает, Ctrl+Enter показывает все результаты',
   },
 };

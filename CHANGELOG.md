@@ -3,6 +3,9 @@
 ## Unreleased
 
 - Added drag handles on both edges of the Chat view's column: drag one to resize or move the transcript and composer together, use the arrow keys on a focused handle, double-click to go back to 920px centered; the layout is kept across restarts
+- Added a Search view (`Ctrl+Shift+F`) that finds Sessions (archived ones too), merge requests, tasks, channel messages and the full text of Claude and Codex conversations, from an index the desktop app keeps in `search-index.db`
+- Changed Quick Open (`Ctrl+P`) to search conversation text through the same index, with an "All results" row (`Ctrl+Enter`) that opens the Search view on the same query
+- Changed the sidebar filter to an always visible field that filters the Inbox as well as the tree; `Ctrl+K` focuses it
 - Fixed `berth worktree <branch>` and `berth spawn --worktree <branch>` starting a new local branch from the default base when that branch already exists on origin: the worktree now checks out origin's branch and tracks it
 - Fixed a Session started by `berth spawn` getting no tab: it now opens as a tab beside the Session that ran the command, without taking focus from it
 - Fixed an open terminal showing `[session ended, code 1]` after its Session was restarted, switched model or moved into a worktree by `berth worktree`, while the new process ran unseen; the terminal now switches to the new process

@@ -1,6 +1,6 @@
 export const workbench = {
   tree: 'Projects',
-  filter: 'Filter sessions, requests, tasks',
+  filter: 'Filter tree and inbox',
   sessions: 'Sessions',
   mergeRequests: 'Merge requests',
   notInProject: 'Not in a project',

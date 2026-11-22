@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
-import { Check, ChevronRight, Ellipsis, Eye, GitPullRequest, ListTodo, MessageSquare, Plus, RefreshCw, Search, SlidersHorizontal, SquareTerminal, TriangleAlert } from '../../../shared/ui/icons';
+import { Check, ChevronRight, Ellipsis, Eye, GitPullRequest, ListTodo, MessageSquare, Plus, RefreshCw, Search, SquareTerminal, TriangleAlert } from '../../../shared/ui/icons';
 import { sidebarSearchRequests } from '../../../shared/model/sidebar';
-import { shortcutLabel } from '../../../shared/lib/commands/keymap';
-import { VContextMenu } from '../../../shared/ui/kit';
+import { VContextMenu, useIsPhone } from '../../../shared/ui/kit';
 import ArchivedExternalRow from './ArchivedExternalRow.vue';
 import ArchivedRow from './ArchivedRow.vue';
 import ExternalSessionRow from './ExternalSessionRow.vue';
@@ -27,7 +26,8 @@ import { openLeaf, type ReviewMeta, type WorkNode, treeLiveOnly, treeProjectsCol
 
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiInput from '../../../shared/ui/UiInput.vue';
-const props = withDefaults(defineProps<{ withFilter?: boolean; tabsShown?: readonly string[]; withInbox?: boolean }>(), { withFilter: false, tabsShown: undefined, withInbox: true });
+const props = withDefaults(defineProps<{ tabsShown?: readonly string[]; withInbox?: boolean }>(), { tabsShown: undefined, withInbox: true });
+const phone = useIsPhone();
 
 const dock = useDock();
 const sessions = useSessionDock();
@@ -68,29 +68,18 @@ function showArchMenu(event: MouseEvent, item: InboxItem, review?: ReviewMeta) {
 const jiraRefs = (review: ReviewMeta | undefined) => review?.refs.filter((ref) => !ref.startsWith('!')).join(', ') ?? '';
 const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft:|\[draft\]|\(draft\)|wip:)\s*/i, '') : item.title);
 
-const showFilter = shallowRef(false);
 const projectAdd = useTemplateRef<InstanceType<typeof ProjectActions>>('projectAdd');
 const openWorkspace = useOpenWorkspace();
 const addWorkspaceId = computed(() => openWorkspace.value ?? berth?.tree.value[0]?.id);
 
-const filterTitle = computed(() => {
-  const shortcut = shortcutLabel('sidebar.search');
-  return shortcut ? `${t('workbench.filter')} (${shortcut})` : t('workbench.filter');
-});
 const filterInput = useTemplateRef<InstanceType<typeof UiInput>>('filterInput');
 
-function toggleFilter() {
-  if (showFilter.value) treeQuery.value = '';
-  showFilter.value = !showFilter.value;
-}
-
-function closeFilter() {
+function clearFilter(event: KeyboardEvent) {
   treeQuery.value = '';
-  if (!props.withFilter) showFilter.value = false;
+  if (event.target instanceof HTMLElement) event.target.blur();
 }
 
 watch(sidebarSearchRequests, async () => {
-  showFilter.value = true;
   await nextTick();
   filterInput.value?.focus();
 });
@@ -103,7 +92,7 @@ const moreItems = computed(() => {
     const title = cleanupRemoving.value ? t('cleanup.removing', { name: cleanupRemoving.value.name }) : cleanupCount.value ? t('cleanup.buttonCount', { count: cleanupCount.value }) : t('cleanup.button');
     items.push({ key: 'cleanup', label: title, command: openCleanup });
   }
-  if (props.withFilter) {
+  if (phone.value) {
     items.push({ key: 'quick-open', label: t('agents.layouts.quickOpen'), title: t('agents.layouts.quickOpenTitle'), command: () => (dock.switching.value = true) });
     if (berth) items.push({ key: 'metrics', label: t('agents.metrics.title'), title: t('agents.metrics.open'), command: () => sessions.openMetrics() });
   }
@@ -134,9 +123,9 @@ const moreItems = computed(() => {
         </div>
       </div>
     </div>
-    <label v-if="withFilter || showFilter || filtering" class="filter">
+    <label class="filter">
       <Search :size="14" />
-      <UiInput ref="filterInput" v-model="treeQuery" :placeholder="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="tree-filter" @keydown.esc="closeFilter" />
+      <UiInput ref="filterInput" v-model="treeQuery" :placeholder="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="tree-filter" @keydown.esc="clearFilter" />
     </label>
     <div class="scroll">
       <NavNotices />
@@ -144,14 +133,13 @@ const moreItems = computed(() => {
         <template #project="{ repo }"><RepoActions :repo="repo" /></template>
       </MrSessionNotice>
       <p v-for="error in errors" :key="`${error.connector}:${error.message}`" class="strip" role="alert" data-testid="tree-error" :title="error.message">{{ error.connector }}: {{ error.message }}</p>
-      <InboxSection v-if="withInbox && activeTab === 'sessions' && !filtering" />
+      <InboxSection v-if="withInbox && activeTab === 'sessions'" :query="treeQuery" />
       <div v-if="activeTab === 'sessions'" class="section-head" data-testid="project-tree-head">
         <UiButton class="section-toggle" :aria-expanded="projectsOpen" :disabled="filtering" data-testid="project-tree-toggle" @click="treeProjectsCollapsed = !treeProjectsCollapsed">
           <ChevronRight :size="14" class="chevron vr-chevron" />
           <span class="section-title">{{ t('workbench.tree') }}</span>
         </UiButton>
         <span class="section-actions">
-          <UiButton v-if="!withFilter" class="icon" :title="filterTitle" :aria-label="t('workbench.filter')" :aria-pressed="showFilter" data-testid="tree-filter-toggle" @click="toggleFilter"><SlidersHorizontal :size="14" /></UiButton>
           <UiButton v-if="moreItems.length" class="icon more" :data-active="liveShown" :title="t('workbench.more')" :aria-label="t('workbench.more')" aria-haspopup="menu" data-testid="tree-more" @click="moreMenu?.show($event)"><Ellipsis :size="14" /></UiButton>
           <UiButton v-if="addWorkspaceId" class="icon" :title="t('agents.project.add')" :aria-label="t('agents.project.add')" data-testid="project-add" @click="projectAdd?.openAdd()"><Plus :size="14" /></UiButton>
         </span>

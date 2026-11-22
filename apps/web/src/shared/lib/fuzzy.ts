@@ -28,6 +28,15 @@ export function wordScore(word: string, text: string): number | null {
   return word.length > SUBSEQUENCE_MAX_WORD ? null : subsequenceScore(word, text);
 }
 
+export function matchesWords(query: string, text: string): boolean {
+  const haystack = text.toLowerCase();
+  return query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((word) => haystack.includes(word));
+}
+
 export function fuzzyScore(query: string, text: string): number | null {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   const haystack = text.toLowerCase();

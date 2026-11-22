@@ -213,3 +213,13 @@ _Avoid_: snapshot, backup
 **Channel**
 A named stream of messages on the team hub (`hub_url`) that people and Agents post to and read, with an unread count per member. The Inbox lists Channels with unread messages and opens them as a view beside the Sessions. Not the Transport.
 _Avoid_: chat room, topic
+
+## Finding things
+
+**Search**
+The one search over Sessions, merge requests, tasks, Channel messages and the text of Claude and Codex conversations, ranked the same way for every kind. It has two surfaces: the popup in the title bar (the Quick Open command, `Ctrl+P`), which shows the top rows per group and an "All results" row, and the Search view, a dock panel (`Ctrl+Shift+F`) with every result. Conversation text comes from the search index (`search-index.db`) that the desktop app builds, so it needs the desktop app.
+_Avoid_: quick switcher, global search
+
+**Tree filter**
+The field above the Sessions tree (`Ctrl+K`) that narrows the tree and the Inbox in place as you type. It is not Search: it only hides rows of what is already on screen and never searches conversation text.
+_Avoid_: search box, sidebar search

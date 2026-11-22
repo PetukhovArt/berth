@@ -7,7 +7,10 @@ import { allowRequest, alwaysAllowRequest, chooseOption, denyRequest, isYesNoPer
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { shortcutLabel } from '../../../shared/lib/commands/keymap';
 import { shortAge } from '../../../shared/lib/shortAge';
+import { matchesWords } from '../../../shared/lib/fuzzy';
 import { openNextNeedingYou, settleInbox, snoozeInbox, useInbox, type InboxEntry } from '../model/inbox';
+
+const props = withDefaults(defineProps<{ query?: string }>(), { query: '' });
 
 const { t, formatTime } = useI18n();
 const nextShortcut = computed(() => shortcutLabel('inbox.nextWaiting'));
@@ -18,6 +21,9 @@ const { items, now } = useInbox();
 const { unread: channels } = useChannelUnread();
 const dock = useSessionDock();
 const berth = useBerth();
+const reason = (entry: InboxEntry) => (entry.kind === 'limit' && !resetTime(entry.state.limitUntil) ? t('attention.inbox.limitNoReset') : t(`attention.inbox.${entry.kind}`, { time: resetTime(entry.state.limitUntil) }));
+const shown = computed(() => items.value.filter((entry) => matchesWords(props.query, [entry.state.name, entry.place, reason(entry)].join(' '))));
+const shownChannels = computed(() => channels.value.filter((channel) => matchesWords(props.query, channel.key)));
 const agentRef = (entry: InboxEntry): { Agent: string } | null => (entry.node && 'Agent' in entry.node.ref ? entry.node.ref : null);
 const requestOf = (entry: InboxEntry) => {
   const ref = agentRef(entry);
@@ -75,16 +81,16 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
 </script>
 
 <template>
-  <section v-if="items.length || channels.length" class="inbox" data-testid="inbox">
+  <section v-if="shown.length || shownChannels.length" class="inbox" data-testid="inbox">
     <div class="head">
       <span class="title">{{ t('attention.inbox.title') }}</span>
-      <span class="count" data-testid="inbox-count">{{ items.length + channels.length }}</span>
+      <span class="count" data-testid="inbox-count">{{ shown.length + shownChannels.length }}</span>
       <span class="spacer" />
       <UiButton v-if="nextShortcut" class="next" :title="t('attention.inbox.next')" :aria-label="t('attention.inbox.next')" data-testid="inbox-next-waiting" @click="openNextNeedingYou">
         <kbd>{{ nextShortcut }}</kbd>
       </UiButton>
     </div>
-    <div v-for="entry in items" :key="entry.key" class="item" data-testid="inbox-item" :data-kind="entry.kind" :data-session-id="entry.node?.id">
+    <div v-for="entry in shown" :key="entry.key" class="item" data-testid="inbox-item" :data-kind="entry.kind" :data-session-id="entry.node?.id">
       <UiButton class="row" :title="entry.state.name" @click="dock.openKey(entry.key)" @contextmenu.prevent="showMenu($event, entry)">
         <StatusIcon :status="entry.state.status" :unseen="entry.state.unseen" />
         <span class="body">
@@ -92,7 +98,7 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
             <span class="name">{{ entry.state.name }}</span>
             <span class="age">{{ age(entry.since) }}</span>
           </span>
-          <span class="reason"><span class="kind">{{ entry.kind === 'limit' && !resetTime(entry.state.limitUntil) ? t('attention.inbox.limitNoReset') : t(`attention.inbox.${entry.kind}`, { time: resetTime(entry.state.limitUntil) }) }}</span><template v-if="entry.place"> · {{ entry.place }}</template></span>
+          <span class="reason"><span class="kind">{{ reason(entry) }}</span><template v-if="entry.place"> · {{ entry.place }}</template></span>
         </span>
       </UiButton>
       <div v-if="requestOf(entry)" class="card vr-phone-only" data-testid="inbox-request">
@@ -116,7 +122,7 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
       </div>
       <UiButton class="more" :title="t('attention.inbox.actions')" :aria-label="t('attention.inbox.actions')" aria-haspopup="menu" data-testid="inbox-menu" @click="showMenu($event, entry)"><Ellipsis :size="14" /></UiButton>
     </div>
-    <div v-for="channel in channels" :key="channel.key" class="item" data-testid="inbox-channel" data-kind="channel">
+    <div v-for="channel in shownChannels" :key="channel.key" class="item" data-testid="inbox-channel" data-kind="channel">
       <UiButton class="row" :title="channel.key" @click="openChannel(channel.key)">
         <MessageSquare :size="14" class="channel-icon" />
         <span class="body">

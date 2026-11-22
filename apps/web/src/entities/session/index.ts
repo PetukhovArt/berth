@@ -12,8 +12,6 @@ export { derivePlan } from './model/plan';
 export { listSlashCommands, matchSlashCommands } from './model/slashCommands';
 export type { SlashCommand, SlashSource } from './model/slashCommands';
 export { acpMessages, useAcpChat } from './model/acpChat';
-export { searchSessionText } from './model/sessionText';
-export type { SessionTextCandidate } from './model/sessionText';
 export { withShellBlocks } from './model/shellTags';
 export type { FileEdit } from './model/shellTags';
 export { useLinkedPlan } from './model/linkedPlan';
@@ -36,6 +34,8 @@ export { canContinueAsAgent, clearHandoff, continueTerminalInDock, handoffOf } f
 export type { OrphanedSession } from './model/orphans';
 export { canMove, moved, pinned, pinnedFirst, unpinned } from './model/projectPins';
 export { METRICS_PANEL, useSessionDock } from './model/sessionDock';
+export { MIN_MESSAGE_QUERY, searchMessages } from './model/messageSearch';
+export type { MessageHit, MessageSearch } from './model/messageSearch';
 export { useAction } from './model/useAction';
 export { addProject, addWorkspace, openWorkspace, removeProject, removeWorkspace, renameProject, renameWorkspace, setProjectPins, useOpenWorkspace } from './model/workspaces';
 export { useWorktreeOptions } from './model/worktrees';

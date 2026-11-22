@@ -10,7 +10,6 @@ import { loadOpenTabs, saveOpenTabs } from './openTabs';
 import { sessionPaths } from '../lib/sessionPaths';
 
 export const METRICS_PANEL = 'metrics';
-
 const isSessionPanel = (id: string) => id.startsWith('agent:') || id.startsWith('terminal:');
 
 function filePanel(path: string, hash = ''): PanelSpec {
@@ -150,7 +149,7 @@ function createSessionDock() {
 
   onAgentSpawned(openSpawned);
 
-  function openLinkedConversation(session: SessionNode, linked: ExternalSession) {
+  function openLinkedConversation(session: SessionNode, linked: Pick<ExternalSession, 'harness' | 'id'>) {
     withDock((api) => {
       const id = externalKey(linked);
       const existing = api.getPanel(id);
@@ -184,7 +183,7 @@ function createSessionDock() {
     });
   }
 
-  function openExternal(session: ExternalSession, split = false, beside?: string) {
+  function openExternal(session: Pick<ExternalSession, 'harness' | 'id' | 'title'>, split = false, beside?: string) {
     const anchor: PanelPosition | boolean = beside && dock.api.value?.getPanel(beside) ? { referencePanel: beside, direction: 'within' } : split;
     openPanel({ id: externalKey(session), component: 'conversation', title: session.title, params: { harness: session.harness, id: session.id } }, anchor);
   }

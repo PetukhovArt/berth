@@ -11,6 +11,7 @@ import { openUpdate } from '../features/update';
 import { toggleMaximizedGroup, toggleQuickOpen } from '../shared/model/dock';
 import { startNewSession } from '../features/new-session';
 import { openNextNeedingYou } from '../features/attention';
+import { openSearch } from '../widgets/search';
 import { holdToTalk, toggleWakeWord } from '../features/voice-input';
 import { paletteOpen } from '../shared/lib/commands/context';
 import { openKeymapExternal } from '../shared/lib/commands/keymap';
@@ -40,6 +41,7 @@ defineAction({ id: 'terminal.zoomOut', title: 'commands.action.terminalZoomOut',
 defineAction({ id: 'terminal.zoomReset', title: 'commands.action.terminalZoomReset', category: TERMINAL, run: () => zoomTerminal(0) });
 
 defineAction({ id: 'agents.quickOpen', title: 'commands.action.agentsQuickOpen', category: NAVIGATION, run: toggleQuickOpen });
+defineAction({ id: 'search.open', title: 'commands.action.searchOpen', category: NAVIGATION, run: () => openSearch() });
 defineAction({ id: 'hot.overview', title: 'hot.overview.title', category: NAVIGATION, run: () => hotEnabled.value && toggleHotOverview() });
 defineAction({ id: 'inbox.nextWaiting', title: 'commands.action.inboxNextWaiting', category: NAVIGATION, run: openNextNeedingYou });
 defineAction({ id: 'agents.newSession', title: 'commands.action.agentsNewSession', category: NAVIGATION, run: startNewSession });

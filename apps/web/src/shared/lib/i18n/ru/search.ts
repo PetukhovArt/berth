@@ -1,0 +1,32 @@
+export const search = {
+  title: 'Поиск',
+  placeholder: 'Поиск по сессиям, MR, задачам и сообщениям',
+  query: 'Поисковый запрос',
+  scopeLabel: 'Где искать',
+  scope: {
+    all: 'Везде',
+    sessions: 'Сессии',
+    mr: 'MR',
+    tasks: 'Задачи',
+    messages: 'Сообщения',
+    channels: 'Каналы',
+    files: 'Файлы',
+    actions: 'Действия',
+  },
+  allResults: 'Все результаты ({count})',
+  hint: 'Введите запрос: поиск идёт по сессиям, MR, задачам, каналам и тексту диалогов Claude и Codex.',
+  minChars: 'Чтобы искать по тексту диалогов, введите не меньше {count} символов.',
+  searching: 'Ищем по диалогам…',
+  indexing: 'Проиндексировано {indexed} из {total} диалогов. Результаты могут быть неполными.',
+  failed: 'Не удалось выполнить поиск по тексту диалогов: {message}',
+  none: 'Ничего не найдено',
+  showAll: 'Показать все: {count}',
+  role: {
+    user: 'Вы',
+    assistant: 'Агент',
+  },
+  blocked: {
+    archived: 'Верните сессию из архива, чтобы открыть её',
+  },
+  channelMessage: '# {channel} · {author}',
+} as const;

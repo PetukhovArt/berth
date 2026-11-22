@@ -22,6 +22,7 @@ export const commands = {
     agentsQuickOpen: 'Quick switch to a session, request or task',
     agentsNewSession: 'New session in the active worktree',
     inboxNextWaiting: 'Open the next session that needs you',
+    searchOpen: 'Search sessions, requests, tasks and conversation text',
     dockToggleMaximize: 'Maximize or restore the active panel group',
     keymapOpenSettings: 'Customize keyboard shortcuts',
     keymapOpenFile: 'Open keymap.json in the editor',
