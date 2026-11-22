@@ -58,6 +58,12 @@
     "pin-bg": {
       "$value": "rgba(154, 103, 0, 0.08)"
     },
+    "match-bg": {
+      "$value": "rgba(255, 196, 0, 0.4)"
+    },
+    "match-text": {
+      "$value": "#1f2328"
+    },
     "nav-muted": {
       "$value": "{palette.black-a.40}"
     },
