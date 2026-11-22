@@ -150,6 +150,12 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
   margin-bottom: var(--vr-space-2);
 }
 
+.inbox.pinned-inbox {
+  padding-bottom: var(--vr-space-1);
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--vr-color-border);
+}
+
 .head {
   display: flex;
   flex: none;

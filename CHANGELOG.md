@@ -32,6 +32,7 @@
 - Fixed the New session dialog on a phone: it now fills the screen with every field full width, the Name field on its own row, large Cancel and Create buttons, and no keyboard shortcut hints; Enter in the prompt adds a line
 - Fixed the Setup command field in New session on a phone showing its placeholder cut off: it now says `e.g. pnpm install` and fits at 320 px
 - Fixed the Inbox listing Sessions from projects of other workspaces while one workspace is open; `Alt+J` now stays within it too
+- Fixed the Inbox pinned above the sidebar tree having no bottom edge: tree rows scrolled under it were cut off right below it, slicing the Projects header, and the Inbox now ends in a divider
 - Fixed `berth worktree <branch>` and `berth spawn --worktree <branch>` starting a new local branch from the default base when that branch already exists on origin: the worktree now checks out origin's branch and tracks it
 - Fixed a Session started by `berth spawn` getting no tab: it now opens as a tab beside the Session that ran the command, without taking focus from it
 - Fixed an open terminal showing `[session ended, code 1]` after its Session was restarted, switched model or moved into a worktree by `berth worktree`, while the new process ran unseen; the terminal now switches to the new process
