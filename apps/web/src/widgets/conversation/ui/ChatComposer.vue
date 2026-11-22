@@ -506,7 +506,7 @@ function handsFree() {
   align-self: center;
   padding: 2px;
   background: var(--vr-color-surface-muted);
-  border-radius: 9px;
+  border-radius: var(--vr-radius-md);
 }
 
 .mode {
@@ -520,7 +520,7 @@ function handsFree() {
   cursor: pointer;
   background: none;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--vr-radius-sm);
 }
 
 .mode[aria-pressed='true'] {

@@ -421,7 +421,7 @@ function onVisible(visible: boolean) {
   cursor: pointer;
   background: var(--vr-color-surface-muted);
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--vr-radius-sm);
 }
 
 .chips-action:hover {
@@ -496,7 +496,7 @@ function onVisible(visible: boolean) {
   height: 28px;
   min-width: 0;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--vr-radius-sm);
   background: var(--vr-color-surface-muted);
   box-shadow: none;
   font-size: var(--vr-font-size-label);
