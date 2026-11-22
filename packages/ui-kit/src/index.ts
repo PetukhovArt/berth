@@ -53,7 +53,26 @@ const BerthPreset = definePreset(Aura, {
   },
   components: {
     toggleswitch: { root: { slideDuration: v('motion-base') } },
-    button: { root: { borderRadius: v('radius-md'), gap: '6px', sm: { fontSize: v('font-size-label'), paddingX: '11px', paddingY: '3px', iconOnlyWidth: '28px' } } },
+    button: {
+      root: { borderRadius: v('radius-md'), gap: '6px', sm: { fontSize: v('font-size-label'), paddingX: '11px', paddingY: '3px', iconOnlyWidth: '28px' } },
+      colorScheme: {
+        light: {
+          root: {
+            danger: {
+              background: '{red.600}',
+              hoverBackground: '{red.700}',
+              activeBackground: '{red.800}',
+              borderColor: '{red.600}',
+              hoverBorderColor: '{red.700}',
+              activeBorderColor: '{red.800}',
+              focusRing: { color: '{red.600}', shadow: 'none' },
+            },
+          },
+          outlined: { danger: { color: '{red.600}' } },
+          text: { danger: { color: '{red.600}' } },
+        },
+      },
+    },
   },
 });
 
