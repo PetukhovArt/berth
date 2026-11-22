@@ -109,7 +109,7 @@
       "$value": "#2f6feb"
     },
     "feedback": {
-      "$value": "#9a6700"
+      "$value": "#805600"
     },
     "unseen": {
       "$value": "#7a4fd6"
@@ -121,7 +121,7 @@
       "$value": "#0e7a72"
     },
     "crashed": {
-      "$value": "#cf222e"
+      "$value": "#b91e29"
     },
     "idle": {
       "$value": "#656d76"
@@ -130,10 +130,10 @@
       "$value": "#17692f"
     },
     "fresh": {
-      "$value": "#1d5fc4"
+      "$value": "#1b5abb"
     },
     "stopped": {
-      "$value": "#6c645a"
+      "$value": "#665f55"
     },
     "ended": {
       "$value": "#a3306f"
