@@ -162,6 +162,13 @@ export const settings = {
       label: 'End sessions after merge',
       description: 'When the merge request of a worktree is merged, its idle sessions move to Ended and leave the Inbox. The worktree and its branch stay; open an ended session to bring it back.',
     },
+    sessionsMrEndedSession: {
+      label: 'Opening a merge request with an ended session',
+      description: 'What Open in session does when the worktree of the merge request has no live session but has an ended one.',
+      ask: 'Ask',
+      continue: 'Continue the ended session',
+      new: 'Start a new session',
+    },
     sessionsArchiveOnClose: {
       label: 'End sessions when their tab closes',
       description: 'Closing the tab of an agent ends its session: it moves to Ended, then to the Archive after the time set below. Closing the tab of a conversation archives it. Off: the close button asks what to do: end, archive or delete forever for an agent, close or archive for a conversation.',

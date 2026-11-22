@@ -112,6 +112,9 @@ export const forge: Translation<typeof en> = {
     title: 'Взять ветку запроса в worktree и открыть там сессию агента',
     retry: 'Повторить',
     dismiss: 'Скрыть',
+    endedAsk: 'В этом worktree есть завершённая сессия {name}. Продолжить её или начать новую?',
+    continueEnded: 'Продолжить завершённую',
+    newSession: 'Новая сессия',
     noProject: 'Ни один проект Berth не использует {repo}. Добавьте его локальный клон в Berth и повторите.',
     diverged: 'В локальной ветке {branch} есть коммиты, которых нет в запросе, поэтому worktree взят на ней как есть, а не на голове запроса.',
     forkReadOnly: 'Запрос пришёл из форка {owner}, и у вас нет прав на push в него: коммиты из этого worktree в запрос не попадут.',
@@ -123,6 +126,7 @@ export const forge: Translation<typeof en> = {
       fetch: 'Получаю {branch} из {remote}…',
       worktree: 'Создаю worktree на {branch}…',
       agent: 'Запускаю сессию {kind}…',
+      resume: 'Продолжаю {name}…',
     },
     errors: {
       offline: 'Демон Berth не подключён.',

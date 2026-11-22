@@ -109,6 +109,9 @@ export const forge = {
     title: 'Check this request out in a worktree and open an agent session there',
     retry: 'Try again',
     dismiss: 'Dismiss',
+    endedAsk: 'This worktree has an ended session, {name}. Continue it or start a new session?',
+    continueEnded: 'Continue ended session',
+    newSession: 'New session',
     noProject: 'No Berth project uses {repo}. Add its local clone to Berth, then try again.',
     diverged: 'Your local branch {branch} has commits the request does not have, so the worktree uses it as it is, not the request head.',
     forkReadOnly: 'This request comes from the fork {owner} and you cannot push to it: commits made in this worktree will not reach the request.',
@@ -120,6 +123,7 @@ export const forge = {
       fetch: 'Fetching {branch} from {remote}…',
       worktree: 'Creating a worktree on {branch}…',
       agent: 'Starting a {kind} session…',
+      resume: 'Continuing {name}…',
     },
     errors: {
       offline: 'The Berth daemon is not connected.',

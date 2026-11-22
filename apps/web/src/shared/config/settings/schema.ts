@@ -203,6 +203,18 @@ export const SETTINGS = {
     category: 'sessions',
     placeholder: 'forge.openSession.prompt',
   },
+  'sessions.mrEndedSession': {
+    type: 'enum',
+    default: 'ask',
+    label: 'settings.def.sessionsMrEndedSession.label',
+    description: 'settings.def.sessionsMrEndedSession.description',
+    category: 'sessions',
+    options: [
+      { value: 'ask', label: 'settings.def.sessionsMrEndedSession.ask' },
+      { value: 'continue', label: 'settings.def.sessionsMrEndedSession.continue' },
+      { value: 'new', label: 'settings.def.sessionsMrEndedSession.new' },
+    ],
+  },
   'sessions.worktreeBase': {
     type: 'map',
     default: DAEMON_DEFAULTS.worktree_base,
