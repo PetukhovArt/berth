@@ -127,9 +127,7 @@ mod tests {
         };
         let first = {
             let (gate, runs) = (gate.clone(), runs.clone());
-            tokio::spawn(async move {
-                gate.fetch_unless_fresh("r", "main", || slow(runs)).await
-            })
+            tokio::spawn(async move { gate.fetch_unless_fresh("r", "main", || slow(runs)).await })
         };
         tokio::time::sleep(Duration::from_millis(30)).await;
         let started = Instant::now();
