@@ -51,7 +51,7 @@ export function useTranscriptSearch(query: Ref<string>, enabled: Ref<boolean>) {
     }
     busy.value = true;
     timer = setTimeout(() => fetchNow(text, 0), DEBOUNCE_MS);
-  });
+  }, { immediate: true });
 
   function retry() {
     clearTimeout(timer);

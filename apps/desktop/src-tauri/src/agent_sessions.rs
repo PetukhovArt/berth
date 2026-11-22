@@ -1073,8 +1073,28 @@ pub(crate) fn transcript_files() -> Vec<(Harness, PathBuf)> {
         .collect()
 }
 
-pub(crate) fn session_id(harness: Harness, path: &Path) -> String {
-    id_of(harness, path, &read_head(path, harness))
+pub(crate) struct SessionFacts {
+    pub(crate) id: String,
+    pub(crate) title: Option<String>,
+    pub(crate) cwd: Option<String>,
+    pub(crate) branch: Option<String>,
+}
+
+pub(crate) fn session_facts(harness: Harness, path: &Path) -> SessionFacts {
+    let mut head = read_head(path, harness);
+    if harness == Harness::Claude {
+        localize_cwd(&mut head, path);
+    }
+    let title = [&head.custom, &head.ai, &head.summary, &head.prompt]
+        .into_iter()
+        .find_map(Option::as_deref)
+        .map(|title| single_line(title, TITLE_CHARS));
+    SessionFacts {
+        id: id_of(harness, path, &head),
+        title,
+        cwd: head.cwd,
+        branch: head.branch,
+    }
 }
 
 fn locate(harness: Harness, id: &str) -> Result<PathBuf, String> {

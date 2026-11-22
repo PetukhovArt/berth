@@ -18,6 +18,9 @@ pub struct MessageHit {
     role: Role,
     at: Option<String>,
     snippet: String,
+    title: Option<String>,
+    cwd: Option<String>,
+    branch: Option<String>,
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -88,8 +91,10 @@ fn hits(conn: &Connection, terms: &Terms, limit: u32) -> rusqlite::Result<Vec<Me
     values.push(Value::Integer(i64::from(limit)));
     values.push(Value::Text(terms.fts.clone()));
     let sql = format!(
-        "SELECT harness, session, key, role, at, snippet(messages, 0, char(1), char(2), '…', 64) \
-         FROM messages WHERE rowid IN ({newest}) AND messages MATCH ? ORDER BY at DESC"
+        "SELECT messages.harness, messages.session, messages.key, messages.role, messages.at, \
+         snippet(messages, 0, char(1), char(2), '…', 64), files.title, files.cwd, files.branch \
+         FROM messages LEFT JOIN files ON files.path = messages.path \
+         WHERE messages.rowid IN ({newest}) AND messages MATCH ? ORDER BY messages.at DESC"
     );
     let mut statement = conn.prepare(&sql)?;
     let rows = statement.query_map(params_from_iter(values), |row| {
@@ -102,6 +107,9 @@ fn hits(conn: &Connection, terms: &Terms, limit: u32) -> rusqlite::Result<Vec<Me
             role: role_of(&role),
             at: row.get(4).unwrap_or_default(),
             snippet: row.get(5).unwrap_or_default(),
+            title: row.get(6).unwrap_or_default(),
+            cwd: row.get(7).unwrap_or_default(),
+            branch: row.get(8).unwrap_or_default(),
         }))
     })?;
     let mut out = Vec::new();

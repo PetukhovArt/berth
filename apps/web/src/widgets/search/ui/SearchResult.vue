@@ -50,7 +50,9 @@ const message = computed(() => {
   const { row } = props;
   if (row.kind !== 'messages') return null;
   const { hit } = row;
-  return { snippet: markedSegments(hit.snippet), plain: stripMarks(hit.snippet), role: hit.role === 'user' ? t('search.role.user') : t('search.role.assistant'), age: age(hit.at) };
+  const project = hit.cwd?.split(/[\\/]/).findLast(Boolean);
+  const crumbs = [project, hit.branch].filter((crumb): crumb is string => Boolean(crumb));
+  return { crumbs, snippet: markedSegments(hit.snippet), plain: stripMarks(hit.snippet), role: hit.role === 'user' ? t('search.role.user') : t('search.role.assistant'), age: age(hit.at) };
 });
 
 const channel = computed(() => {
@@ -118,6 +120,12 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
         <span class="line" :title="heading">
           <span class="name">{{ heading }}</span>
           <span class="role" :data-role="row.hit.role">{{ message.role }}</span>
+        </span>
+        <span v-if="message.crumbs.length" class="sub">
+          <template v-for="(crumb, at) in message.crumbs" :key="at">
+            <ChevronRight v-if="at > 0" :size="11" class="sep" />
+            <span class="crumb" :title="crumb">{{ crumb }}</span>
+          </template>
         </span>
         <span class="snippet" :title="message.plain"><Highlighted :segments="message.snippet" /></span>
       </span>

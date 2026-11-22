@@ -10,7 +10,8 @@ use tokio::task::spawn_blocking;
 
 use super::store;
 use crate::agent_sessions::{
-    claude_messages, codex_messages, session_id, transcript_files, Harness, Role, TranscriptMessage,
+    claude_messages, codex_messages, session_facts, transcript_files, Harness, Role,
+    TranscriptMessage,
 };
 
 const TICK: Duration = Duration::from_secs(30);
@@ -27,7 +28,6 @@ struct Listed {
 }
 
 struct Known {
-    session: String,
     size: i64,
     mtime: i64,
     offset: i64,
@@ -124,15 +124,14 @@ fn listing() -> Vec<Listed> {
 }
 
 fn load_known(conn: &Connection) -> rusqlite::Result<HashMap<String, Known>> {
-    let mut statement = conn.prepare("SELECT path, session, size, mtime, offset FROM files")?;
+    let mut statement = conn.prepare("SELECT path, size, mtime, offset FROM files")?;
     let rows = statement.query_map([], |row| {
         Ok((
             row.get::<_, String>(0)?,
             Known {
-                session: row.get(1)?,
-                size: row.get(2)?,
-                mtime: row.get(3)?,
-                offset: row.get(4)?,
+                size: row.get(1)?,
+                mtime: row.get(2)?,
+                offset: row.get(3)?,
             },
         ))
     })?;
@@ -195,8 +194,7 @@ fn pass(conn: &mut Connection) -> rusqlite::Result<()> {
         if budget == 0 {
             continue;
         }
-        let session = known.get(&file.key).map(|known| known.session.clone());
-        if index_file(conn, file, from, session, &mut budget)? {
+        if index_file(conn, file, from, &mut budget)? {
             caught_up += 1;
         }
     }
@@ -235,7 +233,6 @@ fn index_file(
     conn: &mut Connection,
     file: &Listed,
     from: Option<i64>,
-    session: Option<String>,
     budget: &mut u64,
 ) -> rusqlite::Result<bool> {
     let Ok(handle) = File::open(&file.path) else {
@@ -250,10 +247,7 @@ fn index_file(
     {
         return Ok(false);
     }
-    let session = match session.filter(|_| !rebuild) {
-        Some(session) => session,
-        None => session_id(file.harness, &file.path),
-    };
+    let facts = session_facts(file.harness, &file.path);
     let tx = conn.transaction()?;
     if rebuild {
         tx.execute("DELETE FROM messages WHERE path = ?1", [&file.key])?;
@@ -291,7 +285,7 @@ fn index_file(
                 insert.execute(params![
                     message.text,
                     harness_name(file.harness),
-                    session,
+                    facts.id,
                     message.key,
                     role_name(message.role),
                     message.at,
@@ -302,17 +296,21 @@ fn index_file(
     }
     let size = if done { consumed } else { offset };
     tx.execute(
-        "INSERT INTO files(path, harness, session, size, mtime, offset) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6) \
+        "INSERT INTO files(path, harness, session, size, mtime, offset, title, cwd, branch) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9) \
          ON CONFLICT(path) DO UPDATE SET harness = excluded.harness, session = excluded.session, \
-         size = excluded.size, mtime = excluded.mtime, offset = excluded.offset",
+         size = excluded.size, mtime = excluded.mtime, offset = excluded.offset, \
+         title = excluded.title, cwd = excluded.cwd, branch = excluded.branch",
         params![
             file.key,
             harness_name(file.harness),
-            session,
+            facts.id,
             size,
             file.mtime,
-            offset
+            offset,
+            facts.title,
+            facts.cwd,
+            facts.branch
         ],
     )?;
     tx.commit()?;

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
+import { computed, onMounted, shallowRef, useTemplateRef } from 'vue';
 import { ArrowRight, Search } from '../../../shared/ui/icons';
 import { usePickerList } from '../../../shared/lib/usePickerList';
 import { listWorktreeMarkdown, type MarkdownEntry } from '../../../shared/lib/markdownFiles';
@@ -58,25 +58,6 @@ function onPanelKey(event: KeyboardEvent) {
 
 const { index, onKey } = usePickerList({ results, query, list, choose, close: () => emit('close') });
 
-function fitList() {
-  const el = list.value;
-  if (!el) return;
-  el.style.removeProperty('--qs-list-max');
-  if (el.scrollHeight <= el.clientHeight) return;
-  const padding = parseFloat(getComputedStyle(el).paddingBottom) || 0;
-  const limit = el.clientHeight - padding;
-  let fit = 0;
-  for (const row of el.querySelectorAll<HTMLElement>(':scope > [role="option"]')) {
-    if (getComputedStyle(row).position === 'absolute') continue;
-    const bottom = row.offsetTop + row.offsetHeight;
-    if (bottom <= limit) fit = bottom;
-  }
-  if (fit > 0) el.style.setProperty('--qs-list-max', `${fit + padding}px`);
-}
-
-const refit = () => requestAnimationFrame(fitList);
-const rowsChanged = new MutationObserver(refit);
-
 async function loadFiles() {
   const worktree = activeWorktree.value;
   if (!worktree) return;
@@ -87,17 +68,9 @@ async function loadFiles() {
   }
 }
 
-watch(results, () => void nextTick(fitList), { flush: 'post' });
 onMounted(() => {
   input.value?.focus();
-  fitList();
-  window.addEventListener('resize', fitList);
-  if (list.value) rowsChanged.observe(list.value, { childList: true });
   void loadFiles();
-});
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', fitList);
-  rowsChanged.disconnect();
 });
 </script>
 
@@ -199,9 +172,9 @@ onBeforeUnmount(() => {
 
 .results {
   position: relative;
-  max-height: var(--qs-list-max, 50vh);
+  max-height: 50vh;
   margin: 0;
-  padding: var(--vr-space-1);
+  padding: var(--vr-space-1) var(--vr-space-1) 0;
   overflow-y: auto;
   list-style: none;
 }
@@ -223,6 +196,11 @@ onBeforeUnmount(() => {
 }
 
 .all {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: var(--vr-color-surface-raised);
+  box-shadow: 0 -1px 0 var(--vr-color-border);
   display: flex;
   align-items: center;
   gap: var(--vr-space-3);

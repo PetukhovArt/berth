@@ -31,7 +31,8 @@ export function useOpener() {
 
   function hitTitle(hit: MessageHit): string {
     const owner = owners.value.get(`${hit.harness}:${hit.session}`);
-    return owner?.name ?? external?.anyByKey.value.get(externalKey({ harness: hit.harness, id: hit.session }))?.title ?? `${hit.harness} ${hit.session.slice(0, SHORT_ID)}`;
+    const listed = external?.anyByKey.value.get(externalKey({ harness: hit.harness, id: hit.session }));
+    return owner?.name ?? listed?.title ?? hit.title ?? `${hit.harness} ${hit.session.slice(0, SHORT_ID)}`;
   }
 
   function openHit(hit: MessageHit) {

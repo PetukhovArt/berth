@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use rusqlite::{Connection, ErrorCode, OpenFlags};
 
-const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
 const BUSY: Duration = Duration::from_secs(5);
 
 const SCHEMA: &str = "
@@ -17,7 +17,10 @@ CREATE TABLE files(
     session TEXT NOT NULL,
     size INTEGER NOT NULL,
     mtime INTEGER NOT NULL,
-    offset INTEGER NOT NULL
+    offset INTEGER NOT NULL,
+    title TEXT,
+    cwd TEXT,
+    branch TEXT
 );
 CREATE TABLE progress(indexed INTEGER NOT NULL, total INTEGER NOT NULL);
 INSERT INTO progress VALUES(0, 0);
@@ -31,7 +34,7 @@ CREATE VIRTUAL TABLE messages USING fts5(
     path UNINDEXED,
     tokenize='trigram'
 );
-PRAGMA user_version=1;
+PRAGMA user_version=2;
 COMMIT;
 ";
 
