@@ -59,7 +59,7 @@ impl Terms {
     fn filter(&self) -> String {
         let mut sql = String::from("messages MATCH ?");
         for _ in &self.like {
-            sql.push_str(" AND text LIKE ? ESCAPE '\\'");
+            sql.push_str(&format!(" AND {}(text) LIKE ? ESCAPE '\\'", store::LOWER));
         }
         sql
     }
@@ -79,6 +79,7 @@ fn terms(query: &str) -> Option<Terms> {
             quoted.push(format!("\"{}\"", word.replace('"', "\"\"")));
         } else {
             let escaped = word
+                .to_lowercase()
                 .replace('\\', "\\\\")
                 .replace('%', "\\%")
                 .replace('_', "\\_");

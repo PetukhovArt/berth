@@ -4,8 +4,11 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 use std::time::Duration;
 
+use rusqlite::functions::FunctionFlags;
+use rusqlite::types::ValueRef;
 use rusqlite::{Connection, ErrorCode, OpenFlags};
 
+pub const LOWER: &str = "berth_lower";
 const SCHEMA_VERSION: i64 = 3;
 const BUSY: Duration = Duration::from_secs(5);
 
@@ -117,6 +120,21 @@ pub fn open_writer() -> Result<Connection, String> {
     }
 }
 
+fn add_lower(conn: &Connection) -> rusqlite::Result<()> {
+    conn.create_scalar_function(
+        LOWER,
+        1,
+        FunctionFlags::SQLITE_UTF8 | FunctionFlags::SQLITE_DETERMINISTIC,
+        |ctx| match ctx.get_raw(0) {
+            ValueRef::Null => Ok(None),
+            value => value
+                .as_str()
+                .map(|text| Some(text.to_lowercase()))
+                .map_err(|e| rusqlite::Error::UserFunctionError(e.into())),
+        },
+    )
+}
+
 pub fn open_reader() -> Result<Option<Connection>, String> {
     fts5_ready()?;
     let path = db_path();
@@ -126,6 +144,7 @@ pub fn open_reader() -> Result<Option<Connection>, String> {
     let conn = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY)
         .map_err(|e| format!("{}: {e}", path.display()))?;
     conn.busy_timeout(BUSY).map_err(|e| e.to_string())?;
+    add_lower(&conn).map_err(|e| e.to_string())?;
     match version(&conn).map_err(|e| format!("{}: {e}", path.display()))? {
         SCHEMA_VERSION => Ok(Some(conn)),
         _ => Ok(None),
