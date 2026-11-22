@@ -1331,10 +1331,11 @@ fn read_subagent_transcript(
     id: &str,
     call_id: &str,
     tail: Option<u32>,
-) -> Result<Vec<TranscriptMessage>, String> {
-    let path = subagents::transcript_of(&locate(harness, id)?, call_id)
-        .ok_or_else(|| crate::host_text!("conversationNotFound", id = call_id))?;
-    read_messages(harness, &path, tail, true)
+) -> Result<Option<Vec<TranscriptMessage>>, String> {
+    let Some(path) = subagents::transcript_of(&locate(harness, id)?, call_id) else {
+        return Ok(None);
+    };
+    read_messages(harness, &path, tail, true).map(Some)
 }
 
 fn read_messages(
@@ -1423,7 +1424,7 @@ pub async fn agent_subagent_transcript(
     id: String,
     call_id: String,
     tail: Option<u32>,
-) -> Result<Vec<TranscriptMessage>, String> {
+) -> Result<Option<Vec<TranscriptMessage>>, String> {
     spawn_blocking(move || read_subagent_transcript(harness, &id, &call_id, tail))
         .await
         .map_err(|e| e.to_string())?

@@ -20,6 +20,7 @@ const scroller = useTemplateRef<HTMLElement>('scroller');
 const messages = shallowRef<TranscriptMessage[]>([]);
 const loading = shallowRef(true);
 const error = shallowRef<string | null>(null);
+const missing = shallowRef(false);
 const running = computed(() => props.agent.state === 'running');
 const blocks = computed(() => chatBlocks(messages.value));
 const nested = computed(() => new Map(deriveSubagents(messages.value, running.value).all.map((entry) => [entry.callId, entry])));
@@ -34,7 +35,8 @@ async function load() {
   try {
     const next = await readSubagentTranscript({ harness: props.harness, id: props.sessionId }, props.agent.callId, TAIL);
     if (current !== generation) return;
-    messages.value = next;
+    missing.value = next === null;
+    messages.value = next ?? [];
     error.value = null;
   } catch (e) {
     if (current === generation) error.value = describeError(e);
@@ -92,6 +94,7 @@ onBeforeUnmount(() => {
     <div ref="scroller" class="scroll" data-testid="subagent-view-scroll">
       <p v-if="loading" class="state">{{ t('workbench.external.loading') }}</p>
       <p v-else-if="error" class="state error" role="alert">{{ error }}</p>
+      <p v-else-if="missing" class="state" :data-testid="running ? 'subagent-view-pending' : 'subagent-view-missing'">{{ running ? t('chat.subagents.transcriptPending') : t('chat.subagents.transcriptMissing') }}</p>
       <p v-else-if="!messages.length" class="state">{{ t('workbench.external.empty') }}</p>
       <ChatFeed v-else class="feed" :blocks="blocks" :harness="harness" :agent-label="agentLabel" :root="root" :panel-id="panelId" :subagent-of="nested" :now="now" :subagents-openable="false" />
     </div>

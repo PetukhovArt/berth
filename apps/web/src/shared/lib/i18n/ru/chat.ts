@@ -54,6 +54,8 @@ export const chat: Translation<typeof en> = {
     state: { running: 'работает', done: 'готов', failed: 'ошибка', stopped: 'остановлен' },
     back: 'Назад к чату',
     noType: 'субагент',
+    transcriptPending: 'Транскрипт появится, когда субагент начнёт работу',
+    transcriptMissing: 'Транскрипт недоступен',
   },
   slash: {
     list: 'Команды',

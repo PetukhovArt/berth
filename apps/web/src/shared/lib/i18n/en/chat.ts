@@ -51,6 +51,8 @@ export const chat = {
     state: { running: 'working', done: 'done', failed: 'failed', stopped: 'stopped' },
     back: 'Back to the chat',
     noType: 'subagent',
+    transcriptPending: 'The transcript appears once the subagent starts',
+    transcriptMissing: 'No transcript for this subagent',
   },
   slash: {
     list: 'Commands',
