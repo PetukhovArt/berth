@@ -53,6 +53,7 @@ watch(
   <div class="task-note">
     <UiButton type="button" class="chip" :class="{ filled: !!note }" :title="label" :aria-label="label" :aria-expanded="open" data-testid="task-note-button" @click="toggle">
       <FileText :size="13" />
+      <span class="chip-label">{{ t('taskNote.open') }}</span>
     </UiButton>
     <form v-if="open" ref="sheet" class="form vr-sheet" data-testid="task-note-form" @submit.prevent="save(draft)">
       <span class="heading">{{ t('taskNote.title', { branch }) }}</span>
@@ -88,6 +89,26 @@ watch(
   cursor: pointer;
 }
 
+.chip-label {
+  display: none;
+}
+
+:root[data-vr-viewport='phone'] .chip {
+  gap: var(--vr-space-1);
+  width: auto;
+  height: var(--vr-size-row-touch);
+  padding: 0 var(--vr-space-3);
+  font: inherit;
+  font-size: var(--vr-font-size-label);
+  color: var(--vr-color-text);
+  background: var(--vr-color-surface-muted);
+  border-radius: var(--vr-radius-md);
+}
+
+:root[data-vr-viewport='phone'] .chip-label {
+  display: inline;
+}
+
 .chip.filled {
   color: var(--vr-color-accent);
   background: var(--vr-color-surface-muted);
@@ -104,7 +125,7 @@ watch(
   width: 340px;
   padding: var(--vr-space-3);
   background: var(--vr-color-surface-raised);
-  border-radius: 9px;
+  border-radius: var(--vr-radius-md);
   box-shadow: var(--vr-shadow-popover);
 }
 
@@ -147,7 +168,7 @@ watch(
   font: inherit;
   font-size: var(--vr-font-size-label);
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--vr-radius-sm);
   cursor: pointer;
 }
 

@@ -25,6 +25,7 @@
 - Changed the Session screen on a phone to hide the rows of project tabs above the Chat view: go back with the header arrow and pick another Session from the Sessions list
 - Changed the branch name field in New session to wrap long names instead of cutting them, and the line under it to stop repeating the name
 - Changed the Stop button in the Chat composer to red with the same shape in the typing and Hold to talk views, spaced from the microphone, and the message box and talk hint to say the agent is working while a turn runs
+- Changed the model switch, Checkpoints and Task note buttons under a Session's title on a phone to show their names next to the icons and to be touch sized
 - Removed the Terminal view and the terminal keys bar from the Session screen on a phone: it opens in Chat, so a phone no longer squeezes the Session's terminal on your computer to the phone's width; a Session with no Chat shows a notice instead
 - Removed the Earlier folder from the Sessions tree: every conversation that is not archived is listed in its worktree
 - Removed `berth hub approve --scopes`: approve with `--role` instead
