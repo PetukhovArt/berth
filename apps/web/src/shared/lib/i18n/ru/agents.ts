@@ -49,7 +49,7 @@ export const agents: Translation<typeof en> = {
     move: 'Перенести…',
     archive: 'В архив',
     restore: 'Восстановить',
-    closeAndArchive: 'Закрыть и в архив',
+    deleteForever: 'Удалить навсегда',
     actions: 'Действия',
     newName: 'Новое имя сессии',
     confirmDeleteLabel: 'Подтверждение удаления',

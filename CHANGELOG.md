@@ -6,6 +6,7 @@
 - Added Shared Channels for team-wide topics such as `general` or `bugs`: everyone approved on the hub is in them, including people approved later; an admin makes one from the Channels section or with `berth channel open <name> --shared`
 - Added leaving and deleting a Channel from its row in the Channels section and with `berth channel leave` and `berth channel delete`: you delete the Channels you made, and the new `channels.delete` permission, held by Admin, deletes any
 - Added `sessions.archiveOnClose`, on by default: closing the tab of an agent or a conversation moves it to its project's Archive; turned off, the close button asks whether to archive it or only close the tab
+- Added Delete forever to the menu of an agent tab's close button, which asks to confirm before it removes the session
 - Changed the Sessions tree to show the Archive at the bottom of each project, and of Not in a project, instead of one Archive row for all projects
 - Changed the New Workspace button to sit in the workspace menu of the title bar instead of at the bottom of the Sessions tree
 - Changed `berth channel grant` to refuse a colleague whose role on the hub does not include `agents.instruct`; a granted colleague's messages arrive as quoted information again once their role loses it

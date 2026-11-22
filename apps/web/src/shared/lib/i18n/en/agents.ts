@@ -46,7 +46,7 @@ export const agents = {
     move: 'Move…',
     archive: 'Archive',
     restore: 'Restore',
-    closeAndArchive: 'Close and archive',
+    deleteForever: 'Delete forever',
     actions: 'Actions',
     newName: 'New session name',
     confirmDeleteLabel: 'Confirm deletion',
