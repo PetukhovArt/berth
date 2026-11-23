@@ -1,0 +1,9 @@
+# The two CI gates that run in minutes on any OS; the full test suite stays in CI.
+if ! cargo fmt --all -- --check; then
+  echo "pre-push: cargo fmt --check failed (CI runs it too). Run 'cargo fmt --all' and commit." >&2
+  exit 1
+fi
+if ! cargo clippy -j 2 --workspace --exclude berth-desktop --all-targets --locked -- -D warnings; then
+  echo "pre-push: cargo clippy failed (the same command as CI). Fix the warnings above before pushing." >&2
+  exit 1
+fi
