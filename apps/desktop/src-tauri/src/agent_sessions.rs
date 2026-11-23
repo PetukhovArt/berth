@@ -1,12 +1,16 @@
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
-use std::fs::{self, File};
-use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use serde::{Deserialize, Serialize};
+use berth_transcripts::transcript::{
+    head_of, id_of, owned, read_subagent_transcript_file, read_tail_facts, read_transcript_file,
+    title_of, valid_id, Head, Last, ReadFailed, Tail,
+};
+pub use berth_transcripts::transcript::{Harness, TranscriptMessage};
+use serde::Serialize;
 use serde_json::Value;
 use sysinfo::{Pid, Process, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
 use tokio::task::{spawn_blocking, JoinHandle};
@@ -14,49 +18,16 @@ use tokio::task::{spawn_blocking, JoinHandle};
 use crate::connectors::ai::{claude_dir, codex_home};
 use crate::sink::BoxSink;
 
-mod subagents;
-mod tool_exit;
-mod turn_files;
-
-use subagents::Subagent;
-use turn_files::{file_edits, line_model, FileEdit};
-
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
 const DEFAULT_DAYS: u32 = 14;
 const MAX_DAYS: u32 = 365;
 const DAY_MS: u64 = 86_400_000;
-const HEAD_LINES: usize = 50;
-const HEAD_BYTES: u64 = 512 * 1024;
-const TAIL_BYTES: u64 = 64 * 1024;
-const TRANSCRIPT_BYTES: u64 = 256 * 1024;
-const TRANSCRIPT_MAX_BYTES: u64 = 16 * 1024 * 1024;
-const TRANSCRIPT_DEFAULT: usize = 200;
-const TRANSCRIPT_MAX: usize = 1000;
-const REACH_MAX_BYTES: u64 = 64 * 1024 * 1024;
-const REACH_CONTEXT: usize = 20;
 const SESSION_LIMIT: usize = 500;
 const FRESH_MS: u64 = 10_000;
 const IDLE_MS: u64 = 4 * 3_600_000;
 const START_SLACK_MS: u64 = 5_000;
 const LIVE_ID_SLACK_MS: u64 = 120_000;
-const TITLE_CHARS: usize = 120;
-const TEXT_CHARS: usize = 20_000;
-const TOOL_CHARS: usize = 240;
 const HOST_DEPTH: usize = 8;
-const ID_CHARS: usize = 100;
-const TOOL_KEYS: [&str; 11] = [
-    "command",
-    "cmd",
-    "file_path",
-    "path",
-    "pattern",
-    "url",
-    "query",
-    "description",
-    "prompt",
-    "skill",
-    "subject",
-];
 const CLAUDE_BATCH: [&str; 13] = [
     "-p",
     "--print",
@@ -91,13 +62,6 @@ const CODEX_BATCH: [&str; 16] = [
     "--help",
 ];
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Harness {
-    Claude,
-    Codex,
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Status {
@@ -127,29 +91,6 @@ pub struct AgentSessionsChanged {
     sessions: Vec<AgentSession>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Role {
-    User,
-    Assistant,
-}
-
-#[derive(Debug, Serialize)]
-pub struct TranscriptMessage {
-    pub(crate) key: String,
-    pub(crate) role: Role,
-    pub(crate) text: String,
-    pub(crate) tool: Option<String>,
-    pub(crate) at: Option<String>,
-    input: Option<Value>,
-    model: Option<String>,
-    edits: Vec<FileEdit>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    exit: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    subagent: Option<Subagent>,
-}
-
 #[derive(Default)]
 pub struct AgentSessionWatch(Mutex<Option<JoinHandle<()>>>);
 
@@ -160,36 +101,6 @@ impl Drop for AgentSessionWatch {
             task.abort();
         }
     }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-enum Last {
-    #[default]
-    Unknown,
-    Running,
-    Finished,
-}
-
-#[derive(Clone, Debug, Default)]
-struct Head {
-    id: Option<String>,
-    cwd: Option<String>,
-    branch: Option<String>,
-    custom: Option<String>,
-    ai: Option<String>,
-    summary: Option<String>,
-    prompt: Option<String>,
-    automated: bool,
-}
-
-#[derive(Clone, Debug, Default)]
-struct Tail {
-    last: Last,
-    custom: Option<String>,
-    ai: Option<String>,
-    branch: Option<String>,
-    messages: Option<u32>,
-    counted: u32,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -264,33 +175,6 @@ fn normalize(path: &str) -> String {
     let path = path.replace('\\', "/");
     let path = path.strip_prefix("//?/").unwrap_or(&path);
     path.trim_end_matches('/').to_lowercase()
-}
-
-fn valid_id(id: &str) -> bool {
-    !id.is_empty()
-        && id.len() <= ID_CHARS
-        && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
-}
-
-fn owned(value: &Value) -> Option<String> {
-    value
-        .as_str()
-        .map(str::trim)
-        .filter(|text| !text.is_empty())
-        .map(str::to_owned)
-}
-
-fn clip(text: &str, max: usize) -> String {
-    if text.chars().count() <= max {
-        return text.to_owned();
-    }
-    let mut clipped: String = text.chars().take(max.saturating_sub(1)).collect();
-    clipped.push('…');
-    clipped
-}
-
-fn single_line(text: &str, max: usize) -> String {
-    clip(&text.split_whitespace().collect::<Vec<_>>().join(" "), max)
 }
 
 fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
@@ -409,343 +293,6 @@ fn scan(since: u64) -> Vec<Found> {
     found
 }
 
-fn records(buffer: &[u8], base: u64) -> impl Iterator<Item = (u64, Value)> + '_ {
-    let mut next = base;
-    buffer.split(|byte| *byte == b'\n').filter_map(move |line| {
-        let at = next;
-        next += line.len() as u64 + 1;
-        if line.is_empty() {
-            return None;
-        }
-        serde_json::from_slice::<Value>(line)
-            .ok()
-            .map(|value| (at, value))
-    })
-}
-
-struct Window {
-    buffer: Vec<u8>,
-    base: u64,
-    from_start: bool,
-}
-
-fn read_tail(path: &Path, budget: u64) -> Option<Window> {
-    let mut file = File::open(path).ok()?;
-    let len = file.metadata().ok()?.len();
-    let start = len.saturating_sub(budget);
-    file.seek(SeekFrom::Start(start)).ok()?;
-    let mut buffer = Vec::new();
-    file.take(budget).read_to_end(&mut buffer).ok()?;
-    let mut base = start;
-    if start > 0 {
-        let cut = buffer
-            .iter()
-            .position(|byte| *byte == b'\n')
-            .map_or(buffer.len(), |at| at + 1);
-        buffer.drain(..cut);
-        base += cut as u64;
-    }
-    Some(Window {
-        buffer,
-        base,
-        from_start: start == 0,
-    })
-}
-
-fn content_text(content: &Value) -> Option<String> {
-    match content {
-        Value::String(text) => Some(text.clone()),
-        Value::Array(blocks) => blocks.iter().find_map(|block| {
-            matches!(
-                block["type"].as_str(),
-                Some("text" | "input_text" | "output_text")
-            )
-            .then(|| block["text"].as_str().map(str::to_owned))
-            .flatten()
-        }),
-        _ => None,
-    }
-}
-
-fn tag_value<'a>(text: &'a str, tag: &str) -> Option<&'a str> {
-    let open = format!("<{tag}>");
-    let close = format!("</{tag}>");
-    let start = text.find(&open)? + open.len();
-    let end = text[start..].find(&close)? + start;
-    Some(text[start..end].trim())
-}
-
-fn command_line(text: &str) -> Option<String> {
-    let name = tag_value(text, "command-name")?;
-    let args = tag_value(text, "command-args").unwrap_or_default();
-    Some(if args.is_empty() {
-        name.to_owned()
-    } else {
-        format!("{name} {args}")
-    })
-}
-
-fn prompt_of(text: &str) -> Option<String> {
-    let text = text.trim();
-    if text.is_empty() || text.starts_with("Caveat:") {
-        return None;
-    }
-    if text.starts_with('<') {
-        let args = tag_value(text, "command-args").filter(|args| !args.is_empty())?;
-        let name = tag_value(text, "command-name").unwrap_or_default();
-        return Some(format!("{name} {args}").trim().to_owned());
-    }
-    Some(text.to_owned())
-}
-
-fn shown_user_text(text: &str) -> Option<String> {
-    let trimmed = text.trim();
-    if trimmed.is_empty()
-        || trimmed.starts_with("<local-command-caveat>")
-        || trimmed.starts_with("<local-command-stdout>")
-        || trimmed.starts_with("<environment_context>")
-        || trimmed.starts_with("<user_instructions>")
-        || trimmed.starts_with("<task-notification>")
-        || trimmed.starts_with("<system-reminder>")
-        || trimmed.starts_with("Caveat:")
-    {
-        return None;
-    }
-    if trimmed.starts_with("<command-name>") || trimmed.starts_with("<command-message>") {
-        return command_line(trimmed);
-    }
-    Some(clip(trimmed, TEXT_CHARS))
-}
-
-fn claude_head(head: &mut Head, line: &Value) {
-    let kind = line["type"].as_str().unwrap_or_default();
-    match kind {
-        "custom-title" => head.custom = head.custom.take().or_else(|| owned(&line["customTitle"])),
-        "ai-title" => head.ai = head.ai.take().or_else(|| owned(&line["aiTitle"])),
-        "summary" => head.summary = head.summary.take().or_else(|| owned(&line["summary"])),
-        _ => {}
-    }
-    head.id = head.id.take().or_else(|| owned(&line["sessionId"]));
-    head.cwd = head.cwd.take().or_else(|| owned(&line["cwd"]));
-    head.branch = head.branch.take().or_else(|| owned(&line["gitBranch"]));
-    if line["entrypoint"]
-        .as_str()
-        .is_some_and(|entry| entry.starts_with("sdk"))
-    {
-        head.automated = true;
-    }
-    if kind == "user" && head.prompt.is_none() && line["isMeta"].as_bool() != Some(true) {
-        head.prompt = content_text(&line["message"]["content"]).and_then(|text| prompt_of(&text));
-    }
-}
-
-pub(crate) fn renamed_title(harness: Harness, line: &Value) -> Option<String> {
-    match harness {
-        Harness::Claude if line["type"].as_str() == Some("custom-title") => {
-            owned(&line["customTitle"])
-        }
-        Harness::Codex
-            if line["type"].as_str() == Some("event_msg")
-                && line["payload"]["type"].as_str() == Some("thread_name_updated") =>
-        {
-            owned(&line["payload"]["thread_name"])
-        }
-        _ => None,
-    }
-}
-
-pub(crate) fn title_line(title: &str) -> String {
-    single_line(title, TITLE_CHARS)
-}
-
-fn claude_tail(tail: &mut Tail, line: &Value) {
-    if let Some(branch) = owned(&line["gitBranch"]) {
-        tail.branch = Some(branch);
-    }
-    if let Some(title) = renamed_title(Harness::Claude, line) {
-        tail.custom = Some(title);
-    }
-    match line["type"].as_str().unwrap_or_default() {
-        "ai-title" => tail.ai = owned(&line["aiTitle"]).or(tail.ai.take()),
-        "system" => match line["subtype"].as_str() {
-            Some("turn_duration") => {
-                tail.last = Last::Finished;
-                if let Some(count) = line["messageCount"].as_u64() {
-                    tail.messages = Some(u32::try_from(count).unwrap_or(u32::MAX));
-                }
-            }
-            Some("stop_hook_summary") => tail.last = Last::Finished,
-            _ => {}
-        },
-        "assistant" => {
-            tail.counted += 1;
-            let blocks = line["message"]["content"].as_array();
-            let has = |wanted: &str| {
-                blocks.is_some_and(|blocks| {
-                    blocks
-                        .iter()
-                        .any(|block| block["type"].as_str() == Some(wanted))
-                })
-            };
-            if has("tool_use") {
-                tail.last = Last::Running;
-            } else if has("text") {
-                tail.last = Last::Finished;
-            }
-        }
-        "user" if line["isMeta"].as_bool() != Some(true) => {
-            tail.counted += 1;
-            let content = &line["message"]["content"];
-            let result = content.as_array().is_some_and(|blocks| {
-                blocks
-                    .iter()
-                    .any(|block| block["type"].as_str() == Some("tool_result"))
-            });
-            if result {
-                tail.last = Last::Running;
-                return;
-            }
-            let text = content_text(content).unwrap_or_default();
-            let text = text.trim_start();
-            if text.starts_with("[Request interrupted")
-                || text.starts_with("<local-command-stdout>")
-            {
-                tail.last = Last::Finished;
-            } else if !text.starts_with("<command-name>")
-                && !text.starts_with("<local-command-caveat>")
-            {
-                tail.last = Last::Running;
-            }
-        }
-        _ => {}
-    }
-}
-
-fn codex_head(head: &mut Head, line: &Value) {
-    let payload = &line["payload"];
-    match (line["type"].as_str(), payload["type"].as_str()) {
-        (Some("session_meta"), _) => {
-            head.id = head.id.take().or_else(|| owned(&payload["id"]));
-            head.cwd = head.cwd.take().or_else(|| owned(&payload["cwd"]));
-            head.branch = head
-                .branch
-                .take()
-                .or_else(|| owned(&payload["git"]["branch"]));
-            let originator = payload["originator"].as_str().unwrap_or_default();
-            if originator.contains("exec") || payload["source"].as_str() == Some("exec") {
-                head.automated = true;
-            }
-        }
-        (Some("turn_context"), _) => head.cwd = head.cwd.take().or_else(|| owned(&payload["cwd"])),
-        (Some("event_msg"), Some("user_message")) if head.prompt.is_none() => {
-            head.prompt = owned(&payload["message"]).and_then(|text| shown_user_text(&text));
-        }
-        (Some("response_item"), Some("message"))
-            if head.prompt.is_none() && payload["role"].as_str() == Some("user") =>
-        {
-            head.prompt = content_text(&payload["content"]).and_then(|text| shown_user_text(&text));
-        }
-        _ => {}
-    }
-}
-
-fn codex_tail(tail: &mut Tail, line: &Value) {
-    if let Some(title) = renamed_title(Harness::Codex, line) {
-        tail.custom = Some(title);
-    }
-    let payload = &line["payload"];
-    match (line["type"].as_str(), payload["type"].as_str()) {
-        (Some("event_msg"), Some("task_complete" | "turn_aborted")) => tail.last = Last::Finished,
-        (Some("event_msg"), Some("task_started")) => tail.last = Last::Running,
-        (Some("event_msg"), Some("user_message")) => {
-            tail.counted += 1;
-            tail.last = Last::Running;
-        }
-        (Some("event_msg"), Some("agent_message")) => {
-            tail.counted += 1;
-            tail.last = Last::Finished;
-        }
-        (
-            Some("response_item"),
-            Some(
-                "function_call"
-                | "custom_tool_call"
-                | "local_shell_call"
-                | "web_search_call"
-                | "function_call_output"
-                | "custom_tool_call_output",
-            ),
-        ) => tail.last = Last::Running,
-        _ => {}
-    }
-}
-
-fn read_head(path: &Path, harness: Harness) -> Head {
-    let mut head = Head::default();
-    let Ok(file) = File::open(path) else {
-        return head;
-    };
-    let mut reader = BufReader::new(file.take(HEAD_BYTES));
-    let mut line = Vec::new();
-    for _ in 0..HEAD_LINES {
-        line.clear();
-        match reader.read_until(b'\n', &mut line) {
-            Ok(0) | Err(_) => break,
-            Ok(_) => {}
-        }
-        let Ok(value) = serde_json::from_slice::<Value>(&line) else {
-            continue;
-        };
-        match harness {
-            Harness::Claude => claude_head(&mut head, &value),
-            Harness::Codex => codex_head(&mut head, &value),
-        }
-    }
-    head
-}
-
-fn read_tail_facts(path: &Path, harness: Harness) -> Tail {
-    let mut tail = Tail::default();
-    let Some(window) = read_tail(path, TAIL_BYTES) else {
-        return tail;
-    };
-    for (_, line) in records(&window.buffer, window.base) {
-        match harness {
-            Harness::Claude => claude_tail(&mut tail, &line),
-            Harness::Codex => codex_tail(&mut tail, &line),
-        }
-    }
-    tail
-}
-
-fn id_of(harness: Harness, path: &Path, head: &Head) -> String {
-    let stem = path
-        .file_stem()
-        .map(|stem| stem.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    match harness {
-        Harness::Claude => stem,
-        Harness::Codex => head
-            .id
-            .clone()
-            .filter(|id| valid_id(id))
-            .unwrap_or_else(|| {
-                let start = stem.len().saturating_sub(36);
-                stem.get(start..).unwrap_or(&stem).to_owned()
-            }),
-    }
-}
-
-fn localize_cwd(head: &mut Head, transcript: &Path) {
-    let local = head
-        .cwd
-        .as_deref()
-        .and_then(|cwd| berth_core::claude_store::local_cwd(cwd, transcript));
-    if let Some(local) = local {
-        head.cwd = Some(local.to_string_lossy().into_owned());
-    }
-}
-
 fn refresh_entry(cache: &mut HashMap<PathBuf, Entry>, found: &Found) {
     if let Some(entry) = cache.get_mut(&found.path) {
         if entry.signature != found.signature {
@@ -754,10 +301,7 @@ fn refresh_entry(cache: &mut HashMap<PathBuf, Entry>, found: &Found) {
         }
         return;
     }
-    let mut head = read_head(&found.path, found.harness);
-    if found.harness == Harness::Claude {
-        localize_cwd(&mut head, &found.path);
-    }
+    let head = head_of(found.harness, &found.path);
     let tail = read_tail_facts(&found.path, found.harness);
     cache.insert(
         found.path.clone(),
@@ -1028,21 +572,6 @@ fn claim(candidates: &[&Entry], procs: &[Proc]) -> HashMap<usize, Claim> {
     claims
 }
 
-fn title_of(entry: &Entry) -> String {
-    [
-        &entry.tail.custom,
-        &entry.head.custom,
-        &entry.tail.ai,
-        &entry.head.ai,
-        &entry.head.summary,
-        &entry.head.prompt,
-    ]
-    .into_iter()
-    .find_map(Option::as_deref)
-    .map(|title| single_line(title, TITLE_CHARS))
-    .unwrap_or_else(|| entry.id.chars().take(8).collect())
-}
-
 fn status_of(entry: &Entry, running: bool, now: u64) -> Status {
     if !running {
         return Status::Closed;
@@ -1066,7 +595,7 @@ fn session_of(entry: &Entry, claim: Option<&Claim>, now: u64) -> AgentSession {
         harness: entry.harness,
         id: entry.id.clone(),
         cwd: entry.head.cwd.clone().unwrap_or_default(),
-        title: title_of(entry),
+        title: title_of(&entry.head, &entry.tail, &entry.id),
         branch: entry
             .tail
             .branch
@@ -1119,30 +648,6 @@ pub(crate) fn transcript_files() -> Vec<(Harness, PathBuf)> {
         .collect()
 }
 
-pub(crate) struct SessionFacts {
-    pub(crate) id: String,
-    pub(crate) title: Option<String>,
-    pub(crate) cwd: Option<String>,
-    pub(crate) branch: Option<String>,
-}
-
-pub(crate) fn session_facts(harness: Harness, path: &Path) -> SessionFacts {
-    let mut head = read_head(path, harness);
-    if harness == Harness::Claude {
-        localize_cwd(&mut head, path);
-    }
-    let title = [&head.custom, &head.ai, &head.summary, &head.prompt]
-        .into_iter()
-        .find_map(Option::as_deref)
-        .map(|title| single_line(title, TITLE_CHARS));
-    SessionFacts {
-        id: id_of(harness, path, &head),
-        title,
-        cwd: head.cwd,
-        branch: head.branch,
-    }
-}
-
 fn locate(harness: Harness, id: &str) -> Result<PathBuf, String> {
     if !valid_id(id) {
         return Err(crate::host_text!("badSessionId", id = id));
@@ -1181,221 +686,8 @@ fn locate(harness: Harness, id: &str) -> Result<PathBuf, String> {
     }
 }
 
-const PLAN_TOOLS: [&str; 4] = ["TodoWrite", "TaskCreate", "TaskUpdate", "update_plan"];
-
-fn plan_input(name: Option<&str>, input: &Value) -> Option<Value> {
-    if !PLAN_TOOLS.contains(&name?) {
-        return None;
-    }
-    match input {
-        Value::String(raw) => serde_json::from_str(raw).ok(),
-        other => Some(other.clone()),
-    }
-}
-
-fn tool_summary(input: &Value) -> String {
-    let input = match input {
-        Value::String(raw) => serde_json::from_str::<Value>(raw).unwrap_or_else(|_| input.clone()),
-        _ => input.clone(),
-    };
-    if let Value::String(text) = &input {
-        return single_line(text, TOOL_CHARS);
-    }
-    for key in TOOL_KEYS {
-        let text = match &input[key] {
-            Value::String(text) => text.clone(),
-            Value::Array(items) => items
-                .iter()
-                .filter_map(Value::as_str)
-                .collect::<Vec<_>>()
-                .join(" "),
-            _ => continue,
-        };
-        if !text.trim().is_empty() {
-            return single_line(&text, TOOL_CHARS);
-        }
-    }
-    if input.is_null() {
-        return String::new();
-    }
-    single_line(&input.to_string(), TOOL_CHARS)
-}
-
-fn message_key(record: u64, part: usize) -> String {
-    format!("{record}:{part}")
-}
-
-fn record_of(key: &str) -> Option<u64> {
-    key.split(':').next()?.parse().ok()
-}
-
-pub(crate) fn claude_messages(
-    line: &Value,
-    record: u64,
-    in_subagent: bool,
-    out: &mut Vec<TranscriptMessage>,
-) {
-    let role = match line["type"].as_str() {
-        Some("user") => Role::User,
-        Some("assistant") => Role::Assistant,
-        _ => return,
-    };
-    if line["isMeta"].as_bool() == Some(true)
-        || (line["isSidechain"].as_bool() == Some(true) && !in_subagent)
-    {
-        return;
-    }
-    if role == Role::User
-        && line["origin"]["kind"]
-            .as_str()
-            .is_some_and(|kind| kind != "human")
-    {
-        return;
-    }
-    let at = owned(&line["timestamp"]);
-    let content = &line["message"]["content"];
-    let blocks: Vec<&Value> = match content {
-        Value::String(_) => vec![content],
-        Value::Array(items) => items.iter().collect(),
-        _ => return,
-    };
-    for (index, block) in blocks.into_iter().enumerate() {
-        let key = message_key(record, index);
-        let text = block.as_str().or_else(|| {
-            (block["type"].as_str() == Some("text"))
-                .then(|| block["text"].as_str())
-                .flatten()
-        });
-        if let Some(text) = text {
-            let shown = match role {
-                Role::User => shown_user_text(text),
-                Role::Assistant => {
-                    Some(clip(text.trim(), TEXT_CHARS)).filter(|text| !text.is_empty())
-                }
-            };
-            if let Some(text) = shown {
-                out.push(TranscriptMessage {
-                    key,
-                    role,
-                    text,
-                    tool: None,
-                    at: at.clone(),
-                    input: None,
-                    model: None,
-                    edits: Vec::new(),
-                    exit: None,
-                    subagent: None,
-                });
-            }
-        } else if block["type"].as_str() == Some("tool_use") {
-            out.push(TranscriptMessage {
-                key,
-                role: Role::Assistant,
-                text: tool_summary(&block["input"]),
-                tool: owned(&block["name"]).or_else(|| Some("tool".to_owned())),
-                at: at.clone(),
-                input: plan_input(block["name"].as_str(), &block["input"]),
-                model: None,
-                edits: file_edits(block["name"].as_str(), &block["input"]),
-                exit: None,
-                subagent: subagents::launch(Harness::Claude, block),
-            });
-        }
-    }
-}
-
-pub(crate) fn codex_messages(line: &Value, record: u64, out: &mut Vec<TranscriptMessage>) {
-    if line["type"].as_str() != Some("response_item") {
-        return;
-    }
-    let payload = &line["payload"];
-    let at = owned(&line["timestamp"]);
-    let kind = payload["type"].as_str().unwrap_or_default();
-    let key = message_key(record, 0);
-    let message = match kind {
-        "message" => {
-            let role = match payload["role"].as_str() {
-                Some("user") => Role::User,
-                Some("assistant") => Role::Assistant,
-                _ => return,
-            };
-            let text = payload["content"]
-                .as_array()
-                .map(|blocks| {
-                    blocks
-                        .iter()
-                        .filter_map(|block| block["text"].as_str())
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                })
-                .unwrap_or_default();
-            let shown = match role {
-                Role::User => shown_user_text(&text),
-                Role::Assistant => {
-                    Some(clip(text.trim(), TEXT_CHARS)).filter(|text| !text.is_empty())
-                }
-            };
-            let Some(text) = shown else {
-                return;
-            };
-            TranscriptMessage {
-                key,
-                role,
-                text,
-                tool: None,
-                at,
-                input: None,
-                model: None,
-                edits: Vec::new(),
-                exit: None,
-                subagent: None,
-            }
-        }
-        "function_call" | "custom_tool_call" => TranscriptMessage {
-            key,
-            role: Role::Assistant,
-            text: tool_summary(if kind == "function_call" {
-                &payload["arguments"]
-            } else {
-                &payload["input"]
-            }),
-            tool: owned(&payload["name"]).or_else(|| Some("tool".to_owned())),
-            at,
-            input: plan_input(
-                payload["name"].as_str(),
-                if kind == "function_call" {
-                    &payload["arguments"]
-                } else {
-                    &payload["input"]
-                },
-            ),
-            model: None,
-            edits: file_edits(
-                payload["name"].as_str(),
-                if kind == "function_call" {
-                    &payload["arguments"]
-                } else {
-                    &payload["input"]
-                },
-            ),
-            exit: None,
-            subagent: None,
-        },
-        "local_shell_call" => TranscriptMessage {
-            key,
-            role: Role::Assistant,
-            text: tool_summary(&payload["action"]),
-            tool: Some("shell".to_owned()),
-            at,
-            input: None,
-            model: None,
-            edits: file_edits(None, &payload["action"]),
-            exit: None,
-            subagent: None,
-        },
-        _ => return,
-    };
-    out.push(message);
+fn read_failed(failed: ReadFailed) -> String {
+    crate::host_text!("readFailedPlain", path = failed.path.display())
 }
 
 fn read_transcript(
@@ -1404,7 +696,7 @@ fn read_transcript(
     tail: Option<u32>,
     reach: Option<&str>,
 ) -> Result<Vec<TranscriptMessage>, String> {
-    read_messages(harness, &locate(harness, id)?, tail, reach, false)
+    read_transcript_file(harness, &locate(harness, id)?, tail, reach).map_err(read_failed)
 }
 
 fn read_subagent_transcript(
@@ -1413,91 +705,8 @@ fn read_subagent_transcript(
     call_id: &str,
     tail: Option<u32>,
 ) -> Result<Option<Vec<TranscriptMessage>>, String> {
-    let Some(path) = subagents::transcript_of(&locate(harness, id)?, call_id) else {
-        return Ok(None);
-    };
-    read_messages(harness, &path, tail, None, true).map(Some)
-}
-
-fn reach_budget(path: &Path, reach: Option<&str>) -> u64 {
-    let len = fs::metadata(path).map_or(0, |meta| meta.len());
-    reach
-        .and_then(record_of)
-        .filter(|record| *record < len)
-        .map_or(TRANSCRIPT_BYTES, |record| {
-            (len - record + TRANSCRIPT_BYTES).clamp(TRANSCRIPT_BYTES, REACH_MAX_BYTES)
-        })
-}
-
-fn read_messages(
-    harness: Harness,
-    path: &Path,
-    tail: Option<u32>,
-    reach: Option<&str>,
-    in_subagent: bool,
-) -> Result<Vec<TranscriptMessage>, String> {
-    let wanted = tail
-        .map_or(TRANSCRIPT_DEFAULT, |tail| tail as usize)
-        .clamp(1, TRANSCRIPT_MAX);
-    let mut budget = reach_budget(path, reach);
-    loop {
-        let window = read_tail(path, budget)
-            .ok_or_else(|| crate::host_text!("readFailedPlain", path = path.display()))?;
-        let mut messages: Vec<TranscriptMessage> = Vec::new();
-        let mut model: Option<String> = None;
-        let mut calls: HashMap<String, usize> = HashMap::new();
-        let mut agents: HashMap<String, usize> = HashMap::new();
-        for (record, line) in records(&window.buffer, window.base) {
-            if let Some(next) = line_model(harness, &line) {
-                model = Some(next);
-            }
-            let from = messages.len();
-            match harness {
-                Harness::Claude => claude_messages(&line, record, in_subagent, &mut messages),
-                Harness::Codex => codex_messages(&line, record, &mut messages),
-            }
-            for message in &mut messages[from..] {
-                if message.role == Role::Assistant {
-                    message.model.clone_from(&model);
-                }
-            }
-            let tools = (from..messages.len()).filter(|&index| messages[index].tool.is_some());
-            for (index, id) in tools.zip(tool_exit::call_ids(harness, &line, in_subagent)) {
-                if !id.is_empty() {
-                    calls.insert(id, index);
-                }
-            }
-            for (id, code) in tool_exit::results(harness, &line) {
-                if let Some(&index) = calls.get(&id) {
-                    messages[index].exit = Some(code);
-                }
-            }
-            for settled in subagents::settled(harness, &line) {
-                let by_call = settled.call_id.as_ref().and_then(|id| calls.get(id));
-                let by_agent = settled.agent_id.as_ref().and_then(|id| agents.get(id));
-                let Some(&index) = by_call.or(by_agent) else {
-                    continue;
-                };
-                if let Some(id) = settled.agent_id {
-                    agents.insert(id, index);
-                }
-                if let Some(subagent) = messages[index].subagent.as_mut() {
-                    subagent.settle(settled.report);
-                }
-            }
-        }
-        if messages.len() >= wanted || window.from_start || budget >= TRANSCRIPT_MAX_BYTES {
-            let mut skip = messages.len().saturating_sub(wanted);
-            if let Some(found) =
-                reach.and_then(|key| messages.iter().position(|message| message.key == key))
-            {
-                skip = skip.min(found.saturating_sub(REACH_CONTEXT));
-            }
-            messages.drain(..skip);
-            return Ok(messages);
-        }
-        budget *= 4;
-    }
+    read_subagent_transcript_file(harness, &locate(harness, id)?, call_id, tail)
+        .map_err(read_failed)
 }
 
 pub async fn agent_sessions_list(since_days: Option<u32>) -> Result<Vec<AgentSession>, String> {

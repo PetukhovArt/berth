@@ -30,6 +30,7 @@ tauri-build = { version = "2", features = [], optional = true }
 [dependencies]
 tauri = { version = "2", features = ["tray-icon"], optional = true }
 berth-core = { workspace = true }
+berth-transcripts = { workspace = true }
 tokio = { version = "1", features = ["net", "io-util", "sync", "macros", "time", "rt", "rt-multi-thread", "process", "signal", "fs"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }

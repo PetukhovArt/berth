@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 use serde_json::Value;
 
-use super::{clip, owned, tag_value, Harness};
+use super::message::Harness;
+use super::text::{clip, owned, tag_value};
 
 const LAUNCH_TOOLS: [&str; 2] = ["Agent", "Task"];
 const DESCRIPTION_CHARS: usize = 120;

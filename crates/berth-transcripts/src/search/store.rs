@@ -1,6 +1,6 @@
 use std::fs;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::Duration;
 
@@ -8,11 +8,11 @@ use rusqlite::functions::FunctionFlags;
 use rusqlite::types::ValueRef;
 use rusqlite::{Connection, ErrorCode, OpenFlags};
 
-pub const LOWER: &str = "berth_lower";
-const SCHEMA_VERSION: i64 = 4;
+pub(super) const LOWER: &str = "berth_lower";
+pub(super) const SCHEMA_VERSION: i64 = 4;
 const BUSY: Duration = Duration::from_secs(5);
 
-const SCHEMA: &str = "
+pub(super) const SCHEMA: &str = "
 BEGIN;
 CREATE TABLE files(
     path TEXT PRIMARY KEY,
@@ -41,10 +41,6 @@ PRAGMA user_version=4;
 COMMIT;
 ";
 
-pub fn db_path() -> PathBuf {
-    berth_core::paths::search_index_db()
-}
-
 pub fn fts5_ready() -> Result<(), String> {
     static READY: OnceLock<Result<(), String>> = OnceLock::new();
     READY
@@ -65,10 +61,9 @@ pub fn is_corrupt(error: &rusqlite::Error) -> bool {
     )
 }
 
-pub fn remove_files() -> io::Result<()> {
-    let path = db_path();
+pub fn remove_files(path: &Path) -> io::Result<()> {
     for suffix in ["", "-wal", "-shm"] {
-        let mut name = path.clone().into_os_string();
+        let mut name = path.to_path_buf().into_os_string();
         name.push(suffix);
         match fs::remove_file(PathBuf::from(name)) {
             Ok(()) => {}
@@ -83,12 +78,11 @@ fn version(conn: &Connection) -> rusqlite::Result<i64> {
     conn.query_row("PRAGMA user_version", [], |row| row.get(0))
 }
 
-fn prepare() -> rusqlite::Result<Option<Connection>> {
-    let path = db_path();
+fn prepare(path: &Path) -> rusqlite::Result<Option<Connection>> {
     if let Some(dir) = path.parent() {
         let _ = fs::create_dir_all(dir);
     }
-    let conn = Connection::open(&path)?;
+    let conn = Connection::open(path)?;
     conn.busy_timeout(BUSY)?;
     conn.query_row("PRAGMA journal_mode=WAL", [], |row| row.get::<_, String>(0))?;
     conn.execute_batch("PRAGMA synchronous=NORMAL")?;
@@ -104,16 +98,16 @@ fn prepare() -> rusqlite::Result<Option<Connection>> {
     Ok(None)
 }
 
-pub fn open_writer() -> Result<Connection, String> {
+pub fn open_writer(path: &Path) -> Result<Connection, String> {
     fts5_ready()?;
-    match prepare() {
+    match prepare(path) {
         Ok(Some(conn)) => return Ok(conn),
         Ok(None) => {}
         Err(e) if is_corrupt(&e) => {}
         Err(e) => return Err(e.to_string()),
     }
-    remove_files().map_err(|e| format!("{}: {e}", db_path().display()))?;
-    match prepare() {
+    remove_files(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    match prepare(path) {
         Ok(Some(conn)) => Ok(conn),
         Ok(None) => Err("search index: schema did not initialise".to_owned()),
         Err(e) => Err(e.to_string()),
@@ -135,13 +129,12 @@ fn add_lower(conn: &Connection) -> rusqlite::Result<()> {
     )
 }
 
-pub fn open_reader() -> Result<Option<Connection>, String> {
+pub fn open_reader(path: &Path) -> Result<Option<Connection>, String> {
     fts5_ready()?;
-    let path = db_path();
     if !path.is_file() {
         return Ok(None);
     }
-    let conn = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY)
+    let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
         .map_err(|e| format!("{}: {e}", path.display()))?;
     conn.busy_timeout(BUSY).map_err(|e| e.to_string())?;
     add_lower(&conn).map_err(|e| e.to_string())?;

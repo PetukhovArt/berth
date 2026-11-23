@@ -8,8 +8,8 @@ use berth_core::{
 use rusqlite::{params, Connection};
 use tokio::runtime::Handle;
 
-use super::indexer::Known;
 use crate::berth::{self, Berth, ConnectionState, WatchEvent};
+use berth_transcripts::search::Known;
 
 const PREFIX: &str = "acp:";
 const HARNESS: &str = "acp";

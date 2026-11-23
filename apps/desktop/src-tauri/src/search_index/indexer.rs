@@ -1,22 +1,18 @@
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
-use std::io::{BufRead, BufReader, Seek, SeekFrom};
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use berth_transcripts::search::store;
+use berth_transcripts::search::{index_listed, load_known, Known, Listed};
 use rusqlite::{params, Connection};
-use serde_json::Value;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::unbounded_channel;
 use tokio::task::spawn_blocking;
 
 use super::acp::{self, AcpAgent, Daemon, Roster};
-use super::store;
-use crate::agent_sessions::{
-    claude_messages, codex_messages, renamed_title, session_facts, title_line, transcript_files,
-    Harness, Role, TranscriptMessage,
-};
+use super::db_path;
+use crate::agent_sessions::transcript_files;
 use crate::berth::{self, Berth};
 use crate::merge_watch::Forward;
 
@@ -24,26 +20,6 @@ const TICK: Duration = Duration::from_secs(30);
 const LOCK_RETRY: Duration = Duration::from_secs(60);
 const LOCK_FILE: &str = "search-index.lock";
 const TICK_BYTES: u64 = 64 * 1024 * 1024;
-
-struct Listed {
-    harness: Harness,
-    path: PathBuf,
-    key: String,
-    size: i64,
-    mtime: i64,
-}
-
-pub struct Known {
-    size: i64,
-    pub mtime: i64,
-    pub offset: i64,
-}
-
-enum Plan {
-    Skip,
-    From(i64),
-    Rebuild,
-}
 
 pub async fn run() {
     if crate::ssh_remote::target().is_some() {
@@ -104,12 +80,12 @@ fn try_writer_lock() -> Option<File> {
 }
 
 fn sweep(agents: Option<Vec<AcpAgent>>, daemon: &Daemon) -> Result<(), String> {
-    let mut conn = store::open_writer()?;
+    let mut conn = store::open_writer(&db_path())?;
     match pass(&mut conn, agents, daemon) {
         Ok(()) => Ok(()),
         Err(error) if store::is_corrupt(&error) => {
             drop(conn);
-            let _ = store::remove_files();
+            let _ = store::remove_files(&db_path());
             Err(error.to_string())
         }
         Err(error) => Err(error.to_string()),
@@ -138,30 +114,6 @@ fn listing() -> Vec<Listed> {
         .collect();
     listed.sort_by_key(|file| std::cmp::Reverse(file.mtime));
     listed
-}
-
-fn load_known(conn: &Connection) -> rusqlite::Result<HashMap<String, Known>> {
-    let mut statement = conn.prepare("SELECT path, size, mtime, offset FROM files")?;
-    let rows = statement.query_map([], |row| {
-        Ok((
-            row.get::<_, String>(0)?,
-            Known {
-                size: row.get(1)?,
-                mtime: row.get(2)?,
-                offset: row.get(3)?,
-            },
-        ))
-    })?;
-    rows.collect()
-}
-
-fn plan(file: &Listed, known: Option<&Known>) -> Plan {
-    match known {
-        None => Plan::From(0),
-        Some(known) if file.size < known.size || file.mtime < known.mtime => Plan::Rebuild,
-        Some(known) if file.size > known.size => Plan::From(known.offset),
-        Some(_) => Plan::Skip,
-    }
 }
 
 fn forget_removed(
@@ -210,23 +162,7 @@ fn pass(
     let mut known = load_known(conn)?;
     forget_removed(conn, &listed, agents.as_deref(), &mut known)?;
     let mut budget = TICK_BYTES;
-    let mut caught_up = 0u32;
-    for file in &listed {
-        let from = match plan(file, known.get(&file.key)) {
-            Plan::Skip => {
-                caught_up += 1;
-                continue;
-            }
-            Plan::From(offset) => Some(offset),
-            Plan::Rebuild => None,
-        };
-        if budget == 0 {
-            continue;
-        }
-        if index_file(conn, file, from, &mut budget)? {
-            caught_up += 1;
-        }
-    }
+    let mut caught_up = index_listed(conn, &listed, &known, &mut budget)?;
     let conversations = agents.unwrap_or_default();
     for agent in &conversations {
         if acp::index(conn, daemon, agent, known.get(&agent.key()))? {
@@ -241,124 +177,4 @@ fn pass(
         ],
     )?;
     Ok(())
-}
-
-fn role_name(role: Role) -> &'static str {
-    match role {
-        Role::User => "user",
-        Role::Assistant => "assistant",
-    }
-}
-
-fn harness_name(harness: Harness) -> &'static str {
-    match harness {
-        Harness::Claude => "claude",
-        Harness::Codex => "codex",
-    }
-}
-
-fn messages_of(harness: Harness, line: &Value, record: u64) -> Vec<TranscriptMessage> {
-    let mut out = Vec::new();
-    match harness {
-        Harness::Claude => claude_messages(line, record, false, &mut out),
-        Harness::Codex => codex_messages(line, record, &mut out),
-    }
-    out.retain(|message| message.tool.is_none() && !message.text.is_empty());
-    out
-}
-
-fn index_file(
-    conn: &mut Connection,
-    file: &Listed,
-    from: Option<i64>,
-    budget: &mut u64,
-) -> rusqlite::Result<bool> {
-    let Ok(handle) = File::open(&file.path) else {
-        return Ok(false);
-    };
-    let rebuild = from.is_none();
-    let start = from.unwrap_or(0);
-    let mut reader = BufReader::new(handle);
-    if reader
-        .seek(SeekFrom::Start(u64::try_from(start).unwrap_or(0)))
-        .is_err()
-    {
-        return Ok(false);
-    }
-    let facts = session_facts(file.harness, &file.path);
-    let tx = conn.transaction()?;
-    if rebuild {
-        tx.execute("DELETE FROM messages WHERE path = ?1", [&file.key])?;
-    }
-    let mut offset = start;
-    let mut consumed = start;
-    let mut done = true;
-    let mut line = Vec::new();
-    let mut renamed = None;
-    {
-        let mut insert = tx.prepare_cached(
-            "INSERT INTO messages(text, harness, session, key, role, at, path) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-        )?;
-        loop {
-            if *budget == 0 {
-                done = false;
-                break;
-            }
-            line.clear();
-            let read = match reader.read_until(b'\n', &mut line) {
-                Ok(0) | Err(_) => break,
-                Ok(read) => read,
-            };
-            let length = i64::try_from(read).unwrap_or(i64::MAX);
-            consumed += length;
-            if line.last() != Some(&b'\n') {
-                break;
-            }
-            let record = u64::try_from(offset).unwrap_or(0);
-            offset += length;
-            *budget = budget.saturating_sub(read as u64);
-            let Ok(value) = serde_json::from_slice::<Value>(&line) else {
-                continue;
-            };
-            if let Some(title) = renamed_title(file.harness, &value) {
-                renamed = Some(title_line(&title));
-            }
-            for message in messages_of(file.harness, &value, record) {
-                insert.execute(params![
-                    message.text,
-                    harness_name(file.harness),
-                    facts.id,
-                    message.key,
-                    role_name(message.role),
-                    message.at,
-                    file.key,
-                ])?;
-            }
-        }
-    }
-    let size = if done { consumed } else { offset };
-    tx.execute(
-        "INSERT INTO files(path, harness, session, size, mtime, offset, title, cwd, branch) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9) \
-         ON CONFLICT(path) DO UPDATE SET harness = excluded.harness, session = excluded.session, \
-         size = excluded.size, mtime = excluded.mtime, offset = excluded.offset, \
-         title = CASE WHEN ?11 THEN excluded.title ELSE coalesce(?10, files.title, excluded.title) END, \
-         cwd = excluded.cwd, branch = excluded.branch",
-        params![
-            file.key,
-            harness_name(file.harness),
-            facts.id,
-            size,
-            file.mtime,
-            offset,
-            renamed.as_ref().or(facts.title.as_ref()),
-            facts.cwd,
-            facts.branch,
-            renamed,
-            start == 0
-        ],
-    )?;
-    tx.commit()?;
-    Ok(done && size >= file.size)
 }

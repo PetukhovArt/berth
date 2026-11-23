@@ -4,10 +4,11 @@ members = [
     "crates/berth-core",
     "crates/berth-daemon",
     "crates/berth-hub",
+    "crates/berth-transcripts",
     "crates/berth",
     "apps/desktop/src-tauri",
 ]
-default-members = ["crates/berth-core", "crates/berth-daemon", "crates/berth-hub", "crates/berth"]
+default-members = ["crates/berth-core", "crates/berth-daemon", "crates/berth-hub", "crates/berth-transcripts", "crates/berth"]
 exclude = ["vendor/vt100"]
 
 # Vendored vt100 with one patch: rows scrolled out of a top-anchored DECSTBM
@@ -26,6 +27,7 @@ license = "MIT"
 berth-core = { path = "crates/berth-core" }
 berth-daemon = { path = "crates/berth-daemon" }
 berth-hub = { path = "crates/berth-hub" }
+berth-transcripts = { path = "crates/berth-transcripts" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -38,6 +40,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 ulid = { version = "3", features = ["serde"] }
 directories = "6"
+rusqlite = { version = "0.40", features = ["bundled"] }
 
 [profile.release]
 lto = "thin"

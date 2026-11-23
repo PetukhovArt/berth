@@ -1,7 +1,7 @@
 use serde::Serialize;
 use serde_json::Value;
 
-use super::Harness;
+use super::message::Harness;
 
 const PATCH_START: &str = "*** Begin Patch";
 const PATCH_FILE_MARKERS: [&str; 3] = ["*** Update File: ", "*** Add File: ", "*** Delete File: "];

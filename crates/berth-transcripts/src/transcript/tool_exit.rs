@@ -1,6 +1,7 @@
 use serde_json::Value;
 
-use super::{content_text, Harness};
+use super::message::Harness;
+use super::text::content_text;
 
 const CODEX_OUTPUTS: [&str; 3] = [
     "function_call_output",
