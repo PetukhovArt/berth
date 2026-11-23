@@ -7,6 +7,7 @@ import { describeError } from '../../../entities/session';
 import ConditionRows from './ConditionRows.vue';
 import { ROUTE_KINDS, isObject, type Json } from '../model/conditionRows';
 import { draftJson, loadRouter, newRule, saveRouter, type RouterDraft } from '../model/routerFile';
+import { routeRuleLabel } from '../model/builtInRules';
 
 const draft = ref(null) as Ref<RouterDraft | null>;
 const path = shallowRef('');
@@ -124,18 +125,18 @@ onMounted(() => void reload());
             <VSelect v-model="entry.kind" :options="kindOptions" option-label="label" option-value="value" size="small" :aria-label="t('router.chain')" data-testid="router-chain-kind" />
             <VInputText v-model="entry.model" size="small" :placeholder="t('router.modelPlaceholder')" :aria-label="t('router.modelPlaceholder')" data-testid="router-chain-model" />
             <VButton size="small" text severity="secondary" :aria-label="t('router.moveUp')" :title="t('router.moveUp')" :disabled="index === 0" @click="move(draft.fallback, index, -1)">
-              <template #icon><ArrowUp :size="12" /></template>
+              <template #icon><ArrowUp :size="14" /></template>
             </VButton>
             <VButton size="small" text severity="secondary" :aria-label="t('router.moveDown')" :title="t('router.moveDown')" :disabled="index === draft.fallback.length - 1" @click="move(draft.fallback, index, 1)">
-              <template #icon><ArrowDown :size="12" /></template>
+              <template #icon><ArrowDown :size="14" /></template>
             </VButton>
             <VButton size="small" text severity="secondary" :aria-label="t('router.remove')" :title="t('router.remove')" @click="draft.fallback.splice(index, 1)">
-              <template #icon><Trash2 :size="12" /></template>
+              <template #icon><Trash2 :size="14" /></template>
             </VButton>
           </li>
         </ol>
-        <VButton size="small" text :label="t('router.chainAdd')" data-testid="router-chain-add" @click="draft.fallback.push({ kind: 'codex', model: '' })">
-          <template #icon><Plus :size="12" /></template>
+        <VButton size="small" severity="secondary" outlined class="add" :label="t('router.chainAdd')" data-testid="router-chain-add" @click="draft.fallback.push({ kind: 'codex', model: '' })">
+          <template #icon><Plus :size="14" /></template>
         </VButton>
       </div>
 
@@ -144,19 +145,19 @@ onMounted(() => void reload());
       <div v-for="(rule, index) in draft.rules" :key="index" class="block rule" :data-testid="`router-rule-${rule.id}`">
         <div class="rule-head">
           <VToggleSwitch v-model="rule.enabled" :input-id="`router-rule-enabled-${index}`" :aria-label="t('router.ruleEnabled')" data-testid="router-rule-enabled" />
-          <VInputText v-model="rule.name" size="small" :placeholder="rule.id" :aria-label="t('router.ruleName')" class="grow" data-testid="router-rule-name" />
+          <VInputText v-model="rule.name" size="small" :placeholder="routeRuleLabel(rule.id)" :aria-label="t('router.ruleName')" class="grow" data-testid="router-rule-name" />
           <label class="field inline" :title="t('router.ruleIdHint')">
             <span class="muted">{{ t('router.ruleId') }}</span>
             <VInputText v-model="rule.id" size="small" :aria-label="t('router.ruleId')" class="id" data-testid="router-rule-id" />
           </label>
           <VButton size="small" text severity="secondary" :aria-label="t('router.moveUp')" :title="t('router.moveUp')" :disabled="index === 0" @click="move(draft.rules, index, -1)">
-            <template #icon><ArrowUp :size="12" /></template>
+            <template #icon><ArrowUp :size="14" /></template>
           </VButton>
           <VButton size="small" text severity="secondary" :aria-label="t('router.moveDown')" :title="t('router.moveDown')" :disabled="index === draft.rules.length - 1" @click="move(draft.rules, index, 1)">
-            <template #icon><ArrowDown :size="12" /></template>
+            <template #icon><ArrowDown :size="14" /></template>
           </VButton>
           <VButton size="small" text severity="secondary" :aria-label="t('router.remove')" :title="t('router.remove')" data-testid="router-rule-remove" @click="draft.rules.splice(index, 1)">
-            <template #icon><Trash2 :size="12" /></template>
+            <template #icon><Trash2 :size="14" /></template>
           </VButton>
         </div>
         <h4>{{ t('router.when') }}</h4>
@@ -170,12 +171,12 @@ onMounted(() => void reload());
           </template>
           <code v-else class="raw" :title="t('router.kept')" data-testid="router-action-opaque">{{ JSON.stringify(action) }}</code>
           <VButton size="small" text severity="secondary" :aria-label="t('router.remove')" :title="t('router.remove')" @click="rule.actions.splice(at, 1)">
-            <template #icon><Trash2 :size="12" /></template>
+            <template #icon><Trash2 :size="14" /></template>
           </VButton>
         </div>
         <div class="rule-foot">
-          <VButton size="small" text :label="t('router.addAction')" data-testid="router-add-action" @click="rule.actions.push({ next_in_chain: {} })">
-            <template #icon><Plus :size="12" /></template>
+          <VButton size="small" severity="secondary" outlined class="add" :label="t('router.addAction')" data-testid="router-add-action" @click="rule.actions.push({ next_in_chain: {} })">
+            <template #icon><Plus :size="14" /></template>
           </VButton>
           <label class="field inline">
             <span class="muted">{{ t('router.cooldown') }}</span>
@@ -183,8 +184,8 @@ onMounted(() => void reload());
           </label>
         </div>
       </div>
-      <VButton size="small" :label="t('router.ruleAdd')" severity="secondary" data-testid="router-rule-add" @click="draft.rules.push(newRule(draft.rules.map((r) => r.id)))">
-        <template #icon><Plus :size="12" /></template>
+      <VButton size="small" severity="secondary" outlined class="add" :label="t('router.ruleAdd')" data-testid="router-rule-add" @click="draft.rules.push(newRule(draft.rules.map((r) => r.id)))">
+        <template #icon><Plus :size="14" /></template>
       </VButton>
     </template>
   </section>
@@ -269,6 +270,10 @@ p {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.add {
+  align-self: flex-start;
 }
 
 .grow {

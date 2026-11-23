@@ -1,5 +1,6 @@
 import { t } from '../../../shared/lib/i18n/i18n';
 import { BerthCallError, call } from '../../../entities/session';
+import { isDefaultName } from './builtInRules';
 import { fromConditionList, isObject, toConditionList, type ConditionList, type Json, type JsonObject } from './conditionRows';
 
 type ChainEntry = { kind: string; model: string };
@@ -20,7 +21,7 @@ function toRule(value: Json): RuleDraft {
   return {
     raw,
     id: text(raw.id),
-    name: text(raw.name),
+    name: isDefaultName(text(raw.id), text(raw.name)) ? '' : text(raw.name),
     enabled: raw.enabled !== false,
     cooldownSecs: typeof raw.auto_cooldown_secs === 'number' ? raw.auto_cooldown_secs : null,
     conditions: toConditionList(raw.when ?? { any: [] }),

@@ -28,6 +28,7 @@ export const router = {
   remove: 'Удалить',
   moveUp: 'Выше',
   moveDown: 'Ниже',
+  builtIn: { fallback: 'Следующий агент в цепочке замен' },
   kept: 'Сохраняется как написано',
   empty: 'Нет условий: правило не сработает.',
   condition: {

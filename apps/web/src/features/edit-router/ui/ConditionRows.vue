@@ -61,8 +61,8 @@ const models = (value: string | undefined) =>
       </template>
       <template v-else-if="row.type === 'close'">
         <span class="bracket">)</span>
-        <VButton size="small" text severity="secondary" :label="t('router.addCondition')" data-testid="router-group-add" @click="addAt(index, [conditionRow('provider_error')])">
-          <template #icon><Plus :size="12" /></template>
+        <VButton size="small" severity="secondary" outlined :label="t('router.addCondition')" data-testid="router-group-add" @click="addAt(index, [conditionRow('provider_error')])">
+          <template #icon><Plus :size="14" /></template>
         </VButton>
       </template>
       <template v-else>
@@ -96,15 +96,17 @@ const models = (value: string | undefined) =>
           </span>
         </template>
         <VButton size="small" text severity="secondary" :aria-label="t('router.remove')" :title="t('router.remove')" data-testid="router-row-remove" @click="remove(index)">
-          <template #icon><Trash2 :size="12" /></template>
+          <template #icon><Trash2 :size="14" /></template>
         </VButton>
       </template>
     </div>
     <div class="add">
-      <VButton size="small" text :label="t('router.addCondition')" data-testid="router-add-condition" @click="addAt(list.rows.length, [conditionRow('provider_error')])">
-        <template #icon><Plus :size="12" /></template>
+      <VButton size="small" severity="secondary" outlined :label="t('router.addCondition')" data-testid="router-add-condition" @click="addAt(list.rows.length, [conditionRow('provider_error')])">
+        <template #icon><Plus :size="14" /></template>
       </VButton>
-      <VButton size="small" text severity="secondary" :label="t('router.addGroup')" data-testid="router-add-group" @click="addAt(list.rows.length, groupRows())" />
+      <VButton size="small" severity="secondary" outlined :label="t('router.addGroup')" data-testid="router-add-group" @click="addAt(list.rows.length, groupRows())">
+        <template #icon><Plus :size="14" /></template>
+      </VButton>
     </div>
   </div>
 </template>

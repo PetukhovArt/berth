@@ -6,6 +6,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
 import { canContinueAsAgent, continueTerminalInDock, sessionStateOf, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, isStopped, useAction, StatusDot } from '../../../entities/session';
 import { MoveAgentDialog } from '../../../features/move-agent';
+import { routeRuleLabel } from '../../../features/edit-router';
 import SessionDeleteConfirm from './SessionDeleteConfirm.vue';
 
 import { UiButton } from '../../../shared/ui/UiButton';
@@ -146,7 +147,7 @@ async function confirmDelete() {
       <UiButton
         v-if="session.suggestion"
         class="suggestion"
-        :title="t('agents.route.suggestTitle', { rule: session.suggestion.rule })"
+        :title="t('agents.route.suggestTitle', { rule: routeRuleLabel(session.suggestion.rule) })"
         :disabled="action.busy.value"
         data-testid="session-route-suggestion"
         @click="applySuggestion"

@@ -28,6 +28,7 @@ export const router = {
   remove: 'Remove',
   moveUp: 'Move up',
   moveDown: 'Move down',
+  builtIn: { fallback: 'Next agent in the fallback chain' },
   kept: 'Kept as written',
   empty: 'No conditions: this rule never fires.',
   condition: {
