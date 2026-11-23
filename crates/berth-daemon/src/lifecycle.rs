@@ -245,8 +245,14 @@ mod tests {
         );
 
         drop(held);
+        let released_after_forked_children_exec = (0..100).any(|_| {
+            try_lock_exclusive(&open()) || {
+                std::thread::sleep(std::time::Duration::from_millis(20));
+                false
+            }
+        });
         assert!(
-            try_lock_exclusive(&open()),
+            released_after_forked_children_exec,
             "closing the holder's handle releases the lock"
         );
     }
