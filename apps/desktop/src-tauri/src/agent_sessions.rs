@@ -539,12 +539,33 @@ fn claude_head(head: &mut Head, line: &Value) {
     }
 }
 
+pub(crate) fn renamed_title(harness: Harness, line: &Value) -> Option<String> {
+    match harness {
+        Harness::Claude if line["type"].as_str() == Some("custom-title") => {
+            owned(&line["customTitle"])
+        }
+        Harness::Codex
+            if line["type"].as_str() == Some("event_msg")
+                && line["payload"]["type"].as_str() == Some("thread_name_updated") =>
+        {
+            owned(&line["payload"]["thread_name"])
+        }
+        _ => None,
+    }
+}
+
+pub(crate) fn title_line(title: &str) -> String {
+    single_line(title, TITLE_CHARS)
+}
+
 fn claude_tail(tail: &mut Tail, line: &Value) {
     if let Some(branch) = owned(&line["gitBranch"]) {
         tail.branch = Some(branch);
     }
+    if let Some(title) = renamed_title(Harness::Claude, line) {
+        tail.custom = Some(title);
+    }
     match line["type"].as_str().unwrap_or_default() {
-        "custom-title" => tail.custom = owned(&line["customTitle"]).or(tail.custom.take()),
         "ai-title" => tail.ai = owned(&line["aiTitle"]).or(tail.ai.take()),
         "system" => match line["subtype"].as_str() {
             Some("turn_duration") => {
@@ -629,13 +650,13 @@ fn codex_head(head: &mut Head, line: &Value) {
 }
 
 fn codex_tail(tail: &mut Tail, line: &Value) {
+    if let Some(title) = renamed_title(Harness::Codex, line) {
+        tail.custom = Some(title);
+    }
     let payload = &line["payload"];
     match (line["type"].as_str(), payload["type"].as_str()) {
         (Some("event_msg"), Some("task_complete" | "turn_aborted")) => tail.last = Last::Finished,
         (Some("event_msg"), Some("task_started")) => tail.last = Last::Running,
-        (Some("event_msg"), Some("thread_name_updated")) => {
-            tail.custom = owned(&payload["thread_name"]).or(tail.custom.take());
-        }
         (Some("event_msg"), Some("user_message")) => {
             tail.counted += 1;
             tail.last = Last::Running;

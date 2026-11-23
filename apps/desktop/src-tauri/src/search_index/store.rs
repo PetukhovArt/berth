@@ -9,7 +9,7 @@ use rusqlite::types::ValueRef;
 use rusqlite::{Connection, ErrorCode, OpenFlags};
 
 pub const LOWER: &str = "berth_lower";
-const SCHEMA_VERSION: i64 = 3;
+const SCHEMA_VERSION: i64 = 4;
 const BUSY: Duration = Duration::from_secs(5);
 
 const SCHEMA: &str = "
@@ -37,7 +37,7 @@ CREATE VIRTUAL TABLE messages USING fts5(
     path UNINDEXED,
     tokenize='trigram'
 );
-PRAGMA user_version=3;
+PRAGMA user_version=4;
 COMMIT;
 ";
 

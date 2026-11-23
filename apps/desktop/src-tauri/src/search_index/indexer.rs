@@ -14,8 +14,8 @@ use tokio::task::spawn_blocking;
 use super::acp::{self, AcpAgent, Daemon, Roster};
 use super::store;
 use crate::agent_sessions::{
-    claude_messages, codex_messages, session_facts, transcript_files, Harness, Role,
-    TranscriptMessage,
+    claude_messages, codex_messages, renamed_title, session_facts, title_line, transcript_files,
+    Harness, Role, TranscriptMessage,
 };
 use crate::berth::{self, Berth};
 use crate::merge_watch::Forward;
@@ -294,6 +294,7 @@ fn index_file(
     let mut consumed = start;
     let mut done = true;
     let mut line = Vec::new();
+    let mut renamed = None;
     {
         let mut insert = tx.prepare_cached(
             "INSERT INTO messages(text, harness, session, key, role, at, path) \
@@ -320,6 +321,9 @@ fn index_file(
             let Ok(value) = serde_json::from_slice::<Value>(&line) else {
                 continue;
             };
+            if let Some(title) = renamed_title(file.harness, &value) {
+                renamed = Some(title_line(&title));
+            }
             for message in messages_of(file.harness, &value, record) {
                 insert.execute(params![
                     message.text,
@@ -339,7 +343,8 @@ fn index_file(
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9) \
          ON CONFLICT(path) DO UPDATE SET harness = excluded.harness, session = excluded.session, \
          size = excluded.size, mtime = excluded.mtime, offset = excluded.offset, \
-         title = excluded.title, cwd = excluded.cwd, branch = excluded.branch",
+         title = CASE WHEN ?11 THEN excluded.title ELSE coalesce(?10, files.title, excluded.title) END, \
+         cwd = excluded.cwd, branch = excluded.branch",
         params![
             file.key,
             harness_name(file.harness),
@@ -347,9 +352,11 @@ fn index_file(
             size,
             file.mtime,
             offset,
-            facts.title,
+            renamed.as_ref().or(facts.title.as_ref()),
             facts.cwd,
-            facts.branch
+            facts.branch,
+            renamed,
+            start == 0
         ],
     )?;
     tx.commit()?;
