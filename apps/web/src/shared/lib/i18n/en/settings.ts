@@ -151,8 +151,8 @@ export const settings = {
     },
     sessionsWorktreeBase: {
       label: 'Base branch for new worktrees',
-      description: 'The branch New worktree… and berth worktree start from, fetched from origin first. Pairs of project name and branch: web-client=develop. A project not listed starts from develop, main or master, the first one it has.',
-      placeholder: 'web-client=develop',
+      description: 'The branch New worktree… and berth worktree start from, fetched from origin first. Pairs of project name and branch: my-app=develop. A project not listed starts from develop, main or master, the first one it has.',
+      placeholder: 'my-app=develop',
     },
     sessionsMrPrompt: {
       label: 'Merge request session prompt',
@@ -227,8 +227,8 @@ export const settings = {
     },
     treeJiraProjects: {
       label: 'Jira projects in the tree',
-      description: 'Links Jira issues to a project when no branch of the project names the issue. Pairs of Jira key and project name: WC=web-client, SC=frontend.',
-      placeholder: 'WC=web-client',
+      description: 'Links Jira issues to a project when no branch of the project names the issue. Pairs of Jira key and project name: APP=my-app, API=backend.',
+      placeholder: 'APP=my-app',
     },
   },
   problem: {
@@ -237,7 +237,7 @@ export const settings = {
     range: 'a number from {min} to {max}',
     expectedString: 'expected a string',
     oneOf: 'one of: {values}',
-    expectedMap: 'expected an object of strings {"WC": "web-client"}',
+    expectedMap: 'expected an object of strings {"APP": "my-app"}',
   },
   parse: {
     rootObject: 'The file root must be an object {…}',

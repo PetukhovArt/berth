@@ -154,8 +154,8 @@ export const settings: Translation<typeof en> = {
     },
     sessionsWorktreeBase: {
       label: 'Базовая ветка новых worktree',
-      description: 'Ветка, от которой создаются New worktree… и berth worktree, предварительно полученная из origin. Пары имени проекта и ветки: web-client=develop. Проект, которого нет в списке, создаётся от первой найденной из develop, main и master.',
-      placeholder: 'web-client=develop',
+      description: 'Ветка, от которой создаются New worktree… и berth worktree, предварительно полученная из origin. Пары имени проекта и ветки: my-app=develop. Проект, которого нет в списке, создаётся от первой найденной из develop, main и master.',
+      placeholder: 'my-app=develop',
     },
     sessionsMrPrompt: {
       label: 'Промпт сессии из merge request',
@@ -230,8 +230,8 @@ export const settings: Translation<typeof en> = {
     },
     treeJiraProjects: {
       label: 'Проекты Jira в дереве',
-      description: 'Привязывает задачи Jira к проекту, когда ни одна ветка проекта не называет задачу. Пары ключа Jira и имени проекта: WC=web-client, SC=frontend.',
-      placeholder: 'WC=web-client',
+      description: 'Привязывает задачи Jira к проекту, когда ни одна ветка проекта не называет задачу. Пары ключа Jira и имени проекта: APP=my-app, API=backend.',
+      placeholder: 'APP=my-app',
     },
   },
   problem: {
@@ -240,7 +240,7 @@ export const settings: Translation<typeof en> = {
     range: 'число от {min} до {max}',
     expectedString: 'ожидается строка',
     oneOf: 'одно из: {values}',
-    expectedMap: 'ожидается объект строк {"WC": "web-client"}',
+    expectedMap: 'ожидается объект строк {"APP": "my-app"}',
   },
   parse: {
     rootObject: 'Корень файла должен быть объектом {…}',
