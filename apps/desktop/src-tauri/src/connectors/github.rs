@@ -2,9 +2,9 @@ use serde_json::{json, Value};
 
 use super::http::{encode_segment, opt, text, ApiError, ApiResult};
 use super::types::{
-    BranchRequest, ChangeRequest, ChangeRequestSummary, CrState, DiffFile, Discussion, FileStatus,
-    Fork, InboxItem, Job, Kind, Note, Person, Pipeline, PipelineState, Position, Reason,
-    SourceRepo,
+    Approval, BranchRequest, ChangeRequest, ChangeRequestSummary, CrState, DiffFile, Discussion,
+    FileStatus, Fork, InboxItem, Job, Kind, Note, Person, Pipeline, PipelineState, Position,
+    Reason, SourceRepo,
 };
 use super::Ctx;
 
@@ -12,6 +12,21 @@ const PAGE: usize = 100;
 const MAX_PAGES: usize = 30;
 
 const AUTHOR: &str = "author { login avatarUrl ... on User { name } }";
+
+const APPROVALS: &str = "latestOpinionatedReviews(first: 50) { nodes { state author { login } } }";
+
+fn approval(node: &Value, me: &str) -> Option<Approval> {
+    let reviews = node["latestOpinionatedReviews"]["nodes"].as_array()?;
+    let approvers: Vec<&str> = reviews
+        .iter()
+        .filter(|review| review["state"] == "APPROVED")
+        .map(|review| review["author"]["login"].as_str().unwrap_or(""))
+        .collect();
+    Some(Approval {
+        approved: !approvers.is_empty(),
+        approved_by_me: !me.is_empty() && approvers.contains(&me),
+    })
+}
 
 fn summary_fields() -> String {
     format!(
@@ -131,11 +146,12 @@ fn summary(connector: &str, node: &Value) -> Option<ChangeRequestSummary> {
         updated_at: text(&node["updatedAt"]),
         pipeline: rollup(node),
         unresolved_threads: unresolved,
+        approval: None,
     })
 }
 
 pub async fn inbox(ctx: &Ctx) -> ApiResult<Vec<InboxItem>> {
-    let fields = summary_fields();
+    let fields = format!("{} {APPROVALS}", summary_fields());
     let search = |alias: &str, qualifier: &str| {
         format!(
             "{alias}: search(query: \"is:open is:pr archived:false {qualifier}\", type: ISSUE, first: 50) \
@@ -143,12 +159,13 @@ pub async fn inbox(ctx: &Ctx) -> ApiResult<Vec<InboxItem>> {
         )
     };
     let query = format!(
-        "query {{ {} {} {} }}",
+        "query {{ viewer {{ login }} {} {} {} }}",
         search("a", "author:@me"),
         search("r", "review-requested:@me"),
         search("s", "assignee:@me")
     );
     let data = graphql(ctx, &query, json!({})).await?;
+    let me = data["viewer"]["login"].as_str().unwrap_or("");
     let mut items: Vec<InboxItem> = Vec::new();
     for (alias, reason) in [
         ("a", Reason::Author),
@@ -159,9 +176,10 @@ pub async fn inbox(ctx: &Ctx) -> ApiResult<Vec<InboxItem>> {
             continue;
         };
         for node in nodes {
-            let Some(found) = summary(&ctx.id, node) else {
+            let Some(mut found) = summary(&ctx.id, node) else {
                 continue;
             };
+            found.approval = approval(node, me);
             match items.iter_mut().find(|item| {
                 item.summary.project == found.project && item.summary.number == found.number
             }) {
@@ -233,11 +251,11 @@ pub async fn branch_requests(
 async fn pull_request(ctx: &Ctx, project: &str, number: u64, fields: &str) -> ApiResult<Value> {
     let (owner, name) = split_project(project)?;
     let query = format!(
-        "query($o: String!, $n: String!, $num: Int!) {{ repository(owner: $o, name: $n) {{ \
+        "query($o: String!, $n: String!, $num: Int!) {{ viewer {{ login }} repository(owner: $o, name: $n) {{ \
          pullRequest(number: $num) {{ {fields} }} }} }}"
     );
     let data = graphql(ctx, &query, json!({ "o": owner, "n": name, "num": number })).await?;
-    let node = data["repository"]["pullRequest"].clone();
+    let mut node = data["repository"]["pullRequest"].clone();
     if node.is_null() {
         return Err(ApiError::failed(crate::host_text!(
             "prNotFound",
@@ -245,6 +263,7 @@ async fn pull_request(ctx: &Ctx, project: &str, number: u64, fields: &str) -> Ap
             number = number
         )));
     }
+    node["viewerLogin"] = data["viewer"]["login"].clone();
     Ok(node)
 }
 
@@ -253,13 +272,14 @@ pub async fn change_request(ctx: &Ctx, project: &str, number: u64) -> ApiResult<
         "{} body createdAt headRefOid mergeable labels(first: 30) {{ nodes {{ name }} }} \
          reviewRequests(first: 30) {{ nodes {{ requestedReviewer {{ \
          ... on User {{ login name avatarUrl }} ... on Team {{ slug name avatarUrl }} ... on Bot {{ login avatarUrl }} }} }} }} \
-         latestReviews(first: 30) {{ nodes {{ {AUTHOR} }} }}",
+         latestReviews(first: 30) {{ nodes {{ {AUTHOR} }} }} {APPROVALS}",
         summary_fields()
     );
     let node = pull_request(ctx, project, number, &fields).await?;
-    let found = summary(&ctx.id, &node).ok_or_else(|| {
+    let mut found = summary(&ctx.id, &node).ok_or_else(|| {
         ApiError::failed(crate::host_text!("unexpectedReply", service = "GitHub"))
     })?;
+    found.approval = approval(&node, node["viewerLogin"].as_str().unwrap_or(""));
     let mut reviewers: Vec<Person> = Vec::new();
     let requested = node["reviewRequests"]["nodes"]
         .as_array()

@@ -76,7 +76,9 @@ export const workbench: Translation<typeof en> = {
     noConnector: 'Нет подключения для {url}',
     approved: 'одобрен',
     pending: 'ждёт',
-    approvedTitle: 'Кто-то уже одобрил этот запрос',
+    approvedByMe: 'вы одобрили',
+    approvedByMeTitle: 'Вы одобрили этот запрос',
+    approvedTitle: 'Этот запрос одобрен',
     pendingTitle: 'Ждёт вашего ревью',
   },
   external: {

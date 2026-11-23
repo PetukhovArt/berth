@@ -4,9 +4,9 @@ use serde_json::{json, Value};
 
 use super::http::{encode_segment, opt, text, ApiError, ApiResult};
 use super::types::{
-    count_patch, BranchRequest, ChangeRequest, ChangeRequestSummary, CrState, DiffFile, Discussion,
-    FileStatus, Fork, InboxItem, Job, Kind, Note, Person, Pipeline, PipelineState, Position,
-    Reason, SourceRepo,
+    count_patch, Approval, BranchRequest, ChangeRequest, ChangeRequestSummary, CrState, DiffFile,
+    Discussion, FileStatus, Fork, InboxItem, Job, Kind, Note, Person, Pipeline, PipelineState,
+    Position, Reason, SourceRepo,
 };
 use super::Ctx;
 
@@ -97,6 +97,17 @@ fn summary(ctx: &Ctx, mr: &Value, project: &str) -> Option<ChangeRequestSummary>
             .map(pipeline_state)
             .unwrap_or(PipelineState::None),
         unresolved_threads: None,
+        approval: None,
+    })
+}
+
+async fn approval(ctx: &Ctx, project: &str, number: u64) -> Option<Approval> {
+    let url = format!("{}/approvals", mr_url(ctx, project, number));
+    let found = ctx.api.json(&url, &[]).await.ok()?;
+    let approved_by = found["approved_by"].as_array()?;
+    Some(Approval {
+        approved: !approved_by.is_empty(),
+        approved_by_me: found["user_has_approved"] == Value::Bool(true),
     })
 }
 
@@ -197,8 +208,12 @@ pub async fn inbox(ctx: &Ctx) -> ApiResult<Vec<InboxItem>> {
     }
     let items = stream::iter(items)
         .map(|item| async move {
+            let (project, number) = (item.summary.project.clone(), item.summary.number);
+            let (mut summary, approval) =
+                tokio::join!(enrich(ctx, item.summary), approval(ctx, &project, number));
+            summary.approval = approval;
             InboxItem {
-                summary: enrich(ctx, item.summary).await,
+                summary,
                 reasons: item.reasons,
             }
         })
@@ -321,7 +336,12 @@ pub async fn change_request(ctx: &Ctx, project: &str, number: u64) -> ApiResult<
     let mut found = summary(ctx, &mr, project).ok_or_else(|| {
         ApiError::failed(crate::host_text!("unexpectedReply", service = "GitLab"))
     })?;
-    found.unresolved_threads = unresolved(ctx, project, number).await;
+    let (count, approved) = tokio::join!(
+        unresolved(ctx, project, number),
+        approval(ctx, project, number)
+    );
+    found.unresolved_threads = count;
+    found.approval = approved;
     let mergeable = match mr["detailed_merge_status"].as_str() {
         Some("mergeable") => Some(true),
         Some("checking") | Some("unchecked") | Some("preparing") | Some("approvals_syncing") => {

@@ -73,7 +73,9 @@ export const workbench = {
     noConnector: 'No connector for {url}',
     approved: 'approved',
     pending: 'pending',
-    approvedTitle: 'Someone already approved this request',
+    approvedByMe: 'approved by you',
+    approvedByMeTitle: 'You approved this request',
+    approvedTitle: 'This request is approved',
     pendingTitle: 'Waiting for your review',
   },
   external: {

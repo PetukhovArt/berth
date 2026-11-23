@@ -25,7 +25,7 @@ import { useDock } from '../../../shared/model/dock';
 import { InboxSection, OpenChannelAction } from '../../../features/attention';
 import { ChannelsSection } from '../../../features/channels';
 import { startCreate } from '../../../features/new-session';
-import { openLeaf, type ReviewMeta, type WorkNode, treeLiveOnly, treeProjectsCollapsed, treeQuery, treeTab, useWorkTree } from '../../../features/work-tree';
+import { openLeaf, type ReviewMeta, type ReviewVerdict, type WorkNode, treeLiveOnly, treeProjectsCollapsed, treeQuery, treeTab, useWorkTree } from '../../../features/work-tree';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiInput from '../../../shared/ui/UiInput.vue';
@@ -69,6 +69,11 @@ function showArchMenu(event: MouseEvent, item: InboxItem, review?: ReviewMeta) {
 }
 
 const jiraRefs = (review: ReviewMeta | undefined) => review?.refs.filter((ref) => !ref.startsWith('!')).join(', ') ?? '';
+const verdictText = (verdict: ReviewVerdict) => (verdict === 'mine' ? t('workbench.review.approvedByMe') : verdict === 'approved' ? t('workbench.review.approved') : t('workbench.review.pending'));
+const verdictTitle = (verdict: ReviewVerdict, note: string | undefined) => {
+  const base = verdict === 'mine' ? t('workbench.review.approvedByMeTitle') : verdict === 'approved' ? t('workbench.review.approvedTitle') : t('workbench.review.pendingTitle');
+  return note ? `${base}\n${note}` : base;
+};
 const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft:|\[draft\]|\(draft\)|wip:)\s*/i, '') : item.title);
 
 const projectAdd = useTemplateRef<InstanceType<typeof ProjectActions>>('projectAdd');
@@ -182,8 +187,8 @@ const moreItems = computed(() => {
             <span class="key">{{ numberLabel(data.item) }}</span>
             <span v-if="jiraRefs(data.review)" class="refs" data-testid="tree-mr-refs">{{ jiraRefs(data.review) }}</span>
             <span class="title"><span v-if="data.item.draft" class="draft">{{ t('forge.draft') }}</span>{{ shownTitle(data.item) }}</span>
-            <span v-if="data.review?.note" class="verdict note" :title="data.review.note" data-testid="tree-mr-note">{{ data.review.note }}</span>
-            <span v-else-if="data.review" class="verdict" :data-approved="data.review.approved" :title="data.review.approved ? t('workbench.review.approvedTitle') : t('workbench.review.pendingTitle')" data-testid="tree-mr-verdict">{{ data.review.approved ? t('workbench.review.approved') : t('workbench.review.pending') }}</span>
+            <span v-if="data.verdict" class="verdict" :data-verdict="data.verdict" :title="verdictTitle(data.verdict, data.review?.note)" data-testid="tree-mr-verdict">{{ verdictText(data.verdict) }}</span>
+            <span v-else-if="data.review?.note" class="verdict note" :title="data.review.note" data-testid="tree-mr-note">{{ data.review.note }}</span>
             <span v-if="data.item.unresolved_threads" class="threads" :title="t('forge.unresolvedThreads', { count: data.item.unresolved_threads })"><MessageSquare :size="12" />{{ data.item.unresolved_threads }}</span>
             <span v-if="data.item.pipeline !== 'none'" class="pipe" :title="pipelineLabel(data.item.pipeline)"><StatusIcon :tone="pipelineTone(data.item.pipeline)" /></span>
           </span>
@@ -636,7 +641,8 @@ const moreItems = computed(() => {
   white-space: nowrap;
 }
 
-.verdict[data-approved='true'] {
+.verdict[data-verdict='approved'],
+.verdict[data-verdict='mine'] {
   color: var(--vr-color-success, var(--vr-color-accent));
 }
 

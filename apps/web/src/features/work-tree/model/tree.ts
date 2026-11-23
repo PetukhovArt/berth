@@ -24,6 +24,7 @@ type NodeData = {
   issue?: JiraIssueSummary;
   repo?: RepoRef;
   review?: ReviewMeta;
+  verdict?: ReviewVerdict;
   notes?: ReviewNoteView[];
   reviewState?: ReviewState;
   where?: string;
@@ -41,6 +42,7 @@ export type ReviewSource = {
 };
 
 type ReviewKind = 'queue' | 'plain' | 'also';
+export type ReviewVerdict = 'mine' | 'approved' | 'pending';
 
 export type Sources = {
   berth: boolean;
@@ -128,12 +130,20 @@ const endedGroup = (id: string, children: WorkNode[]): WorkNode[] =>
 const archivedExternalLeaf = (session: ExternalSession): WorkNode => ({ id: `arch:${externalKey(session)}`, kind: 'archived-external', label: session.title, title: session.cwd, custom: true, data: { external: session } });
 const archiveGroup = (id: string, children: WorkNode[]): WorkNode[] =>
   children.length ? [{ id, kind: 'archive', label: t('agents.layouts.archive'), icon: Archive, children, count: children.length, countTitle: t('agents.layouts.archivedCount'), defaultExpanded: false, forgetExpanded: true }] : [];
-const mrLeaf = (item: InboxItem, review?: ReviewMeta): WorkNode => ({
+function verdictOf(item: InboxItem, kind: ReviewKind | undefined, review: ReviewMeta | undefined): ReviewVerdict | undefined {
+  const approval = item.approval;
+  if (!kind) return approval?.approved ? 'approved' : undefined;
+  if (approval) return approval.approved_by_me ? 'mine' : approval.approved ? 'approved' : 'pending';
+  if (!review || review.note) return undefined;
+  return review.approved ? 'approved' : 'pending';
+}
+
+const mrLeaf = (item: InboxItem, kind: ReviewKind | undefined, review?: ReviewMeta): WorkNode => ({
   id: itemId(item),
   kind: 'mr',
   label: `${numberLabel(item)} ${item.title}`,
   title: `${item.project} ${numberLabel(item)}\n${item.title}${review?.refs.length ? `\n${review.refs.join(', ')}` : ''}`,
-  data: { item, pipeline: item.pipeline, review },
+  data: { item, pipeline: item.pipeline, review, verdict: verdictOf(item, kind, review) },
 });
 const workLeaf = (work: Work): WorkNode => ({ id: issuePanelId(work.connector, work.key), kind: 'issue', label: `${work.key} ${work.summary}`, title: `${work.key} ${work.summary}\n${work.status}`, data: { issue: work } });
 
@@ -254,7 +264,7 @@ function mrSections(prefix: string, items: readonly InboxItem[], kinds: Readonly
     { key: 'mine', label: t('workbench.mine'), icon: UserRound, list: mine },
   ];
   return sections.flatMap((section) =>
-    section.list.length ? [group(`${prefix}|${section.key}`, 'section', section.label, section.list.map((item) => mrLeaf(item, reviews.get(itemId(item)))), { icon: section.icon, data: { pipeline: pipelineRollup(section.list) } })] : [],
+    section.list.length ? [group(`${prefix}|${section.key}`, 'section', section.label, section.list.map((item) => mrLeaf(item, kinds.get(itemId(item)), reviews.get(itemId(item)))), { icon: section.icon, data: { pipeline: pipelineRollup(section.list) } })] : [],
   );
 }
 
@@ -294,7 +304,14 @@ function reviewKinds(sources: Sources): Map<string, ReviewKind> {
   return kinds;
 }
 
-const awaitsReview = (kind: ReviewKind | undefined, review: ReviewMeta | undefined) => kind === 'plain' || (kind === 'queue' && !review?.approved);
+type ReviewStanding = 'none' | 'settled' | 'pending';
+
+function reviewStanding(item: InboxItem, kind: ReviewKind | undefined, review: ReviewMeta | undefined): ReviewStanding {
+  if (!kind) return 'none';
+  if (kind === 'also') return 'settled';
+  const done = item.approval ? item.approval.approved_by_me : review?.approved === true;
+  return done ? 'settled' : 'pending';
+}
 
 const needsAttention = (item: InboxItem) => item.pipeline === 'failed' || (item.unresolved_threads ?? 0) > 0;
 
@@ -310,7 +327,7 @@ export function tabCounts(sources: Sources): TabCounts {
   );
   const kinds = reviewKinds(sources);
   const mine = sources.mrs.filter((item) => !kinds.has(itemId(item)));
-  const pending = sources.mrs.filter((item) => awaitsReview(kinds.get(itemId(item)), sources.review.rows.get(itemId(item))));
+  const pending = sources.mrs.filter((item) => reviewStanding(item, kinds.get(itemId(item)), sources.review.rows.get(itemId(item))) === 'pending');
   return {
     sessionsWaiting: rollup.feedback,
     sessionsRunning: rollup.running,
@@ -345,10 +362,8 @@ export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly 
   const placed = place(sources);
   const projectRollup = (project: ProjectNode) => liveRollup(sessionsOf(project), placed.ofProject.get(project.id) ?? [], placed.states);
   const kinds = reviewKinds(sources);
-  const inReviews = (item: InboxItem) => {
-    const kind = kinds.get(itemId(item));
-    return kind === 'also' || awaitsReview(kind, sources.review.rows.get(itemId(item)));
-  };
+  const standing = (item: InboxItem) => reviewStanding(item, kinds.get(itemId(item)), sources.review.rows.get(itemId(item)));
+  const inReviews = (item: InboxItem) => standing(item) !== 'none';
   const wanted = (item: InboxItem) => (tab === 'reviews' ? inReviews(item) : tab === 'mrs' ? !kinds.has(itemId(item)) : true);
   const mrsOf = (key: string | null) =>
     (links.mrs.get(key) ?? [])
@@ -390,7 +405,7 @@ export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly 
   const mrNodes = (): WorkNode[] => {
     const prefix = tab === 'reviews' ? 'r' : 'm';
     const reviewMeta = sources.review.rows;
-    const leaf = (item: InboxItem) => mrLeaf(item, reviewMeta.get(itemId(item)));
+    const leaf = (item: InboxItem) => mrLeaf(item, kinds.get(itemId(item)), reviewMeta.get(itemId(item)));
     const reviewLeaves = (id: string, items: readonly InboxItem[]): WorkNode[] => {
       const also = items.filter((item) => kinds.get(itemId(item)) === 'also');
       const nodes = items.filter((item) => kinds.get(itemId(item)) !== 'also').map(leaf);
@@ -414,7 +429,7 @@ export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly 
         const extra = adapterNodes(id, project.id);
         if (!items.length && !extra.length) return [];
         const children = [...extra, ...inner(id, items)];
-        const shown = tab === 'reviews' ? items.filter((item) => kinds.get(itemId(item)) !== 'also').length : undefined;
+        const shown = tab === 'reviews' ? items.filter((item) => standing(item) === 'pending').length : undefined;
         return [group(id, 'project', projectLabel(workspace, project), children, { icon: Folder, iconOpen: FolderOpen, data: { pipeline: pipelineRollup(items) }, ...(shown !== undefined ? { count: shown || undefined, countTitle: t('workbench.countTitle', { count: shown }) } : {}) })];
       }),
       ...(orphans.length ? [group(`${prefix}|orphans`, 'orphans', t('workbench.notInProject'), repoNodes(`${prefix}|orphans`, orphans, links.repoOf, inner), { icon: Inbox, data: { pipeline: pipelineRollup(orphans) } })] : []),

@@ -84,6 +84,12 @@ pub enum Reason {
     Assignee,
 }
 
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct Approval {
+    pub approved: bool,
+    pub approved_by_me: bool,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ChangeRequestSummary {
     pub connector: String,
@@ -99,6 +105,7 @@ pub struct ChangeRequestSummary {
     pub updated_at: String,
     pub pipeline: PipelineState,
     pub unresolved_threads: Option<u32>,
+    pub approval: Option<Approval>,
 }
 
 #[derive(Debug, Clone, Serialize)]

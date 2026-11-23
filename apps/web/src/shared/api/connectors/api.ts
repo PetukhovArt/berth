@@ -10,6 +10,8 @@ export type Detected = { kind: ConnectorKind; base_url: string; account: string 
 
 export type PipelineStatus = 'success' | 'failed' | 'running' | 'pending' | 'canceled' | 'none';
 
+type Approval ={ approved: boolean; approved_by_me: boolean };
+
 export type ChangeRequestSummary = {
   connector: string;
   project: string;
@@ -24,6 +26,7 @@ export type ChangeRequestSummary = {
   updated_at: string;
   pipeline: PipelineStatus;
   unresolved_threads: number | null;
+  approval: Approval | null;
 };
 
 type InboxReason = 'author' | 'reviewer' | 'assignee';
