@@ -294,6 +294,8 @@ function reviewKinds(sources: Sources): Map<string, ReviewKind> {
   return kinds;
 }
 
+const awaitsReview = (kind: ReviewKind | undefined, review: ReviewMeta | undefined) => kind === 'plain' || (kind === 'queue' && !review?.approved);
+
 const needsAttention = (item: InboxItem) => item.pipeline === 'failed' || (item.unresolved_threads ?? 0) > 0;
 
 const mrRank = (item: InboxItem) => (item.draft ? 3 : item.pipeline === 'failed' ? 0 : (item.unresolved_threads ?? 0) > 0 ? 1 : 2);
@@ -308,10 +310,7 @@ export function tabCounts(sources: Sources): TabCounts {
   );
   const kinds = reviewKinds(sources);
   const mine = sources.mrs.filter((item) => !kinds.has(itemId(item)));
-  const pending = sources.mrs.filter((item) => {
-    const kind = kinds.get(itemId(item));
-    return kind === 'plain' || (kind === 'queue' && !sources.review.rows.get(itemId(item))?.approved);
-  });
+  const pending = sources.mrs.filter((item) => awaitsReview(kinds.get(itemId(item)), sources.review.rows.get(itemId(item))));
   return {
     sessionsWaiting: rollup.feedback,
     sessionsRunning: rollup.running,
@@ -346,7 +345,11 @@ export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly 
   const placed = place(sources);
   const projectRollup = (project: ProjectNode) => liveRollup(sessionsOf(project), placed.ofProject.get(project.id) ?? [], placed.states);
   const kinds = reviewKinds(sources);
-  const wanted = (item: InboxItem) => (tab === 'reviews' ? kinds.has(itemId(item)) : tab === 'mrs' ? !kinds.has(itemId(item)) : true);
+  const inReviews = (item: InboxItem) => {
+    const kind = kinds.get(itemId(item));
+    return kind === 'also' || awaitsReview(kind, sources.review.rows.get(itemId(item)));
+  };
+  const wanted = (item: InboxItem) => (tab === 'reviews' ? inReviews(item) : tab === 'mrs' ? !kinds.has(itemId(item)) : true);
   const mrsOf = (key: string | null) =>
     (links.mrs.get(key) ?? [])
       .filter((item) => wanted(item) && match(mrText(item)))
