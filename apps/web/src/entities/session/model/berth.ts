@@ -111,6 +111,7 @@ type WorkspaceNode = { id: string; name: string; projects: ProjectNode[] };
 type BerthStore = {
   entities: ComputedRef<Entities>;
   connection: ShallowRef<Connection>;
+  lastConnectedAt: ShallowRef<number | null>;
   error: ShallowRef<string | null>;
   tree: ComputedRef<WorkspaceNode[]>;
   sessions: ComputedRef<ReadonlyMap<string, SessionNode>>;
@@ -248,6 +249,7 @@ function createStore(): BerthStore {
     if (changed) entities.value = { ...state };
   };
   const connection = shallowRef<Connection>({ state: 'connecting', message: null });
+  const lastConnectedAt = shallowRef<number | null>(null);
   const error = shallowRef<string | null>(null);
   const archivedExternal = shallowRef<ReadonlyMap<string, number>>(new Map());
   const feedback = shallowRef<ReadonlyMap<string, FeedbackRequest>>(new Map());
@@ -257,7 +259,8 @@ function createStore(): BerthStore {
     if (event.type !== 'error') error.value = null;
     switch (event.type) {
       case 'connection':
-        connection.value = { state: event.state, message: event.message };
+        if (connection.value.state === 'connected' && event.state !== 'connected') lastConnectedAt.value = Date.now();
+        connection.value ={ state: event.state, message: event.message };
         return;
       case 'snapshot':
         state = {
@@ -321,7 +324,7 @@ function createStore(): BerthStore {
 
   const tree = computed(() => buildTree(entities.value));
   const sessions = computed(() => new Map(tree.value.flatMap((w) => w.projects.flatMap((p) => p.worktrees.flatMap((t) => t.sessions.map((s) => [s.key, s] as const))))));
-  return { entities: computed(() => entities.value), connection, error, tree, sessions, archivedExternal: computed(() => archivedExternal.value), feedback: computed(() => feedback.value), taskNotes: computed(() => taskNotes.value) };
+  return { entities: computed(() => entities.value), connection, lastConnectedAt, error, tree, sessions, archivedExternal: computed(() => archivedExternal.value), feedback: computed(() => feedback.value), taskNotes: computed(() => taskNotes.value) };
 }
 
 export function useBerth(): BerthStore | null {

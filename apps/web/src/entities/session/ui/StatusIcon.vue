@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useHollow } from '../lib/hollow';
 import type { SessionStatus } from '../model/berth';
 
 type Tone = 'running' | 'feedback' | 'limit' | 'unseen' | 'finished' | 'crashed' | 'idle' | 'success' | 'fresh' | 'stopped' | 'ended';
@@ -44,8 +45,11 @@ const TONE_GLYPHS: Record<Tone, string> = {
 const UNSEEN: Glyph = { tone: 'unseen', d: UNSEEN_D };
 const STOPPED: Glyph = { tone: 'stopped', d: TONE_GLYPHS.stopped };
 
+const hollow = useHollow();
+
 const glyph = computed<Glyph>(() => {
   if (props.tone) return { tone: props.tone, d: TONE_GLYPHS[props.tone] };
+  if (hollow.value && props.status) return GLYPHS.disconnected;
   if (props.stopped) return STOPPED;
   if (props.status === 'finished' && props.unseen) return UNSEEN;
   return props.status ? GLYPHS[props.status] : { tone: 'idle', d: RING };

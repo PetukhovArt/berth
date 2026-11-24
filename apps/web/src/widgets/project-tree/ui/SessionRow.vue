@@ -4,7 +4,7 @@ import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
 import { VContextMenu, VInputText } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
-import { canContinueAsAgent, continueTerminalInDock, sessionStateOf, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, isStopped, useAction, StatusDot } from '../../../entities/session';
+import { canContinueAsAgent, continueTerminalInDock, sessionStateOf, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, isStopped, useAction, useHollow, StatusDot } from '../../../entities/session';
 import { MoveAgentDialog } from '../../../features/move-agent';
 import { routeRuleLabel } from '../../../features/edit-router';
 import SessionDeleteConfirm from './SessionDeleteConfirm.vue';
@@ -18,7 +18,8 @@ const status = computed(() => state.value?.status ?? props.session.status);
 const unseen = computed(() => state.value?.unseen ?? props.session.unseen);
 const alive = computed(() => state.value?.alive ?? props.session.alive);
 const stopped = computed(() => isStopped(status.value, unseen.value, alive.value));
-const label = computed(() => t(stopped.value ? 'agents.status.stopped' : `agents.status.${status.value}`));
+const hollow = useHollow();
+const label = computed(() => t(hollow.value ? `agents.status.${hollow.value}` : stopped.value ? 'agents.status.stopped' : `agents.status.${status.value}`));
 
 type Mode = 'idle' | 'renaming' | 'confirming-delete';
 type MenuAction = { key: string; label: string; command: () => void; testid?: string };
@@ -126,10 +127,10 @@ async function confirmDelete() {
         class="row status-host"
         data-testid="session-row"
         :data-session-id="session.id"
-        :data-status="status"
-        :data-unseen="unseen"
+        :data-status="hollow ? 'disconnected' : status"
+        :data-unseen="!hollow && unseen"
         :data-alive="alive"
-        :data-stopped="stopped"
+        :data-stopped="!hollow && stopped"
         :data-active="active"
         :data-linked-harness="linked?.harness"
         :data-linked-session-id="linked?.id"

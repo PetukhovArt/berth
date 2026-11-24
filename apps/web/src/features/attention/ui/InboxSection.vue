@@ -3,7 +3,7 @@ import { computed, shallowRef, useTemplateRef } from 'vue';
 import { ChevronRight, Ellipsis, MessageSquare } from '../../../shared/ui/icons';
 import { useIsPhone, VContextMenu } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
-import { allowRequest, alwaysAllowRequest, chooseOption, denyRequest, isYesNoPermission, offersAlways, openChannel, restartAgent, StatusIcon, useAction, useBerth, useChannelUnread, useSessionDock, type SessionRef } from '../../../entities/session';
+import { allowRequest, alwaysAllowRequest, chooseOption, denyRequest, isYesNoPermission, offersAlways, openChannel, restartAgent, StatusIcon, useAction, useHollow, useBerth, useChannelUnread, useSessionDock, type SessionRef } from '../../../entities/session';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { shortcutLabel } from '../../../shared/lib/commands/keymap';
 import { shortAge } from '../../../shared/lib/shortAge';
@@ -27,9 +27,20 @@ const { items, now } = useInbox();
 const { unread: channels } = useChannelUnread();
 const dock = useSessionDock();
 const berth = useBerth();
-const reason = (entry: InboxEntry) => (entry.kind === 'limit' && !resetTime(entry.state.limitUntil) ? t('attention.inbox.limitNoReset') : t(`attention.inbox.${entry.kind}`, { time: resetTime(entry.state.limitUntil) }));
+const hollow = useHollow();
+const reason = (entry: InboxEntry) => {
+  if (hollow.value) return t(`agents.status.${hollow.value}`);
+  return entry.kind === 'limit' && !resetTime(entry.state.limitUntil) ? t('attention.inbox.limitNoReset') : t(`attention.inbox.${entry.kind}`, { time: resetTime(entry.state.limitUntil) });
+};
 const shown = computed(() => items.value.filter((entry) => matchesWords(props.query, [entry.state.name, entry.place, reason(entry)].join(' '))));
 const shownChannels = computed(() => channels.value.filter((channel) => matchesWords(props.query, channel.key)));
+const total = computed(() => shown.value.length + shownChannels.value.length);
+const hasProjects = computed(() => berth?.tree.value.some((workspace) => workspace.projects.length > 0) ?? false);
+const calm = computed(() => total.value === 0 && !filtering.value && !phone.value && hasProjects.value);
+const asOf = computed(() => {
+  const at = berth?.lastConnectedAt.value;
+  return hollow.value && at ? t('attention.inbox.asOf', { time: formatTime(at) }) : '';
+});
 const agentRef = (entry: InboxEntry): { Agent: string } | null => (entry.node && 'Agent' in entry.node.ref ? entry.node.ref : null);
 const requestOf = (entry: InboxEntry) => {
   const ref = agentRef(entry);
@@ -87,19 +98,21 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
 </script>
 
 <template>
-  <section v-if="shown.length || shownChannels.length" class="inbox" data-testid="inbox">
+  <section v-if="total || calm" class="inbox" data-testid="inbox">
     <div class="head">
       <UiButton class="toggle" :aria-expanded="open" :aria-disabled="filtering" data-testid="inbox-toggle" @click="toggle">
         <ChevronRight :size="14" class="chevron vr-chevron" />
         <span class="title">{{ t('attention.inbox.title') }}</span>
-        <span class="count" data-testid="inbox-count">{{ shown.length + shownChannels.length }}</span>
+        <span v-if="total" class="count" data-testid="inbox-count">{{ open ? total : t('attention.inbox.needYou', { count: total }) }}</span>
       </UiButton>
+      <span v-if="asOf" class="as-of" data-testid="inbox-as-of">{{ asOf }}</span>
       <UiButton v-if="nextShortcut" class="next" :title="t('attention.inbox.next')" :aria-label="t('attention.inbox.next')" data-testid="inbox-next-waiting" @click="openNextNeedingYou">
         <kbd>{{ nextShortcut }}</kbd>
       </UiButton>
     </div>
-    <div v-if="open" class="items" data-testid="inbox-items">
-      <div v-for="entry in shown" :key="entry.key" class="item" data-testid="inbox-item" :data-kind="entry.kind" :data-session-id="entry.node?.id">
+    <p v-if="open && calm" class="calm" data-testid="inbox-empty">{{ t('attention.inbox.nothing') }}</p>
+    <div v-if="open && total" class="items" data-testid="inbox-items">
+      <div v-for="entry in shown" :key="entry.key" class="item" data-testid="inbox-item" :data-kind="entry.kind" :data-hollow="!!hollow" :data-session-id="entry.node?.id">
         <UiButton class="row" :title="entry.state.name" @click="dock.openKey(entry.key)" @contextmenu.prevent="showMenu($event, entry)">
           <StatusIcon :status="entry.state.status" :unseen="entry.state.unseen" />
           <span class="body">
@@ -313,6 +326,25 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
 
 .item[data-kind='crashed'] .kind {
   color: var(--vr-status-crashed);
+}
+
+.item[data-hollow='true'] .kind {
+  color: var(--vr-status-idle);
+}
+
+.as-of {
+  flex: none;
+  font-size: var(--vr-font-size-2xs);
+  font-weight: 400;
+  color: var(--vr-color-text-subtle);
+}
+
+.calm {
+  margin: 0;
+  padding: 2px var(--vr-space-4) var(--vr-space-2);
+  font-size: var(--vr-font-size-xs);
+  font-weight: 400;
+  color: var(--vr-color-text-subtle);
 }
 
 .more {

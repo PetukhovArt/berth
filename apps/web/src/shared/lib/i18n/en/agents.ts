@@ -14,6 +14,8 @@ export const agents = {
     closed: 'closed',
     stopped: 'stopped',
     limit: 'limit',
+    connecting: 'connecting…',
+    unknown: 'unknown',
   },
   route: {
     open: 'Switch model or agent',

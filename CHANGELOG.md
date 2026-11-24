@@ -3,7 +3,9 @@
 ## Unreleased
 
 - Added a Next step section to the facts panel of a merge request that runs the git step of its worktree, and a pill beside Discussions that counts unresolved threads or says all are resolved
+- Added `N need you` to the collapsed Inbox header, and a `Nothing needs you` line to the open Inbox when no session waits for you
 - Changed draft merge requests in the sidebar tree to show a draft icon before the number instead of a Draft label before the title
+- Changed the sidebar to show every session as `connecting…` or `unknown` with a dashed mark while the daemon is not answering, and the Inbox to say when it was last up to date
 
 ## 0.22.0 (2026-11-24)
 

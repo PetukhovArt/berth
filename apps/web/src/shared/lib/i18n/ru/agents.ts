@@ -17,6 +17,8 @@ export const agents: Translation<typeof en> = {
     closed: 'закрыта',
     stopped: 'остановлена',
     limit: 'лимит',
+    connecting: 'подключаюсь…',
+    unknown: 'неизвестно',
   },
   route: {
     open: 'Сменить модель или агента',

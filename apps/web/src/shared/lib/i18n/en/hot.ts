@@ -13,7 +13,7 @@ export const hot = {
   },
   overview: {
     title: 'Hot sessions overview',
-    hint: 'Arrows to move, Enter to open, Esc to close · Alt+1–9 jump',
+    hint: 'Arrows to move, Enter to open, Esc to close · Alt+1 to 9 jump',
     close: 'Close overview',
     empty: 'No live sessions',
     noPreview: 'No activity yet',
