@@ -17,6 +17,7 @@ export const mobile: Translation<typeof en> = {
     reviews: 'ждут вашего ревью: {count}',
     quiet: 'Ничего не ждёт вас',
   },
+  runningLine: 'работают: {count} · {names}',
   connected: 'Подключено к berth',
   inboxEmpty: 'Сейчас ничего не ждёт вас.',
   noChat: 'У этой сессии нет чата. Откройте её на компьютере, чтобы работать в терминале.',

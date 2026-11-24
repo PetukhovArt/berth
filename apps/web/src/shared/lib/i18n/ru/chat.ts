@@ -38,6 +38,11 @@ export const chat: Translation<typeof en> = {
   talkHint: 'Удерживайте, чтобы говорить · Аа для текста',
   talkHintRunning: 'Агент работает · Стоп, чтобы прервать',
   holdToTalk: 'Удерживать',
+  quick: {
+    tests: 'Запусти тесты',
+    diff: 'Покажи изменения',
+    stop: 'Стоп',
+  },
   handsFree: 'Без рук',
   voiceMode: 'Режим голоса',
   sentByVoice: 'голосом',

@@ -14,6 +14,7 @@ export const mobile = {
     reviews: '{count} waiting for your review',
     quiet: 'Nothing needs you',
   },
+  runningLine: '{count} running · {names}',
   connected: 'Connected to berth',
   inboxEmpty: 'Nothing needs you right now.',
   noChat: 'This session has no chat view. Open it on your computer to use its terminal.',

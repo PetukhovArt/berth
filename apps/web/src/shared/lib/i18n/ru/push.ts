@@ -13,6 +13,10 @@ export const push: Translation<typeof en> = {
   always: 'Разрешать всегда',
   deny: 'Отклонить',
   open: 'Открыть',
+  allowed: 'Разрешено · {name} работает',
+  alwaysAllowed: 'Разрешено всегда · {name} работает',
+  answerDenied: 'Отклонено · {agent} не будет это запускать',
+  openApp: 'Открыть Berth',
   failed: 'Не удалось связаться с Berth. Откройте приложение, чтобы ответить.',
   setupFailed: 'Не удалось включить уведомления: Berth ответил {status} ({step}).',
 };

@@ -299,6 +299,47 @@ async function confirmDelete() {
   color: var(--vr-color-text);
 }
 
+:root[data-vr-viewport='phone'] .session {
+  margin-bottom: var(--vr-space-1);
+}
+
+:root[data-vr-viewport='phone'] .row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0 var(--vr-space-3);
+  align-items: center;
+  height: auto;
+  min-height: 56px;
+  line-height: 1.3;
+  padding: var(--vr-space-2) var(--vr-space-3);
+  background: var(--vr-color-surface);
+  border: 1px solid var(--vr-color-border);
+  border-radius: var(--vr-radius-lg);
+}
+
+:root[data-vr-viewport='phone'] .row > :first-child {
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+:root[data-vr-viewport='phone'] .row .name {
+  grid-column: 2;
+  font-size: var(--vr-font-size-title);
+  font-weight: 500;
+}
+
+:root[data-vr-viewport='phone'] .row .label {
+  grid-column: 2;
+}
+
+:root[data-vr-viewport='phone'] .row[data-stopped='true'] {
+  opacity: 0.72;
+}
+
+:root[data-vr-viewport='phone'] .row[data-active='true'] {
+  background: var(--vr-color-nav-active);
+}
+
 .row-error {
   margin: 0;
   padding: 0 var(--vr-space-2) var(--vr-space-1) var(--vr-space-5);

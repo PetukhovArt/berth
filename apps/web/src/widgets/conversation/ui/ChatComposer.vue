@@ -9,6 +9,8 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import type { PlainKey } from '../../../shared/lib/i18n/translate';
 import { speechLang, useHoldToTalk, type HoldToTalkIssue } from '../../../shared/lib/dictation';
 import { listSlashCommands, matchSlashCommands, type PromptQuote, type SlashCommand, type SlashSource, type TranscriptMessage } from '../../../entities/session';
+import { useDock } from '../../../shared/model/dock';
+import { isAvailable, showViewInActivePanel } from '../../../features/session-view-switch';
 import { useVoiceLoop } from '../model/useVoiceLoop';
 
 const NOTICE_MS = 3000;
@@ -70,6 +72,19 @@ const showTalk = talk.supported && secure;
 const talkBlocked = !isDesktop && !showTalk;
 const showVoice = computed(() => phone.value && showTalk && voice.supported);
 const talkPanel = computed(() => phone.value && showTalk && !typing.value);
+const { activeKey } = useDock();
+const diffAvailable = computed(() => !!activeKey.value && isAvailable(activeKey.value, 'diff'));
+const quickSending = shallowRef(false);
+
+async function sendQuick(text: string) {
+  if (quickSending.value) return;
+  quickSending.value = true;
+  try {
+    await props.send(text, false);
+  } finally {
+    quickSending.value = false;
+  }
+}
 const shownSuggestion = computed(() => (draft.value ? null : props.suggestion));
 const listening = computed(() => voice.active.value && voice.phase.value === 'listen' && !voice.muted.value);
 const voiceStatus = computed(() => {
@@ -183,6 +198,11 @@ function handsFree() {
 
 <template>
   <form class="composer" data-testid="chat-composer" :data-phone="phone || undefined" @submit.prevent="sendDraft">
+    <div v-if="talkPanel && !voice.active.value" class="quick" data-testid="chat-quick">
+      <UiButton type="button" class="chip" :disabled="quickSending" data-testid="chat-quick-tests" @click="sendQuick(t('chat.quick.tests'))">{{ t('chat.quick.tests') }}</UiButton>
+      <UiButton v-if="diffAvailable" type="button" class="chip" data-testid="chat-quick-diff" @click="showViewInActivePanel('diff')">{{ t('chat.quick.diff') }}</UiButton>
+      <UiButton v-if="stop" type="button" class="chip" data-testid="chat-quick-stop" @click="stop">{{ t('chat.quick.stop') }}</UiButton>
+    </div>
     <div v-if="showVoice && (voice.active.value || talkPanel)" class="modes" role="group" :aria-label="t('chat.voiceMode')" data-testid="chat-voice-modes">
       <UiButton type="button" class="mode" :aria-pressed="!voice.active.value" data-testid="chat-voice-hold" @click="holdMode">{{ t('chat.holdToTalk') }}</UiButton>
       <UiButton type="button" class="mode" :aria-pressed="voice.active.value" data-testid="chat-voice-start" @click="handsFree">{{ t('chat.handsFree') }}</UiButton>
@@ -550,6 +570,27 @@ function handsFree() {
   margin: 0;
   font-size: var(--vr-font-size-2xs);
   color: var(--vr-color-text-subtle);
+}
+
+.quick {
+  display: flex;
+  gap: 6px;
+  align-self: stretch;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.quick .chip {
+  flex: none;
+  height: 32px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: var(--vr-font-size-label);
+  color: var(--vr-color-text);
+  cursor: pointer;
+  background: var(--vr-color-surface-muted);
+  border: 0;
+  border-radius: var(--vr-radius-full);
 }
 
 .modes {

@@ -108,11 +108,13 @@ watch(
       </div>
       <div v-if="meta" class="meta" data-testid="session-header-meta">{{ meta }}</div>
     </div>
-    <RouteButton v-if="agent" :agent-id="agent.id" :kind="agent.kind" :model="agent.model" :resumable="!!agent.session_id" :error="agent.provider_error ?? null" />
-    <CheckpointsButton v-if="agent && !inspectorShown" :agent-id="agent.id" :name="agent.name" :kind="agent.kind" :refresh-key="status" />
-    <ShareButton v-if="agent && isDesktop" :agent-id="agent.id" :name="node.name" />
-    <ContinueAsAgentButton v-if="terminalId && lapsed" :terminal="terminalId" :terminal-key="panel.id" :conversation="lapsed" />
-    <TaskNoteButton v-if="worktree && !inspectorShown" :worktree-id="worktree.id" :branch="worktree.branch" />
+    <div class="actions">
+      <RouteButton v-if="agent" :agent-id="agent.id" :kind="agent.kind" :model="agent.model" :resumable="!!agent.session_id" :error="agent.provider_error ?? null" />
+      <CheckpointsButton v-if="agent && !inspectorShown" :agent-id="agent.id" :name="agent.name" :kind="agent.kind" :refresh-key="status" />
+      <ShareButton v-if="agent && isDesktop" :agent-id="agent.id" :name="node.name" />
+      <ContinueAsAgentButton v-if="terminalId && lapsed" :terminal="terminalId" :terminal-key="panel.id" :conversation="lapsed" />
+      <TaskNoteButton v-if="worktree && !inspectorShown" :worktree-id="worktree.id" :branch="worktree.branch" />
+    </div>
     <GitStepButton v-if="worktree && worktree.branch" :path="worktree.path" :branch="worktree.branch" :has-request="!!mr" :refresh-key="status" />
     <SessionViewSwitch :panel="panel" :active="active" />
   </header>
@@ -200,10 +202,22 @@ watch(
   text-overflow: ellipsis;
 }
 
+:root[data-vr-viewport='phone'] .session-header .actions {
+  display: flex;
+  flex: 1 1 100%;
+  gap: var(--vr-space-2);
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+:root[data-vr-viewport='phone'] .session-header .actions:empty {
+  display: none;
+}
+
 :root[data-vr-viewport='phone'] .session-header :deep(.modes) {
   display: flex;
-  flex: 1 1 0;
-  order: -1;
+  flex: 1 1 100%;
   min-width: 0;
 }
 
@@ -222,6 +236,10 @@ watch(
 
 :root[data-vr-viewport='phone'] .session-header :deep(.modes .key) {
   display: none;
+}
+
+.actions {
+  display: contents;
 }
 
 .identity {

@@ -10,6 +10,10 @@ export const push = {
   always: 'Always allow',
   deny: 'Deny',
   open: 'Open',
+  allowed: 'Allowed · {name} is running',
+  alwaysAllowed: 'Always allowed · {name} is running',
+  answerDenied: 'Denied · {agent} was told not to run it',
+  openApp: 'Open Berth',
   failed: 'Could not reach Berth. Open the app to answer.',
   setupFailed: 'Could not turn on notifications: Berth answered {status} ({step}).',
 } as const;

@@ -426,6 +426,15 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
   border-radius: var(--vr-radius-lg);
 }
 
+:root[data-vr-viewport='phone'] .item .name {
+  font-size: var(--vr-font-size-title);
+  font-weight: 600;
+}
+
+:root[data-vr-viewport='phone'] .item .reason {
+  font-size: var(--vr-font-size-label);
+}
+
 :root[data-vr-viewport='phone'] .item[data-kind='needs_feedback'] {
   border-color: var(--vr-status-feedback);
 }

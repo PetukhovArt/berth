@@ -11,6 +11,9 @@
 - Added a `Nothing here yet` card to the Projects tree when berth has no project, with `Open the Welcome page` to bring back a skipped Welcome page
 - Added the GitHub and GitLab hosts you are signed in to on this machine to Merge requests on the Welcome page as checked boxes that `Start` connects
 - Added a loading skeleton to the merge request page, and a `Could not load !N` line with `Refresh` when the request fails; a failed discussions or pipeline fetch gets its own line instead of one shared red error
+- Added quick chips to the Chat composer on a phone: Run the tests, Show the diff, and Stop while the agent works
+- Added a line under the cards of the phone Inbox that names the running sessions and opens the first one
+- Added a confirmation notification after Allow, Always allow or Deny on a phone notification, with an Open Berth button
 - Changed Add to prompt on lines of a diff and on a merge request thread to put them into the Chat composer as removable chips when the Session is in the Chat view; in the Terminal view they are still typed into the terminal
 - Changed draft merge requests in the sidebar tree to show a draft icon before the number instead of a Draft label before the title
 - Changed the sidebar to show every session as `connecting…` or `unknown` with a dashed mark while the daemon is not answering, and the Inbox to say when it was last up to date
@@ -26,6 +29,8 @@
 - Changed the members list of the Team section in Settings to show approved members before the ones waiting for approval, to mark your own device with `(you)`, and to revoke a device without asking first
 - Changed the Team section to sit last in the Settings categories, and a role that is not Admin to list what it allows as chips
 - Changed the Task note button in the Channel view to a grey button beside Send, and the Task note banner, spacing and disabled controls to follow the design
+- Changed the Session screen on a phone to show the model, Checkpoints and Task note buttons in one row that scrolls sideways, above a Chat and Changes switch as wide as the screen
+- Changed the session rows in the Sessions tab on a phone to cards with the status under the name, and Cancel and Create in New session to larger buttons
 
 ## 0.22.0 (2026-11-24)
 

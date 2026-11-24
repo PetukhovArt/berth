@@ -439,7 +439,7 @@ function onVisible(visible: boolean) {
         </label>
         <span class="spacer" />
         <span v-if="!phone" class="hint" data-testid="new-session-background-hint">{{ t('agents.newSession.backgroundHint', { key: backgroundKey }) }}</span>
-        <VButton class="action" :label="t('common.cancel')" :size="phone ? undefined : 'small'" text data-testid="new-session-cancel" @click="emit('close')" />
+        <VButton class="action cancel" :label="t('common.cancel')" :size="phone ? undefined : 'small'" text data-testid="new-session-cancel" @click="emit('close')" />
         <VButton class="action" type="submit" :label="continuing ? t('agents.newSession.continueStart') : many ? t('agents.newSession.startMany', { count: kinds.length }) : t('common.create')" :size="phone ? undefined : 'small'" :loading="action.busy.value" :disabled="location.plan.value.kind === 'incomplete' || (continuing && !chosenConversation)" data-testid="new-session-submit" />
       </div>
     </form>
@@ -815,5 +815,14 @@ function onVisible(visible: boolean) {
 :root[data-vr-viewport='phone'] .action {
   flex: 1 1 0;
   min-height: var(--vr-size-row-touch);
+  border-radius: var(--vr-radius-lg);
+}
+
+:root[data-vr-viewport='phone'] .action[type='submit'] {
+  flex-grow: 1.4;
+}
+
+:root[data-vr-viewport='phone'] .action.cancel {
+  background: var(--vr-color-surface-muted);
 }
 </style>

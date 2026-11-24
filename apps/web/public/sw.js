@@ -21,14 +21,14 @@ self.addEventListener('push', (event) => {
       tag: data.tag,
       renotify: true,
       actions: shown.map(({ action, title }) => ({ action, title })),
-      data: { session: data.session, actions, failed: data.failed, tag: data.tag },
+      data: { session: data.session, actions, failed: data.failed, tag: data.tag, openApp: data.openApp },
     }),
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const { session, actions = [], failed, tag } = event.notification.data || {};
+  const { session, actions = [], failed, tag, openApp: openLabel } = event.notification.data || {};
   const chosen = actions.find((entry) => entry.action === event.action);
   if (!chosen || typeof chosen.data !== 'string') {
     event.waitUntil(openApp());
@@ -43,6 +43,7 @@ self.addEventListener('notificationclick', (event) => {
     })
       .then((response) => {
         if (!response.ok) throw new Error(String(response.status));
+        if (chosen.done) return self.registration.showNotification('Berth', { body: chosen.done, tag, actions: openLabel ? [{ action: 'open', title: openLabel }] : [] });
       })
       .catch(() => self.registration.showNotification('Berth', { body: failed, tag })),
   );

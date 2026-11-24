@@ -35,6 +35,11 @@ export const chat = {
   talkHint: 'Hold to talk · Aa to type',
   talkHintRunning: 'Agent is working · Stop to interrupt',
   holdToTalk: 'Hold to talk',
+  quick: {
+    tests: 'Run the tests',
+    diff: 'Show the diff',
+    stop: 'Stop',
+  },
   handsFree: 'Hands-free',
   voiceMode: 'Voice mode',
   sentByVoice: 'voice',
