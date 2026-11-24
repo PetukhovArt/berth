@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
-import { Check, ChevronRight, Ellipsis, Eye, GitPullRequest, ListTodo, MessageSquare, Plus, RefreshCw, Search, SquareTerminal, TriangleAlert, X } from '../../../shared/ui/icons';
+import { Check, ChevronRight, Ellipsis, Eye, GitPullRequest, GitPullRequestDraft, ListTodo, MessageSquare, Plus, RefreshCw, Search, SquareTerminal, TriangleAlert, X } from '../../../shared/ui/icons';
 import { sidebarSearchRequests } from '../../../shared/model/sidebar';
 import { shortcutLabel } from '../../../shared/lib/commands/keymap';
 import { VContextMenu, useIsPhone } from '../../../shared/ui/kit';
@@ -184,9 +184,10 @@ const moreItems = computed(() => {
         </template>
         <template #leaf="{ node, data }">
           <span v-if="data?.item" class="line" data-testid="tree-mr-row" :data-mr="`${data.item.project}!${data.item.number}`" @contextmenu="showArchMenu($event, data.item, data.review)">
+            <span v-if="data.item.draft" class="draft" :title="t('forge.draft')" :aria-label="t('forge.draft')" data-testid="tree-mr-draft"><GitPullRequestDraft :size="14" /></span>
             <span class="key">{{ numberLabel(data.item) }}</span>
             <span v-if="jiraRefs(data.review)" class="refs" data-testid="tree-mr-refs">{{ jiraRefs(data.review) }}</span>
-            <span class="title"><span v-if="data.item.draft" class="draft">{{ t('forge.draft') }}</span>{{ shownTitle(data.item) }}</span>
+            <span class="title">{{ shownTitle(data.item) }}</span>
             <span v-if="data.verdict" class="verdict" :data-verdict="data.verdict" :title="verdictTitle(data.verdict, data.review?.note)" data-testid="tree-mr-verdict">{{ verdictText(data.verdict) }}</span>
             <span v-else-if="data.review?.note" class="verdict note" :title="data.review.note" data-testid="tree-mr-note">{{ data.review.note }}</span>
             <span v-if="data.item.unresolved_threads" class="threads" :title="t('forge.unresolvedThreads', { count: data.item.unresolved_threads })"><MessageSquare :size="12" />{{ data.item.unresolved_threads }}</span>
@@ -597,12 +598,10 @@ const moreItems = computed(() => {
 }
 
 .draft {
-  margin-right: var(--vr-space-1);
-  padding: 0 var(--vr-space-1);
-  font-size: var(--vr-font-size-2xs);
+  display: inline-flex;
+  flex: none;
+  margin: 0 calc(7px - var(--vr-space-1)) 0 -21px;
   color: var(--vr-color-text-muted);
-  background: var(--vr-color-chip-bg);
-  border-radius: var(--vr-radius-full);
 }
 
 .threads {

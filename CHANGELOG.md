@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Added a Next step section to the facts panel of a merge request that runs the git step of its worktree, and a pill beside Discussions that counts unresolved threads or says all are resolved
+- Changed draft merge requests in the sidebar tree to show a draft icon before the number instead of a Draft label before the title
 
 ## 0.22.0 (2026-11-24)
 
