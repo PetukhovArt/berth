@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch, type ShallowRef } from 'vue';
-import { Check, ChevronDown, ChevronRight, ChevronUp, Columns2, Folder, FolderOpen, ListTree, MessageSquare, Rows2, Search, WrapText, X } from '../../../shared/ui/icons';
+import { Check, ChevronDown, ChevronRight, ChevronUp, Columns2, Folder, FolderOpen, ListTree, Rows2, Search, WrapText, X } from '../../../shared/ui/icons';
 import { useIsPhone, VInputText } from '../../../shared/ui/kit';
 import type { DiffFile, Discussion } from '../../../shared/api/connectors/api';
+import type { PromptQuote } from '../../../entities/session';
 import { t, compareText } from '../../../shared/lib/i18n/i18n';
 import SidePane from '../../../shared/ui/SidePane.vue';
 import DiffFileBody from './DiffFileBody.vue';
@@ -13,8 +14,8 @@ import { parsePatch } from '../lib/patch';
 import { flatName, treePlace } from '../lib/treePlace';
 
 import { UiButton } from '../../../shared/ui/UiButton';
-const props = defineProps<{ files: DiffFile[]; discussions: Discussion[]; connector?: string; project?: string; headSha?: string; requestUrl?: string; root?: string; quotable?: boolean }>();
-const emit = defineEmits<{ quote: [text: string] }>();
+const props = defineProps<{ files: DiffFile[]; discussions: Discussion[]; connector?: string; project?: string; headSha?: string; requestUrl?: string; root?: string; quotable?: boolean; state?: { text: string; testid: string; alert?: boolean } | null }>();
+const emit = defineEmits<{ quote: [quote: PromptQuote] }>();
 
 type Mode = 'unified' | 'split';
 type IndexSet = ShallowRef<ReadonlySet<number>>;
@@ -112,27 +113,6 @@ function pickLine(file: number, line: number, extend: boolean) {
   if (extend && current?.file === file) picked.value = { file, anchor: current.anchor, from: Math.min(current.anchor, line), to: Math.max(current.anchor, line) };
   else if (current?.file === file && current.from === line && current.to === line) picked.value = null;
   else picked.value = { file, anchor: line, from: line, to: line };
-}
-
-const pickedCount = computed(() => {
-  const at = picked.value;
-  if (!at) return 0;
-  return parsePatch(props.files[at.file]?.patch ?? '').filter((l) => l.index >= at.from && l.index <= at.to && l.kind !== 'hunk' && l.kind !== 'meta').length;
-});
-
-function quotePicked() {
-  const at = picked.value;
-  const file = at ? props.files[at.file] : undefined;
-  if (!at || !file) return;
-  const lines = parsePatch(file.patch).filter((l) => l.index >= at.from && l.index <= at.to && l.kind !== 'hunk' && l.kind !== 'meta');
-  if (!lines.length) return;
-  const numbers = lines.map((l) => l.newLine ?? l.oldLine ?? 0);
-  const first = Math.min(...numbers);
-  const last = Math.max(...numbers);
-  const path = file.status === 'deleted' ? file.old_path : file.new_path;
-  const body = lines.map((l) => `${l.kind === 'add' ? '+' : l.kind === 'del' ? '-' : ' '}${l.text}`).join('\n');
-  emit('quote', `${path}:${first === last ? first : `${first}-${last}`}\n\`\`\`diff\n${body}\n\`\`\`\n`);
-  picked.value = null;
 }
 
 const toggleCollapsed = (index: number) => toggle(collapsed, index);
@@ -526,7 +506,7 @@ defineExpose({ focusThread, focusFile, root });
   <div ref="root" class="diff vr-master-detail" :data-detail="!filesOpen" tabindex="0" data-testid="diff-view" @keydown="onKey">
     <SidePane class="tree vr-master" storage-key="berth.diff.treeWidth" :default-width="260" :label="t('forge.diff.treeWidth')" handle-testid="diff-tree-resize-handle" data-testid="diff-tree">
       <div v-if="!phone" class="tree-head" data-testid="diff-tree-head">
-        <span class="summary">{{ t('forge.diff.fileCount', { count: files.length }) }} <span class="add">+{{ totals.additions }}</span> <span class="del">−{{ totals.deletions }}</span></span>
+        <span class="summary"><span class="count">{{ t('forge.diff.fileCount', { count: files.length }) }}</span> <span class="add">+{{ totals.additions }}</span> <span class="del">−{{ totals.deletions }}</span></span>
         <slot name="scope" />
       </div>
       <div class="tree-filter">
@@ -556,7 +536,7 @@ defineExpose({ focusThread, focusFile, root });
             <span class="counts"><span class="add">+{{ row.additions }}</span> <span class="del">−{{ row.deletions }}</span></span>
           </UiButton>
         </template>
-        <p v-if="!treeRows.length" class="tree-empty">{{ t('common.noResults') }}</p>
+        <p v-if="!treeRows.length && files.length" class="tree-empty vr-phone-only">{{ t('common.noResults') }}</p>
       </div>
     </SidePane>
 
@@ -564,12 +544,11 @@ defineExpose({ focusThread, focusFile, root });
       <header class="toolbar">
         <UiButton class="mode vr-phone-only" data-testid="diff-files-open" @click="filesOpen = true"><ListTree :size="14" />{{ t('forge.diff.files') }}</UiButton>
         <template v-if="phone">
-          <span class="summary">{{ t('forge.diff.fileCount', { count: files.length }) }} <span class="add">+{{ totals.additions }}</span> <span class="del">−{{ totals.deletions }}</span></span>
+          <span class="summary"><span class="count">{{ t('forge.diff.fileCount', { count: files.length }) }}</span> <span class="add">+{{ totals.additions }}</span> <span class="del">−{{ totals.deletions }}</span></span>
           <slot name="scope" />
         </template>
-        <span v-if="scope" class="summary reviewed-count" data-testid="diff-reviewed-count">{{ t('forge.diff.reviewedCount', { done: reviewedCount, total: files.length }) }}</span>
+        <span v-if="scope && files.length" class="summary reviewed-count" data-testid="diff-reviewed-count">{{ t('forge.diff.reviewedCount', { done: reviewedCount, total: files.length }) }}</span>
         <span class="spacer" />
-        <UiButton v-if="quotable && picked" class="mode" :title="t('forge.diff.quoteTitle')" data-testid="diff-quote" @click="quotePicked"><MessageSquare :size="14" />{{ t('forge.diff.quote', { count: pickedCount }) }}</UiButton>
         <span v-if="unresolved.length" class="group">
           <UiButton class="icon" :title="t('forge.diff.prevThreadTitle')" :aria-label="t('forge.diff.prevThread')" data-testid="diff-prev-thread" @click="stepThread(-1)"><ChevronUp :size="14" /></UiButton>
           <span>{{ t('forge.diff.unresolvedCount', { count: unresolved.length }) }}</span>
@@ -584,8 +563,17 @@ defineExpose({ focusThread, focusFile, root });
       </header>
 
       <div ref="scroller" v-auto-animate class="files" data-testid="diff-files" @scroll.passive="onScroll" @wheel.passive="release" @pointerdown="release" @touchstart.passive="release">
-        <p v-if="!files.length" class="empty">{{ t('forge.diff.noFiles') }}</p>
-        <p v-else-if="!visible.length" class="empty">{{ t('common.noResults') }}</p>
+        <div v-if="state" class="state" :role="state.alert ? 'alert' : undefined" :data-testid="state.testid">
+          <p class="state-text">{{ state.text }}</p>
+          <div class="state-actions"><slot name="state-actions" /></div>
+        </div>
+        <div v-else-if="!files.length" class="state" data-testid="diff-empty">
+          <p class="state-text">{{ t('forge.diff.noFiles') }}</p>
+        </div>
+        <div v-else-if="!visible.length" class="state" data-testid="diff-no-match">
+          <p class="state-text">{{ t('common.noResults') }}</p>
+          <div class="state-actions"><UiButton class="state-button" @click="filter = ''">{{ t('forge.diff.clearFilter') }}</UiButton></div>
+        </div>
         <section v-for="{ file, i } in entries" :key="`${file.old_path}>${file.new_path}`" :ref="(el) => (fileEls[i] = el as HTMLElement | null)" class="file" :data-index="i" data-testid="diff-file">
           <header class="file-head" @click="toggleCollapsed(i)">
             <ChevronRight :size="14" class="chev vr-chevron" :data-open="!collapsed.has(i)" />
@@ -628,6 +616,7 @@ defineExpose({ focusThread, focusFile, root });
               @pick="(index, extend) => pickLine(i, index, extend)"
               @expand="expandFile(i)"
               @quote="emit('quote', $event)"
+              @clear="picked = null"
             />
             <div v-else class="placeholder" :style="{ height: `${estimates[i]}px` }" />
           </template>
@@ -751,6 +740,24 @@ defineExpose({ focusThread, focusFile, root });
   flex: none;
   color: var(--vr-color-text-muted);
   white-space: nowrap;
+}
+
+.count {
+  color: var(--vr-color-text);
+  font-weight: 500;
+}
+
+.toolbar > .group:not([role='group']) {
+  gap: var(--vr-space-2);
+}
+
+.toolbar > .group:not([role='group']) .icon {
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: var(--vr-color-surface-muted);
+  border-radius: var(--vr-radius-sm);
 }
 
 .reviewed-count {
@@ -929,9 +936,46 @@ defineExpose({ focusThread, focusFile, root });
   background: var(--vr-color-surface-sunken);
 }
 
-.empty {
-  margin: var(--vr-space-4);
+.state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vr-space-3);
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 160px;
+  padding: var(--vr-space-6);
+  text-align: center;
+}
+
+.state-text {
+  margin: 0;
   color: var(--vr-color-text-muted);
+  font-size: var(--vr-font-size-sm);
+}
+
+.state-actions {
+  display: flex;
+  gap: var(--vr-space-2);
+}
+
+.state-actions:empty {
+  display: none;
+}
+
+.state-button {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  color: var(--vr-color-text);
+  font: inherit;
+  font-size: var(--vr-font-size-xs);
+  white-space: nowrap;
+  background: var(--vr-color-surface-muted);
+  border: 0;
+  border-radius: var(--vr-radius-sm);
+  cursor: pointer;
 }
 
 .file {

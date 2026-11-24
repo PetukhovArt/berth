@@ -9,7 +9,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { CommentComposer, ThreadView } from '../../../features/diff-review';
 import { issueKeyOf, openIssue } from '../../../entities/jira-issue';
 import { numberLabel, pipelineLabel } from '../../../entities/merge-request';
-import { StatusIcon, useSessionDock, useSessionStates, type SessionNode } from '../../../entities/session';
+import { StatusIcon, useSessionDock, useSessionStates, type PromptQuote, type SessionNode } from '../../../entities/session';
 import { isWatching, toggleWatch } from '../../../features/watch-merge-request';
 import { GitStepButton } from '../../../features/git-step';
 import { useMrWorktree } from '../../../features/open-in-session';
@@ -19,7 +19,7 @@ import PipelineJobs from './PipelineJobs.vue';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ connector: string; request: ChangeRequest; session: SessionNode | null }>();
-const emit = defineEmits<{ goto: [discussion: Discussion]; quote: [text: string] }>();
+const emit = defineEmits<{ goto: [discussion: Discussion]; quote: [quote: PromptQuote] }>();
 
 const dock = useSessionDock();
 const states = useSessionStates();

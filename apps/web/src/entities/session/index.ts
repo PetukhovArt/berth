@@ -21,6 +21,8 @@ export type { FileEdit } from './model/shellTags';
 export { useLinkedPlan } from './model/linkedPlan';
 export { ALLOW, ALWAYS_ALLOW, DENY, allowRequest, alwaysAllowRequest, chooseOption, denyRequest, feedbackText, isYesNoPermission, offersAlways, useFeedbackRequest } from './model/feedback';
 export { enqueuePrompt, removeQueuedPrompt, submitPrompt, useQueuedPrompts } from './model/promptQueue';
+export { addPromptQuote, clearPromptQuotes, promptQuotesOf, removePromptQuote } from './model/promptQuotes';
+export type { PromptQuote } from './model/promptQuotes';
 export { isFiveHourWindow, useUsageLimits } from './model/limits';
 export type { UsageWindow } from './model/limits';
 export { saveTaskNote, useTaskNote } from './model/taskNote';

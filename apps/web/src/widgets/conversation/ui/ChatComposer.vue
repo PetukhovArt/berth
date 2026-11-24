@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, shallowRef, useId, useTemplateRef, watch } from 'vue';
 import { isDesktop } from '../../../bridge';
-import { ArrowUp, Mic, Square } from '../../../shared/ui/icons';
+import { ArrowUp, Mic, Square, X } from '../../../shared/ui/icons';
 import { useIsPhone } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { PlainKey } from '../../../shared/lib/i18n/translate';
 import { speechLang, useHoldToTalk, type HoldToTalkIssue } from '../../../shared/lib/dictation';
-import { listSlashCommands, matchSlashCommands, type SlashCommand, type SlashSource, type TranscriptMessage } from '../../../entities/session';
+import { listSlashCommands, matchSlashCommands, type PromptQuote, type SlashCommand, type SlashSource, type TranscriptMessage } from '../../../entities/session';
 import { useVoiceLoop } from '../model/useVoiceLoop';
 
 const NOTICE_MS = 3000;
@@ -17,7 +17,8 @@ const WAVE_BARS = [10, 22, 34, 18, 40, 26, 14, 30, 20, 8];
 
 const SLASH_QUERY = /^\/(\S*)$/;
 
-const props = defineProps<{ messages: TranscriptMessage[]; suggestion: string | null; modelChip: string; sending: boolean; slashSource: SlashSource | null; stop: (() => Promise<void>) | null; send: (text: string, spoken: boolean) => Promise<boolean> }>();
+const props = defineProps<{ messages: TranscriptMessage[]; suggestion: string | null; modelChip: string; sending: boolean; slashSource: SlashSource | null; stop: (() => Promise<void>) | null; send: (text: string, spoken: boolean) => Promise<boolean>; quotes: readonly PromptQuote[] }>();
+const emit = defineEmits<{ unquote: [label: string] }>();
 
 const phone = useIsPhone();
 const draft = shallowRef('');
@@ -86,6 +87,13 @@ const talkNote = computed(() => {
 watch(
   () => props.messages,
   () => voice.transcriptChanged(),
+);
+
+watch(
+  () => props.quotes.length,
+  (size, before) => {
+    if (size > before) void nextTick(() => input.value?.focus());
+  },
 );
 
 onBeforeUnmount(() => clearTimeout(noticeTimer));
@@ -208,7 +216,13 @@ function handsFree() {
             <span v-if="command.description" class="slash-description">{{ command.description }}</span>
           </li>
         </ul>
-        <UiTextarea ref="input" v-model="draft" class="input" rows="2" :placeholder="t(stop ? 'agents.sessionView.chatPlaceholderRunning' : 'agents.sessionView.chatPlaceholder')" :aria-label="t('agents.sessionView.chatPlaceholder')" role="combobox" aria-autocomplete="list" :aria-expanded="slashOpen" :aria-controls="slashOpen ? listId : undefined" :aria-activedescendant="activeId" data-testid="chat-input" @keydown="onKey" />
+        <div v-if="quotes.length" class="quotes" data-testid="chat-quotes">
+          <span v-for="quote in quotes" :key="quote.label" class="quote" :title="quote.text" data-testid="chat-quote">
+            {{ quote.label }}
+            <UiButton type="button" class="unquote" :aria-label="t('agents.sessionView.chatQuoteRemove', { label: quote.label })" data-testid="chat-quote-remove" @click="emit('unquote', quote.label)"><X :size="12" /></UiButton>
+          </span>
+        </div>
+        <UiTextarea ref="input" v-model="draft" class="input" rows="2" :placeholder="t(quotes.length ? 'agents.sessionView.chatPlaceholderQuoted' : stop ? 'agents.sessionView.chatPlaceholderRunning' : 'agents.sessionView.chatPlaceholder')" :aria-label="t('agents.sessionView.chatPlaceholder')" role="combobox" aria-autocomplete="list" :aria-expanded="slashOpen" :aria-controls="slashOpen ? listId : undefined" :aria-activedescendant="activeId" data-testid="chat-input" @keydown="onKey" />
         <div class="foot">
           <span v-if="modelChip" class="model" :title="modelChip" data-testid="chat-model">{{ modelChip }}</span>
           <span class="grow" />
@@ -323,6 +337,40 @@ function handsFree() {
 
 :root[data-vr-viewport='phone'] .slash-name {
   max-width: none;
+}
+
+.quotes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vr-space-2);
+  padding: 10px var(--vr-space-3) 0;
+}
+
+.quote {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vr-space-2);
+  min-width: 0;
+  height: 24px;
+  padding: 0 var(--vr-space-2);
+  font-family: var(--vr-font-mono);
+  font-size: var(--vr-font-size-xs);
+  background: var(--vr-color-surface-muted);
+  border-radius: var(--vr-radius-sm);
+}
+
+.unquote {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  color: var(--vr-color-text-subtle);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.unquote:hover {
+  color: var(--vr-color-text);
 }
 
 .input {

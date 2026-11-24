@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplate
 import { Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, TriangleAlert } from '../../../shared/ui/icons';
 import { VButton, VMessage } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
-import { AGENT_KIND_LABEL, clearHandoff, clearMessageFocus, messageFocusOf, continueInBerth, handoffOf, externalKey, externalOrigin, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, deriveSubagents, stripVisible, sendInput, useFeedbackRequest, allowRequest, alwaysAllowRequest, offersAlways, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, sessionKey, stopAgent, submitPrompt, useAcpChat, useQueuedPrompts, useSessionStates, type SessionRef, type SlashSource } from '../../../entities/session';
+import { AGENT_KIND_LABEL, clearHandoff, clearMessageFocus, messageFocusOf, continueInBerth, handoffOf, externalKey, externalOrigin, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, deriveSubagents, stripVisible, sendInput, useFeedbackRequest, allowRequest, alwaysAllowRequest, offersAlways, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, sessionKey, stopAgent, submitPrompt, useAcpChat, useQueuedPrompts, useSessionStates, clearPromptQuotes, promptQuotesOf, removePromptQuote, type SessionRef, type SlashSource } from '../../../entities/session';
 import { worktreeOf } from '../../../features/session-view-switch';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
@@ -82,6 +82,7 @@ const agentId = computed(() => (props.terminal && 'Agent' in props.terminal ? pr
 const agent = computed(() => (agentId.value ? berth?.entities.value.agents.get(agentId.value) : undefined));
 const states = useSessionStates();
 const sessionState = computed(() => (props.terminal ? states.value.get(sessionKey(props.terminal)) : undefined));
+const quotes = computed(() => (props.terminal ? promptQuotesOf(props.terminal) : []));
 const turnRunning = computed(() => sessionState.value?.status === 'running');
 const live = computed(() => (sessionState.value ? sessionState.value.alive && (sessionState.value.status === 'running' || sessionState.value.status === 'needs_feedback') : running.value));
 const suggestion = computed(() => (agent.value?.status === 'finished' ? (agent.value.suggested_prompt ?? null) : null));
@@ -277,12 +278,14 @@ async function continueHere() {
 async function submit(text: string, viaVoice: boolean): Promise<boolean> {
   if (!props.terminal || !text || sending.value) return false;
   sending.value = true;
+  const body = quotes.value.length ? `${quotes.value.map((quote) => quote.text.trimEnd()).join('\n\n')}\n\n${text}` : text;
   try {
-    if (acp) await sendToAcp(text);
+    if (acp) await sendToAcp(body);
     else {
-      await sendInput(props.terminal, `\x1b[200~${text}\x1b[201~`);
+      await sendInput(props.terminal, `\x1b[200~${body}\x1b[201~`);
       await sendInput(props.terminal, '\r');
     }
+    clearPromptQuotes(props.terminal);
     if (viaVoice) spoken.value = new Set(spoken.value).add(text.trim());
     return true;
   } catch (e) {
@@ -402,7 +405,7 @@ onBeforeUnmount(() => {
         </li>
       </ul>
       <SubagentStrip v-if="stripAgents.length" class="column" :agents="stripAgents" :now="now" @open="openSubagent" />
-      <ChatComposer v-if="terminal" :messages="messages" :suggestion="suggestion" :model-chip="modelChip" :sending="sending" :slash-source="slashSource" :stop="turnRunning ? stop : null" :send="submit" />
+      <ChatComposer v-if="terminal" :messages="messages" :suggestion="suggestion" :model-chip="modelChip" :sending="sending" :slash-source="slashSource" :stop="turnRunning ? stop : null" :send="submit" :quotes="quotes" @unquote="(label) => terminal && removePromptQuote(terminal, label)" />
       <template v-if="column.box.value && !column.phone.value">
         <div
           v-for="edge in COLUMN_EDGES"

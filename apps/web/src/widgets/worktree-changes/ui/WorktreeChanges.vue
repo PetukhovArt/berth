@@ -2,7 +2,7 @@
 import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
 import { RefreshCw } from '../../../shared/ui/icons';
 import { VButton } from '../../../shared/ui/kit';
-import { useBerth, type SessionRef, type SessionStatus } from '../../../entities/session';
+import { useBerth, type PromptQuote, type SessionRef, type SessionStatus } from '../../../entities/session';
 import { knownMr } from '../../../entities/merge-request';
 import { GitStepButton } from '../../../features/git-step';
 import { clearChangeFocus, focusedChange, quoteToPrompt } from '../../../features/session-view-switch';
@@ -19,6 +19,7 @@ const props = defineProps<{ path: string; status?: SessionStatus; session?: Sess
 type Changes = { kind: 'loading' } | { kind: 'failed'; message: string } | { kind: 'ready'; files: DiffFile[]; signature: string };
 
 const NO_DISCUSSIONS: Discussion[] = [];
+const NO_FILES: DiffFile[] = [];
 
 const changes = shallowRef<Changes>({ kind: 'loading' });
 const refreshing = shallowRef(false);
@@ -31,8 +32,8 @@ const normal = (path: string) => path.replace(/\\/g, '/').replace(/\/+$/, '');
 const worktree = computed(() => [...(berth?.entities.value.worktrees.values() ?? [])].find((entry) => normal(entry.path) === normal(props.path)));
 const request = computed(() => (worktree.value ? knownMr(worktree.value.path, worktree.value.branch) : null));
 
-function quote(text: string) {
-  if (props.session) quoteToPrompt(props.session, text);
+function quote(entry: PromptQuote) {
+  if (props.session) quoteToPrompt(props.session, entry);
 }
 
 async function load() {
@@ -66,6 +67,14 @@ watch(scope, () => {
   void load();
 });
 
+const state = computed(() => {
+  const current = changes.value;
+  if (current.kind === 'loading') return { text: t('agents.changes.loading'), testid: 'worktree-changes-loading' };
+  if (current.kind === 'failed') return { text: t('agents.changes.failed', { error: current.message }), testid: 'worktree-changes-error', alert: true };
+  if (!current.files.length) return { text: scope.value === 'uncommitted' ? t('agents.changes.emptyUncommitted') : t('agents.changes.empty'), testid: 'worktree-changes-empty' };
+  return null;
+});
+
 const diff = useTemplateRef<{ focusFile: (path: string) => boolean }>('diff');
 
 watch(
@@ -91,21 +100,13 @@ watch(
 
 <template>
   <div class="changes" data-testid="worktree-changes">
-    <div v-if="changes.kind !== 'ready' || !changes.files.length" class="bar">
-      <ChangesScopePicker v-model="scope" :path="path" />
-    </div>
-    <p v-if="changes.kind === 'loading'" class="state" data-testid="worktree-changes-loading">{{ t('agents.changes.loading') }}</p>
-    <div v-else-if="changes.kind === 'failed'" class="state" role="alert" data-testid="worktree-changes-error">
-      <p class="failure">{{ t('agents.changes.failed', { error: changes.message }) }}</p>
-      <VButton size="small" severity="secondary" :label="t('agents.changes.retry')" :loading="refreshing" data-testid="worktree-changes-retry" @click="load" />
-    </div>
-    <div v-else-if="!changes.files.length" class="state" data-testid="worktree-changes-empty">
-      <p>{{ scope === 'uncommitted' ? t('agents.changes.emptyUncommitted') : t('agents.changes.empty') }}</p>
-      <VButton size="small" severity="secondary" :label="t('agents.changes.refresh')" :loading="refreshing" data-testid="worktree-changes-refresh" @click="load" />
-    </div>
-    <DiffView v-else ref="diff" :files="changes.files" :discussions="NO_DISCUSSIONS" :root="path" :quotable="!!session" @quote="quote">
+    <DiffView ref="diff" :files="changes.kind === 'ready' ? changes.files : NO_FILES" :discussions="NO_DISCUSSIONS" :root="path" :quotable="!!session" :state="state" @quote="quote">
       <template #scope>
         <ChangesScopePicker v-model="scope" :path="path" />
+      </template>
+      <template #state-actions>
+        <VButton v-if="changes.kind === 'failed'" size="small" severity="secondary" :label="t('agents.changes.retry')" :loading="refreshing" data-testid="worktree-changes-retry" @click="load" />
+        <VButton v-if="changes.kind === 'failed' || (changes.kind === 'ready' && !changes.files.length)" size="small" severity="secondary" :label="t('agents.changes.refresh')" :loading="refreshing" data-testid="worktree-changes-refresh" @click="load" />
       </template>
       <template #actions>
         <UiButton class="refresh" :disabled="refreshing" :aria-busy="refreshing" :title="t('agents.changes.refresh')" :aria-label="t('agents.changes.refresh')" data-testid="worktree-changes-refresh" @click="load">
@@ -123,36 +124,6 @@ watch(
   flex-direction: column;
   height: 100%;
   min-height: 0;
-}
-
-.bar {
-  display: flex;
-  flex: none;
-  align-items: center;
-  padding: var(--vr-space-2) var(--vr-space-3);
-  border-bottom: 1px solid var(--vr-color-border);
-}
-
-.state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--vr-space-3);
-  flex: 1;
-  min-height: 0;
-  margin: 0;
-  padding: var(--vr-space-6);
-  color: var(--vr-color-text-muted);
-  text-align: center;
-}
-
-.state p {
-  margin: 0;
-}
-
-.failure {
-  color: var(--vr-color-danger);
 }
 
 .refresh {

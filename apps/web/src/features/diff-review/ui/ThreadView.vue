@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue';
-import { Check, CheckCircle2, ChevronRight, Link, MessageSquare } from '../../../shared/ui/icons';
+import { Check, ChevronRight, Link, MessageSquare } from '../../../shared/ui/icons';
 import { VButton } from '../../../shared/ui/kit';
 import { describeError, forgeReply, forgeResolve, type ChangeRequestRef, type Discussion } from '../../../shared/api/connectors/api';
+import type { PromptQuote } from '../../../entities/session';
 import { copyText } from '../../../shared/lib/atlassian';
 import PersonAvatar from '../../../shared/ui/PersonAvatar.vue';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
@@ -12,7 +13,7 @@ import { fullDate, relativeTime } from '../../../entities/merge-request';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ discussion: Discussion; connector?: string; showPosition?: boolean; target?: ChangeRequestRef; quotable?: boolean }>();
-const emit = defineEmits<{ goto: [discussion: Discussion]; update: [discussion: Discussion]; quote: [text: string] }>();
+const emit = defineEmits<{ goto: [discussion: Discussion]; update: [discussion: Discussion]; quote: [quote: PromptQuote] }>();
 
 const folded = shallowRef(props.discussion.resolved);
 const copied = shallowRef(false);
@@ -37,7 +38,8 @@ function quoteThread() {
     .filter((n) => !n.system)
     .map((n) => `> ${n.author.name || n.author.username}: ${n.body.trim()}`.replace(/\n/g, '\n> '));
   if (!comments.length) return;
-  emit('quote', `${position.value ? `${position.value}\n` : ''}${comments.join('\n')}\n`);
+  const label = position.value ?? t('forge.thread.quoteLabel', { name: first.value?.author.name || first.value?.author.username || '' });
+  emit('quote', { label, text: `${position.value ? `${position.value}\n` : ''}${comments.join('\n')}\n` });
 }
 
 async function copyLink() {
@@ -88,17 +90,21 @@ defineExpose({ expand });
 </script>
 
 <template>
-  <article class="thread" :data-resolved="discussion.resolved" :data-thread-id="discussion.id" :data-unresolved="discussion.resolvable && !discussion.resolved" data-testid="thread">
-    <UiButton v-if="discussion.url" class="link" :title="copied ? t('forge.thread.copied') : t('forge.thread.copyLink')" :aria-label="t('forge.thread.copyLink')" data-testid="thread-copy-link" @click="copyLink">
-      <Check v-if="copied" :size="13" />
-      <Link v-else :size="13" />
-    </UiButton>
-    <UiButton v-if="discussion.resolved" class="fold" :aria-expanded="!folded" data-testid="thread-fold" @click="folded = !folded">
-      <ChevronRight :size="14" class="vr-chevron" :data-open="!folded" />
-      <CheckCircle2 :size="14" class="resolved-icon" />
-      <span class="fold-text">{{ t('forge.thread.resolved') }}<template v-if="first"> · {{ first.author.name || first.author.username }}: {{ preview }}</template></span>
-    </UiButton>
-    <template v-if="!folded">
+  <article class="thread" :data-resolved="discussion.resolved" :data-folded="folded" :data-thread-id="discussion.id" :data-unresolved="discussion.resolvable && !discussion.resolved" data-testid="thread">
+    <template v-if="folded">
+      <Check :size="14" class="resolved-icon" />
+      <UiButton class="fold" :aria-expanded="false" data-testid="thread-fold" @click="folded = false">
+        <span class="fold-text">{{ t('forge.thread.resolved') }}<template v-if="first"> · {{ first.author.name || first.author.username }}: {{ preview }}</template></span>
+      </UiButton>
+      <VButton v-if="target && discussion.resolvable" size="small" severity="secondary" outlined :label="t('forge.thread.unresolve')" :loading="resolving" data-testid="thread-resolve" @click="toggleResolved" />
+      <p v-if="resolveError" class="error" role="alert">{{ resolveError }}</p>
+    </template>
+    <template v-else>
+      <UiButton v-if="discussion.resolved" class="fold head" :aria-expanded="true" data-testid="thread-fold" @click="folded = true">
+        <ChevronRight :size="14" class="vr-chevron" data-open="true" />
+        <Check :size="14" class="resolved-icon" />
+        <span class="fold-text">{{ t('forge.thread.resolved') }}<template v-if="first"> · {{ first.author.name || first.author.username }}: {{ preview }}</template></span>
+      </UiButton>
       <UiButton v-if="showPosition && position" class="position" :title="position" data-testid="thread-position" @click="emit('goto', discussion)">
         <MessageSquare :size="12" />{{ position }}
       </UiButton>
@@ -113,29 +119,37 @@ defineExpose({ expand });
           <RichContent v-else :markdown="note.body" :connector="connector" />
         </div>
       </div>
-      <template v-if="target">
-        <CommentComposer
-          v-if="replying"
-          v-model="draft"
-          testid="thread-reply"
-          :busy="sending"
-          :error="replyError"
-          :placeholder="t('forge.composer.replyPlaceholder')"
-          :label="t('forge.thread.send')"
-          cancellable
-          autofocus
-          @send="sendReply"
-          @cancel="replying = false"
-        />
-        <div v-if="!replying || discussion.resolvable" class="actions">
-          <VButton v-if="!replying" size="small" severity="secondary" text :label="draft.trim() ? `${t('forge.thread.reply')} …` : t('forge.thread.reply')" data-testid="thread-reply" @click="replying = true" />
-          <VButton v-if="discussion.resolvable" size="small" severity="secondary" text :label="discussion.resolved ? t('forge.thread.unresolve') : t('forge.thread.resolve')" :loading="resolving" data-testid="thread-resolve" @click="toggleResolved" />
+      <div v-if="target || quotable || discussion.url" class="foot">
+        <template v-if="target">
+          <CommentComposer
+            v-if="replying"
+            v-model="draft"
+            testid="thread-reply"
+            :busy="sending"
+            :error="replyError"
+            :placeholder="t('forge.composer.replyPlaceholder')"
+            :label="t('forge.composer.comment')"
+            cancellable
+            autofocus
+            @send="sendReply"
+            @cancel="replying = false"
+          />
+          <div v-else class="idle">
+            <UiButton class="reply-field" data-testid="thread-reply" @click="replying = true">{{ draft.trim() ? `${t('forge.thread.reply')} …` : `${t('forge.thread.reply')}…` }}</UiButton>
+            <VButton v-if="discussion.resolvable" size="small" severity="secondary" outlined :label="discussion.resolved ? t('forge.thread.unresolve') : t('forge.thread.resolve')" :loading="resolving" data-testid="thread-resolve" @click="toggleResolved">
+              <template v-if="!discussion.resolved" #icon><Check :size="14" class="resolved-icon" /></template>
+            </VButton>
+          </div>
+          <p v-if="resolveError" class="error" role="alert">{{ resolveError }}</p>
+        </template>
+        <div v-if="quotable || discussion.url" class="actions">
+          <span class="spacer" />
           <VButton v-if="quotable" size="small" severity="secondary" text :label="t('forge.thread.addToPrompt')" :title="t('forge.thread.addToPromptTitle')" data-testid="thread-add-to-prompt" @click="quoteThread" />
+          <UiButton v-if="discussion.url" class="link" :title="copied ? t('forge.thread.copied') : t('forge.thread.copyLink')" :aria-label="t('forge.thread.copyLink')" data-testid="thread-copy-link" @click="copyLink">
+            <Check v-if="copied" :size="13" />
+            <Link v-else :size="13" />
+          </UiButton>
         </div>
-        <p v-if="resolveError" class="error" role="alert">{{ resolveError }}</p>
-      </template>
-      <div v-else-if="quotable" class="actions">
-        <VButton size="small" severity="secondary" text :label="t('forge.thread.addToPrompt')" :title="t('forge.thread.addToPromptTitle')" data-testid="thread-add-to-prompt" @click="quoteThread" />
       </div>
     </template>
   </article>
@@ -146,43 +160,45 @@ defineExpose({ expand });
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--vr-space-2);
-  padding: var(--vr-space-2) var(--vr-space-3);
+  overflow: hidden;
   color: var(--vr-color-text);
   font-family: var(--vr-font-family);
-  font-size: var(--vr-font-size-sm);
+  font-size: var(--vr-font-size-label);
   white-space: normal;
-  background: var(--vr-color-surface-muted);
-  border: 1px solid var(--vr-color-border);
+  background: var(--vr-color-surface);
+  border: 1px solid var(--vr-color-border-strong);
   border-radius: var(--vr-radius-md);
 }
 
-.link {
-  position: absolute;
-  top: var(--vr-space-2);
-  right: var(--vr-space-2);
-  display: inline-flex;
-  padding: var(--vr-space-1);
+.thread[data-folded='true'] {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  min-height: 40px;
+  box-sizing: border-box;
+  padding: 6px var(--vr-space-2) 6px var(--vr-space-3);
   color: var(--vr-color-text-muted);
-  background: none;
-  border: none;
-  border-radius: var(--vr-radius-sm);
-  cursor: pointer;
-  opacity: 0;
+  font-size: var(--vr-font-size-xs);
+  background: var(--vr-color-surface-sunken);
+  border-color: var(--vr-color-border);
 }
 
-.thread:hover .link,
-.link:focus-visible {
-  opacity: 1;
+.link {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 var(--vr-space-2);
+  color: var(--vr-color-text-muted);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--vr-radius-sm);
+  cursor: pointer;
 }
 
 .link:hover {
   color: var(--vr-color-text);
-  background: var(--vr-color-surface);
-}
-
-.thread[data-unresolved='true'] {
-  border-left: 3px solid var(--vr-color-conflict);
+  background: var(--vr-color-nav-hover);
 }
 
 .fold,
@@ -201,8 +217,25 @@ defineExpose({ expand });
   cursor: pointer;
 }
 
+.fold {
+  flex: 1;
+  min-width: 0;
+}
+
+.fold.head {
+  flex: none;
+  align-self: stretch;
+  padding: var(--vr-space-2) var(--vr-space-3);
+  background: var(--vr-color-surface-sunken);
+  border-bottom: 1px solid var(--vr-color-border);
+}
+
 .position {
+  align-self: stretch;
+  padding: var(--vr-space-2) var(--vr-space-3);
   font-family: var(--vr-font-mono);
+  background: var(--vr-color-surface-sunken);
+  border-bottom: 1px solid var(--vr-color-border);
 }
 
 .position:hover,
@@ -211,6 +244,7 @@ defineExpose({ expand });
 }
 
 .fold-text {
+  min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -223,7 +257,12 @@ defineExpose({ expand });
 
 .note {
   display: flex;
-  gap: var(--vr-space-2);
+  gap: 10px;
+  padding: var(--vr-space-3) 14px;
+}
+
+.note + .note {
+  border-top: 1px solid var(--vr-color-border);
 }
 
 .body {
@@ -235,7 +274,7 @@ defineExpose({ expand });
   display: flex;
   align-items: baseline;
   gap: var(--vr-space-2);
-  color: var(--vr-color-text-muted);
+  color: var(--vr-color-text-subtle);
   font-size: var(--vr-font-size-xs);
 }
 
@@ -243,10 +282,44 @@ defineExpose({ expand });
   color: var(--vr-color-text);
 }
 
+.foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vr-space-2);
+  padding: 10px var(--vr-space-3);
+  background: var(--vr-color-surface-sunken);
+  border-top: 1px solid var(--vr-color-border);
+}
+
+.idle {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.reply-field {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  color: var(--vr-color-text-muted);
+  font: inherit;
+  text-align: left;
+  background: var(--vr-color-surface);
+  border: 1px solid var(--vr-color-border-strong);
+  border-radius: var(--vr-radius-sm);
+  cursor: text;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--vr-space-1);
+  gap: 6px;
+  align-items: center;
+}
+
+.spacer {
+  flex: 1;
 }
 
 .error {

@@ -110,8 +110,16 @@ export function viewOf(panelId: string): SessionView {
   return isAvailable(panelId, view) ? view : home;
 }
 
+const talked = shallowRef<ReadonlyMap<string, 'terminal' | 'chat'>>(new Map());
+
+export function talkViewOf(panelId: string): 'terminal' | 'chat' {
+  const view = talked.value.get(panelId) ?? homeView(panelId);
+  return view === 'chat' && isAvailable(panelId, 'chat') ? 'chat' : isAvailable(panelId, 'terminal') ? 'terminal' : 'chat';
+}
+
 export function showView(panelId: string, view: SessionView): void {
   if (!isAvailable(panelId, view)) return;
+  if (view === 'terminal' || view === 'chat') talked.value = new Map(talked.value).set(panelId, view);
   const next = new Map(chosen.value);
   if (view === homeView(panelId) || viewOf(panelId) === view) next.delete(panelId);
   else next.set(panelId, view);

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { DiffFile, Discussion } from '../../../shared/api/connectors/api';
+import type { PromptQuote } from '../../../entities/session';
+import { VButton } from '../../../shared/ui/kit';
 import { escapeHtml, highlightLines } from '../../../shared/lib/content/highlight';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { parsePatch, sideTexts, splitRows, type PatchLine, type SplitRow } from '../lib/patch';
@@ -18,7 +20,7 @@ const props = defineProps<{
   pickable?: boolean;
   picked?: { from: number; to: number } | null;
 }>();
-const emit = defineEmits<{ expand: []; pick: [index: number, extend: boolean]; quote: [text: string] }>();
+const emit = defineEmits<{ expand: []; pick: [index: number, extend: boolean]; quote: [quote: PromptQuote]; clear: [] }>();
 
 type Model = { lines: PatchLine[]; rows: SplitRow[]; html: string[]; threads: Map<number, Discussion[]>; orphans: Discussion[] };
 
@@ -86,6 +88,28 @@ function pick(line: PatchLine | null, event: MouseEvent) {
   if (props.pickable && line) emit('pick', line.index, event.shiftKey);
 }
 
+const quoted = computed(() => {
+  const at = props.picked;
+  if (!at) return null;
+  const lines = model.value.lines.filter((l) => l.index >= at.from && l.index <= at.to && l.kind !== 'hunk' && l.kind !== 'meta');
+  if (!lines.length) return null;
+  const numbers = lines.map((l) => l.newLine ?? l.oldLine ?? 0);
+  const first = Math.min(...numbers);
+  const last = Math.max(...numbers);
+  const path = props.file.status === 'deleted' ? props.file.old_path : props.file.new_path;
+  const label = `${path}:${first === last ? first : `${first}-${last}`}`;
+  const body = lines.map((l) => `${l.kind === 'add' ? '+' : l.kind === 'del' ? '-' : ' '}${l.text}`).join('\n');
+  return { label, text: `${label}\n\`\`\`diff\n${body}\n\`\`\`\n` };
+});
+
+const endsPick = (line: PatchLine | null | undefined) => !!line && props.picked?.to === line.index;
+
+function addToPrompt() {
+  if (!quoted.value) return;
+  emit('quote', quoted.value);
+  emit('clear');
+}
+
 const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] || ' ' : ' ');
 </script>
 
@@ -105,6 +129,12 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
           <span class="sign">{{ line.kind === 'add' ? '+' : line.kind === 'del' ? '−' : '' }}</span>
           <span class="code" v-html="codeOf(line)" />
         </div>
+        <div v-if="quoted && endsPick(line)" class="pick-bar" data-testid="diff-pick-bar">
+          <span class="pick-label">{{ quoted.label }}</span>
+          <span class="spacer" />
+          <VButton size="small" :label="t('forge.diff.addToPrompt')" :title="t('forge.diff.addToPromptTitle')" data-testid="diff-add-to-prompt" @click="addToPrompt" />
+          <VButton size="small" severity="secondary" text :label="t('forge.diff.clearPick')" data-testid="diff-clear-pick" @click="emit('clear')" />
+        </div>
         <div v-for="d in model.threads.get(line.index)" :key="d.id" class="thread-row" :data-flash="flashId === d.id">
           <ThreadView :discussion="d" :connector="connector" :quotable="pickable" @quote="emit('quote', $event)" />
         </div>
@@ -119,6 +149,12 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
           <span class="code" :data-kind="row.left?.kind" :data-picked="isPicked(row.left)" v-html="codeOf(row.left)" />
           <span class="num" :data-kind="row.right?.kind" :data-picked="isPicked(row.right)" :data-pickable="pickable" @click="pick(row.right, $event)">{{ row.right?.newLine ?? '' }}</span>
           <span class="code" :data-kind="row.right?.kind" :data-picked="isPicked(row.right)" v-html="codeOf(row.right)" />
+        </div>
+        <div v-if="quoted && (endsPick(row.right) || endsPick(row.left))" class="pick-bar" data-testid="diff-pick-bar">
+          <span class="pick-label">{{ quoted.label }}</span>
+          <span class="spacer" />
+          <VButton size="small" :label="t('forge.diff.addToPrompt')" :title="t('forge.diff.addToPromptTitle')" data-testid="diff-add-to-prompt" @click="addToPrompt" />
+          <VButton size="small" severity="secondary" text :label="t('forge.diff.clearPick')" data-testid="diff-clear-pick" @click="emit('clear')" />
         </div>
         <div v-for="d in rowThreads(row)" :key="d.id" class="thread-row" :data-flash="flashId === d.id">
           <ThreadView :discussion="d" :connector="connector" :quotable="pickable" @quote="emit('quote', $event)" />
@@ -254,6 +290,47 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
 .body[data-wrap='true'] .hunk {
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+.pick-bar {
+  position: sticky;
+  left: 0;
+  box-sizing: border-box;
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: var(--vr-space-2);
+  width: 100cqw;
+  padding: 6px var(--vr-space-3) 6px 106px;
+  font-family: var(--vr-font-family);
+  font-size: var(--vr-font-size-sm);
+  white-space: normal;
+  background: var(--vr-color-surface);
+  border-top: 1px solid var(--vr-color-border);
+  border-bottom: 1px solid var(--vr-color-border);
+}
+
+.pick-bar :deep(.p-button) {
+  flex: none;
+  white-space: nowrap;
+}
+
+.lines.split > .pick-bar {
+  padding-left: 56px;
+}
+
+.pick-label {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--vr-color-text-muted);
+  font-family: var(--vr-font-mono);
+  font-size: var(--vr-font-size-xs);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.spacer {
+  flex: 1;
 }
 
 .thread-row {

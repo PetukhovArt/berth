@@ -81,15 +81,16 @@ function pick(scope: ChangesScope) {
 .scope {
   display: inline-flex;
   align-items: center;
-  gap: var(--vr-space-1);
+  gap: 5px;
   min-width: 0;
   max-width: 18rem;
-  padding: 2px var(--vr-space-2);
+  height: 24px;
+  padding: 0 var(--vr-space-2);
   color: var(--vr-color-text);
   font: inherit;
   font-size: var(--vr-font-size-xs);
   background: var(--vr-color-surface-muted);
-  border: 1px solid var(--vr-color-border);
+  border: 0;
   border-radius: var(--vr-radius-sm);
   cursor: pointer;
 }
@@ -124,9 +125,11 @@ function pick(scope: ChangesScope) {
   display: flex;
   align-items: center;
   gap: var(--vr-space-2);
-  padding: var(--vr-space-2) var(--vr-space-3);
+  min-height: 30px;
+  padding: 0 10px;
   color: var(--vr-color-text);
   font: inherit;
+  font-size: var(--vr-font-size-xs);
   text-align: left;
   background: none;
   border: 0;

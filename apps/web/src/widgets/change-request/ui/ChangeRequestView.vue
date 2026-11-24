@@ -15,7 +15,7 @@ import { channelKeyOf } from '../../../entities/jira-issue';
 import { WatchAction, WatchStrip, isWatching } from '../../../features/watch-merge-request';
 import { RepoActions } from '../../../features/manage-workspace';
 import { itemId, fullDate, numberLabel, pipelineLabel, relativeTime } from '../../../entities/merge-request';
-import { StatusIcon } from '../../../entities/session';
+import { StatusIcon, type PromptQuote } from '../../../entities/session';
 import { DiffView } from '../../../features/diff-review';
 import { createChangeRequest } from '../model/changeRequest';
 import { pipelineTone } from '../model/pipelineTone';
@@ -47,9 +47,15 @@ const pipelineStatus = computed(() => (pipeline.value ? pipeline.value.status : 
 
 const session = useMrSession(() => target.value);
 
-function quote(text: string) {
-  if (session.value) quoteToPrompt(session.value.ref, text, props.panel?.id === itemId(target.value) ? props.panel.id : undefined);
+function quote(entry: PromptQuote) {
+  if (session.value) quoteToPrompt(session.value.ref, entry, props.panel?.id === itemId(target.value) ? props.panel.id : undefined);
 }
+
+const diffState = computed(() => {
+  if (diffFailure.value) return { text: diffFailure.value, testid: 'cr-diff-failure', alert: true };
+  if (diffLoading.value && !diffLoaded.value) return { text: t('forge.request.loadingChanges'), testid: 'cr-diff-loading' };
+  return null;
+});
 
 const watching = computed(() => isWatching(target.value));
 const pendingThread =shallowRef<string | null>(null);
@@ -185,9 +191,11 @@ onMounted(() => {
       <ChangeRequestOverview v-show="tab === 'overview'" :connector="connector" :request="cr" :session="session" @goto="gotoThread" @quote="quote" />
 
       <div v-if="tab === 'diff' || diffLoaded" v-show="tab === 'diff'" class="pane" data-testid="cr-diff">
-        <p v-if="diffFailure" class="failure" role="alert">{{ diffFailure }}</p>
-        <p v-else-if="diffLoading && !diffLoaded" class="loading">{{ t('forge.request.loadingChanges') }}</p>
-        <DiffView v-else ref="diff" :files="files" :discussions="discussions" :connector="connector" :project="project" :head-sha="cr.head_sha" :request-url="cr.url" :quotable="!!session" @quote="quote" />
+        <DiffView ref="diff" :files="files" :discussions="discussions" :connector="connector" :project="project" :head-sha="cr.head_sha" :request-url="cr.url" :quotable="!!session" :state="diffState" @quote="quote">
+          <template #scope>
+            <span class="versus">{{ t('forge.diff.versus', { base: cr.target_branch }) }}</span>
+          </template>
+        </DiffView>
       </div>
 
       <div v-show="tab === 'pipeline'" class="pane scroll" data-testid="cr-pipeline">
@@ -232,6 +240,12 @@ onMounted(() => {
 
 .failure {
   color: var(--vr-color-danger);
+}
+
+.versus {
+  color: var(--vr-color-text-subtle);
+  font-size: var(--vr-font-size-xs);
+  white-space: nowrap;
 }
 
 .notice {
