@@ -28,6 +28,7 @@ import { startCreate } from '../../../features/new-session';
 import { openLeaf, type ReviewMeta, type ReviewVerdict, type WorkNode, treeLiveOnly, treeProjectsCollapsed, treeQuery, treeTab, useWorkTree } from '../../../features/work-tree';
 
 import { UiButton } from '../../../shared/ui/UiButton';
+import { reopenFirstRun } from '../../../shared/model/firstRun';
 import UiInput from '../../../shared/ui/UiInput.vue';
 const props = withDefaults(defineProps<{ tabsShown?: readonly string[]; withInbox?: boolean }>(), { tabsShown: undefined, withInbox: true });
 const phone = useIsPhone();
@@ -76,6 +77,7 @@ const verdictTitle = (verdict: ReviewVerdict, note: string | undefined) => {
 };
 const shownTitle =(item: InboxItem) => (item.draft ? item.title.replace(/^(draft:|\[draft\]|\(draft\)|wip:)\s*/i, '') : item.title);
 
+const noProjects = computed(() => !!berth && berth.entities.value.workspaces.size > 0 && berth.entities.value.projects.size === 0);
 const projectAdd = useTemplateRef<InstanceType<typeof ProjectActions>>('projectAdd');
 const openWorkspace = useOpenWorkspace();
 const addWorkspaceId = computed(() => openWorkspace.value ?? berth?.tree.value[0]?.id);
@@ -249,7 +251,15 @@ const moreItems = computed(() => {
           />
         </template>
         <template #empty>
-          <p class="empty" data-testid="tree-empty">{{ filtering ? t('workbench.nothingFound') : t('workbench.empty') }}</p>
+          <div v-if="activeTab === 'sessions' && !filtering && noProjects" class="empty-card" data-testid="tree-empty">
+            <span class="empty-title">{{ t('workbench.emptyTree.title') }}</span>
+            <span class="empty-text">{{ t('workbench.emptyTree.text') }}</span>
+            <div class="empty-actions">
+              <UiButton class="empty-primary" data-testid="tree-empty-add" @click="projectAdd?.openAdd()">{{ t('workbench.emptyTree.add') }}</UiButton>
+              <UiButton class="empty-secondary" data-testid="tree-empty-welcome" @click="reopenFirstRun">{{ t('workbench.emptyTree.welcome') }}</UiButton>
+            </div>
+          </div>
+          <p v-else class="empty" data-testid="tree-empty">{{ filtering ? t('workbench.nothingFound') : t('workbench.empty') }}</p>
         </template>
       </ExplorerTree>
     </div>
@@ -686,5 +696,57 @@ const moreItems = computed(() => {
   padding: var(--vr-space-2);
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
+}
+
+.empty-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: var(--vr-space-2) 0;
+  padding: var(--vr-space-4);
+  border: 1px dashed var(--vr-color-border-strong);
+  border-radius: var(--vr-radius-lg);
+}
+
+.empty-title {
+  font-weight: 600;
+  color: var(--vr-color-text);
+}
+
+.empty-text {
+  font-size: var(--vr-font-size-xs);
+  line-height: 1.5;
+  color: var(--vr-color-text-muted);
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.empty-primary,
+.empty-secondary {
+  display: inline-flex;
+  flex: none;
+  white-space: nowrap;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  font: inherit;
+  cursor: pointer;
+  border: 0;
+  border-radius: 7px;
+}
+
+.empty-primary {
+  font-weight: 500;
+  color: var(--vr-color-accent-contrast);
+  background: var(--vr-color-accent);
+}
+
+.empty-secondary {
+  color: var(--vr-color-text);
+  background: var(--vr-color-surface-muted);
 }
 </style>

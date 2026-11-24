@@ -11,6 +11,7 @@ import { startTabDrag, trackTabOrder } from '../lib/tabOrder';
 import { trackTabFit } from '../lib/tabFit';
 import DockNewTab from './DockNewTab.vue';
 import DockTab from './DockTab.vue';
+import DockStartCard from './DockStartCard.vue';
 import ProjectTabRows from './ProjectTabRows.vue';
 
 defineProps<{ activeKey: string | null }>();
@@ -61,7 +62,7 @@ onBeforeUnmount(() => {
         <DockTab :panel="api" :active="api.id === activeKey" @dblclick="dock.toggleMaximize(api.id)" @pointerdown="onTabPointerDown($event, api)" />
       </template>
       <template #watermark>
-        <p class="watermark">{{ t('workbench.pick') }}</p>
+        <DockStartCard />
       </template>
     </DockviewVue>
   </div>
@@ -178,14 +179,5 @@ onBeforeUnmount(() => {
 .dock[data-tabs='wrap'] :deep(.dv-scrollbar),
 .dock[data-tabs='wrap'] :deep(.dv-tabs-overflow-dropdown-root) {
   display: none;
-}
-
-.watermark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  margin: 0;
-  color: var(--vr-color-text-muted);
 }
 </style>

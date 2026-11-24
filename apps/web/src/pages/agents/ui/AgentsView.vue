@@ -15,7 +15,7 @@ import { SessionViews } from '../../../features/session-view-switch';
 import { DockArea } from '../../../widgets/dock';
 import { SessionHeader } from '../../../widgets/session-header';
 import { SessionInspector } from '../../../widgets/session-inspector';
-import { FirstRun, isFirstRun } from '../../../widgets/first-run';
+import { FirstRun, LaunchScreen, isFirstRun, useLaunch } from '../../../widgets/first-run';
 
 const ChangeRequestView = defineAsyncComponent(() => import('../../../widgets/change-request').then((m) => m.ChangeRequestView));
 const WorktreeChanges = defineAsyncComponent(() => import('../../../widgets/worktree-changes').then((m) => m.WorktreeChanges));
@@ -30,6 +30,7 @@ localStorage.removeItem('berth.agents.layout');
 localStorage.removeItem('berth.agents.explorer.expanded');
 
 const berth = useBerth();
+const launch = useLaunch(berth);
 const dock = useDock();
 const sessions = useSessionDock();
 const { onReady } = dock.useHost();
@@ -41,6 +42,7 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
 
 <template>
   <div v-if="!berth" class="unavailable" data-testid="berth-banner" data-state="unavailable">{{ t('agents.unavailable') }}</div>
+  <LaunchScreen v-else-if="launch.kind !== 'ready'" :launch="launch" />
   <FirstRun v-else-if="isFirstRun(berth.entities.value)" />
   <div v-else class="workbench vr-master-detail" data-testid="workbench" :data-detail="detail">
     <PhoneInbox v-if="mobile && phoneSection === 'inbox'" class="vr-master" />
@@ -95,7 +97,7 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
       </template>
     </DockArea>
     <SessionInspector v-if="!mobile" />
-    <NewSessionForm v-if="creatingIn" :key="creatingIn.worktree ?? ''" :worktree="creatingIn.worktree" :project-locked="creatingIn.projectLocked" @close="cancelCreate" @created="onCreated" />
+    <NewSessionForm v-if="creatingIn" :key="creatingIn.worktree ?? ''" :worktree="creatingIn.worktree" :project-locked="creatingIn.projectLocked" :prompt="creatingIn.prompt" @close="cancelCreate" @created="onCreated" />
     <BaseNotice />
   </div>
 </template>

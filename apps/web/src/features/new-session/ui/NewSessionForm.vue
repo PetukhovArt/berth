@@ -17,7 +17,7 @@ import NewSessionTarget from './NewSessionTarget.vue';
 import ContinueConversation from './ContinueConversation.vue';
 import ChipField from './ChipField.vue';
 
-const props = defineProps<{ worktree: string | null; projectLocked: boolean }>();
+const props = defineProps<{ worktree: string | null; projectLocked: boolean; prompt?: string }>();
 const emit = defineEmits<{ close: []; created: [session: SessionRef] }>();
 const location = useSessionTarget(props.worktree);
 const continuing = shallowRef(false);
@@ -78,7 +78,7 @@ const kind = computed<Kind>(() => picked.value ?? defaultKind.value);
 const name = shallowRef(generatedName(kind.value));
 const model = shallowRef<string | null>(values.value['sessions.default_model']);
 const effort = shallowRef<string | null>(values.value['sessions.default_effort']);
-const prompt = shallowRef('');
+const prompt = shallowRef(props.prompt ?? '');
 const before = shallowRef('');
 const after = shallowRef('');
 const activePreset = shallowRef<string | null>(null);

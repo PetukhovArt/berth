@@ -226,8 +226,8 @@ export const agents: Translation<typeof en> = {
     quickOpenTitle: 'Быстрый переход ({key:mod-p})',
   },
   notices: {
-    connecting: 'подключаюсь к berth…',
-    offline: 'демон berth не запущен',
+    connecting: 'Подключаюсь к berth…',
+    offline: 'Демон berth не запущен',
     incompatible: 'несовместимая версия berth',
   },
   sessionView: {

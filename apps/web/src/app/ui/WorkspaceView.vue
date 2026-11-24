@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, watch } from 'vue';
-import { isFirstRun } from '../../widgets/first-run';
+import { isFirstRun, useLaunch } from '../../widgets/first-run';
 import { useBerth } from '../../entities/session';
 import { AgentsView } from '../../pages/agents';
 import { CleanupDialog } from '../../features/cleanup';
@@ -29,7 +29,9 @@ const JiraView = defineAsyncComponent(() => import('../../pages/jira').then((m) 
 const inTauri = '__TAURI_INTERNALS__' in window;
 const mobile = useIsPhone();
 const berth = useBerth();
-const firstRun = computed(() => view.value.kind === 'agents' && isFirstRun(berth?.entities.value));
+const launch = useLaunch(berth);
+const launching = computed(() => view.value.kind === 'agents' && launch.value.kind !== 'ready');
+const firstRun = computed(() => view.value.kind === 'agents' && (launch.value.kind === 'starting' || isFirstRun(berth?.entities.value)));
 watch(firstRun, (value) => (firstRunActive.value = value), { immediate: true });
 const viewKey = 'berth.view.v2';
 
@@ -58,8 +60,8 @@ watch(
 <template>
   <div class="shell">
     <TitleBar v-if="inTauri" />
-    <div class="body" :data-mobile="mobile" :data-first-run="firstRun">
-      <Sidebar v-if="!mobile && !firstRun" :dark="isDark" @theme="toggleTheme" />
+    <div class="body" :data-mobile="mobile" :data-first-run="firstRun || launching">
+      <Sidebar v-if="!mobile && !firstRun && !launching" :dark="isDark" @theme="toggleTheme" />
       <main class="pane vt-main">
         <PhoneHeader v-if="mobile" />
         <KeepAlive include="AgentsView">

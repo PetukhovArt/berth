@@ -6,6 +6,10 @@
 - Added `N need you` to the collapsed Inbox header, and a `Nothing needs you` line to the open Inbox when no session waits for you
 - Added `Not installed` and `Signed out` marks to an agent in the New session type list that is not ready: it cannot be picked, and a signed-out agent has a `Sign in` link
 - Added an `Add a project first` message to the New session dialog when berth has no projects, and a `berth daemon is not running` line when the daemon does not answer
+- Added a start card to the empty dock in place of the `Pick a session, request or task in the tree` line: a box for the task, chips for the project, branch and agent, and `Enter` opens New session with the task filled in
+- Added a `Starting berth…` screen while the daemon starts, and a screen with the reason and a `Copy details` button when it does not answer within 8 seconds
+- Added a `Nothing here yet` card to the Projects tree when berth has no project, with `Open the Welcome page` to bring back a skipped Welcome page
+- Added the GitHub and GitLab hosts you are signed in to on this machine to Merge requests on the Welcome page as checked boxes that `Start` connects
 - Changed draft merge requests in the sidebar tree to show a draft icon before the number instead of a Draft label before the title
 - Changed the sidebar to show every session as `connecting…` or `unknown` with a dashed mark while the daemon is not answering, and the Inbox to say when it was last up to date
 - Changed the active tab of a session to underline in the colour of its status

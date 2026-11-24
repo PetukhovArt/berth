@@ -4,7 +4,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { useAiAccounts, type AiKind, type AiStatus, type AiView } from '../../../shared/api/connectors/ai';
 import { ProjectActions } from '../../../features/manage-workspace';
 import { addProject, HarnessIcon, useBerth } from '../../../entities/session';
-import { describeError, openUrl, useConnectors } from '../../../shared/api/connectors/api';
+import { describeError, openUrl, useConnectors, type Detected } from '../../../shared/api/connectors/api';
 import { historyProjects, type HistoryProject } from '../../../shared/api/fs';
 import { isDesktop } from '../../../bridge';
 import { withTilde } from '../../../shared/lib/homePath';
@@ -15,7 +15,8 @@ import { VButton } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiInput from '../../../shared/ui/UiInput.vue';
 import { activityLabel } from '../model/activity';
-import { dismissFirstRun, dismissPhoneRow, phoneRowDismissed } from '../model/dismissed';
+import { dismissFirstRun } from '../../../shared/model/firstRun';
+import { dismissPhoneRow, phoneRowDismissed } from '../model/dismissed';
 
 const STATUS = {
   signed_in: 'connectors.ai.status.signedIn',
@@ -46,7 +47,7 @@ const readyCount = computed(() => cli.value.filter((a) => a.status === 'signed_i
 const hasSignedIn = computed(() => readyCount.value > 0);
 const workspaceId = computed(() => berth?.tree.value[0]?.id);
 
-const { connectors } = useConnectors();
+const { connectors, detected, add: addConnector, list: listConnectors, detect: detectConnectors } = useConnectors();
 
 const found = shallowRef<HistoryProject[]>([]);
 const selected = shallowRef<Set<string>>(new Set());
@@ -71,6 +72,22 @@ const hostOf = (url: string) => {
 const signedIn = (account: string | undefined) => (account ? t('workbench.firstRun.signedInAs', { account }) : t('workbench.firstRun.signedIn'));
 
 function toggle(path: string, on: boolean) {
+const hostKey = (d: Detected) => `${d.kind}:${d.base_url}`;
+const hosts = computed(() => detected.value.filter((d) => d.kind === 'github' || d.kind === 'gitlab'));
+const skippedHosts = shallowRef<Set<string>>(new Set());
+const hostsToAdd = computed(() => hosts.value.filter((d) => !skippedHosts.value.has(hostKey(d))));
+const hostVia = (d: Detected) => {
+  const cli = d.kind === 'github' ? 'gh' : 'glab';
+  return d.account ? t('workbench.firstRun.hostVia', { cli, account: d.account }) : t('workbench.firstRun.hostViaNoAccount', { cli });
+};
+
+function toggleHost(d: Detected, on: boolean) {
+  const next = new Set(skippedHosts.value);
+  if (on) next.delete(hostKey(d));
+  else next.add(hostKey(d));
+  skippedHosts.value = next;
+}
+
   const next = new Set(selected.value);
   if (on) next.add(path);
   else next.delete(path);
@@ -88,6 +105,9 @@ async function start() {
       toggle(project.path, false);
     }
     dismissFirstRun();
+    for (const host of hostsToAdd.value) {
+      await addConnector({ kind: host.kind, baseUrl: host.base_url, label: hostOf(host.base_url), auth: 'cli', token: null, email: null });
+    }
   } catch (e) {
     addError.value = describeError(e);
   } finally {
@@ -128,6 +148,8 @@ function onKey(event: KeyboardEvent) {
 onMounted(() => {
   void refresh();
   window.addEventListener('keydown', onKey);
+  void listConnectors();
+  void detectConnectors();
   window.addEventListener('focus', recheckAfterInstall);
   historyProjects()
     .then((list) => {
@@ -195,17 +217,27 @@ onUnmounted(() => {
         <div v-else-if="workspaceId" class="block">
           <ProjectActions class="add" :workspace-id="workspaceId" primary />
         </div>
-        <div v-if="forges.length" class="block">
+        <div v-if="forges.length || hosts.length" class="block">
           <div class="title-row">
             <h2 class="title">{{ t('workbench.firstRun.mergeRequests') }} <span class="hint">{{ t('workbench.firstRun.mergeRequestsHint') }}</span></h2>
             <UiButton type="button" class="link" data-testid="first-run-connectors" @click="openSettings('connectors')">{{ t('workbench.firstRun.jiraOrConfluence') }}</UiButton>
           </div>
           <ul class="agents" data-testid="first-run-forges">
             <li v-for="c in forges" :key="c.id" class="agent" :data-testid="`first-run-forge-${c.id}`">
-              <span class="name host">{{ hostOf(c.base_url) }}</span>
+              <span class="pick">
+                <UiInput type="checkbox" class="check" checked disabled :aria-label="hostOf(c.base_url)" />
+                <span class="name host">{{ hostOf(c.base_url) }}</span>
+              </span>
               <span class="state" data-tone="ok">{{ signedIn(c.account?.username) }}</span>
             </li>
           </ul>
+            <li v-for="d in hosts" :key="hostKey(d)" class="agent" :data-testid="`first-run-host-${hostOf(d.base_url)}`">
+              <label class="pick">
+                <UiInput type="checkbox" class="check" :checked="!skippedHosts.has(hostKey(d))" :disabled="adding" :aria-label="hostOf(d.base_url)" data-testid="first-run-host-check" @change="toggleHost(d, ($event.target as HTMLInputElement).checked)" />
+                <span class="name host">{{ hostOf(d.base_url) }}</span>
+              </label>
+              <span class="state">{{ hostVia(d) }}</span>
+            </li>
         </div>
         <div v-if="!phoneRowDismissed" class="phone" data-testid="first-run-phone">
           <UiButton type="button" class="phone-open" :title="t('workbench.firstRun.phoneOpen')" data-testid="first-run-phone-open" @click="openSettings('remote')">
@@ -247,10 +279,10 @@ onUnmounted(() => {
 .content {
   display: flex;
   flex-direction: column;
-  gap: var(--vr-space-6);
+  gap: 28px;
   width: min(100%, 45rem);
   margin: 0 auto;
-  padding: var(--vr-space-8) var(--vr-space-4);
+  padding: 44px var(--vr-space-6) 40px;
 }
 
 .head {
@@ -264,6 +296,7 @@ onUnmounted(() => {
   font-size: var(--vr-font-size-display);
   font-weight: 600;
   color: var(--vr-color-text);
+  letter-spacing: -0.01em;
 }
 
 .lead {
@@ -281,12 +314,12 @@ onUnmounted(() => {
 .block {
   display: flex;
   flex-direction: column;
-  gap: var(--vr-space-2);
+  gap: 10px;
 }
 
 .title {
   margin: 0;
-  font-size: var(--vr-font-size-sm);
+  font-size: var(--vr-font-size-title);
   font-weight: 600;
   color: var(--vr-color-text);
 }
@@ -296,7 +329,7 @@ onUnmounted(() => {
   padding: 0;
   list-style: none;
   border: 1px solid var(--vr-color-border);
-  border-radius: var(--vr-radius-md);
+  border-radius: var(--vr-radius-xl);
   background: var(--vr-color-surface);
 }
 
@@ -403,10 +436,9 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: var(--vr-space-3);
-  padding: var(--vr-space-3) var(--vr-space-4);
-  background: var(--vr-color-surface);
-  border: 1px solid var(--vr-color-border);
-  border-radius: var(--vr-radius-md);
+  padding: 14px var(--vr-space-4);
+  border: 1px dashed var(--vr-color-border-strong);
+  border-radius: var(--vr-radius-xl);
 }
 
 .phone-open {
@@ -457,6 +489,8 @@ onUnmounted(() => {
 
 .hint {
   font-weight: 400;
+  margin-left: 10px;
+  font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
 }
 

@@ -223,7 +223,7 @@ export const agents = {
     quickOpenTitle: 'Quick Open ({key:mod-p})',
   },
   notices: {
-    connecting: 'connecting to berth…',
+    connecting: 'Connecting to berth…',
     offline: 'berth daemon is not running',
     incompatible: 'incompatible berth version',
   },
