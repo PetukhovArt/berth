@@ -4,7 +4,7 @@ export const voice = {
     pushToTalk: 'Push to talk: hold to dictate a prompt to the Session in view',
     wakeWord: 'Wake word: listen for the wake phrase for the Session in view',
   },
-  holding: 'Listening for {name}… release to send',
+  holding: 'Listening… release to send',
   wake: 'Wake word on: say "{phrase}" to talk to {name}',
   armed: 'Listening for your prompt to {name}…',
   off: 'Turn off',

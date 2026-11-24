@@ -12,6 +12,7 @@ const emit = defineEmits<{ open: [callId: string] }>();
 const { t } = useI18n();
 const open = shallowRef(true);
 const counts = computed(() => subagentCounts(props.agents));
+const names = computed(() => props.agents.filter((agent) => agent.state === 'running').map((agent) => agent.description).join(', '));
 </script>
 
 <template>
@@ -21,8 +22,8 @@ const counts = computed(() => subagentCounts(props.agents));
       <ChevronUp v-else :size="12" />
       <span class="title">{{ t('chat.subagents.strip') }}</span>
       <span class="summary" data-testid="subagent-strip-summary">
-        <span>{{ t('chat.subagents.running', { count: counts.running }) }}</span>
-        <span>{{ t('chat.subagents.done', { count: counts.done }) }}</span>
+        <span v-if="counts.running" class="working" data-testid="subagent-strip-working">{{ t('chat.subagents.runningOf', { running: counts.running, total: agents.length }) }} · {{ names }}</span>
+        <span v-if="counts.done">{{ t('chat.subagents.done', { count: counts.done }) }}</span>
         <span v-if="counts.failed" class="failed">{{ t('chat.subagents.failed', { count: counts.failed }) }}</span>
         <span v-if="counts.stopped">{{ t('chat.subagents.stopped', { count: counts.stopped }) }}</span>
       </span>
@@ -88,6 +89,13 @@ const counts = computed(() => subagentCounts(props.agents));
 .summary > span + span::before {
   margin-right: var(--vr-space-2);
   content: '·';
+}
+
+.working {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .failed {

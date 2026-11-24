@@ -11,7 +11,7 @@ export type { ExternalSession, Harness, TranscriptMessage } from './model/extern
 export { sessionStateOf, useSessionStates } from './model/sessionState';
 export type { SessionState } from './model/sessionState';
 export { derivePlan } from './model/plan';
-export { deriveSubagents, stripVisible, subagentCounts, subagentSeconds } from './model/subagents';
+export { deriveSubagents, stripVisible, subagentCounts, subagentSeconds, subagentsSeconds } from './model/subagents';
 export type { Subagent, SubagentState } from './model/subagents';
 export { listSlashCommands, matchSlashCommands } from './model/slashCommands';
 export type { SlashCommand, SlashSource } from './model/slashCommands';

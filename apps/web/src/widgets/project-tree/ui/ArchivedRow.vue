@@ -25,7 +25,7 @@ async function confirmDelete() {
       <span class="name" :title="where ? `${session.name} · ${where}` : session.name">{{ session.name }}<span v-if="where" class="where"> · {{ where }}</span></span>
       <template v-if="!confirming">
         <UiButton class="icon vr-reveal" :title="t('agents.session.restore')" :aria-label="t('agents.session.restore')" :disabled="action.busy.value" data-testid="archived-restore" @click="restore"><ArchiveRestore :size="14" /></UiButton>
-        <UiButton class="icon danger vr-reveal" :title="t('common.delete')" :aria-label="t('common.delete')" :disabled="action.busy.value" data-testid="archived-delete" @click="confirming = true"><Trash2 :size="14" /></UiButton>
+        <UiButton class="icon danger vr-reveal" :title="t('agents.session.deleteForever')" :aria-label="t('agents.session.deleteForever')" :disabled="action.busy.value" data-testid="archived-delete" @click="confirming = true"><Trash2 :size="14" /></UiButton>
       </template>
     </div>
     <SessionDeleteConfirm v-if="confirming" :name="session.name" :busy="action.busy.value" @confirm="confirmDelete" @cancel="confirming = false" />

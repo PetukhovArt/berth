@@ -6,6 +6,9 @@
 - Added `N need you` to the collapsed Inbox header, and a `Nothing needs you` line to the open Inbox when no session waits for you
 - Changed draft merge requests in the sidebar tree to show a draft icon before the number instead of a Draft label before the title
 - Changed the sidebar to show every session as `connecting…` or `unknown` with a dashed mark while the daemon is not answering, and the Inbox to say when it was last up to date
+- Changed the active tab of a session to underline in the colour of its status
+- Changed the subagent group in the Chat to show the total time of its subagents, and the Subagents working strip to say how many of them work and to name those
+- Changed the message while you hold the push to talk key to read `Listening… release to send`, and red buttons such as Delete forever and the Stop button in the Chat composer to use one red that reads on both themes
 
 ## 0.22.0 (2026-11-24)
 

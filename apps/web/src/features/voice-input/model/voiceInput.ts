@@ -29,7 +29,6 @@ export const wakePhrase = computed(() => values.value['voice.wakePhrase'].trim()
 
 const sessionOf = (key: string | null): SessionNode | undefined => (key ? useBerth()?.sessions.value.get(key) : undefined);
 
-export const pushSession = shallowRef<SessionNode | null>(null);
 export const wakeSession = computed(() => sessionOf(wakeKey.value) ?? null);
 export const wakeArmed = computed(() => armedAt.value > 0 || wakeHeard.value);
 
@@ -137,7 +136,6 @@ export function holdToTalk() {
   const key = sessionInView();
   if (!key) return notify(tr('voice.noSession'));
   pushKey = key;
-  pushSession.value = sessionOf(key) ?? null;
   wakeHeard.value = false;
   wake.stopListening();
   window.addEventListener('keyup', release, true);

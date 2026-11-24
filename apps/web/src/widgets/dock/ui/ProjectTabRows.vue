@@ -169,6 +169,9 @@ function create(projectId: string) {
 .item[data-active='true'] {
   color: var(--vr-color-text);
   background: var(--vr-color-surface);
+}
+
+.item[data-active='true']:not(:has(.status-dot)) {
   box-shadow: inset 0 -2px 0 var(--vr-color-accent);
 }
 </style>

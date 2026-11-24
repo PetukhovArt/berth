@@ -44,7 +44,20 @@ const scheme = {
   navigation: { item: { focusBackground: v('color-surface-muted'), activeBackground: v('color-surface-muted'), color: v('color-text'), focusColor: v('color-text'), activeColor: v('color-text') } },
 };
 
-const BerthPreset = definePreset(Aura, {
+const dangerButton = {
+  background: v('btn-danger'),
+  hoverBackground: `color-mix(in srgb, ${v('btn-danger')} 88%, transparent)`,
+  activeBackground: `color-mix(in srgb, ${v('btn-danger')} 76%, transparent)`,
+  borderColor: v('btn-danger'),
+  hoverBorderColor: v('btn-danger'),
+  activeBorderColor: v('btn-danger'),
+  color: v('btn-danger-text'),
+  hoverColor: v('btn-danger-text'),
+  activeColor: v('btn-danger-text'),
+  focusRing: { color: v('btn-danger'), shadow: 'none' },
+};
+
+const BerthPreset =definePreset(Aura, {
   primitive: { borderRadius: { none: '0', xs: '4px', sm: v('radius-sm'), md: v('radius-md'), lg: v('radius-lg'), xl: v('radius-xl') } },
   semantic: {
     transitionDuration: v('motion-base'),
@@ -57,21 +70,8 @@ const BerthPreset = definePreset(Aura, {
     button: {
       root: { borderRadius: v('radius-md'), gap: '6px', sm: { fontSize: v('font-size-label'), paddingX: '11px', paddingY: '3px', iconOnlyWidth: '28px' } },
       colorScheme: {
-        light: {
-          root: {
-            danger: {
-              background: '{red.600}',
-              hoverBackground: '{red.700}',
-              activeBackground: '{red.800}',
-              borderColor: '{red.600}',
-              hoverBorderColor: '{red.700}',
-              activeBorderColor: '{red.800}',
-              focusRing: { color: '{red.600}', shadow: 'none' },
-            },
-          },
-          outlined: { danger: { color: '{red.600}' } },
-          text: { danger: { color: '{red.600}' } },
-        },
+        light: { root: { danger: dangerButton }, outlined: { danger: { color: '{red.600}' } }, text: { danger: { color: '{red.600}' } } },
+        dark: { root: { danger: dangerButton } },
       },
     },
   },

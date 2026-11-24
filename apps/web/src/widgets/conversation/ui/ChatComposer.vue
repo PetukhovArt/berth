@@ -398,6 +398,10 @@ function handsFree() {
   height: 44px;
 }
 
+:root:not([data-vr-viewport='phone']) .talk {
+  background: transparent;
+}
+
 .talk {
   touch-action: none;
   user-select: none;
@@ -468,8 +472,8 @@ function handsFree() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-danger);
+  color: var(--vr-btn-danger-text);
+  background: var(--vr-btn-danger);
 }
 
 .foot .stop {

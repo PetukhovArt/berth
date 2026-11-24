@@ -224,7 +224,7 @@ export const agents = {
     chatSuggestion: 'Suggested next prompt, Tab to use',
     chatPlaceholderRunning: 'Agent is working · Stop to interrupt',
     chatSend: 'Send',
-    chatStop: 'Stop the agent',
+    chatStop: 'Stop',
     chatAgentLog: 'Agent log',
     chatAgentLogEmpty: 'The agent has written nothing to its log.',
     chatTalk: 'Hold to talk',

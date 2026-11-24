@@ -41,6 +41,7 @@ export const chat = {
   subagents: {
     strip: 'Subagents working',
     running: { one: '{count} working', other: '{count} working' },
+    runningOf: '{running} of {total}',
     done: '{count} done',
     failed: '{count} failed',
     stopped: '{count} stopped',

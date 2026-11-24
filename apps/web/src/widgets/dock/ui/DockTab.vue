@@ -164,6 +164,44 @@ function onClose() {
   outline-offset: -2px;
 }
 
+.tab[data-active='true']:has(:deep(.status-dot[data-status='running'])) {
+  box-shadow: inset 0 -2px 0 var(--vr-status-running);
+}
+
+.tab[data-active='true']:has(:deep(.status-dot[data-status='needs_feedback'])) {
+  box-shadow: inset 0 -2px 0 var(--vr-status-feedback);
+}
+
+.tab[data-active='true']:has(:deep(.status-dot[data-status='limit'])) {
+  box-shadow: inset 0 -2px 0 var(--vr-status-limit);
+}
+
+.tab[data-active='true']:has(:deep(.status-dot[data-status='terminated'])) {
+  box-shadow: inset 0 -2px 0 var(--vr-status-crashed);
+}
+
+.tab[data-active='true']:has(:deep(.status-dot[data-status='finished'])) {
+  box-shadow: inset 0 -2px 0 var(--vr-status-finished);
+}
+
+.tab[data-active='true']:has(:deep(.status-dot[data-status='finished'][data-unseen='true'])) {
+  box-shadow: inset 0 -2px 0 var(--vr-status-unseen);
+}
+
+.tab[data-active='true']:has(:deep(.status-dot[data-status='fresh'])) {
+  box-shadow: inset 0 -2px 0 var(--vr-status-fresh);
+}
+
+.tab[data-active='true']:has(:deep(.status-dot[data-status='stopped'])) {
+  box-shadow: inset 0 -2px 0 var(--vr-status-stopped);
+}
+
+.tab[data-active='true']:has(:deep(.status-dot[data-status='disconnected'])),
+.tab[data-active='true']:has(:deep(.status-dot[data-status='shell'])),
+.tab[data-active='true']:has(:deep(.status-dot[data-status='closed'])) {
+  box-shadow: inset 0 -2px 0 var(--vr-status-idle);
+}
+
 .tab[data-dragging='true'] {
   opacity: 0.6;
 }

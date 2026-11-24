@@ -62,8 +62,7 @@ function run() {
   top: 30px;
   right: 0;
   z-index: 6;
-  width: max-content;
-  max-width: 320px;
+  width: 320px;
   padding: var(--vr-space-2) var(--vr-space-3);
   color: var(--vr-status-crashed);
   font-size: var(--vr-font-size-xs);

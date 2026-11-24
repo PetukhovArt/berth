@@ -157,6 +157,15 @@
       "$value": "rgba(207, 34, 46, 0.08)"
     }
   },
+  "btn": {
+    "$type": "color",
+    "danger": {
+      "$value": "#dc2626"
+    },
+    "danger-text": {
+      "$value": "#ffffff"
+    }
+  },
   "diff": {
     "$type": "color",
     "add": {

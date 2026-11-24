@@ -44,6 +44,7 @@ export const chat: Translation<typeof en> = {
   subagents: {
     strip: 'Агенты работают',
     running: { one: '{count} работает', few: '{count} работают', many: '{count} работают', other: '{count} работают' },
+    runningOf: '{running} из {total}',
     done: '{count} готово',
     failed: '{count} с ошибкой',
     stopped: '{count} остановлено',

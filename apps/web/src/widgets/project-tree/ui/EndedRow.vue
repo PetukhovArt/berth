@@ -33,7 +33,7 @@ async function confirmDelete() {
       </UiButton>
       <template v-if="!confirming">
         <UiButton class="icon vr-reveal" :title="t('agents.session.archive')" :aria-label="t('agents.session.archive')" :disabled="action.busy.value" data-testid="ended-archive" @click="archive"><Archive :size="14" /></UiButton>
-        <UiButton class="icon danger vr-reveal" :title="t('common.delete')" :aria-label="t('common.delete')" :disabled="action.busy.value" data-testid="ended-delete" @click="confirming = true"><Trash2 :size="14" /></UiButton>
+        <UiButton class="icon danger vr-reveal" :title="t('agents.session.deleteForever')" :aria-label="t('agents.session.deleteForever')" :disabled="action.busy.value" data-testid="ended-delete" @click="confirming = true"><Trash2 :size="14" /></UiButton>
       </template>
     </div>
     <SessionDeleteConfirm v-if="confirming" :name="session.name" :busy="action.busy.value" @confirm="confirmDelete" @cancel="confirming = false" />

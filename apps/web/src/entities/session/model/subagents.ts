@@ -76,3 +76,16 @@ export function subagentSeconds(agent: Subagent, now: number): number | null {
   if (agent.startedAt === null || end === null) return null;
   return Math.max(0, Math.round((end - agent.startedAt) / 1000));
 }
+
+export function subagentsSeconds(agents: readonly Subagent[], now: number): number | null {
+  let first = Infinity;
+  let last = -Infinity;
+  for (const agent of agents) {
+    if (agent.startedAt === null) continue;
+    const end = agent.state === 'running' ? now : endedAt(agent);
+    if (end === null) continue;
+    first = Math.min(first, agent.startedAt);
+    last = Math.max(last, end);
+  }
+  return Number.isFinite(first) ? Math.max(0, Math.round((last - first) / 1000)) : null;
+}

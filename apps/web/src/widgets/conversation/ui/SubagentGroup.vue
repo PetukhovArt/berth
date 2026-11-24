@@ -3,7 +3,8 @@ import { computed, shallowRef } from 'vue';
 import { Bot, ChevronDown, ChevronRight } from '../../../shared/ui/icons';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { subagentCounts, type Subagent, type SubagentState } from '../../../entities/session';
+import { subagentCounts, subagentsSeconds, type Subagent, type SubagentState } from '../../../entities/session';
+import { durationLabel } from '../model/duration';
 import SubagentRow from './SubagentRow.vue';
 
 const props = defineProps<{ agents: readonly Subagent[]; now: number; openable: boolean }>();
@@ -22,6 +23,7 @@ const chips = computed(() => {
   const counts = subagentCounts(props.agents);
   return STATES.filter((state) => counts[state] > 0).map((state) => ({ state, count: counts[state] }));
 });
+const seconds = computed(() => subagentsSeconds(props.agents, props.now));
 </script>
 
 <template>
@@ -37,6 +39,7 @@ const chips = computed(() => {
           {{ LABELS[chip.state](chip.count) }}
         </span>
       </span>
+      <span v-if="seconds !== null" class="time" data-testid="subagent-group-time">{{ durationLabel(seconds) }}</span>
     </UiButton>
     <ul v-if="open" class="rows" data-testid="subagent-group-rows">
       <li v-for="agent in agents" :key="agent.callId" class="item">
@@ -121,6 +124,12 @@ const chips = computed(() => {
 
 .chip[data-state='failed'] .dot {
   background: var(--vr-status-crashed);
+}
+
+.time {
+  flex: none;
+  font-size: var(--vr-font-size-xs);
+  white-space: nowrap;
 }
 
 .rows {

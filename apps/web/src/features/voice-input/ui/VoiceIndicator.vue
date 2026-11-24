@@ -4,12 +4,12 @@ import { Mic } from '../../../shared/ui/icons';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { voiceDownload } from '../../../shared/lib/nativeVoice';
-import { pushHolding, pushRecognising, pushSession, stopWakeWord, voiceNotice, voiceTranscript, wakeArmed, wakePhrase, wakeSession } from '../model/voiceInput';
+import { pushHolding, pushRecognising, stopWakeWord, voiceNotice, voiceTranscript, wakeArmed, wakePhrase, wakeSession } from '../model/voiceInput';
 
 const status = computed(() => {
   const download = voiceDownload.value;
   if (download) return t('voice.downloading', { percent: download.percent, total: download.totalMb });
-  if (pushHolding.value) return t('voice.holding', { name: pushSession.value?.name ?? '' });
+  if (pushHolding.value) return t('voice.holding');
   if (pushRecognising.value) return t('voice.recognising');
   const session = wakeSession.value;
   if (!session) return '';
