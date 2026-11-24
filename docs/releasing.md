@@ -25,15 +25,18 @@ at 06:00 UTC:
 - With CI on the head of `main` not green the week is skipped with a failed run.
 - Otherwise it picks the version: the minor goes up when the section has an `Added`, `Changed` or
   `Removed` line, the patch when it holds fixes only. It bumps `Cargo.toml` and `Cargo.lock`, turns
-  `## Unreleased` into `## <version> (<date>)` under a new empty `## Unreleased`, opens the pull
-  request `chore: release <version>` with the section as its body, and fast-forwards `main` to it.
+  `## Unreleased` into `## <version> (<date>)` under a new empty `## Unreleased`, and pushes the
+  commit `chore: release <version>` to `main`. No pull request is opened: the repository does not
+  let GitHub Actions create one.
 
 `main` takes changes only through a pull request its owner approved. The workflow gets past that
 rule with the `RELEASE_DEPLOY_KEY` secret, a deploy key with write access that the `protect main`
 ruleset lets through. A push made with it starts the `Release` workflow, which a push made with
 `GITHUB_TOKEN` would not.
 
-`gh workflow run release-weekly.yml` releases now. A bump by hand still works the same way, so do not
+`gh workflow run release-weekly.yml` releases now, and `gh workflow run release-weekly.yml -f
+dry_run=true` runs every step without pushing. A push that edits the workflow runs it as a dry run on
+its own, so a broken workflow shows up then rather than on Monday. A bump by hand still works the same way, so do not
 bump `version` as part of unrelated work.
 
 The `Release` workflow does the rest in one run:

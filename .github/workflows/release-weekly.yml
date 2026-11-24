@@ -1,29 +1,45 @@
 name: Weekly release
 
 # Every Monday the changes under `## Unreleased` in CHANGELOG.md become a version: this workflow bumps
-# `version`, opens the version pull request and lands it on main, where the push starts `Release`.
+# `version` and pushes the version commit to main, where the push starts `Release`.
 # main takes changes only through an approved pull request, and GITHUB_TOKEN cannot get past that
-# rule, so the landing push goes over the RELEASE_DEPLOY_KEY deploy key the main ruleset lets
-# through. A push made with that key also starts workflows, which one made with GITHUB_TOKEN does not.
+# rule, so the push goes over the RELEASE_DEPLOY_KEY deploy key the main ruleset lets through. A push
+# made with that key also starts workflows, which one made with GITHUB_TOKEN does not. No pull request
+# is opened: the repository does not let GitHub Actions create one, and the release notes come from
+# CHANGELOG.md anyway.
+#
+# A run fails only once a week, so every edit of this file runs it as a dry run: the same steps, a
+# `git push --dry-run` over the deploy key at the end, nothing changed on main.
 on:
   schedule:
     - cron: '0 6 * * 1'
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Run every step but push nothing to main
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths: [.github/workflows/release-weekly.yml]
 
 permissions:
   contents: read
-  pull-requests: write
+  actions: read
 
+# A dry run stays out of the `release` group: a pending run there replaces an older pending one,
+# and the push that starts a dry run starts `Release` too.
 concurrency:
-  group: release
+  group: ${{ (github.event_name == 'push' || inputs.dry_run == true) && 'release-dry-run' || 'release' }}
   cancel-in-progress: false
 
 jobs:
-  version-pr:
+  version:
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
+      DRY_RUN: ${{ github.event_name == 'push' || inputs.dry_run == true }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,8 +62,13 @@ jobs:
           fi
           ci=$(gh run list --workflow ci.yml --branch main --commit "$(git rev-parse HEAD)" --limit 1 --json conclusion -q '.[0].conclusion')
           if [ "$ci" != "success" ]; then
-            echo "::error::CI on main $(git rev-parse --short HEAD) is '${ci:-not run}': no release this week"
-            exit 1
+            if [ "$DRY_RUN" = true ]; then
+              # The push that starts a dry run starts CI too, which is still running.
+              echo "::warning::CI on main $(git rev-parse --short HEAD) is '${ci:-not run}': a real run would stop here"
+            else
+              echo "::error::CI on main $(git rev-parse --short HEAD) is '${ci:-not run}': no release this week"
+              exit 1
+            fi
           fi
           current=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)
           IFS=. read -r major minor patch <<< "$current"
@@ -76,19 +97,17 @@ jobs:
           mv CHANGELOG.new CHANGELOG.md
           git diff --stat
 
-      - name: Open the version pull request and land it on main
+      - name: Push the version commit to main
         if: steps.decide.outputs.release == 'true'
         env:
           VERSION: ${{ steps.decide.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          branch="release/v$VERSION"
-          git switch -c "$branch"
           git commit -qam "chore: release $VERSION"
-          git push -f origin "$branch"
-          gh pr create --base main --head "$branch" --title "chore: release $VERSION" --body-file UNRELEASED.md
-          # A fast-forward of main to the version commit marks the pull request merged. When main
-          # moved since the checkout the push is refused, and the next run starts over.
-          git push origin "$branch:main"
-          git push origin --delete "$branch"
+          # When main moved since the checkout the push is refused, and the next run starts over.
+          if [ "$DRY_RUN" = true ]; then
+            git push --dry-run origin HEAD:main
+          else
+            git push origin HEAD:main
+          fi
