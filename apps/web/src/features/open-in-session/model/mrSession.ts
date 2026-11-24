@@ -21,3 +21,16 @@ export function useMrSession(target: () => ChangeRequestRef) {
     return null;
   });
 }
+
+export function useMrWorktree(target: () => ChangeRequestRef) {
+  const berth = useBerth();
+  return computed(() => {
+    if (!berth) return null;
+    const id = itemId(target());
+    for (const worktree of berth.entities.value.worktrees.values()) {
+      const mr = knownMr(worktree.path, worktree.branch);
+      if (mr && itemId(mr) === id) return worktree;
+    }
+    return null;
+  });
+}

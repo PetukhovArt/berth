@@ -11,6 +11,8 @@ import { issueKeyOf, openIssue } from '../../../entities/jira-issue';
 import { jobTone, numberLabel, pipelineLabel } from '../../../entities/merge-request';
 import { StatusIcon, useSessionDock, useSessionStates, type SessionNode } from '../../../entities/session';
 import { isWatching, toggleWatch } from '../../../features/watch-merge-request';
+import { GitStepButton } from '../../../features/git-step';
+import { useMrWorktree } from '../../../features/open-in-session';
 import { useChangeRequest } from '../model/change-request-scope';
 import { pipelineTone } from '../model/pipelineTone';
 
@@ -30,6 +32,9 @@ const { connectors } = useConnectors();
 const jiraConnector = computed(() => connectors.value.find((c) => c.kind === 'jira'));
 const issueKey = computed(() => issueKeyOf(props.request.source_branch, props.request.title, props.request.description));
 
+const worktree = useMrWorktree(() => target.value);
+const unresolved = computed(() => discussions.value.filter((d) => d.resolvable && !d.resolved).length);
+const resolvable = computed(() => discussions.value.some((d) => d.resolvable));
 const conversation = computed(() => discussions.value.filter((d) => d.notes.some((n) => !n.system)));
 const anchored = computed(() => discussions.value.some((d) => d.position));
 const stages = computed(() => {
@@ -52,6 +57,7 @@ const stages = computed(() => {
 
         <div v-if="conversation.length" class="discussions-head">
           <h3 class="section">{{ t('forge.request.discussions') }} <span class="count">{{ conversation.length }}</span></h3>
+          <span v-if="resolvable" class="pill" data-testid="cr-unresolved-pill">{{ unresolved ? t('forge.request.unresolvedPill', { count: unresolved }) : t('forge.request.allResolved') }}</span>
           <span v-if="anchored" class="hint vr-key-hint">{{ t('forge.request.keysHint') }}</span>
         </div>
         <div class="threads">
@@ -116,6 +122,11 @@ const stages = computed(() => {
             <p class="pipe-id hint-text">{{ t('attention.watch.idle') }}</p>
           </template>
         </section>
+
+        <section v-if="request.state === 'open' && worktree?.branch" class="fact next-step" data-testid="cr-fact-next-step">
+          <h3 class="fact-title">{{ t('forge.request.nextStepHeading') }}</h3>
+          <GitStepButton testid="cr-git-step" :path="worktree.path" :branch="worktree.branch" has-request :refresh-key="request.head_sha" />
+        </section>
       </aside>
     </div>
   </div>
@@ -168,6 +179,26 @@ const stages = computed(() => {
 .count {
   color: var(--vr-color-text-muted);
   font-weight: 400;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 var(--vr-space-2);
+  color: var(--vr-color-text-muted);
+  font-size: var(--vr-font-size-2xs);
+  border: 1px solid var(--vr-color-border-strong);
+  border-radius: var(--vr-radius-full);
+}
+
+.next-step :deep(.git-step) {
+  flex-direction: column-reverse;
+  align-items: stretch;
+}
+
+.next-step :deep(.git-step > .hint) {
+  white-space: normal;
 }
 
 .hint {
