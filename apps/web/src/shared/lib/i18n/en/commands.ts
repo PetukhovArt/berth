@@ -14,7 +14,7 @@ export const commands = {
     navConfluence: 'Go to Confluence',
     navSettings: 'Open settings',
     sidebarToggle: 'Collapse or expand the sidebar',
-    sidebarSearch: 'Find a task in the sidebar',
+    sidebarSearch: 'Filter the tree',
     themeToggle: 'Toggle theme',
     terminalZoomIn: 'Increase terminal font size',
     terminalZoomOut: 'Decrease terminal font size',
@@ -32,6 +32,7 @@ export const commands = {
     placeholder: 'Type a command',
     search: 'Search commands',
     empty: 'Nothing found',
+    footer: 'Enter runs · {key:mod-shift-p} or {key:f1} opens this palette',
   },
   problem: {
     badEntry: 'entry {index}: expected an object { "context"?: string, "bindings": { shortcut: action | null } }',

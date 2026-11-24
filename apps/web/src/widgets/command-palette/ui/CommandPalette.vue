@@ -86,6 +86,7 @@ onMounted(() => input.value?.focus());
         </li>
         <li v-if="!results.length" class="none">{{ t('commands.palette.empty') }}</li>
       </ul>
+      <footer class="footer vr-wide-only" data-testid="command-palette-hint">{{ t('commands.palette.footer') }}</footer>
     </div>
   </div>
 </template>
@@ -195,13 +196,25 @@ onMounted(() => input.value?.focus());
 
 .shortcut {
   flex: none;
+  padding: 0 5px;
   font-family: var(--vr-font-mono);
   font-size: var(--vr-font-size-2xs);
   color: var(--vr-color-text-muted);
+  border: 1px solid var(--vr-color-border-strong);
+  border-radius: 4px;
 }
 
 .none {
-  padding: var(--vr-space-3);
+  padding: var(--vr-space-6);
   color: var(--vr-color-text-muted);
+  text-align: center;
+}
+
+.footer {
+  padding: var(--vr-space-2) var(--vr-space-3);
+  border-top: 1px solid var(--vr-color-border);
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-subtle);
+  text-align: center;
 }
 </style>

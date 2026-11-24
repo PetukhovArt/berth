@@ -45,7 +45,11 @@
 - Added Delete forever in red, below a separator, to the menu of an agent tab's close button, which opens under the button and asks to confirm, saying that the session and its chat history are erased and the worktree stays
 - Added a pinned Inbox in the sidebar: it stays at the top while the Projects tree scrolls, scrolls on its own when it grows past 40% of the window height, and collapses with the chevron on its header (`Alt+J` expands it)
 - Added a Stop button to the Chat composer: while an agent's turn runs and the message box is empty it takes the place of Send and interrupts the turn, which matters on a phone where the Terminal view and its keys are gone
+- Added the Sessions, My MRs, Reviews and Tasks icons with their counts to the collapsed sidebar, and made its top button open Quick Open instead of the tree filter
+- Added a line to the bottom of the command palette that names the keys opening it, and boxed key hints beside the commands
 - Changed `berth upgrade` to install the version the latest release names in `latest.json`, so the command and the desktop app stay on one version (#69)
+- Changed the merge request badge on a worktree row of the Sessions tree to show the number first and the pipeline icon after it, without a background
+- Changed the command palette entry `Find a task in the sidebar` to `Filter the tree`
 - Changed a session's row in the sidebar, on a phone and its tab to show a green dot while its process is alive, and `stopped` with a square glyph when it is not, instead of the same `finished` for both
 - Changed `Continue a conversation` and `More options` in New session from bare text into buttons with a chevron, so they read as controls on a phone and on the desktop
 - Changed the Sessions tree to show the Archive at the bottom of each project, and of Not in a project, instead of one Archive row for all projects

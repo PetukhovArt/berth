@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
-import { Check, ChevronRight, Ellipsis, Eye, GitPullRequest, GitPullRequestDraft, ListTodo, MessageSquare, Plus, RefreshCw, Search, SquareTerminal, TriangleAlert, X } from '../../../shared/ui/icons';
+import { Check, ChevronRight, Ellipsis, GitPullRequestDraft, MessageSquare, Plus, RefreshCw, Search, TriangleAlert, X } from '../../../shared/ui/icons';
+import { tabIcons } from '../model/tabIcons';
 import { sidebarSearchRequests } from '../../../shared/model/sidebar';
 import { shortcutLabel } from '../../../shared/lib/commands/keymap';
 import { VContextMenu, useIsPhone } from '../../../shared/ui/kit';
@@ -36,7 +37,6 @@ const phone = useIsPhone();
 const dock = useDock();
 const sessions = useSessionDock();
 const { berth, nodes, tabs, activeTab, errors } = useWorkTree();
-const tabIcons = { sessions: SquareTerminal, mrs: GitPullRequest, reviews: Eye, tasks: ListTodo, all: SquareTerminal };
 const shownTabs = computed(() => (props.tabsShown ? tabs.value.filter((tab) => props.tabsShown?.includes(tab.id)) : tabs.value));
 
 const filtering = computed(() => treeQuery.value.trim().length > 0);
@@ -693,9 +693,9 @@ const moreItems = computed(() => {
 
 .empty {
   margin: 0;
-  padding: var(--vr-space-2);
+  padding: var(--vr-space-2) var(--vr-space-3);
   font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-text-muted);
+  color: var(--vr-color-text-subtle);
 }
 
 .empty-card {

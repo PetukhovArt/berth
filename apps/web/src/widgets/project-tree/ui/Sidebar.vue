@@ -8,7 +8,9 @@ import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { navigate, view } from '../../../shared/model/nav';
 import { requestSidebarSearch, sidebarCollapsed, sidebarSearchRequests, toggleSidebar } from '../../../shared/model/sidebar';
 import ProjectTree from './ProjectTree.vue';
-import { useWorkTree } from '../../../features/work-tree';
+import { treeTab, useWorkTree } from '../../../features/work-tree';
+import { toggleQuickOpen } from '../../../shared/model/dock';
+import { tabIcons } from '../model/tabIcons';
 import { useBerth, useSessionDock } from '../../../entities/session';
 import { cleanupCount, openCleanup, removing as cleanupRemoving } from '../../../features/cleanup';
 import { isDesktop } from '../../../bridge';
@@ -24,7 +26,7 @@ const sidebarEl = ref<HTMLElement | null>(null);
 
 const MIN_WIDTH = 180;
 const DEFAULT_WIDTH = 300;
-const RAIL_WIDTH = 56;
+const RAIL_WIDTH = 48;
 const KEY_STEP = 16;
 const WIDTH_KEY = 'berth.sidebar.tree.width';
 const EXPLORER_WIDTH_KEY = 'berth.agents.a.width';
@@ -99,25 +101,31 @@ function onHandleKey(event: KeyboardEvent) {
 
 const { connectors, list: listConnectors } = useConnectors();
 const { startPolling } = useForgeInbox();
-const { tabs: workTabs } = useWorkTree();
-const reviewCount = computed(() => workTabs.value.find((tab) => tab.id === 'reviews')?.count ?? 0);
+const { tabs: workTabs, activeTab } = useWorkTree();
 
 const hasForge = computed(() => connectors.value.some((c) => c.kind === 'github' || c.kind === 'gitlab'));
 const hasJira = computed(() => connectors.value.some((c) => c.kind === 'jira'));
 const hasConfluence = computed(() => connectors.value.some((c) => c.kind === 'confluence'));
 
-type NavItem = { kind: 'agents' | 'jira' | 'confluence'; label: string; icon: Component; testId: string; count?: number; countTitle?: string };
+type NavItem = { kind: 'agents' | 'jira' | 'confluence'; label: string; icon: Component; testId: string };
 
 const navItems = computed<NavItem[]>(() => {
   const items: NavItem[] = [
-    { kind: 'agents', label: t('shell.nav.agents'), icon: LayoutPanelLeft, testId: 'open-agents', count: hasForge.value ? reviewCount.value : undefined, countTitle: t('shell.nav.reviewsPending') },
+    { kind: 'agents', label: t('shell.nav.agents'), icon: LayoutPanelLeft, testId: 'open-agents' },
   ];
   if (hasJira.value) items.push({ kind: 'jira', label: t('shell.nav.jira'), icon: Ticket, testId: 'nav-jira' });
   if (hasConfluence.value) items.push({ kind: 'confluence', label: t('shell.nav.confluence'), icon: BookOpen, testId: 'nav-confluence' });
   return items;
 });
 
-const showNav = computed(() => collapsed.value || navItems.value.length > 1);
+const shownNav = computed(() => (collapsed.value ? navItems.value.filter((item) => item.kind !== 'agents') : navItems.value));
+const showNav = computed(() => (collapsed.value ? shownNav.value.length > 0 : navItems.value.length > 1));
+
+function openRailTab(id: (typeof workTabs.value)[number]['id']) {
+  treeTab.value = id;
+  collapsed.value = false;
+  if (view.value.kind !== 'agents') void navigate({ kind: 'agents' });
+}
 
 function toggleSettings() {
   void navigate({ kind: view.value.kind === 'settings' ? 'agents' : 'settings' });
@@ -151,14 +159,28 @@ onUnmounted(() => {
   >
     <slot name="head" />
     <div v-if="collapsed" class="top">
-      <UiButton class="item rail-item" :title="shortcutTitle(t('workbench.filter'), 'sidebar.search')" :aria-label="t('workbench.filter')" data-testid="sidebar-search-open" @click="requestSidebarSearch">
+      <UiButton class="item rail-item" :title="t('agents.layouts.quickOpenTitle')" :aria-label="t('agents.layouts.quickOpen')" data-testid="sidebar-search-open" @click="toggleQuickOpen">
         <Search :size="16" />
+      </UiButton>
+      <span class="rail-divider" role="separator" />
+      <UiButton
+        v-for="tab in workTabs"
+        :key="tab.id"
+        class="item rail-item"
+        :data-active="view.kind === 'agents' && activeTab === tab.id"
+        :title="tab.count ? `${tab.label} · ${tab.title}` : tab.label"
+        :aria-label="tab.label"
+        :data-testid="`rail-tab-${tab.id}`"
+        @click="openRailTab(tab.id)"
+      >
+        <component :is="tabIcons[tab.id]" :size="16" />
+        <span v-if="tab.count" class="count" :data-tone="tab.tone" :data-testid="`rail-tab-count-${tab.id}`">{{ tab.count }}</span>
       </UiButton>
     </div>
 
     <div v-if="showNav" class="primary">
       <UiButton
-        v-for="item in navItems"
+        v-for="item in shownNav"
         :key="item.kind"
         class="item vt-nav"
         :class="{ 'rail-item': collapsed }"
@@ -170,7 +192,6 @@ onUnmounted(() => {
       >
         <component :is="item.icon" :size="16" />
         <span v-if="!collapsed">{{ item.label }}</span>
-        <span v-if="collapsed && item.count" class="count" :title="item.countTitle" :data-testid="item.testId + '-count'">{{ item.count }}</span>
       </UiButton>
     </div>
 
@@ -201,12 +222,12 @@ onUnmounted(() => {
         <PanelLeftClose v-else :size="16" />
       </UiButton>
       <UiButton v-if="berth" class="icon" :title="t('agents.metrics.open')" :aria-label="t('agents.metrics.title')" data-testid="open-metrics" @click="sessions.openMetrics()"><Activity :size="16" /></UiButton>
-      <UiButton v-if="!collapsed" class="icon lang" :title="t(`common.language.${nextLocale}`)" :aria-label="t('common.language.label')" data-testid="toggle-language" @click="setLocale(nextLocale)">
-        {{ locale.toUpperCase() }}
-      </UiButton>
       <UiButton class="icon" :title="dark ? t('shell.themeLight') : t('shell.themeDark')" :aria-label="dark ? t('shell.themeLight') : t('shell.themeDark')" data-testid="toggle-theme" @click="emit('theme')">
         <Sun v-if="dark" :size="16" />
         <Moon v-else :size="16" />
+      </UiButton>
+      <UiButton v-if="!collapsed" class="icon lang" :title="t(`common.language.${nextLocale}`)" :aria-label="t('common.language.label')" data-testid="toggle-language" @click="setLocale(nextLocale)">
+        {{ locale.toUpperCase() }}
       </UiButton>
       <UiButton
         v-if="!collapsed && berth && isDesktop && (cleanupCount || cleanupRemoving)"
@@ -262,14 +283,24 @@ onUnmounted(() => {
 
 .top {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: var(--vr-space-1);
   margin-bottom: var(--vr-space-2);
 }
 
+.rail-divider {
+  flex: none;
+  width: 20px;
+  height: 1px;
+  margin: var(--vr-space-1) 0;
+  background: var(--vr-color-border);
+}
+
 
 .item.rail-item {
   justify-content: center;
+  height: 30px;
   padding: 0;
 }
 
@@ -351,9 +382,26 @@ onUnmounted(() => {
 
 .rail-item .count {
   position: absolute;
-  top: 2px;
-  right: 6px;
+  top: 1px;
+  right: 0;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
   margin-left: 0;
+  font-size: calc(var(--vr-font-size-2xs) * 0.86);
+  line-height: 1;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.count[data-tone='alert'] {
+  background: var(--vr-status-feedback);
+}
+
+.count[data-tone='muted'] {
+  background: var(--vr-color-text-muted);
 }
 
 .item:hover {

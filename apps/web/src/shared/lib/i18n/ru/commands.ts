@@ -17,7 +17,7 @@ export const commands: Translation<typeof en> = {
     navConfluence: 'Перейти к Confluence',
     navSettings: 'Открыть настройки',
     sidebarToggle: 'Свернуть или развернуть боковую панель',
-    sidebarSearch: 'Найти задачу в боковой панели',
+    sidebarSearch: 'Фильтр дерева',
     themeToggle: 'Переключить тему',
     terminalZoomIn: 'Увеличить шрифт терминала',
     terminalZoomOut: 'Уменьшить шрифт терминала',
@@ -35,6 +35,7 @@ export const commands: Translation<typeof en> = {
     placeholder: 'Введите команду',
     search: 'Поиск команды',
     empty: 'Ничего не найдено',
+    footer: 'Enter запускает · {key:mod-shift-p} или {key:f1} открывает палитру',
   },
   problem: {
     badEntry: 'элемент {index}: ожидался объект { "context"?: строка, "bindings": { сочетание: действие | null } }',

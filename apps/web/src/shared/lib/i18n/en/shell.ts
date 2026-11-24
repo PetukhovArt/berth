@@ -5,7 +5,6 @@ export const shell = {
     reviews: 'Reviews',
     jira: 'Jira',
     confluence: 'Confluence',
-    reviewsPending: 'Awaiting my review',
   },
   collapse: 'Collapse sidebar',
   expand: 'Expand sidebar',

@@ -8,7 +8,6 @@ export const shell: Translation<typeof en> = {
     reviews: 'Ревью',
     jira: 'Jira',
     confluence: 'Confluence',
-    reviewsPending: 'Ждут моего ревью',
   },
   collapse: 'Свернуть панель',
   expand: 'Развернуть панель',

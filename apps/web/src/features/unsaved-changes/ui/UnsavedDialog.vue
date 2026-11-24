@@ -13,7 +13,7 @@ function onVisible(visible: boolean) {
 </script>
 
 <template>
-  <VDialog :visible="unsavedPrompt !== null" modal :header="t('files.editor.unsaved.title')" :style="{ width: '440px' }" :draggable="false" @update:visible="onVisible">
+  <VDialog :visible="unsavedPrompt !== null" modal :header="t('files.editor.unsaved.title')" :style="{ width: '480px', maxWidth: '95vw' }" :draggable="false" @update:visible="onVisible">
     <p class="message" data-testid="unsaved-message">{{ t('files.editor.unsaved.message', { names }) }}</p>
     <div class="actions">
       <VButton :label="t('common.cancel')" size="small" text data-testid="unsaved-cancel" @click="unsavedPrompt?.settle('cancel')" />
@@ -27,6 +27,7 @@ function onVisible(visible: boolean) {
 .message {
   margin: 0 0 var(--vr-space-4);
   overflow-wrap: anywhere;
+  color: var(--vr-color-text-muted);
 }
 
 .actions {
