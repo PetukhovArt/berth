@@ -6,7 +6,7 @@ import { useBerth } from '../../../entities/session';
 import type { BranchMode, SessionTarget } from '../model/sessionTarget';
 import ChipField from './ChipField.vue';
 
-const props = defineProps<{ state: SessionTarget; projectLocked: boolean }>();
+const props = defineProps<{ state: SessionTarget; projectLocked: boolean; resume: boolean }>();
 const emit = defineEmits<{ enter: [] }>();
 
 function onBranchEnter(event: KeyboardEvent) {
@@ -54,7 +54,11 @@ const setupNote = computed(() => (plan.value.kind === 'create' && setup.value.tr
 const summary = computed(() => {
   const current = plan.value;
   if (current.kind === 'incomplete') return current.reason;
-  if (current.kind === 'use') return t(current.worktree.is_main ? 'agents.newSession.planMain' : 'agents.newSession.planUse', { branch: current.worktree.branch });
+  if (current.kind === 'use') {
+    const { is_main: main, branch } = current.worktree;
+    if (props.resume) return t(main ? 'agents.newSession.planMainResume' : 'agents.newSession.planUseResume', { branch });
+    return t(main ? 'agents.newSession.planMain' : 'agents.newSession.planUse', { branch });
+  }
   if (!current.branch) return current.base ? t('agents.newSession.planCreateGeneratedFrom', { base: current.base }) : t('agents.newSession.planCreateGenerated');
   if (count.value > 1 && !sharesBranch.value) return t('agents.newSession.planCreateEach');
   if (current.fetch && current.base) return t('agents.newSession.planCreateFresh', { base: current.base });

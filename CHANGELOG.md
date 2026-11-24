@@ -4,11 +4,14 @@
 
 - Added a Next step section to the facts panel of a merge request that runs the git step of its worktree, and a pill beside Discussions that counts unresolved threads or says all are resolved
 - Added `N need you` to the collapsed Inbox header, and a `Nothing needs you` line to the open Inbox when no session waits for you
+- Added `Not installed` and `Signed out` marks to an agent in the New session type list that is not ready: it cannot be picked, and a signed-out agent has a `Sign in` link
+- Added an `Add a project first` message to the New session dialog when berth has no projects, and a `berth daemon is not running` line when the daemon does not answer
 - Changed draft merge requests in the sidebar tree to show a draft icon before the number instead of a Draft label before the title
 - Changed the sidebar to show every session as `connecting…` or `unknown` with a dashed mark while the daemon is not answering, and the Inbox to say when it was last up to date
 - Changed the active tab of a session to underline in the colour of its status
 - Changed the subagent group in the Chat to show the total time of its subagents, and the Subagents working strip to say how many of them work and to name those
 - Changed the message while you hold the push to talk key to read `Listening… release to send`, and red buttons such as Delete forever and the Stop button in the Chat composer to use one red that reads on both themes
+- Changed Ctrl+Enter in New session to start the session in the background and keep the dialog open for the next one, with a line that names what started and an `Open` link
 
 ## 0.22.0 (2026-11-24)
 

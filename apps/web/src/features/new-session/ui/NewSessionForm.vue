@@ -7,9 +7,10 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
 import { chordJoiner, modifierGlyphs, onlyPrimaryPressed, primaryModifier, primaryPressed } from '../../../shared/lib/platform';
 import { invoke } from '../../../bridge';
-import { acpPrompt, createAcpAgent, createAgent, createTerminal, entitySessionRef, resumeConversation, type AgentKind, type SessionRef, useAction } from '../../../entities/session';
-import { enabledNativeAgent, useProviders } from '../../../shared/api/providers';
+import { acpPrompt, createAcpAgent, createAgent, createTerminal, entitySessionRef, resumeConversation, type AgentKind, type SessionRef, useAction, useBerth } from '../../../entities/session';
+import { enabledNativeAgent, useProviders, type Provider } from '../../../shared/api/providers';
 import { useSessionTarget } from '../model/sessionTarget';
+import { useKindStates, type KindState } from '../model/kindStates';
 import { useProjectConversations } from '../model/conversations';
 import { deletePreset, presets, savePreset, withPromptFrame, type AgentPreset } from '../model/presets';
 import NewSessionTarget from './NewSessionTarget.vue';
@@ -32,12 +33,18 @@ const ON_BEFORE_PROVIDERS_LOAD: { label: string; value: Kind }[] = [
   { label: 'Grok', value: 'grok' },
 ];
 const providers = useProviders();
-const KINDS = computed<{ label: string; value: Kind }[]>(() => {
+const kindStates = useKindStates();
+type KindOption = { label: string; value: Kind; state: KindState; disabled: boolean; provider: Provider | null };
+const KINDS = computed<KindOption[]>(() => {
   const enabled = providers.value.filter((provider) => provider.enabled);
-  const agents: { label: string; value: Kind }[] = providers.value.length
-    ? enabled.map((provider) => (provider.acp ? { label: t('agents.newSession.acpProvider', { name: provider.name }), value: `acp:${provider.id}` as const } : { label: provider.name, value: provider.id as Kind }))
-    : ON_BEFORE_PROVIDERS_LOAD;
-  return [...agents, { label: t('agents.newSession.terminal'), value: 'terminal' }];
+  const agents: KindOption[] = providers.value.length
+    ? enabled.map((provider) => {
+        const state = kindStates.stateOf(provider);
+        const label = provider.acp ? t('agents.newSession.acpProvider', { name: provider.name }) : provider.name;
+        return { label, value: (provider.acp ? `acp:${provider.id}` : provider.id) as Kind, state, disabled: state !== 'ready', provider };
+      })
+    : ON_BEFORE_PROVIDERS_LOAD.map((option) => ({ ...option, state: 'ready' as const, disabled: false, provider: null }));
+  return [...agents, { label: t('agents.newSession.terminal'), value: 'terminal', state: 'ready', disabled: false, provider: null }];
 });
 
 const acpProviderOf = (kind: Kind): string | null => (kind.startsWith('acp:') ? kind.slice('acp:'.length) : null);
@@ -62,7 +69,9 @@ const defaultKind = computed<Kind>(() => {
   const chosen = values.value['sessions.default_kind'];
   if (chosen === 'terminal') return 'terminal';
   if (!providers.value.length) return ON_BEFORE_PROVIDERS_LOAD.find((option) => option.value === chosen)?.value ?? 'claude';
-  return (enabledNativeAgent(chosen, providers.value) as Kind | null) ?? 'terminal';
+  const preferred = (enabledNativeAgent(chosen, providers.value) as Kind | null) ?? 'terminal';
+  const usable = KINDS.value.find((option) => option.value === preferred && !option.disabled) ?? KINDS.value.find((option) => !option.disabled);
+  return usable?.value ?? 'terminal';
 });
 const picked = shallowRef<Kind | null>(null);
 const kind = computed<Kind>(() => picked.value ?? defaultKind.value);
@@ -75,6 +84,10 @@ const after = shallowRef('');
 const activePreset = shallowRef<string | null>(null);
 const presetName = shallowRef('');
 const action = useAction();
+const started = shallowRef<{ text: string; session: SessionRef } | null>(null);
+const berth = useBerth();
+const daemonDown = computed(() => berth?.connection.value.state === 'offline');
+const noProjects = computed(() => berth?.connection.value.state === 'connected' && !location.projects.value.length);
 const expanded = shallowRef(false);
 const backgroundKey = `${modifierGlyphs[primaryModifier]}${chordJoiner}Enter`;
 const MODEL_SUGGESTIONS = ['opus', 'sonnet', 'haiku'];
@@ -89,7 +102,7 @@ watch(defaultName, (next, previous) => {
 
 const extras = shallowRef<Kind[]>([]);
 const kinds = computed<Kind[]>(() => (kind.value === 'terminal' || continuing.value ? [kind.value] : [kind.value, ...extras.value.filter((extra) => extra !== kind.value)]));
-const extraOptions = computed(() => KINDS.value.filter((option) => option.value !== 'terminal' && option.value !== kind.value));
+const extraOptions = computed(() => KINDS.value.filter((option) => option.value !== 'terminal' && option.value !== kind.value && !option.disabled));
 const many = computed(() => kinds.value.length > 1);
 
 watch(
@@ -106,7 +119,7 @@ function toggleExtra(value: Kind) {
 
 function pickKind(value: unknown) {
   const next = KINDS.value.find((option) => option.value === value);
-  if (!next) return;
+  if (!next || next.disabled) return;
   if (name.value.trim() === defaultName.value || !name.value.trim()) name.value = generatedName(next.value);
   picked.value = next.value;
 }
@@ -169,12 +182,21 @@ async function continueConversation(background: boolean) {
     const [worktree] = await location.resolve(['']);
     if (!worktree) return;
     const agent = await resumeConversation(conversation, worktree);
-    if (background) emit('close');
+    if (background) startedInBackground(conversation.title, { Agent: agent }, 1);
     else emit('created', { Agent: agent });
   });
 }
 
+function startedInBackground(label: string, session: SessionRef, count: number) {
+  started.value = { text: count > 1 ? t('agents.newSession.startedMany', { count }) : t('agents.newSession.started', { name: label }), session };
+  prompt.value = '';
+  if (!continuing.value) name.value = defaultName.value;
+  pickedConversation.value = null;
+  if (location.creating.value) location.fresh.value = '';
+}
+
 async function submit(background = false) {
+  started.value = null;
   if (continuing.value) return continueConversation(background);
   const chosen = kinds.value;
   const defaults = chosen.map(generatedName);
@@ -206,7 +228,8 @@ async function submit(background = false) {
       if (acpProvider && startingPrompt && created && 'Agent' in created) await acpPrompt(created.Agent, startingPrompt);
       first ??= created;
     }
-    if (first && !background) emit('created', first);
+    if (first && background) startedInBackground(names[0] ?? '', first, chosen.length);
+    else if (first) emit('created', first);
     else emit('close');
   });
 }
@@ -253,7 +276,11 @@ function onVisible(visible: boolean) {
       <UiButton v-if="phone" type="button" class="close" :title="t('common.close')" :aria-label="t('common.close')" data-testid="new-session-close" @click="emit('close')"><X :size="18" /></UiButton>
       <UiButton v-else type="button" class="esc" :title="t('common.close')" :aria-label="t('common.close')" data-testid="new-session-close" @click="emit('close')">Esc</UiButton>
     </template>
-    <form class="form" data-testid="new-session-form" @submit.prevent="submit()" @keydown="onFormKey">
+    <div v-if="noProjects" class="empty" data-testid="new-session-no-projects">
+      <span class="empty-title">{{ t('agents.newSession.noProjectsTitle') }}</span>
+      <span class="empty-text">{{ t('agents.newSession.noProjectsText') }}</span>
+    </div>
+    <form v-else class="form" data-testid="new-session-form" @submit.prevent="submit()" @keydown="onFormKey">
       <div class="body">
         <ContinueConversation v-if="continuing" v-model="pickedConversation" :conversations="conversations" />
         <VTextarea
@@ -268,7 +295,7 @@ function onVisible(visible: boolean) {
           data-testid="new-session-prompt"
           @keydown="onPromptKey"
         />
-        <NewSessionTarget :state="location" :project-locked="projectLocked" @enter="onBranchEnter">
+        <NewSessionTarget :state="location" :project-locked="projectLocked" :resume="continuing" @enter="onBranchEnter">
           <template #type>
             <ChipField v-if="!continuing" :label="t('agents.newSession.agent')" data-testid="new-session-kind-field">
               <template #default="{ labelId, controlId }">
@@ -277,13 +304,28 @@ function onVisible(visible: boolean) {
                   :options="KINDS"
                   option-label="label"
                   option-value="value"
+                  option-disabled="disabled"
                   size="small"
                   class="chip"
                   :label-id="controlId"
                   :aria-labelledby="labelId"
                   data-testid="new-session-kind"
                   @update:model-value="pickKind"
-                />
+                >
+                  <template #option="{ option }">
+                    <span class="kind-option" :data-state="option.state" :data-testid="`new-session-kind-${option.value}`">
+                      <span class="kind-label">
+                        <span>{{ option.label }}</span>
+                        <span v-if="option.value === 'terminal'" class="kind-sub">{{ t('agents.newSession.terminalHint') }}</span>
+                      </span>
+                      <span v-if="option.state === 'missing'" class="kind-badge">{{ t('agents.newSession.kindMissing') }}</span>
+                      <template v-else-if="option.state === 'signedOut'">
+                        <span class="kind-badge">{{ t('agents.newSession.kindSignedOut') }}</span>
+                        <UiButton v-if="option.provider" type="button" class="kind-action" data-testid="new-session-kind-sign-in" @click.stop="kindStates.signIn(option.provider)">{{ t('agents.newSession.kindSignIn') }}</UiButton>
+                      </template>
+                    </span>
+                  </template>
+                </VSelect>
               </template>
             </ChipField>
           </template>
@@ -384,7 +426,12 @@ function onVisible(visible: boolean) {
           <VButton :label="t('agents.newSession.savePreset')" size="small" outlined :disabled="!presetName.trim()" data-testid="new-session-preset-save" @click="saveCurrent" />
         </div>
       </div>
-      <VMessage v-if="action.error.value" severity="error" size="small" data-testid="new-session-error">{{ action.error.value }}</VMessage>
+      <VMessage v-if="daemonDown" severity="error" size="small" data-testid="new-session-daemon-down">{{ t('agents.notices.offline') }}</VMessage>
+      <VMessage v-else-if="action.error.value" severity="error" size="small" data-testid="new-session-error">{{ action.error.value }}</VMessage>
+      <p v-if="started" class="started" role="status" data-testid="new-session-started">
+        <span>{{ started.text }}</span>
+        <UiButton type="button" class="started-open" data-testid="new-session-started-open" @click="emit('created', started.session)">{{ t('agents.newSession.startedOpen') }}</UiButton>
+      </p>
       <div class="footer">
         <label v-if="!many && !continuing" class="name">
           <span>{{ t('agents.newSession.name') }}</span>
@@ -497,6 +544,86 @@ function onVisible(visible: boolean) {
 .hint {
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vr-space-3);
+  padding: var(--vr-space-3) 0;
+}
+
+.empty-title {
+  font-size: var(--vr-font-size-title);
+  font-weight: 600;
+}
+
+.empty-text {
+  color: var(--vr-color-text-muted);
+}
+
+.started {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-3);
+  margin: 0;
+  font-size: var(--vr-font-size-label);
+  color: var(--vr-color-text-muted);
+}
+
+.started-open {
+  padding: 0;
+  font: inherit;
+  color: var(--vr-color-link);
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.kind-option {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-3);
+  width: 100%;
+  min-width: 12rem;
+}
+
+.kind-option[data-state='signedOut'] {
+  opacity: 0.75;
+}
+
+.kind-option[data-state='missing'] {
+  opacity: 0.55;
+}
+
+.kind-label {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.kind-sub {
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-muted);
+}
+
+.kind-badge {
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-muted);
+  white-space: nowrap;
+}
+
+.kind-action {
+  padding: 0;
+  font: inherit;
+  font-size: var(--vr-font-size-label);
+  color: var(--vr-color-link);
+  white-space: nowrap;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  pointer-events: auto;
 }
 
 .prompt {

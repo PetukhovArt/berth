@@ -18,6 +18,7 @@ type AiStore = {
   pending: ShallowRef<Partial<Record<AiKind, AiPending>>>;
   problems: ShallowRef<Partial<Record<AiKind, string>>>;
   checking: ShallowRef<boolean>;
+  load: () => Promise<void>;
   refresh: () => Promise<void>;
   check: () => Promise<void>;
   recheck: (kind: AiKind) => Promise<void>;
@@ -72,6 +73,14 @@ function createStore(): AiStore {
       for (const a of accounts.value) setProblem(a.kind, describeError(e));
     } finally {
       checking.value = false;
+    }
+  }
+
+  async function load() {
+    try {
+      await list();
+    } catch (e) {
+      for (const a of accounts.value) setProblem(a.kind, describeError(e));
     }
   }
 
@@ -145,6 +154,7 @@ function createStore(): AiStore {
     pending,
     problems,
     checking,
+    load,
     refresh,
     check,
     recheck,
