@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.22.0 (2026-11-24)
+
 - Added desktop app installers to every release: `berth-desktop-x86_64-windows-setup.exe`, `berth-desktop-aarch64-macos.dmg`, `berth-desktop-x86_64-macos.dmg` and `berth-desktop-x86_64-linux.deb`, each with `berth` bundled beside the app (#69)
 - Added updates for the desktop app installed from a release: while `app.autoUpdate` is on it checks the latest release every 10 minutes, downloads a newer version in the background, checks its signature and shows `Restart to update`; `Update Berth…` checks on demand and shows the release notes (#69)
 - Added a Channels section to the sidebar that lists every Channel you are in, read or not, with a button to create one by name
