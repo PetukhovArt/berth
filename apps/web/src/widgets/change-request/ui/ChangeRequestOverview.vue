@@ -2,19 +2,20 @@
 import { computed } from 'vue';
 import { Eye } from '../../../shared/ui/icons';
 import { VButton } from '../../../shared/ui/kit';
-import { openUrl, useConnectors, type ChangeRequest, type Discussion, type PipelineJob } from '../../../shared/api/connectors/api';
+import { useConnectors, type ChangeRequest, type Discussion } from '../../../shared/api/connectors/api';
 import PersonAvatar from '../../../shared/ui/PersonAvatar.vue';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { CommentComposer, ThreadView } from '../../../features/diff-review';
 import { issueKeyOf, openIssue } from '../../../entities/jira-issue';
-import { jobTone, numberLabel, pipelineLabel } from '../../../entities/merge-request';
+import { numberLabel, pipelineLabel } from '../../../entities/merge-request';
 import { StatusIcon, useSessionDock, useSessionStates, type SessionNode } from '../../../entities/session';
 import { isWatching, toggleWatch } from '../../../features/watch-merge-request';
 import { GitStepButton } from '../../../features/git-step';
 import { useMrWorktree } from '../../../features/open-in-session';
 import { useChangeRequest } from '../model/change-request-scope';
 import { pipelineTone } from '../model/pipelineTone';
+import PipelineJobs from './PipelineJobs.vue';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ connector: string; request: ChangeRequest; session: SessionNode | null }>();
@@ -37,15 +38,7 @@ const unresolved = computed(() => discussions.value.filter((d) => d.resolvable &
 const resolvable = computed(() => discussions.value.some((d) => d.resolvable));
 const conversation = computed(() => discussions.value.filter((d) => d.notes.some((n) => !n.system)));
 const anchored = computed(() => discussions.value.some((d) => d.position));
-const stages = computed(() => {
-  const groups = new Map<string, PipelineJob[]>();
-  for (const job of pipeline.value?.jobs ?? []) {
-    const list = groups.get(job.stage);
-    if (list) list.push(job);
-    else groups.set(job.stage, [job]);
-  }
-  return [...groups.entries()].map(([name, jobs]) => ({ name, jobs }));
-});
+const pipelineStatus = computed(() => (pipeline.value ? pipeline.value.status : props.request.pipeline));
 </script>
 
 <template>
@@ -53,7 +46,7 @@ const stages = computed(() => {
     <div class="layout">
       <div class="threads-col">
         <RichContent v-if="props.request.description.trim()" :markdown="props.request.description" :connector="props.connector" variant="document" />
-        <p v-else class="muted">{{ t('forge.request.noDescription') }}</p>
+        <p v-else class="muted subtle">{{ t('forge.request.noDescription') }}</p>
 
         <div v-if="conversation.length" class="discussions-head">
           <h3 class="section">{{ t('forge.request.discussions') }} <span class="count">{{ conversation.length }}</span></h3>
@@ -76,21 +69,13 @@ const stages = computed(() => {
       </div>
 
       <aside class="facts" data-testid="cr-facts">
-        <section v-if="pipeline || props.request.pipeline !== 'none'" class="fact" data-testid="cr-fact-pipeline">
-          <h3 class="fact-title">{{ t('forge.request.tabPipeline') }}</h3>
+        <section class="fact" data-testid="cr-fact-pipeline">
+          <h3 class="fact-title">{{ pipeline ? t('forge.request.pipelineNumber', { id: pipeline.id }) : t('forge.request.tabPipeline') }}</h3>
           <UiButton class="status-link" @click="selectTab('pipeline')">
-            <StatusIcon :tone="pipelineTone(pipeline ? pipeline.status : props.request.pipeline)" />
-            <span>{{ pipelineLabel(pipeline ? pipeline.status : props.request.pipeline) }}</span>
-            <span v-if="pipeline" class="pipe-id">{{ t('forge.request.pipelineNumber', { id: pipeline.id }) }}</span>
+            <StatusIcon v-if="pipelineStatus !== 'none'" :tone="pipelineTone(pipelineStatus)" />
+            <span>{{ pipelineLabel(pipelineStatus) }}</span>
           </UiButton>
-          <div v-for="stage in stages" :key="stage.name" class="stage">
-            <span class="stage-name">{{ stage.name }}</span>
-            <a v-for="job in stage.jobs" :key="job.id" class="job" :href="job.url" :title="job.status" @click.prevent="openUrl(job.url)">
-              <StatusIcon :tone="pipelineTone(jobTone(job.status))" />
-              <span class="job-name">{{ job.name }}</span>
-              <span class="job-status">{{ job.status }}</span>
-            </a>
-          </div>
+          <PipelineJobs v-if="pipeline?.jobs.length" compact />
         </section>
 
         <section v-if="props.request.reviewers.length" class="fact" data-testid="cr-fact-reviewers">
@@ -116,7 +101,7 @@ const stages = computed(() => {
           </UiButton>
           <span v-else class="pipe-id" data-testid="cr-fact-no-session">{{ t('forge.request.noSession') }}</span>
           <template v-if="request.state === 'open'">
-            <VButton size="small" severity="secondary" :label="`${watching ? t('attention.watch.actionOn') : t('attention.watch.action')} ${number}`" :aria-pressed="watching" data-testid="cr-fact-watch" @click="toggleWatch(target)">
+            <VButton size="small" severity="secondary" :label="watching ? t('attention.watch.stopWatching') : `${t('attention.watch.action')} ${number}`" :aria-pressed="watching" data-testid="cr-fact-watch" @click="toggleWatch(target)">
               <template #icon><Eye :size="14" /></template>
             </VButton>
             <p class="pipe-id hint-text">{{ t('attention.watch.idle') }}</p>
@@ -161,6 +146,10 @@ const stages = computed(() => {
 .muted {
   margin: 0;
   color: var(--vr-color-text-muted);
+}
+
+.muted.subtle {
+  color: var(--vr-color-text-subtle);
 }
 
 .discussions-head {
@@ -286,50 +275,6 @@ const stages = computed(() => {
 
 .fact :deep(button[data-testid='cr-fact-watch']) {
   align-self: flex-start;
-}
-
-.stage {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.stage-name {
-  padding-top: var(--vr-space-1);
-  color: var(--vr-color-text-muted);
-  font-size: var(--vr-font-size-xs);
-}
-
-.job {
-  display: flex;
-  align-items: center;
-  gap: var(--vr-space-2);
-  min-height: var(--vr-size-row);
-  padding: 0 var(--vr-space-2);
-  color: var(--vr-color-text);
-  font-size: var(--vr-font-size-sm);
-  text-decoration: none;
-  border-radius: var(--vr-radius-sm);
-  cursor: pointer;
-}
-
-.job:hover {
-  background: var(--vr-color-nav-hover);
-}
-
-.job-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  font-family: var(--vr-font-mono);
-  font-size: var(--vr-font-size-xs);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.job-status {
-  color: var(--vr-color-text-muted);
-  font-size: var(--vr-font-size-xs);
 }
 
 .reviewer {

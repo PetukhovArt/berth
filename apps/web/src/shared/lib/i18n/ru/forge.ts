@@ -50,6 +50,9 @@ export const forge: Translation<typeof en> = {
     keysHint: 'Клавиши в «Изменениях»: j/k — файлы, n/p — нерешённые обсуждения',
     loadingChanges: 'Загрузка изменений…',
     noPipeline: 'У этого запроса нет пайплайна',
+    loadFailed: 'Не удалось загрузить {number}: {reason}',
+    discussionsFailed: 'Не удалось загрузить обсуждения',
+    pipelineFailed: 'Не удалось загрузить пайплайн',
   },
   pipelineJobs: {
     empty: 'В пайплайне нет задач',

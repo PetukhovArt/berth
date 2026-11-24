@@ -47,6 +47,9 @@ export const forge = {
     keysHint: 'Keys in Changes: j/k — files, n/p — unresolved threads',
     loadingChanges: 'Loading changes…',
     noPipeline: 'This request has no pipeline',
+    loadFailed: 'Could not load {number}: {reason}',
+    discussionsFailed: 'Could not load the discussions',
+    pipelineFailed: 'Could not load the pipeline',
   },
   pipelineJobs: {
     empty: 'The pipeline has no jobs',

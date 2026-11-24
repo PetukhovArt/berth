@@ -1,14 +1,16 @@
 import type { PipelineStatus } from '../../../shared/api/connectors/api';
 
-const PIPELINE_TONE: Record<PipelineStatus, 'success' | 'crashed' | 'running' | 'idle'> = {
+type PipelineTone = 'success' | 'crashed' | 'running' | 'pending' | 'canceled' | 'idle';
+
+const PIPELINE_TONE: Record<PipelineStatus, PipelineTone> = {
   success: 'success',
   failed: 'crashed',
   running: 'running',
-  pending: 'idle',
-  canceled: 'idle',
+  pending: 'pending',
+  canceled: 'canceled',
   none: 'idle',
 };
 
-export function pipelineTone(status: PipelineStatus): 'success' | 'crashed' | 'running' | 'idle' {
+export function pipelineTone(status: PipelineStatus): PipelineTone {
   return PIPELINE_TONE[status];
 }

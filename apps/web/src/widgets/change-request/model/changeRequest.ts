@@ -25,7 +25,8 @@ export function createChangeRequest(source: () => ChangeRequestRef, scope: Scope
   const files = shallowRef<DiffFile[]>([]);
   const loading = shallowRef(false);
   const failure = shallowRef<string | null>(null);
-  const sideFailure = shallowRef<string | null>(null);
+  const discussionsFailure = shallowRef<string | null>(null);
+  const pipelineFailure = shallowRef<string | null>(null);
   const diffLoading = shallowRef(false);
   const diffFailure = shallowRef<string | null>(null);
   const diffLoaded = shallowRef(false);
@@ -59,7 +60,8 @@ export function createChangeRequest(source: () => ChangeRequestRef, scope: Scope
     const ticket = ++generation;
     loading.value = true;
     failure.value = null;
-    sideFailure.value = null;
+    discussionsFailure.value = null;
+    pipelineFailure.value = null;
     try {
       const [request, threads, run] = await scope.load(Promise.allSettled([forgeChangeRequest(target.value), forgeDiscussions(target.value), forgePipeline(target.value)]));
       if (ticket !== generation) return;
@@ -70,8 +72,8 @@ export function createChangeRequest(source: () => ChangeRequestRef, scope: Scope
       cr.value = request.value;
       discussions.value = threads.status === 'fulfilled' ? threads.value : [];
       pipeline.value = run.status === 'fulfilled' ? run.value : null;
-      const problems = [threads, run].filter((r): r is PromiseRejectedResult => r.status === 'rejected');
-      sideFailure.value = problems.length ? problems.map((p) => describeError(p.reason)).join('; ') : null;
+      discussionsFailure.value = threads.status === 'rejected' ? describeError(threads.reason) : null;
+      pipelineFailure.value = run.status === 'rejected' ? describeError(run.reason) : null;
       if (tab.value === 'diff' || diffLoaded.value) await loadDiff();
     } finally {
       if (ticket === generation) loading.value = false;
@@ -128,7 +130,7 @@ export function createChangeRequest(source: () => ChangeRequestRef, scope: Scope
 
   scope.add(
     onConnectorRecovered((id) => {
-      if (id === target.value.connector && (failure.value !== null || sideFailure.value !== null)) void load();
+      if (id === target.value.connector && (failure.value !== null || discussionsFailure.value !== null || pipelineFailure.value !== null)) void load();
     }),
   );
 
@@ -140,7 +142,8 @@ export function createChangeRequest(source: () => ChangeRequestRef, scope: Scope
     files,
     loading,
     failure,
-    sideFailure,
+    discussionsFailure,
+    pipelineFailure,
     diffLoading,
     diffFailure,
     diffLoaded,

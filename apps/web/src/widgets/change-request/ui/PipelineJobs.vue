@@ -7,6 +7,8 @@ import { StatusIcon } from '../../../entities/session';
 import { useChangeRequest } from '../model/change-request-scope';
 import { pipelineTone } from '../model/pipelineTone';
 
+defineProps<{ compact?: boolean }>();
+
 const { pipeline } = useChangeRequest();
 const pipelineJobs = computed(() => pipeline.value?.jobs ?? []);
 
@@ -22,17 +24,19 @@ const stages = computed(() => {
 </script>
 
 <template>
-  <div class="jobs" data-testid="pipeline-jobs">
+  <div class="jobs" :data-compact="compact" data-testid="pipeline-jobs">
     <p v-if="!pipelineJobs.length" class="empty">{{ t('forge.pipelineJobs.empty') }}</p>
     <section v-for="stage in stages" :key="stage.name" class="stage">
       <h4>{{ stage.name }}</h4>
-      <div v-for="job in stage.jobs" :key="job.id" class="job" :title="job.status" data-testid="pipeline-job">
+      <component :is="compact ? 'a' : 'div'" v-for="job in stage.jobs" :key="job.id" class="job" :title="job.status" :href="compact ? job.url : undefined" data-testid="pipeline-job" @click.prevent="compact && openUrl(job.url)">
         <StatusIcon :tone="pipelineTone(jobTone(job.status))" />
         <span class="name">{{ job.name }}</span>
         <span class="status">{{ job.status }}</span>
-        <span class="duration">{{ formatDuration(job.duration_s) || '—' }}</span>
-        <a class="open" :href="job.url" data-testid="pipeline-job-open" @click.prevent="openUrl(job.url)">{{ t('common.open') }}</a>
-      </div>
+        <template v-if="!compact">
+          <span class="duration">{{ formatDuration(job.duration_s) || '—' }}</span>
+          <a class="open" :href="job.url" data-testid="pipeline-job-open" @click.prevent="openUrl(job.url)">{{ t('common.open') }}</a>
+        </template>
+      </component>
     </section>
   </div>
 </template>
@@ -120,5 +124,40 @@ h4 {
 
 .open:hover {
   text-decoration: underline;
+}
+
+.jobs[data-compact='true'] {
+  gap: var(--vr-space-1);
+}
+
+.jobs[data-compact='true'] .stage {
+  gap: 2px;
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+
+.jobs[data-compact='true'] h4 {
+  height: auto;
+  padding: var(--vr-space-1) 0 0;
+  font-weight: 400;
+  border-bottom: none;
+}
+
+.jobs[data-compact='true'] .job {
+  height: auto;
+  min-height: var(--vr-size-row);
+  padding: 0 var(--vr-space-2);
+  text-decoration: none;
+  border-radius: var(--vr-radius-sm);
+  cursor: pointer;
+}
+
+.jobs[data-compact='true'] .job + .job {
+  border-top: none;
+}
+
+.jobs[data-compact='true'] .status {
+  font-size: var(--vr-font-size-2xs);
 }
 </style>

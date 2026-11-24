@@ -12,6 +12,7 @@ export const attention = {
     idle: 'Berth types into the Agent when the pipeline fails, a thread opens or the target branch conflicts',
     sent: 'Sent to the Agent: {text}',
     stop: 'Stop',
+    stopWatching: 'Stop watching',
   },
   inbox: {
     title: 'Inbox',

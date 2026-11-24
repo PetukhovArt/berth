@@ -31,7 +31,7 @@ export function idleHintKey(reason: IdleReason) {
 
 export function stepLabelKey(step: NextStep) {
   if (step.kind === 'pull') return 'gitStep.pull' as const;
-  if (step.kind === 'idle') return 'gitStep.commitAndPush' as const;
+  if (step.kind === 'idle') return step.reason === 'upToDate' ? ('gitStep.commit' as const) : ('gitStep.commitAndPush' as const);
   if (step.commit) {
     if (step.create) return 'gitStep.commitPushCreate' as const;
     return step.push ? 'gitStep.commitAndPush' as const : 'gitStep.commit' as const;

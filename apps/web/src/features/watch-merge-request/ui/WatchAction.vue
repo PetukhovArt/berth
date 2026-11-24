@@ -26,3 +26,10 @@ const on = computed(() => isWatching(props.target));
     <template #icon><Eye :size="14" /></template>
   </VButton>
 </template>
+
+<style scoped>
+button[aria-pressed='true'] {
+  --p-button-secondary-background: var(--vr-color-nav-active);
+  --p-button-secondary-hover-background: var(--vr-color-nav-active);
+}
+</style>

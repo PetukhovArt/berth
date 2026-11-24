@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { useHollow } from '../lib/hollow';
 import type { SessionStatus } from '../model/berth';
 
-type Tone = 'running' | 'feedback' | 'limit' | 'unseen' | 'finished' | 'crashed' | 'idle' | 'success' | 'fresh' | 'stopped' | 'ended';
+type Tone = 'running' | 'feedback' | 'limit' | 'unseen' | 'finished' | 'crashed' | 'idle' | 'success' | 'fresh' | 'stopped' | 'ended' | 'pending' | 'canceled';
 type Glyph = { tone: Tone; d: string };
 
 const props = defineProps<{ status?: SessionStatus | undefined; unseen?: boolean; tone?: Tone; stopped?: boolean }>();
@@ -40,6 +40,8 @@ const TONE_GLYPHS: Record<Tone, string> = {
   fresh: RING,
   stopped: `${RING} M6.3 6.3h3.4v3.4H6.3z`,
   ended: `${RING} M5.5 8h5`,
+  pending: `${RING} M8 5v3.2l2 1.3`,
+  canceled: `${RING} M4.2 11.8l7.6-7.6`,
 };
 
 const UNSEEN: Glyph = { tone: 'unseen', d: UNSEEN_D };

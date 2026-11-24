@@ -10,12 +10,18 @@
 - Added a `Starting berth…` screen while the daemon starts, and a screen with the reason and a `Copy details` button when it does not answer within 8 seconds
 - Added a `Nothing here yet` card to the Projects tree when berth has no project, with `Open the Welcome page` to bring back a skipped Welcome page
 - Added the GitHub and GitLab hosts you are signed in to on this machine to Merge requests on the Welcome page as checked boxes that `Start` connects
+- Added a loading skeleton to the merge request page, and a `Could not load !N` line with `Refresh` when the request fails; a failed discussions or pipeline fetch gets its own line instead of one shared red error
 - Changed draft merge requests in the sidebar tree to show a draft icon before the number instead of a Draft label before the title
 - Changed the sidebar to show every session as `connecting…` or `unknown` with a dashed mark while the daemon is not answering, and the Inbox to say when it was last up to date
 - Changed the active tab of a session to underline in the colour of its status
 - Changed the subagent group in the Chat to show the total time of its subagents, and the Subagents working strip to say how many of them work and to name those
 - Changed the message while you hold the push to talk key to read `Listening… release to send`, and red buttons such as Delete forever and the Stop button in the Chat composer to use one red that reads on both themes
 - Changed Ctrl+Enter in New session to start the session in the background and keep the dialog open for the next one, with a line that names what started and an `Open` link
+- Changed a pending pipeline to show a clock and a canceled one a slash, instead of the same grey ring, in the Projects tree, in search and on the merge request page
+- Changed the merge request header: Open, Draft and Conflicts are tinted chips, the state icon is blue for open and draft, grey for closed, and a merged request no longer shows Conflicts
+- Changed the merge request page to show `No pipeline` in the header and the Pipeline section when there is none, and the Pipeline tab to centre its empty messages
+- Changed the Watch button of a merge request to stay highlighted while you watch it, and the Watch button in the facts panel to read `Stop watching`
+- Changed the git step button to read `Commit` instead of `Commit and push` while there is nothing to do
 
 ## 0.22.0 (2026-11-24)
 
