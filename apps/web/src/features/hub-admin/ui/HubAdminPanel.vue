@@ -35,10 +35,7 @@ onMounted(() => void refreshHub());
       <div v-if="state === 'member'" class="block" data-testid="hub-admin-state-member">
         <p class="muted">{{ t(me.permissions.length ? 'hub.me.grants' : 'hub.me.grantsNone') }}</p>
         <ul v-if="me.permissions.length" class="grants" data-testid="hub-admin-me-permissions">
-          <li v-for="key in me.permissions" :key="key" class="grant" :data-testid="`hub-admin-me-permission-${key}`">
-            <span class="grant-label">{{ permissionLabel(key) }}</span>
-            <span class="muted">{{ permissionHint(key) }}</span>
-          </li>
+          <li v-for="key in me.permissions" :key="key" class="grant" :title="permissionHint(key)" :data-testid="`hub-admin-me-permission-${key}`">{{ permissionLabel(key) }}</li>
         </ul>
         <p class="muted">{{ t('hub.me.notAdmin') }}</p>
       </div>
@@ -100,21 +97,18 @@ onMounted(() => void refreshHub());
 
 .grants {
   display: flex;
-  flex-direction: column;
-  gap: var(--vr-space-2);
+  flex-wrap: wrap;
+  gap: var(--vr-space-1);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .grant {
-  display: flex;
-  flex-direction: column;
-  font-size: var(--vr-font-size-sm);
-}
-
-.grant-label {
-  font-weight: 500;
+  padding: 0 var(--vr-space-2);
+  font-size: var(--vr-font-size-xs);
+  background: var(--vr-color-chip-bg);
+  border-radius: var(--vr-radius-full);
 }
 
 .sections {
@@ -122,5 +116,6 @@ onMounted(() => void refreshHub());
   flex-direction: column;
   gap: var(--vr-space-5);
   min-width: 0;
+  max-width: 47.5rem;
 }
 </style>

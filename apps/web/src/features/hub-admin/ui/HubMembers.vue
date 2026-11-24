@@ -1,18 +1,15 @@
 <script setup lang="ts">
-import { computed, shallowRef, useTemplateRef } from 'vue';
+import { computed, shallowRef } from 'vue';
 import { VButton, VSelect } from '../../../shared/ui/kit';
-import ConfirmPopover from '../../../shared/ui/ConfirmPopover.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { HubMember, HubRole } from '../../../entities/session';
 import { useChanges } from '../model/changes';
 
 const props = defineProps<{ members: HubMember[]; roles: HubRole[]; me: string }>();
 
-const ORDER = { pending: 0, approved: 1, revoked: 2 } as const;
+const ORDER = { approved: 0, pending: 1, revoked: 2 } as const;
 
 const { busy, errors, run } = useChanges();
-const confirm = useTemplateRef<InstanceType<typeof ConfirmPopover>>('confirm');
-const revoking = shallowRef<HubMember | null>(null);
 const revision = shallowRef(0);
 
 const rows = computed(() => [...props.members].sort((a, b) => ORDER[a.status] - ORDER[b.status]));
@@ -23,18 +20,7 @@ async function setRole(member: HubMember, role: string) {
   if (!(await run(member.id, { SetRole: { member: member.id, role } }))) revision.value++;
 }
 
-function askRevoke(member: HubMember, event: MouseEvent) {
-  const target = event.currentTarget as HTMLElement;
-  revoking.value = member;
-  setTimeout(() => confirm.value?.show(target), 0);
-}
-
-async function confirmRevoke() {
-  const member = revoking.value;
-  if (!member) return;
-  await run(member.id, { Revoke: { member: member.id } });
-  confirm.value?.hide();
-}
+const revoke = (member: HubMember) => run(member.id, { Revoke: { member: member.id } });
 </script>
 
 <template>
@@ -46,7 +32,7 @@ async function confirmRevoke() {
     <p v-if="!rows.length" class="muted" data-testid="hub-admin-members-empty">{{ t('hub.members.empty') }}</p>
     <ul v-else class="list" data-testid="hub-admin-members-list">
       <li v-for="member in rows" :key="member.id" class="row" :data-status="member.status" :data-testid="`hub-admin-member-${member.id}`">
-        <span class="name" :title="member.name">{{ member.name }}</span>
+        <span class="name" :title="member.name">{{ member.id === me ? t('hub.members.you', { name: member.name }) : member.name }}</span>
         <span class="status" :data-testid="`hub-admin-member-status-${member.id}`">{{ t(`hub.members.status.${member.status}`) }}</span>
         <template v-if="member.status !== 'revoked'">
           <VSelect
@@ -72,21 +58,12 @@ async function confirmRevoke() {
             :disabled="busy.has(member.id) || member.id === me"
             :title="member.id === me ? t('hub.members.self') : undefined"
             :data-testid="`hub-admin-member-revoke-${member.id}`"
-            @click="askRevoke(member, $event)"
+            @click="revoke(member)"
           />
         </template>
         <p v-if="errors.get(member.id)" class="error" role="alert" :data-testid="`hub-admin-member-error-${member.id}`">{{ errors.get(member.id) }}</p>
       </li>
     </ul>
-    <ConfirmPopover
-      ref="confirm"
-      :question="t('hub.members.revokeQuestion', { name: revoking?.name ?? '' })"
-      :confirm-label="t('hub.members.revokeConfirm')"
-      :busy="revoking ? busy.has(revoking.id) : false"
-      testid="hub-admin-member-revoke-confirm"
-      @confirm="confirmRevoke"
-      @cancel="revoking = null"
-    />
   </section>
 </template>
 

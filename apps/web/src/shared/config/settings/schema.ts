@@ -22,10 +22,10 @@ export const CATEGORIES = [
   { id: 'files', label: 'files.settings.category' },
   { id: 'connectors', label: 'settings.category.connectors' },
   { id: 'chat', label: 'settings.category.chat' },
-  { id: 'team', label: 'hub.category' },
   { id: 'remote', label: 'remote.category' },
   { id: 'app', label: 'update.category' },
   { id: 'keymap', label: 'settings.category.keymap' },
+  { id: 'team', label: 'hub.category' },
 ] as const satisfies readonly { readonly id: Category; readonly label: MessageKey }[];
 
 const FALLBACK_MONO = "'JetBrains Mono Variable', 'JetBrains Mono', Consolas, monospace";

@@ -238,7 +238,7 @@ onBeforeUnmount(() => {
     <p v-if="!noting.ok" class="denied" role="status" data-testid="channel-note-denied">{{ noting.reason }}</p>
     <form class="post" @submit.prevent="send">
       <UiTextarea v-model="draft" class="input" rows="2" :placeholder="t('attention.channel.placeholder')" :aria-label="t('attention.channel.placeholder')" :disabled="!posting.ok && !noting.ok" data-testid="channel-input" @keydown="onKeydown" />
-      <UiButton type="button" class="send" :disabled="busy || !noting.ok || !draft.trim()" :title="noting.ok ? t('attention.channel.noteHint') : noting.reason" data-testid="channel-note-send" @click="sendNote">{{ t('attention.channel.note') }}</UiButton>
+      <UiButton type="button" class="send note-send" :disabled="busy || !noting.ok || !draft.trim()" :title="noting.ok ? t('attention.channel.noteHint') : noting.reason" data-testid="channel-note-send" @click="sendNote">{{ t('attention.channel.note') }}</UiButton>
       <UiButton type="submit" class="send" :disabled="busy || !posting.ok || !draft.trim()" data-testid="channel-send">{{ t('attention.channel.send') }}</UiButton>
     </form>
   </section>
@@ -254,7 +254,7 @@ onBeforeUnmount(() => {
 }
 
 .head {
-  padding: var(--vr-space-2) var(--vr-space-3);
+  padding: var(--vr-space-2) var(--vr-space-4);
   font-size: var(--vr-font-size-sm);
   font-weight: 600;
   border-bottom: 1px solid var(--vr-color-border);
@@ -265,7 +265,8 @@ onBeforeUnmount(() => {
   gap: var(--vr-space-2);
   align-items: baseline;
   justify-content: space-between;
-  padding: var(--vr-space-1) var(--vr-space-3);
+  padding: var(--vr-space-2) var(--vr-space-4);
+  background: var(--vr-color-surface-muted);
   margin: 0;
   font-size: var(--vr-font-size-xs);
   border-bottom: 1px solid var(--vr-color-border);
@@ -292,7 +293,7 @@ onBeforeUnmount(() => {
 }
 
 .presence {
-  padding: var(--vr-space-1) var(--vr-space-3);
+  padding: 6px var(--vr-space-4);
   margin: 0;
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
@@ -303,7 +304,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: var(--vr-space-2);
-  padding: var(--vr-space-1) var(--vr-space-3);
+  padding: 6px var(--vr-space-4);
   margin: 0;
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
@@ -328,9 +329,9 @@ onBeforeUnmount(() => {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: var(--vr-space-3);
+  gap: var(--vr-space-4);
   min-height: 0;
-  padding: var(--vr-space-3);
+  padding: var(--vr-space-4);
   margin: 0;
   overflow-y: auto;
   list-style: none;
@@ -446,13 +447,13 @@ onBeforeUnmount(() => {
 }
 
 .error {
-  padding: 0 var(--vr-space-3);
+  padding: 0 var(--vr-space-4);
   font-size: var(--vr-font-size-xs);
   color: var(--vr-status-crashed);
 }
 
 .denied {
-  padding: var(--vr-space-1) var(--vr-space-3) 0;
+  padding: var(--vr-space-1) var(--vr-space-4) 0;
   margin: 0;
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
@@ -491,7 +492,19 @@ onBeforeUnmount(() => {
   border-radius: var(--vr-radius-md);
 }
 
-.send:disabled {
+.note-send {
+  color: var(--vr-color-text);
+  background: var(--vr-color-surface-muted);
+}
+
+.send:disabled,
+.action:disabled,
+.note-clear:disabled {
+  cursor: not-allowed;
   opacity: 0.5;
+}
+
+.input:disabled {
+  opacity: 0.6;
 }
 </style>

@@ -23,6 +23,9 @@
 - Changed the merge request page to show `No pipeline` in the header and the Pipeline section when there is none, and the Pipeline tab to centre its empty messages
 - Changed the Watch button of a merge request to stay highlighted while you watch it, and the Watch button in the facts panel to read `Stop watching`
 - Changed the git step button to read `Commit` instead of `Commit and push` while there is nothing to do
+- Changed the members list of the Team section in Settings to show approved members before the ones waiting for approval, to mark your own device with `(you)`, and to revoke a device without asking first
+- Changed the Team section to sit last in the Settings categories, and a role that is not Admin to list what it allows as chips
+- Changed the Task note button in the Channel view to a grey button beside Send, and the Task note banner, spacing and disabled controls to follow the design
 
 ## 0.22.0 (2026-11-24)
 
