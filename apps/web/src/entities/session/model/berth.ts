@@ -68,8 +68,8 @@ type WatchEvent =
   | { type: 'task_note'; worktree: string; text: string }
   | { type: 'acp_item'; agent: string; seq: number; item: AcpItem }
   | { type: 'acp_session'; agent: string; state: AcpSessionState }
-  | { type: 'channel_appended'; channel: string; seq: number }
   | { type: 'acp_truncated'; agent: string; from_seq: number }
+  | { type: 'channel_appended'; channel: string; seq: number }
   | { type: 'hub_changed' }
   | { type: 'error'; message: string };
 
@@ -94,7 +94,6 @@ export function onAcpItem(listener: (agent: string, item: AcpItemAt) => void): (
   return () => acpListeners.delete(listener);
 }
 
-const acpSessionListeners = new Set<(agent: string, state: AcpSessionState) => void>();
 const acpTruncatedListeners = new Set<(agent: string, fromSeq: number) => void>();
 
 export function onAcpTruncated(listener: (agent: string, fromSeq: number) => void): () => void {
@@ -102,6 +101,7 @@ export function onAcpTruncated(listener: (agent: string, fromSeq: number) => voi
   return () => acpTruncatedListeners.delete(listener);
 }
 
+const acpSessionListeners = new Set<(agent: string, state: AcpSessionState) => void>();
 
 export function onAcpSession(listener: (agent: string, state: AcpSessionState) => void): () => void {
   acpSessionListeners.add(listener);
@@ -338,14 +338,14 @@ function createStore(): BerthStore {
       case 'acp_item':
         for (const listener of acpListeners) listener(event.agent, { seq: event.seq, item: event.item });
         return;
+      case 'acp_truncated':
+        for (const listener of acpTruncatedListeners) listener(event.agent, event.from_seq);
+        return;
       case 'acp_session':
         for (const listener of acpSessionListeners) listener(event.agent, event.state);
         return;
       case 'channel_appended':
         for (const listener of channelListeners) listener(event.channel);
-      case 'acp_truncated':
-        for (const listener of acpTruncatedListeners) listener(event.agent, event.from_seq);
-        return;
         return;
       case 'hub_changed':
         for (const listener of hubListeners) listener();
@@ -523,15 +523,15 @@ export async function acpSendQueuedNow(agent: string, id: number): Promise<void>
   await acknowledged({ AcpSendQueuedNow: { agent, id } });
 }
 
+export async function acpRewind(agent: string, seq: number): Promise<void> {
+  await acknowledged({ AcpRewind: { agent, seq } });
+}
+
 export async function acpMcpStatus(agent: string): Promise<void> {
   await acknowledged({ AcpMcpStatus: { agent } });
 }
 
 export async function acpAttachment(blob: string): Promise<string> {
-export async function acpRewind(agent: string, seq: number): Promise<void> {
-  await acknowledged({ AcpRewind: { agent, seq } });
-}
-
   const reply = await call({ AcpAttachment: { blob } });
   if (!('AcpAttachment' in reply)) throw new BerthCallError(t('agents.errors.unexpectedReply', { reply: Object.keys(reply).join('') }));
   return reply.AcpAttachment.data;
