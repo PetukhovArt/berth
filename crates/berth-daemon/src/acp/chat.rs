@@ -46,6 +46,24 @@ impl Daemon {
         text: &str,
         uploads: Vec<AttachmentUpload>,
     ) -> Result<()> {
+        self.acp_submit(agent_id, text, uploads, false).await
+    }
+
+    pub(crate) async fn acp_instruct(
+        self: &Arc<Self>,
+        agent_id: &AgentId,
+        text: &str,
+    ) -> Result<()> {
+        self.acp_submit(agent_id, text, Vec::new(), true).await
+    }
+
+    async fn acp_submit(
+        self: &Arc<Self>,
+        agent_id: &AgentId,
+        text: &str,
+        uploads: Vec<AttachmentUpload>,
+        notice: bool,
+    ) -> Result<()> {
         let live = self.acp_ensure(agent_id)?;
         let sid = live.session_id().await?;
         live.touch();
@@ -74,7 +92,8 @@ impl Daemon {
             self.acp_push_state(agent_id, &live);
             return Ok(());
         }
-        self.acp_run_turn(agent_id, &live, sid, input, blocks).await;
+        self.acp_run_turn(agent_id, &live, sid, input, blocks, notice)
+            .await;
         Ok(())
     }
 
@@ -96,17 +115,18 @@ impl Daemon {
         sid: String,
         input: PromptInput,
         blocks: Vec<Value>,
+        notice: bool,
     ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
         let daemon = self.clone();
         let agent_id = agent_id.clone();
         let live = live.clone();
         Box::pin(async move {
-            let checkpoint = daemon.checkpoint_for_prompt(&agent_id).await;
             let prompt = input.text.clone();
-            daemon.acp_title_from_prompt(&agent_id, &input.text);
-            let pushed = daemon.acp_push(
-                &agent_id,
-                &live,
+            let item = if notice {
+                AcpItem::Notice { text: input.text }
+            } else {
+                let checkpoint = daemon.checkpoint_for_prompt(&agent_id).await;
+                daemon.acp_title_from_prompt(&agent_id, &input.text);
                 AcpItem::User {
                     text: input.text,
                     attachments: input.attachments,
@@ -114,8 +134,9 @@ impl Daemon {
                         checkpoint,
                         after: None,
                     }),
-                },
-            );
+                }
+            };
+            let pushed = daemon.acp_push(&agent_id, &live, item);
             *live.prompt_item.lock().unwrap() = pushed;
             daemon.apply_hook_event(&agent_id, HookEvent::UserPromptSubmit, Some(sid.clone()));
             let params = json!({"sessionId": sid, "prompt": blocks});
@@ -221,7 +242,7 @@ impl Daemon {
             self.acp_push_state(agent_id, live);
             match self.acp_blocks(agent_id, live, &next.prompt).await {
                 Ok(blocks) => {
-                    self.acp_run_turn(agent_id, live, sid, next.prompt, blocks)
+                    self.acp_run_turn(agent_id, live, sid, next.prompt, blocks, false)
                         .await;
                     return;
                 }

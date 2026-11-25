@@ -50,7 +50,7 @@ impl Daemon {
         }
         let (daemon, id, prompt) = (self.clone(), id.clone(), relocation_prompt(target));
         tokio::spawn(async move {
-            if let Err(error) = daemon.acp_prompt(&id, &prompt).await {
+            if let Err(error) = daemon.acp_instruct(&id, &prompt).await {
                 tracing::warn!(agent = %id, error = %error, "relocation prompt failed");
             }
         });
