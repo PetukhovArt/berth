@@ -54,6 +54,6 @@ defineExpose({ show, hide });
 .buttons {
   display: flex;
   justify-content: flex-end;
-  gap: var(--vr-space-1);
+  gap: var(--vr-space-2);
 }
 </style>
