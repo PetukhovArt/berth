@@ -1,11 +1,73 @@
 use anyhow::{bail, ensure, Context, Result};
 use berth_core::acp::{Answers, Choice, Question, QuestionForm};
+use serde::de::{IgnoredAny, MapAccess, Visitor};
+use serde::{Deserialize, Deserializer};
 use serde_json::{json, Map, Value};
+use std::fmt;
+
+const ORDER_KEY: &str = "x-berth-order";
+
+struct Keys(Vec<String>);
+
+impl<'de> Deserialize<'de> for Keys {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct Ordered;
+        impl<'de> Visitor<'de> for Ordered {
+            type Value = Keys;
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("an object")
+            }
+            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Keys, A::Error> {
+                let mut keys = Vec::new();
+                while let Some((key, IgnoredAny)) = map.next_entry::<String, IgnoredAny>()? {
+                    keys.push(key);
+                }
+                Ok(Keys(keys))
+            }
+        }
+        deserializer.deserialize_map(Ordered)
+    }
+}
+
+#[derive(Deserialize)]
+struct Frame {
+    params: FrameParams,
+}
+
+#[derive(Deserialize)]
+struct FrameParams {
+    #[serde(rename = "requestedSchema")]
+    schema: FrameSchema,
+}
+
+#[derive(Deserialize)]
+struct FrameSchema {
+    properties: Keys,
+}
+
+pub fn keep_question_order(line: &str, message: &mut Value) {
+    if message.get("method").and_then(Value::as_str) != Some("elicitation/create") {
+        return;
+    }
+    let Ok(Frame { params }) = serde_json::from_str(line) else {
+        return;
+    };
+    if let Some(schema) = message.pointer_mut("/params/requestedSchema") {
+        schema[ORDER_KEY] = json!(params.schema.properties.0);
+    }
+}
 
 pub fn form_from_schema(schema: &Value) -> Option<QuestionForm> {
     let properties = schema.get("properties")?.as_object()?;
-    let questions: Option<Vec<Question>> = properties
-        .iter()
+    let ordered: Vec<(&String, &Value)> = match schema.get(ORDER_KEY).and_then(Value::as_array) {
+        Some(ids) => ids
+            .iter()
+            .filter_map(|id| properties.get_key_value(id.as_str()?))
+            .collect(),
+        None => properties.iter().collect(),
+    };
+    let questions: Option<Vec<Question>> = ordered
+        .into_iter()
         .map(|(id, property)| question(id, property))
         .collect();
     questions

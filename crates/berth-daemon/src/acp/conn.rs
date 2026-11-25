@@ -143,10 +143,11 @@ async fn read_wire(
                 break;
             }
         };
-        let Ok(message) = serde_json::from_str::<Value>(&line) else {
+        let Ok(mut message) = serde_json::from_str::<Value>(&line) else {
             tracing::debug!("ACP agent wrote a non-JSON line to stdout");
             continue;
         };
+        super::questions::keep_question_order(&line, &mut message);
         if let Some(inbound) = route(message, &waiters, read_at) {
             if matches!(&inbound, Inbound::Notification { method, .. } if method == "session/update")
             {

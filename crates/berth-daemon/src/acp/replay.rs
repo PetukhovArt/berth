@@ -39,6 +39,9 @@ enum Step {
     EmitInbound {
         frame: Value,
     },
+    EmitRawInbound {
+        line: String,
+    },
     RuntimeExit {
         code: Option<i32>,
     },
@@ -438,6 +441,10 @@ impl Run {
                 }
                 Step::ExpectOutbound { frame } => self.expect_outbound(&frame).await?,
                 Step::EmitInbound { frame } => self.emit_inbound(frame)?,
+                Step::EmitRawInbound { line } => {
+                    let peer = self.peer.as_ref().context("no agent process")?;
+                    peer.to_berth.send(WireIn::line(line))?;
+                }
                 Step::Wait { ms } => {
                     tokio::time::pause();
                     tokio::time::advance(Duration::from_millis(ms)).await;
