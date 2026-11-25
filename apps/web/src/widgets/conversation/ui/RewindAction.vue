@@ -5,10 +5,9 @@ import { VDialog } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import DialogActions from '../../../shared/ui/DialogActions.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { acpRewind, describeError } from '../../../entities/session';
+import { describeError } from '../../../entities/session';
 
-const props = defineProps<{ agentId: string; seq: number; files: boolean; agentLabel: string }>();
-const emit = defineEmits<{ rewound: [] }>();
+const props = defineProps<{ seq: number; files: boolean; agentLabel: string; apply: (seq: number) => Promise<void> }>();
 
 const confirming = shallowRef(false);
 const busy = shallowRef(false);
@@ -24,9 +23,8 @@ async function rewind() {
   busy.value = true;
   error.value = null;
   try {
-    await acpRewind(props.agentId, props.seq);
+    await props.apply(props.seq);
     confirming.value = false;
-    emit('rewound');
   } catch (failure) {
     error.value = describeError(failure);
   } finally {

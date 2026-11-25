@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplate
 import { Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, TriangleAlert } from '../../../shared/ui/icons';
 import { VButton, VMessage } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
-import { AGENT_KIND_LABEL, clearHandoff, clearMessageFocus, messageFocusOf, continueInBerth, handoffOf, externalKey, externalOrigin, isChat, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePhases, derivePlan, PlanStrip, deriveSubagents, stripVisible, sendInput, useFeedbackRequest, sessionKey, stopAgent, useChat, useSessionStates, clearPromptQuotes, promptQuotesOf, removePromptQuote, type AcpAttachmentUpload, type SessionRef, type SlashSource } from '../../../entities/session';
+import { acpRewind, AGENT_KIND_LABEL, clearHandoff, clearMessageFocus, messageFocusOf, continueInBerth, handoffOf, externalKey, externalOrigin, isChat, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePhases, derivePlan, PlanStrip, deriveSubagents, stripVisible, sendInput, useFeedbackRequest, sessionKey, stopAgent, useChat, useSessionStates, clearPromptQuotes, promptQuotesOf, removePromptQuote, type AcpAttachmentUpload, type SessionRef, type SlashSource } from '../../../entities/session';
 import { showViewInActivePanel, worktreeOf } from '../../../features/session-view-switch';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
@@ -131,6 +131,10 @@ const opened = computed(() => (openedCall.value ? subagentOf.value.get(openedCal
 let savedScroll = 0;
 const checkpointOf = computed(() => checkpointsByPrompt(messages.value, checkpoints.value));
 const composer = useTemplateRef<InstanceType<typeof ChatComposer>>('composer');
+async function rewindTo(seq: number, text: string) {
+  await acpRewind(props.sessionId, seq);
+  composer.value?.restore([text]);
+}
 const rewindOf = computed(() => (acp?.session.value?.caps.rewind && !turnRunning.value ? acp.rewinds.value : undefined));
 const slashSource = computed<SlashSource | null>(() => {
   if (acp) return { acpAgent: props.sessionId };
@@ -424,7 +428,7 @@ onBeforeUnmount(() => {
         <ChatStates v-if="loading" class="column" state="loading" />
         <ChatStates v-else-if="shownError" class="column" state="error" :message="shownError" :can-show-terminal="!!terminal" @retry="retry" @show-terminal="showViewInActivePanel('terminal')" />
         <ChatStates v-else-if="!messages.length" class="column" state="empty" />
-        <ChatFeed v-else class="column" :blocks="blocks" :harness="harness" :agent-label="agentLabel" :root="root" :place="place" :panel-id="panelId" :agent-id="agentId" :checkpoint-of="checkpointOf" :rewind-of="rewindOf" :spoken="spoken" :subagent-of="subagentOf" :now="now" :found="found" :notes="notes" :working-since="workingSince" :queued="acp?.session.value?.queue" :can-send-now="acp?.session.value?.caps.steer" @restored="loadCheckpoints" @rewound="(text) => composer?.restore([text])" @open-subagent="openSubagent" @edit-queued="(id, text) => acp?.editQueued(id, text).catch(fail)" @remove-queued="(id) => acp?.removeQueued(id).catch(fail)" @send-queued-now="(id) => acp?.sendQueuedNow(id).catch(fail)" />
+        <ChatFeed v-else class="column" :blocks="blocks" :harness="harness" :agent-label="agentLabel" :root="root" :place="place" :panel-id="panelId" :agent-id="agentId" :checkpoint-of="checkpointOf" :rewind-of="rewindOf" :spoken="spoken" :subagent-of="subagentOf" :now="now" :found="found" :notes="notes" :working-since="workingSince" :queued="acp?.session.value?.queue" :can-send-now="acp?.session.value?.caps.steer" @restored="loadCheckpoints" :rewind="rewindTo" @open-subagent="openSubagent" @edit-queued="(id, text) => acp?.editQueued(id, text).catch(fail)" @remove-queued="(id) => acp?.removeQueued(id).catch(fail)" @send-queued-now="(id) => acp?.sendQueuedNow(id).catch(fail)" />
       </div>
       <FeedbackCard v-if="terminal && request" class="column" :session="terminal" :request="request" :agent-label="agentLabel" :place="place" :questions="acp?.session.value?.caps.questions" :panel-id="panelId" @resolved="noteResolved" />
       <div v-if="acp" class="column agent-log" data-testid="chat-agent-log">
