@@ -1,8 +1,9 @@
 use super::conn::RpcError;
+use super::driver::STEER;
 use super::{files, map, prompt, AcpLive, AUTO_TITLE_CHARS};
 use crate::registry::Daemon;
 use crate::status::HookEvent;
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, ensure, Context, Result};
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use berth_core::acp::{
@@ -210,6 +211,63 @@ impl Daemon {
         }
         self.acp_push_state(agent_id, &live);
         Ok(())
+    }
+
+    pub async fn acp_send_queued_now(
+        self: &Arc<Self>,
+        agent_id: &AgentId,
+        id: QueueId,
+    ) -> Result<()> {
+        let live = self.acp.get(agent_id).context("the agent is not running")?;
+        ensure!(
+            live.state.lock().unwrap().caps.steer,
+            "this agent cannot take a message during a turn"
+        );
+        let sid = live.session_id().await?;
+        let (at, queued) = {
+            let mut state = live.state.lock().unwrap();
+            ensure!(
+                live.turn_open.load(Ordering::SeqCst),
+                "the turn already ended"
+            );
+            let at = state
+                .queue
+                .iter()
+                .position(|queued| queued.id == id)
+                .context("that message was already sent")?;
+            (at, state.queue.remove(at))
+        };
+        self.acp_push_state(agent_id, &live);
+        let steered = async {
+            let prompt = self.acp_blocks(agent_id, &live, &queued.prompt).await?;
+            live.conn
+                .request(STEER, json!({"sessionId": sid, "prompt": prompt}))
+                .await
+                .map_err(|error| anyhow!("{error}"))
+        }
+        .await;
+        match steered {
+            Ok(_) => {
+                self.acp_push(
+                    agent_id,
+                    &live,
+                    AcpItem::User {
+                        text: queued.prompt.text,
+                        attachments: queued.prompt.attachments,
+                    },
+                );
+                Ok(())
+            }
+            Err(error) => {
+                {
+                    let mut state = live.state.lock().unwrap();
+                    let at = at.min(state.queue.len());
+                    state.queue.insert(at, queued);
+                }
+                self.acp_push_state(agent_id, &live);
+                Err(error)
+            }
+        }
     }
 
     pub async fn acp_set_option(

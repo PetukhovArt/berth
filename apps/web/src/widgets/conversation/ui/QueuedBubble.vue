@@ -6,8 +6,8 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import type { AcpQueuedPrompt } from '../../../entities/session';
 import StoredAttachments from './StoredAttachments.vue';
 
-const props = defineProps<{ item: AcpQueuedPrompt; agentLabel: string }>();
-const emit = defineEmits<{ edit: [id: number, text: string]; remove: [id: number] }>();
+const props = defineProps<{ item: AcpQueuedPrompt; agentLabel: string; canSendNow?: boolean }>();
+const emit = defineEmits<{ edit: [id: number, text: string]; remove: [id: number]; sendNow: [id: number] }>();
 
 const editing = shallowRef(false);
 const draft = shallowRef('');
@@ -52,6 +52,7 @@ function onKey(event: KeyboardEvent) {
         <UiButton type="button" class="link" data-testid="queue-cancel" @click="editing = false">{{ t('chat.queued.cancel') }}</UiButton>
       </template>
       <UiButton v-else type="button" class="link" data-testid="queue-edit" @click="startEdit">{{ t('chat.queued.edit') }}</UiButton>
+      <UiButton v-if="canSendNow && !editing" type="button" class="link" data-testid="queue-send-now" @click="emit('sendNow', item.id)">{{ t('chat.queued.sendNow') }}</UiButton>
       <UiButton type="button" class="link" data-testid="queue-remove" @click="emit('remove', item.id)">{{ t('chat.queued.remove') }}</UiButton>
     </div>
   </div>

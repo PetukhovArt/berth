@@ -17,6 +17,7 @@ use tokio::sync::{broadcast, mpsc};
 
 const ANY: &str = "<any>";
 const WORKSPACE: &str = "<workspace>";
+const SENT_UUID: &str = "<sent-uuid>";
 const OUTBOUND_WAIT: Duration = Duration::from_secs(30);
 const IDLE_PROBE: Duration = Duration::from_millis(1);
 const BLESS_VAR: &str = "BERTH_REPLAY_BLESS";
@@ -70,6 +71,9 @@ enum Call {
         text: String,
     },
     RemoveQueued {
+        id: u64,
+    },
+    SendQueuedNow {
         id: u64,
     },
     Stop,
@@ -132,6 +136,7 @@ struct Run {
     provider: Option<AcpProvider>,
     agent: Option<AgentId>,
     peer: Option<Peer>,
+    sent_uuid: Option<String>,
 }
 
 fn git(repo: &Path, args: &[&str]) {
@@ -243,6 +248,7 @@ impl Run {
             provider: None,
             agent: None,
             peer: None,
+            sent_uuid: None,
         })
     }
 
@@ -303,6 +309,11 @@ impl Run {
             Call::RemoveQueued { id } => {
                 self.daemon.acp_remove_queued(self.agent()?, QueueId(id))?
             }
+            Call::SendQueuedNow { id } => {
+                self.daemon
+                    .acp_send_queued_now(self.agent()?, QueueId(id))
+                    .await?
+            }
             Call::Stop => {
                 self.daemon
                     .stop_agent_or_its_acp_turn(self.agent()?)
@@ -349,11 +360,17 @@ impl Run {
             matches(expected, &actual, &self.workspace),
             "outbound frame differs\n  expected {expected}\n  actual   {actual}"
         );
+        if let Some(uuid) = actual.get("uuid").and_then(Value::as_str) {
+            self.sent_uuid = Some(uuid.to_string());
+        }
         Ok(())
     }
 
     fn emit_inbound(&self, mut frame: Value) -> Result<()> {
-        map_strings(&mut frame, &|s| s.replace(WORKSPACE, &self.workspace));
+        map_strings(&mut frame, &|s| match (s, &self.sent_uuid) {
+            (SENT_UUID, Some(uuid)) => uuid.clone(),
+            _ => s.replace(WORKSPACE, &self.workspace),
+        });
         let peer = self.peer.as_ref().context("no agent process")?;
         peer.to_berth.send(WireIn::line(frame.to_string()))?;
         Ok(())

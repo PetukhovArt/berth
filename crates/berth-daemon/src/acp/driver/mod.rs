@@ -6,7 +6,7 @@ mod options;
 mod shape;
 mod translator;
 
-pub use translator::{MCP_STATUS, REWIND};
+pub use translator::{MCP_STATUS, REWIND, STEER};
 
 use super::providers::AcpProvider;
 use super::wire::{Host, Wire};

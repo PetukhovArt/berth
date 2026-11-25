@@ -137,14 +137,18 @@ pub fn chat_caps(initialized: &Value) -> ChatCaps {
             .unwrap_or(false)
     };
     let berth = initialized.pointer("/agentCapabilities/_meta/berth");
+    let flag = |key: &str| {
+        berth
+            .and_then(|meta| meta.get(key))
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+    };
     ChatCaps {
         images: prompt("image"),
         embedded_files: prompt("embeddedContext"),
         questions: Questions::Typed,
-        rewind: berth
-            .and_then(|meta| meta.get("rewind"))
-            .and_then(Value::as_bool)
-            .unwrap_or(false),
+        rewind: flag("rewind"),
+        steer: flag("steer"),
         mcp: match berth.and_then(|meta| str_at(meta, "mcp")) {
             Some("none") => McpAccess::None,
             Some("toggle") => McpAccess::Toggle,

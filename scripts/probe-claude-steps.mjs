@@ -1,6 +1,6 @@
 const KEEP = {
   assistant: ['type', 'message', 'parent_tool_use_id', 'session_id', 'uuid'],
-  user: ['type', 'message', 'parent_tool_use_id', 'session_id', 'uuid'],
+  user: ['type', 'message', 'parent_tool_use_id', 'session_id', 'uuid', 'isReplay'],
   stream_event: ['type', 'event', 'parent_tool_use_id', 'session_id', 'uuid', 'api_message_id'],
   result: ['type', 'subtype', 'is_error', 'stop_reason', 'terminal_reason', 'result', 'session_id', 'uuid'],
 };
@@ -149,7 +149,7 @@ export const claudeSteps = ({ parts, scrub, scrubText, provider, scenario }) => 
         if (request.subtype === 'set_model') steps.push({ type: 'berth', call: { call: 'set_option', args: { id: 'model', value: request.model } } });
         else if (request.subtype === 'apply_flag_settings') steps.push({ type: 'berth', call: { call: 'set_option', args: { id: 'effort', value: request.settings.effortLevel } } });
         else if (request.subtype === 'interrupt') steps.push({ type: 'berth', call: { call: 'stop' } });
-        else if (request.subtype !== 'initialize') throw new Error(`no berth call produces ${request.subtype}`);
+        else if (!['initialize', 'mcp_status'].includes(request.subtype)) throw new Error(`no berth call produces ${request.subtype}`);
       } else if (frame.type === 'control_response') {
         steps.push({ type: 'berth', call: { call: 'answer', args: answerFor(pending, frame.response.response) } });
         if (!pending.questions && frame.response.response.behavior === 'deny') {

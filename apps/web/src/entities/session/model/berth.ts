@@ -502,6 +502,10 @@ export async function acpRemoveQueued(agent: string, id: number): Promise<void> 
   await acknowledged({ AcpRemoveQueued: { agent, id } });
 }
 
+export async function acpSendQueuedNow(agent: string, id: number): Promise<void> {
+  await acknowledged({ AcpSendQueuedNow: { agent, id } });
+}
+
 export async function acpMcpStatus(agent: string): Promise<void> {
   await acknowledged({ AcpMcpStatus: { agent } });
 }

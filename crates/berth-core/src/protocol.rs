@@ -523,6 +523,12 @@ pub enum ClientRequest {
         id: QueueId,
     },
 
+    AcpSendQueuedNow {
+        req_id: u64,
+        agent: AgentId,
+        id: QueueId,
+    },
+
     AcpMcpStatus {
         req_id: u64,
         agent: AgentId,

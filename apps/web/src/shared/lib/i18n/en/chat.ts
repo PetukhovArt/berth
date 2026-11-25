@@ -62,6 +62,7 @@ export const chat = {
     save: 'Save',
     cancel: 'Cancel',
     remove: 'Remove',
+    sendNow: 'Send now',
   },
   option: { applyOnRestart: 'Applies from the next start' },
   mcp: { title: 'MCP servers', refresh: 'Refresh', configured: 'configured', connected: 'connected', failed: 'failed', pending: 'connecting', needsAuth: 'needs sign-in', disabled: 'disabled' },

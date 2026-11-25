@@ -5,7 +5,7 @@ mod options;
 mod tools;
 
 use super::options::Model;
-use super::translator::{run, text_at, Frame, Outputs, Translator, MCP_STATUS, REWIND};
+use super::translator::{run, text_at, Frame, Outputs, Translator, MCP_STATUS, REWIND, STEER};
 use super::Driver;
 use crate::acp::providers::AcpProvider;
 use crate::acp::wire::{Host, LaunchSpec, Wire};
@@ -71,7 +71,16 @@ struct ClaudeTranslator {
     streamed: HashSet<String>,
     plan_tools: HashSet<String>,
     last_assistant: Option<String>,
+    steered: Vec<String>,
     next_control: u64,
+}
+
+fn prompt_blocks(params: &Value) -> Result<&[Value]> {
+    params
+        .get("prompt")
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        .ok_or_else(|| anyhow!("the prompt has no blocks"))
 }
 
 fn new_session_id() -> String {
@@ -106,6 +115,7 @@ impl ClaudeTranslator {
             streamed: HashSet::new(),
             plan_tools: HashSet::new(),
             last_assistant: None,
+            steered: Vec::new(),
             next_control: 0,
         }
     }
@@ -125,6 +135,7 @@ impl ClaudeTranslator {
             "--permission-prompt-tool",
             "stdio",
             "--include-partial-messages",
+            "--replay-user-messages",
         ]
         .iter()
         .map(|arg| arg.to_string())
@@ -188,6 +199,7 @@ impl ClaudeTranslator {
         self.controls.clear();
         self.streamed.clear();
         self.plan_tools.clear();
+        self.steered.clear();
     }
 
     fn request(
@@ -205,7 +217,7 @@ impl ClaudeTranslator {
                     "agentCapabilities": {
                         "sessionCapabilities": {"resume": {}},
                         "promptCapabilities": {"image": true, "embeddedContext": true},
-                        "_meta": {"berth": {"rewind": true, "mcp": "list"}},
+                        "_meta": {"berth": {"rewind": true, "steer": true, "mcp": "list"}},
                     },
                     "authMethods": [],
                 }),
@@ -230,14 +242,18 @@ impl ClaudeTranslator {
             }
             "session/prompt" => {
                 ensure!(self.turn.is_none(), "a turn is already open");
-                let blocks = params
-                    .get("prompt")
-                    .and_then(Value::as_array)
-                    .ok_or_else(|| anyhow!("the prompt has no blocks"))?;
+                let blocks = prompt_blocks(params)?;
                 self.ensure_native(out)?;
-                out.send_native(&blocks::user_message(blocks))?;
+                out.send_native(&blocks::user_message(blocks, None))?;
                 self.turn = Some(id);
                 self.interrupted = false;
+            }
+            STEER => {
+                ensure!(self.turn.is_some(), "no turn is open");
+                let uuid = new_session_id();
+                out.send_native(&blocks::user_message(prompt_blocks(params)?, Some(&uuid)))?;
+                self.steered.push(uuid);
+                out.reply(id, json!({}));
             }
             REWIND => {
                 ensure!(self.turn.is_none(), "a turn is open");
@@ -452,6 +468,9 @@ impl ClaudeTranslator {
     }
 
     fn user(&mut self, frame: &Value, out: &mut Outputs) {
+        if frame["isReplay"] == json!(true) {
+            self.steered.retain(|uuid| uuid != text_at(frame, "uuid"));
+        }
         for block in frame["message"]["content"].as_array().into_iter().flatten() {
             let id = text_at(block, "tool_use_id");
             if text_at(block, "type") == "tool_result" && !self.plan_tools.contains(id) {
@@ -507,6 +526,9 @@ impl ClaudeTranslator {
     }
 
     fn result(&mut self, frame: &Value, out: &mut Outputs) {
+        if !self.interrupted && !self.steered.is_empty() {
+            return;
+        }
         let Some(id) = self.turn.take() else {
             return;
         };
@@ -534,6 +556,7 @@ impl ClaudeTranslator {
             out.fail(id, message);
         }
         self.interrupted = false;
+        self.steered.clear();
         self.streamed.clear();
     }
 }

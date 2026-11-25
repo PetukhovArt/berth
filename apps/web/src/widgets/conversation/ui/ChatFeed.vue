@@ -32,10 +32,11 @@ const props = withDefaults(
     notes?: readonly FeedNote[];
     workingSince?: number | null;
     queued?: readonly AcpQueuedPrompt[];
+    canSendNow?: boolean;
   }>(),
   { place: '', panelId: undefined, agentId: null, checkpointOf: () => new Map(), spoken: () => new Set(), subagentsOpenable: true, found: null, notes: () => [], workingSince: null, queued: () => [] },
 );
-const emit = defineEmits<{ restored: []; openSubagent: [callId: string]; editQueued: [id: number, text: string]; removeQueued: [id: number] }>();
+const emit = defineEmits<{ restored: []; openSubagent: [callId: string]; editQueued: [id: number, text: string]; removeQueued: [id: number]; sendQueuedNow: [id: number] }>();
 
 const { t, formatDate } = useI18n();
 const notesAfter = (key: string) => props.notes.filter((note) => note.afterKey === key);
@@ -81,7 +82,7 @@ const working = computed(() => (props.workingSince === null ? null : durationLab
       <span>{{ t('chat.working', { time: working }) }}</span>
     </li>
     <li v-for="item in queued" :key="`queued-${item.id}`" class="block queued" data-testid="conversation-queued">
-      <QueuedBubble :item="item" :agent-label="agentLabel" @edit="(id, text) => emit('editQueued', id, text)" @remove="emit('removeQueued', $event)" />
+      <QueuedBubble :item="item" :agent-label="agentLabel" :can-send-now="canSendNow" @edit="(id, text) => emit('editQueued', id, text)" @remove="emit('removeQueued', $event)" @send-now="emit('sendQueuedNow', $event)" />
     </li>
   </ol>
 </template>
