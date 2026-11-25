@@ -321,7 +321,7 @@ function onVisible(visible: boolean) {
                       <span v-if="option.state === 'missing'" class="kind-badge">{{ t('agents.newSession.kindMissing') }}</span>
                       <template v-else-if="option.state === 'signedOut'">
                         <span class="kind-badge">{{ t('agents.newSession.kindSignedOut') }}</span>
-                        <UiButton v-if="option.provider" type="button" class="kind-action" data-testid="new-session-kind-sign-in" @click.stop="kindStates.signIn(option.provider)">{{ t('agents.newSession.kindSignIn') }}</UiButton>
+                        <UiButton v-if="option.provider" type="button" class="kind-action" data-testid="new-session-kind-sign-in" @mousedown.stop @click.stop="kindStates.signIn(option.provider)">{{ t('agents.newSession.kindSignIn') }}</UiButton>
                       </template>
                     </span>
                   </template>

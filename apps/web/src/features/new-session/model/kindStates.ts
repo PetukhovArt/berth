@@ -15,7 +15,7 @@ export function useKindStates() {
     ai.accounts,
     (accounts) => {
       for (const account of accounts) {
-        if (account.status !== 'signed_out' || rechecked.has(account.kind) || !Object.values(ACCOUNT_OF).includes(account.kind)) continue;
+        if ((account.status !== 'signed_out' && account.status !== 'unchecked') || rechecked.has(account.kind) || !Object.values(ACCOUNT_OF).includes(account.kind)) continue;
         rechecked.add(account.kind);
         void ai.recheck(account.kind);
       }
