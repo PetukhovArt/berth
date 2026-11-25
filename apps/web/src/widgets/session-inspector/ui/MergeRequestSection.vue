@@ -3,13 +3,16 @@ import { computed, shallowRef, watch } from 'vue';
 import { ExternalLink, GitPullRequest, MessageSquare } from '../../../shared/ui/icons';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { t } from '../../../shared/lib/i18n/i18n';
+import { useScope, visibleInterval } from '../../../shared/lib/scope';
 import { openUrl, useConnectors } from '../../../shared/api/connectors/api';
 import { knownMr, lookupMr, mrLookupFailed, numberLabel, pipelineLabel, pipelineTone } from '../../../entities/merge-request';
 import { requestCreate, useCanCreate } from '../../../features/git-step';
 import { showViewInActivePanel } from '../../../features/session-view-switch';
 import InspectorSection from './InspectorSection.vue';
 
+const POLL_MS = 30_000;
 const props = defineProps<{ path: string; branch: string; refreshKey?: unknown }>();
+const scope = useScope();
 
 const { connectors } = useConnectors();
 const hasForge = computed(() => connectors.value.some((connector) => connector.kind === 'github' || connector.kind === 'gitlab'));
@@ -31,6 +34,10 @@ watch(
   },
   { immediate: true },
 );
+
+visibleInterval(scope, POLL_MS, () => {
+  if (hasForge.value) void lookupMr(props.path, props.branch, true);
+});
 </script>
 
 <template>

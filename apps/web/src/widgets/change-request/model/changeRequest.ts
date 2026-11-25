@@ -13,7 +13,7 @@ import {
   type Discussion,
   type Pipeline,
 } from '../../../shared/api/connectors/api';
-import { itemId } from '../../../entities/merge-request';
+import { itemId, updateKnownMr } from '../../../entities/merge-request';
 import type { Scope } from '../../../shared/lib/scope';
 
 type Tab = 'overview' | 'diff' | 'pipeline';
@@ -70,6 +70,7 @@ export function createChangeRequest(source: () => ChangeRequestRef, scope: Scope
         return;
       }
       cr.value = request.value;
+      updateKnownMr(request.value);
       discussions.value = threads.status === 'fulfilled' ? threads.value : [];
       pipeline.value = run.status === 'fulfilled' ? run.value : null;
       discussionsFailure.value = threads.status === 'rejected' ? describeError(threads.reason) : null;

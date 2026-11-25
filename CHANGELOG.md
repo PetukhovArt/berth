@@ -32,6 +32,7 @@
 - Changed the Session screen on a phone to show the model, Checkpoints and Task note buttons in one row that scrolls sideways, above a Chat and Changes switch as wide as the screen
 - Changed the session rows in the Sessions tab on a phone to cards with the status under the name, and Cancel and Create in New session to larger buttons
 - Changed the Watch strip and the Session section of a merge request to name the session that berth types into
+- Fixed the session header, the MR tab and the Merge request section of the facts panel staying empty after the window reloads when the first lookup of the branch fails, and the section showing Open after the merge request was closed: both now retry and refresh by themselves, and the section follows the merge request page
 - Fixed the Next step form in the facts panel of a merge request opening below the window edge, out of reach; it now opens under the button
 
 ## 0.22.0 (2026-11-24)
