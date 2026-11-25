@@ -14,6 +14,7 @@ impl Daemon {
     pub async fn acp_rewind(self: &Arc<Self>, agent_id: &AgentId, seq: u64) -> Result<()> {
         let (checkpoint, to) = self.acp_rewind_target(agent_id, seq)?;
         let live = self.acp_ensure(agent_id)?;
+        live.session_id().await?;
         ensure!(
             live.state.lock().unwrap().caps.rewind,
             "this agent cannot rewind"

@@ -1,3 +1,4 @@
+use crate::agent;
 use crate::pty::{DEFAULT_COLS, DEFAULT_ROWS};
 use crate::registry::Daemon;
 use berth_core::{AgentId, Backend};
@@ -11,16 +12,17 @@ impl Daemon {
         prompt: &str,
         reason: &str,
     ) -> bool {
-        let Ok(Some(agent)) = self.store.get_agent(id) else {
+        let Ok(Some(mut agent)) = self.store.get_agent(id) else {
             return false;
         };
-        if agent.backend == Backend::Terminal {
+        if agent.backend == Backend::Terminal || agent::terminal(agent.kind).is_none() {
             return false;
         }
         if let Err(error) = self.set_backend(id, Backend::Terminal, None) {
             tracing::warn!(agent = %id, error = %error, "fallback to the terminal failed");
             return false;
         }
+        agent.backend = Backend::Terminal;
         self.acp_notice(
             id,
             format!("{reason}\nThis agent cannot run as a chat here and now runs in its terminal."),

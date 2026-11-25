@@ -1,9 +1,16 @@
 use crate::registry::{relocation_prompt, Daemon};
-use berth_core::{Agent, Worktree};
+use anyhow::Result;
+use berth_core::{Agent, AgentId, Worktree};
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 impl Daemon {
+    pub(crate) fn acp_restart(self: &Arc<Self>, id: &AgentId) -> Result<()> {
+        self.acp.kill(id);
+        self.acp_ensure(id)?;
+        self.broadcast_agent(id)
+    }
+
     pub(crate) fn acp_relocate(self: &Arc<Self>, agent: &Agent, target: &Worktree) {
         let id = &agent.id;
         let carried = self.acp.get(id).map(|live| {

@@ -1231,8 +1231,9 @@ impl Daemon {
         let target = self.sibling_worktree(&agent, worktree_id)?;
         self.pending_moves.lock().unwrap().remove(id);
         let sref = SessionRef::Agent(id.clone());
-        let was_alive = self.session(&sref).is_some();
-        if was_alive {
+        let was_alive = self.is_alive(&sref);
+        let chat = agent.backend == Backend::Chat;
+        if was_alive && !chat {
             self.kill_session(&sref);
         }
         // A deliberate move invalidates the remembered hook cwd: it still
@@ -1240,7 +1241,9 @@ impl Daemon {
         // replay it straight back over the user's choice.
         self.last_cwd.lock().unwrap().remove(id);
         self.store.set_agent_worktree(id, worktree_id)?;
-        if was_alive {
+        if was_alive && chat {
+            self.acp_relocate(&agent, &target);
+        } else if was_alive {
             if let Err(e) = self.spawn_agent_session(&agent, &target, DEFAULT_COLS, DEFAULT_ROWS) {
                 tracing::warn!(agent = %id, error = %e, "respawn after move failed");
             }
@@ -1587,6 +1590,9 @@ impl Daemon {
             .store
             .get_worktree(&agent.worktree_id)?
             .context("worktree not found")?;
+        if agent.backend == Backend::Chat {
+            return self.acp_restart(id);
+        }
         self.kill_session(&SessionRef::Agent(id.clone()));
         self.spawn_agent_session(&agent, &worktree, DEFAULT_COLS, DEFAULT_ROWS)?;
         let mut broadcast_agent = agent.clone();
@@ -1853,7 +1859,10 @@ impl Daemon {
             // the agent may have been archived or deleted inside the window —
             // never resurrect those.
             match daemon.store.get_agent(&agent.id) {
-                Ok(Some(current)) if !current.archived && !current.is_ended() => {}
+                Ok(Some(current))
+                    if !current.archived
+                        && !current.is_ended()
+                        && current.backend == Backend::Terminal => {}
                 _ => return,
             }
             tracing::info!(agent = %agent.id, "resume failed fast — respawning fresh");
