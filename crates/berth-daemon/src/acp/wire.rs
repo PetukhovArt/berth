@@ -50,6 +50,17 @@ pub trait Host: Send + Sync {
     fn spawn(&self, spec: LaunchSpec) -> Result<Wire>;
 }
 
+#[derive(Debug)]
+pub struct SpawnFailed(String);
+
+impl std::fmt::Display for SpawnFailed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for SpawnFailed {}
+
 pub struct DaemonHost {
     pub agent: AgentId,
 }
@@ -79,8 +90,10 @@ impl Host for DaemonHost {
     fn spawn(&self, spec: LaunchSpec) -> Result<Wire> {
         let program = platform::resolve_program(&spec.program)
             .with_context(|| format!("`{}` is not installed", spec.program))?;
+        let (program, lead) = super::shim::unwrap(program);
         let mut command = Command::new(&program);
         command
+            .args(&lead)
             .args(&spec.args)
             .current_dir(&spec.cwd)
             .stdin(Stdio::piped())
@@ -97,9 +110,9 @@ impl Host for DaemonHost {
         command.envs(spec.env.iter().copied());
         command.env(berth_core::env::AGENT_ID, &self.agent.0);
         platform::lead_process_tree(&mut command);
-        let mut child = command
-            .spawn()
-            .with_context(|| format!("start {}", program.display()))?;
+        let mut child = command.spawn().map_err(|error| {
+            anyhow::Error::new(SpawnFailed(format!("start {}: {error}", program.display())))
+        })?;
         let stdin = child.stdin.take().context("agent stdin")?;
         let stdout = child.stdout.take().context("agent stdout")?;
         let stderr = child.stderr.take().context("agent stderr")?;

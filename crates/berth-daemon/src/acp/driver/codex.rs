@@ -221,15 +221,15 @@ impl CodexTranslator {
             self.start(then, out)
         };
         if let Err(error) = result {
-            self.reject(id, &format!("{error:#}"), out);
+            self.reject(id, &error, out);
         }
     }
 
-    fn reject(&mut self, id: Value, message: &str, out: &mut Outputs) {
+    fn reject(&mut self, id: Value, error: &anyhow::Error, out: &mut Outputs) {
         if self.turn.as_ref().is_some_and(|turn| turn.reply == id) {
             self.turn = None;
         }
-        out.fail(id, message);
+        out.fail_error(id, error);
     }
 
     fn thread_params(&self) -> Value {
@@ -526,15 +526,18 @@ impl CodexTranslator {
     fn resume(&mut self, then: Then, out: &mut Outputs) {
         let id = then.id().clone();
         if let Err(error) = self.proceed(then, out) {
-            self.reject(id, &format!("{error:#}"), out);
+            self.reject(id, &error, out);
         }
     }
 
     fn failed(&mut self, pending: Pending, message: &str, out: &mut Outputs) {
         match pending {
-            Pending::Initialize(then) | Pending::Models(then) | Pending::Thread(then) => {
-                self.reject(then.id().clone(), message, out)
-            }
+            Pending::Initialize(then) | Pending::Models(then) | Pending::Thread(then) => self
+                .reject(
+                    then.id().clone(),
+                    &anyhow::Error::msg(message.to_string()),
+                    out,
+                ),
             Pending::Turn => {
                 if let Some(turn) = self.turn.take() {
                     out.fail(turn.reply, message);

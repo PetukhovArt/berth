@@ -1,4 +1,4 @@
-use crate::acp::wire::{Host, LaunchSpec, Process, Wire, WireIn};
+use crate::acp::wire::{Host, LaunchSpec, Process, SpawnFailed, Wire, WireIn};
 use anyhow::{anyhow, Result};
 use serde_json::{json, Value};
 use std::sync::{Arc, Mutex};
@@ -104,6 +104,15 @@ impl Outputs {
 
     pub fn fail(&mut self, id: Value, message: &str) {
         self.fail_with(id, FAILURE_CODE, message);
+    }
+
+    pub fn fail_error(&mut self, id: Value, error: &anyhow::Error) {
+        let code = if error.is::<SpawnFailed>() {
+            INCOMPATIBLE
+        } else {
+            FAILURE_CODE
+        };
+        self.fail_with(id, code, &format!("{error:#}"));
     }
 
     pub fn fail_with(&mut self, id: Value, code: i64, message: &str) {
@@ -281,7 +290,7 @@ fn from_berth_line<T: Translator>(translator: &mut T, out: &mut Outputs, line: &
     };
     if let Err(error) = translator.on_berth(frame, out) {
         match request_id {
-            Some(id) => out.fail(id, &format!("{error:#}")),
+            Some(id) => out.fail_error(id, &error),
             None => tracing::warn!(error = %error, "handling a berth frame failed"),
         }
     }

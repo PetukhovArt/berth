@@ -19,6 +19,7 @@ mod relocate;
 #[cfg(test)]
 mod replay;
 mod rewind;
+mod shim;
 #[cfg(test)]
 mod tests;
 pub mod transcript;
