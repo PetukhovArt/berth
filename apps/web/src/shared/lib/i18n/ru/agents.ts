@@ -179,6 +179,7 @@ export const agents: Translation<typeof en> = {
     usageNone: 'Нет данных о лимитах',
     windowFive: 'Окно 5 часов',
     windowWeek: 'Окно недели',
+    windowMonth: 'Окно месяца',
     windowOther: 'Окно {hours} ч',
     resets: 'сброс {time}',
   },

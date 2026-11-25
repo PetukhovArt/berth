@@ -225,6 +225,7 @@ fn daemon_flag(key: &str) -> Result<(&'static str, bool), String> {
         ("git_init_on_create", shared.git_init_on_create),
         ("prewarm", shared.prewarm),
         ("claude_limits", shared.claude_limits),
+        ("grok_limits", shared.grok_limits),
         ("checkpoints_claude", shared.checkpoints_claude),
     ]
     .into_iter()

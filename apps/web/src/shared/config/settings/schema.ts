@@ -285,6 +285,13 @@ export const SETTINGS = {
     description: 'settings.def.daemonClaudeLimits.description',
     category: 'sessions',
   },
+  'daemon.grokLimits': {
+    type: 'boolean',
+    default: DAEMON_DEFAULTS.grok_limits,
+    label: 'settings.def.daemonGrokLimits.label',
+    description: 'settings.def.daemonGrokLimits.description',
+    category: 'sessions',
+  },
   'daemon.checkpointsClaude': {
     type: 'boolean',
     default: DAEMON_DEFAULTS.checkpoints_claude,

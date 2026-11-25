@@ -10,7 +10,7 @@ import { isDesktop } from '../../../bridge';
 import { withTilde } from '../../../shared/lib/homePath';
 import { openSettings } from '../../../shared/model/nav';
 import { chordJoiner, modifierGlyphs, onlyPrimaryPressed, primaryModifier } from '../../../shared/lib/platform';
-import { Gem, Smartphone, SquareTerminal } from '../../../shared/ui/icons';
+import { Gem, Smartphone, SquareTerminal, Zap } from '../../../shared/ui/icons';
 import { VButton } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiInput from '../../../shared/ui/UiInput.vue';
@@ -33,9 +33,10 @@ const INSTALL_PAGES: Partial<Record<AiKind, string>> = {
   codex: 'https://github.com/openai/codex',
   gemini: 'https://github.com/google-gemini/gemini-cli',
   opencode: 'https://opencode.ai/docs',
+  grok_build: 'https://docs.x.ai/build',
 };
 
-const ICONS: Partial<Record<AiKind, typeof Gem>> = { gemini: Gem, opencode: SquareTerminal };
+const ICONS: Partial<Record<AiKind, typeof Gem>> = { gemini: Gem, opencode: SquareTerminal, grok_build: Zap };
 const PREVIEW = 3;
 const RANK: Record<AiStatus, number> = { signed_in: 0, signed_out: 1, rejected: 1, error: 1, unreachable: 1, unchecked: 1, not_installed: 2 };
 
@@ -302,8 +303,8 @@ onUnmounted(() => {
   margin: 0;
   font-size: var(--vr-font-size-display);
   font-weight: 600;
-  color: var(--vr-color-text);
   letter-spacing: -0.01em;
+  color: var(--vr-color-text);
 }
 
 .lead {
@@ -495,9 +496,9 @@ onUnmounted(() => {
 }
 
 .hint {
-  font-weight: 400;
   margin-left: 10px;
   font-size: var(--vr-font-size-xs);
+  font-weight: 400;
   color: var(--vr-color-text-muted);
 }
 

@@ -193,6 +193,10 @@ export const settings = {
       label: 'Show Claude subscription limits',
       description: "Uses Claude Code's sign-in to ask Anthropic for your usage every minute. Off by default. Codex limits are read from its local files either way. Stored in the berth config.",
     },
+    daemonGrokLimits: {
+      label: 'Show Grok subscription limits',
+      description: "Uses the Grok CLI's sign-in to ask xAI for your weekly or monthly usage every minute, so the LLM Router can skip Grok when it is used up. Off by default. Stored in the berth config.",
+    },
     daemonCheckpointsClaude: {
       label: 'Checkpoints for Claude agents',
       description: 'Take a checkpoint at each prompt of a Claude agent too. Off by default, since Claude Code has its own /rewind. Other agents always take them, and checkpoints already taken stay restorable. Stored in the berth config.',

@@ -3,8 +3,13 @@
 ## Unreleased
 
 - Added the Chat view to Codex and Grok agents, the same view Claude agents have, and Grok conversations started outside berth to the conversation list, search and Continue conversation
+- Added Grok Build to the AI accounts in Settings → Connectors: it shows whether the `grok` CLI is installed and signed in, with the account and plan, and signs it in and out
+- Added `daemon.grokLimits`, off by default: the daemon asks xAI for Grok's weekly or monthly subscription usage, shows it with Claude's and Codex's limits, and the LLM Router skips Grok in the fallback chain once it is used up
+- Changed the LLM Router to read Grok's weekly limit, spending cap and plan credit limit messages as a usage limit
+- Changed the name of the Grok (xAI) API key connector to xAI API
 - Fixed Codex agents never getting a status or a Chat view when another Codex was already open: berth now starts each Codex with its own background server
 - Windows: Fixed Codex agents never reporting their status, because the berth hooks were written for sh and Codex runs them through cmd or PowerShell
+- Fixed a Grok agent staying on Running after its turn ended: berth now sends its Stop and Notification hooks before grok ends them
 
 ## 0.23.0 (2026-11-25)
 

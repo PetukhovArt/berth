@@ -20,17 +20,19 @@ pub enum AiKind {
     Codex,
     Gemini,
     Opencode,
+    GrokBuild,
     Openrouter,
     AnthropicApi,
     OpenaiApi,
     Grok,
 }
 
-const ALL: [AiKind; 8] = [
+const ALL: [AiKind; 9] = [
     AiKind::Claude,
     AiKind::Codex,
     AiKind::Gemini,
     AiKind::Opencode,
+    AiKind::GrokBuild,
     AiKind::AnthropicApi,
     AiKind::OpenaiApi,
     AiKind::Openrouter,
@@ -55,10 +57,11 @@ impl AiKind {
             AiKind::Codex => "Codex",
             AiKind::Gemini => "Gemini CLI",
             AiKind::Opencode => "OpenCode",
+            AiKind::GrokBuild => "Grok Build",
             AiKind::Openrouter => "OpenRouter",
             AiKind::AnthropicApi => "Anthropic API",
             AiKind::OpenaiApi => "OpenAI API",
-            AiKind::Grok => "Grok (xAI)",
+            AiKind::Grok => "xAI API",
         }
     }
 
@@ -68,6 +71,7 @@ impl AiKind {
             AiKind::Codex => "codex",
             AiKind::Gemini => "gemini",
             AiKind::Opencode => "opencode",
+            AiKind::GrokBuild => "grok_build",
             AiKind::Openrouter => "openrouter",
             AiKind::AnthropicApi => "anthropic_api",
             AiKind::OpenaiApi => "openai_api",
@@ -96,6 +100,11 @@ impl AiKind {
                 binary: "opencode",
                 login: &["opencode", "auth", "login"],
                 logout: Some(&["opencode", "auth", "logout"]),
+            }),
+            AiKind::GrokBuild => Some(CliSpec {
+                binary: "grok",
+                login: &["grok", "login"],
+                logout: Some(&["grok", "logout"]),
             }),
             _ => None,
         }
@@ -480,6 +489,83 @@ async fn probe_opencode(program: &str) -> Probe {
     }
 }
 
+fn grok_auth_file() -> Option<PathBuf> {
+    let set = |name: &str| std::env::var_os(name).filter(|value| !value.is_empty());
+    if let Some(path) = set("GROK_AUTH_PATH") {
+        return Some(PathBuf::from(path));
+    }
+    let home = set("GROK_HOME")
+        .map(PathBuf::from)
+        .or_else(|| home().map(|home| home.join(".grok")))?;
+    Some(home.join("auth.json"))
+}
+
+fn grok_tier(token: &str) -> Option<String> {
+    let claims = token
+        .split('.')
+        .nth(1)
+        .and_then(|payload| URL_SAFE_NO_PAD.decode(payload.trim_end_matches('=')).ok())
+        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())?;
+    let name = match claims["tier"].as_i64()? {
+        0 => "Free",
+        1 => "SuperGrok",
+        2 => "X Basic",
+        3 => "X Premium",
+        4 => "X Premium+",
+        5 => "SuperGrok Heavy",
+        6 => "SuperGrok Lite",
+        7 => "SuperGrok Plus",
+        _ => return None,
+    };
+    Some(name.to_owned())
+}
+
+fn probe_grok() -> Probe {
+    let store = grok_auth_file().and_then(|path| read_json(&path));
+    let signed_in = store
+        .as_ref()
+        .and_then(Value::as_object)
+        .and_then(|entries| {
+            entries
+                .values()
+                .filter(|entry| entry["key"].as_str().is_some_and(|key| !key.is_empty()))
+                .min_by_key(|entry| entry["auth_mode"].as_str() == Some("api_key"))
+        });
+    if let Some(entry) = signed_in {
+        let text = |key: &str| {
+            entry[key]
+                .as_str()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_owned)
+        };
+        let joined = |parts: [Option<String>; 2], separator: &str| {
+            let parts = parts.into_iter().flatten().collect::<Vec<_>>();
+            (!parts.is_empty()).then(|| parts.join(separator))
+        };
+        let tier = if text("auth_mode").as_deref() == Some("api_key") {
+            Some(crate::host_text!("apiKey"))
+        } else {
+            text("key").and_then(|key| grok_tier(&key))
+        };
+        return Probe {
+            account: text("email").or_else(|| joined([text("first_name"), text("last_name")], " ")),
+            plan: joined([tier, text("team_name")], " · "),
+            ..Probe::new(AiStatus::SignedIn)
+        };
+    }
+    let env_key = ["XAI_API_KEY", "GROK_CODE_XAI_API_KEY"]
+        .iter()
+        .any(|name| std::env::var(name).is_ok_and(|value| !value.trim().is_empty()));
+    if env_key {
+        return Probe {
+            plan: Some(crate::host_text!("apiKeyFromEnv")),
+            ..Probe::new(AiStatus::SignedIn)
+        };
+    }
+    Probe::new(AiStatus::SignedOut)
+}
+
 async fn check_cli(kind: AiKind) -> AiView {
     let Some(spec) = kind.cli() else {
         return AiView::base(kind, AiStatus::Error);
@@ -492,6 +578,7 @@ async fn check_cli(kind: AiKind) -> AiView {
         AiKind::Claude => tokio::join!(version_of(&program), probe_claude(&program)),
         AiKind::Codex => tokio::join!(version_of(&program), probe_codex(&program)),
         AiKind::Opencode => tokio::join!(version_of(&program), probe_opencode(&program)),
+        AiKind::GrokBuild => (version_of(&program).await, probe_grok()),
         _ => (version_of(&program).await, probe_gemini()),
     };
     AiView {

@@ -15,6 +15,7 @@ const ICONS: Record<AiKind, Component> = {
   codex: Bot,
   gemini: Gem,
   opencode: SquareTerminal,
+  grok_build: Zap,
   anthropic_api: Brain,
   openai_api: Cpu,
   openrouter: Waypoints,
@@ -28,7 +29,7 @@ const KEY_PAGES: Partial<Record<AiKind, string>> = {
   grok: 'https://console.x.ai',
 };
 
-const BINARIES: Partial<Record<AiKind, string>> = { claude: 'claude', codex: 'codex', gemini: 'gemini', opencode: 'opencode' };
+const BINARIES: Partial<Record<AiKind, string>> = { claude: 'claude', codex: 'codex', gemini: 'gemini', opencode: 'opencode', grok_build: 'grok' };
 
 function statusText(a: AiView): string {
   const key = a.method === 'key';

@@ -122,7 +122,13 @@ pub fn reopens_main_window(_event: &tauri::RunEvent) -> bool {
 pub fn cli_search_dirs() -> Vec<PathBuf> {
     let mut dirs = Vec::new();
     if let Some(home) = berth_core::platform::profile_home() {
-        for relative in [".local/bin", ".bun/bin", ".npm-global/bin", ".volta/bin"] {
+        for relative in [
+            ".local/bin",
+            ".bun/bin",
+            ".npm-global/bin",
+            ".volta/bin",
+            ".grok/bin",
+        ] {
             dirs.push(home.join(relative));
         }
     }

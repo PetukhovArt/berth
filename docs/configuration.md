@@ -55,6 +55,7 @@ file or a missing key means the default.
 | `restore_sessions` | `true` | start the sessions that were running when the daemon stopped again when it starts (agents resume their conversation). The desktop app's `sessions.restoreOnRestart` sets it |
 | `prewarm` | `true` | while a new session form is open, start the agent it targets ahead of time so the session opens instantly. The daemon keeps one such agent at most, a few hundred MB for Claude, and stops it after 15 minutes if no session takes it. Older configs spell it `prewarm_agents`; the daemon renames the key on start. The desktop app's `daemon.prewarm` sets it |
 | `claude_limits` | `false` | let the daemon read Claude Code's sign-in and ask Anthropic for your 5-hour and weekly usage every minute; off means no file read and no network call |
+| `grok_limits` | `false` | let the daemon read the Grok CLI's sign-in (`$GROK_HOME/auth.json`) and ask xAI for your weekly or monthly subscription usage every minute, so the router counts Grok's limit like Claude's and Codex's; an API key sign-in has no such limit. The desktop app's `daemon.grokLimits` sets it |
 | `checkpoints_claude` | `false` | take Checkpoints for Claude agents too; Claude Code has its own `/rewind`, so they are off by default. Other agents always take them, and Checkpoints already taken stay listed and restorable. The desktop app's `daemon.checkpointsClaude` sets it |
 | `webhooks` | `false` | listen for webhook prompts (`berth webhook`); read when the daemon starts |
 | `webhook_port` | `47821` | the port the webhook listener uses |

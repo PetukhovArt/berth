@@ -23,7 +23,7 @@ export { ALLOW, ALWAYS_ALLOW, DENY, allowRequest, alwaysAllowRequest, chooseOpti
 export { enqueuePrompt, removeQueuedPrompt, submitPrompt, useQueuedPrompts } from './model/promptQueue';
 export { addPromptQuote, clearPromptQuotes, promptQuotesOf, removePromptQuote } from './model/promptQuotes';
 export type { PromptQuote } from './model/promptQuotes';
-export { isFiveHourWindow, useUsageLimits } from './model/limits';
+export { isFiveHourWindow, isMonthWindow, useUsageLimits } from './model/limits';
 export type { UsageWindow } from './model/limits';
 export { saveTaskNote, useTaskNote } from './model/taskNote';
 export { loadProjectSetup, saveProjectSetup } from './model/projectSetup';

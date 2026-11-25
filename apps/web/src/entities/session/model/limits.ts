@@ -6,6 +6,7 @@ export type UsageWindow = { kind: string; window_minutes: number; used_percent: 
 const REFRESH_MS = 60_000;
 const SPENT_PERCENT = 100;
 const FIVE_HOUR_MINUTES = 300;
+const MONTH_MINUTES = 43_200;
 
 const windows = shallowRef<readonly UsageWindow[]>([]);
 const clock = shallowRef(Date.now());
@@ -48,4 +49,6 @@ export function useUsageLimits() {
   return { windows: computed(() => windows.value), refresh };
 }
 
-export const isFiveHourWindow = (window: Pick<UsageWindow, 'window_minutes'>) => window.window_minutes === FIVE_HOUR_MINUTES;
+export const isMonthWindow = (window: Pick<UsageWindow, 'window_minutes'>) => window.window_minutes === MONTH_MINUTES;
+
+export const isFiveHourWindow =(window: Pick<UsageWindow, 'window_minutes'>) => window.window_minutes === FIVE_HOUR_MINUTES;

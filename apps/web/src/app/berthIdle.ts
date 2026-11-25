@@ -18,6 +18,7 @@ const SYNCED: { key: SettingKey; command: string; args?: Record<string, unknown>
   { key: 'daemon.gitInitOnCreate', command: 'berth_flag', args: { key: 'git_init_on_create' }, accepts: isBoolean },
   { key: 'daemon.prewarm', command: 'berth_flag', args: { key: 'prewarm' }, accepts: isBoolean },
   { key: 'daemon.claudeLimits', command: 'berth_flag', args: { key: 'claude_limits' }, accepts: isBoolean },
+  { key: 'daemon.grokLimits', command: 'berth_flag', args: { key: 'grok_limits' }, accepts: isBoolean },
   { key: 'daemon.checkpointsClaude', command: 'berth_flag', args: { key: 'checkpoints_claude' }, accepts: isBoolean },
   { key: 'sessions.worktreeBase', command: 'berth_worktree_base', accepts: (value) => checkValue(SETTINGS['sessions.worktreeBase'], value) === null },
 ];

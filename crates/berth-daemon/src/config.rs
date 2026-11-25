@@ -28,6 +28,7 @@ pub struct Config {
     /// it starts, so a daemon restart brings them back without an attach.
     pub restore_sessions: bool,
     pub claude_limits: bool,
+    pub grok_limits: bool,
     pub webhooks: bool,
     pub webhook_port: u16,
     pub webhook_expose: bool,
@@ -55,6 +56,7 @@ impl Default for Config {
             session_archive_after: shared.session_archive_after.clone(),
             restore_sessions: shared.restore_sessions,
             claude_limits: shared.claude_limits,
+            grok_limits: shared.grok_limits,
             webhooks: false,
             webhook_port: DEFAULT_WEBHOOK_PORT,
             webhook_expose: false,

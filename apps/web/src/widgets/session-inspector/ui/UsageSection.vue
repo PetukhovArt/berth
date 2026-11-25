@@ -2,7 +2,7 @@
 import { computed, shallowRef, watch } from 'vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { useScope, visibleInterval } from '../../../shared/lib/scope';
-import { AGENT_KIND_LABEL, getMetrics, isFiveHourWindow, sessionKey, useUsageLimits, type AgentKind, type UsageWindow } from '../../../entities/session';
+import { AGENT_KIND_LABEL, getMetrics, isFiveHourWindow, isMonthWindow, sessionKey, useUsageLimits, type AgentKind, type UsageWindow } from '../../../entities/session';
 import InspectorSection from './InspectorSection.vue';
 
 const REFRESH_MS = 15_000;
@@ -18,6 +18,7 @@ const tokens = shallowRef<number | null>(null);
 function windowLabel(window: UsageWindow): string {
   if (isFiveHourWindow(window)) return t('agents.metrics.windowFive');
   if (window.window_minutes === WEEK_MINUTES) return t('agents.metrics.windowWeek');
+  if (isMonthWindow(window)) return t('agents.metrics.windowMonth');
   return t('agents.metrics.windowOther', { hours: Math.round(window.window_minutes / 60) });
 }
 

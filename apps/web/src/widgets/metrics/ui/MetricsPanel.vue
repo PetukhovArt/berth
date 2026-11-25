@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, shallowRef } from 'vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { describeError, sessionId, sessionKey, useBerth, getMetrics, useUsageLimits, isFiveHourWindow, type MetricsSnapshot, type SessionMetrics, type UsageWindow } from '../../../entities/session';
+import { describeError, sessionId, sessionKey, useBerth, getMetrics, useUsageLimits, isFiveHourWindow, isMonthWindow, type MetricsSnapshot, type SessionMetrics, type UsageWindow } from '../../../entities/session';
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -31,6 +31,7 @@ const usage = useUsageLimits();
 function windowLabel(w: UsageWindow): string {
   if (isFiveHourWindow(w)) return t('agents.metrics.windowFive');
   if (w.window_minutes === 10080) return t('agents.metrics.windowWeek');
+  if (isMonthWindow(w)) return t('agents.metrics.windowMonth');
   return t('agents.metrics.windowOther', { hours: Math.round(w.window_minutes / 60) });
 }
 

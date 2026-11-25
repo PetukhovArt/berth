@@ -31,7 +31,13 @@ fn anchors(kind: AgentKind) -> &'static [&'static str] {
             "unexpected status",
         ],
         AgentKind::Claude => &["please run /login", "credit balance is too low"],
-        AgentKind::Grok => &["request failed", "server error"],
+        AgentKind::Grok => &[
+            "request failed",
+            "server error",
+            "weekly limit",
+            "spending cap",
+            "credit limit",
+        ],
         _ => &[],
     }
 }
@@ -68,6 +74,9 @@ pub fn classify(text: &str) -> Option<ProviderErrorKind> {
         "rate_limit",
         "hit your limit",
         "limit reached",
+        "weekly limit",
+        "spending cap",
+        "credit limit",
         "429",
         "quota",
         "too many requests",
@@ -340,6 +349,19 @@ mod tests {
             from_screen_text(AgentKind::Grok, grok).unwrap().kind,
             ProviderErrorKind::Model
         );
+        for grok in [
+            "You’ve hit the rate limit for your plan. Upgrade your account or try again later.",
+            "You’ve reached your free Grok Build usage limit for now.",
+            "You hit your weekly limit.",
+            "You’ve hit your spending cap.",
+            "You’ve hit the credit limit for your plan.",
+        ] {
+            assert_eq!(
+                from_screen_text(AgentKind::Grok, grok).unwrap().kind,
+                ProviderErrorKind::UsageLimit,
+                "{grok}"
+            );
+        }
         let claude = "There's an issue with the selected model (x). It may not exist or you may not have access to it.";
         assert_eq!(
             from_screen_text(AgentKind::Claude, claude).unwrap().kind,

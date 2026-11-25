@@ -15,10 +15,16 @@ pub fn home_cli_dirs() -> Vec<PathBuf> {
     let Some(home) = berth_core::platform::profile_home() else {
         return Vec::new();
     };
-    [".local/bin", ".bun/bin", ".npm-global/bin", ".volta/bin"]
-        .into_iter()
-        .map(|relative| home.join(relative))
-        .collect()
+    [
+        ".local/bin",
+        ".bun/bin",
+        ".npm-global/bin",
+        ".volta/bin",
+        ".grok/bin",
+    ]
+    .into_iter()
+    .map(|relative| home.join(relative))
+    .collect()
 }
 
 pub fn bash_program() -> Result<PathBuf, String> {

@@ -176,6 +176,7 @@ export const agents = {
     usageNone: 'No usage reported',
     windowFive: '5-hour window',
     windowWeek: 'Weekly window',
+    windowMonth: 'Monthly window',
     windowOther: '{hours}-hour window',
     resets: 'resets {time}',
   },

@@ -6,6 +6,8 @@ use std::process::{Command, Stdio};
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+mod grok;
+
 const CACHE_FOR: Duration = Duration::from_secs(60);
 const CODEX_TAIL_BYTES: u64 = 256 * 1024;
 const FIVE_HOURS: u32 = 300;
@@ -38,7 +40,11 @@ pub fn read() -> Vec<UsageWindow> {
         }
     }
     let now = now_ms();
-    let mut windows = collect(crate::config::Config::load().claude_limits, claude_windows);
+    let config = crate::config::Config::load();
+    let mut windows = collect(config.claude_limits, claude_windows);
+    if config.grok_limits {
+        windows.extend(grok::windows());
+    }
     windows.retain(|w| w.resets_at_ms > now);
     *cache = Some((Instant::now(), windows.clone()));
     windows
@@ -101,25 +107,30 @@ fn claude_windows(home: &Path) -> Vec<UsageWindow> {
     else {
         return Vec::new();
     };
-    let Some(body) = fetch_usage(&token) else {
+    let headers = [
+        format!("Authorization: Bearer {token}"),
+        "anthropic-beta: oauth-2025-04-20".to_owned(),
+    ];
+    let Some(body) = fetch(USAGE_URL, &headers) else {
         return Vec::new();
     };
     parse_claude(&body)
 }
 
-fn fetch_usage(token: &str) -> Option<String> {
+fn fetch(url: &str, headers: &[String]) -> Option<String> {
     let mut command = Command::new("curl");
     command
-        .args(["-sS", "--fail", "--max-time", "8", "-K", "-", USAGE_URL])
+        .args(["-sS", "--fail", "--max-time", "8", "-K", "-", url])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null());
     #[cfg(windows)]
     std::os::windows::process::CommandExt::creation_flags(&mut command, 0x0800_0000);
     let mut child = command.spawn().ok()?;
-    let config = format!(
-        "header = \"Authorization: Bearer {token}\"\nheader = \"anthropic-beta: oauth-2025-04-20\"\n"
-    );
+    let config: String = headers
+        .iter()
+        .map(|header| format!("header = \"{header}\"\n"))
+        .collect();
     child.stdin.take()?.write_all(config.as_bytes()).ok()?;
     let out = child.wait_with_output().ok()?;
     out.status
