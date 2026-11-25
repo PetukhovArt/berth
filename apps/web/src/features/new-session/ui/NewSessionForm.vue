@@ -9,7 +9,7 @@ import { useSettings } from '../../../shared/config/settings/store';
 import { chordJoiner, modifierGlyphs, onlyPrimaryPressed, primaryModifier, primaryPressed } from '../../../shared/lib/platform';
 import { invoke } from '../../../bridge';
 import { acpPrompt, createAcpAgent, createAgent, createTerminal, entitySessionRef, resumeConversation, type AgentKind, type SessionRef, useAction, useBerth } from '../../../entities/session';
-import { chatAgentFor, enabledNativeAgent, useProviders, type Provider } from '../../../shared/api/providers';
+import { chatAgentFor, enabledNativeAgent, legacyChatAgent, useProviders, type Provider } from '../../../shared/api/providers';
 import { useSessionTarget } from '../model/sessionTarget';
 import { useKindStates, type KindState } from '../model/kindStates';
 import { useProjectConversations } from '../model/conversations';
@@ -71,7 +71,7 @@ const defaultKind = computed<Kind>(() => {
   if (chosen === 'terminal') return 'terminal';
   if (!providers.value.length) return ON_BEFORE_PROVIDERS_LOAD.find((option) => option.value === chosen)?.value ?? 'claude';
   const native = enabledNativeAgent(chosen, providers.value);
-  const chat = native ? chatAgentFor(native, providers.value) : null;
+  const chat = legacyChatAgent(chosen, providers.value) ?? (native ? chatAgentFor(native, providers.value) : null);
   const preferred = chat ? (`acp:${chat.id}` as Kind) : ((native as Kind | null) ?? 'terminal');
   const usable = KINDS.value.find((option) => option.value === preferred && !option.disabled) ?? KINDS.value.find((option) => !option.disabled);
   return usable?.value ?? 'terminal';
@@ -120,11 +120,12 @@ function toggleExtra(value: Kind) {
   extras.value = extras.value.includes(value) ? extras.value.filter((extra) => extra !== value) : [...extras.value, value];
 }
 
-function pickKind(value: unknown) {
+function pickKind(value: unknown): boolean {
   const next = KINDS.value.find((option) => option.value === value);
-  if (!next || next.disabled) return;
+  if (!next || next.disabled) return false;
   if (name.value.trim() === defaultName.value || !name.value.trim()) name.value = generatedName(next.value);
   picked.value = next.value;
+  return true;
 }
 
 function applyPreset(preset: AgentPreset) {
@@ -132,8 +133,8 @@ function applyPreset(preset: AgentPreset) {
     activePreset.value = null;
     return;
   }
+  if (!pickKind(preset.kind)) return;
   activePreset.value = preset.name;
-  pickKind(preset.kind);
   model.value = preset.model;
   effort.value = preset.effort;
   before.value = preset.before;

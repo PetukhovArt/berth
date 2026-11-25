@@ -1,11 +1,11 @@
 import { shallowRef } from 'vue';
-import { acknowledged, createAgent, describeError, entitySessionRef, isActive, unarchiveAgent, useBerth, worktreesOfProject, type AgentKind, type SessionRef, useSessionDock } from '../../../entities/session';
+import { acknowledged, acpPrompt, createAcpAgent, createAgent, describeError, entitySessionRef, isActive, unarchiveAgent, useBerth, worktreesOfProject, type AgentKind, type SessionRef, useSessionDock } from '../../../entities/session';
 import { invoke } from '../../../bridge';
 import type { AiView } from '../../../shared/api/connectors/ai';
 import { forgeChangeRequest, forgeSource, mrFetchSource, useConnectors, type ChangeRequestRef, type ChangeRequestSummary, type FetchedSource } from '../../../shared/api/connectors/api';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
-import { enabledNativeAgent, loadedProviders } from '../../../shared/api/providers';
+import { enabledNativeAgent, legacyChatAgent, loadedProviders } from '../../../shared/api/providers';
 import { type RepoRef, connectorBase, inspectClone, remotes, type Remote, projectOfRepo, repoRefOf } from '../../../entities/repo';
 import { issueKeyOf } from '../../../entities/jira-issue';
 import { openReview, numberLabel, itemId } from '../../../entities/merge-request';
@@ -168,9 +168,11 @@ export function useOpenInSession() {
         await unarchiveAgent(ended.id);
         session = { Agent: ended.id };
       } else {
-        const kind = (enabledNativeAgent(values.value['sessions.default_kind'], await loadedProviders()) ?? 'claude') as AgentKind;
-        update({ message: t('forge.openSession.step.agent', { kind: KIND_LABEL[kind] }) });
-        await ensureCli(kind);
+        const rows = await loadedProviders();
+        const chat = legacyChatAgent(values.value['sessions.default_kind'], rows);
+        const kind = (enabledNativeAgent(values.value['sessions.default_kind'], rows) ?? 'claude') as AgentKind;
+        update({ message: t('forge.openSession.step.agent', { kind: chat?.name ?? KIND_LABEL[kind] }) });
+        if (!chat) await ensureCli(kind);
         const template = values.value['sessions.mrPrompt'].trim() || t('forge.openSession.prompt');
         const prompt = composeMrPrompt(template, {
           url: request.url,
@@ -183,17 +185,20 @@ export function useOpenInSession() {
         });
         const name = run.label.length > NAME_LIMIT ? `${run.label.slice(0, NAME_LIMIT - 1).trimEnd()}…` : run.label;
         const created = entitySessionRef(
-          await createAgent({
-            worktree: here,
-            name,
-            kind,
-            model: values.value['sessions.default_model'].trim() || null,
-            effort: values.value['sessions.default_effort'].trim() || null,
-            autoTitle: false,
-            startingPrompt: prompt,
-          }),
+          chat
+            ? await createAcpAgent(here, name, chat.id, false)
+            : await createAgent({
+                worktree: here,
+                name,
+                kind,
+                model: values.value['sessions.default_model'].trim() || null,
+                effort: values.value['sessions.default_effort'].trim() || null,
+                autoTitle: false,
+                startingPrompt: prompt,
+              }),
         );
         if (!created) throw new Problem(t('forge.openSession.errors.failed', { detail: 'CreateAgent' }));
+        if (chat && 'Agent' in created) await acpPrompt(created.Agent, prompt);
         session = created;
       }
 

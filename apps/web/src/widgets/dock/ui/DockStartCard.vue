@@ -3,7 +3,7 @@ import { computed, shallowRef } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { shortcutLabel } from '../../../shared/lib/commands/keymap';
 import { useSettings } from '../../../shared/config/settings/store';
-import { enabledNativeAgent, useProviders } from '../../../shared/api/providers';
+import { enabledNativeAgent, legacyChatAgent, useProviders } from '../../../shared/api/providers';
 import { ArrowUp, ChevronDown } from '../../../shared/ui/icons';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { VTextarea } from '../../../shared/ui/kit';
@@ -17,7 +17,7 @@ const prompt = shallowRef('');
 const agent = computed(() => {
   const kind = values.value['sessions.default_kind'];
   if (kind === 'terminal') return t('agents.newSession.terminal');
-  const id = enabledNativeAgent(kind, providers.value);
+  const id = legacyChatAgent(kind, providers.value)?.id ?? enabledNativeAgent(kind, providers.value);
   const name = providers.value.find((provider) => provider.id === id)?.name ?? kind;
   const model = values.value['sessions.default_model'];
   return model ? `${name} · ${model}` : name;

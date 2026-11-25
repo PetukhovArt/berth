@@ -1,4 +1,5 @@
 import { shallowRef } from 'vue';
+import { isLegacyChatKind } from '../../api/providers';
 import { createBackend } from '../../lib/config-file/backend';
 import { createFileText } from '../../lib/config-file/fileText';
 import { describeFailure, parseSettings, type ParseFailure } from '../../lib/config-file/parse';
@@ -24,6 +25,10 @@ function resolve(object: Record<string, unknown>): { values: SettingValues; issu
   for (const [key, raw] of Object.entries(object)) {
     if (!isSettingKey(key)) continue;
     const value = key === 'workbench.hot' && typeof raw === 'string' && LEGACY_HOT_MODES.has(raw) ? 'titlebar' : raw;
+    if (key === 'sessions.default_kind' && typeof value === 'string' && isLegacyChatKind(value)) {
+      next[key] = value;
+      continue;
+    }
     const problem = checkValue(SETTINGS[key], value);
     if (problem) found.push(`${key}: ${problem}`);
     else next[key] = value;

@@ -57,3 +57,11 @@ export async function removeAcpProvider(id: string): Promise<void> {
 export function readAcpAgentLog(agent: string): Promise<string> {
   return invoke<string>('acp_agent_log', { agent });
 }
+
+const LEGACY_CHAT_KINDS: ReadonlySet<string> = new Set(['cursor', 'opencode']);
+
+export const isLegacyChatKind = (kind: string): boolean => LEGACY_CHAT_KINDS.has(kind);
+
+export function legacyChatAgent(kind: string, rows: readonly Provider[]): Provider | null {
+  return isLegacyChatKind(kind) ? (rows.find((row) => row.acp && row.enabled && row.id === kind) ?? null) : null;
+}

@@ -1,4 +1,5 @@
 import { computed, shallowRef } from 'vue';
+import { isLegacyChatKind } from '../../../shared/api/providers';
 
 const KEY = 'berth.agent.presets';
 
@@ -11,6 +12,8 @@ export interface AgentPreset {
   after: string;
 }
 
+const legacyKind = (kind: string): string => (isLegacyChatKind(kind) ? `acp:${kind}` : kind);
+
 function read(): AgentPreset[] {
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(KEY) ?? '[]');
@@ -19,7 +22,7 @@ function read(): AgentPreset[] {
       .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object' && typeof (item as { name?: unknown }).name === 'string')
       .map((item) => ({
         name: String(item.name),
-        kind: String(item.kind ?? 'claude'),
+        kind: legacyKind(String(item.kind ?? 'claude')),
         model: String(item.model ?? ''),
         effort: String(item.effort ?? ''),
         before: String(item.before ?? ''),
