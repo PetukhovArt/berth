@@ -70,6 +70,7 @@
 - Changed the model switch, Checkpoints and Task note buttons under a Session's title on a phone to show their names next to the icons and to be touch sized
 - Removed the Terminal view and the terminal keys bar from the Session screen on a phone: it opens in Chat, so a phone no longer squeezes the Session's terminal on your computer to the phone's width; a Session with no Chat shows a notice instead
 - Removed the Earlier folder from the Sessions tree: every conversation that is not archived is listed in its worktree
+- Removed the Hot sessions overview and its title bar button, and the `Ctrl+Shift+O` key that opened it; `Alt+1`..`Alt+9`, `Alt+J` and `Ctrl+Tab` stay, and the Hot sessions setting is now called Session keys
 - Removed `berth hub approve --scopes`: approve with `--role` instead
 - Added drag handles on both edges of the Chat view's column: drag one to resize or move the transcript and composer together, use the arrow keys on a focused handle, double-click to go back to 920px centered; the layout is kept across restarts
 - Added a Search view (`Ctrl+Shift+F`) that finds Sessions (archived ones too), merge requests, tasks, channel messages and the full text of Claude and Codex conversations, from an index the desktop app keeps in `search-index.db`; opening a conversation match shows its Chat view scrolled to the matching message, briefly highlighted

@@ -4,5 +4,4 @@ export const titleBar = {
     all: 'Все workspace',
     menu: 'Сменить workspace',
   },
-  hot: 'Горячие сессии',
 } as const;

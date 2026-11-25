@@ -3,7 +3,6 @@ import { zoomTerminal } from '../widgets/terminal';
 import { isDesktop } from '../bridge';
 import { openCleanup } from '../features/cleanup';
 import { navigate, openSettings } from '../shared/model/nav';
-import { hotEnabled, toggleHotOverview } from '../widgets/hot';
 import { toggleTheme } from '../shared/ui/appearance';
 import { requestSidebarSearch, toggleSidebar } from '../shared/model/sidebar';
 import { toggleInspector } from '../shared/model/inspector';
@@ -42,7 +41,6 @@ defineAction({ id: 'terminal.zoomReset', title: 'commands.action.terminalZoomRes
 
 defineAction({ id: 'agents.quickOpen', title: 'commands.action.agentsQuickOpen', category: NAVIGATION, run: toggleQuickOpen });
 defineAction({ id: 'search.open', title: 'commands.action.searchOpen', category: NAVIGATION, run: () => openSearch() });
-defineAction({ id: 'hot.overview', title: 'hot.overview.title', category: NAVIGATION, run: () => hotEnabled.value && toggleHotOverview() });
 defineAction({ id: 'inbox.nextWaiting', title: 'commands.action.inboxNextWaiting', category: NAVIGATION, run: openNextNeedingYou });
 defineAction({ id: 'agents.newSession', title: 'commands.action.agentsNewSession', category: NAVIGATION, run: startNewSession });
 defineAction({ id: 'session.view.terminal', title: 'agents.sessionView.action.terminal', category: VIEW, run: () => showViewInActivePanel('terminal') });

@@ -4,7 +4,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
 
 type HotLabel = 'feedback' | 'working' | 'idle' | 'error' | 'limit';
-export type HotItem = {
+type HotItem = {
   key: string;
   title: string;
   project: string | null;
@@ -13,7 +13,6 @@ export type HotItem = {
   status: SessionStatus;
   label: HotLabel;
   unseen: boolean;
-  lastActivity: number | null;
   preview: string | null;
 };
 
@@ -100,7 +99,6 @@ function create() {
         status: state.status,
         label: LABELS[state.status] ?? 'idle',
         unseen: state.unseen,
-        lastActivity: state.since,
         preview: entry.notice?.slice(0, NOTICE_CHARS) ?? previews.value.get(state.key) ?? null,
       };
       return { item, urgency: urgencyOf(state), attention: attentionOf(state) !== null, since: state.since ?? 0, seq: seq.get(state.key) ?? 0 };

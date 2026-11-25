@@ -4,5 +4,4 @@ export const titleBar = {
     all: 'All workspaces',
     menu: 'Switch workspace',
   },
-  hot: 'Hot sessions',
 } as const;

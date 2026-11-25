@@ -159,7 +159,8 @@ type yourself is never touched. `/rename` inside Claude Code or Codex renames th
 |---|---|
 | `Ctrl+P` | quick open: jump to a row of the tree or a Markdown file of the current worktree |
 | `Ctrl+Shift+P` or `F1` | command palette |
-| `Ctrl+Shift+O` | overview of live sessions |
+| `Alt+1` to `Alt+9` | open the Nth live session |
+| `Ctrl+Tab` | switch between recent live sessions |
 | `Ctrl+Space` then `T`, `M` or `D` | switch a session tab between its terminal, merge request and diff |
 | `Ctrl+B` | show or hide the sidebar |
 | `Ctrl+,` | settings |

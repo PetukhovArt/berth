@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { Copy, LayoutGrid, Minus, PanelRight, Search, Square, X } from '../../../shared/ui/icons';
+import { Copy, Minus, PanelRight, Search, Square, X } from '../../../shared/ui/icons';
 import { hostWindow as win } from '../../../bridge';
 import { settleAll } from '../../../entities/document';
 import { shortcutLabel } from '../../../shared/lib/commands/keymap';
@@ -11,18 +11,14 @@ import { toggleQuickOpen } from '../../../shared/model/dock';
 import { inspectorOpen } from '../../../shared/model/inspector';
 import { view } from '../../../shared/model/nav';
 import { firstRunActive } from '../../../shared/model/firstRun';
-import { useSettings } from '../../../shared/config/settings/store';
 import { UpdateChip } from '../../../features/update';
 import { WorkspaceSwitcher } from '../../../features/manage-workspace';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 import BrandMark from '../../../shared/ui/BrandMark.vue';
 const { t } = useI18n();
-const { values } = useSettings();
 const maximized = ref(false);
 const nativeControls = computed(() => hostPlatform.value.windowChrome.nativeDecorations);
-const hotOn = computed(() => (values.value as Record<string, unknown>)['workbench.hot'] !== 'off');
-const hotKey = computed(() => shortcutLabel('hot.overview'));
 const inspectorLabel = computed(() => (inspectorOpen.value ? t('inspector.hide') : t('inspector.show')));
 
 function withShortcut(label: string, actionId: string) {
@@ -69,18 +65,6 @@ onUnmounted(() => stopResize?.());
     <div class="end">
       <div class="update" data-tauri-drag-region><UpdateChip /></div>
       <div v-if="!firstRunActive" class="tools">
-        <UiButton
-          v-if="hotOn"
-          type="button"
-          class="tool"
-          data-testid="titlebar-hot"
-          :aria-label="t('titleBar.hot')"
-          :title="withShortcut(t('titleBar.hot'), 'hot.overview')"
-          @click="runAction('hot.overview')"
-        >
-          <LayoutGrid :size="14" :stroke-width="1.6" />
-          <kbd v-if="hotKey">{{ hotKey }}</kbd>
-        </UiButton>
         <UiButton
           v-if="view.kind === 'agents'"
           type="button"
