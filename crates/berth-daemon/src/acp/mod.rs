@@ -97,6 +97,7 @@ enum Pending {
     Question {
         rpc_id: Value,
         form: QuestionForm,
+        reply: questions::Reply,
     },
     SignIn {
         method_ids: Vec<String>,
@@ -109,7 +110,7 @@ impl Pending {
     fn cancel_reply(&self) -> Option<(Value, Value)> {
         match self {
             Pending::Permission { rpc_id, .. } => Some((rpc_id.clone(), cancelled_outcome())),
-            Pending::Question { rpc_id, .. } => Some((rpc_id.clone(), json!({"action": "cancel"}))),
+            Pending::Question { rpc_id, reply, .. } => Some((rpc_id.clone(), reply.cancel())),
             Pending::SignIn { .. } => None,
         }
     }
@@ -333,7 +334,16 @@ impl Daemon {
                 Inbound::Request {
                     id, method, params, ..
                 } if method == "elicitation/create" => {
-                    self.acp_elicitation(&agent_id, &live, id, &params).await
+                    let asked = map::elicitation(&params);
+                    self.acp_question(&agent_id, &live, id, asked, questions::Reply::Elicitation)
+                        .await
+                }
+                Inbound::Request {
+                    id, method, params, ..
+                } if method == questions::GROK_ASK_METHOD => {
+                    let asked = questions::grok_form(&params);
+                    self.acp_question(&agent_id, &live, id, asked, questions::Reply::Grok)
+                        .await
                 }
                 Inbound::Request { id, method, .. } => {
                     tracing::debug!(agent = %agent_id, method, "ACP request berth does not serve");
@@ -398,15 +408,16 @@ impl Daemon {
             .await;
     }
 
-    async fn acp_elicitation(
+    async fn acp_question(
         self: &Arc<Self>,
         agent_id: &AgentId,
         live: &AcpLive,
         rpc_id: Value,
-        params: &Value,
+        asked: Option<(String, QuestionForm)>,
+        reply: questions::Reply,
     ) {
-        let Some((message, form)) = map::elicitation(params) else {
-            let _ = live.conn.respond(rpc_id, json!({"action": "cancel"})).await;
+        let Some((message, form)) = asked else {
+            let _ = live.conn.respond(rpc_id, reply.cancel()).await;
             return;
         };
         let request = FeedbackRequest {
@@ -417,7 +428,12 @@ impl Daemon {
             always_allow: false,
             form: Some(form.clone()),
         };
-        self.acp_wait_for_human(agent_id, live, Pending::Question { rpc_id, form }, request)
+        let pending = Pending::Question {
+            rpc_id,
+            form,
+            reply,
+        };
+        self.acp_wait_for_human(agent_id, live, pending, request)
             .await;
     }
 
@@ -641,18 +657,21 @@ impl Pending {
                     json!({"outcome": {"outcome": "selected", "optionId": option_id}}),
                 ))
             }
-            (Pending::Question { rpc_id, form }, answer) => {
+            (
+                Pending::Question {
+                    rpc_id,
+                    form,
+                    reply,
+                },
+                answer,
+            ) => {
                 let answers = match answer {
                     FeedbackAnswer::Option(option) => {
                         questions::answers_for_option(form, *option as usize)?
                     }
                     FeedbackAnswer::Form(answers) => answers.clone(),
                 };
-                let content = questions::content(form, &answers)?;
-                Ok((
-                    rpc_id.clone(),
-                    json!({"action": "accept", "content": content}),
-                ))
+                Ok((rpc_id.clone(), reply.accept(form, &answers)?))
             }
             _ => bail!("this request takes another kind of answer"),
         }

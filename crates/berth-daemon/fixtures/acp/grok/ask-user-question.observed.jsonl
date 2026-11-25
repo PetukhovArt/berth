@@ -1,0 +1,11 @@
+{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":false,"steer":false,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"grok-4.7","choices":4},{"id":"reasoning_effort","category":"ThoughtLevel","current":"high","choices":4}],"commands":[],"queue":[]}}
+{"item":{"seq":1,"item":{"User":{"text":"Call ask_user_question exactly once with two questions: first \"Which color?\" (options Red, Green, Blue, single choice), second \"Which sizes?\" (options S, M, L, multiSelect true). Then reply with one short sentence repeating exactly what the answers were. No other tools.","attachments":[],"rewind":{"checkpoint":1,"after":null}}}}}
+{"status":"running"}
+{"item":{"seq":2,"item":{"Tool":{"id":"call-1b507e8f-1bb8-47b4-bf2f-b0c2d10d909c-0","title":"Ask 2 questions","kind":"other","status":"pending","detail":null,"diff":null,"output":null}}}}
+{"status":"needs_feedback"}
+{"feedback":{"kind":"Question","title":"Which color?","detail":null,"options":[],"always_allow":false,"form":{"questions":[{"id":"q0","header":"Which color?","text":"Which color?","choices":[{"value":"Red","name":"Red","description":"Red"},{"value":"Green","name":"Green","description":"Green"},{"value":"Blue","name":"Blue","description":"Blue"}],"multi_select":false,"free_text_allowed":true},{"id":"q1","header":"Which sizes?","text":"Which sizes?","choices":[{"value":"S","name":"S","description":"Small"},{"value":"M","name":"M","description":"Medium"},{"value":"L","name":"L","description":"Large"}],"multi_select":true,"free_text_allowed":true}]}}}
+{"feedback":null}
+{"status":"running"}
+{"item":{"seq":2,"item":{"Tool":{"id":"call-1b507e8f-1bb8-47b4-bf2f-b0c2d10d909c-0","title":"Ask 2 questions","kind":"other","status":"completed","detail":null,"diff":null,"output":"User has answered your questions: \"Which color?\"=\"purple\", \"Which sizes?\"=\"S, L\". You can now continue with the user's answers in mind."}}}}
+{"item":{"seq":3,"item":{"Assistant":{"text":"You chose purple, and sizes S, L."}}}}
+{"status":"finished"}

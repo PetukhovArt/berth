@@ -209,3 +209,47 @@ fn choices_of(schema: &Value) -> (Vec<Choice>, bool) {
 fn str_at<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
     value.get(key).and_then(Value::as_str)
 }
+
+pub const GROK_ASK_METHOD: &str = "_x.ai/ask_user_question";
+
+#[derive(Clone, Copy)]
+pub enum Reply {
+    Elicitation,
+    Grok,
+}
+
+impl Reply {
+    pub fn cancel(self) -> Value {
+        match self {
+            Reply::Elicitation => json!({"action": "cancel"}),
+            Reply::Grok => json!({"outcome": "cancelled"}),
+        }
+    }
+
+    pub fn accept(self, form: &QuestionForm, answers: &Answers) -> Result<Value> {
+        let content = content(form, answers)?;
+        Ok(match self {
+            Reply::Elicitation => json!({"action": "accept", "content": content}),
+            Reply::Grok => {
+                json!({"outcome": "accepted", "answers": by_question_text(form, &content)})
+            }
+        })
+    }
+}
+
+fn by_question_text(form: &QuestionForm, content: &Value) -> Value {
+    let answers: Map<String, Value> = form
+        .questions
+        .iter()
+        .filter_map(|question| Some((question.text.clone(), content.get(&question.id)?.clone())))
+        .collect();
+    Value::Object(answers)
+}
+
+pub fn grok_form(params: &Value) -> Option<(String, QuestionForm)> {
+    let questions = params.get("questions")?.as_array()?;
+    super::map::elicitation(&super::driver::elicitation_params(
+        questions,
+        "Grok has a question",
+    ))
+}
