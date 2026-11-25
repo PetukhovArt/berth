@@ -73,8 +73,8 @@ export const workbench = {
     starting: 'Starting berth…',
     offlineTitle: 'berth could not start its background service',
     offlineBody: 'The Daemon did not answer. Nothing was running yet, so no work is lost. berth keeps trying.',
-    incompatibleTitle: 'The background service is an older version',
-    incompatibleBody: 'A Daemon with an older protocol is still running. berth updates it, and live terminals reconnect.',
+    incompatibleTitle: 'The background service runs another version',
+    incompatibleBody: 'The Daemon and this app speak different protocol versions. berth updates an older Daemon, and live terminals reconnect. A newer Daemon needs this app updated.',
     copyDetails: 'Copy details',
   },
   startCard: {
