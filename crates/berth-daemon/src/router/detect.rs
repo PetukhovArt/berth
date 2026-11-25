@@ -1,4 +1,5 @@
 use super::DetectedError;
+use crate::agent;
 use crate::hooks::HookPayload;
 use berth_core::{AgentKind, ProviderErrorKind};
 use std::io::{Read, Seek, SeekFrom};
@@ -21,26 +22,6 @@ const COMMON_ANCHORS: &[&str] = &[
     "unknown model",
     "couldn't set model",
 ];
-
-fn anchors(kind: AgentKind) -> &'static [&'static str] {
-    match kind {
-        AgentKind::Codex => &[
-            "stream error",
-            "stream disconnected",
-            "exceeded retry limit",
-            "unexpected status",
-        ],
-        AgentKind::Claude => &["please run /login", "credit balance is too low"],
-        AgentKind::Grok => &[
-            "request failed",
-            "server error",
-            "weekly limit",
-            "spending cap",
-            "credit limit",
-        ],
-        _ => &[],
-    }
-}
 
 pub fn classify_status(status: u64) -> Option<ProviderErrorKind> {
     Some(match status {
@@ -220,6 +201,7 @@ pub fn from_stop_failure(payload: &HookPayload) -> DetectedError {
 }
 
 pub fn from_screen_text(kind: AgentKind, text: &str) -> Option<DetectedError> {
+    let screen_errors = agent::terminal(kind).map_or(&[][..], |terminal| terminal.screen_errors);
     let lines = text
         .lines()
         .map(str::trim)
@@ -230,7 +212,7 @@ pub fn from_screen_text(kind: AgentKind, text: &str) -> Option<DetectedError> {
         let lower = line.to_lowercase();
         let anchored = COMMON_ANCHORS
             .iter()
-            .chain(anchors(kind))
+            .chain(screen_errors)
             .any(|a| lower.contains(a));
         if !anchored {
             return None;

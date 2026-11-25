@@ -9,14 +9,27 @@ pub static PROFILE: Profile = Profile {
         program: "grok",
         args,
         leading_args: no_args,
-        hooks: Hooks {
-            install: install_hooks,
-        },
+        hooks: HOOKS,
         env: launch::grok_hook_shell_env,
+        screen_errors: &[
+            "request failed",
+            "server error",
+            "weekly limit",
+            "spending cap",
+            "credit limit",
+        ],
         boot_signal: false,
         prompt_on_resume: false,
         suggestion_scan: false,
     }),
+};
+
+pub const HOOKS: Hooks = Hooks {
+    endpoint: "grok",
+    install: install_hooks,
+    context: false,
+    foreground: true,
+    windows: false,
 };
 
 fn install_hooks(_worktree: &Path) -> Result<()> {

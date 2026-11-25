@@ -9,13 +9,14 @@ pub mod installer;
 pub mod removed_modes;
 mod windows_command;
 
+use crate::agent;
 use crate::status::HookEvent;
 use crate::store::Store;
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::post;
 use axum::Router;
-use berth_core::AgentId;
+use berth_core::{AgentId, AgentKind};
 use serde::Deserialize;
 use std::sync::Arc;
 use subtle::ConstantTimeEq;
@@ -200,10 +201,18 @@ pub async fn start_hook_server(
     // body to the CLI's stdout, where it lands in the model's context —
     // that's the auto-title instruction channel. Grok discards that body,
     // so it takes the plain route.
-    let app = Router::new()
-        .route("/api/hooks/claude", post(receive_injectable_hook))
-        .route("/api/hooks/codex", post(receive_injectable_hook))
-        .route("/api/hooks/grok", post(receive_plain_hook))
+    let app = AgentKind::NATIVE
+        .into_iter()
+        .filter_map(agent::terminal)
+        .fold(Router::new(), |app, terminal| {
+            let hooks = &terminal.hooks;
+            let receive = if hooks.context {
+                post(receive_injectable_hook)
+            } else {
+                post(receive_plain_hook)
+            };
+            app.route(&format!("/api/hooks/{}", hooks.endpoint), receive)
+        })
         .with_state(state);
 
     tokio::spawn(async move {

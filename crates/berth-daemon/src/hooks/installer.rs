@@ -35,6 +35,7 @@ use serde_json::{json, Map, Value};
 use std::path::{Path, PathBuf};
 
 use super::windows_command;
+use crate::agent::{claude, codex, grok, Hooks};
 use crate::git_exclude::{add_to_block, remove_from_block, CREATED_HOOK_FILES_BLOCK};
 
 /// The hooks file's name under codex's home. Claude keeps its hooks in its
@@ -132,18 +133,16 @@ fn hook_curl(endpoint: &str, event: &str) -> String {
     )
 }
 
-fn hook_command(endpoint: &str, event: &str) -> String {
+fn hook_command(hooks: &Hooks, event: &str) -> String {
     // UserPromptSubmit passes the daemon's response body through to stdout:
     // Claude Code (and Codex, same dialect) add a hook's stdout to the
     // model's context, which is how the session auto-title instruction
     // reaches the agent. The daemon keeps that body empty except when an
     // instruction is due. Every other event stays fully silent.
     // Grok discards a UserPromptSubmit hook's stdout instead, so it stays silent.
-    let tail = if matches!(event, "UserPromptSubmit" | "SessionStart") && endpoint != "grok" {
+    let tail = if matches!(event, "UserPromptSubmit" | "SessionStart") && hooks.context {
         "2>/dev/null || true"
-    } else if EVENTS_THE_DAEMON_MUST_SEE_IN_ORDER.contains(&event)
-        || endpoint == ENDPOINT_THAT_KILLS_BACKGROUND_HOOKS
-    {
+    } else if EVENTS_THE_DAEMON_MUST_SEE_IN_ORDER.contains(&event) || hooks.foreground {
         ">/dev/null 2>&1 || true"
     } else {
         "<&0 >/dev/null 2>&1 &"
@@ -151,11 +150,9 @@ fn hook_command(endpoint: &str, event: &str) -> String {
     format!(
         "if {}; then exit 0; fi; {} {tail}",
         env_guard(),
-        hook_curl(endpoint, event)
+        hook_curl(hooks.endpoint, event)
     )
 }
-
-const ENDPOINT_THAT_KILLS_BACKGROUND_HOOKS: &str = "grok";
 
 const EVENTS_THE_DAEMON_MUST_SEE_IN_ORDER: &[&str] = &[
     "UserPromptSubmit",
@@ -201,15 +198,16 @@ fn is_berth_group(group: &Value) -> bool {
         .unwrap_or(false)
 }
 
-fn managed_group(endpoint: &str, event: &str, matcher: Option<&str>) -> Value {
+fn managed_group(hooks: &Hooks, event: &str, matcher: Option<&str>) -> Value {
     let mut group = Map::new();
     if let Some(m) = matcher {
         group.insert("matcher".into(), json!(m));
     }
-    let mut hook = json!({ "type": "command", "command": hook_command(endpoint, event) });
-    if endpoint == "codex" {
+    let mut hook = json!({ "type": "command", "command": hook_command(hooks, event) });
+    if hooks.windows {
         let passthrough = matches!(event, "UserPromptSubmit" | "SessionStart");
-        hook["commandWindows"] = json!(windows_command::command(endpoint, event, passthrough));
+        hook["commandWindows"] =
+            json!(windows_command::command(hooks.endpoint, event, passthrough));
     }
     group.insert("hooks".into(), json!([hook]));
     group.insert(HOOK_TAG.into(), json!(true));
@@ -224,7 +222,7 @@ pub fn install_claude_hooks(cwd: &Path) -> Result<()> {
     install_managed_hooks(
         &cwd.join(CLAUDE_DIR),
         CLAUDE_SETTINGS_FILE,
-        "claude",
+        &claude::HOOKS,
         CLAUDE_EVENTS,
         CLAUDE_ALLOW_RULES,
     )?;
@@ -337,7 +335,7 @@ pub fn codex_home() -> PathBuf {
 
 /// Merge berth's managed hooks for Codex into `<codex_home>/hooks.json`.
 pub fn install_codex_hooks(codex_home: &Path) -> Result<()> {
-    install_managed_hooks(codex_home, HOOKS_FILE, "codex", CODEX_EVENTS, &[])
+    install_managed_hooks(codex_home, HOOKS_FILE, &codex::HOOKS, CODEX_EVENTS, &[])
 }
 
 /// Grok's home: `$GROK_HOME`, else `~/.grok`.
@@ -357,7 +355,7 @@ pub fn install_grok_hooks(grok_home: &Path) -> Result<()> {
     install_managed_hooks(
         &grok_home.join("hooks"),
         GROK_HOOKS_FILE,
-        "grok",
+        &grok::HOOKS,
         GROK_EVENTS,
         &[],
     )
@@ -490,7 +488,7 @@ fn write_text_atomic(dir: &Path, file_name: &str, text: &str) -> Result<()> {
 fn install_managed_hooks(
     dir: &Path,
     file_name: &str,
-    endpoint: &str,
+    hooks: &Hooks,
     events: &[(&str, Option<&str>)],
     allow_rules: &[&str],
 ) -> Result<()> {
@@ -498,7 +496,7 @@ fn install_managed_hooks(
     let mut root = load_hooks_root(&path)?;
 
     let root_obj = root_object_mut(&mut root, &path)?;
-    merge_managed_hooks(root_obj, endpoint, events, &path)?;
+    merge_managed_hooks(root_obj, hooks, events, &path)?;
     for rule in allow_rules {
         ensure_permission_allow(root_obj, rule, &path)?;
     }
@@ -509,12 +507,12 @@ fn install_managed_hooks(
 /// Claude/Codex-dialect config, leaving user groups untouched.
 fn merge_managed_hooks(
     root_obj: &mut Map<String, Value>,
-    endpoint: &str,
+    hooks: &Hooks,
     events: &[(&str, Option<&str>)],
     path: &Path,
 ) -> Result<()> {
-    let hooks = root_obj.entry("hooks").or_insert_with(|| json!({}));
-    let hooks_obj = object_mut(hooks, "\"hooks\"", path)?;
+    let hooks_json = root_obj.entry("hooks").or_insert_with(|| json!({}));
+    let hooks_obj = object_mut(hooks_json, "\"hooks\"", path)?;
 
     // One event can carry several managed groups (PostToolUse has one per
     // matcher), so the strip-and-rebuild happens once per event name —
@@ -529,7 +527,7 @@ fn merge_managed_hooks(
         if stripped.insert(event) {
             groups_arr.retain(|g| !is_berth_group(g));
         }
-        groups_arr.push(managed_group(endpoint, event, *matcher));
+        groups_arr.push(managed_group(hooks, event, *matcher));
     }
     Ok(())
 }
@@ -544,7 +542,7 @@ mod tests {
     #[test]
     fn hook_commands_are_spelled_exactly() {
         assert_eq!(
-            hook_command("claude", "UserPromptSubmit"),
+            hook_command(&claude::HOOKS, "UserPromptSubmit"),
             "if [ -z \"$BERTH_AGENT_ID\" ] || [ -z \"$BERTH_API_URL\" ]; then exit 0; fi; \
              curl -sS -m 3 --noproxy '*' -X POST -H \"Authorization: Bearer $BERTH_API_TOKEN\" \
              -H \"Content-Type: application/json\" --data-binary @- \
@@ -552,7 +550,7 @@ mod tests {
              2>/dev/null || true"
         );
         assert_eq!(
-            hook_command("codex", "Stop"),
+            hook_command(&codex::HOOKS, "Stop"),
             "if [ -z \"$BERTH_AGENT_ID\" ] || [ -z \"$BERTH_API_URL\" ]; then exit 0; fi; \
              curl -sS -m 3 --noproxy '*' -X POST -H \"Authorization: Bearer $BERTH_API_TOKEN\" \
              -H \"Content-Type: application/json\" --data-binary @- \
@@ -560,7 +558,7 @@ mod tests {
              <&0 >/dev/null 2>&1 &"
         );
         assert_eq!(
-            hook_command("claude", "SubagentStop"),
+            hook_command(&claude::HOOKS, "SubagentStop"),
             "if [ -z \"$BERTH_AGENT_ID\" ] || [ -z \"$BERTH_API_URL\" ]; then exit 0; fi; \
              curl -sS -m 3 --noproxy '*' -X POST -H \"Authorization: Bearer $BERTH_API_TOKEN\" \
              -H \"Content-Type: application/json\" --data-binary @- \
@@ -568,7 +566,7 @@ mod tests {
              >/dev/null 2>&1 || true"
         );
         assert_eq!(
-            hook_command("grok", "Stop"),
+            hook_command(&grok::HOOKS, "Stop"),
             "if [ -z \"$BERTH_AGENT_ID\" ] || [ -z \"$BERTH_API_URL\" ]; then exit 0; fi; \
              curl -sS -m 3 --noproxy '*' -X POST -H \"Authorization: Bearer $BERTH_API_TOKEN\" \
              -H \"Content-Type: application/json\" --data-binary @- \

@@ -21,7 +21,11 @@ impl Launch<'_> {
 }
 
 pub struct Hooks {
+    pub endpoint: &'static str,
     pub install: fn(&Path) -> Result<()>,
+    pub context: bool,
+    pub foreground: bool,
+    pub windows: bool,
 }
 
 pub struct Terminal {
@@ -30,6 +34,7 @@ pub struct Terminal {
     pub leading_args: fn() -> Vec<String>,
     pub hooks: Hooks,
     pub env: fn() -> Vec<(String, String)>,
+    pub screen_errors: &'static [&'static str],
     pub boot_signal: bool,
     pub prompt_on_resume: bool,
     pub suggestion_scan: bool,

@@ -9,14 +9,26 @@ pub static PROFILE: Profile = Profile {
         program: "codex",
         args,
         leading_args,
-        hooks: Hooks {
-            install: install_hooks,
-        },
+        hooks: HOOKS,
         env: no_env,
+        screen_errors: &[
+            "stream error",
+            "stream disconnected",
+            "exceeded retry limit",
+            "unexpected status",
+        ],
         boot_signal: false,
         prompt_on_resume: false,
         suggestion_scan: false,
     }),
+};
+
+pub const HOOKS: Hooks = Hooks {
+    endpoint: "codex",
+    install: install_hooks,
+    context: true,
+    foreground: false,
+    windows: true,
 };
 
 fn install_hooks(worktree: &Path) -> Result<()> {

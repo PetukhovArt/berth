@@ -9,14 +9,21 @@ pub static PROFILE: Profile = Profile {
         program: "claude",
         args,
         leading_args,
-        hooks: Hooks {
-            install: install_hooks,
-        },
+        hooks: HOOKS,
         env: no_env,
+        screen_errors: &["please run /login", "credit balance is too low"],
         boot_signal: true,
         prompt_on_resume: true,
         suggestion_scan: true,
     }),
+};
+
+pub const HOOKS: Hooks = Hooks {
+    endpoint: "claude",
+    install: install_hooks,
+    context: true,
+    foreground: false,
+    windows: false,
 };
 
 pub const CLAUDE_WORKTREE_GUIDANCE: &str = "[berth] This session runs inside berth, which \
