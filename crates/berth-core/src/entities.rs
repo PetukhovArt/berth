@@ -1,3 +1,4 @@
+use crate::agent::{AgentKind, Backend};
 use crate::ids::{AgentId, ProjectId, TerminalId, WorkspaceId, WorktreeId};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -41,62 +42,6 @@ impl AgentStatus {
             "disconnected" => AgentStatus::Disconnected,
             _ => return None,
         })
-    }
-}
-
-/// Which agent CLI a session runs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum AgentKind {
-    #[default]
-    Claude,
-    Codex,
-    Cursor,
-    #[serde(rename = "opencode")]
-    OpenCode,
-    Grok,
-    Acp,
-}
-
-impl AgentKind {
-    /// Every kind, for callers that must cover all of them (menus, the
-    /// boot-time CLI probe warm) and should fail to compile if one is added.
-    pub const ALL: [AgentKind; 3] = [AgentKind::Claude, AgentKind::Codex, AgentKind::Grok];
-
-    pub fn terminal_removed(&self) -> bool {
-        matches!(self, AgentKind::Cursor | AgentKind::OpenCode)
-    }
-
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            AgentKind::Claude => "claude",
-            AgentKind::Codex => "codex",
-            AgentKind::Cursor => "cursor",
-            AgentKind::OpenCode => "opencode",
-            AgentKind::Grok => "grok",
-            AgentKind::Acp => "acp",
-        }
-    }
-
-    pub fn parse(s: &str) -> Option<Self> {
-        Some(match s {
-            "claude" => AgentKind::Claude,
-            "codex" => AgentKind::Codex,
-            "cursor" => AgentKind::Cursor,
-            "opencode" => AgentKind::OpenCode,
-            "grok" => AgentKind::Grok,
-            "acp" => AgentKind::Acp,
-            _ => return None,
-        })
-    }
-
-    pub fn cli_program(&self) -> &'static str {
-        match self {
-            AgentKind::Claude => "claude",
-            AgentKind::Codex => "codex",
-            AgentKind::Grok => "grok",
-            AgentKind::Cursor | AgentKind::OpenCode | AgentKind::Acp => "",
-        }
     }
 }
 
@@ -187,6 +132,8 @@ pub struct Agent {
     pub status_changed_at: i64,
     #[serde(default)]
     pub kind: AgentKind,
+    #[serde(default)]
+    pub backend: Backend,
     /// Model the CLI is launched with (claude `--model` / codex `-m`);
     /// None = the CLI's own default. Persisted so respawns keep it.
     #[serde(default)]

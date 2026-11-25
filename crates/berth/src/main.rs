@@ -28,11 +28,11 @@ struct Cli {
 /// `--kind` for `berth spawn`: one of the agent CLIs berth runs.
 fn parse_agent_kind(s: &str) -> Result<berth_core::AgentKind, String> {
     berth_core::AgentKind::parse(s)
-        .filter(|kind| berth_core::AgentKind::ALL.contains(kind))
+        .filter(|kind| berth_core::AgentKind::NATIVE.contains(kind))
         .ok_or_else(|| {
             format!(
                 "unknown harness `{s}` — expected one of {}",
-                berth_core::AgentKind::ALL
+                berth_core::AgentKind::NATIVE
                     .iter()
                     .map(|k| k.as_str())
                     .collect::<Vec<_>>()

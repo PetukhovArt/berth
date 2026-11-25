@@ -26,7 +26,7 @@ use crate::status::HookEvent;
 use anyhow::{bail, Context, Result};
 use berth_core::acp::{AcpItem, AcpItemAt, AcpSessionState, FeedbackAnswer, QuestionForm};
 use berth_core::WorktreeId;
-use berth_core::{AgentId, AgentKind, EntityId, FeedbackKind, FeedbackRequest, ServerEvent};
+use berth_core::{AgentId, Backend, EntityId, FeedbackKind, FeedbackRequest, ServerEvent};
 use conn::{Conn, Inbound};
 use providers::AcpProvider;
 use serde_json::{json, Value};
@@ -202,7 +202,7 @@ impl Daemon {
             return Ok(live);
         }
         let agent = self.store.get_agent(agent_id)?.context("agent not found")?;
-        if agent.kind != AgentKind::Acp {
+        if agent.backend != Backend::Chat {
             bail!("not an ACP agent");
         }
         if agent.archived {
@@ -461,7 +461,7 @@ impl Daemon {
             .get_agent(agent_id)
             .ok()
             .flatten()
-            .is_some_and(|agent| agent.kind == AgentKind::Acp)
+            .is_some_and(|agent| agent.backend == Backend::Chat)
     }
 
     pub async fn answer_feedback(

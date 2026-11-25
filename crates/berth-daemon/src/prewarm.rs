@@ -3,7 +3,9 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use berth_core::{Agent, AgentId, AgentKind, AgentStatus, PrewarmInfo, SessionRef, WorktreeId};
+use berth_core::{
+    Agent, AgentId, AgentKind, AgentStatus, Backend, PrewarmInfo, SessionRef, WorktreeId,
+};
 
 use crate::pty::{DEFAULT_COLS, DEFAULT_ROWS};
 use crate::registry::Daemon;
@@ -204,6 +206,7 @@ impl Daemon {
             routed_from: None,
             route_suggestion: None,
             acp_provider: None,
+            backend: Backend::Terminal,
         };
         self.spawn_agent_session(&agent, &worktree, DEFAULT_COLS, DEFAULT_ROWS)?;
         tracing::info!(agent = %agent.id, kind = kind.as_str(), worktree = %worktree.branch, "prewarmed agent session");

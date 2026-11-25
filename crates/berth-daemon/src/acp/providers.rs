@@ -13,7 +13,7 @@ pub struct ProvidersConfig {
 }
 
 pub fn native_enabled(config: &ProvidersConfig, kind: AgentKind) -> bool {
-    !kind.terminal_removed()
+    kind.program().is_some()
         && config
             .native
             .get(kind.as_str())
@@ -23,7 +23,7 @@ pub fn native_enabled(config: &ProvidersConfig, kind: AgentKind) -> bool {
 }
 
 pub fn ensure_native_enabled(config: &ProvidersConfig, kind: AgentKind) -> Result<()> {
-    if kind.terminal_removed() {
+    if kind.program().is_none() {
         bail!("{} runs only in the chat view", kind.as_str());
     }
     if !native_enabled(config, kind) {

@@ -358,7 +358,9 @@ async fn receive_hook(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use berth_core::{Agent, AgentKind, AgentStatus, Project, ProjectId, Worktree, WorktreeId};
+    use berth_core::{
+        Agent, AgentKind, AgentStatus, Backend, Project, ProjectId, Worktree, WorktreeId,
+    };
 
     /// Minimal raw HTTP/1.1 POST (Connection: close), so the real response
     /// body — what the hook one-liner pipes to the CLI's stdout — is under
@@ -428,6 +430,7 @@ mod tests {
             routed_from: None,
             route_suggestion: None,
             acp_provider: None,
+            backend: Backend::Terminal,
         };
         store
             .insert_agent_with_auto_title(&agent("pending"), true)

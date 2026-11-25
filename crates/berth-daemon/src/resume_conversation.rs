@@ -3,8 +3,8 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, Context, Result};
 use berth_core::{
-    Agent, AgentId, AgentKind, AgentStatus, Entity, EntityId, ServerEvent, SessionRef, TerminalId,
-    Worktree, WorktreeId,
+    Agent, AgentId, AgentKind, AgentStatus, Backend, Entity, EntityId, ServerEvent, SessionRef,
+    TerminalId, Worktree, WorktreeId,
 };
 
 use crate::pty::{DEFAULT_COLS, DEFAULT_ROWS};
@@ -225,6 +225,7 @@ impl Daemon {
             routed_from: None,
             route_suggestion: None,
             acp_provider: None,
+            backend: Backend::Terminal,
         };
         self.store.insert_agent(&agent)?;
         let spawned =

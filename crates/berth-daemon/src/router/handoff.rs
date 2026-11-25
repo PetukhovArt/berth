@@ -158,7 +158,7 @@ pub async fn git_state(dir: &Path) -> Option<String> {
 }
 
 pub fn handoff_prompt(h: &Handoff) -> String {
-    let program = h.old.kind.cli_program();
+    let program = h.old.kind.program().unwrap_or_default();
     let mut parts = vec![format!(
         "[berth] Continue the task the {program} agent '{}' was working on in this worktree ({}).",
         flat(&h.old.name, 80),
@@ -207,7 +207,7 @@ then carry on from where it stopped. Do not redo finished steps."
 #[cfg(test)]
 mod tests {
     use super::*;
-    use berth_core::{AgentId, AgentKind, AgentStatus, ProviderErrorKind, WorktreeId};
+    use berth_core::{AgentId, AgentKind, AgentStatus, Backend, ProviderErrorKind, WorktreeId};
 
     fn agent() -> Agent {
         Agent {
@@ -231,6 +231,7 @@ mod tests {
             routed_from: None,
             route_suggestion: None,
             acp_provider: None,
+            backend: Backend::Terminal,
         }
     }
 

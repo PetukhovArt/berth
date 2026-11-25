@@ -1,10 +1,11 @@
 use crate::acp::{
     AcpItem, AcpItemAt, AcpSessionState, AttachmentUpload, FeedbackAnswer, QuestionForm, QueueId,
 };
+use crate::agent::AgentKind;
 use crate::attention::Attention;
 use crate::entities::{
-    Agent, AgentKind, AgentStatus, Entity, EntityId, OrphanedSession, Project, TerminalTab,
-    Workspace, Worktree,
+    Agent, AgentStatus, Entity, EntityId, OrphanedSession, Project, TerminalTab, Workspace,
+    Worktree,
 };
 use crate::ids::{AgentId, ProjectId, TerminalId, WorkspaceId, WorktreeId};
 use serde::{Deserialize, Serialize};
@@ -12,7 +13,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 67;
+pub const PROTOCOL_VERSION: u32 = 68;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;

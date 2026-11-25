@@ -4,7 +4,7 @@
 
 use anyhow::{Context, Result};
 use berth_core::{
-    Agent, AgentId, AgentKind, AgentStatus, ArchivedExternalSession, AttentionState,
+    Agent, AgentId, AgentKind, AgentStatus, ArchivedExternalSession, AttentionState, Backend,
     OrphanedSession, Project, ProjectId, PromptTrigger, StatusChange, TerminalId, TerminalTab,
     TriggerId, TriggerTarget, TriggerWhen, Workspace, WorkspaceId, Worktree, WorktreeId,
     DEFAULT_WORKSPACE_ID,
@@ -362,6 +362,9 @@ const MIGRATIONS: &[&str] = &[
     ",
     "
     ALTER TABLE agents ADD COLUMN ended_at INTEGER NOT NULL DEFAULT 0;
+    ",
+    "
+    ALTER TABLE agents ADD COLUMN backend TEXT;
     ",
 ];
 
@@ -911,8 +914,8 @@ impl Store {
         pr_url: Option<&str>,
     ) -> Result<()> {
         self.conn.lock().unwrap().execute(
-            "INSERT INTO agents (id, worktree_id, name, status, archived, archived_at, kind, claude_session_id, sort_order, created_at, status_changed_at, model, effort, auto_title_pending, unseen, pr_url)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
+            "INSERT INTO agents (id, worktree_id, name, status, archived, archived_at, kind, claude_session_id, sort_order, created_at, status_changed_at, model, effort, auto_title_pending, unseen, pr_url, backend)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
             params![
                 a.id.as_str(),
                 a.worktree_id.as_str(),
@@ -930,6 +933,7 @@ impl Store {
                 auto_title as i64,
                 a.unseen as i64,
                 pr_url,
+                a.backend.as_str(),
             ],
         )?;
         Ok(())
@@ -958,8 +962,8 @@ impl Store {
     ) -> Result<()> {
         let now = now_ms();
         self.conn.lock().unwrap().execute(
-            "INSERT INTO agents (id, worktree_id, name, status, archived, archived_at, kind, sort_order, created_at, status_changed_at, auto_title_pending, unseen, acp_provider)
-             VALUES (?1, ?2, ?3, ?4, 0, 0, ?5, 0, ?6, ?6, ?7, 0, ?8)",
+            "INSERT INTO agents (id, worktree_id, name, status, archived, archived_at, kind, sort_order, created_at, status_changed_at, auto_title_pending, unseen, acp_provider, backend)
+             VALUES (?1, ?2, ?3, ?4, 0, 0, ?5, 0, ?6, ?6, ?7, 0, ?8, ?9)",
             params![
                 id.as_str(),
                 worktree.as_str(),
@@ -969,6 +973,7 @@ impl Store {
                 now,
                 auto_title as i64,
                 provider,
+                Backend::Chat.as_str(),
             ],
         )?;
         Ok(())
@@ -1527,7 +1532,7 @@ const PROJECT_COLUMNS: &str = "id, name, repo_path, sort_order, workspace_id, pi
 const WORKTREE_COLUMNS: &str = "id, project_id, path, branch, is_main, sort_order";
 const AGENT_COLUMNS: &str = "id, worktree_id, name, status, archived, kind, \
                              claude_session_id, sort_order, status_changed_at, model, effort, \
-                             archived_at, unseen, acp_provider, ended_at";
+                             archived_at, unseen, acp_provider, ended_at, backend";
 const TERMINAL_COLUMNS: &str = "id, worktree_id, name, sort_order, session_id";
 const ORPHAN_COLUMNS: &str =
     "session_id, project_id, kind, name, branch, worktree_path,      created_at, orphaned_at";
@@ -1565,13 +1570,15 @@ fn row_to_worktree(r: &rusqlite::Row) -> rusqlite::Result<Worktree> {
 }
 
 fn row_to_agent(r: &rusqlite::Row) -> rusqlite::Result<Agent> {
+    let kind = AgentKind::parse(&r.get::<_, String>(5)?).unwrap_or_default();
     Ok(Agent {
         id: AgentId(r.get(0)?),
         worktree_id: WorktreeId(r.get(1)?),
         name: r.get(2)?,
         status: AgentStatus::parse(&r.get::<_, String>(3)?).unwrap_or(AgentStatus::Fresh),
         archived: r.get::<_, i64>(4)? != 0,
-        kind: AgentKind::parse(&r.get::<_, String>(5)?).unwrap_or_default(),
+        kind,
+        backend: Backend::of(kind, r.get::<_, Option<String>>(15)?.as_deref()),
         session_id: r.get(6)?,
         sort_order: r.get(7)?,
         status_changed_at: r.get(8)?,
@@ -1665,6 +1672,7 @@ mod tests {
             routed_from: None,
             route_suggestion: None,
             acp_provider: None,
+            backend: Backend::Terminal,
         };
         let pr_url = "https://github.com/PetukhovArt/berth/pull/42";
         store
@@ -1691,6 +1699,7 @@ mod tests {
             routed_from: None,
             route_suggestion: None,
             acp_provider: None,
+            backend: Backend::Terminal,
         };
         store.insert_agent(&codex_agent).unwrap();
         let cursor_agent = Agent {
@@ -1714,6 +1723,7 @@ mod tests {
             routed_from: None,
             route_suggestion: None,
             acp_provider: None,
+            backend: Backend::Terminal,
         };
         store.insert_agent(&cursor_agent).unwrap();
 
@@ -1856,6 +1866,48 @@ mod tests {
         // that opening an old database runs every one of them, and pinning
         // the number here would fail on the next migration instead.
         assert_eq!(version, MIGRATIONS.len() as i64);
+        drop(store);
+        for suffix in ["", "-wal", "-shm"] {
+            let _ = std::fs::remove_file(format!("{}{}", path.display(), suffix));
+        }
+    }
+
+    #[test]
+    fn migration_backend_reads_old_rows_by_kind() {
+        let path =
+            std::env::temp_dir().join(format!("berth-mig-backend-test-{}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        {
+            let conn = Connection::open(&path).unwrap();
+            conn.pragma_update(None, "foreign_keys", "ON").unwrap();
+            for (i, migration) in MIGRATIONS.iter().take(MIGRATIONS.len() - 1).enumerate() {
+                conn.execute_batch(&format!(
+                    "BEGIN; {migration}; PRAGMA user_version = {}; COMMIT;",
+                    i + 1
+                ))
+                .unwrap();
+            }
+            conn.execute_batch(
+                "INSERT INTO projects (id, name, repo_path, sort_order, created_at, workspace_id)
+                   VALUES ('p1', 'p', '/tmp/p', 0, 0, 'default');
+                 INSERT INTO worktrees (id, project_id, path, branch, is_main, sort_order, created_at, pinned)
+                   VALUES ('w1', 'p1', '/tmp/p', 'main', 1, 0, 0, 0);
+                 INSERT INTO agents (id, worktree_id, name, kind, created_at)
+                   VALUES ('terminal', 'w1', 'a', 'claude', 0), ('chat', 'w1', 'b', 'acp', 0);",
+            )
+            .unwrap();
+        }
+
+        let store = Store::open(&path).unwrap();
+        let backend = |id: &str| {
+            store
+                .get_agent(&AgentId(id.into()))
+                .unwrap()
+                .unwrap()
+                .backend
+        };
+        assert_eq!(backend("terminal"), Backend::Terminal);
+        assert_eq!(backend("chat"), Backend::Chat);
         drop(store);
         for suffix in ["", "-wal", "-shm"] {
             let _ = std::fs::remove_file(format!("{}{}", path.display(), suffix));
@@ -2140,6 +2192,7 @@ mod tests {
             routed_from: None,
             route_suggestion: None,
             acp_provider: None,
+            backend: Backend::Terminal,
         };
 
         // Default-named session: pending until the agent titles it, and the
@@ -2292,6 +2345,7 @@ mod tests {
                     routed_from: None,
                     route_suggestion: None,
                     acp_provider: None,
+                    backend: Backend::Terminal,
                 })
                 .unwrap();
         }
@@ -2364,6 +2418,7 @@ mod tests {
                 routed_from: None,
                 route_suggestion: None,
                 acp_provider: None,
+                backend: Backend::Terminal,
             };
             store.insert_agent(&agent).unwrap();
             agent.id
@@ -2481,6 +2536,7 @@ mod tests {
             routed_from: None,
             route_suggestion: None,
             acp_provider: None,
+            backend: Backend::Terminal,
         };
         store.insert_agent(&agent).unwrap();
         (project.id, worktree.id, agent.id)

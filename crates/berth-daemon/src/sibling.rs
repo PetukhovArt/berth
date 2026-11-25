@@ -159,7 +159,7 @@ mod tests {
     use super::*;
     use crate::hooks::HookEnv;
     use crate::store::Store;
-    use berth_core::{Agent, AgentStatus, Project, ProjectId, Worktree, WorktreeId};
+    use berth_core::{Agent, AgentStatus, Backend, Project, ProjectId, Worktree, WorktreeId};
 
     fn daemon() -> Arc<Daemon> {
         let daemon = Daemon::new(
@@ -218,6 +218,7 @@ mod tests {
             routed_from: None,
             route_suggestion: None,
             acp_provider: None,
+            backend: Backend::Terminal,
         }
     }
 

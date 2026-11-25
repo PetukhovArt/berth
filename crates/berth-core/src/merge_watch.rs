@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Agent, AgentId, AgentKind, AgentStatus, EntityId, Worktree, WorktreeId};
+use crate::{Agent, AgentId, AgentStatus, Backend, EntityId, Worktree, WorktreeId};
 
 pub const CHECK_EVERY: Duration = Duration::from_secs(5 * 60);
 pub const WATCH_EVERY: Duration = Duration::from_secs(60);
@@ -445,7 +445,7 @@ impl MergeWatch {
         let (agent, running, acp) = (
             agent.id.clone(),
             agent.status == AgentStatus::Running,
-            agent.kind == AgentKind::Acp,
+            agent.backend == Backend::Chat,
         );
         let text = wakes.join(" ");
         next.last_wake = Some(text.clone());
@@ -485,7 +485,7 @@ impl MergeWatch {
         };
         let prompt = Prompt {
             agent: agent.id.clone(),
-            acp: agent.kind == AgentKind::Acp,
+            acp: agent.backend == Backend::Chat,
             text,
         };
         vec![Effect::Save(self.memory.clone()), Effect::Prompt(prompt)]

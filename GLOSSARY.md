@@ -43,6 +43,10 @@ _Avoid_: the claude
 Which CLI an Agent runs: `claude`, `codex` or `grok`, or `acp` for an ACP Agent. Rows with `cursor` or `opencode` ran in a terminal before that mode was removed: they stay readable and cannot be resumed.
 _Avoid_: harness, agent type
 
+**Backend**
+How an Agent runs: `chat` (the daemon drives the CLI over a protocol and keeps the transcript) or `terminal` (the CLI runs in a PTY). Stored per Agent beside its Agent Kind; a row from before the column is `chat` for Agent Kind `acp` and `terminal` otherwise. Not a Provider.
+_Avoid_: mode, view
+
 **ACP Agent**
 An Agent whose CLI speaks the Agent Client Protocol over stdio instead of running in a PTY: Agent Kind `acp`, and its Provider names the CLI. It has no terminal; its conversation is the transcript the daemon keeps.
 _Avoid_: headless agent, chat agent

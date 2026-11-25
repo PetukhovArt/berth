@@ -273,7 +273,7 @@ pub fn run_send(session: String, text: String, submit: bool) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use berth_core::{AgentKind, AgentStatus, ProjectId, WorkspaceId, WorktreeId};
+    use berth_core::{AgentKind, AgentStatus, Backend, ProjectId, WorkspaceId, WorktreeId};
     use std::path::PathBuf;
 
     fn agent(id: &str, name: &str, status: AgentStatus, unseen: bool, archived: bool) -> Agent {
@@ -298,6 +298,7 @@ mod tests {
             routed_from: None,
             route_suggestion: None,
             acp_provider: None,
+            backend: Backend::Terminal,
         }
     }
 

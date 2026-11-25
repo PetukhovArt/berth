@@ -12,9 +12,10 @@ use anyhow::{bail, Context, Result};
 use berth_core::env;
 use berth_core::paths;
 use berth_core::{
-    Agent, AgentId, AgentKind, AgentStatus, EnterOutcome, Entity, EntityId, MetricsSnapshot,
-    OrphanedSession, PrewarmInfo, Project, ProjectId, ServerEvent, SessionRef, TerminalId,
-    TerminalTab, Workspace, WorkspaceId, Worktree, WorktreeId, MAX_STARTING_PROMPT_BYTES,
+    Agent, AgentId, AgentKind, AgentStatus, Backend, EnterOutcome, Entity, EntityId,
+    MetricsSnapshot, OrphanedSession, PrewarmInfo, Project, ProjectId, ServerEvent, SessionRef,
+    TerminalId, TerminalTab, Workspace, WorkspaceId, Worktree, WorktreeId,
+    MAX_STARTING_PROMPT_BYTES,
 };
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -983,8 +984,11 @@ impl Daemon {
             auto_title,
             starting_prompt,
         } = spec;
-        if kind == AgentKind::Acp {
-            bail!("an ACP agent is created with its provider (CreateAcpAgent)");
+        if kind.program().is_none() {
+            bail!(
+                "{} is created with its provider (CreateAcpAgent)",
+                kind.as_str()
+            );
         }
         let starting_prompt = match starting_prompt {
             Some(prompt) => Some(validate_starting_prompt(&prompt)?),
@@ -1045,6 +1049,7 @@ impl Daemon {
             routed_from: None,
             route_suggestion: None,
             acp_provider: None,
+            backend: Backend::Terminal,
         };
         self.store
             .insert_agent_with_auto_title(&agent, auto_title)?;
@@ -1144,7 +1149,7 @@ impl Daemon {
     /// loop. Without it the first CreateAgent of a session pays a full
     /// login-shell probe (~1s with a heavy ~/.zshrc) before it can answer.
     pub async fn warm_cli_probes(self: &Arc<Self>) {
-        for kind in AgentKind::ALL {
+        for kind in AgentKind::NATIVE {
             self.cli_available(kind).await;
         }
     }
@@ -1166,7 +1171,9 @@ impl Daemon {
     /// nothing: refusing a create over a shell that would not start would
     /// blame the user's CLI for the daemon's problem.
     async fn probe_cli(&self, kind: AgentKind) -> bool {
-        match launch::program_is_installed(kind.cli_program(), CLI_PROBE_TIMEOUT).await {
+        match launch::program_is_installed(kind.program().unwrap_or_default(), CLI_PROBE_TIMEOUT)
+            .await
+        {
             Some(ok) => {
                 self.cli_probes
                     .lock()
@@ -1660,7 +1667,7 @@ impl Daemon {
         match sref {
             SessionRef::Agent(id) => {
                 let agent = self.store.get_agent(id)?.context("agent not found")?;
-                if agent.kind == AgentKind::Acp {
+                if agent.backend == Backend::Chat {
                     bail!("an ACP agent has no terminal");
                 }
                 if agent.archived {
@@ -1720,7 +1727,7 @@ impl Daemon {
     ) -> Result<Arc<PtySession>> {
         // Whatever spawns this agent, it runs in `worktree` from here: a
         // relocation still pending for it has been overtaken.
-        if agent.kind.terminal_removed() {
+        if agent.kind.program().is_none() {
             bail!("{} runs only in the chat view", agent.kind.as_str());
         }
         self.pending_moves.lock().unwrap().remove(&agent.id);
@@ -2109,12 +2116,12 @@ fn agent_spawn_command_with(
     if let Some(cmd) = cmd_override {
         let mut parts = cmd.split_whitespace().map(String::from).collect::<Vec<_>>();
         if parts.is_empty() {
-            parts.push(kind.cli_program().into());
+            parts.push(kind.program().unwrap_or_default().into());
         }
         let program = parts.remove(0);
         return (program, parts, false);
     }
-    let program = kind.cli_program().to_string();
+    let program = kind.program().unwrap_or_default().to_string();
     let (mut args, resumed) = match (kind, session_id) {
         (AgentKind::Claude, Some(sid)) => (vec!["--resume".to_string(), sid.to_string()], true),
         (AgentKind::Codex, Some(sid)) => (vec!["resume".to_string(), sid.to_string()], true),
@@ -2230,7 +2237,7 @@ fn shell_has_children(session: &PtySession) -> bool {
 pub(crate) fn cli_missing_message(kind: AgentKind) -> String {
     format!(
         "{} was not found on your PATH — install it, then try again.",
-        kind.cli_program()
+        kind.program().unwrap_or_default()
     )
 }
 
@@ -2629,6 +2636,7 @@ pub(crate) mod tests {
                 routed_from: None,
                 route_suggestion: None,
                 acp_provider: None,
+                backend: Backend::Terminal,
             })
             .unwrap();
     }
@@ -2819,6 +2827,7 @@ pub(crate) mod tests {
                     routed_from: None,
                     route_suggestion: None,
                     acp_provider: None,
+                    backend: Backend::Terminal,
                 },
                 true,
             )
@@ -3298,7 +3307,7 @@ pub(crate) mod tests {
         assert!(cli_missing_message(AgentKind::Codex).starts_with("codex was not found"));
         // No "restart berth": agent CLIs are spawned through the user's
         // login shell, so a fresh install is picked up on the next try.
-        for kind in AgentKind::ALL {
+        for kind in AgentKind::NATIVE {
             let msg = cli_missing_message(kind);
             assert!(msg.contains("try again"), "{msg}");
             assert!(!msg.contains("restart"), "{msg}");

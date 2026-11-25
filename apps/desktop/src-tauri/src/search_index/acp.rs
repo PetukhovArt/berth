@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use berth_core::acp::{AcpItem, AcpItemAt};
 use berth_core::{
-    Agent, AgentId, AgentKind, ClientRequest, Entity, EntityId, ServerEvent, Worktree, WorktreeId,
+    Agent, AgentId, Backend, ClientRequest, Entity, EntityId, ServerEvent, Worktree, WorktreeId,
 };
 use rusqlite::{params, Connection};
 use tokio::runtime::Handle;
@@ -89,7 +89,7 @@ impl Roster {
         Some(
             self.agents
                 .values()
-                .filter(|agent| agent.kind == AgentKind::Acp)
+                .filter(|agent| agent.backend == Backend::Chat)
                 .map(|agent| {
                     let worktree = self.worktrees.get(&agent.worktree_id);
                     AcpAgent {

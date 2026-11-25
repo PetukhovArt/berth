@@ -418,7 +418,7 @@ fn target(entry: &str) -> Option<(AgentKind, Option<&str>)> {
         Some((k, m)) => (k, Some(m.trim()).filter(|m| !m.is_empty())),
         None => (entry, None),
     };
-    let kind = AgentKind::parse(kind.trim()).filter(|kind| !kind.terminal_removed())?;
+    let kind = AgentKind::parse(kind.trim()).filter(|kind| kind.program().is_some())?;
     Some((kind, model))
 }
 

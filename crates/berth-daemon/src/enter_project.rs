@@ -108,7 +108,7 @@ mod tests {
     use super::*;
     use crate::hooks::HookEnv;
     use crate::store::Store;
-    use berth_core::{AgentStatus, EntityId};
+    use berth_core::{AgentStatus, Backend, EntityId};
 
     fn git_init(repo: &Path) {
         std::fs::create_dir_all(repo).unwrap();
@@ -174,6 +174,7 @@ mod tests {
                 routed_from: None,
                 route_suggestion: None,
                 acp_provider: None,
+                backend: Backend::Terminal,
             })
             .unwrap();
 
