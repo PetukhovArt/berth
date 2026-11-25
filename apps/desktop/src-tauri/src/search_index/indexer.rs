@@ -42,8 +42,9 @@ pub async fn run() {
             Some(event) = events.recv() => roster.apply(event),
             _ = tick.tick() => {
                 let agents = roster.acp_agents();
+                let truncated = roster.take_truncated();
                 let daemon = daemon.clone();
-                let outcome = spawn_blocking(move || sweep(agents, &daemon))
+                let outcome = spawn_blocking(move || sweep(agents, &truncated, &daemon))
                     .await
                     .map_err(|error| error.to_string())
                     .and_then(|swept| swept);
@@ -79,9 +80,13 @@ fn try_writer_lock() -> Option<File> {
     Some(file)
 }
 
-fn sweep(agents: Option<Vec<AcpAgent>>, daemon: &Daemon) -> Result<(), String> {
+fn sweep(
+    agents: Option<Vec<AcpAgent>>,
+    truncated: &[String],
+    daemon: &Daemon,
+) -> Result<(), String> {
     let mut conn = store::open_writer(&db_path())?;
-    match pass(&mut conn, agents, daemon) {
+    match acp::forget(&mut conn, truncated).and_then(|()| pass(&mut conn, agents, daemon)) {
         Ok(()) => Ok(()),
         Err(error) if store::is_corrupt(&error) => {
             drop(conn);

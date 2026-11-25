@@ -11,8 +11,8 @@ use anyhow::{bail, Context, Result};
 use berth_core::protocol::SessionRef;
 use berth_core::ProviderErrorKind;
 use berth_core::{
-    Agent, AgentId, AgentKind, AgentStatus, EntityId, ProviderError, RouteAction, RouteSuggestion,
-    UsageWindow,
+    Agent, AgentId, AgentKind, AgentStatus, Backend, EntityId, ProviderError, RouteAction,
+    RouteSuggestion, UsageWindow,
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -224,6 +224,7 @@ impl Daemon {
     fn route_suggestion_for(&self, agent: &Agent) -> Option<RouteSuggestion> {
         if agent.archived
             || agent.is_ended()
+            || agent.backend == Backend::Chat
             || self.store.was_routed_on(&agent.id).unwrap_or(false)
         {
             return None;
@@ -288,6 +289,7 @@ impl Daemon {
         if !file.is_auto()
             || agent.archived
             || agent.is_ended()
+            || agent.backend == Backend::Chat
             || self.store.was_routed_on(&agent.id).unwrap_or(false)
         {
             return;

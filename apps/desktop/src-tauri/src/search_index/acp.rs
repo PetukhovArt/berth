@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use berth_core::acp::{AcpItem, AcpItemAt};
@@ -41,6 +41,7 @@ pub struct Roster {
     synced: bool,
     agents: HashMap<AgentId, Agent>,
     worktrees: HashMap<WorktreeId, Worktree>,
+    truncated: HashSet<AgentId>,
 }
 
 impl Roster {
@@ -78,8 +79,15 @@ impl Roster {
             } => {
                 self.worktrees.remove(&id);
             }
+            WatchEvent::AcpTruncated { agent, .. } => {
+                self.truncated.insert(agent);
+            }
             _ => {}
         }
+    }
+
+    pub fn take_truncated(&mut self) -> Vec<String> {
+        self.truncated.drain().map(|agent| key_of(&agent)).collect()
     }
 
     pub fn acp_agents(&self) -> Option<Vec<AcpAgent>> {
@@ -130,6 +138,18 @@ impl Daemon {
             _ => None,
         }
     }
+}
+
+pub fn forget(conn: &mut Connection, keys: &[String]) -> rusqlite::Result<()> {
+    if keys.is_empty() {
+        return Ok(());
+    }
+    let tx = conn.transaction()?;
+    for key in keys {
+        tx.execute("DELETE FROM files WHERE path = ?1", [key])?;
+        tx.execute("DELETE FROM messages WHERE path = ?1", [key])?;
+    }
+    tx.commit()
 }
 
 fn indexed(item: AcpItem) -> Option<(&'static str, String)> {

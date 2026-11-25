@@ -1,10 +1,28 @@
 use crate::registry::{relocation_prompt, Daemon};
 use anyhow::Result;
-use berth_core::{Agent, AgentId, Worktree};
+use berth_core::{Agent, AgentId, ServerEvent, Worktree};
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 impl Daemon {
+    pub(crate) fn acp_drain_queue(&self, id: &AgentId) {
+        let Some(live) = self.acp.get(id) else {
+            return;
+        };
+        let cleared = std::mem::take(&mut live.state.lock().unwrap().queue);
+        let texts: Vec<String> = cleared
+            .into_iter()
+            .map(|queued| queued.prompt.text)
+            .filter(|text| !text.is_empty())
+            .collect();
+        if !texts.is_empty() {
+            self.broadcast(ServerEvent::AcpQueueCleared {
+                agent: id.clone(),
+                texts,
+            });
+        }
+    }
+
     pub(crate) fn acp_restart(self: &Arc<Self>, id: &AgentId) -> Result<()> {
         self.acp.kill(id);
         self.acp_ensure(id)?;

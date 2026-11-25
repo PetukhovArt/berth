@@ -69,6 +69,9 @@ impl Daemon {
         to: Backend,
         provider: Option<&str>,
     ) -> Result<()> {
+        if to == Backend::Terminal {
+            self.acp_drain_queue(id);
+        }
         self.kill_session(&SessionRef::Agent(id.clone()));
         self.store.set_agent_backend(id, to, provider)?;
         if to == Backend::Chat {
