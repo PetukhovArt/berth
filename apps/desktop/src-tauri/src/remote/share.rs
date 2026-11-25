@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use axum::extract::{ConnectInfo, Query, State};
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
-use berth_core::{Agent, AgentKind, Backend, Entity, EntityId, Worktree};
+use berth_core::{Agent, Backend, Entity, EntityId, Worktree};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -114,13 +114,7 @@ impl Feed {
         if agent.backend == Backend::Chat {
             return self.acp_items(agent).await;
         }
-        let harness = match agent.kind {
-            AgentKind::Claude => Harness::Claude,
-            AgentKind::Codex => Harness::Codex,
-            AgentKind::Grok => Harness::Grok,
-            _ => return json!({ "transcript": [] }),
-        };
-        let Some(id) = agent.session_id.clone() else {
+        let (Some(harness), Some(id)) = (Harness::of(agent.kind), agent.session_id.clone()) else {
             return json!({ "transcript": [] });
         };
         let transcript = agent_sessions::agent_session_transcript(harness, id, Some(TAIL), None)

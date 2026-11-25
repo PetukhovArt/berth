@@ -39,6 +39,17 @@ impl AgentKind {
         })
     }
 
+    pub fn label(&self) -> &'static str {
+        match self {
+            AgentKind::Claude => "Claude",
+            AgentKind::Codex => "Codex",
+            AgentKind::Cursor => "Cursor",
+            AgentKind::OpenCode => "OpenCode",
+            AgentKind::Grok => "Grok",
+            AgentKind::Acp => "ACP",
+        }
+    }
+
     pub fn program(&self) -> Option<&'static str> {
         match self {
             AgentKind::Claude => Some("claude"),

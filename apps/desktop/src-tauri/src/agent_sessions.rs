@@ -352,6 +352,11 @@ fn stem_of(name: &OsStr) -> String {
     name.strip_suffix(".exe").map(str::to_owned).unwrap_or(name)
 }
 
+const LIVE: [(Harness, &str); 2] = [
+    (Harness::Claude, "@anthropic-ai/claude-code"),
+    (Harness::Codex, "@openai/codex"),
+];
+
 fn arg_harness(arg: &str) -> Option<Harness> {
     let arg = arg.replace('\\', "/").to_ascii_lowercase();
     let file = arg.rsplit('/').next().unwrap_or(&arg);
@@ -360,26 +365,20 @@ fn arg_harness(arg: &str) -> Option<Harness> {
         .or_else(|| file.strip_suffix(".js"))
         .or_else(|| file.strip_suffix(".cmd"))
         .unwrap_or(file);
-    if arg.contains("@anthropic-ai/claude-code") || file == "claude" {
-        Some(Harness::Claude)
-    } else if arg.contains("@openai/codex") || file == "codex" {
-        Some(Harness::Codex)
-    } else {
-        None
-    }
+    LIVE.into_iter()
+        .find(|(harness, package)| arg.contains(package) || file == harness.program())
+        .map(|(harness, _)| harness)
 }
 
 fn harness_of(process: &Process) -> Option<Harness> {
-    match stem_of(process.name()).as_str() {
-        "claude" => Some(Harness::Claude),
-        "codex" => Some(Harness::Codex),
-        _ => process
+    arg_harness(&stem_of(process.name())).or_else(|| {
+        process
             .cmd()
             .iter()
             .skip(1)
             .take(2)
-            .find_map(|arg| arg_harness(&arg.to_string_lossy())),
-    }
+            .find_map(|arg| arg_harness(&arg.to_string_lossy()))
+    })
 }
 
 fn harness_args(args: &[String]) -> &[String] {
@@ -428,35 +427,39 @@ fn resume_id(harness: Harness, args: &[String]) -> Option<String> {
     id.filter(|id| valid_id(id))
 }
 
+const HOSTS: [(&[&str], &str); 24] = [
+    (&["windowsterminal"], "Windows Terminal"),
+    (&["code", "code - insiders"], "VS Code"),
+    (&["cursor"], "Cursor"),
+    (&["windsurf"], "Windsurf"),
+    (&["zed"], "Zed"),
+    (&["webstorm"], "WebStorm"),
+    (&["idea"], "IntelliJ IDEA"),
+    (&["pycharm"], "PyCharm"),
+    (&["goland"], "GoLand"),
+    (&["rider"], "Rider"),
+    (&["clion"], "CLion"),
+    (&["rustrover"], "RustRover"),
+    (&["phpstorm"], "PhpStorm"),
+    (&["alacritty"], "Alacritty"),
+    (&["wezterm-gui", "wezterm"], "WezTerm"),
+    (&["kitty"], "kitty"),
+    (&["gnome-terminal-server"], "GNOME Terminal"),
+    (&["konsole"], "Konsole"),
+    (&["iterm2"], "iTerm2"),
+    (&["terminal"], "Terminal"),
+    (&["warp"], "Warp"),
+    (&["tmux", "tmux: server"], "tmux"),
+    (&["berth-desktop"], "Berth"),
+    (&["veyra-desktop"], "Veyra"),
+];
+
 fn host_label(name: &str) -> Option<&'static str> {
     let name = name.trim_end_matches("64");
-    Some(match name {
-        "windowsterminal" => "Windows Terminal",
-        "code" | "code - insiders" => "VS Code",
-        "cursor" => "Cursor",
-        "windsurf" => "Windsurf",
-        "zed" => "Zed",
-        "webstorm" => "WebStorm",
-        "idea" => "IntelliJ IDEA",
-        "pycharm" => "PyCharm",
-        "goland" => "GoLand",
-        "rider" => "Rider",
-        "clion" => "CLion",
-        "rustrover" => "RustRover",
-        "phpstorm" => "PhpStorm",
-        "alacritty" => "Alacritty",
-        "wezterm-gui" | "wezterm" => "WezTerm",
-        "kitty" => "kitty",
-        "gnome-terminal-server" => "GNOME Terminal",
-        "konsole" => "Konsole",
-        "iterm2" => "iTerm2",
-        "terminal" => "Terminal",
-        "warp" => "Warp",
-        "tmux" | "tmux: server" => "tmux",
-        "berth-desktop" => "Berth",
-        "veyra-desktop" => "Veyra",
-        _ => return None,
-    })
+    HOSTS
+        .iter()
+        .find(|(names, _)| names.contains(&name))
+        .map(|(_, label)| *label)
 }
 
 fn shell_label(name: &str) -> Option<&'static str> {

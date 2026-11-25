@@ -1,3 +1,4 @@
+use berth_core::AgentKind;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -30,6 +31,28 @@ pub enum Harness {
     Claude,
     Codex,
     Grok,
+}
+
+impl Harness {
+    const ALL: [Harness; 3] = [Harness::Claude, Harness::Codex, Harness::Grok];
+
+    pub fn program(self) -> &'static str {
+        match self {
+            Harness::Claude => "claude",
+            Harness::Codex => "codex",
+            Harness::Grok => "grok",
+        }
+    }
+
+    pub fn from_program(program: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|harness| harness.program() == program)
+    }
+
+    pub fn of(kind: AgentKind) -> Option<Self> {
+        Self::from_program(kind.program()?)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]

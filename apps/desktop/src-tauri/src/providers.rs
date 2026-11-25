@@ -6,12 +6,6 @@ use serde_json::{Map, Value};
 use crate::settings::{berth_config_object, berth_config_write};
 
 const PROVIDERS_KEY: &str = "providers";
-const NATIVE: [(AgentKind, &str); 3] = [
-    (AgentKind::Claude, "Claude"),
-    (AgentKind::Codex, "Codex"),
-    (AgentKind::Grok, "Grok"),
-];
-
 const LOG_BYTES_SHOWN: u64 = 64 * 1024;
 
 #[derive(Debug, Serialize)]
@@ -86,9 +80,9 @@ fn acp_row(id: &str, entry: Option<&Value>) -> Option<ProviderRow> {
 
 pub async fn providers_read() -> Result<Vec<ProviderRow>, String> {
     let providers = providers_object()?;
-    let native = NATIVE.iter().map(|(kind, name)| ProviderRow {
+    let native = AgentKind::NATIVE.iter().map(|kind| ProviderRow {
         id: kind.as_str().to_string(),
-        name: name.to_string(),
+        name: kind.label().to_string(),
         acp: false,
         enabled: enabled_in(providers.get(kind.as_str())).unwrap_or(true),
         command: None,
@@ -115,7 +109,7 @@ pub async fn providers_read() -> Result<Vec<ProviderRow>, String> {
 }
 
 pub async fn providers_write(id: String, acp: bool, enabled: bool) -> Result<(), String> {
-    let known_native = NATIVE.iter().any(|(kind, _)| kind.as_str() == id);
+    let known_native = AgentKind::NATIVE.iter().any(|kind| kind.as_str() == id);
     if !acp && !known_native {
         return Err(crate::host_text!("unknownProvider", id = id));
     }
