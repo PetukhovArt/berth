@@ -24,6 +24,7 @@
 - Changed `Restore files` on a checkpoint to ask in a dialog instead of two links under the prompt
 - Changed the Chat view to the new look: a 780 px centered column, rounded prompt bubbles, a colored tile by the agent name, and phase chips in the plan strip
 - Fixed starting the desktop app a second time: it now brings the running window to the front and exits, instead of opening a second copy
+- Fixed the app freezing on a code block without a language that starts with a long line of dashes, such as an ASCII table rule, in the Chat view, the markdown preview and diffs
 - Removed the terminal mode of Cursor and OpenCode: they run only in the chat view, turned on in Settings → Providers, and their older terminal sessions stay in the list and the archive but cannot be resumed
 
 ## 0.24.0 (2026-11-25)

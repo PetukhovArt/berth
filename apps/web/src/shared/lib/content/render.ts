@@ -13,9 +13,35 @@ type LineNode = { type: string; raw: string; line?: number; tokens?: LineNode[];
 type Stamped = { line?: number };
 type BlockRender = (this: Renderer, token: Stamped) => string;
 
-const DIAGRAM_START = new RegExp(
-  String.raw`^\s*(?:(?:---[\s\S]*?---|%%[^\n]*)\s*)*(?:(?:graph|flowchart)(?:[ \t]+(?:TB|TD|BT|RL|LR))?[ \t]*(?:;|\n|$)|(?:sequenceDiagram|classDiagram|stateDiagram|erDiagram|gitGraph|gantt)(?:-v2)?(?=\s|$)|(?:journey|mindmap|timeline)[ \t]*(?:\n|$)|pie[ \t]*(?:showData|title\b|\n|$))`,
+const DIAGRAM_KEYWORD = new RegExp(
+  String.raw`(?:(?:graph|flowchart)(?:[ \t]+(?:TB|TD|BT|RL|LR))?[ \t]*(?:;|\n|$)|(?:sequenceDiagram|classDiagram|stateDiagram|erDiagram|gitGraph|gantt)(?:-v2)?(?=\s|$)|(?:journey|mindmap|timeline)[ \t]*(?:\n|$)|pie[ \t]*(?:showData|title\b|\n|$))`,
+  'y',
 );
+
+function skipSpace(text: string, from: number): number {
+  let at = from;
+  while (at < text.length && /\s/.test(text.charAt(at))) at++;
+  return at;
+}
+
+function isDiagramStart(text: string): boolean {
+  let at = skipSpace(text, 0);
+  for (;;) {
+    if (text.startsWith('---', at)) {
+      const close = text.indexOf('---', at + 3);
+      if (close === -1) return false;
+      at = skipSpace(text, close + 3);
+    } else if (text.startsWith('%%', at)) {
+      const eol = text.indexOf('\n', at);
+      if (eol === -1) return false;
+      at = skipSpace(text, eol);
+    } else {
+      break;
+    }
+  }
+  DIAGRAM_KEYWORD.lastIndex = at;
+  return DIAGRAM_KEYWORD.test(text);
+}
 
 const LANGUAGE_HINT = /(?<!\w)(?:language-|lang-|code-|brush:\s*|syntax-)([\w#+.-]+)/i;
 const BARE_ATTRIBUTES = ['data-language', 'data-lang', 'data-syntax', 'lang'];
@@ -226,7 +252,7 @@ function processCode(body: HTMLElement, diagrams: string[]): void {
     const code = pre.querySelector('code');
     const declared = declaredLanguage(pre) ?? declaredLanguage(code);
     const text = (code ?? pre).textContent.replace(/\n$/, '');
-    if (declared === 'mermaid' || (!declared && DIAGRAM_START.test(text))) {
+    if (declared === 'mermaid' || (!declared && isDiagramStart(text))) {
       markDiagram(pre, text, diagrams);
       continue;
     }
