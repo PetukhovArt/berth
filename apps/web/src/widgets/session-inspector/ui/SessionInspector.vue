@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watchEffect } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { INSPECTOR_MIN_WIDTH, inspectorOpen, inspectorShown, inspectorWidth } from '../../../shared/model/inspector';
-import { useBerth, useSessionDock } from '../../../entities/session';
+import { limitKind, useBerth, useSessionDock } from '../../../entities/session';
 import WorktreeSection from './WorktreeSection.vue';
 import MergeRequestSection from './MergeRequestSection.vue';
 import UsageSection from './UsageSection.vue';
@@ -115,7 +115,7 @@ function onHandleKey(event: KeyboardEvent) {
       <template v-if="session && worktree">
         <WorktreeSection :path="worktree.path" :branch="worktree.branch" :refresh-key="refreshKey" />
         <MergeRequestSection v-if="worktree.branch" :path="worktree.path" :branch="worktree.branch" :refresh-key="refreshKey" />
-        <UsageSection v-if="agent" :panel-key="session.key" :kind="agent.kind" />
+        <UsageSection v-if="agent" :panel-key="session.key" :kind="limitKind(agent)" />
         <CheckpointsSection v-if="agent" :agent-id="agent.id" :kind="agent.kind" :session-id="agent.session_id" :refresh-key="refreshKey" />
         <TaskNoteSection :worktree-id="worktree.id" />
         <OverlapsSection v-if="agent" :agent-id="agent.id" />

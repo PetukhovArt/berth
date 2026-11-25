@@ -1,7 +1,7 @@
 import { shallowRef, type ShallowRef } from 'vue';
 import { hasBackend, invoke } from '../../bridge';
 
-export type Provider = { id: string; name: string; acp: boolean; enabled: boolean; command: string | null; program: string | null; args: string[] | null; built_in: boolean; found: boolean | null };
+export type Provider = { id: string; name: string; acp: boolean; enabled: boolean; command: string | null; program: string | null; args: string[] | null; built_in: boolean; on_by_default: boolean; found: boolean | null };
 
 export type AcpProviderDraft = { id: string; name: string; command: string; args: string[] };
 
@@ -33,6 +33,10 @@ export async function loadedProviders(): Promise<readonly Provider[]> {
 export function enabledNativeAgent(preferred: string, rows: readonly Provider[]): string | null {
   const native = rows.filter((row) => !row.acp && row.enabled);
   return (native.find((row) => row.id === preferred) ?? native[0])?.id ?? null;
+}
+
+export function chatAgentFor(native: string, rows: readonly Provider[]): Provider | null {
+  return rows.find((row) => row.acp && row.enabled && row.on_by_default && row.id === native) ?? null;
 }
 
 export async function setProviderEnabled(provider: Provider, enabled: boolean): Promise<void> {

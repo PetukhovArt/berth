@@ -24,6 +24,7 @@ pub struct ProviderRow {
     program: Option<String>,
     args: Option<Vec<String>>,
     built_in: bool,
+    on_by_default: bool,
     found: Option<bool>,
 }
 
@@ -73,12 +74,13 @@ fn acp_row(id: &str, entry: Option<&Value>) -> Option<ProviderRow> {
         id: id.to_string(),
         name,
         acp: true,
-        enabled: enabled_in(entry).unwrap_or(built_in.is_none()),
+        enabled: enabled_in(entry).unwrap_or(built_in.is_none_or(|b| b.on_by_default)),
         found: Some(berth_core::platform::resolve_program(&command).is_some()),
         command: Some(command_line(&command, &args)),
         program: Some(command),
         args: Some(args),
         built_in: built_in.is_some(),
+        on_by_default: built_in.is_some_and(|b| b.on_by_default),
     })
 }
 
@@ -93,6 +95,7 @@ pub async fn providers_read() -> Result<Vec<ProviderRow>, String> {
         program: None,
         args: None,
         built_in: true,
+        on_by_default: false,
         found: None,
     });
     let acp_entries = match providers.get("acp") {

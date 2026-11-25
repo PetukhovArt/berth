@@ -5,6 +5,7 @@ import { watchUsageLimits } from './limits';
 
 export type AgentKind = 'claude' | 'codex' | 'cursor' | 'opencode' | 'grok' | 'acp';
 export const AGENT_KIND_LABEL: Readonly<Record<AgentKind, string>> = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode', grok: 'Grok', acp: 'ACP' };
+const LIMIT_KINDS: readonly AgentKind[] = ['claude', 'codex', 'grok'];
 const SECONDS_LIMIT = 1e11;
 const toMillis = (value: number) => (value < SECONDS_LIMIT ? value * 1000 : value);
 type AgentStatus = 'fresh' | 'running' | 'finished' | 'needs_feedback' | 'terminated' | 'disconnected';
@@ -132,7 +133,7 @@ export type SessionEvent = { type: 'reset'; data: string } | { type: 'output'; d
 
 type NodeStatus = AgentStatus | 'shell' | 'closed';
 export type SessionStatus = NodeStatus | 'limit';
-export type SessionNode = { key: string; id: string; ref: SessionRef; name: string; status: NodeStatus; unseen: boolean; alive: boolean; kind?: AgentKind; changedAt?: number; providerError?: ProviderError; suggestion?: RouteSuggestion };
+export type SessionNode = { key: string; id: string; ref: SessionRef; name: string; status: NodeStatus; unseen: boolean; alive: boolean; kind?: AgentKind; limitKind?: AgentKind; changedAt?: number; providerError?: ProviderError; suggestion?: RouteSuggestion };
 export type WorktreeNode = { id: string; path: string; branch: string; main: boolean; sessions: SessionNode[]; ended: SessionNode[]; archived: SessionNode[] };
 type ProjectNode = { id: string; name: string; worktrees: WorktreeNode[] };
 type WorkspaceNode = { id: string; name: string; projects: ProjectNode[] };
@@ -220,9 +221,13 @@ export function isSessionRef(value: unknown): value is SessionRef {
   return typeof id === 'string';
 }
 
+export function limitKind(agent: Pick<Agent, 'kind' | 'acp_provider'>): AgentKind {
+  return LIMIT_KINDS.find((kind) => kind === agent.acp_provider) ?? agent.kind;
+}
+
 function agentNode(agent: Agent): SessionNode {
   const ref = { Agent: agent.id };
-  const node: SessionNode = { key: sessionKey(ref), id: agent.id, ref, name: agent.name, status: agent.status, unseen: agent.unseen, alive: agent.alive, kind: agent.kind };
+  const node: SessionNode = { key: sessionKey(ref), id: agent.id, ref, name: agent.name, status: agent.status, unseen: agent.unseen, alive: agent.alive, kind: agent.kind, limitKind: limitKind(agent) };
   if (agent.status_changed_at > 0) node.changedAt = toMillis(agent.status_changed_at);
   if (agent.route_suggestion) node.suggestion = agent.route_suggestion;
   if (agent.provider_error) node.providerError = agent.provider_error;

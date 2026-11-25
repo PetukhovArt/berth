@@ -48,7 +48,7 @@ An Agent whose CLI speaks the Agent Client Protocol over stdio instead of runnin
 _Avoid_: headless agent, chat agent
 
 **Provider**
-An entry in Settings for an agent CLI berth can launch, with an enabled flag: a native Agent Kind, or an ACP agent definition (command and args; the built-ins are Cursor, OpenCode, Antigravity, Gemini, Kiro and Pi). Not the model vendor behind an API error.
+An entry in Settings for an agent CLI berth can launch, with an enabled flag: a native Agent Kind, or an ACP agent definition (command and args; the built-ins are Cursor, OpenCode, Antigravity, Gemini, Kiro, Pi and Grok, which is on by default and is the default chat agent of a new Grok session). Not the model vendor behind an API error.
 _Avoid_: integration, backend
 
 **Terminal Session**

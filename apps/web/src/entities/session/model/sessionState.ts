@@ -153,7 +153,7 @@ function start(key: string, input: Input): SessionState {
 
 function agentInput(node: SessionNode, connected: boolean): Input {
   const kind = node.kind ?? null;
-  return { name: node.name, status: node.status, unseen: node.unseen, at: node.changedAt ?? null, running: node.alive, connected, providerError: node.providerError ?? null, window: kind ? limitUntil(kind) : null, conversation: null, agentKind: kind };
+  return { name: node.name, status: node.status, unseen: node.unseen, at: node.changedAt ?? null, running: node.alive, connected, providerError: node.providerError ?? null, window: node.limitKind ? limitUntil(node.limitKind) : null, conversation: null, agentKind: kind };
 }
 
 function terminalInput(node: SessionNode, link: ExternalSession | undefined, connected: boolean): Input {

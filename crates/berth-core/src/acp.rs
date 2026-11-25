@@ -237,15 +237,17 @@ pub struct BuiltInProvider {
     pub command: &'static str,
     pub args: &'static [&'static str],
     pub driver: &'static str,
+    pub on_by_default: bool,
 }
 
-pub const BUILT_IN_PROVIDERS: [BuiltInProvider; 8] = [
+pub const BUILT_IN_PROVIDERS: [BuiltInProvider; 9] = [
     BuiltInProvider {
         id: "cursor",
         name: "Cursor",
         command: "cursor-agent",
         args: &["acp"],
         driver: ACP_DRIVER,
+        on_by_default: false,
     },
     BuiltInProvider {
         id: "opencode",
@@ -253,6 +255,7 @@ pub const BUILT_IN_PROVIDERS: [BuiltInProvider; 8] = [
         command: "opencode",
         args: &["acp"],
         driver: ACP_DRIVER,
+        on_by_default: false,
     },
     BuiltInProvider {
         id: "antigravity",
@@ -260,6 +263,7 @@ pub const BUILT_IN_PROVIDERS: [BuiltInProvider; 8] = [
         command: "agy",
         args: &["acp"],
         driver: ACP_DRIVER,
+        on_by_default: false,
     },
     BuiltInProvider {
         id: "gemini",
@@ -267,6 +271,7 @@ pub const BUILT_IN_PROVIDERS: [BuiltInProvider; 8] = [
         command: "gemini",
         args: &["--acp"],
         driver: ACP_DRIVER,
+        on_by_default: false,
     },
     BuiltInProvider {
         id: "kiro",
@@ -274,6 +279,7 @@ pub const BUILT_IN_PROVIDERS: [BuiltInProvider; 8] = [
         command: "kiro-cli",
         args: &["acp"],
         driver: ACP_DRIVER,
+        on_by_default: false,
     },
     BuiltInProvider {
         id: "pi",
@@ -281,6 +287,7 @@ pub const BUILT_IN_PROVIDERS: [BuiltInProvider; 8] = [
         command: "npx",
         args: &["-y", "pi-acp"],
         driver: ACP_DRIVER,
+        on_by_default: false,
     },
     BuiltInProvider {
         id: "claude",
@@ -288,6 +295,7 @@ pub const BUILT_IN_PROVIDERS: [BuiltInProvider; 8] = [
         command: "claude",
         args: &[],
         driver: "claude",
+        on_by_default: false,
     },
     BuiltInProvider {
         id: "codex",
@@ -295,5 +303,14 @@ pub const BUILT_IN_PROVIDERS: [BuiltInProvider; 8] = [
         command: "codex",
         args: &[],
         driver: "codex",
+        on_by_default: false,
+    },
+    BuiltInProvider {
+        id: "grok",
+        name: "Grok",
+        command: "grok",
+        args: &["agent", "stdio"],
+        driver: ACP_DRIVER,
+        on_by_default: true,
     },
 ];

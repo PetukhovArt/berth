@@ -71,7 +71,7 @@ pub fn resolve(config: &ProvidersConfig, id: &str) -> Option<AcpProvider> {
         ),
         (None, None) => return None,
     };
-    let enabled_unless_said = built_in.is_none();
+    let enabled_unless_said = built_in.is_none_or(|b| b.on_by_default);
     Some(AcpProvider {
         id: id.to_string(),
         name,
@@ -113,11 +113,23 @@ mod tests {
         assert_eq!(pi.command, "npx");
         assert_eq!(pi.args, ["-y", "pi-acp"]);
         assert!(resolve_enabled(&none, "gemini").is_err());
+        assert!(!resolve(&none, "claude").unwrap().enabled);
 
         let on = config(r#"{"acp": {"gemini": {"enabled": true}}}"#);
         let gemini = resolve_enabled(&on, "gemini").unwrap();
         assert_eq!(gemini.command, "gemini");
         assert_eq!(gemini.args, ["--acp"]);
+    }
+
+    #[test]
+    fn grok_is_on_over_acp_until_turned_off() {
+        let none = ProvidersConfig::default();
+        let grok = resolve_enabled(&none, "grok").unwrap();
+        assert_eq!(grok.command, "grok");
+        assert_eq!(grok.args, ["agent", "stdio"]);
+        assert_eq!(grok.driver, ACP_DRIVER);
+        let off = config(r#"{"acp": {"grok": {"enabled": false}}}"#);
+        assert!(resolve_enabled(&off, "grok").is_err());
     }
 
     #[test]
