@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue';
 import { Minus, RefreshCw } from '../../../shared/ui/icons';
-import { VButton, VDialog, VMessage } from '../../../shared/ui/kit';
+import { VDialog, VMessage } from '../../../shared/ui/kit';
+import DialogActions from '../../../shared/ui/DialogActions.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { candidates, cleanupDiff, cleanupOpen, measureSizes, removeCandidates, removeResults as results, removing, scanError, scanned, scanNow, scanning, sizes, type Candidate } from '../model/state';
 
@@ -144,7 +145,6 @@ function removeSelected() {
   <VDialog
     :visible="cleanupOpen"
     modal
-    dismissable-mask
     :aria-label="t('cleanup.title')"
     :style="{ width: '56rem', maxWidth: '95vw' }"
     data-testid="cleanup-dialog"
@@ -196,12 +196,15 @@ function removeSelected() {
     <VMessage v-if="removedCount && !busy" severity="success" size="small" data-testid="cleanup-removed">{{ t('cleanup.removed', { count: removedCount }) }}</VMessage>
     <VMessage v-for="failure in failures" :key="failure.key" severity="error" size="small" data-testid="cleanup-failure">{{ t('cleanup.failed', { name: failure.name, message: failure.error ?? '' }) }}</VMessage>
     <template #footer>
-      <label class="branch">
-        <UiInput v-model="deleteBranch" type="checkbox" class="check" :disabled="busy" data-testid="cleanup-delete-branch" />
-        {{ t('cleanup.deleteBranch') }}
-      </label>
-      <span class="progress" role="status">{{ removing ? t('cleanup.removing', { name: removing.name }) : t('cleanup.selected', { count: picked.length }) }}</span>
-      <VButton :label="t('cleanup.removeSelected')" severity="danger" size="small" :loading="busy" :disabled="!picked.length || busy || scanning" data-testid="cleanup-remove" @click="removeSelected" />
+      <DialogActions :confirm-label="t('cleanup.removeSelected')" danger focus="cancel" :busy="busy" :disabled="!picked.length || scanning" cancel-testid="cleanup-cancel" confirm-testid="cleanup-remove" @cancel="cleanupOpen = false" @confirm="removeSelected">
+        <template #start>
+          <label class="branch">
+            <UiInput v-model="deleteBranch" type="checkbox" class="check" :disabled="busy" data-testid="cleanup-delete-branch" />
+            {{ t('cleanup.deleteBranch') }}
+          </label>
+          <span class="progress" role="status">{{ removing ? t('cleanup.removing', { name: removing.name }) : t('cleanup.selected', { count: picked.length }) }}</span>
+        </template>
+      </DialogActions>
     </template>
   </VDialog>
 </template>

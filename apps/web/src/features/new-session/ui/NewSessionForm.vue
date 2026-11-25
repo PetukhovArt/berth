@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, shallowRef, watch } from 'vue';
 import { VButton, VDialog, VInputText, VMessage, VSelect, VTextarea, useIsPhone } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
+import DialogActions from '../../../shared/ui/DialogActions.vue';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, X } from '../../../shared/ui/icons';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
@@ -439,8 +440,17 @@ function onVisible(visible: boolean) {
         </label>
         <span class="spacer" />
         <span v-if="!phone" class="hint" data-testid="new-session-background-hint">{{ t('agents.newSession.backgroundHint', { key: backgroundKey }) }}</span>
-        <VButton class="action cancel" :label="t('common.cancel')" :size="phone ? undefined : 'small'" text data-testid="new-session-cancel" @click="emit('close')" />
-        <VButton class="action" type="submit" :label="continuing ? t('agents.newSession.continueStart') : many ? t('agents.newSession.startMany', { count: kinds.length }) : t('common.create')" :size="phone ? undefined : 'small'" :loading="action.busy.value" :disabled="location.plan.value.kind === 'incomplete' || (continuing && !chosenConversation)" data-testid="new-session-submit" />
+        <DialogActions
+          class="actions"
+          submit
+          focus="none"
+          :confirm-label="continuing ? t('agents.newSession.continueStart') : many ? t('agents.newSession.startMany', { count: kinds.length }) : t('common.create')"
+          :busy="action.busy.value"
+          :disabled="location.plan.value.kind === 'incomplete' || (continuing && !chosenConversation)"
+          cancel-testid="new-session-cancel"
+          confirm-testid="new-session-submit"
+          @cancel="emit('close')"
+        />
       </div>
     </form>
   </VDialog>
@@ -714,6 +724,10 @@ function onVisible(visible: boolean) {
   flex: 1;
 }
 
+.actions {
+  width: auto;
+}
+
 .close {
   display: inline-flex;
   align-items: center;
@@ -812,17 +826,21 @@ function onVisible(visible: boolean) {
   width: 100%;
 }
 
-:root[data-vr-viewport='phone'] .action {
+:root[data-vr-viewport='phone'] .actions {
+  flex: 1 0 100%;
+}
+
+:root[data-vr-viewport='phone'] .actions :deep(.p-button) {
   flex: 1 1 0;
   min-height: var(--vr-size-row-touch);
   border-radius: var(--vr-radius-lg);
 }
 
-:root[data-vr-viewport='phone'] .action[type='submit'] {
+:root[data-vr-viewport='phone'] .actions :deep(.p-button[type='submit']) {
   flex-grow: 1.4;
 }
 
-:root[data-vr-viewport='phone'] .action.cancel {
+:root[data-vr-viewport='phone'] .actions :deep(.p-button-secondary) {
   background: var(--vr-color-surface-muted);
 }
 </style>

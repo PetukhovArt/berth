@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { VButton, VDialog } from '../../../shared/ui/kit';
+import { VDialog } from '../../../shared/ui/kit';
+import DialogActions from '../../../shared/ui/DialogActions.vue';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
 import { changes, closeChanges, type ChangeKind } from '../model/state';
 
@@ -29,9 +30,7 @@ function onVisible(visible: boolean) {
         </ul>
       </section>
     </div>
-    <div class="actions">
-      <VButton :label="t('update.changes.ok')" size="small" data-testid="update-changes-ok" @click="closeChanges" />
-    </div>
+    <DialogActions :cancel-label="t('update.changes.ok')" cancel-testid="update-changes-ok" @cancel="closeChanges" />
   </VDialog>
 </template>
 
@@ -70,10 +69,5 @@ function onVisible(visible: boolean) {
 
 .list li {
   overflow-wrap: anywhere;
-}
-
-.actions {
-  display: flex;
-  justify-content: flex-end;
 }
 </style>

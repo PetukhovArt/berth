@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { shallowRef, watch } from 'vue';
 import { VButton, VDialog, VMessage, VSelect } from '../../../shared/ui/kit';
+import DialogActions from '../../../shared/ui/DialogActions.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { describeError, useBerth, useAction, listOrphans, resumeOrphan, type OrphanedSession, useWorktreeOptions } from '../../../entities/session';
 
@@ -101,10 +102,15 @@ async function resumeSession(session: string) {
         <VMessage v-if="resume.error.value && resuming === orphan.session_id" class="failure" severity="error" size="small" data-testid="orphan-error">{{ resume.error.value }}</VMessage>
       </li>
     </ul>
+    <DialogActions class="actions" @cancel="emit('close')" />
   </VDialog>
 </template>
 
 <style scoped>
+.actions {
+  margin-top: var(--vr-space-3);
+}
+
 .state {
   margin: 0;
   color: var(--vr-color-text-muted);

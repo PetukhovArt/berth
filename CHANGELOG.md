@@ -16,6 +16,7 @@
 - Added a confirmation notification after Allow, Always allow or Deny on a phone notification, with an Open Berth button
 - Changed Add to prompt on lines of a diff and on a merge request thread to put them into the Chat composer as removable chips when the Session is in the Chat view; in the Terminal view they are still typed into the terminal
 - Changed the button that confirms deleting a session to say `Delete`, with `Cancel` before it in the tree row as in the dialogs
+- Changed every dialog to end in the same buttons, `Cancel` on the left and the action on the right, so Move to Another Worktree and Cleanup get a `Cancel`; a delete dialog opens with `Cancel` focused, and clicking outside Move or Cleanup no longer closes them
 - Changed draft merge requests in the sidebar tree to show a draft icon before the number instead of a Draft label before the title
 - Changed the sidebar to show every session as `connecting…` or `unknown` with a dashed mark while the daemon is not answering, and the Inbox to say when it was last up to date
 - Changed the active tab of a session to underline in the colour of its status

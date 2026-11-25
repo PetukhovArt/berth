@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { VButton, VDialog } from '../../../shared/ui/kit';
+import { VDialog } from '../../../shared/ui/kit';
+import DialogActions from '../../../shared/ui/DialogActions.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { checkRelease, closeRelease, installRelease, releaseFailure, releaseOpen, releaseStatus } from '../model/release';
 
@@ -11,6 +12,18 @@ const progress = computed(() => {
   if (value.state !== 'downloading' || !value.total) return null;
   return Math.min(100, Math.round((value.downloaded / value.total) * 100));
 });
+
+const actions = computed(() => {
+  const state = status.value.state;
+  if (state === 'ready') return { cancel: t('update.later'), cancelTestid: 'release-later', confirm: t('update.restart'), confirmTestid: 'release-restart' };
+  if (state === 'failed' || state === 'upToDate') return { cancel: t('common.close'), cancelTestid: undefined, confirm: t('update.release.check'), confirmTestid: 'release-check' };
+  return { cancel: t('common.close'), cancelTestid: 'release-close', confirm: undefined, confirmTestid: undefined };
+});
+
+function confirm() {
+  if (status.value.state === 'ready') void installRelease();
+  else void checkRelease();
+}
 
 function onVisible(visible: boolean) {
   if (!visible) closeRelease();
@@ -47,18 +60,7 @@ function onVisible(visible: boolean) {
       <p v-if="releaseFailure" class="danger" data-testid="release-error">{{ releaseFailure }}</p>
     </div>
 
-    <div class="actions">
-      <span class="spacer" />
-      <template v-if="status.state === 'ready'">
-        <VButton :label="t('update.later')" size="small" text data-testid="release-later" @click="closeRelease" />
-        <VButton :label="t('update.restart')" size="small" data-testid="release-restart" @click="installRelease" />
-      </template>
-      <template v-else-if="status.state === 'failed' || status.state === 'upToDate'">
-        <VButton :label="t('common.close')" size="small" text @click="closeRelease" />
-        <VButton :label="t('update.release.check')" size="small" data-testid="release-check" @click="checkRelease" />
-      </template>
-      <VButton v-else :label="t('common.close')" size="small" text data-testid="release-close" @click="closeRelease" />
-    </div>
+    <DialogActions :cancel-label="actions.cancel" :confirm-label="actions.confirm" :cancel-testid="actions.cancelTestid" :confirm-testid="actions.confirmTestid" @cancel="closeRelease" @confirm="confirm" />
   </VDialog>
 </template>
 
@@ -111,15 +113,5 @@ function onVisible(visible: boolean) {
   background: var(--vr-color-accent);
   border-radius: inherit;
   transition: width var(--vr-motion-slow) var(--vr-motion-ease-standard);
-}
-
-.actions {
-  display: flex;
-  align-items: center;
-  gap: var(--vr-space-2);
-}
-
-.spacer {
-  flex: 1;
 }
 </style>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue';
-import { VButton, VDialog, VMessage, VSelect } from '../../../shared/ui/kit';
+import { VDialog, VMessage, VSelect } from '../../../shared/ui/kit';
+import DialogActions from '../../../shared/ui/DialogActions.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useBerth, useAction, moveAgent, useWorktreeOptions } from '../../../entities/session';
 
@@ -8,6 +9,7 @@ const props = defineProps<{ agent: string }>();
 const emit = defineEmits<{ moved: []; close: [] }>();
 
 const berth = useBerth();
+const selectPt = { label: { autofocus: true } };
 const current = computed(() => berth?.entities.value.agents.get(props.agent)?.worktree_id);
 const project = computed(() => (current.value ? berth?.entities.value.worktrees.get(current.value)?.project_id : undefined));
 const options = useWorktreeOptions(() => project.value, () => current.value);
@@ -29,7 +31,7 @@ async function submit() {
 </script>
 
 <template>
-  <VDialog v-if="berth" :visible="true" modal dismissable-mask :header="t('agents.move.title')" :style="{ width: '28rem', maxWidth: '95vw' }" data-testid="move-agent-dialog" @update:visible="emit('close')">
+  <VDialog v-if="berth" :visible="true" modal :header="t('agents.move.title')" :style="{ width: '28rem', maxWidth: '95vw' }" data-testid="move-agent-dialog" @update:visible="emit('close')">
     <p v-if="!options.length" class="state" role="status">{{ t('agents.move.none') }}</p>
     <form v-else class="form" @submit.prevent="submit">
       <VSelect
@@ -38,14 +40,14 @@ async function submit() {
         option-label="label"
         option-value="id"
         :aria-label="t('agents.move.target')"
+        :pt="selectPt"
         data-testid="move-agent-worktree"
         @update:model-value="pick"
       />
       <VMessage v-if="error" severity="error" size="small" data-testid="move-agent-error">{{ error }}</VMessage>
-      <div class="actions">
-        <VButton type="submit" :label="t('agents.move.submit')" size="small" data-testid="move-agent-submit" :loading="busy" :disabled="!target || busy" />
-      </div>
+      <DialogActions submit :confirm-label="t('agents.move.submit')" :busy="busy" :disabled="!target" focus="none" confirm-testid="move-agent-submit" @cancel="emit('close')" />
     </form>
+    <DialogActions v-if="!options.length" class="actions" @cancel="emit('close')" />
   </VDialog>
 </template>
 
@@ -62,7 +64,6 @@ async function submit() {
 }
 
 .actions {
-  display: flex;
-  justify-content: flex-end;
+  margin-top: var(--vr-space-3);
 }
 </style>

@@ -5,7 +5,8 @@ import { FileText, GitPullRequest, Network, Search, Ticket, X } from '../../../s
 import { isDirtyPath, settleDirty } from '../../../entities/document';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { METRICS_PANEL, archiveAgent, archiveExternal, deleteAgent, endAgent, useAction, useBerth, isExternalPanel, stopAgent, useExternalSessions, useSessionStates, StatusDot } from '../../../entities/session';
-import { VButton, VContextMenu, VDialog, VMessage } from '../../../shared/ui/kit';
+import { VContextMenu, VDialog, VMessage } from '../../../shared/ui/kit';
+import DialogActions from '../../../shared/ui/DialogActions.vue';
 import { useSettings } from '../../../shared/config/settings/store';
 import { FILE_PANEL_PREFIX, isFilePanel } from '../../../shared/lib/markdownFiles';
 import { panelTitle } from '../../../shared/model/dock';
@@ -135,10 +136,7 @@ function onClose() {
     <VDialog v-if="confirmingDelete" :visible="true" modal dismissable-mask :header="t('agents.session.confirmDeleteLabel')" :style="{ width: '26rem', maxWidth: '95vw' }" data-testid="session-delete-confirm" @update:visible="cancelDelete">
       <p class="confirm">{{ t((states.get(panel.id)?.alive ?? session(panel.id)?.alive) === false ? 'agents.session.confirmDeleteStopped' : 'agents.session.confirmDelete', { name: session(panel.id)?.name ?? panel.title ?? panel.id }) }}</p>
       <VMessage v-if="deleting.error.value" severity="error" size="small" data-testid="session-error">{{ deleting.error.value }}</VMessage>
-      <div class="actions">
-        <VButton :label="t('common.cancel')" size="small" text data-testid="session-delete-no" @click="cancelDelete" />
-        <VButton :label="t('agents.session.delete')" size="small" severity="danger" :loading="deleting.busy.value" data-testid="session-delete-yes" @click="confirmDelete" />
-      </div>
+      <DialogActions class="actions" :confirm-label="t('agents.session.delete')" danger focus="cancel" :busy="deleting.busy.value" cancel-testid="session-delete-no" confirm-testid="session-delete-yes" @cancel="cancelDelete" @confirm="confirmDelete" />
     </VDialog>
   </span>
 </template>
@@ -266,9 +264,6 @@ function onClose() {
 }
 
 .actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--vr-space-2);
   margin-top: var(--vr-space-3);
 }
 </style>

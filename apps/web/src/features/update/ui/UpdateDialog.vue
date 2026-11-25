@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { VButton, VDialog } from '../../../shared/ui/kit';
+import DialogActions from '../../../shared/ui/DialogActions.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { busy, cancelBuild, closeUpdate, daemonUpdated, dialogMode, failure, info, restart, rollBack, short, startBuild, updateDaemon } from '../model/state';
 import { clock, now, rows, STAGE_LABELS, totals } from '../model/stages';
@@ -59,6 +60,29 @@ const daemonNotice = computed(() => {
 async function start() {
   await startBuild();
   if (info.value?.job?.state === 'running') closeUpdate();
+}
+
+const actions = computed(() => {
+  switch (phase.value) {
+    case 'building':
+      return { cancel: t('update.minimize'), cancelTestid: 'update-minimize', confirm: undefined, confirmTestid: undefined };
+    case 'pending':
+      return { cancel: t('update.later'), cancelTestid: 'update-later', confirm: t('update.restart'), confirmTestid: 'update-restart' };
+    case 'rollback':
+      return { cancel: t('common.close'), cancelTestid: undefined, confirm: previous.value ? t('update.rollback', { build: previous.value.buildId }) : undefined, confirmTestid: 'update-rollback' };
+    case 'available':
+    case 'failed':
+    case 'cancelled':
+      return { cancel: t('common.close'), cancelTestid: undefined, confirm: phase.value === 'available' ? t('update.start') : t('update.retry'), confirmTestid: 'update-start' };
+    default:
+      return { cancel: t('common.close'), cancelTestid: 'update-close', confirm: undefined, confirmTestid: undefined };
+  }
+});
+
+function confirm() {
+  if (phase.value === 'pending') void restart();
+  else if (phase.value === 'rollback') void rollBack();
+  else void start();
 }
 
 function onVisible(visible: boolean) {
@@ -126,30 +150,24 @@ function onVisible(visible: boolean) {
       <p v-if="failure" class="error" data-testid="update-error">{{ failure }}</p>
     </div>
 
-    <div class="actions">
-      <template v-if="daemonNotice && phase !== 'building'">
-        <VButton v-if="!confirmDaemon" :label="t('update.daemonUpdate')" size="small" severity="danger" text :disabled="busy" data-testid="update-daemon-start" @click="confirmDaemon = true" />
-        <VButton v-else :label="t('update.daemonUpdate')" size="small" severity="danger" :disabled="busy" data-testid="update-daemon-confirm" @click="updateDaemon().then(() => (confirmDaemon = false))" />
+    <DialogActions
+      :cancel-label="actions.cancel"
+      :cancel-testid="actions.cancelTestid"
+      :confirm-label="actions.confirm"
+      :confirm-testid="actions.confirmTestid"
+      :disabled="busy"
+      :focus="phase === 'building' ? 'cancel' : 'primary'"
+      @cancel="closeUpdate"
+      @confirm="confirm"
+    >
+      <template v-if="daemonNotice && phase !== 'building'" #start="{ size }">
+        <VButton v-if="!confirmDaemon" :label="t('update.daemonUpdate')" :size="size" severity="danger" text :disabled="busy" data-testid="update-daemon-start" @click="confirmDaemon = true" />
+        <VButton v-else :label="t('update.daemonUpdate')" :size="size" severity="danger" :disabled="busy" data-testid="update-daemon-confirm" @click="updateDaemon().then(() => (confirmDaemon = false))" />
       </template>
-      <span class="spacer" />
-      <template v-if="phase === 'building'">
-        <VButton :label="t('update.cancel')" size="small" severity="danger" text :disabled="busy" data-testid="update-cancel" @click="cancelBuild" />
-        <VButton :label="t('update.minimize')" size="small" data-testid="update-minimize" @click="closeUpdate" />
+      <template v-if="phase === 'building'" #middle="{ size }">
+        <VButton :label="t('update.cancel')" :size="size" severity="danger" text :disabled="busy" data-testid="update-cancel" @click="cancelBuild" />
       </template>
-      <template v-else-if="phase === 'pending'">
-        <VButton :label="t('update.later')" size="small" text data-testid="update-later" @click="closeUpdate" />
-        <VButton :label="t('update.restart')" size="small" :disabled="busy" data-testid="update-restart" @click="restart" />
-      </template>
-      <template v-else-if="phase === 'rollback'">
-        <VButton :label="t('common.close')" size="small" text @click="closeUpdate" />
-        <VButton v-if="previous" :label="t('update.rollback', { build: previous.buildId })" size="small" :disabled="busy" data-testid="update-rollback" @click="rollBack" />
-      </template>
-      <template v-else-if="phase === 'available' || phase === 'failed' || phase === 'cancelled'">
-        <VButton :label="t('common.close')" size="small" text @click="closeUpdate" />
-        <VButton :label="phase === 'available' ? t('update.start') : t('update.retry')" size="small" :disabled="busy" data-testid="update-start" @click="start" />
-      </template>
-      <VButton v-else :label="t('common.close')" size="small" text data-testid="update-close" @click="closeUpdate" />
-    </div>
+    </DialogActions>
   </VDialog>
 </template>
 
@@ -292,15 +310,5 @@ function onVisible(visible: boolean) {
   padding: var(--vr-space-3);
   border: 1px solid var(--vr-color-border);
   border-radius: var(--vr-radius-md);
-}
-
-.actions {
-  display: flex;
-  align-items: center;
-  gap: var(--vr-space-2);
-}
-
-.spacer {
-  flex: 1;
 }
 </style>
