@@ -13,6 +13,7 @@ impl Driver for PassThrough {
             program: provider.command.clone(),
             args: provider.args.clone(),
             cwd: cwd.to_path_buf(),
+            env: Vec::new(),
         })
     }
 }

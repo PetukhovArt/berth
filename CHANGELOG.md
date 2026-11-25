@@ -16,10 +16,12 @@
 - Added an MCP button to the prompt box of ACP agents: it shows how many MCP servers the session has, with the state of each and a `Refresh` action
 - Added `Send now` to a queued prompt of a Claude agent in the protocol Chat view: the message joins the running turn at the next tool call, or runs right after it when no tool is running
 - Added `Rewind to here` to the messages you sent in the protocol Chat view of Claude and Codex agents: it asks first, then removes that message and everything after it, restores the worktree files from its checkpoint when one exists, and puts the message back in the prompt box
+- Added the task list of a Claude chat to the plan strip in the Chat view: tasks Claude creates with `TaskCreate` and `TaskUpdate` show up with their status
 - Changed new Grok sessions to open in the Chat view over ACP (`grok agent stdio`), with the terminal Grok still in the type list and its limits shown on both
 - Changed the permission and question card in the Chat view to a raised card with the project and branch, and `1`, `2`, `3` keys for its buttons
 - Changed `Restore files` on a checkpoint to ask in a dialog instead of two links under the prompt
 - Changed the Chat view to the new look: a 780 px centered column, rounded prompt bubbles, a colored tile by the agent name, and phase chips in the plan strip
+- Fixed starting the desktop app a second time: it now brings the running window to the front and exits, instead of opening a second copy
 - Removed the terminal mode of Cursor and OpenCode: they run only in the chat view, turned on in Settings → Providers, and their older terminal sessions stay in the list and the archive but cannot be resumed
 
 ## 0.24.0 (2026-11-25)

@@ -70,6 +70,7 @@ struct ClaudeTranslator {
     controls: HashMap<String, Control>,
     streamed: HashSet<String>,
     plan_tools: HashSet<String>,
+    tasks: tools::Tasks,
     last_assistant: Option<String>,
     steered: Vec<String>,
     next_control: u64,
@@ -114,6 +115,7 @@ impl ClaudeTranslator {
             controls: HashMap::new(),
             streamed: HashSet::new(),
             plan_tools: HashSet::new(),
+            tasks: tools::Tasks::default(),
             last_assistant: None,
             steered: Vec::new(),
             next_control: 0,
@@ -171,6 +173,7 @@ impl ClaudeTranslator {
             program: self.command.clone(),
             args,
             cwd: self.cwd.clone(),
+            env: vec![("CLAUDE_CODE_ENABLE_TODO_TOOLS", "true")],
         }
     }
 
@@ -199,6 +202,7 @@ impl ClaudeTranslator {
         self.controls.clear();
         self.streamed.clear();
         self.plan_tools.clear();
+        self.tasks.clear();
         self.steered.clear();
     }
 
@@ -458,6 +462,14 @@ impl ClaudeTranslator {
                     if name == tools::TODO_WRITE {
                         self.plan_tools.insert(id.to_string());
                         out.update(&self.session, tools::plan(input));
+                    } else if name == tools::TASK_CREATE {
+                        self.plan_tools.insert(id.to_string());
+                        self.tasks.creating(id, input);
+                    } else if name == tools::TASK_UPDATE {
+                        self.plan_tools.insert(id.to_string());
+                        if self.tasks.update(input) {
+                            out.update(&self.session, self.tasks.plan());
+                        }
                     } else {
                         out.update(&self.session, tools::tool_call(id, name, input));
                     }
@@ -473,8 +485,13 @@ impl ClaudeTranslator {
         }
         for block in frame["message"]["content"].as_array().into_iter().flatten() {
             let id = text_at(block, "tool_use_id");
-            if text_at(block, "type") == "tool_result" && !self.plan_tools.contains(id) {
-                let failed = block["is_error"].as_bool() == Some(true);
+            if text_at(block, "type") != "tool_result" {
+                continue;
+            }
+            let failed = block["is_error"].as_bool() == Some(true);
+            if self.tasks.created(id, failed, &block["content"]) {
+                out.update(&self.session, self.tasks.plan());
+            } else if !self.plan_tools.contains(id) {
                 out.update(
                     &self.session,
                     tools::result_update(id, failed, &block["content"]),

@@ -1,9 +1,12 @@
 use crate::acp::driver::shape::{self, ALLOW_ALWAYS, ALLOW_ONCE};
 use crate::acp::driver::translator::str_at;
 use serde_json::{json, Map, Value};
+use std::collections::HashMap;
 
 pub const ASK_USER: &str = "AskUserQuestion";
 pub const TODO_WRITE: &str = "TodoWrite";
+pub const TASK_CREATE: &str = "TaskCreate";
+pub const TASK_UPDATE: &str = "TaskUpdate";
 
 fn kind(tool: &str) -> &'static str {
     match tool {
@@ -72,8 +75,76 @@ pub fn plan(input: &Value) -> Value {
     )
 }
 
-pub fn result_update(id: &str, failed: bool, content: &Value) -> Value {
-    let text = match content {
+#[derive(Default)]
+pub struct Tasks {
+    items: Vec<(String, String, String)>,
+    creating: HashMap<String, String>,
+}
+
+impl Tasks {
+    pub fn creating(&mut self, tool_id: &str, input: &Value) {
+        let subject = str_at(input, "subject").unwrap_or_default();
+        self.creating
+            .insert(tool_id.to_string(), subject.to_string());
+    }
+
+    pub fn created(&mut self, tool_id: &str, failed: bool, content: &Value) -> bool {
+        let Some(subject) = self.creating.remove(tool_id) else {
+            return false;
+        };
+        let text = result_text(content);
+        let id = text
+            .strip_prefix("Task #")
+            .map(|rest| {
+                rest.chars()
+                    .take_while(char::is_ascii_digit)
+                    .collect::<String>()
+            })
+            .filter(|id| !failed && !id.is_empty());
+        if let Some(id) = id {
+            self.items.push((id, subject, "pending".into()));
+            return true;
+        }
+        false
+    }
+
+    pub fn update(&mut self, input: &Value) -> bool {
+        let Some(at) = self
+            .items
+            .iter()
+            .position(|(id, ..)| Some(id.as_str()) == str_at(input, "taskId"))
+        else {
+            return false;
+        };
+        if str_at(input, "status") == Some("deleted") {
+            self.items.remove(at);
+            return true;
+        }
+        if let Some(subject) = str_at(input, "subject") {
+            self.items[at].1 = subject.to_string();
+        }
+        if let Some(status) = str_at(input, "status") {
+            self.items[at].2 = status.to_string();
+        }
+        true
+    }
+
+    pub fn plan(&self) -> Value {
+        shape::plan_update(
+            self.items
+                .iter()
+                .map(|(_, subject, status)| (subject.as_str(), status.as_str())),
+        )
+    }
+
+    pub fn clear(&mut self) {
+        self.items.clear();
+        self.creating.clear();
+    }
+}
+
+pub fn result_text(content: &Value) -> String {
+    match content {
         Value::String(text) => text.clone(),
         Value::Array(blocks) => blocks
             .iter()
@@ -81,8 +152,12 @@ pub fn result_update(id: &str, failed: bool, content: &Value) -> Value {
             .collect::<Vec<_>>()
             .join("\n"),
         _ => String::new(),
-    };
-    shape::tool_update(id, if failed { "failed" } else { "completed" }, &text)
+    }
+}
+
+pub fn result_update(id: &str, failed: bool, content: &Value) -> Value {
+    let status = if failed { "failed" } else { "completed" };
+    shape::tool_update(id, status, &result_text(content))
 }
 
 pub fn permission_params(session_id: &str, request: &Value) -> Value {

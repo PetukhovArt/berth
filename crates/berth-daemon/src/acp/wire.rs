@@ -43,6 +43,7 @@ pub struct LaunchSpec {
     pub program: String,
     pub args: Vec<String>,
     pub cwd: PathBuf,
+    pub env: Vec<(&'static str, &'static str)>,
 }
 
 pub trait Host: Send + Sync {
@@ -93,6 +94,7 @@ impl Host for DaemonHost {
         {
             command.env_remove(name);
         }
+        command.envs(spec.env.iter().copied());
         platform::lead_process_tree(&mut command);
         let mut child = command
             .spawn()

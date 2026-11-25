@@ -203,6 +203,7 @@ impl CodexTranslator {
             program: self.command.clone(),
             args,
             cwd: self.cwd.clone(),
+            env: Vec::new(),
         })?;
         self.forget_native();
         let params = json!({
