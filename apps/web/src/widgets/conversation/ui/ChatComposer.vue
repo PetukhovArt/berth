@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, shallowRef, useId, useTemplateRef, watch } from 'vue';
 import { isDesktop } from '../../../bridge';
-import { ArrowUp, Mic, Square, X } from '../../../shared/ui/icons';
+import { ArrowUp, Mic, Paperclip, Square, X } from '../../../shared/ui/icons';
 import { useIsPhone } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { PlainKey } from '../../../shared/lib/i18n/translate';
 import { speechLang, useHoldToTalk, type HoldToTalkIssue } from '../../../shared/lib/dictation';
-import { listSlashCommands, matchSlashCommands, type PromptQuote, type SlashCommand, type SlashSource, type TranscriptMessage } from '../../../entities/session';
+import { listSlashCommands, matchSlashCommands, uploadName, uploadSrc, type AcpAttachmentUpload, type AcpChatCaps, type AcpConfigOption, type PromptQuote, type SlashCommand, type SlashSource, type TranscriptMessage } from '../../../entities/session';
 import { useDock } from '../../../shared/model/dock';
 import { isAvailable, showViewInActivePanel } from '../../../features/session-view-switch';
+import { useAttachments } from '../model/useAttachments';
+import { useMention } from '../model/useMention';
 import { useVoiceLoop } from '../model/useVoiceLoop';
+import AttachmentChip from './AttachmentChip.vue';
+import OptionPicker from './OptionPicker.vue';
 
 const NOTICE_MS = 3000;
 const BLOCKED_NOTICE_MS = 8000;
@@ -19,8 +23,10 @@ const WAVE_BARS = [10, 22, 34, 18, 40, 26, 14, 30, 20, 8];
 
 const SLASH_QUERY = /^\/(\S*)$/;
 
-const props = defineProps<{ messages: TranscriptMessage[]; suggestion: string | null; modelChip: string; sending: boolean; slashSource: SlashSource | null; stop: (() => Promise<void>) | null; send: (text: string, spoken: boolean) => Promise<boolean>; quotes: readonly PromptQuote[] }>();
-const emit = defineEmits<{ unquote: [label: string] }>();
+type PopupItem = { key: string; label: string; description: string };
+
+const props = defineProps<{ messages: TranscriptMessage[]; suggestion: string | null; modelChip: string; sending: boolean; slashSource: SlashSource | null; stop: (() => Promise<void>) | null; send: (text: string, spoken: boolean, uploads?: AcpAttachmentUpload[]) => Promise<boolean>; quotes: readonly PromptQuote[]; caps: AcpChatCaps | null; options: readonly AcpConfigOption[]; worktreeId: string | null }>();
+const emit = defineEmits<{ unquote: [label: string]; option: [id: string, value: string] }>();
 
 const phone = useIsPhone();
 const draft = shallowRef('');
@@ -34,6 +40,20 @@ let commandsRun = 0;
 const notice = shallowRef('');
 const typing = shallowRef(false);
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+
+function say(text: string, ms: number) {
+  notice.value = text;
+  clearTimeout(noticeTimer);
+  noticeTimer = setTimeout(() => (notice.value = ''), ms);
+}
+
+const attachments = useAttachments(
+  () => props.caps?.images ?? false,
+  (text) => say(text, NOTICE_MS),
+);
+const mention = useMention(draft, () => (props.caps ? props.worktreeId : null));
+const modelOption = computed(() => props.options.find((option) => option.category === 'Model'));
+const effortOption = computed(() => props.options.find((option) => option.category === 'ThoughtLevel'));
 
 const ISSUES: Record<HoldToTalkIssue, PlainKey> = {
   denied: 'agents.sessionView.chatTalkDenied',
@@ -115,7 +135,35 @@ onBeforeUnmount(() => clearTimeout(noticeTimer));
 
 async function sendDraft() {
   const text = draft.value.trim();
-  if (text && (await props.send(text, false))) draft.value = '';
+  const uploads = attachments.uploads.value;
+  if ((text || uploads.length) && (await props.send(text, false, uploads))) {
+    draft.value = '';
+    attachments.clear();
+  }
+}
+
+const canSend = computed(() => !!draft.value.trim() || attachments.pending.value.length > 0);
+
+function attach(files: FileList | null | undefined) {
+  if (files?.length) void attachments.add(Array.from(files));
+}
+
+function pickFiles() {
+  const picker = document.createElement('input');
+  picker.type = 'file';
+  picker.multiple = true;
+  picker.onchange = () => attach(picker.files);
+  picker.click();
+}
+
+function onPaste(event: ClipboardEvent) {
+  if (!props.caps || !event.clipboardData?.files.length) return;
+  event.preventDefault();
+  attach(event.clipboardData.files);
+}
+
+function onDrop(event: DragEvent) {
+  if (props.caps) attach(event.dataTransfer?.files);
 }
 
 function acceptSuggestion() {
@@ -123,8 +171,11 @@ function acceptSuggestion() {
 }
 
 const slashQuery = computed(() => SLASH_QUERY.exec(draft.value)?.[1] ?? null);
-const slashMatches = computed(() => (slashQuery.value === null || dismissed.value ? [] : matchSlashCommands(commands.value, slashQuery.value)));
-const slashOpen = computed(() => slashMatches.value.length > 0);
+const slashItems = computed<PopupItem[]>(() => (slashQuery.value === null ? [] : matchSlashCommands(commands.value, slashQuery.value).map((command) => ({ key: command.name, label: `/${command.name}`, description: command.description }))));
+const mentionItems = computed<PopupItem[]>(() => mention.files.value.map((path) => ({ key: path, label: path, description: '' })));
+const popupKind = computed(() => (dismissed.value ? null : slashItems.value.length ? 'slash' : mentionItems.value.length ? 'mention' : null));
+const popupItems = computed(() => (popupKind.value === 'slash' ? slashItems.value : popupKind.value === 'mention' ? mentionItems.value : []));
+const slashOpen = computed(() => popupItems.value.length > 0);
 const activeId = computed(() => (slashOpen.value ? `${listId}-${active.value}` : undefined));
 
 async function loadCommands() {
@@ -136,32 +187,38 @@ async function loadCommands() {
 }
 
 watch(slashQuery, (query, previous) => {
-  if (query === null) dismissed.value = false;
-  else if (previous === null || previous === undefined) void loadCommands();
+  if (query !== null && (previous === null || previous === undefined)) void loadCommands();
 });
 
-watch(slashMatches, () => (active.value = 0));
+watch([slashQuery, mention.query], ([slash, mentioned]) => {
+  if (slash === null && mentioned === null) dismissed.value = false;
+});
+
+watch(popupItems, () => (active.value = 0));
 
 function moveActive(step: number) {
-  const size = slashMatches.value.length;
+  const size = popupItems.value.length;
   active.value = (active.value + step + size) % size;
   void nextTick(() => slashList.value?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' }));
 }
 
-function pickCommand(command: SlashCommand) {
-  draft.value = `/${command.name} `;
+function pickItem(item: PopupItem) {
+  if (popupKind.value === 'mention') {
+    draft.value = mention.strip();
+    attachments.addPath(item.key);
+  } else draft.value = `/${item.key} `;
   input.value?.focus();
 }
 
 function onSlashKey(event: KeyboardEvent): boolean {
   if (!slashOpen.value || event.isComposing) return false;
-  const current = slashMatches.value[active.value];
+  const current = popupItems.value[active.value];
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') moveActive(event.key === 'ArrowDown' ? 1 : -1);
   else if (event.key === 'Escape') {
     event.stopPropagation();
     dismissed.value = true;
-  } else if (event.key === 'Tab' && !event.shiftKey && current) pickCommand(current);
-  else if (event.key === 'Enter' && !event.shiftKey && current && current.name.toLowerCase() !== slashQuery.value?.toLowerCase()) pickCommand(current);
+  } else if (event.key === 'Tab' && !event.shiftKey && current) pickItem(current);
+  else if (event.key === 'Enter' && !event.shiftKey && current && (popupKind.value === 'mention' || current.key.toLowerCase() !== slashQuery.value?.toLowerCase())) pickItem(current);
   else return false;
   event.preventDefault();
   return true;
@@ -229,13 +286,16 @@ function handsFree() {
         </div>
         <p class="hint">{{ t(stop ? 'chat.talkHintRunning' : 'chat.talkHint') }}</p>
       </div>
-      <div v-else class="box">
-        <ul v-if="slashOpen" :id="listId" ref="slashList" class="slash" role="listbox" :aria-label="t('chat.slash.list')" data-testid="chat-slash-list">
-          <li v-for="(command, index) in slashMatches" :id="`${listId}-${index}`" :key="command.name" class="slash-item" role="option" :aria-selected="index === active" :data-name="command.name" data-testid="chat-slash-item" @pointerdown.prevent @click="pickCommand(command)">
-            <span class="slash-name">/{{ command.name }}</span>
-            <span v-if="command.description" class="slash-description">{{ command.description }}</span>
+      <div v-else class="box" @dragover.prevent @drop.prevent="onDrop">
+        <ul v-if="slashOpen" :id="listId" ref="slashList" class="slash" role="listbox" :aria-label="t(popupKind === 'mention' ? 'chat.mention.list' : 'chat.slash.list')" :data-testid="popupKind === 'mention' ? 'chat-mention-list' : 'chat-slash-list'">
+          <li v-for="(item, index) in popupItems" :id="`${listId}-${index}`" :key="item.key" class="slash-item" role="option" :aria-selected="index === active" :data-name="item.key" :data-testid="popupKind === 'mention' ? 'chat-mention-item' : 'chat-slash-item'" @pointerdown.prevent @click="pickItem(item)">
+            <span class="slash-name">{{ item.label }}</span>
+            <span v-if="item.description" class="slash-description">{{ item.description }}</span>
           </li>
         </ul>
+        <div v-if="attachments.pending.value.length" class="quotes" data-testid="chat-pending-attachments">
+          <AttachmentChip v-for="entry in attachments.pending.value" :key="entry.id" :label="uploadName(entry.upload)" :src="uploadSrc(entry.upload)" removable @remove="attachments.remove(entry.id)" />
+        </div>
         <div v-if="quotes.length" class="quotes" data-testid="chat-quotes">
           <span v-for="quote in quotes" :key="quote.label" class="quote" :title="quote.text" data-testid="chat-quote">
             {{ quote.label }}
@@ -243,21 +303,26 @@ function handsFree() {
           </span>
         </div>
         <div class="field">
-          <UiTextarea ref="input" v-model="draft" class="input" rows="2" :placeholder="shownSuggestion ? '' : t(quotes.length ? 'agents.sessionView.chatPlaceholderQuoted' : stop ? 'agents.sessionView.chatPlaceholderRunning' : 'agents.sessionView.chatPlaceholder')" :aria-label="t('agents.sessionView.chatPlaceholder')" role="combobox" aria-autocomplete="list" :aria-expanded="slashOpen" :aria-controls="slashOpen ? listId : undefined" :aria-activedescendant="activeId" data-testid="chat-input" @keydown="onKey" />
+          <UiTextarea ref="input" v-model="draft" class="input" rows="2" :placeholder="shownSuggestion ? '' : t(quotes.length ? 'agents.sessionView.chatPlaceholderQuoted' : stop ? 'agents.sessionView.chatPlaceholderRunning' : 'agents.sessionView.chatPlaceholder')" :aria-label="t('agents.sessionView.chatPlaceholder')" role="combobox" aria-autocomplete="list" :aria-expanded="slashOpen" :aria-controls="slashOpen ? listId : undefined" :aria-activedescendant="activeId" data-testid="chat-input" @keydown="onKey" @paste="onPaste" />
           <div v-if="shownSuggestion" class="ghost" :title="t('agents.sessionView.chatSuggestion')" data-testid="chat-suggestion">
             <span class="ghost-text">{{ shownSuggestion }}</span>
             <UiButton type="button" class="keycap" tabindex="-1" @click="acceptSuggestion">{{ t('chat.tabKey') }}</UiButton>
           </div>
         </div>
         <div class="foot">
-          <span v-if="modelChip" class="model" :title="modelChip" data-testid="chat-model">{{ modelChip }}</span>
+          <template v-if="caps">
+            <UiButton type="button" class="attach" :aria-label="t('chat.attach.button')" :title="t('chat.attach.button')" data-testid="chat-attach" @click="pickFiles"><Paperclip :size="14" /></UiButton>
+          </template>
+          <OptionPicker v-if="modelOption" :option="modelOption" kind="model" @pick="(id, value) => emit('option', id, value)" />
+          <span v-else-if="modelChip" class="model" :title="modelChip" data-testid="chat-model">{{ modelChip }}</span>
+          <OptionPicker v-if="effortOption" :option="effortOption" kind="effort" @pick="(id, value) => emit('option', id, value)" />
           <span class="grow" />
-          <span v-if="!phone" class="keys">{{ t('chat.keysHint') }}</span>
+          <span v-if="!phone" class="keys" data-testid="chat-keys">{{ t(stop && caps ? 'chat.keysQueue' : 'chat.keysHint') }}</span>
           <UiButton v-if="talkBlocked" type="button" class="talk blocked" aria-disabled="true" :aria-label="t('chat.talkMode')" :title="t(secure ? 'chat.talkUnavailable' : 'chat.talkNeedsHttps')" data-testid="chat-talk-blocked" @click="explainBlocked"><Mic :size="14" /></UiButton>
           <UiButton v-else-if="showTalk && phone" type="button" class="talk" :aria-label="t('chat.talkMode')" :title="t('chat.talkMode')" data-testid="chat-talk-mode" @click="typing = false"><Mic :size="14" /></UiButton>
           <UiButton v-else-if="showTalk" type="button" class="talk" :data-holding="talk.holding.value || undefined" :data-cancelling="talk.cancelling.value || undefined" :aria-label="t('agents.sessionView.chatTalk')" :title="t('agents.sessionView.chatTalk')" data-testid="chat-talk" @pointerdown="talk.start" @pointermove="talk.move" @pointerup="talk.release" @pointercancel="talk.release" @contextmenu.prevent><Mic :size="14" /></UiButton>
-          <UiButton v-if="stop && !draft.trim()" type="button" class="send stop" :aria-label="t('agents.sessionView.chatStop')" :title="t('agents.sessionView.chatStop')" data-testid="chat-stop" @click="stop"><Square :size="12" fill="currentColor" /></UiButton>
-          <UiButton v-else type="submit" class="send" :disabled="!draft.trim() || sending" :aria-busy="sending" :aria-label="t('agents.sessionView.chatSend')" :title="t('agents.sessionView.chatSend')" data-testid="chat-send"><ArrowUp :size="14" /></UiButton>
+          <UiButton v-if="stop && !canSend" type="button" class="send stop" :aria-label="t('agents.sessionView.chatStop')" :title="t('agents.sessionView.chatStop')" data-testid="chat-stop" @click="stop"><Square :size="12" fill="currentColor" /></UiButton>
+          <UiButton v-else type="submit" class="send" :disabled="!canSend || sending" :aria-busy="sending" :aria-label="t('agents.sessionView.chatSend')" :title="t('agents.sessionView.chatSend')" data-testid="chat-send"><ArrowUp :size="14" /></UiButton>
         </div>
       </div>
     </template>
@@ -489,6 +554,26 @@ function handsFree() {
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-subtle);
   white-space: nowrap;
+}
+
+.attach {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  color: var(--vr-color-text-muted);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: var(--vr-radius-control);
+}
+
+.attach:hover {
+  color: var(--vr-color-text);
+  background: var(--vr-color-nav-hover);
 }
 
 .talk,

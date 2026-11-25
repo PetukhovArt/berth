@@ -3,17 +3,29 @@ import { computed, onBeforeUnmount, onMounted } from 'vue';
 import { TriangleAlert } from '../../../shared/ui/icons';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { allowRequest, alwaysAllowRequest, chooseOption, denyRequest, feedbackText, isYesNoPermission, offersAlways, type FeedbackRequest, type SessionRef } from '../../../entities/session';
+import { allowRequest, alwaysAllowRequest, answerFeedbackForm, chooseOption, denyRequest, feedbackText, isYesNoPermission, offersAlways, type AcpAnswers, type FeedbackRequest, type SessionRef } from '../../../entities/session';
 import type { FeedNote } from '../model/feedNotes';
+import { digitIndex } from '../model/digitKey';
+import QuestionForm from './QuestionForm.vue';
 
 type Choice = { label: string; title?: string; primary: boolean; testid: string; run: () => Promise<void>; note: Omit<FeedNote, 'id' | 'afterKey'> };
 
-const props = defineProps<{ session: SessionRef; request: FeedbackRequest; agentLabel: string; place: string }>();
+const props = withDefaults(defineProps<{ session: SessionRef; request: FeedbackRequest; agentLabel: string; place: string; questions?: 'none' | 'choice' | 'typed' }>(), { questions: 'none' });
 const emit = defineEmits<{ resolved: [note: Omit<FeedNote, 'id' | 'afterKey'>] }>();
 
 const code = computed(() => props.request.detail);
+const form = computed(() => (props.questions !== 'none' && 'Agent' in props.session ? props.request.form : undefined));
+
+async function submitForm(answers: AcpAnswers) {
+  if (!form.value || !('Agent' in props.session)) return;
+  const asked = form.value.questions.flatMap((question) => (answers[question.id] ?? []).map((value) => question.choices.find((choice) => choice.value === value)?.name ?? value));
+  emit('resolved', { text: t('feedback.answered', { answer: asked.join(', ') }), code: null });
+  await answerFeedbackForm(props.session.Agent, answers);
+}
+
 const choices = computed<Choice[]>(() => {
   const { request, session } = props;
+  if (form.value) return [];
   if (!isYesNoPermission(request)) {
     return request.options.map((option, index) => ({ label: option, primary: index === 0, testid: 'feedback-option', run: () => chooseOption(session, index), note: { text: t('feedback.answered', { answer: option }), code: null } }));
   }
@@ -29,10 +41,8 @@ async function pick(choice: Choice) {
 }
 
 function onKey(event: KeyboardEvent) {
-  if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.isComposing) return;
-  const target = event.target;
-  if (target instanceof HTMLElement && (target.isContentEditable || /^(?:INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
-  const choice = choices.value[Number(event.key) - 1];
+  const index = digitIndex(event);
+  const choice = index === null ? undefined : choices.value[index];
   if (!choice) return;
   event.preventDefault();
   void pick(choice);
@@ -47,7 +57,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     <h3 class="title"><TriangleAlert :size="15" class="icon" />{{ feedbackText(request) }}</h3>
     <code v-if="code" class="code mono" data-testid="feedback-detail">{{ code }}</code>
     <p v-if="place || request.kind === 'Question'" class="sub">{{ [place ? t('feedback.place', { place }) : '', request.kind === 'Question' ? t('feedback.asks', { agent: agentLabel }) : ''].filter(Boolean).join(' · ') }}</p>
-    <div class="actions">
+    <QuestionForm v-if="form" :form="form" :typed="questions === 'typed'" @submit="submitForm" />
+    <div v-else class="actions">
       <UiButton v-for="(choice, index) in choices" :key="index" type="button" class="action" :class="{ primary: choice.primary }" :title="choice.title" :data-testid="choice.testid" @click="pick(choice)">
         {{ choice.label }}
         <kbd v-if="index < 9" class="key">{{ index + 1 }}</kbd>

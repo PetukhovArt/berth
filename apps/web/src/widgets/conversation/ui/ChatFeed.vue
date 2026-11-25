@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { Bot, Check, LoaderCircle } from '../../../shared/ui/icons';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { HarnessIcon, modelLabel, type Checkpoint, type Harness, type Subagent } from '../../../entities/session';
+import { HarnessIcon, modelLabel, type AcpQueuedPrompt, type Checkpoint, type Harness, type Subagent } from '../../../entities/session';
 import type { ChatBlock } from '../model/chatBlocks';
 import type { FeedNote } from '../model/feedNotes';
 import { durationLabel } from '../model/duration';
@@ -11,6 +11,8 @@ import ToolGroup from './ToolGroup.vue';
 import TurnFiles from './TurnFiles.vue';
 import CheckpointRow from './CheckpointRow.vue';
 import SubagentGroup from './SubagentGroup.vue';
+import StoredAttachments from './StoredAttachments.vue';
+import QueuedBubble from './QueuedBubble.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -29,10 +31,11 @@ const props = withDefaults(
     found?: string | null;
     notes?: readonly FeedNote[];
     workingSince?: number | null;
+    queued?: readonly AcpQueuedPrompt[];
   }>(),
-  { place: '', panelId: undefined, agentId: null, checkpointOf: () => new Map(), spoken: () => new Set(), subagentsOpenable: true, found: null, notes: () => [], workingSince: null },
+  { place: '', panelId: undefined, agentId: null, checkpointOf: () => new Map(), spoken: () => new Set(), subagentsOpenable: true, found: null, notes: () => [], workingSince: null, queued: () => [] },
 );
-const emit = defineEmits<{ restored: []; openSubagent: [callId: string] }>();
+const emit = defineEmits<{ restored: []; openSubagent: [callId: string]; editQueued: [id: number, text: string]; removeQueued: [id: number] }>();
 
 const { t, formatDate } = useI18n();
 const notesAfter = (key: string) => props.notes.filter((note) => note.afterKey === key);
@@ -44,8 +47,9 @@ const working = computed(() => (props.workingSince === null ? null : durationLab
     <template v-for="block in blocks" :key="block.key">
       <li class="block" :data-block="block.type" :data-key="block.key" :data-found="block.key === found || undefined">
         <div v-if="block.type === 'prompt'" class="message" data-role="user" :title="block.message.at ? formatDate(block.message.at) : undefined" data-testid="conversation-message">
+          <StoredAttachments v-if="block.message.attachments" :attachments="block.message.attachments" />
           <RichContent v-if="block.message.shell && block.message.markdown" class="shell" :data-shell="block.message.shell" :markdown="block.message.markdown" />
-          <p v-else class="user">{{ block.message.text }}</p>
+          <p v-else-if="block.message.text" class="user">{{ block.message.text }}</p>
           <span v-if="spoken.has(block.message.text.trim())" class="spoken" data-testid="conversation-spoken">{{ t('chat.sentByVoice') }}</span>
           <CheckpointRow v-if="agentId && checkpointOf.get(block.message.key)" :agent-id="agentId" :checkpoint="checkpointOf.get(block.message.key)!" :place="place" :agent-label="agentLabel" @restored="emit('restored')" />
         </div>
@@ -76,6 +80,9 @@ const working = computed(() => (props.workingSince === null ? null : durationLab
       <LoaderCircle :size="13" class="spin" />
       <span>{{ t('chat.working', { time: working }) }}</span>
     </li>
+    <li v-for="item in queued" :key="`queued-${item.id}`" class="block queued" data-testid="conversation-queued">
+      <QueuedBubble :item="item" :agent-label="agentLabel" @edit="(id, text) => emit('editQueued', id, text)" @remove="emit('removeQueued', $event)" />
+    </li>
   </ol>
 </template>
 
@@ -102,6 +109,11 @@ const working = computed(() => (props.workingSince === null ? null : durationLab
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  align-self: flex-end;
+  max-width: 78%;
+}
+
+.block.queued {
   align-self: flex-end;
   max-width: 78%;
 }

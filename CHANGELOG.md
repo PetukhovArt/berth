@@ -7,6 +7,11 @@
 - Added a short `Allowed` or `Answered` line to the Chat view after you answer a permission request or a question
 - Added `Try again` and `Show terminal` buttons to the Chat view when it cannot read the conversation, and a loading skeleton in place of the plain text
 - Added a `Tab` key mark to the suggested prompt, which now shows as grey text inside the prompt box
+- Added image and file attachments to the prompt box of ACP agents: the paperclip button, paste and drop, with thumbnails in the sent message
+- Added `@` mentions to the prompt box of ACP agents: type `@` and pick a file of the worktree
+- Added model and effort pickers to the prompt box of ACP agents
+- Added typed answers to the questions an ACP agent asks in the Chat view, and questions with several parts or several choices
+- Added `Edit` to a queued prompt of an ACP agent, which now shows in the Chat view as a dashed bubble under the working row
 - Changed the permission and question card in the Chat view to a raised card with the project and branch, and `1`, `2`, `3` keys for its buttons
 - Changed `Restore files` on a checkpoint to ask in a dialog instead of two links under the prompt
 - Changed the Chat view to the new look: a 780 px centered column, rounded prompt bubbles, a colored tile by the agent name, and phase chips in the plan strip

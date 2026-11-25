@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplate
 import { Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, TriangleAlert } from '../../../shared/ui/icons';
 import { VButton, VMessage } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
-import { AGENT_KIND_LABEL, clearHandoff, clearMessageFocus, messageFocusOf, continueInBerth, handoffOf, externalKey, externalOrigin, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePhases, derivePlan, PlanStrip, deriveSubagents, stripVisible, sendInput, useFeedbackRequest, enqueuePrompt, removeQueuedPrompt, sessionKey, stopAgent, submitPrompt, useAcpChat, useQueuedPrompts, useSessionStates, clearPromptQuotes, promptQuotesOf, removePromptQuote, type SessionRef, type SlashSource } from '../../../entities/session';
+import { AGENT_KIND_LABEL, clearHandoff, clearMessageFocus, messageFocusOf, continueInBerth, handoffOf, externalKey, externalOrigin, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePhases, derivePlan, PlanStrip, deriveSubagents, stripVisible, sendInput, useFeedbackRequest, sessionKey, stopAgent, useChat, useSessionStates, clearPromptQuotes, promptQuotesOf, removePromptQuote, type AcpAttachmentUpload, type SessionRef, type SlashSource } from '../../../entities/session';
 import { showViewInActivePanel, worktreeOf } from '../../../features/session-view-switch';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
@@ -42,7 +42,7 @@ function edgeX(edge: ColumnEdge): number {
   if (!box) return 0;
   return edge === 'left' ? box.left : box.left + box.width;
 }
-const acp = props.harness === 'acp' ? useAcpChat(props.sessionId) : null;
+const acp = props.harness === 'acp' ? useChat(props.sessionId) : null;
 const harness = computed<Harness | null>(() => (props.harness === 'acp' ? null : props.harness));
 const transcript = shallowRef<TranscriptMessage[]>([]);
 const messages = computed(() => acp?.messages.value ?? transcript.value);
@@ -50,7 +50,6 @@ const loadingTranscript = shallowRef(!acp);
 const loading = computed(() => acp?.loading.value ?? loadingTranscript.value);
 const error = shallowRef<string | null>(null);
 const shownError = computed(() => error.value ?? acp?.error.value ?? null);
-const queued = useQueuedPrompts(props.sessionId);
 const copied = shallowRef(false);
 const request = props.terminal ? useFeedbackRequest(props.terminal) : null;
 const sending = shallowRef(false);
@@ -296,12 +295,12 @@ async function continueHere() {
   });
 }
 
-async function submit(text: string, viaVoice: boolean): Promise<boolean> {
-  if (!props.terminal || !text || sending.value) return false;
+async function submit(text: string, viaVoice: boolean, uploads: AcpAttachmentUpload[] = []): Promise<boolean> {
+  if (!props.terminal || (!text && !uploads.length) || sending.value) return false;
   sending.value = true;
   const body = quotes.value.length ? `${quotes.value.map((quote) => quote.text.trimEnd()).join('\n\n')}\n\n${text}` : text;
   try {
-    if (acp) await sendToAcp(body);
+    if (acp) await acp.send(body, uploads);
     else {
       await sendInput(props.terminal, `\x1b[200~${body}\x1b[201~`);
       await sendInput(props.terminal, '\r');
@@ -315,6 +314,10 @@ async function submit(text: string, viaVoice: boolean): Promise<boolean> {
   } finally {
     sending.value = false;
   }
+}
+
+function fail(e: unknown) {
+  error.value = describeError(e);
 }
 
 function noteResolved(note: Omit<FeedNote, 'id' | 'afterKey'>) {
@@ -344,12 +347,6 @@ async function stop() {
   } catch (e) {
     error.value = describeError(e);
   }
-}
-
-async function sendToAcp(text: string) {
-  const status = berth?.entities.value.agents.get(props.sessionId)?.status;
-  if (status === 'running' || status === 'needs_feedback') enqueuePrompt(props.sessionId, text);
-  else await submitPrompt({ Agent: props.sessionId }, text);
 }
 
 function openSubagent(callId: string) {
@@ -421,23 +418,16 @@ onBeforeUnmount(() => {
         <ChatStates v-if="loading" class="column" state="loading" />
         <ChatStates v-else-if="shownError" class="column" state="error" :message="shownError" :can-show-terminal="!!terminal" @retry="retry" @show-terminal="showViewInActivePanel('terminal')" />
         <ChatStates v-else-if="!messages.length" class="column" state="empty" />
-        <ChatFeed v-else class="column" :blocks="blocks" :harness="harness" :agent-label="agentLabel" :root="root" :place="place" :panel-id="panelId" :agent-id="agentId" :checkpoint-of="checkpointOf" :spoken="spoken" :subagent-of="subagentOf" :now="now" :found="found" :notes="notes" :working-since="workingSince" @restored="loadCheckpoints" @open-subagent="openSubagent" />
+        <ChatFeed v-else class="column" :blocks="blocks" :harness="harness" :agent-label="agentLabel" :root="root" :place="place" :panel-id="panelId" :agent-id="agentId" :checkpoint-of="checkpointOf" :spoken="spoken" :subagent-of="subagentOf" :now="now" :found="found" :notes="notes" :working-since="workingSince" :queued="acp?.session.value?.queue" @restored="loadCheckpoints" @open-subagent="openSubagent" @edit-queued="(id, text) => acp?.editQueued(id, text).catch(fail)" @remove-queued="(id) => acp?.removeQueued(id).catch(fail)" />
       </div>
-      <FeedbackCard v-if="terminal && request" class="column" :session="terminal" :request="request" :agent-label="agentLabel" :place="place" @resolved="noteResolved" />
+      <FeedbackCard v-if="terminal && request" class="column" :session="terminal" :request="request" :agent-label="agentLabel" :place="place" :questions="acp?.session.value?.caps.questions" @resolved="noteResolved" />
       <div v-if="acp" class="column agent-log" data-testid="chat-agent-log">
         <UiButton type="button" class="agent-log-toggle" :aria-expanded="agentLog !== null" data-testid="chat-agent-log-toggle" @click="toggleAgentLog">{{ t('agents.sessionView.chatAgentLog') }}</UiButton>
         <pre v-if="agentLog !== null" class="agent-log-text mono" data-testid="chat-agent-log-text">{{ agentLog || t('agents.sessionView.chatAgentLogEmpty') }}</pre>
       </div>
-      <ul v-if="acp && queued.length" class="column queued" data-testid="chat-queue">
-        <li v-for="item in queued" :key="item.id" class="queued-item" data-testid="queue-item">
-          <span class="queued-text" data-testid="queue-item-text">{{ item.text }}</span>
-          <span class="queued-hint">{{ t('feedback.queue.sendsWhenFinished') }}</span>
-          <UiButton type="button" class="queued-remove" data-testid="queue-remove" @click="removeQueuedPrompt(sessionId, item.id)">{{ t('feedback.queue.remove') }}</UiButton>
-        </li>
-      </ul>
       <SubagentStrip v-if="stripAgents.length" class="column" :agents="stripAgents" :now="now" @open="openSubagent" />
       <ChatFindBar v-if="find.open.value" ref="findBar" v-model="find.query.value" :index="find.index.value" :total="find.total.value" @step="find.step" @close="find.hide" />
-      <ChatComposer v-if="terminal" :messages="messages" :suggestion="suggestion" :model-chip="modelChip" :sending="sending" :slash-source="slashSource" :stop="turnRunning ? stop : null" :send="submit" :quotes="quotes" @unquote="(label) => terminal && removePromptQuote(terminal, label)" />
+      <ChatComposer v-if="terminal" :messages="messages" :suggestion="suggestion" :model-chip="modelChip" :sending="sending" :slash-source="slashSource" :stop="turnRunning ? stop : null" :send="submit" :quotes="quotes" :caps="acp?.session.value?.caps ?? null" :options="acp?.session.value?.options ?? []" :worktree-id="agent?.worktree_id ?? null" @unquote="(label) => terminal && removePromptQuote(terminal, label)" @option="(id, value) => acp?.setOption(id, value).catch(fail)" />
       <template v-if="column.box.value && !column.phone.value">
         <div
           v-for="edge in COLUMN_EDGES"
@@ -487,51 +477,6 @@ onBeforeUnmount(() => {
   font-size: var(--vr-font-size-2xs);
   white-space: pre-wrap;
   color: var(--vr-color-text-muted);
-}
-
-.queued {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  gap: var(--vr-space-1);
-  padding: var(--vr-space-2) 0 0;
-  margin-top: 0;
-  margin-bottom: 0;
-  list-style: none;
-}
-
-.queued-item {
-  display: flex;
-  align-items: center;
-  gap: var(--vr-space-2);
-  padding: 0 var(--vr-space-2);
-  border: 1px dashed var(--vr-color-border-strong);
-  border-radius: var(--vr-radius-md);
-}
-
-.queued-text {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  font-size: var(--vr-font-size-sm);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.queued-hint {
-  flex: none;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-text-muted);
-}
-
-.queued-remove {
-  flex: none;
-  padding: 0;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-link);
-  cursor: pointer;
-  background: none;
-  border: 0;
 }
 
 .conversation {

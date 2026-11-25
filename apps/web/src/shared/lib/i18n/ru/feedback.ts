@@ -10,8 +10,4 @@ export const feedback = {
   denied: 'Отклонено',
   answered: 'Ответ: «{answer}»',
   asks: '{agent} задаёт вопрос',
-  queue: {
-    sendsWhenFinished: 'Отправится, когда агент закончит',
-    remove: 'Убрать',
-  },
 } as const;
