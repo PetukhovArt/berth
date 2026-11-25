@@ -55,6 +55,7 @@ export const agents: Translation<typeof en> = {
     archive: 'В архив',
     restore: 'Восстановить',
     deleteForever: 'Удалить навсегда',
+    delete: 'Удалить',
     actions: 'Действия',
     newName: 'Новое имя сессии',
     confirmDeleteLabel: 'Удалить сессию навсегда?',

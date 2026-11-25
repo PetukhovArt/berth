@@ -9,8 +9,8 @@ const emit = defineEmits<{ confirm: []; cancel: [] }>();
 <template>
   <div class="confirm" role="group" :aria-label="t('agents.session.confirmDeleteLabel')" data-testid="session-delete-confirm">
     <span class="text">{{ t(alive ? 'agents.session.confirmDelete' : 'agents.session.confirmDeleteStopped', { name }) }}</span>
-    <VButton :label="t('agents.session.deleteForever')" size="small" severity="danger" :loading="busy" data-testid="session-delete-yes" @click="emit('confirm')" />
     <VButton :label="t('common.cancel')" size="small" text data-testid="session-delete-no" @click="emit('cancel')" />
+    <VButton :label="t('agents.session.delete')" size="small" severity="danger" :loading="busy" data-testid="session-delete-yes" @click="emit('confirm')" />
   </div>
 </template>
 

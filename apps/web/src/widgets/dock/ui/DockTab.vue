@@ -137,7 +137,7 @@ function onClose() {
       <VMessage v-if="deleting.error.value" severity="error" size="small" data-testid="session-error">{{ deleting.error.value }}</VMessage>
       <div class="actions">
         <VButton :label="t('common.cancel')" size="small" text data-testid="session-delete-no" @click="cancelDelete" />
-        <VButton :label="t('agents.session.deleteForever')" size="small" severity="danger" :loading="deleting.busy.value" data-testid="session-delete-yes" @click="confirmDelete" />
+        <VButton :label="t('agents.session.delete')" size="small" severity="danger" :loading="deleting.busy.value" data-testid="session-delete-yes" @click="confirmDelete" />
       </div>
     </VDialog>
   </span>
