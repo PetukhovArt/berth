@@ -64,6 +64,7 @@ export const chat = {
     remove: 'Remove',
   },
   option: { applyOnRestart: 'Applies from the next start' },
+  mcp: { title: 'MCP servers', refresh: 'Refresh', configured: 'configured', connected: 'connected', failed: 'failed', pending: 'connecting', needsAuth: 'needs sign-in', disabled: 'disabled' },
   question: { placeholder: 'Type another answer', submit: 'Send' },
   typeMode: 'Type',
   typeGlyph: 'Aa',

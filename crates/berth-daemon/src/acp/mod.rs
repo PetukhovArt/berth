@@ -6,6 +6,7 @@ mod files;
 mod latency;
 mod lifecycle;
 pub mod map;
+mod mcp;
 #[cfg(test)]
 mod mock;
 mod persist;

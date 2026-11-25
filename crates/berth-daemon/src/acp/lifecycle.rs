@@ -1,5 +1,5 @@
 use super::conn::RpcError;
-use super::{map, AcpLive, Pending, ACP_PROTOCOL_VERSION};
+use super::{map, mcp, AcpLive, Pending, ACP_PROTOCOL_VERSION};
 use crate::registry::Daemon;
 use crate::status::HookEvent;
 use berth_core::acp::{AcpItem, AcpItemAt};
@@ -19,6 +19,7 @@ pub(super) struct Capabilities {
     resume: bool,
     load: bool,
     mcp_http: bool,
+    pub(super) mcp_status: bool,
     auth_methods: Vec<(String, String)>,
 }
 
@@ -38,6 +39,9 @@ impl Capabilities {
             .and_then(|m| m.get("http"))
             .and_then(Value::as_bool)
             .unwrap_or(false);
+        let mcp_status = caps
+            .and_then(|c| c.pointer("/_meta/berth/mcp"))
+            .is_some_and(|mode| mode != "none");
         let auth_methods = result
             .get("authMethods")
             .and_then(Value::as_array)
@@ -57,6 +61,7 @@ impl Capabilities {
             resume,
             load,
             mcp_http,
+            mcp_status,
             auth_methods,
         }
     }
@@ -104,7 +109,7 @@ impl Daemon {
     }
 
     async fn acp_settle_session(
-        &self,
+        self: &Arc<Self>,
         agent_id: AgentId,
         live: Arc<AcpLive>,
         cwd: PathBuf,
@@ -123,6 +128,7 @@ impl Daemon {
                     Some(sid.clone()),
                 );
                 live.ready.send_replace(Some(Ok(sid)));
+                self.acp_refresh_mcp_later(&agent_id, &live);
             }
             Ok(Opened::NeedsSignIn) => {
                 self.acp_ask_sign_in(&agent_id, &live, cwd, previous_session)
@@ -164,6 +170,9 @@ impl Daemon {
     ) -> Result<Opened, RpcError> {
         let caps = live.capabilities.lock().unwrap().clone();
         let servers = self.acp_shared_mcp_servers(agent_id, caps.mcp_http);
+        if !caps.mcp_status {
+            live.state.lock().unwrap().mcp = mcp::configured(&servers);
+        }
         let params = |sid: &str| json!({"sessionId": sid, "cwd": cwd, "mcpServers": servers});
         if let Some(old) = previous_session {
             if caps.resume {

@@ -541,6 +541,14 @@ async fn handle_client(
                 ClientRequest::AcpRemoveQueued { req_id, agent, id } => {
                     reply_done(&out_tx, req_id, daemon.acp_remove_queued(&agent, id)).await;
                 }
+                ClientRequest::AcpMcpStatus { req_id, agent } => {
+                    let daemon = daemon.clone();
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let refreshed = daemon.acp_refresh_mcp(&agent).await;
+                        reply_done(&out_tx, req_id, refreshed).await;
+                    });
+                }
                 ClientRequest::SetConfigOption {
                     req_id,
                     agent,

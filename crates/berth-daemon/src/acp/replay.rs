@@ -74,6 +74,7 @@ enum Call {
     },
     Stop,
     Resume,
+    RefreshMcp,
     Rewind {
         to: Option<String>,
     },
@@ -180,7 +181,7 @@ fn matches(expected: &Value, actual: &Value, workspace: &str) -> bool {
 }
 
 fn session_summary(state: &AcpSessionState) -> Value {
-    json!({
+    let mut summary = json!({
         "caps": state.caps,
         "options": state.options.iter().map(|option| json!({
             "id": option.id,
@@ -190,7 +191,11 @@ fn session_summary(state: &AcpSessionState) -> Value {
         })).collect::<Vec<_>>(),
         "commands": state.commands.iter().map(|command| &command.name).collect::<Vec<_>>(),
         "queue": state.queue.iter().map(|queued| json!({"id": queued.id, "text": queued.prompt.text})).collect::<Vec<_>>(),
-    })
+    });
+    if state.mcp.iter().any(|server| server.status.is_some()) {
+        summary["mcp"] = json!(state.mcp);
+    }
+    summary
 }
 
 fn item_seq(observed: &Value) -> Option<u64> {
@@ -302,6 +307,11 @@ impl Run {
             }
             Call::Rewind { to } => {
                 self.daemon.acp_rewind(self.agent()?, to).await?;
+            }
+            Call::RefreshMcp => {
+                let daemon = self.daemon.clone();
+                let agent = self.agent()?.clone();
+                tokio::spawn(async move { daemon.acp_refresh_mcp(&agent).await });
             }
             Call::Resume => {
                 let agent = self.agent()?.clone();

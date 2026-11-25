@@ -116,6 +116,14 @@ pub struct AcpSessionState {
     pub options: Vec<ConfigOption>,
     pub commands: Vec<AcpCommand>,
     pub queue: Vec<QueuedPrompt>,
+    pub mcp: Vec<McpServer>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct McpServer {
+    pub name: String,
+    #[serde(default)]
+    pub status: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

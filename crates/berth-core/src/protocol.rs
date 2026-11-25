@@ -523,6 +523,11 @@ pub enum ClientRequest {
         id: QueueId,
     },
 
+    AcpMcpStatus {
+        req_id: u64,
+        agent: AgentId,
+    },
+
     SetConfigOption {
         req_id: u64,
         agent: AgentId,

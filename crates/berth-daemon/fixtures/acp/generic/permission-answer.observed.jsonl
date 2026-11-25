@@ -1,4 +1,4 @@
-{"session":{"caps":{"images":false,"embedded_files":false,"questions":"typed","mcp":"none","rewind":false,"steer":false,"terminal_view":false},"options":[],"commands":[],"queue":[]}}
+{"session":{"caps":{"images":false,"embedded_files":false,"questions":"typed","mcp":"list","rewind":false,"steer":false,"terminal_view":false},"options":[],"commands":[],"queue":[]}}
 {"item":{"seq":1,"item":{"User":{"text":"run the tests"}}}}
 {"status":"running"}
 {"item":{"seq":2,"item":{"Assistant":{"text":"Let me check."}}}}

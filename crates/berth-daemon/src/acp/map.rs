@@ -146,9 +146,9 @@ pub fn chat_caps(initialized: &Value) -> ChatCaps {
             .and_then(Value::as_bool)
             .unwrap_or(false),
         mcp: match berth.and_then(|meta| str_at(meta, "mcp")) {
-            Some("list") => McpAccess::List,
+            Some("none") => McpAccess::None,
             Some("toggle") => McpAccess::Toggle,
-            _ => McpAccess::None,
+            _ => McpAccess::List,
         },
         ..ChatCaps::default()
     }

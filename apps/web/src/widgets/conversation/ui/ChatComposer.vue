@@ -8,7 +8,7 @@ import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { PlainKey } from '../../../shared/lib/i18n/translate';
 import { speechLang, useHoldToTalk, type HoldToTalkIssue } from '../../../shared/lib/dictation';
-import { listSlashCommands, matchSlashCommands, uploadName, uploadSrc, type AcpAttachmentUpload, type AcpChatCaps, type AcpConfigOption, type PromptQuote, type SlashCommand, type SlashSource, type TranscriptMessage } from '../../../entities/session';
+import { listSlashCommands, matchSlashCommands, uploadName, uploadSrc, type AcpAttachmentUpload, type AcpChatCaps, type AcpConfigOption, type AcpMcpServer, type PromptQuote, type SlashCommand, type SlashSource, type TranscriptMessage } from '../../../entities/session';
 import { useDock } from '../../../shared/model/dock';
 import { isAvailable, showViewInActivePanel } from '../../../features/session-view-switch';
 import { useAttachments } from '../model/useAttachments';
@@ -16,6 +16,7 @@ import { useMention } from '../model/useMention';
 import { useVoiceLoop } from '../model/useVoiceLoop';
 import AttachmentChip from './AttachmentChip.vue';
 import OptionPicker from './OptionPicker.vue';
+import McpPicker from './McpPicker.vue';
 
 const NOTICE_MS = 3000;
 const BLOCKED_NOTICE_MS = 8000;
@@ -25,7 +26,7 @@ const SLASH_QUERY = /^\/(\S*)$/;
 
 type PopupItem = { key: string; label: string; description: string };
 
-const props = defineProps<{ messages: TranscriptMessage[]; suggestion: string | null; modelChip: string; sending: boolean; slashSource: SlashSource | null; stop: (() => Promise<void>) | null; send: (text: string, spoken: boolean, uploads?: AcpAttachmentUpload[]) => Promise<boolean>; quotes: readonly PromptQuote[]; caps: AcpChatCaps | null; options: readonly AcpConfigOption[]; worktreeId: string | null }>();
+const props = defineProps<{ messages: TranscriptMessage[]; suggestion: string | null; modelChip: string; sending: boolean; slashSource: SlashSource | null; stop: (() => Promise<void>) | null; send: (text: string, spoken: boolean, uploads?: AcpAttachmentUpload[]) => Promise<boolean>; quotes: readonly PromptQuote[]; caps: AcpChatCaps | null; options: readonly AcpConfigOption[]; mcp: readonly AcpMcpServer[]; refreshMcp: () => Promise<void>; worktreeId: string | null }>();
 const emit = defineEmits<{ unquote: [label: string]; option: [id: string, value: string] }>();
 
 const phone = useIsPhone();
@@ -316,6 +317,7 @@ function handsFree() {
           <OptionPicker v-if="modelOption" :option="modelOption" kind="model" @pick="(id, value) => emit('option', id, value)" />
           <span v-else-if="modelChip" class="model" :title="modelChip" data-testid="chat-model">{{ modelChip }}</span>
           <OptionPicker v-if="effortOption" :option="effortOption" kind="effort" @pick="(id, value) => emit('option', id, value)" />
+          <McpPicker v-if="mcp.length" :servers="mcp" :refresh="refreshMcp" />
           <span class="grow" />
           <span v-if="!phone" class="keys" data-testid="chat-keys">{{ t(stop && caps ? 'chat.keysQueue' : 'chat.keysHint') }}</span>
           <UiButton v-if="talkBlocked" type="button" class="talk blocked" aria-disabled="true" :aria-label="t('chat.talkMode')" :title="t(secure ? 'chat.talkUnavailable' : 'chat.talkNeedsHttps')" data-testid="chat-talk-blocked" @click="explainBlocked"><Mic :size="14" /></UiButton>

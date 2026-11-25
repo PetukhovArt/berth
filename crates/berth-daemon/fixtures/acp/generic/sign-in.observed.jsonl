@@ -2,7 +2,7 @@
 {"status":"needs_feedback"}
 {"feedback":{"kind":"Question","title":"Sign in to generic","detail":"The agent opens its own sign-in flow, usually in the browser.","options":["Log in with the browser"],"always_allow":false}}
 {"feedback":null}
-{"session":{"caps":{"images":false,"embedded_files":false,"questions":"typed","mcp":"none","rewind":false,"steer":false,"terminal_view":false},"options":[],"commands":[],"queue":[]}}
+{"session":{"caps":{"images":false,"embedded_files":false,"questions":"typed","mcp":"list","rewind":false,"steer":false,"terminal_view":false},"options":[],"commands":[],"queue":[]}}
 {"item":{"seq":2,"item":{"User":{"text":"hello"}}}}
 {"status":"running"}
 {"item":{"seq":3,"item":{"Assistant":{"text":"signed in"}}}}

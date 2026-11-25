@@ -79,7 +79,8 @@ type AcpOptionCategory = 'Model' | 'ThoughtLevel' | 'Mode' | 'Other';
 export type AcpConfigOption = { id: string; name: string; category: AcpOptionCategory; current: string; choices: AcpChoice[]; applies: 'now' | 'next_start' };
 export type AcpChatCaps = { images: boolean; embedded_files: boolean; questions: 'none' | 'choice' | 'typed'; mcp: 'none' | 'list' | 'toggle'; rewind: boolean; steer: boolean; terminal_view: boolean };
 export type AcpQueuedPrompt = { id: number; prompt: { text: string; attachments: AcpAttachment[] } };
-export type AcpSessionState = { caps: AcpChatCaps; options: AcpConfigOption[]; commands: { name: string; description: string }[]; queue: AcpQueuedPrompt[] };
+export type AcpMcpServer = { name: string; status: string | null };
+export type AcpSessionState = { caps: AcpChatCaps; options: AcpConfigOption[]; commands: { name: string; description: string }[]; queue: AcpQueuedPrompt[]; mcp: AcpMcpServer[] };
 export type AcpItem = { User: { text: string; attachments?: AcpAttachment[] } } | { Assistant: { text: string } } | { Thought: { text: string } } | { Tool: AcpTool } | { Plan: { entries: AcpPlanEntry[] } } | { Notice: { text: string } };
 export type AcpItemAt = { seq: number; item: AcpItem };
 
@@ -499,6 +500,10 @@ export async function acpEditQueued(agent: string, id: number, text: string): Pr
 
 export async function acpRemoveQueued(agent: string, id: number): Promise<void> {
   await acknowledged({ AcpRemoveQueued: { agent, id } });
+}
+
+export async function acpMcpStatus(agent: string): Promise<void> {
+  await acknowledged({ AcpMcpStatus: { agent } });
 }
 
 export async function acpAttachment(blob: string): Promise<string> {

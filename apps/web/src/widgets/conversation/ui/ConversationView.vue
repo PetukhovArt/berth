@@ -320,6 +320,10 @@ function fail(e: unknown) {
   error.value = describeError(e);
 }
 
+async function refreshMcp() {
+  await acp?.refreshMcp().catch(fail);
+}
+
 function noteResolved(note: Omit<FeedNote, 'id' | 'afterKey'>) {
   const afterKey = blocks.value.at(-1)?.key;
   if (afterKey) notes.value = [...notes.value, { ...note, id: ++noteId, afterKey }];
@@ -427,7 +431,7 @@ onBeforeUnmount(() => {
       </div>
       <SubagentStrip v-if="stripAgents.length" class="column" :agents="stripAgents" :now="now" @open="openSubagent" />
       <ChatFindBar v-if="find.open.value" ref="findBar" v-model="find.query.value" :index="find.index.value" :total="find.total.value" @step="find.step" @close="find.hide" />
-      <ChatComposer v-if="terminal" :messages="messages" :suggestion="suggestion" :model-chip="modelChip" :sending="sending" :slash-source="slashSource" :stop="turnRunning ? stop : null" :send="submit" :quotes="quotes" :caps="acp?.session.value?.caps ?? null" :options="acp?.session.value?.options ?? []" :worktree-id="agent?.worktree_id ?? null" @unquote="(label) => terminal && removePromptQuote(terminal, label)" @option="(id, value) => acp?.setOption(id, value).catch(fail)" />
+      <ChatComposer v-if="terminal" :messages="messages" :suggestion="suggestion" :model-chip="modelChip" :sending="sending" :slash-source="slashSource" :stop="turnRunning ? stop : null" :send="submit" :quotes="quotes" :caps="acp?.session.value?.caps ?? null" :options="acp?.session.value?.options ?? []" :mcp="acp?.session.value?.mcp ?? []" :refresh-mcp="refreshMcp" :worktree-id="agent?.worktree_id ?? null" @unquote="(label) => terminal && removePromptQuote(terminal, label)" @option="(id, value) => acp?.setOption(id, value).catch(fail)" />
       <template v-if="column.box.value && !column.phone.value">
         <div
           v-for="edge in COLUMN_EDGES"
