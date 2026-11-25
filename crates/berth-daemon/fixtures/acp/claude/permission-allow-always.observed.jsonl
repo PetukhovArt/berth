@@ -1,0 +1,22 @@
+{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
+{"item":{"seq":1,"item":{"User":{"text":"Use the Write tool to create a file named a.txt containing the single word hi. Then reply done. Do not use any other tool.","rewind":{"checkpoint":1,"after":null}}}}}
+{"status":"running"}
+{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
+{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":["deep-research","design","design-sync"],"queue":[]}}
+{"item":{"seq":2,"item":{"Tool":{"id":"toolu_016SLsqhqaXqRKffCL1fNyNV","title":"Write","kind":"edit","status":"in_progress","detail":"<workspace>/a.txt","diff":{"path":"<workspace>/a.txt","old":null,"new":"hi"},"output":null}}}}
+{"status":"needs_feedback"}
+{"feedback":{"kind":"Permission","title":"Write","detail":"<workspace>/a.txt","options":["Allow","Always allow","Deny"],"always_allow":false}}
+{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":["deep-research","design","design-sync"],"queue":[]}}
+{"feedback":null}
+{"status":"running"}
+{"item":{"seq":2,"item":{"Tool":{"id":"toolu_016SLsqhqaXqRKffCL1fNyNV","title":"Write","kind":"edit","status":"completed","detail":"<workspace>/a.txt","diff":{"path":"<workspace>/a.txt","old":null,"new":"hi"},"output":"File created successfully at: <workspace>/a.txt (file state is current in your context — no need to Read it back)"}}}}
+{"item":{"seq":3,"item":{"Thought":{"text":""}}}}
+{"item":{"seq":4,"item":{"Assistant":{"text":"done"}}}}
+{"item":{"seq":1,"item":{"User":{"text":"Use the Write tool to create a file named a.txt containing the single word hi. Then reply done. Do not use any other tool.","rewind":{"checkpoint":1,"after":"f944e320-e1c6-4247-994e-3ead9cab7733"}}}}}
+{"status":"finished"}
+{"item":{"seq":5,"item":{"User":{"text":"Use the Write tool to create a file named b.txt containing the single word yo. Then reply done. Do not use any other tool.","rewind":{"checkpoint":2,"after":null}}}}}
+{"status":"running"}
+{"item":{"seq":6,"item":{"Tool":{"id":"toolu_01WQdbesRk2jzNwoMPeQxLFs","title":"Write","kind":"edit","status":"completed","detail":"<workspace>/b.txt","diff":{"path":"<workspace>/b.txt","old":null,"new":"yo"},"output":"File created successfully at: <workspace>/b.txt (file state is current in your context — no need to Read it back)"}}}}
+{"item":{"seq":7,"item":{"Assistant":{"text":"done"}}}}
+{"item":{"seq":5,"item":{"User":{"text":"Use the Write tool to create a file named b.txt containing the single word yo. Then reply done. Do not use any other tool.","rewind":{"checkpoint":2,"after":"9c1f3550-46e3-4b28-a04a-f509a286d923"}}}}}
+{"status":"finished"}
