@@ -1729,13 +1729,13 @@ impl Daemon {
         rows: u16,
         initial_prompt: Option<&str>,
     ) -> Result<Arc<PtySession>> {
+        if agent.backend == Backend::Chat {
+            bail!("an ACP agent has no terminal");
+        }
         // Whatever spawns this agent, it runs in `worktree` from here: a
         // relocation still pending for it has been overtaken.
         let Some(terminal) = agent::terminal(agent.kind) else {
             bail!("{} runs only in the chat view", agent.kind.as_str());
-        if agent.backend == Backend::Chat {
-            bail!("an ACP agent has no terminal");
-        }
         };
         self.pending_moves.lock().unwrap().remove(&agent.id);
         self.pending_ends.lock().unwrap().remove(&agent.id);
