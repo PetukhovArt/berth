@@ -1,8 +1,10 @@
-use super::{no_args, Hooks, Launch, Profile, Terminal};
+use super::{no_args, Hooks, Launch, Limits, Profile, Terminal};
 use crate::hooks::{installer, AUTO_TITLE_INSTRUCTION};
 use crate::launch;
 use anyhow::Result;
 use std::path::Path;
+
+mod limits;
 
 pub static PROFILE: Profile = Profile {
     terminal: Some(Terminal {
@@ -21,6 +23,12 @@ pub static PROFILE: Profile = Profile {
         boot_signal: false,
         prompt_on_resume: false,
         suggestion_scan: false,
+        own_checkpoints: false,
+    }),
+    history: None,
+    limits: Some(Limits {
+        enabled: |config| config.grok_limits,
+        windows: limits::windows,
     }),
 };
 

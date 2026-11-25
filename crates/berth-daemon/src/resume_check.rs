@@ -1,3 +1,4 @@
+use crate::agent;
 use berth_core::AgentKind;
 use std::path::{Path, PathBuf};
 
@@ -15,7 +16,7 @@ pub fn claude_transcript_missing(kind: AgentKind, session_id: Option<&str>, root
     let Some(sid) = session_id else {
         return false;
     };
-    if kind != AgentKind::Claude || sid.is_empty() || sid.contains(['/', '\\', ':', '.']) {
+    if !agent::transcripts(kind) || sid.is_empty() || sid.contains(['/', '\\', ':', '.']) {
         return false;
     }
     let Ok(dirs) = std::fs::read_dir(root) else {

@@ -4,6 +4,7 @@ pub mod detect;
 pub mod handoff;
 pub mod rules;
 
+use crate::agent;
 use crate::registry::Daemon;
 use crate::status::HookEvent;
 use anyhow::{bail, Context, Result};
@@ -381,7 +382,7 @@ impl Daemon {
                 };
                 let found = reported
                     .or_else(|| {
-                        (agent.kind == AgentKind::Claude)
+                        agent::transcripts(agent.kind)
                             .then(|| self.transcript_path(id))
                             .flatten()
                             .and_then(|p| detect::from_transcript(&p))

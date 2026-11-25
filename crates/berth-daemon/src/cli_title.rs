@@ -11,9 +11,10 @@
 //!
 //! [`Store::adopt_cli_title`]: crate::store::Store::adopt_cli_title
 
+use crate::agent;
 use crate::registry::{sanitize_title, Daemon};
 use anyhow::{Context, Result};
-use berth_core::{AgentId, AgentKind, Entity, ServerEvent, SessionRef, TerminalId};
+use berth_core::{AgentId, Entity, ServerEvent, SessionRef, TerminalId};
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -97,7 +98,7 @@ pub fn lookup(transcript: Option<&str>, session_id: Option<&str>) -> Option<Stri
 /// One live agent, as much as finding its CLI name needs.
 pub struct Probe {
     agent: AgentId,
-    kind: AgentKind,
+    title: agent::TitleFn,
     session_id: String,
     transcript: Option<PathBuf>,
 }
@@ -112,12 +113,10 @@ pub fn probes(daemon: &Daemon, live: &[SessionRef]) -> Vec<Probe> {
         })
         .filter_map(|id| {
             let agent = daemon.store.get_agent(id).ok().flatten()?;
-            if !matches!(agent.kind, AgentKind::Claude | AgentKind::Codex) {
-                return None;
-            }
+            let title = agent::history(agent.kind)?.title?;
             Some(Probe {
                 agent: id.clone(),
-                kind: agent.kind,
+                title,
                 session_id: agent.session_id?,
                 transcript: daemon.transcript_path(id),
             })
@@ -130,11 +129,7 @@ pub fn titles(probes: &[Probe], codex: &mut CodexIndex) -> Vec<(AgentId, String)
     probes
         .iter()
         .filter_map(|p| {
-            let title = match p.kind {
-                AgentKind::Claude => p.transcript.as_deref().and_then(claude_title),
-                AgentKind::Codex => codex.title(&p.session_id),
-                _ => None,
-            }?;
+            let title = (p.title)(p.transcript.as_deref(), &p.session_id, codex)?;
             Some((p.agent.clone(), title))
         })
         .collect()

@@ -3,7 +3,7 @@ use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use super::{fetch, parse_rfc3339_ms, WEEK};
+use crate::usage_limits::{fetch, parse_rfc3339_ms, WEEK};
 
 const BILLING_URL: &str = "https://cli-chat-proxy.grok.com/v1/billing?format=credits";
 const DEFAULT_SCOPE: &str = "https://auth.x.ai::b1a00492-073a-47ea-816f-4c329264a828";
@@ -62,7 +62,7 @@ fn session(text: &str) -> Option<GrokAuth> {
     store.into_values().find(usable)
 }
 
-pub(super) fn windows() -> Vec<UsageWindow> {
+pub fn windows() -> Vec<UsageWindow> {
     let Ok(text) = std::fs::read_to_string(auth_json_path()) else {
         return Vec::new();
     };

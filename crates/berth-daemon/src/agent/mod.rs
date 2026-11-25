@@ -1,5 +1,8 @@
+use crate::cli_title::CodexIndex;
+use crate::config::Config;
+use crate::registry::Daemon;
 use anyhow::Result;
-use berth_core::AgentKind;
+use berth_core::{Agent, AgentKind, UsageWindow};
 use std::path::Path;
 
 pub mod claude;
@@ -38,13 +41,34 @@ pub struct Terminal {
     pub boot_signal: bool,
     pub prompt_on_resume: bool,
     pub suggestion_scan: bool,
+    pub own_checkpoints: bool,
+}
+
+pub type TitleFn = fn(Option<&Path>, &str, &mut CodexIndex) -> Option<String>;
+pub type AnswerFn = fn(&Daemon, &Agent) -> Option<String>;
+
+pub struct History {
+    pub transcripts: bool,
+    pub title: Option<TitleFn>,
+    pub last_answer: Option<AnswerFn>,
+}
+
+pub struct Limits {
+    pub enabled: fn(&Config) -> bool,
+    pub windows: fn() -> Vec<UsageWindow>,
 }
 
 pub struct Profile {
     pub terminal: Option<Terminal>,
+    pub history: Option<History>,
+    pub limits: Option<Limits>,
 }
 
-static CHAT_ONLY: Profile = Profile { terminal: None };
+static CHAT_ONLY: Profile = Profile {
+    terminal: None,
+    history: None,
+    limits: None,
+};
 
 pub fn of(kind: AgentKind) -> &'static Profile {
     match kind {
@@ -57,6 +81,14 @@ pub fn of(kind: AgentKind) -> &'static Profile {
 
 pub fn terminal(kind: AgentKind) -> Option<&'static Terminal> {
     of(kind).terminal.as_ref()
+}
+
+pub fn history(kind: AgentKind) -> Option<&'static History> {
+    of(kind).history.as_ref()
+}
+
+pub fn transcripts(kind: AgentKind) -> bool {
+    history(kind).is_some_and(|h| h.transcripts)
 }
 
 fn no_args() -> Vec<String> {

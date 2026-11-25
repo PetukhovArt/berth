@@ -1,8 +1,14 @@
-use super::{no_env, Hooks, Launch, Profile, Terminal};
+use super::{no_env, History, Hooks, Launch, Limits, Profile, Terminal};
+use crate::cli_title::{self, CodexIndex};
 use crate::hooks::{claude_mod, installer};
+use crate::messenger::answer;
 use anyhow::Result;
-use berth_core::env;
+use berth_core::{env, AgentKind};
 use std::path::Path;
+
+mod limits;
+
+pub const KIND: AgentKind = AgentKind::Claude;
 
 pub static PROFILE: Profile = Profile {
     terminal: Some(Terminal {
@@ -15,8 +21,22 @@ pub static PROFILE: Profile = Profile {
         boot_signal: true,
         prompt_on_resume: true,
         suggestion_scan: true,
+        own_checkpoints: true,
+    }),
+    history: Some(History {
+        transcripts: true,
+        title: Some(title),
+        last_answer: Some(answer::claude),
+    }),
+    limits: Some(Limits {
+        enabled: |config| config.claude_limits,
+        windows: limits::windows,
     }),
 };
+
+fn title(transcript: Option<&Path>, _session_id: &str, _codex: &mut CodexIndex) -> Option<String> {
+    transcript.and_then(cli_title::claude_title)
+}
 
 pub const HOOKS: Hooks = Hooks {
     endpoint: "claude",

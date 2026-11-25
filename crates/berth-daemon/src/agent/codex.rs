@@ -1,8 +1,12 @@
-use super::{no_env, Hooks, Launch, Profile, Terminal};
+use super::{no_env, History, Hooks, Launch, Limits, Profile, Terminal};
+use crate::cli_title::CodexIndex;
 use crate::hooks::installer;
+use crate::messenger::answer;
 use anyhow::Result;
 use berth_core::env;
 use std::path::Path;
+
+mod limits;
 
 pub static PROFILE: Profile = Profile {
     terminal: Some(Terminal {
@@ -20,8 +24,22 @@ pub static PROFILE: Profile = Profile {
         boot_signal: false,
         prompt_on_resume: false,
         suggestion_scan: false,
+        own_checkpoints: false,
+    }),
+    history: Some(History {
+        transcripts: false,
+        title: Some(title),
+        last_answer: Some(answer::codex),
+    }),
+    limits: Some(Limits {
+        enabled: |_| true,
+        windows: limits::windows,
     }),
 };
+
+fn title(_transcript: Option<&Path>, session_id: &str, codex: &mut CodexIndex) -> Option<String> {
+    codex.title(session_id)
+}
 
 pub const HOOKS: Hooks = Hooks {
     endpoint: "codex",

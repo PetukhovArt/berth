@@ -18,11 +18,12 @@
 //! (`crate::cli_title`), and the transcript pass reports Claude's `/rename`
 //! lines, so this loop applies them to the agent and terminal rows as well.
 
+use crate::agent;
 use crate::cli_title;
 use crate::metrics::CpuTimes;
 use crate::registry::Daemon;
 use crate::usage::{AgentTranscript, UsageTailer};
-use berth_core::{env, AgentId, AgentKind, SessionRef, TerminalId, TokenUsage};
+use berth_core::{env, AgentId, SessionRef, TerminalId, TokenUsage};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -177,7 +178,7 @@ fn transcript_inputs(
         })
         .filter_map(|id| {
             let agent = daemon.store.get_agent(id).ok().flatten()?;
-            if agent.kind != AgentKind::Claude {
+            if !agent::transcripts(agent.kind) {
                 return None;
             }
             let cwd = daemon

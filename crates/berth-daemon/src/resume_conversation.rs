@@ -7,6 +7,7 @@ use berth_core::{
     TerminalId, Worktree, WorktreeId,
 };
 
+use crate::agent;
 use crate::pty::{DEFAULT_COLS, DEFAULT_ROWS};
 use crate::registry::{cli_missing_message, epoch_ms, sanitize_title, Daemon};
 
@@ -31,10 +32,11 @@ impl Daemon {
             .context("that session is not on record any more")?;
         self.refuse_unresumable(orphan.kind, &orphan.session_id)
             .await?;
-        let claude_only_notice = (orphan.kind == AgentKind::Claude)
+        let transcripts = agent::transcripts(orphan.kind);
+        let claude_only_notice = transcripts
             .then(|| crate::orphans::resume_notice(&orphan, &worktree))
             .flatten();
-        if orphan.kind == AgentKind::Claude {
+        if transcripts {
             carry_transcript_into_reach(&orphan.session_id, &live, &worktree);
         }
         let id = self.spawn_resumed(
@@ -58,7 +60,7 @@ impl Daemon {
         session_id: &str,
         name: &str,
     ) -> Result<EntityId> {
-        if !matches!(kind, AgentKind::Claude | AgentKind::Codex | AgentKind::Grok) {
+        if agent::terminal(kind).is_none() {
             bail!("only a Claude, Codex or Grok conversation resumes as an agent");
         }
         let session_id = session_id.trim();
@@ -76,11 +78,13 @@ impl Daemon {
             return Ok(EntityId::Agent(id));
         }
         let (project, live) = self.project_with_worktrees(&worktree.project_id)?;
-        let orphan_record = match kind {
-            AgentKind::Claude => crate::orphans::list(&self.store, &project, &live, true)?
+        let transcripts = agent::transcripts(kind);
+        let orphan_record = if transcripts {
+            crate::orphans::list(&self.store, &project, &live, true)?
                 .into_iter()
-                .find(|o| o.session_id == session_id),
-            _ => None,
+                .find(|o| o.session_id == session_id)
+        } else {
+            None
         };
         let notice = orphan_record
             .as_ref()
@@ -91,7 +95,7 @@ impl Daemon {
             _ if given.is_empty() => session_id.chars().take(8).collect(),
             _ => given,
         };
-        if kind == AgentKind::Claude {
+        if transcripts {
             carry_transcript_into_reach(session_id, &live, &worktree);
         }
         let id = self.spawn_resumed(&worktree, kind, session_id, name, notice.as_deref())?;

@@ -2,9 +2,10 @@ use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
 use berth_core::acp::AcpItem;
-use berth_core::{Agent, AgentKind};
+use berth_core::{Agent, Backend};
 use serde_json::Value;
 
+use crate::agent;
 use crate::registry::Daemon;
 
 const TAIL_BYTES: u64 = 512 * 1024;
@@ -14,21 +15,18 @@ const CODE_NOTE: &str = "(code on screen)";
 
 impl Daemon {
     pub(crate) fn last_answer(&self, agent: &Agent) -> Option<String> {
-        let text = match agent.kind {
-            AgentKind::Acp => self
-                .acp_transcript(&agent.id, 0)
+        let text = if agent.backend == Backend::Chat {
+            self.acp_transcript(&agent.id, 0)
                 .ok()?
                 .into_iter()
                 .rev()
                 .find_map(|at| match at.item {
                     AcpItem::Assistant { text } => Some(text),
                     _ => None,
-                }),
-            AgentKind::Claude => claude_answer(&tail(&self.claude_transcript(agent)?)?),
-            AgentKind::Codex => {
-                codex_answer(&tail(&codex_transcript(agent.session_id.as_deref()?)?)?)
-            }
-            AgentKind::Cursor | AgentKind::OpenCode | AgentKind::Grok => None,
+                })
+        } else {
+            let last_answer = agent::history(agent.kind)?.last_answer?;
+            last_answer(self, agent)
         }?;
         let text = text.trim();
         (!text.is_empty()).then(|| text.to_owned())
@@ -43,6 +41,14 @@ impl Daemon {
         crate::orphans::transcript_path(&cwd, session)
             .or_else(|| crate::orphans::find_transcript(session))
     }
+}
+
+pub(crate) fn claude(daemon: &Daemon, agent: &Agent) -> Option<String> {
+    claude_answer(&tail(&daemon.claude_transcript(agent)?)?)
+}
+
+pub(crate) fn codex(_daemon: &Daemon, agent: &Agent) -> Option<String> {
+    codex_answer(&tail(&codex_transcript(agent.session_id.as_deref()?)?)?)
 }
 
 fn tail(path: &Path) -> Option<String> {

@@ -22,6 +22,7 @@
 //! Claude's `/rename` (a `custom-title` line), since it already reads every
 //! appended byte.
 
+use crate::agent;
 use berth_core::{AgentId, AgentKind, ModelTokens, TokenUsage};
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -83,7 +84,7 @@ impl UsageTailer {
     pub(crate) fn sweep(&mut self, agents: &[AgentTranscript]) -> Sweep {
         let mut out = Sweep::default();
         for agent in agents {
-            if agent.kind != AgentKind::Claude {
+            if !agent::transcripts(agent.kind) {
                 continue;
             }
             let Some(session_id) = agent.session_id.as_deref() else {

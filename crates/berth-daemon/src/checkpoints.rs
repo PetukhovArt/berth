@@ -1,10 +1,11 @@
 use anyhow::{bail, Context, Result};
 use berth_core::platform::NoWindow;
-use berth_core::{AgentId, AgentKind, Checkpoint};
+use berth_core::{AgentId, AgentKind, Backend, Checkpoint};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use tokio::process::Command;
 
+use crate::agent;
 use crate::registry::Daemon;
 
 const REF_ROOT: &str = "refs/berth/checkpoints";
@@ -189,8 +190,10 @@ async fn restore(repo: &Path, agent: &AgentId, number: u32) -> Result<()> {
     Ok(())
 }
 
-fn takes_checkpoints(kind: AgentKind, config: &crate::config::Config) -> bool {
-    kind != AgentKind::Claude || config.checkpoints_claude
+fn takes_checkpoints(kind: AgentKind, backend: Backend, config: &crate::config::Config) -> bool {
+    backend == Backend::Chat
+        || !agent::terminal(kind).is_some_and(|t| t.own_checkpoints)
+        || config.checkpoints_claude
 }
 
 impl Daemon {
@@ -207,7 +210,7 @@ impl Daemon {
         let Ok(Some(row)) = self.store.get_agent(agent) else {
             return None;
         };
-        if !takes_checkpoints(row.kind, &crate::config::Config::load()) {
+        if !takes_checkpoints(row.kind, row.backend, &crate::config::Config::load()) {
             return None;
         }
         let Ok(dir) = self.checkpoint_dir(agent) else {
@@ -279,13 +282,22 @@ mod tests {
     #[test]
     fn claude_takes_no_checkpoint_by_default_and_codex_does() {
         let config = crate::config::Config::default();
-        assert!(!takes_checkpoints(AgentKind::Claude, &config));
-        assert!(takes_checkpoints(AgentKind::Codex, &config));
+        assert!(!takes_checkpoints(
+            AgentKind::Claude,
+            Backend::Terminal,
+            &config
+        ));
+        assert!(takes_checkpoints(AgentKind::Claude, Backend::Chat, &config));
+        assert!(takes_checkpoints(
+            AgentKind::Codex,
+            Backend::Terminal,
+            &config
+        ));
         let on = crate::config::Config {
             checkpoints_claude: true,
             ..config
         };
-        assert!(takes_checkpoints(AgentKind::Claude, &on));
+        assert!(takes_checkpoints(AgentKind::Claude, Backend::Terminal, &on));
     }
 
     #[tokio::test]

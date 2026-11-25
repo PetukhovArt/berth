@@ -393,7 +393,7 @@ fn scan_claude_transcripts(
                 project_id: project.id.clone(),
                 // The scan reads Claude's store and nothing else, so this is
                 // not a guess: anything it finds is a Claude conversation.
-                kind: berth_core::AgentKind::Claude,
+                kind: crate::agent::claude::KIND,
                 name,
                 branch,
                 worktree_path: cwd,
