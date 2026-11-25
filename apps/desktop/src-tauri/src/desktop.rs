@@ -286,6 +286,9 @@ pub fn run() {
     let connectors = Arc::new(Connectors::load());
     let berth = tauri::async_runtime::block_on(async { Berth::spawn_starting_daemon() });
     let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            tray::show_main(app)
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(autostart::plugin());
     #[cfg(feature = "updater")]
