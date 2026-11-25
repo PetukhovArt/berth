@@ -1,11 +1,12 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { hostname, userInfo } from 'node:os';
 import { parseArgs } from 'node:util';
+import { claudeSteps, claudeWorkspace } from './probe-claude-steps.mjs';
 
 const WORKSPACE = '<workspace>';
 const ANY = '<any>';
 const USAGE =
-  'usage: node scripts/probe-to-replay.mjs <recording.jsonl> <out.ndjson> --provider <id> --scenario <name> [--lines 0-3,20-45] [--max-run 5] [--max-commands 5] [--drop <method regex>]';
+  'usage: node scripts/probe-to-replay.mjs <recording.jsonl> <out.ndjson> --provider <id> --scenario <name> [--lines 0-3,20-45] [--max-run 5] [--max-commands 5] [--drop <method regex>]\n       node scripts/probe-to-replay.mjs <out.ndjson> --provider claude --scenario <name> --part <claude-recording.jsonl>[:0-3,20-45] [--part ...]';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -16,22 +17,30 @@ const { values, positionals } = parseArgs({
     'max-run': { type: 'string', default: '5' },
     'max-commands': { type: 'string', default: '5' },
     drop: { type: 'string' },
+    part: { type: 'string', multiple: true },
   },
 });
-const [input, output] = positionals;
+const claude = (values.part ?? []).length > 0;
+const [input, output] = claude ? [true, positionals[0]] : positionals;
 if (!input || !output || !values.provider || !values.scenario) {
   console.error(USAGE);
   process.exit(1);
 }
 
-const frames = readFileSync(input, 'utf8')
+const frames = claude ? [] : readFileSync(input, 'utf8')
   .split('\n')
   .filter(Boolean)
   .map((line, index) => ({ index, ...JSON.parse(line) }))
   .filter((record) => record.dir === 'in' || record.dir === 'out')
   .map((record) => ({ index: record.index, dir: record.dir, message: JSON.parse(record.raw) }));
 
-const cwd = frames.find((f) => f.message.method === 'session/new')?.message.params.cwd;
+const parts = (values.part ?? []).map((part) => {
+  const [file, lines = ''] = part.split(/:(?=[\d,-]*$)/);
+  return { records: readFileSync(file, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line)), lines };
+});
+const cwd = claude
+  ? claudeWorkspace(parts)
+  : frames.find((f) => f.message.method === 'session/new')?.message.params.cwd;
 const ranges = (values.lines ?? '')
   .split(',')
   .filter(Boolean)
@@ -76,6 +85,22 @@ const scrub = (value) => {
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, scrub(v)]));
   return value;
 };
+
+const emit = (steps) => {
+  const text = steps.map((step) => JSON.stringify(step)).join('\n') + '\n';
+  const leaks = [user, host, 'C:\\\\Users', 'C:/Users'].filter((needle) => wordOf(needle).test(text));
+  if (leaks.length > 0) {
+    console.error(`refusing to write: ${leaks.join(', ')} still in the output`);
+    process.exit(2);
+  }
+  writeFileSync(output, text);
+  console.log(`${output}: ${steps.length} steps; scrubbed ${[...scrubbed].map(([k, n]) => `${k} x${n}`).join(', ') || 'nothing'}`);
+};
+
+if (claude) {
+  emit(claudeSteps({ parts, scrub, scrubText, provider: values.provider, scenario: values.scenario }));
+  process.exit(0);
+}
 
 const maxRun = Number(values['max-run']);
 const maxCommands = Number(values['max-commands']);
@@ -137,11 +162,4 @@ for (const { dir, message } of kept) {
   }
 }
 
-const text = steps.map((step) => JSON.stringify(step)).join('\n') + '\n';
-const leaks = [user, host, 'C:\\\\Users', 'C:/Users'].filter((needle) => wordOf(needle).test(text));
-if (leaks.length > 0) {
-  console.error(`refusing to write: ${leaks.join(', ')} still in the output`);
-  process.exit(2);
-}
-writeFileSync(output, text);
-console.log(`${output}: ${steps.length} steps; scrubbed ${[...scrubbed].map(([k, n]) => `${k} x${n}`).join(', ') || 'nothing'}`);
+emit(steps);

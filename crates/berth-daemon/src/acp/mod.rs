@@ -14,6 +14,7 @@ pub mod providers;
 mod questions;
 #[cfg(test)]
 mod replay;
+mod rewind;
 #[cfg(test)]
 mod tests;
 pub mod transcript;
@@ -238,8 +239,7 @@ impl Daemon {
         if let Some(live) = map.get(agent_id) {
             return Ok(live.clone());
         }
-        let wire = driver::open(driver::ACP, provider, cwd, host)
-            .with_context(|| provider.name.clone())?;
+        let wire = driver::open(provider, cwd, host).with_context(|| provider.name.clone())?;
         let (conn, inbound) = Conn::over(wire);
         let live = Arc::new(AcpLive {
             conn,

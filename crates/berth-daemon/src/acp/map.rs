@@ -1,5 +1,5 @@
 use berth_core::acp::{
-    AcpCommand, AcpDiff, AcpPlanEntry, AcpTool, Applies, ChatCaps, Choice, ConfigOption,
+    AcpCommand, AcpDiff, AcpPlanEntry, AcpTool, Applies, ChatCaps, Choice, ConfigOption, McpAccess,
     OptionCategory, QuestionForm, Questions,
 };
 use berth_core::{FeedbackKind, FeedbackRequest};
@@ -136,10 +136,20 @@ pub fn chat_caps(initialized: &Value) -> ChatCaps {
             .and_then(Value::as_bool)
             .unwrap_or(false)
     };
+    let berth = initialized.pointer("/agentCapabilities/_meta/berth");
     ChatCaps {
         images: prompt("image"),
         embedded_files: prompt("embeddedContext"),
         questions: Questions::Typed,
+        rewind: berth
+            .and_then(|meta| meta.get("rewind"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        mcp: match berth.and_then(|meta| str_at(meta, "mcp")) {
+            Some("list") => McpAccess::List,
+            Some("toggle") => McpAccess::Toggle,
+            _ => McpAccess::None,
+        },
         ..ChatCaps::default()
     }
 }

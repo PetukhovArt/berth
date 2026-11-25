@@ -46,6 +46,7 @@ async fn a_turn_finishes_only_after_the_answer_sent_before_its_reply() {
         name: "Mock".into(),
         command: std::env::current_exe().unwrap().display().to_string(),
         args: mock_agent_args(&script_path),
+        driver: berth_core::acp::ACP_DRIVER.into(),
         enabled: true,
     };
     let agent = AgentId::generate();

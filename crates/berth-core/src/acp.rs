@@ -213,49 +213,65 @@ pub enum FeedbackAnswer {
     Form(Answers),
 }
 
+pub const ACP_DRIVER: &str = "acp";
+
 pub struct BuiltInProvider {
     pub id: &'static str,
     pub name: &'static str,
     pub command: &'static str,
     pub args: &'static [&'static str],
+    pub driver: &'static str,
 }
 
-pub const BUILT_IN_PROVIDERS: [BuiltInProvider; 6] = [
+pub const BUILT_IN_PROVIDERS: [BuiltInProvider; 7] = [
     BuiltInProvider {
         id: "cursor",
         name: "Cursor",
         command: "cursor-agent",
         args: &["acp"],
+        driver: ACP_DRIVER,
     },
     BuiltInProvider {
         id: "opencode",
         name: "OpenCode",
         command: "opencode",
         args: &["acp"],
+        driver: ACP_DRIVER,
     },
     BuiltInProvider {
         id: "antigravity",
         name: "Antigravity",
         command: "agy",
         args: &["acp"],
+        driver: ACP_DRIVER,
     },
     BuiltInProvider {
         id: "gemini",
         name: "Gemini",
         command: "gemini",
         args: &["--acp"],
+        driver: ACP_DRIVER,
     },
     BuiltInProvider {
         id: "kiro",
         name: "Kiro",
         command: "kiro-cli",
         args: &["acp"],
+        driver: ACP_DRIVER,
     },
     BuiltInProvider {
         id: "pi",
         name: "Pi",
         command: "npx",
         args: &["-y", "pi-acp"],
+        driver: ACP_DRIVER,
+    },
+    BuiltInProvider {
+        id: "claude",
+        name: "Claude (protocol)",
+        command: "claude",
+        args: &[],
+        driver: "claude",
     },
 ];
 

@@ -87,6 +87,12 @@ impl Host for DaemonHost {
             .stderr(Stdio::piped())
             .kill_on_drop(true)
             .no_window();
+        for name in berth_core::env::AGENT_SESSION_VARS
+            .iter()
+            .chain(berth_core::env::HOST_AGENT_SESSION_VARS)
+        {
+            command.env_remove(name);
+        }
         platform::lead_process_tree(&mut command);
         let mut child = command
             .spawn()

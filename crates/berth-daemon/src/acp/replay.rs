@@ -4,7 +4,9 @@ use crate::hooks::HookEnv;
 use crate::registry::Daemon;
 use crate::store::Store;
 use anyhow::{bail, ensure, Context, Result};
-use berth_core::acp::{AcpSessionState, Answers, AttachmentUpload, FeedbackAnswer, QueueId};
+use berth_core::acp::{
+    AcpSessionState, Answers, AttachmentUpload, FeedbackAnswer, QueueId, ACP_DRIVER,
+};
 use berth_core::{AgentId, EntityId, ServerEvent, WorktreeId};
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -22,12 +24,26 @@ const BLESS_VAR: &str = "BERTH_REPLAY_BLESS";
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum Step {
-    TranscriptStart { provider: String },
-    Berth { call: Call },
-    ExpectOutbound { frame: Value },
-    EmitInbound { frame: Value },
-    RuntimeExit { code: Option<i32> },
-    Wait { ms: u64 },
+    TranscriptStart {
+        provider: String,
+        #[serde(default)]
+        driver: Option<String>,
+    },
+    Berth {
+        call: Call,
+    },
+    ExpectOutbound {
+        frame: Value,
+    },
+    EmitInbound {
+        frame: Value,
+    },
+    RuntimeExit {
+        code: Option<i32>,
+    },
+    Wait {
+        ms: u64,
+    },
 }
 
 #[derive(Deserialize)]
@@ -58,6 +74,9 @@ enum Call {
     },
     Stop,
     Resume,
+    Rewind {
+        to: Option<String>,
+    },
 }
 
 struct Peer {
@@ -230,7 +249,9 @@ impl Run {
     }
 
     fn take_peer(&mut self) {
-        self.peer = self.host.peer.lock().unwrap().take();
+        if let Some(peer) = self.host.peer.lock().unwrap().take() {
+            self.peer = Some(peer);
+        }
     }
 
     async fn berth(&mut self, call: Call) -> Result<()> {
@@ -278,6 +299,9 @@ impl Run {
                 self.daemon
                     .stop_agent_or_its_acp_turn(self.agent()?)
                     .await?
+            }
+            Call::Rewind { to } => {
+                self.daemon.acp_rewind(self.agent()?, to).await?;
             }
             Call::Resume => {
                 let agent = self.agent()?.clone();
@@ -358,18 +382,21 @@ impl Run {
     async fn play(mut self, steps: Vec<Step>) -> Result<Vec<Value>> {
         for step in steps {
             match step {
-                Step::TranscriptStart { provider } => {
+                Step::TranscriptStart { provider, driver } => {
                     self.provider = Some(AcpProvider {
                         id: provider.clone(),
                         name: provider.clone(),
                         command: provider,
                         args: Vec::new(),
+                        driver: driver.unwrap_or_else(|| ACP_DRIVER.to_string()),
                         enabled: true,
                     })
                 }
                 Step::Berth { call } => {
                     self.settle().await;
                     self.berth(call).await?;
+                    self.settle().await;
+                    self.take_peer();
                 }
                 Step::ExpectOutbound { frame } => self.expect_outbound(&frame).await?,
                 Step::EmitInbound { frame } => self.emit_inbound(frame)?,

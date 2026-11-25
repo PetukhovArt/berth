@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use berth_core::acp::{BUILT_IN_PROVIDERS as BUILT_IN, NATIVE_OFF_FOR_NEW_INSTALLS};
+use berth_core::acp::{ACP_DRIVER, BUILT_IN_PROVIDERS as BUILT_IN, NATIVE_OFF_FOR_NEW_INSTALLS};
 use berth_core::AgentKind;
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -66,6 +66,7 @@ pub struct AcpProviderOverride {
     pub name: Option<String>,
     pub command: Option<String>,
     pub args: Option<Vec<String>>,
+    pub driver: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,6 +75,7 @@ pub struct AcpProvider {
     pub name: String,
     pub command: String,
     pub args: Vec<String>,
+    pub driver: String,
     pub enabled: bool,
 }
 
@@ -102,6 +104,10 @@ pub fn resolve(config: &ProvidersConfig, id: &str) -> Option<AcpProvider> {
         name,
         command,
         args,
+        driver: custom
+            .and_then(|o| o.driver.clone())
+            .or_else(|| built_in.map(|b| b.driver.to_string()))
+            .unwrap_or_else(|| ACP_DRIVER.to_string()),
         enabled: custom
             .and_then(|o| o.enabled)
             .unwrap_or(enabled_unless_said),
