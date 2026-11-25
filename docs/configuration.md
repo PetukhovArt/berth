@@ -381,4 +381,4 @@ Unset the variable to go back to the local Daemon.
 
 Agent PTYs additionally carry `BERTH_AGENT_ID`, `BERTH_API_URL` and `BERTH_API_TOKEN` so hooks and
 `berth rename` / `worktree` / `enter` / `spawn` can find their own session. They are scrubbed from plain
-terminals.
+terminals. The process of a Claude chat carries `BERTH_AGENT_ID` alone, which is all those commands need.

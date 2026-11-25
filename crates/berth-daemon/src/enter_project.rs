@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
-use berth_core::{paths, Agent, AgentId, EnterOutcome, WorkspaceId, Worktree};
+use berth_core::{paths, Agent, AgentId, Backend, EnterOutcome, WorkspaceId, Worktree};
 
 use crate::agent;
 use crate::git;
@@ -81,7 +81,7 @@ impl Daemon {
     /// --resume` in `target` looks for it. A move between worktrees of one
     /// project finds it already in reach and leaves it alone.
     pub(crate) fn carry_claude_transcript(&self, agent: &Agent, target: &Worktree) {
-        if !agent::transcripts(agent.kind) {
+        if agent.backend != Backend::Chat && !agent::transcripts(agent.kind) {
             return;
         }
         let Some(session_id) = agent.session_id.as_deref() else {

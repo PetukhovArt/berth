@@ -7,7 +7,9 @@
 use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
-use berth_core::{AgentId, AgentKind, EntityId, ServerEvent, SpawnWorktree, Worktree, WorktreeId};
+use berth_core::{
+    Agent, AgentId, AgentKind, Backend, EntityId, ServerEvent, SpawnWorktree, Worktree, WorktreeId,
+};
 
 use crate::registry::{CreateAgentSpec, Daemon};
 
@@ -58,12 +60,7 @@ impl Daemon {
             bail!("agent is archived");
         }
         let worktree = target.unwrap_or_else(|| caller.worktree_id.clone());
-        let (_, _, agents, _) = self.store.load_tree()?;
-        let taken = agents
-            .iter()
-            .filter(|a| a.worktree_id == worktree)
-            .map(|a| a.name.clone())
-            .collect::<Vec<_>>();
+        let taken = self.agent_names_in(&worktree)?;
         let kind = kind.unwrap_or(caller.kind);
         let (model, effort) = if kind == caller.kind {
             (caller.model.clone(), caller.effort.clone())
@@ -81,6 +78,15 @@ impl Daemon {
         })
     }
 
+    fn agent_names_in(&self, worktree: &WorktreeId) -> Result<Vec<String>> {
+        let (_, _, agents, _) = self.store.load_tree()?;
+        Ok(agents
+            .iter()
+            .filter(|a| &a.worktree_id == worktree)
+            .map(|a| a.name.clone())
+            .collect())
+    }
+
     /// `berth spawn`, run by the agent inside its own session: create and
     /// boot a new agent beside it with `starting_prompt` as its first
     /// prompt. Returns the new row's id; the upsert reaches every client
@@ -92,17 +98,53 @@ impl Daemon {
         starting_prompt: &str,
         worktree: Option<&SpawnWorktree>,
     ) -> Result<EntityId> {
-        crate::registry::validate_starting_prompt(starting_prompt)?;
+        let starting_prompt = crate::registry::validate_starting_prompt(starting_prompt)?;
         let target = match worktree {
             Some(wanted) => Some(self.spawn_worktree(id, wanted).await?.id),
             None => None,
         };
-        let spec = self.sibling_spec(id, kind, starting_prompt, target)?;
-        let created = self.create_agent(spec).await?;
+        let caller = self.store.get_agent(id)?.context("agent not found")?;
+        let created = if kind.is_none() && caller.backend == Backend::Chat {
+            self.spawn_sibling_chat(&caller, &starting_prompt, target)
+                .await?
+        } else {
+            let spec = self.sibling_spec(id, kind, &starting_prompt, target)?;
+            self.create_agent(spec).await?
+        };
         if let EntityId::Agent(agent) = &created {
             self.broadcast(ServerEvent::AgentSpawned {
                 agent: agent.clone(),
                 spawned_by: id.clone(),
+            });
+        }
+        Ok(created)
+    }
+
+    async fn spawn_sibling_chat(
+        self: &Arc<Self>,
+        caller: &Agent,
+        starting_prompt: &str,
+        target: Option<WorktreeId>,
+    ) -> Result<EntityId> {
+        if caller.archived {
+            bail!("agent is archived");
+        }
+        let provider = self
+            .store
+            .agent_acp_provider(&caller.id)?
+            .context("the agent has no provider")?;
+        let worktree = target.unwrap_or_else(|| caller.worktree_id.clone());
+        let name = sibling_name(&self.agent_names_in(&worktree)?);
+        let created = self
+            .create_acp_agent(worktree, name, &provider, true)
+            .await?;
+        if let EntityId::Agent(child) = &created {
+            let (daemon, child, prompt) =
+                (self.clone(), child.clone(), starting_prompt.to_string());
+            tokio::spawn(async move {
+                if let Err(error) = daemon.acp_prompt(&child, &prompt).await {
+                    tracing::warn!(agent = %child, error = %error, "first prompt of a spawned chat failed");
+                }
             });
         }
         Ok(created)

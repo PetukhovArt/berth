@@ -119,17 +119,23 @@ fn args(launch: &Launch) -> Vec<String> {
     if let Some(e) = launch.effort {
         args.extend(["--effort".to_string(), e.to_string()]);
     }
-    let mut system_prompt = vec![
+    args.extend([
+        "--append-system-prompt".to_string(),
+        system_prompt(launch.system_prompt),
+    ]);
+    args.extend(launch.prompt.map(String::from));
+    args
+}
+
+pub fn system_prompt(extra: Option<&str>) -> String {
+    [
         CLAUDE_WORKTREE_GUIDANCE,
         crate::sibling::CLAUDE_SPAWN_GUIDANCE,
         crate::enter_project::CLAUDE_ENTER_GUIDANCE,
         crate::self_end::CLAUDE_END_GUIDANCE,
-    ];
-    system_prompt.extend(launch.system_prompt);
-    args.extend([
-        "--append-system-prompt".to_string(),
-        system_prompt.join("\n\n"),
-    ]);
-    args.extend(launch.prompt.map(String::from));
-    args
+    ]
+    .into_iter()
+    .chain(extra)
+    .collect::<Vec<_>>()
+    .join("\n\n")
 }

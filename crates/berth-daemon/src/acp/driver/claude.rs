@@ -143,6 +143,10 @@ impl ClaudeTranslator {
         .map(|arg| arg.to_string())
         .collect();
         args.extend(self.extra_args.iter().cloned());
+        args.extend([
+            "--append-system-prompt".into(),
+            crate::agent::claude::system_prompt(None),
+        ]);
         if let Some(model) = self.model.as_deref().filter(|m| *m != DEFAULT_MODEL) {
             args.extend(["--model".into(), model.into()]);
         }
@@ -633,5 +637,21 @@ impl Translator for ClaudeTranslator {
             out.fail(id, reason.trim());
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_launch_appends_the_berth_guidance_the_terminal_gets() {
+        let mut translator = ClaudeTranslator::new("claude".into(), Vec::new(), PathBuf::from("."));
+        let args = translator.spec().args;
+        let at = args
+            .iter()
+            .position(|arg| arg == "--append-system-prompt")
+            .expect("the guidance flag");
+        assert_eq!(args[at + 1], crate::agent::claude::system_prompt(None));
     }
 }

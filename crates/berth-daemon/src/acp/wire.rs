@@ -95,6 +95,7 @@ impl Host for DaemonHost {
             command.env_remove(name);
         }
         command.envs(spec.env.iter().copied());
+        command.env(berth_core::env::AGENT_ID, &self.agent.0);
         platform::lead_process_tree(&mut command);
         let mut child = command
             .spawn()

@@ -1316,7 +1316,7 @@ impl Daemon {
         id: &AgentId,
         target: &Worktree,
     ) -> Result<EnterOutcome> {
-        let alive = self.session(&SessionRef::Agent(id.clone())).is_some();
+        let alive = self.is_alive(&SessionRef::Agent(id.clone()));
         // Same invalidation as `move_agent`: every cwd this process reports
         // until it respawns is the old checkout's.
         self.last_cwd.lock().unwrap().remove(id);
@@ -1359,12 +1359,16 @@ impl Daemon {
             _ => return,
         };
         let sref = SessionRef::Agent(id.clone());
-        if self.session(&sref).is_none() {
+        if !self.is_alive(&sref) {
             // Died since (or the user closed it): the next launch boots in
             // the target on its own, only without the relocation notice.
             return;
         }
         tracing::info!(agent = %id, to = %target.branch, "relocating session into its worktree");
+        if agent.backend == Backend::Chat {
+            self.acp_relocate(&agent, &target);
+            return;
+        }
         self.kill_session(&sref);
         self.last_cwd.lock().unwrap().remove(id);
         self.carry_claude_transcript(&agent, &target);
@@ -2001,7 +2005,7 @@ impl Daemon {
 /// The prompt a relocated Claude session is resumed with: it names the
 /// checkout the process now runs in and asks for the work to pick back up
 /// there, so the user never has to type "continue".
-fn relocation_prompt(worktree: &Worktree) -> String {
+pub(crate) fn relocation_prompt(worktree: &Worktree) -> String {
     format!(
         "[berth] This session now runs inside the checkout `{}` at {} — your working \
          directory is that checkout. Continue the user's most recent request there.",

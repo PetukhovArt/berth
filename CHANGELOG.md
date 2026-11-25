@@ -19,6 +19,7 @@
 - Added `Rewind to here` to the messages you sent in the protocol Chat view of Claude and Codex agents: it asks first, then removes that message and everything after it, restores the worktree files from its checkpoint when one exists, and puts the message back in the prompt box
 - Added the task list of a Claude chat to the plan strip in the Chat view: tasks Claude creates with `TaskCreate` and `TaskUpdate` show up with their status
 - Added the opt-in `Claude (protocol)` and `Codex (protocol)` providers: turn them on in Settings → Providers to run Claude and Codex in the Chat view over their own protocols, with the terminal agents still in the type list
+- Added the `berth` commands to Claude chats: `berth rename`, `worktree`, `enter`, `spawn` and `end-session` work from a chat as they do from a terminal, and a chat that runs `berth worktree` restarts in the new worktree when its turn ends, with the conversation kept
 - Changed `Stop` and `Esc` in the Chat view to put the queued prompts back into the prompt box, in order, instead of dropping them
 - Changed new Grok sessions to open in the Chat view over ACP (`grok agent stdio`), with the terminal Grok still in the type list and its limits shown on both
 - Changed the permission and question card in the Chat view to a raised card with the project and branch, and `1`, `2`, `3` keys for its buttons

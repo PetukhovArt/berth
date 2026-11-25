@@ -13,6 +13,7 @@ mod persist;
 mod prompt;
 pub mod providers;
 mod questions;
+mod relocate;
 #[cfg(test)]
 mod replay;
 mod rewind;

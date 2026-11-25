@@ -155,6 +155,8 @@ impl Daemon {
             self.acp_push(agent_id, live, AcpItem::Notice { text });
         }
         self.apply_hook_event(agent_id, HookEvent::Stop, Some(sid.clone()));
+        self.complete_pending_move(agent_id, &HookEvent::Stop);
+        self.complete_pending_end(agent_id, &HookEvent::Stop);
         self.acp_start_queued(agent_id, live, sid).await;
     }
 
