@@ -8,7 +8,7 @@ import InspectorSection from './InspectorSection.vue';
 
 const PROMPT_TAIL = 600;
 
-const props = defineProps<{ agentId: string; kind: AgentKind; sessionId?: string | null; refreshKey?: unknown }>();
+const props = defineProps<{ agentId: string; kind: AgentKind; backend?: 'chat' | 'terminal'; sessionId?: string | null; refreshKey?: unknown }>();
 
 const { t, formatDate } = useI18n();
 const { items, busy, error, available, restore } = useCheckpoints(
@@ -17,7 +17,7 @@ const { items, busy, error, available, restore } = useCheckpoints(
   () => props.refreshKey,
 );
 const messages = useAgentMessages(
-  () => ({ id: props.agentId, kind: props.kind, session_id: props.sessionId ?? null }),
+  () => ({ id: props.agentId, kind: props.kind, backend: props.backend, session_id: props.sessionId ?? null }),
   PROMPT_TAIL,
   () => [props.refreshKey, items.value.length],
 );

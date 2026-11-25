@@ -116,7 +116,7 @@ function onHandleKey(event: KeyboardEvent) {
         <WorktreeSection :path="worktree.path" :branch="worktree.branch" :refresh-key="refreshKey" />
         <MergeRequestSection v-if="worktree.branch" :path="worktree.path" :branch="worktree.branch" :refresh-key="refreshKey" />
         <UsageSection v-if="agent" :panel-key="session.key" :kind="limitKind(agent)" />
-        <CheckpointsSection v-if="agent" :agent-id="agent.id" :kind="agent.kind" :session-id="agent.session_id" :refresh-key="refreshKey" />
+        <CheckpointsSection v-if="agent" :agent-id="agent.id" :kind="agent.kind" :backend="agent.backend" :session-id="agent.session_id" :refresh-key="refreshKey" />
         <TaskNoteSection :worktree-id="worktree.id" />
         <OverlapsSection v-if="agent" :agent-id="agent.id" />
         <PeopleSection v-if="worktree.branch" :path="worktree.path" :branch="worktree.branch" />

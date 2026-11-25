@@ -31,7 +31,7 @@ export function useAgentMessages(source: MaybeRefOrGetter<Source | undefined>, t
   }
 
   watch(
-    () => [toValue(source)?.id, toValue(source)?.session_id, toValue(refreshKey)] as const,
+    () => [toValue(source)?.id, toValue(source)?.session_id, toValue(source)?.backend, toValue(refreshKey)] as const,
     (next, previous) => {
       if (previous && next[0] !== previous[0]) messages.value = [];
       void refresh();

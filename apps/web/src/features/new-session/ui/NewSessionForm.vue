@@ -126,8 +126,8 @@ function toggleExtra(value: Kind) {
   extras.value = extras.value.includes(value) ? extras.value.filter((extra) => extra !== value) : [...extras.value, value];
 }
 
-function pickKind(value: unknown): boolean {
-  const chat = typeof value === 'string' ? chatAgentFor(value, providers.value) : null;
+function pickKind(value: unknown, remapToChat = false): boolean {
+  const chat = remapToChat && typeof value === 'string' ? chatAgentFor(value, providers.value) : null;
   const wanted = chat ? `acp:${chat.id}` : value;
   const next = KINDS.value.find((option) => option.value === wanted);
   if (!next || next.disabled) return false;
@@ -141,7 +141,7 @@ function applyPreset(preset: AgentPreset) {
     activePreset.value = null;
     return;
   }
-  if (!pickKind(preset.kind)) return;
+  if (!pickKind(preset.kind, true)) return;
   activePreset.value = preset.name;
   model.value = preset.model;
   effort.value = preset.effort;
@@ -325,7 +325,7 @@ function onVisible(visible: boolean) {
                   :label-id="controlId"
                   :aria-labelledby="labelId"
                   data-testid="new-session-kind"
-                  @update:model-value="pickKind"
+                  @update:model-value="(value) => pickKind(value)"
                 >
                   <template #option="{ option }">
                     <span class="kind-option" :data-state="option.state" :data-testid="`new-session-kind-${option.value}`">
