@@ -6,6 +6,7 @@ use tauri::ipc::{Channel, IpcResponse};
 use tauri::{AppHandle, Manager, Runtime, State};
 
 use crate::agent_sessions::{self, AgentSessionWatch, AgentSessionsChanged};
+use crate::autostart;
 use crate::berth::{self, Berth, SessionEvent, WatchEvent};
 use crate::commands::{plain_commands, to_json};
 use crate::connectors::monitor::{self, ConnectorsChanged};
@@ -196,6 +197,16 @@ pub fn remote_unshare_session(remote: State<'_, Remote>, agent: String) -> Resul
 }
 
 #[tauri::command]
+pub fn app_autostart_read(app: AppHandle) -> Result<bool, String> {
+    autostart::enabled(&app)
+}
+
+#[tauri::command]
+pub fn app_autostart_write(app: AppHandle, value: bool) -> Result<(), String> {
+    autostart::set(&app, value)
+}
+
+#[tauri::command]
 pub async fn app_update_info() -> Result<working_copy::Info, String> {
     working_copy::app_update_info().await
 }
@@ -274,7 +285,9 @@ pub fn run() {
     }
     let connectors = Arc::new(Connectors::load());
     let berth = tauri::async_runtime::block_on(async { Berth::spawn_starting_daemon() });
-    let builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
+    let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(autostart::plugin());
     #[cfg(feature = "updater")]
     let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
     builder
@@ -421,6 +434,8 @@ pub fn run() {
             crate::voice::voice_stop,
             crate::voice::voice_cancel,
             crate::voice::voice_remove_models,
+            app_autostart_read,
+            app_autostart_write,
             app_update_info,
             app_update_status,
             app_update_changes,

@@ -12,6 +12,7 @@ const isBoolean = (value: unknown) => typeof value === 'boolean';
 const same = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b);
 
 const SYNCED: { key: SettingKey; command: string; args?: Record<string, unknown>; accepts: (value: unknown) => boolean }[] = [
+  { key: 'app.launchAtLogin', command: 'app_autostart', accepts: isBoolean },
   { key: 'sessions.unloadIdleAfter', command: 'berth_idle_timeout', accepts: (value) => IDLE_CHOICES.has(value) },
   { key: 'sessions.archiveEndedAfter', command: 'berth_session_archive_after', accepts: (value) => ARCHIVE_AFTER_CHOICES.has(value) },
   { key: 'sessions.restoreOnRestart', command: 'berth_restore_sessions', accepts: isBoolean },

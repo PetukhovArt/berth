@@ -1,6 +1,8 @@
 pub mod agent_sessions;
 #[cfg(feature = "desktop")]
 mod app_menu;
+#[cfg(feature = "desktop")]
+mod autostart;
 pub mod berth;
 mod changes;
 mod chat_bridge;

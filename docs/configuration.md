@@ -311,6 +311,14 @@ The desktop app keeps its own settings in `~/.berth/settings.json` and its key b
 `~/.berth/keymap.json`. Both are edited from the app's Settings, which can also open either file in
 your editor; hand edits apply while the app runs. `BERTH_HOME` moves the directory.
 
+`app.launchAtLogin` (Settings > Appearance, off by default) starts the app when you sign in to the
+computer. It opens hidden, so the tray or menu bar icon is the only sign of it, and it never takes
+focus. The setting follows the real login item: remove the item in the system's startup settings and
+the switch shows off. The item is a `Berth` value in
+`HKCU\Software\Microsoft\Windows\CurrentVersion\Run` on Windows, a `dev.berth.desktop` launch agent
+in `~/Library/LaunchAgents` on macOS and `~/.config/autostart/Berth.desktop` on Linux. On Windows and
+macOS it starts the working copy's `app/current` launcher, so an update does not break it.
+
 ### Voice
 
 The desktop app on Windows and macOS, when it was built with the local speech engine (the install script

@@ -356,7 +356,7 @@
           if (windowShown) return;
           windowShown = true;
           var internals = window.__TAURI_INTERNALS__;
-          if (internals && internals.invoke) {
+          if (internals && internals.invoke && !window.__BERTH_AT_LOGIN__) {
             try {
               internals.invoke('plugin:window|show', { label: 'main' }).catch(function () {});
             } catch (e) {}

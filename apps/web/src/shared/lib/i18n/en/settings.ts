@@ -101,6 +101,10 @@ export const settings = {
       label: 'Close to tray',
       description: 'Closing the window hides Berth to the tray instead of quitting. Quit from the tray menu. Desktop app only.',
     },
+    launchAtLogin: {
+      label: 'Launch Berth at login',
+      description: 'Starts Berth when you sign in to your computer. It opens hidden in the tray or menu bar and does not take focus. Desktop app only.',
+    },
     terminalFontFamily: {
       label: 'Terminal font',
       description: 'Comma-separated list of font families, as in CSS font-family.',

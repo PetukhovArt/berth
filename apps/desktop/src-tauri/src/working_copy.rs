@@ -443,16 +443,22 @@ async fn run_script(flag: &'static str) -> Result<(), String> {
     .map_err(|error| error.to_string())?
 }
 
-pub fn app_restart(app: &AppHandle) -> Result<(), String> {
+pub fn launcher() -> Result<PathBuf, String> {
     require_self_update()?;
     let exe = root()
         .ok_or_else(platform::install_root_missing)?
         .join("app")
         .join("current")
         .join(platform::APP_EXECUTABLE);
-    if !exe.is_file() {
-        return Err(crate::host_text!("fileMissing", path = exe.display()));
+    if exe.is_file() {
+        Ok(exe)
+    } else {
+        Err(crate::host_text!("fileMissing", path = exe.display()))
     }
+}
+
+pub fn app_restart(app: &AppHandle) -> Result<(), String> {
+    let exe = launcher()?;
     let mut command = platform::relaunch_command(&exe, std::process::id())?;
     platform::detach(&mut command).map_err(|error| error.to_string())?;
     let app = app.clone();

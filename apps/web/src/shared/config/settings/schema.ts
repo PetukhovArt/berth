@@ -103,6 +103,13 @@ export const SETTINGS = {
     description: 'settings.def.closeToTray.description',
     category: 'appearance',
   },
+  'app.launchAtLogin': {
+    type: 'boolean',
+    default: false,
+    label: 'settings.def.launchAtLogin.label',
+    description: 'settings.def.launchAtLogin.description',
+    category: 'appearance',
+  },
   'terminal.font_family': {
     type: 'string',
     default: monoFont,

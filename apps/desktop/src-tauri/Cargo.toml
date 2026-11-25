@@ -20,7 +20,7 @@ path = "src/bin/berth-server.rs"
 
 [features]
 default = ["desktop"]
-desktop = ["dep:tauri", "dep:tauri-build", "dep:tauri-plugin-opener"]
+desktop = ["dep:tauri", "dep:tauri-build", "dep:tauri-plugin-opener", "dep:auto-launch"]
 updater = ["desktop", "dep:tauri-plugin-updater"]
 voice = ["desktop", "dep:whisper-rs", "dep:cpal", "dep:sherpa-onnx", "dep:sha2", "dep:bzip2", "dep:tar"]
 
@@ -40,6 +40,7 @@ keyring = { version = "3", features = ["windows-native", "apple-native", "linux-
 futures-util = "0.3"
 url = "2"
 tauri-plugin-opener = { version = "2", optional = true }
+auto-launch = { version = "0.6", optional = true }
 tauri-plugin-updater = { version = "2.14", optional = true }
 axum = { version = "0.8", features = ["ws"] }
 qrcode = { version = "0.14", default-features = false, features = ["svg"] }
