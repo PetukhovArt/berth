@@ -1,5 +1,6 @@
 use super::providers::AcpProvider;
 use super::wire::{Host, LaunchSpec, Process, Wire, WireIn};
+use super::ChatLaunch;
 use crate::hooks::HookEnv;
 use crate::registry::Daemon;
 use crate::store::Store;
@@ -56,6 +57,10 @@ enum Step {
 enum Call {
     Create {
         name: String,
+        #[serde(default)]
+        model: Option<String>,
+        #[serde(default)]
+        effort: Option<String>,
     },
     Prompt {
         text: String,
@@ -275,7 +280,11 @@ impl Run {
 
     async fn berth(&mut self, call: Call) -> Result<()> {
         match call {
-            Call::Create { name } => {
+            Call::Create {
+                name,
+                model,
+                effort,
+            } => {
                 let provider = self.provider.clone().context("no transcript_start")?;
                 let id = AgentId::generate();
                 self.daemon.create_acp_agent_with(
@@ -286,8 +295,16 @@ impl Run {
                     false,
                     self.host.clone(),
                 )?;
-                self.agent = Some(id);
+                self.agent = Some(id.clone());
                 self.take_peer();
+                self.daemon.acp_launch(
+                    id,
+                    ChatLaunch {
+                        model,
+                        effort,
+                        prompt: None,
+                    },
+                );
             }
             Call::Prompt { text, attachments } => {
                 self.daemon

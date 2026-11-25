@@ -494,8 +494,10 @@ export function createAgent(agent: NewAgent): Promise<EntityId | null> {
   });
 }
 
-export function createAcpAgent(worktree: string, name: string, provider: string, autoTitle: boolean): Promise<EntityId | null> {
-  return acknowledged({ CreateAcpAgent: { worktree, name, provider, auto_title: autoTitle } });
+export type ChatLaunch = { model?: string | null; effort?: string | null; startingPrompt?: string | null };
+
+export function createAcpAgent(worktree: string, name: string, provider: string, autoTitle: boolean, launch: ChatLaunch = {}): Promise<EntityId | null> {
+  return acknowledged({ CreateAcpAgent: { worktree, name, provider, auto_title: autoTitle, model: launch.model ?? null, effort: launch.effort ?? null, starting_prompt: launch.startingPrompt ?? null } });
 }
 
 export const isChat = (agent: { kind: AgentKind; backend?: Backend }): boolean => (agent.backend ?? (agent.kind === 'acp' ? 'chat' : 'terminal')) === 'chat';

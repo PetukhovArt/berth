@@ -5,6 +5,7 @@ mod driver;
 mod fallback;
 mod files;
 mod latency;
+mod launch;
 mod lifecycle;
 pub mod map;
 mod mcp;
@@ -30,6 +31,7 @@ use berth_core::acp::{AcpItem, AcpItemAt, AcpSessionState, FeedbackAnswer, Quest
 use berth_core::WorktreeId;
 use berth_core::{AgentId, Backend, EntityId, FeedbackKind, FeedbackRequest, ServerEvent};
 use conn::{Conn, Inbound};
+pub(crate) use launch::ChatLaunch;
 use providers::AcpProvider;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -165,12 +167,16 @@ impl Daemon {
         name: String,
         provider_id: &str,
         auto_title: bool,
+        launch: ChatLaunch,
     ) -> Result<EntityId> {
         let config = crate::config::Config::load();
         let provider = providers::resolve_enabled(&config.providers, provider_id)?;
         let id = AgentId::generate();
         let host = Arc::new(DaemonHost { agent: id.clone() });
-        self.create_acp_agent_with(id, worktree, name, provider, auto_title, host)
+        let created =
+            self.create_acp_agent_with(id.clone(), worktree, name, provider, auto_title, host)?;
+        self.acp_launch(id, launch);
+        Ok(created)
     }
 
     pub(crate) fn create_acp_agent_with(

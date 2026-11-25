@@ -3,6 +3,7 @@
 //! are the transport's business (`berth_core::transport`) — this module
 //! sees one shape on every platform.
 
+use crate::acp::ChatLaunch;
 use crate::pty::{PtyEvent, PtySession};
 use crate::registry::{CreateAgentSpec, Daemon};
 use anyhow::Result;
@@ -511,9 +512,17 @@ async fn handle_client(
                     name,
                     provider,
                     auto_title,
+                    model,
+                    effort,
+                    starting_prompt,
                 } => {
+                    let launch = ChatLaunch {
+                        model,
+                        effort,
+                        prompt: starting_prompt,
+                    };
                     let result = daemon
-                        .create_acp_agent(worktree, name, &provider, auto_title)
+                        .create_acp_agent(worktree, name, &provider, auto_title, launch)
                         .await;
                     reply(&out_tx, req_id, result.map(Some)).await;
                 }

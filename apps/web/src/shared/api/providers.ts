@@ -39,6 +39,11 @@ export function chatAgentFor(native: string, rows: readonly Provider[]): Provide
   return rows.find((row) => row.acp && row.enabled && row.on_by_default && row.id === native) ?? null;
 }
 
+export function defaultChatAgent(preferred: string, rows: readonly Provider[]): Provider | null {
+  const native = enabledNativeAgent(preferred, rows);
+  return legacyChatAgent(preferred, rows) ?? (native ? chatAgentFor(native, rows) : null);
+}
+
 export async function setProviderEnabled(provider: Provider, enabled: boolean): Promise<void> {
   await invoke<void>('providers_write', { id: provider.id, acp: provider.acp, enabled });
   await reloadProviders();

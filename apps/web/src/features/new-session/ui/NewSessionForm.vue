@@ -8,8 +8,8 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
 import { chordJoiner, modifierGlyphs, onlyPrimaryPressed, primaryModifier, primaryPressed } from '../../../shared/lib/platform';
 import { invoke } from '../../../bridge';
-import { acpPrompt, createAcpAgent, createAgent, createTerminal, entitySessionRef, resumeConversation, type AgentKind, type SessionRef, useAction, useBerth } from '../../../entities/session';
-import { chatAgentFor, enabledNativeAgent, legacyChatAgent, useProviders, type Provider } from '../../../shared/api/providers';
+import { createAcpAgent, createAgent, createTerminal, entitySessionRef, resumeConversation, type AgentKind, type SessionRef, useAction, useBerth } from '../../../entities/session';
+import { chatAgentFor, defaultChatAgent, enabledNativeAgent, useProviders, type Provider } from '../../../shared/api/providers';
 import { useSessionTarget } from '../model/sessionTarget';
 import { useKindStates, type KindState } from '../model/kindStates';
 import { useProjectConversations } from '../model/conversations';
@@ -75,9 +75,8 @@ const defaultKind = computed<Kind>(() => {
   const chosen = values.value['sessions.default_kind'];
   if (chosen === 'terminal') return 'terminal';
   if (!providers.value.length) return ON_BEFORE_PROVIDERS_LOAD.find((option) => option.value === chosen)?.value ?? 'claude';
-  const native = enabledNativeAgent(chosen, providers.value);
-  const chat = legacyChatAgent(chosen, providers.value) ?? (native ? chatAgentFor(native, providers.value) : null);
-  const preferred = chat ? (`acp:${chat.id}` as Kind) : ((native as Kind | null) ?? 'terminal');
+  const chat = defaultChatAgent(chosen, providers.value);
+  const preferred = chat ? (`acp:${chat.id}` as Kind) : ((enabledNativeAgent(chosen, providers.value) as Kind | null) ?? 'terminal');
   const usable = KINDS.value.find((option) => option.value === preferred && !option.disabled) ?? KINDS.value.find((option) => !option.disabled);
   return usable?.value ?? 'terminal';
 });
@@ -100,7 +99,9 @@ const expanded = shallowRef(false);
 const backgroundKey = `${modifierGlyphs[primaryModifier]}${chordJoiner}Enter`;
 const MODEL_SUGGESTIONS = ['opus', 'sonnet', 'haiku'];
 const EFFORT_SUGGESTIONS = ['low', 'medium', 'high'];
-const modelOptions = computed(() => (kind.value === 'claude' ? MODEL_SUGGESTIONS : []));
+const takesLaunchOptions = (value: Kind) => value !== 'terminal' && (acpProviderOf(value) === null || !!providers.value.find((provider) => provider.acp && provider.on_by_default && `acp:${provider.id}` === value));
+const launchOptions = computed(() => takesLaunchOptions(kind.value) && !continuing.value);
+const modelOptions = computed(() => (kind.value === 'claude' || kind.value === 'acp:claude' ? MODEL_SUGGESTIONS : []));
 
 const defaultName = computed(() => generatedName(kind.value));
 
@@ -126,7 +127,9 @@ function toggleExtra(value: Kind) {
 }
 
 function pickKind(value: unknown): boolean {
-  const next = KINDS.value.find((option) => option.value === value);
+  const chat = typeof value === 'string' ? chatAgentFor(value, providers.value) : null;
+  const wanted = chat ? `acp:${chat.id}` : value;
+  const next = KINDS.value.find((option) => option.value === wanted);
   if (!next || next.disabled) return false;
   if (name.value.trim() === defaultName.value || !name.value.trim()) name.value = generatedName(next.value);
   picked.value = next.value;
@@ -149,8 +152,8 @@ function applyPreset(preset: AgentPreset) {
 function saveCurrent() {
   const trimmed = presetName.value.trim();
   if (!trimmed || kind.value === 'terminal') return;
-  const acp = acpProviderOf(kind.value) !== null;
-  savePreset({ name: trimmed, kind: kind.value, model: acp ? '' : (optional(model.value) ?? ''), effort: acp ? '' : (optional(effort.value) ?? ''), before: before.value, after: after.value });
+  const takes = takesLaunchOptions(kind.value);
+  savePreset({ name: trimmed, kind: kind.value, model: takes ? (optional(model.value) ?? '') : '', effort: takes ? (optional(effort.value) ?? '') : '', before: before.value, after: after.value });
   activePreset.value = trimmed;
   presetName.value = '';
 }
@@ -223,7 +226,11 @@ async function submit(background = false) {
         chosenKind === 'terminal'
           ? await createTerminal(worktree, sessionName)
           : acpProvider
-            ? await createAcpAgent(worktree, sessionName, acpProvider, sessionName === defaults[index])
+            ? await createAcpAgent(worktree, sessionName, acpProvider, sessionName === defaults[index], {
+              model: takesLaunchOptions(chosenKind) ? optional(model.value) : null,
+              effort: takesLaunchOptions(chosenKind) ? optional(effort.value) : null,
+              startingPrompt,
+            })
             : await createAgent({
               worktree,
               name: sessionName,
@@ -234,7 +241,6 @@ async function submit(background = false) {
               startingPrompt,
             });
       const created = entitySessionRef(id);
-      if (acpProvider && startingPrompt && created && 'Agent' in created) await acpPrompt(created.Agent, startingPrompt);
       first ??= created;
     }
     if (first && background) startedInBackground(names[0] ?? '', first, chosen.length);
@@ -340,7 +346,7 @@ function onVisible(visible: boolean) {
           </template>
         </NewSessionTarget>
         <div class="chips" data-testid="new-session-options">
-          <template v-if="kind !== 'terminal' && !acpProviderOf(kind) && !continuing">
+          <template v-if="launchOptions">
             <ChipField class="field-input" :label="t('agents.newSession.model')" data-testid="new-session-model-field">
               <template #default="{ labelId, controlId }">
                 <VSelect

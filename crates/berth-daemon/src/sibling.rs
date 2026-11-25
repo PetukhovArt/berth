@@ -6,6 +6,7 @@
 
 use std::sync::Arc;
 
+use crate::acp::ChatLaunch;
 use anyhow::{bail, Context, Result};
 use berth_core::{
     Agent, AgentId, AgentKind, Backend, EntityId, ServerEvent, SpawnWorktree, Worktree, WorktreeId,
@@ -138,13 +139,12 @@ impl Daemon {
             .context("the agent has no provider")?;
         let worktree = target.unwrap_or_else(|| caller.worktree_id.clone());
         let name = sibling_name(&self.agent_names_in(&worktree)?);
-        let created = self
-            .create_acp_agent(worktree, name, &provider, true)
-            .await?;
-        if let EntityId::Agent(child) = &created {
-            self.acp_first_prompt(child.clone(), starting_prompt.to_string());
-        }
-        Ok(created)
+        let launch = ChatLaunch {
+            prompt: Some(starting_prompt.to_string()),
+            ..Default::default()
+        };
+        self.create_acp_agent(worktree, name, &provider, true, launch)
+            .await
     }
 
     async fn spawn_worktree(

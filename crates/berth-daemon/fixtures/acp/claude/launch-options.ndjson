@@ -1,0 +1,5 @@
+{"type":"transcript_start","provider":"claude","driver":"claude","protocol":"stream-json","version":"0.0.0","scenario":"launch-options"}
+{"type":"berth","call":{"call":"create","args":{"name":"a","model":"sonnet","effort":"high"}}}
+{"type":"expect_outbound","label":"control_request","frame":{"type":"control_request","request_id":"b1","request":{"subtype":"initialize"}}}
+{"type":"expect_outbound","label":"control_request","frame":{"type":"control_request","request_id":"b2","request":{"subtype":"mcp_status"}}}
+{"type":"expect_outbound","label":"control_request","frame":{"type":"control_request","request_id":"b3","request":{"subtype":"apply_flag_settings","settings":{"effortLevel":"high"}}}}
