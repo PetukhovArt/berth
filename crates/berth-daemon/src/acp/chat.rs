@@ -135,10 +135,14 @@ impl Daemon {
         let notice = match &outcome {
             Err(RpcError::Closed) => {
                 live.state.lock().unwrap().queue.clear();
+                self.acp_push_state(agent_id, live);
                 live.turn_open.store(false, Ordering::SeqCst);
                 return;
             }
-            Err(error) => Some(format!("The turn failed: {error}")),
+            Err(error) => {
+                tracing::debug!(agent = %agent_id, error = ?error, "turn failed");
+                Some(format!("The turn failed: {error}"))
+            }
             Ok(result) => match result.get("stopReason").and_then(Value::as_str) {
                 Some("end_turn") | Some("cancelled") => None,
                 Some("refusal") => Some("The agent refused to continue.".into()),

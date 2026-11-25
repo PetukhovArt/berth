@@ -6,5 +6,5 @@
 {"item":{"seq":2,"item":{"Tool":{"id":"toolu_01HXHnERmEqsXDTBnqGg5cyy","title":"Bash","kind":"execute","status":"failed","detail":"sleep 30","diff":null,"output":"<tool_use_error>Blocked: standalone sleep 30. To wait for a condition, use Monitor with an until-loop (e.g. `until <check>; do sleep 2; done`). To wait for a command you started, use run_in_background: true. Do not chain shorter sleeps to work around this block.</tool_use_error>"}}}}
 {"item":{"seq":3,"item":{"Thought":{"text":""}}}}
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":["deep-research","design","design-sync"],"queue":[]}}
-{"item":{"seq":4,"item":{"Notice":{"text":"The turn failed: claude exited during the turn (-32000)"}}}}
+{"item":{"seq":4,"item":{"Notice":{"text":"The turn failed: claude exited during the turn"}}}}
 {"status":"finished"}

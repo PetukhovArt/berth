@@ -7,6 +7,6 @@
 {"status":"needs_feedback"}
 {"feedback":{"kind":"Permission","title":"Write","detail":"<workspace>/a.txt","options":["Allow","Always allow","Deny"],"always_allow":false}}
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":["deep-research","design","design-sync"],"queue":[]}}
-{"item":{"seq":3,"item":{"Notice":{"text":"The turn failed: claude exited during the turn (-32000)"}}}}
+{"item":{"seq":3,"item":{"Notice":{"text":"The turn failed: claude exited during the turn"}}}}
 {"feedback":null}
 {"status":"finished"}

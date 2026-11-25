@@ -43,7 +43,7 @@ impl std::fmt::Debug for Response {
 
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum RpcError {
-    #[error("{message} ({code})")]
+    #[error("{message}")]
     Remote { code: i64, message: String },
     #[error("the agent process exited")]
     Closed,

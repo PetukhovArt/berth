@@ -197,9 +197,13 @@ impl ClaudeTranslator {
         self.control(out, json!({"subtype": "initialize"}), Control::Initialize)
     }
 
-    fn forget_native(&mut self) {
+    fn forget_native(&mut self, out: &mut Outputs) {
         self.asked.clear();
-        self.controls.clear();
+        for (_, control) in self.controls.drain() {
+            if let Control::McpStatus(id) = control {
+                out.fail(id, "claude is no longer running");
+            }
+        }
         self.streamed.clear();
         self.plan_tools.clear();
         self.tasks.clear();
@@ -270,7 +274,7 @@ impl ClaudeTranslator {
                     None => Start::Fresh,
                 };
                 out.stop_native();
-                self.forget_native();
+                self.forget_native(out);
                 out.reply(id, json!({"sessionId": self.session}));
             }
             MCP_STATUS => {
@@ -621,7 +625,7 @@ impl Translator for ClaudeTranslator {
     }
 
     fn native_exited(&mut self, code: Option<i32>, out: &mut Outputs) -> Result<()> {
-        self.forget_native();
+        self.forget_native(out);
         if let Some(id) = self.turn.take() {
             let code = code.map(|c| format!(" with code {c}")).unwrap_or_default();
             let tail = out.failure_tail();
