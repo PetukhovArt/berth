@@ -219,7 +219,7 @@ function handsFree() {
     </div>
     <template v-else>
       <p v-if="talkNote" class="talk-note" :data-cancelling="talk.cancelling.value || undefined" data-testid="chat-talk-note" role="status">{{ talkNote }}</p>
-      <UiButton v-if="shownSuggestion" type="button" class="suggestion" :title="t('agents.sessionView.chatSuggestion')" data-testid="chat-suggestion" @click="acceptSuggestion">{{ shownSuggestion }}</UiButton>
+      <UiButton v-if="shownSuggestion && talkPanel" type="button" class="suggestion" :title="t('agents.sessionView.chatSuggestion')" data-testid="chat-suggestion" @click="acceptSuggestion">{{ shownSuggestion }}</UiButton>
       <div v-if="talkPanel" class="talk-panel">
         <div class="talk-row">
           <UiButton type="button" class="aa" :title="t('chat.typeMode')" :aria-label="t('chat.typeMode')" data-testid="chat-type-mode" @click="typing = true">{{ t('chat.typeGlyph') }}</UiButton>
@@ -242,7 +242,13 @@ function handsFree() {
             <UiButton type="button" class="unquote" :aria-label="t('agents.sessionView.chatQuoteRemove', { label: quote.label })" data-testid="chat-quote-remove" @click="emit('unquote', quote.label)"><X :size="12" /></UiButton>
           </span>
         </div>
-        <UiTextarea ref="input" v-model="draft" class="input" rows="2" :placeholder="t(quotes.length ? 'agents.sessionView.chatPlaceholderQuoted' : stop ? 'agents.sessionView.chatPlaceholderRunning' : 'agents.sessionView.chatPlaceholder')" :aria-label="t('agents.sessionView.chatPlaceholder')" role="combobox" aria-autocomplete="list" :aria-expanded="slashOpen" :aria-controls="slashOpen ? listId : undefined" :aria-activedescendant="activeId" data-testid="chat-input" @keydown="onKey" />
+        <div class="field">
+          <UiTextarea ref="input" v-model="draft" class="input" rows="2" :placeholder="shownSuggestion ? '' : t(quotes.length ? 'agents.sessionView.chatPlaceholderQuoted' : stop ? 'agents.sessionView.chatPlaceholderRunning' : 'agents.sessionView.chatPlaceholder')" :aria-label="t('agents.sessionView.chatPlaceholder')" role="combobox" aria-autocomplete="list" :aria-expanded="slashOpen" :aria-controls="slashOpen ? listId : undefined" :aria-activedescendant="activeId" data-testid="chat-input" @keydown="onKey" />
+          <div v-if="shownSuggestion" class="ghost" :title="t('agents.sessionView.chatSuggestion')" data-testid="chat-suggestion">
+            <span class="ghost-text">{{ shownSuggestion }}</span>
+            <UiButton type="button" class="keycap" tabindex="-1" @click="acceptSuggestion">{{ t('chat.tabKey') }}</UiButton>
+          </div>
+        </div>
         <div class="foot">
           <span v-if="modelChip" class="model" :title="modelChip" data-testid="chat-model">{{ modelChip }}</span>
           <span class="grow" />
@@ -316,7 +322,7 @@ function handsFree() {
   min-width: 0;
   min-height: var(--vr-size-row);
   padding: var(--vr-space-1) var(--vr-space-2);
-  font-size: var(--vr-font-size-sm);
+  font-size: var(--vr-font-size-control);
   cursor: pointer;
   border-radius: var(--vr-radius-md);
 }
@@ -393,6 +399,46 @@ function handsFree() {
   color: var(--vr-color-text);
 }
 
+.field {
+  position: relative;
+}
+
+.ghost {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--vr-space-2);
+  padding: var(--vr-space-3) 14px var(--vr-space-1);
+  overflow: hidden;
+  font-size: var(--vr-font-size-sm);
+  line-height: 1.57;
+  color: var(--vr-color-text-subtle);
+  pointer-events: none;
+}
+
+.ghost-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.keycap {
+  flex: none;
+  padding: 0 5px;
+  font-family: var(--vr-font-mono);
+  font-size: var(--vr-font-size-key);
+  line-height: 1.6;
+  color: var(--vr-color-text-subtle);
+  pointer-events: auto;
+  cursor: pointer;
+  background: none;
+  border: 1px solid var(--vr-color-border-strong);
+  border-radius: var(--vr-radius-chip);
+  margin-top: 3px;
+}
+
 .input {
   display: block;
   width: 100%;
@@ -426,12 +472,12 @@ function handsFree() {
   height: 26px;
   padding: 0 var(--vr-space-2);
   overflow: hidden;
-  font-size: var(--vr-font-size-xs);
+  font-size: var(--vr-font-size-control);
   color: var(--vr-color-text-muted);
   white-space: nowrap;
   text-overflow: ellipsis;
   background: var(--vr-color-surface-muted);
-  border-radius: var(--vr-radius-sm);
+  border-radius: var(--vr-radius-control);
 }
 
 .grow {

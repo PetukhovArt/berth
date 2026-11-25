@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue';
-import { Check, ChevronDown, ChevronUp, LoaderCircle } from '../../../shared/ui/icons';
+import { Check, ChevronDown, ChevronRight, ChevronUp, LoaderCircle } from '../../../shared/ui/icons';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import type { PlanItem } from '../model/plan';
 
-const props = withDefaults(defineProps<{ plan: readonly PlanItem[]; startOpen?: boolean }>(), { startOpen: true });
+const props = withDefaults(defineProps<{ plan: readonly PlanItem[]; phases?: readonly PlanItem[]; startOpen?: boolean }>(), { phases: () => [], startOpen: true });
 
 const { t } = useI18n();
 const open = shallowRef(props.startOpen);
@@ -13,41 +13,106 @@ const done = computed(() => props.plan.filter((item) => item.state === 'done').l
 </script>
 
 <template>
-  <div v-if="plan.length" class="plan" data-testid="conversation-plan">
-    <UiButton type="button" class="plan-toggle" :aria-expanded="open" data-testid="conversation-plan-toggle" @click="open = !open">
-      {{ t('workbench.external.plan', { done, total: plan.length }) }}
-      <ChevronUp v-if="open" :size="12" />
-      <ChevronDown v-else :size="12" />
-    </UiButton>
-    <ul v-if="open" class="plan-items">
-      <li v-for="(item, index) in plan" :key="index" class="plan-item" :data-state="item.state" data-testid="conversation-plan-item">
-        <Check v-if="item.state === 'done'" :size="13" class="plan-icon" />
-        <LoaderCircle v-else-if="item.state === 'doing'" :size="13" class="plan-icon" />
-        <span v-else class="plan-ring" />
-        <span class="plan-text">{{ item.text }}</span>
-      </li>
-    </ul>
+  <div v-if="plan.length || phases.length" class="plan" data-testid="conversation-plan">
+    <div class="inner">
+      <div class="head">
+        <ol v-if="phases.length" class="phases" :aria-label="t('chat.plan.phases')" data-testid="conversation-plan-phases">
+          <template v-for="(phase, index) in phases" :key="index">
+            <ChevronRight v-if="index" :size="11" class="sep" />
+            <li class="phase" :data-state="phase.state" :title="phase.text">{{ phase.text }}</li>
+          </template>
+        </ol>
+        <UiButton v-if="plan.length" type="button" class="plan-toggle" :aria-expanded="open" data-testid="conversation-plan-toggle" @click="open = !open">
+          {{ t('workbench.external.plan', { done, total: plan.length }) }}
+          <ChevronUp v-if="open" :size="12" />
+          <ChevronDown v-else :size="12" />
+        </UiButton>
+      </div>
+      <ul v-if="open && plan.length" class="plan-items">
+        <li v-for="(item, index) in plan" :key="index" class="plan-item" :data-state="item.state" data-testid="conversation-plan-item">
+          <Check v-if="item.state === 'done'" :size="13" class="plan-icon" />
+          <LoaderCircle v-else-if="item.state === 'doing'" :size="13" class="plan-icon" />
+          <span v-else class="plan-ring" />
+          <span class="plan-text">{{ item.text }}</span>
+        </li>
+      </ul>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .plan {
-  display: flex;
   flex: none;
+  padding: 10px var(--vr-space-6);
+  border-bottom: 1px solid var(--vr-color-border);
+}
+
+.inner {
+  display: flex;
   flex-direction: column;
   gap: var(--vr-space-2);
-  padding: var(--vr-space-2) var(--vr-space-4);
-  border-bottom: 1px solid var(--vr-color-border);
+  max-width: var(--vr-size-column);
+  margin: 0 auto;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vr-space-3);
+  min-width: 0;
+}
+
+.phases {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--vr-space-1);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+}
+
+.sep {
+  flex: none;
+  color: var(--vr-color-text-subtle);
+}
+
+.phase {
+  flex: 0 1 auto;
+  min-width: 0;
+  height: 22px;
+  padding: 0 10px;
+  overflow: hidden;
+  font-size: var(--vr-font-size-control);
+  line-height: 1.75;
+  color: var(--vr-color-text-subtle);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  border-radius: var(--vr-radius-full);
+}
+
+.phase[data-state='done'] {
+  color: var(--vr-color-text-muted);
+}
+
+.phase[data-state='doing'] {
+  font-weight: 600;
+  color: var(--vr-status-running);
+  background: var(--vr-tint-running);
 }
 
 .plan-toggle {
   display: inline-flex;
+  flex: none;
   align-items: center;
-  align-self: flex-end;
   gap: var(--vr-space-1);
+  margin-left: auto;
   padding: 0;
   font: inherit;
-  font-size: var(--vr-font-size-xs);
+  font-size: var(--vr-font-size-control);
   color: var(--vr-color-text-muted);
   cursor: pointer;
   background: none;
@@ -70,7 +135,7 @@ const done = computed(() => props.plan.filter((item) => item.state === 'done').l
   align-items: center;
   gap: var(--vr-space-2);
   min-width: 0;
-  font-size: var(--vr-font-size-xs);
+  font-size: var(--vr-font-size-control);
 }
 
 .plan-item[data-state='done'] {

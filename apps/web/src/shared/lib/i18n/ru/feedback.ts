@@ -6,6 +6,10 @@ export const feedback = {
   alwaysTitle: 'Разрешить и больше не спрашивать о таких вызовах',
   deny: 'Отклонить',
   place: 'в {place}',
+  allowed: 'Разрешено',
+  denied: 'Отклонено',
+  answered: 'Ответ: «{answer}»',
+  asks: '{agent} задаёт вопрос',
   queue: {
     sendsWhenFinished: 'Отправится, когда агент закончит',
     remove: 'Убрать',

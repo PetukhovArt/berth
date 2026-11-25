@@ -49,6 +49,18 @@
     "conflict": {
       "$value": "{palette.orange.light}"
     },
+    "agent-claude": {
+      "$value": "#d97757"
+    },
+    "agent-codex": {
+      "$value": "#10a37f"
+    },
+    "agent-cursor": {
+      "$value": "#6b6f76"
+    },
+    "agent-other": {
+      "$value": "#4b5057"
+    },
     "presence-online": {
       "$value": "{palette.green.light}"
     },

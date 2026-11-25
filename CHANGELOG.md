@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Added a `Working · 40s · Esc to interrupt` row to the end of the Chat view while a turn runs, and `Esc` interrupts the turn
+- Added a short `Allowed` or `Answered` line to the Chat view after you answer a permission request or a question
+- Added `Try again` and `Show terminal` buttons to the Chat view when it cannot read the conversation, and a loading skeleton in place of the plain text
+- Added a `Tab` key mark to the suggested prompt, which now shows as grey text inside the prompt box
+- Changed the permission and question card in the Chat view to a raised card with the project and branch, and `1`, `2`, `3` keys for its buttons
+- Changed `Restore files` on a checkpoint to ask in a dialog instead of two links under the prompt
+- Changed the Chat view to the new look: a 780 px centered column, rounded prompt bubbles, a colored tile by the agent name, and phase chips in the plan strip
+
 ## 0.24.0 (2026-11-25)
 
 - Added the Chat view to Codex and Grok agents, the same view Claude agents have, and Grok conversations started outside berth to the conversation list, search and Continue conversation

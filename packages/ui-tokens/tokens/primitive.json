@@ -32,11 +32,11 @@
   },
   "radius": {
     "$type": "dimension",
-    "sm": { "$value": "6px" }, "md": { "$value": "8px" }, "lg": { "$value": "10px" }, "xl": { "$value": "12px" }, "2xl": { "$value": "16px" }, "full": { "$value": "9999px" }
+    "sm": { "$value": "6px" }, "md": { "$value": "8px" }, "lg": { "$value": "10px" }, "chip": { "$value": "5px" }, "control": { "$value": "7px" }, "bubble": { "$value": "14px" }, "xl": { "$value": "12px" }, "2xl": { "$value": "16px" }, "full": { "$value": "9999px" }
   },
   "size": {
     "$type": "dimension",
-    "sidebar": { "$value": "300px" }, "meta": { "$value": "280px" }, "avatar": { "$value": "36px" }, "avatar-sm": { "$value": "24px" }, "row": { "$value": "32px" }, "touch": { "$value": "44px" }, "row-touch": { "$value": "40px" }, "icon-touch": { "$value": "40px" }
+    "sidebar": { "$value": "300px" }, "meta": { "$value": "280px" }, "avatar": { "$value": "36px" }, "avatar-sm": { "$value": "24px" }, "row": { "$value": "32px" }, "column": { "$value": "780px" }, "touch": { "$value": "44px" }, "row-touch": { "$value": "40px" }, "icon-touch": { "$value": "40px" }
   },
   "font": {
     "scale": { "$type": "number", "$value": 1 },
@@ -44,7 +44,7 @@
     "mono": { "$type": "fontFamily", "$value": "'JetBrains Mono Variable', 'JetBrains Mono', Consolas, monospace" },
     "size": {
       "$type": "dimension",
-      "3xs": { "$value": "9px" }, "2xs": { "$value": "11px" }, "xs": { "$value": "12px" }, "label": { "$value": "13px" }, "sm": { "$value": "14px" }, "title": { "$value": "15px" }, "base": { "$value": "16px" }, "lg": { "$value": "18px" }, "xl": { "$value": "20px" }, "display": { "$value": "26px" }, "root": { "$value": "16px" }
+      "3xs": { "$value": "9px" }, "2xs": { "$value": "11px" }, "xs": { "$value": "12px" }, "key": { "$value": "10.5px" }, "note": { "$value": "11.5px" }, "control": { "$value": "12.5px" }, "label": { "$value": "13px" }, "sm": { "$value": "14px" }, "title": { "$value": "15px" }, "base": { "$value": "16px" }, "lg": { "$value": "18px" }, "xl": { "$value": "20px" }, "display": { "$value": "26px" }, "root": { "$value": "16px" }
     },
     "leading": {
       "message": { "$value": "20px" }, "author": { "$value": "16px" }

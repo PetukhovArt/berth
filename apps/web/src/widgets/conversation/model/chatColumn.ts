@@ -6,7 +6,7 @@ export type ColumnBox = { left: number; width: number };
 export type ColumnEdge = 'left' | 'right';
 
 export const COLUMN_EDGES: readonly ColumnEdge[] = ['left', 'right'];
-const DEFAULT_COLUMN: ChatColumn = { width: 920, bias: 0.5 };
+const DEFAULT_COLUMN: ChatColumn = { width: 780, bias: 0.5 };
 const MIN_COLUMN_WIDTH = 480;
 export const COLUMN_GUTTER = 16;
 

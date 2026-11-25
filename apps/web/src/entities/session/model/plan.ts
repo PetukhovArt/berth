@@ -13,6 +13,7 @@ const STATES: Record<string, PlanState> = {
   pending: 'todo',
 };
 
+const SHELL_TOOLS = new Set(['Bash', 'shell', 'exec_command']);
 const str = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
 const stateOf = (value: unknown): PlanState => STATES[str(value)] ?? 'todo';
 
@@ -46,7 +47,7 @@ export function derivePlan(messages: readonly TranscriptMessage[]): PlanItem[] {
   for (const message of messages) {
     const input = message.input as Input | undefined;
     if (!message.tool || !input) continue;
-    if (message.tool === 'Bash' || message.tool === 'shell' || message.tool === 'exec_command') {
+    if (SHELL_TOOLS.has(message.tool)) {
       const command = str(input.command) || str(input.cmd);
       const next = command ? applyJig(items, command) : items;
       if (next !== items) {
@@ -78,6 +79,17 @@ export function derivePlan(messages: readonly TranscriptMessage[]): PlanItem[] {
       if (!current) continue;
       items = items.map((item, at) => (at === index ? { text: str(input.subject) || item.text, state: input.status ? stateOf(input.status) : item.state } : item));
     }
+  }
+  return items;
+}
+
+export function derivePhases(messages: readonly TranscriptMessage[]): PlanItem[] {
+  let items: PlanItem[] = [];
+  for (const message of messages) {
+    const input = message.input as Input | undefined;
+    if (!message.tool || !input || !SHELL_TOOLS.has(message.tool)) continue;
+    const command = str(input.command) || str(input.cmd);
+    if (command) items = applyJig(items, command);
   }
   return items;
 }

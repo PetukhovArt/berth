@@ -3,8 +3,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplate
 import { Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, TriangleAlert } from '../../../shared/ui/icons';
 import { VButton, VMessage } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
-import { AGENT_KIND_LABEL, clearHandoff, clearMessageFocus, messageFocusOf, continueInBerth, handoffOf, externalKey, externalOrigin, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, deriveSubagents, stripVisible, sendInput, useFeedbackRequest, allowRequest, alwaysAllowRequest, offersAlways, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, sessionKey, stopAgent, submitPrompt, useAcpChat, useQueuedPrompts, useSessionStates, clearPromptQuotes, promptQuotesOf, removePromptQuote, type SessionRef, type SlashSource } from '../../../entities/session';
-import { worktreeOf } from '../../../features/session-view-switch';
+import { AGENT_KIND_LABEL, clearHandoff, clearMessageFocus, messageFocusOf, continueInBerth, handoffOf, externalKey, externalOrigin, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePhases, derivePlan, PlanStrip, deriveSubagents, stripVisible, sendInput, useFeedbackRequest, enqueuePrompt, removeQueuedPrompt, sessionKey, stopAgent, submitPrompt, useAcpChat, useQueuedPrompts, useSessionStates, clearPromptQuotes, promptQuotesOf, removePromptQuote, type SessionRef, type SlashSource } from '../../../entities/session';
+import { showViewInActivePanel, worktreeOf } from '../../../features/session-view-switch';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { readAcpAgentLog } from '../../../shared/api/providers';
@@ -12,7 +12,10 @@ import { chatBlocks } from '../model/chatBlocks';
 import { forwardSlashes } from '../../../shared/lib/homePath';
 import { COLUMN_EDGES, COLUMN_GUTTER, useChatColumn, type ColumnEdge } from '../model/chatColumn';
 import { useClock } from '../model/clock';
+import type { FeedNote } from '../model/feedNotes';
 import ChatFeed from './ChatFeed.vue';
+import ChatStates from './ChatStates.vue';
+import FeedbackCard from './FeedbackCard.vue';
 import ChatComposer from './ChatComposer.vue';
 import SubagentStrip from './SubagentStrip.vue';
 import SubagentView from './SubagentView.vue';
@@ -50,6 +53,11 @@ const copied = shallowRef(false);
 const request = props.terminal ? useFeedbackRequest(props.terminal) : null;
 const sending = shallowRef(false);
 const plan = computed(() => acp?.plan.value ?? derivePlan(messages.value));
+const phases = computed(() => derivePhases(messages.value));
+const todos = computed(() => {
+  const named = new Set(phases.value.map((phase) => phase.text));
+  return plan.value.filter((item) => !named.has(item.text));
+});
 const agentLog = shallowRef<string | null>(null);
 const checkpoints = shallowRef<Checkpoint[]>([]);
 const spoken = shallowRef<ReadonlySet<string>>(new Set());
@@ -104,7 +112,16 @@ const blocks = computed(() => chatBlocks(messages.value));
 const promptCount = computed(() => blocks.value.filter((block) => block.type === 'prompt').length);
 const roster = computed(() => deriveSubagents(messages.value, live.value));
 const subagentOf = computed(() => new Map(roster.value.all.map((agent) => [agent.callId, agent])));
-const now = useClock((at) => stripVisible(roster.value.current, at));
+const now = useClock((at) => turnRunning.value || stripVisible(roster.value.current, at));
+const workingSince = computed(() => (turnRunning.value ? (sessionState.value?.since ?? null) : null));
+const place = computed(() => {
+  const entities = berth?.entities.value;
+  const worktree = agent.value ? entities?.worktrees.get(agent.value.worktree_id) : undefined;
+  const project = worktree ? entities?.projects.get(worktree.project_id) : undefined;
+  return [project?.name, worktree?.branch].filter(Boolean).join(' › ');
+});
+const notes = shallowRef<FeedNote[]>([]);
+let noteId = 0;
 const stripAgents = computed(() => (stripVisible(roster.value.current, now.value) ? roster.value.current : []));
 const openedCall = shallowRef<string | null>(null);
 const opened = computed(() => (openedCall.value ? subagentOf.value.get(openedCall.value) : undefined));
@@ -296,6 +313,21 @@ async function submit(text: string, viaVoice: boolean): Promise<boolean> {
   }
 }
 
+function noteResolved(note: Omit<FeedNote, 'id' | 'afterKey'>) {
+  const afterKey = blocks.value.at(-1)?.key;
+  if (afterKey) notes.value = [...notes.value, { ...note, id: ++noteId, afterKey }];
+}
+
+function retry() {
+  error.value = null;
+  if (acp) void acp.reload();
+  else void load();
+}
+
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && turnRunning.value && !event.defaultPrevented) void stop();
+}
+
 async function stop() {
   if (!props.terminal) return;
   try {
@@ -339,7 +371,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section ref="section" class="conversation" data-testid="conversation-view" :data-session-id="sessionId" :data-harness="harness">
+  <section ref="section" class="conversation" tabindex="-1" data-testid="conversation-view" :data-session-id="sessionId" :data-harness="harness" @keydown="onKeydown">
     <header v-if="!terminal" class="head">
       <div class="title-line">
         <HarnessIcon v-if="harness" :harness="harness" :size="14" />
@@ -374,25 +406,16 @@ onBeforeUnmount(() => {
       <p v-else-if="target" class="hint" data-testid="conversation-target">{{ t('workbench.external.continuesIn', { project: target.projectName, branch: target.branch }) }}</p>
       <VMessage v-if="continueError" severity="error" size="small" data-testid="conversation-error">{{ continueError }}</VMessage>
     </header>
-    <PlanStrip :plan="plan" />
+    <PlanStrip :plan="todos" :phases="phases" />
     <SubagentView v-if="opened && harness" :harness="harness" :session-id="sessionId" :agent="opened" :agent-label="agentLabel" :root="root" :panel-id="panelId" :now="now" @close="closeSubagent" />
     <div v-show="!opened" class="body" :style="column.style.value" data-testid="chat-body">
       <div ref="scroller" class="scroll" data-testid="conversation-scroll">
-        <p v-if="loading" class="column state">{{ t('workbench.external.loading') }}</p>
-        <p v-else-if="shownError" class="column state error" role="alert">{{ shownError }}</p>
-        <p v-else-if="!messages.length" class="column state">{{ t('workbench.external.empty') }}</p>
-        <ChatFeed v-else class="column" :blocks="blocks" :harness="harness" :agent-label="agentLabel" :root="root" :panel-id="panelId" :agent-id="agentId" :checkpoint-of="checkpointOf" :spoken="spoken" :subagent-of="subagentOf" :now="now" :found="found" @restored="loadCheckpoints" @open-subagent="openSubagent" />
+        <ChatStates v-if="loading" class="column" state="loading" />
+        <ChatStates v-else-if="shownError" class="column" state="error" :message="shownError" :can-show-terminal="!!terminal" @retry="retry" @show-terminal="showViewInActivePanel('terminal')" />
+        <ChatStates v-else-if="!messages.length" class="column" state="empty" />
+        <ChatFeed v-else class="column" :blocks="blocks" :harness="harness" :agent-label="agentLabel" :root="root" :place="place" :panel-id="panelId" :agent-id="agentId" :checkpoint-of="checkpointOf" :spoken="spoken" :subagent-of="subagentOf" :now="now" :found="found" :notes="notes" :working-since="workingSince" @restored="loadCheckpoints" @open-subagent="openSubagent" />
       </div>
-      <div v-if="terminal && request" class="column feedback" data-testid="chat-feedback" :data-kind="request.kind">
-        <span class="feedback-text">{{ request.kind === 'Permission' ? t('feedback.permission', { tool: request.title }) : request.title }}</span>
-        <code v-if="request.detail" class="feedback-detail mono">{{ request.detail }}</code>
-        <template v-if="request.kind === 'Permission' && !request.options.length">
-          <UiButton type="button" class="feedback-action" data-testid="feedback-allow" @click="allowRequest(terminal)">{{ t('feedback.allow') }}</UiButton>
-          <UiButton v-if="offersAlways(request)" type="button" class="feedback-action" :title="t('feedback.alwaysTitle')" data-testid="feedback-always" @click="alwaysAllowRequest(terminal)">{{ t('feedback.always') }}</UiButton>
-          <UiButton type="button" class="feedback-action" data-testid="feedback-deny" @click="denyRequest(terminal)">{{ t('feedback.deny') }}</UiButton>
-        </template>
-        <UiButton v-for="(option, index) in request.options" v-else :key="index" type="button" class="feedback-action" data-testid="feedback-option" @click="chooseOption(terminal, index)">{{ option }}</UiButton>
-      </div>
+      <FeedbackCard v-if="terminal && request" class="column" :session="terminal" :request="request" :agent-label="agentLabel" :place="place" @resolved="noteResolved" />
       <div v-if="acp" class="column agent-log" data-testid="chat-agent-log">
         <UiButton type="button" class="agent-log-toggle" :aria-expanded="agentLog !== null" data-testid="chat-agent-log-toggle" @click="toggleAgentLog">{{ t('agents.sessionView.chatAgentLog') }}</UiButton>
         <pre v-if="agentLog !== null" class="agent-log-text mono" data-testid="chat-agent-log-text">{{ agentLog || t('agents.sessionView.chatAgentLogEmpty') }}</pre>
@@ -503,6 +526,7 @@ onBeforeUnmount(() => {
 }
 
 .conversation {
+  outline: none;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -602,7 +626,7 @@ onBeforeUnmount(() => {
   min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  padding: var(--vr-space-3) 0 var(--vr-space-6);
+  padding: var(--vr-space-6) 0 var(--vr-space-4);
 }
 
 .body {
@@ -636,58 +660,6 @@ onBeforeUnmount(() => {
 .column-handle[data-dragging] {
   outline: none;
   background: var(--vr-color-nav-active);
-}
-
-.feedback {
-  display: flex;
-  flex: none;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--vr-space-2);
-  margin-bottom: var(--vr-space-2);
-  padding: var(--vr-space-2) var(--vr-space-3);
-  font-size: var(--vr-font-size-sm);
-  background: var(--vr-tint-feedback);
-  border-radius: var(--vr-radius-lg);
-  box-shadow: inset 3px 0 0 var(--vr-status-feedback);
-}
-
-.feedback-detail {
-  box-sizing: border-box;
-  flex: 1 1 100%;
-  min-width: 0;
-  max-height: min(30dvh, 10em);
-  padding: 1px 6px;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overflow-wrap: anywhere;
-  font-size: var(--vr-font-size-xs);
-  white-space: pre-wrap;
-  background: var(--vr-color-surface-muted);
-  border-radius: var(--vr-radius-sm);
-}
-
-.feedback-action {
-  height: 26px;
-  padding: 0 var(--vr-space-3);
-  font: inherit;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-text);
-  cursor: pointer;
-  background: var(--vr-color-surface-muted);
-  border: none;
-  border-radius: var(--vr-radius-md);
-}
-
-.state {
-  margin-top: 0;
-  margin-bottom: 0;
-  font-size: var(--vr-font-size-sm);
-  color: var(--vr-color-text-muted);
-}
-
-.state.error {
-  color: var(--vr-color-danger);
 }
 
 </style>
