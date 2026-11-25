@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.23.0 (2026-11-25)
+
 - Added a Next step section to the facts panel of a merge request that runs the git step of its worktree, and a pill beside Discussions that counts unresolved threads or says all are resolved
 - Added `N need you` to the collapsed Inbox header, and a `Nothing needs you` line to the open Inbox when no session waits for you
 - Added `Not installed` and `Signed out` marks to an agent in the New session type list that is not ready: it cannot be picked, and a signed-out agent has a `Sign in` link
