@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.24.0 (2026-11-25)
+
 - Added the Chat view to Codex and Grok agents, the same view Claude agents have, and Grok conversations started outside berth to the conversation list, search and Continue conversation
 - Added Grok Build to the AI accounts in Settings → Connectors: it shows whether the `grok` CLI is installed and signed in, with the account and plan, and signs it in and out
 - Added `daemon.grokLimits`, off by default: the daemon asks xAI for Grok's weekly or monthly subscription usage, shows it with Claude's and Codex's limits, and the LLM Router skips Grok in the fallback chain once it is used up
