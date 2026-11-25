@@ -2,12 +2,13 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-const CAP = 123;
+const CAP = 111;
 
 const ROOTS = ['crates', 'apps/desktop/src-tauri/src'];
-const SKIPPED_PATH = /(^|\/)(tests|berth-transcripts|driver)\/|(^|\/)(tests|[a-z_]+_tests)\.rs$|\/acp\/driver\//;
+const SKIPPED_PATH = /(^|\/)(tests|berth-transcripts|driver)\/|(^|\/)(tests|[a-z_]+_tests)\.rs$|\/acp\/driver\/|^crates\/berth-core\/src\/agent\.rs$|^crates\/berth-daemon\/src\/agent\//;
 const KIND_VARIANT = /\bAgentKind::(Claude|Codex|Cursor|OpenCode|Grok|Acp)\b/;
 const KIND_LITERAL = /"(claude|codex|cursor|opencode|grok)"/;
+const OTHER_KIND = /\b(?!AgentKind\b)\w+Kind::/;
 const BRANCHING = /=>|==|!=|matches!/;
 
 const root = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
@@ -19,7 +20,7 @@ const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclud
   .filter(Boolean);
 
 const braces = (line) => {
-  const code = line.replace(/"(\\.|[^"\\])*"/g, '""').replace(/'(\\.|[^'\\])'/g, "''").replace(/\/\/.*$/, '');
+  const code = line.replace(/\br(#*)"[^]*?"\1/g, '""').replace(/"(\\.|[^"\\])*"/g, '""').replace(/'(\\.|[^'\\])'/g, "''").replace(/\/\/.*$/, '');
   return (code.match(/{/g)?.length ?? 0) - (code.match(/}/g)?.length ?? 0);
 };
 
@@ -60,7 +61,7 @@ for (const [file, lines] of sources) {
     }
     if (inMigrations && /^\];/.test(line)) inMigrations = false;
     if (skipLine || /^\s*\/\//.test(line)) return;
-    if (KIND_VARIANT.test(line) || (KIND_LITERAL.test(line) && BRANCHING.test(line))) hits.push(`${file}:${i + 1}: ${line.trim()}`);
+    if (KIND_VARIANT.test(line) || (KIND_LITERAL.test(line) && BRANCHING.test(line) && !OTHER_KIND.test(line))) hits.push(`${file}:${i + 1}: ${line.trim()}`);
   });
 }
 
