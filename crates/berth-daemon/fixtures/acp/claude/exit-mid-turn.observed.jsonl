@@ -1,5 +1,5 @@
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
-{"item":{"seq":1,"item":{"User":{"text":"Run the shell command `sleep 30` using the Bash tool, then reply done.","rewind":{"checkpoint":1,"after":null}}}}}
+{"item":{"seq":1,"item":{"User":{"text":"Run the shell command `sleep 30` using the Bash tool, then reply done.","attachments":[],"rewind":{"checkpoint":1,"after":null}}}}}
 {"status":"running"}
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":["deep-research","design","design-sync"],"queue":[]}}

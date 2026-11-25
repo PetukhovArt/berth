@@ -5,9 +5,9 @@ use std::collections::BTreeMap;
 pub enum AcpItem {
     User {
         text: String,
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        #[serde(default)]
         attachments: Vec<Attachment>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(default)]
         rewind: Option<Rewind>,
     },
     Assistant {

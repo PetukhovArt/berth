@@ -1,10 +1,10 @@
 {"session":{"caps":{"images":false,"embedded_files":false,"questions":"typed","mcp":"list","rewind":false,"steer":false,"terminal_view":false},"options":[],"commands":[],"queue":[]}}
-{"item":{"seq":1,"item":{"User":{"text":"run the tests","rewind":{"checkpoint":1,"after":null}}}}}
+{"item":{"seq":1,"item":{"User":{"text":"run the tests","attachments":[],"rewind":{"checkpoint":1,"after":null}}}}}
 {"status":"running"}
 {"item":{"seq":2,"item":{"Assistant":{"text":"Let me check."}}}}
 {"item":{"seq":3,"item":{"Tool":{"id":"t1","title":"Run tests","kind":"execute","status":"pending","detail":"cargo test","diff":null,"output":null}}}}
 {"status":"needs_feedback"}
-{"feedback":{"kind":"Permission","title":"Run tests","detail":"cargo test","options":["Allow once","Reject"],"always_allow":false}}
+{"feedback":{"kind":"Permission","title":"Run tests","detail":"cargo test","options":["Allow once","Reject"],"always_allow":false,"form":null}}
 {"feedback":null}
 {"status":"running"}
 {"item":{"seq":3,"item":{"Tool":{"id":"t1","title":"Run tests","kind":"execute","status":"completed","detail":"cargo test","diff":null,"output":"ok"}}}}

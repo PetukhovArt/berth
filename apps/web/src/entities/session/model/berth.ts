@@ -53,7 +53,7 @@ type AcpChoice = { value: string; name: string; description: string | null };
 export type AcpQuestion = { id: string; header: string; text: string; choices: AcpChoice[]; multi_select: boolean; free_text_allowed: boolean };
 export type AcpQuestionForm = { questions: AcpQuestion[] };
 export type AcpAnswers = Record<string, string[]>;
-export type FeedbackRequest = { kind: 'Permission' | 'Question'; title: string; detail: string | null; options: string[]; always_allow?: boolean; form?: AcpQuestionForm };
+export type FeedbackRequest = { kind: 'Permission' | 'Question'; title: string; detail: string | null; options: string[]; always_allow?: boolean; form?: AcpQuestionForm | null };
 
 type ArchivedExternal = { kind: AgentKind; session_id: string; archived_at: number };
 
@@ -87,7 +87,7 @@ export type AcpQueuedPrompt = { id: number; prompt: { text: string; attachments:
 export type AcpMcpServer = { name: string; status: string | null };
 export type AcpSessionState = { caps: AcpChatCaps; options: AcpConfigOption[]; commands: { name: string; description: string }[]; queue: AcpQueuedPrompt[]; mcp: AcpMcpServer[] };
 type AcpRewind = { checkpoint: number | null; after: string | null };
-export type AcpItem = { User: { text: string; attachments?: AcpAttachment[]; rewind?: AcpRewind } } | { Assistant: { text: string } } | { Thought: { text: string } } | { Tool: AcpTool } | { Plan: { entries: AcpPlanEntry[] } } | { Notice: { text: string } };
+export type AcpItem = { User: { text: string; attachments?: AcpAttachment[]; rewind?: AcpRewind | null } } | { Assistant: { text: string } } | { Thought: { text: string } } | { Tool: AcpTool } | { Plan: { entries: AcpPlanEntry[] } } | { Notice: { text: string } };
 export type AcpItemAt = { seq: number; item: AcpItem };
 
 const acpListeners = new Set<(agent: string, item: AcpItemAt) => void>();

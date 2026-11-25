@@ -769,7 +769,7 @@ pub struct FeedbackRequest {
     pub options: Vec<String>,
     #[serde(default)]
     pub always_allow: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub form: Option<QuestionForm>,
 }
 
