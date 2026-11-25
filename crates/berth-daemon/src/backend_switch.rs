@@ -69,14 +69,18 @@ impl Daemon {
         to: Backend,
         provider: Option<&str>,
     ) -> Result<()> {
-        if to == Backend::Terminal {
-            self.acp_drain_queue(id);
-        }
+        let held = if to == Backend::Terminal {
+            self.acp_take_queue(id)
+        } else {
+            Vec::new()
+        };
         self.kill_session(&SessionRef::Agent(id.clone()));
         self.store.set_agent_backend(id, to, provider)?;
         if to == Backend::Chat {
             self.acp_notice(id, BACK_IN_CHAT.into());
         }
-        self.broadcast_agent(id)
+        let broadcast = self.broadcast_agent(id);
+        self.acp_announce_cleared(id, held);
+        broadcast
     }
 }

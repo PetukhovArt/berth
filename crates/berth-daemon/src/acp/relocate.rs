@@ -5,16 +5,19 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 impl Daemon {
-    pub(crate) fn acp_drain_queue(&self, id: &AgentId) {
+    pub(crate) fn acp_take_queue(&self, id: &AgentId) -> Vec<String> {
         let Some(live) = self.acp.get(id) else {
-            return;
+            return Vec::new();
         };
         let cleared = std::mem::take(&mut live.state.lock().unwrap().queue);
-        let texts: Vec<String> = cleared
+        cleared
             .into_iter()
             .map(|queued| queued.prompt.text)
             .filter(|text| !text.is_empty())
-            .collect();
+            .collect()
+    }
+
+    pub(crate) fn acp_announce_cleared(&self, id: &AgentId, texts: Vec<String>) {
         if !texts.is_empty() {
             self.broadcast(ServerEvent::AcpQueueCleared {
                 agent: id.clone(),

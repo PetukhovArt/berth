@@ -135,7 +135,7 @@ async function rewindTo(seq: number, text: string) {
   await acpRewind(props.sessionId, seq);
   holdRestored(props.sessionId, [text]);
 }
-const heldCount = computed(() => (acp ? restoredCount(props.sessionId) : 0));
+const heldCount = computed(() => (acp && agent.value && isChat(agent.value) ? restoredCount(props.sessionId) : 0));
 function drainRestored() {
   if (composer.value && heldCount.value) composer.value.restore(takeRestored(props.sessionId));
 }
