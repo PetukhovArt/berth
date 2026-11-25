@@ -1,7 +1,8 @@
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
-{"item":{"seq":1,"item":{"User":{"text":"What single color fills this image? Reply with one word.","attachments":[{"Image":{"blob":"<blob>","mime":"image/png","name":"image.png"}}]}}}}
+{"item":{"seq":1,"item":{"User":{"text":"What single color fills this image? Reply with one word.","attachments":[{"Image":{"blob":"<blob>","mime":"image/png","name":"image.png"}}],"rewind":{"checkpoint":1,"after":null}}}}}
 {"status":"running"}
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":["deep-research","design","design-sync"],"queue":[]}}
 {"item":{"seq":2,"item":{"Assistant":{"text":"Red"}}}}
+{"item":{"seq":1,"item":{"User":{"text":"What single color fills this image? Reply with one word.","attachments":[{"Image":{"blob":"<blob>","mime":"image/png","name":"image.png"}}],"rewind":{"checkpoint":1,"after":"0ffedc2a-a0e5-460e-9d7a-bacd61ce2c9a"}}}}}
 {"status":"finished"}

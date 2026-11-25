@@ -1,5 +1,5 @@
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
-{"item":{"seq":1,"item":{"User":{"text":"Use the Write tool to create a file named a.txt in the current directory containing the single word hi. Do nothing else."}}}}
+{"item":{"seq":1,"item":{"User":{"text":"Use the Write tool to create a file named a.txt in the current directory containing the single word hi. Do nothing else.","rewind":{"checkpoint":1,"after":null}}}}}
 {"status":"running"}
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":["deep-research","design","design-sync"],"queue":[]}}
@@ -10,4 +10,5 @@
 {"status":"running"}
 {"item":{"seq":2,"item":{"Tool":{"id":"toolu_01KXBtpLQ7PqXrFv691X3sYh","title":"Write","kind":"edit","status":"failed","detail":"<workspace>/a.txt","diff":{"path":"<workspace>/a.txt","old":null,"new":"hi"},"output":"User denied this write."}}}}
 {"item":{"seq":3,"item":{"Assistant":{"text":"The write to `a.txt` was denied, so I did not create the file. I did not retry it or use another tool to get the same result, since the denial means you declined that action. If you want the file created, tell me and I'll write it."}}}}
+{"item":{"seq":1,"item":{"User":{"text":"Use the Write tool to create a file named a.txt in the current directory containing the single word hi. Do nothing else.","rewind":{"checkpoint":1,"after":"f575d514-6a38-4875-b1a5-9e252b4b8c9c"}}}}}
 {"status":"finished"}

@@ -8,6 +8,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use berth_core::acp::{
     AcpItem, AcpSessionState, AttachmentUpload, OptionCategory, PromptInput, QueueId, QueuedPrompt,
+    Rewind,
 };
 use berth_core::{AgentId, ServerEvent, WorktreeId};
 use serde_json::{json, Value};
@@ -82,16 +83,21 @@ impl Daemon {
         let agent_id = agent_id.clone();
         let live = live.clone();
         Box::pin(async move {
-            daemon.checkpoint_for_prompt(&agent_id).await;
+            let checkpoint = daemon.checkpoint_for_prompt(&agent_id).await;
             daemon.acp_title_from_prompt(&agent_id, &input.text);
-            daemon.acp_push(
+            let pushed = daemon.acp_push(
                 &agent_id,
                 &live,
                 AcpItem::User {
                     text: input.text,
                     attachments: input.attachments,
+                    rewind: Some(Rewind {
+                        checkpoint,
+                        after: None,
+                    }),
                 },
             );
+            *live.prompt_item.lock().unwrap() = pushed;
             daemon.apply_hook_event(&agent_id, HookEvent::UserPromptSubmit, Some(sid.clone()));
             let params = json!({"sessionId": sid, "prompt": blocks});
             tokio::spawn(async move {
@@ -122,6 +128,7 @@ impl Daemon {
         outcome: Result<Value, RpcError>,
     ) {
         self.acp_flush_tail(agent_id, live);
+        self.acp_mark_rewind_point(agent_id, live, &outcome);
         self.acp.persist.flush(&self.store, agent_id);
         live.touch();
         live.permission.lock().unwrap().take();
@@ -169,13 +176,15 @@ impl Daemon {
                         .await;
                     return;
                 }
-                Err(error) => self.acp_push(
-                    agent_id,
-                    live,
-                    AcpItem::Notice {
-                        text: format!("A queued message was not sent: {error:#}"),
-                    },
-                ),
+                Err(error) => {
+                    self.acp_push(
+                        agent_id,
+                        live,
+                        AcpItem::Notice {
+                            text: format!("A queued message was not sent: {error:#}"),
+                        },
+                    );
+                }
             }
         }
     }
@@ -254,6 +263,7 @@ impl Daemon {
                     AcpItem::User {
                         text: queued.prompt.text,
                         attachments: queued.prompt.attachments,
+                        rewind: None,
                     },
                 );
                 Ok(())

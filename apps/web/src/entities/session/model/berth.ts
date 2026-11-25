@@ -68,6 +68,7 @@ type WatchEvent =
   | { type: 'acp_item'; agent: string; seq: number; item: AcpItem }
   | { type: 'acp_session'; agent: string; state: AcpSessionState }
   | { type: 'channel_appended'; channel: string; seq: number }
+  | { type: 'acp_truncated'; agent: string; from_seq: number }
   | { type: 'hub_changed' }
   | { type: 'error'; message: string };
 
@@ -81,7 +82,8 @@ export type AcpChatCaps = { images: boolean; embedded_files: boolean; questions:
 export type AcpQueuedPrompt = { id: number; prompt: { text: string; attachments: AcpAttachment[] } };
 export type AcpMcpServer = { name: string; status: string | null };
 export type AcpSessionState = { caps: AcpChatCaps; options: AcpConfigOption[]; commands: { name: string; description: string }[]; queue: AcpQueuedPrompt[]; mcp: AcpMcpServer[] };
-export type AcpItem = { User: { text: string; attachments?: AcpAttachment[] } } | { Assistant: { text: string } } | { Thought: { text: string } } | { Tool: AcpTool } | { Plan: { entries: AcpPlanEntry[] } } | { Notice: { text: string } };
+type AcpRewind = { checkpoint: number | null; after: string | null };
+export type AcpItem = { User: { text: string; attachments?: AcpAttachment[]; rewind?: AcpRewind } } | { Assistant: { text: string } } | { Thought: { text: string } } | { Tool: AcpTool } | { Plan: { entries: AcpPlanEntry[] } } | { Notice: { text: string } };
 export type AcpItemAt = { seq: number; item: AcpItem };
 
 const acpListeners = new Set<(agent: string, item: AcpItemAt) => void>();
@@ -92,6 +94,13 @@ export function onAcpItem(listener: (agent: string, item: AcpItemAt) => void): (
 }
 
 const acpSessionListeners = new Set<(agent: string, state: AcpSessionState) => void>();
+const acpTruncatedListeners = new Set<(agent: string, fromSeq: number) => void>();
+
+export function onAcpTruncated(listener: (agent: string, fromSeq: number) => void): () => void {
+  acpTruncatedListeners.add(listener);
+  return () => acpTruncatedListeners.delete(listener);
+}
+
 
 export function onAcpSession(listener: (agent: string, state: AcpSessionState) => void): () => void {
   acpSessionListeners.add(listener);
@@ -329,6 +338,9 @@ function createStore(): BerthStore {
         return;
       case 'channel_appended':
         for (const listener of channelListeners) listener(event.channel);
+      case 'acp_truncated':
+        for (const listener of acpTruncatedListeners) listener(event.agent, event.from_seq);
+        return;
         return;
       case 'hub_changed':
         for (const listener of hubListeners) listener();
@@ -511,6 +523,10 @@ export async function acpMcpStatus(agent: string): Promise<void> {
 }
 
 export async function acpAttachment(blob: string): Promise<string> {
+export async function acpRewind(agent: string, seq: number): Promise<void> {
+  await acknowledged({ AcpRewind: { agent, seq } });
+}
+
   const reply = await call({ AcpAttachment: { blob } });
   if (!('AcpAttachment' in reply)) throw new BerthCallError(t('agents.errors.unexpectedReply', { reply: Object.keys(reply).join('') }));
   return reply.AcpAttachment.data;

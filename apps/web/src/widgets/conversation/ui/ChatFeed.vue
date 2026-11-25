@@ -13,6 +13,7 @@ import CheckpointRow from './CheckpointRow.vue';
 import SubagentGroup from './SubagentGroup.vue';
 import StoredAttachments from './StoredAttachments.vue';
 import QueuedBubble from './QueuedBubble.vue';
+import RewindAction from './RewindAction.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -24,6 +25,7 @@ const props = withDefaults(
     panelId?: string;
     agentId?: string | null;
     checkpointOf?: ReadonlyMap<string, Checkpoint>;
+    rewindOf?: ReadonlyMap<string, { seq: number; files: boolean }>;
     spoken?: ReadonlySet<string>;
     subagentOf: ReadonlyMap<string, Subagent>;
     now: number;
@@ -34,9 +36,9 @@ const props = withDefaults(
     queued?: readonly AcpQueuedPrompt[];
     canSendNow?: boolean;
   }>(),
-  { place: '', panelId: undefined, agentId: null, checkpointOf: () => new Map(), spoken: () => new Set(), subagentsOpenable: true, found: null, notes: () => [], workingSince: null, queued: () => [] },
+  { place: '', panelId: undefined, agentId: null, checkpointOf: () => new Map(), rewindOf: () => new Map(), spoken: () => new Set(), subagentsOpenable: true, found: null, notes: () => [], workingSince: null, queued: () => [] },
 );
-const emit = defineEmits<{ restored: []; openSubagent: [callId: string]; editQueued: [id: number, text: string]; removeQueued: [id: number]; sendQueuedNow: [id: number] }>();
+const emit = defineEmits<{ restored: []; rewound: [text: string]; openSubagent: [callId: string]; editQueued: [id: number, text: string]; removeQueued: [id: number]; sendQueuedNow: [id: number] }>();
 
 const { t, formatDate } = useI18n();
 const notesAfter = (key: string) => props.notes.filter((note) => note.afterKey === key);
@@ -52,6 +54,7 @@ const working = computed(() => (props.workingSince === null ? null : durationLab
           <RichContent v-if="block.message.shell && block.message.markdown" class="shell" :data-shell="block.message.shell" :markdown="block.message.markdown" />
           <p v-else-if="block.message.text" class="user">{{ block.message.text }}</p>
           <span v-if="spoken.has(block.message.text.trim())" class="spoken" data-testid="conversation-spoken">{{ t('chat.sentByVoice') }}</span>
+          <RewindAction v-if="agentId && rewindOf.get(block.message.key)" :agent-id="agentId" :seq="rewindOf.get(block.message.key)!.seq" :files="rewindOf.get(block.message.key)!.files" :agent-label="agentLabel" @rewound="emit('rewound', block.message.text)" />
           <CheckpointRow v-if="agentId && checkpointOf.get(block.message.key)" :agent-id="agentId" :checkpoint="checkpointOf.get(block.message.key)!" :place="place" :agent-label="agentLabel" @restored="emit('restored')" />
         </div>
         <div v-else-if="block.type === 'turn'" class="turn" :title="block.model ? modelLabel(block.model) : undefined" data-testid="conversation-turn">

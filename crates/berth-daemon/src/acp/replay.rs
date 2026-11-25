@@ -80,10 +80,10 @@ enum Call {
     Resume,
     RefreshMcp,
     Rewind {
-        to: Option<String>,
+        seq: u64,
     },
     RewindInBackground {
-        to: Option<String>,
+        seq: u64,
     },
 }
 
@@ -319,13 +319,13 @@ impl Run {
                     .stop_agent_or_its_acp_turn(self.agent()?)
                     .await?
             }
-            Call::Rewind { to } => {
-                self.daemon.acp_rewind(self.agent()?, to).await?;
+            Call::Rewind { seq } => {
+                self.daemon.acp_rewind(self.agent()?, seq).await?;
             }
-            Call::RewindInBackground { to } => {
+            Call::RewindInBackground { seq } => {
                 let daemon = self.daemon.clone();
                 let agent = self.agent()?.clone();
-                tokio::spawn(async move { daemon.acp_rewind(&agent, to).await });
+                tokio::spawn(async move { daemon.acp_rewind(&agent, seq).await });
             }
             Call::RefreshMcp => {
                 let daemon = self.daemon.clone();
@@ -393,6 +393,9 @@ impl Run {
                     seq,
                     item,
                 } if a == agent => json!({"item": {"seq": seq, "item": item}}),
+                ServerEvent::AcpTruncated { agent: a, from_seq } if a == agent => {
+                    json!({"truncated": from_seq})
+                }
                 ServerEvent::StatusChanged {
                     agent: a, status, ..
                 } if a == agent => json!({"status": status}),

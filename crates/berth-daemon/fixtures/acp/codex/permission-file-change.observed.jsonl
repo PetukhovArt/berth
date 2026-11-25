@@ -1,6 +1,6 @@
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":false,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"gpt-5.6-terra","choices":3},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":6}],"commands":[],"queue":[]}}
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":false,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"gpt-5.6-terra","choices":3},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":6}],"commands":[],"queue":[],"mcp":[{"name":"codex_apps","status":"connected"}]}}
-{"item":{"seq":1,"item":{"User":{"text":"Create or overwrite .codex-probe-write-action.txt with exactly this text: codex app-server approval fixture. Use a local shell command or file edit only, then briefly report what happened. Do not read package metadata, use GitHub, use web, or use MCP."}}}}
+{"item":{"seq":1,"item":{"User":{"text":"Create or overwrite .codex-probe-write-action.txt with exactly this text: codex app-server approval fixture. Use a local shell command or file edit only, then briefly report what happened. Do not read package metadata, use GitHub, use web, or use MCP.","rewind":{"checkpoint":1,"after":null}}}}}
 {"status":"running"}
 {"item":{"seq":2,"item":{"Thought":{"text":"**Planning patch application despite sandbox restrictions**"}}}}
 {"item":{"seq":3,"item":{"Assistant":{"text":"I’ll create the requested fixture file locally with that exact single-line content."}}}}
@@ -11,4 +11,5 @@
 {"status":"running"}
 {"item":{"seq":4,"item":{"Tool":{"id":"exec-114e8eef-018a-444d-8542-aa0232ff1f38","title":"Write","kind":"edit","status":"completed","detail":"<workspace>/.codex-probe-write-action.txt","diff":{"path":"<workspace>/.codex-probe-write-action.txt","old":null,"new":"codex app-server approval fixture.\n"},"output":null}}}}
 {"item":{"seq":5,"item":{"Assistant":{"text":"Created `.codex-probe-write-action.txt` with exactly:\n\n```text\ncodex app-server approval fixture.\n```"}}}}
+{"item":{"seq":1,"item":{"User":{"text":"Create or overwrite .codex-probe-write-action.txt with exactly this text: codex app-server approval fixture. Use a local shell command or file edit only, then briefly report what happened. Do not read package metadata, use GitHub, use web, or use MCP.","rewind":{"checkpoint":1,"after":"01a0d604-6358-72f1-bb89-7361cce0045c"}}}}}
 {"status":"finished"}

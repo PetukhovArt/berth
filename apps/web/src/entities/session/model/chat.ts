@@ -1,12 +1,13 @@
 import { computed, onScopeDispose, shallowRef, triggerRef, type ComputedRef, type ShallowRef } from 'vue';
-import { acpEditQueued, acpMcpStatus, acpPrompt, acpRemoveQueued, acpSendQueuedNow, acpSessionState, acpTranscript, answerFeedbackForm, describeError, onAcpItem, onAcpSession, setConfigOption, type AcpAnswers, type AcpAttachmentUpload, type AcpItemAt, type AcpSessionState } from './berth';
-import { acpMessages, acpPlan } from './acpChat';
+import { acpEditQueued, acpMcpStatus, acpPrompt, acpRemoveQueued, acpSendQueuedNow, acpSessionState, acpTranscript, answerFeedbackForm, describeError, onAcpItem, onAcpSession, onAcpTruncated, setConfigOption, type AcpAnswers, type AcpAttachmentUpload, type AcpItemAt, type AcpSessionState } from './berth';
+import { acpMessages, acpPlan, acpRewinds, type RewindOption } from './acpChat';
 import type { TranscriptMessage } from './external';
 import type { PlanItem } from './plan';
 
 export type Chat = {
   messages: ComputedRef<TranscriptMessage[]>;
   plan: ComputedRef<PlanItem[]>;
+  rewinds: ComputedRef<Map<string, RewindOption>>;
   session: ShallowRef<AcpSessionState | null>;
   loading: ShallowRef<boolean>;
   error: ShallowRef<string | null>;
@@ -57,6 +58,12 @@ export function useChat(agent: string): Chat {
   let live = false;
   onScopeDispose(onAcpItem((from, at) => from === agent && put(at)));
   onScopeDispose(
+    onAcpTruncated((from, fromSeq) => {
+      if (from !== agent) return;
+      items.value = items.value.filter((at) => at.seq < fromSeq);
+    }),
+  );
+  onScopeDispose(
     onAcpSession((from, state) => {
       if (from !== agent) return;
       live = true;
@@ -87,6 +94,7 @@ export function useChat(agent: string): Chat {
   return {
     messages: computed(() => acpMessages(items.value)),
     plan: computed(() => acpPlan(items.value)),
+    rewinds: computed(() => acpRewinds(items.value)),
     session,
     loading,
     error,

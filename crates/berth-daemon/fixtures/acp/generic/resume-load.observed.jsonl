@@ -1,10 +1,10 @@
 {"session":{"caps":{"images":false,"embedded_files":false,"questions":"typed","mcp":"list","rewind":false,"steer":false,"terminal_view":false},"options":[],"commands":[],"queue":[]}}
-{"item":{"seq":1,"item":{"User":{"text":"one"}}}}
+{"item":{"seq":1,"item":{"User":{"text":"one","rewind":{"checkpoint":1,"after":null}}}}}
 {"status":"running"}
 {"item":{"seq":2,"item":{"Assistant":{"text":"first answer"}}}}
 {"status":"finished"}
 {"session":{"caps":{"images":false,"embedded_files":false,"questions":"typed","mcp":"list","rewind":false,"steer":false,"terminal_view":false},"options":[],"commands":[],"queue":[]}}
-{"item":{"seq":3,"item":{"User":{"text":"two"}}}}
+{"item":{"seq":3,"item":{"User":{"text":"two","rewind":{"checkpoint":2,"after":null}}}}}
 {"status":"running"}
 {"item":{"seq":4,"item":{"Assistant":{"text":"second answer"}}}}
 {"status":"finished"}

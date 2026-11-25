@@ -1,6 +1,6 @@
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":false,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"gpt-6-luna","choices":3},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":false,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"gpt-6-luna","choices":3},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[],"mcp":[{"name":"codex_apps","status":"connected"}]}}
-{"item":{"seq":1,"item":{"User":{"text":"Do not answer immediately. First run the local shell command `sleep 30`, then respond with exactly: interrupt fixture should not finish naturally."}}}}
+{"item":{"seq":1,"item":{"User":{"text":"Do not answer immediately. First run the local shell command `sleep 30`, then respond with exactly: interrupt fixture should not finish naturally.","rewind":{"checkpoint":1,"after":null}}}}}
 {"status":"running"}
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":false,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"gpt-6-luna","choices":3},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[],"mcp":[{"name":"codex_apps","status":"connected"}]}}
 {"status":"finished"}

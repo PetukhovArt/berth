@@ -1,5 +1,5 @@
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
-{"item":{"seq":1,"item":{"User":{"text":"Call the AskUserQuestion tool once to ask me which color I prefer, with options Red, Green, Blue (single choice). After my answer, reply with one short sentence naming the color."}}}}
+{"item":{"seq":1,"item":{"User":{"text":"Call the AskUserQuestion tool once to ask me which color I prefer, with options Red, Green, Blue (single choice). After my answer, reply with one short sentence naming the color.","rewind":{"checkpoint":1,"after":null}}}}}
 {"status":"running"}
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":["deep-research","design","design-sync"],"queue":[]}}
@@ -10,4 +10,5 @@
 {"status":"running"}
 {"item":{"seq":2,"item":{"Tool":{"id":"toolu_01HFPwQawu6VSuWSjHsbCpQt","title":"AskUserQuestion","kind":"other","status":"completed","detail":null,"diff":null,"output":"Your questions have been answered: \"Which color do you prefer?\"=\"Green\". You can now continue with these answers in mind."}}}}
 {"item":{"seq":3,"item":{"Assistant":{"text":"Green."}}}}
+{"item":{"seq":1,"item":{"User":{"text":"Call the AskUserQuestion tool once to ask me which color I prefer, with options Red, Green, Blue (single choice). After my answer, reply with one short sentence naming the color.","rewind":{"checkpoint":1,"after":"d9043693-af3f-43df-ab4e-71f52232b66c"}}}}}
 {"status":"finished"}

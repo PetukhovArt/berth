@@ -1008,6 +1008,14 @@ impl Store {
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
+    pub fn delete_acp_items_from(&self, agent: &AgentId, seq: u64) -> Result<()> {
+        self.conn.lock().unwrap().execute(
+            "DELETE FROM acp_items WHERE agent_id = ?1 AND seq >= ?2",
+            params![agent.as_str(), seq as i64],
+        )?;
+        Ok(())
+    }
+
     pub fn last_acp_seq(&self, agent: &AgentId) -> Result<u64> {
         let seq: Option<i64> = self.conn.lock().unwrap().query_row(
             "SELECT MAX(seq) FROM acp_items WHERE agent_id = ?1",

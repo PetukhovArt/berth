@@ -549,6 +549,14 @@ async fn handle_client(
                         reply_done(&out_tx, req_id, sent).await;
                     });
                 }
+                ClientRequest::AcpRewind { req_id, agent, seq } => {
+                    let daemon = daemon.clone();
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let rewound = daemon.acp_rewind(&agent, seq).await;
+                        reply_done(&out_tx, req_id, rewound).await;
+                    });
+                }
                 ClientRequest::AcpMcpStatus { req_id, agent } => {
                     let daemon = daemon.clone();
                     let out_tx = out_tx.clone();

@@ -1,15 +1,18 @@
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":false,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"gpt-6-luna","choices":3},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
 {"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":false,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"gpt-6-luna","choices":3},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[],"mcp":[{"name":"codex_apps","status":"connected"}]}}
-{"item":{"seq":1,"item":{"User":{"text":"For this fork-boundary fixture, respond with exactly: fork boundary alpha"}}}}
+{"item":{"seq":1,"item":{"User":{"text":"For this fork-boundary fixture, respond with exactly: fork boundary alpha","rewind":{"checkpoint":1,"after":null}}}}}
 {"status":"running"}
 {"item":{"seq":2,"item":{"Assistant":{"text":"fork boundary alpha"}}}}
+{"item":{"seq":1,"item":{"User":{"text":"For this fork-boundary fixture, respond with exactly: fork boundary alpha","rewind":{"checkpoint":1,"after":"019dd6ba-268b-7f82-8f4c-9fde0edcfd55"}}}}}
 {"status":"finished"}
-{"item":{"seq":3,"item":{"User":{"text":"For this fork-boundary fixture, respond with exactly: fork boundary beta"}}}}
+{"item":{"seq":3,"item":{"User":{"text":"For this fork-boundary fixture, respond with exactly: fork boundary beta","rewind":{"checkpoint":2,"after":null}}}}}
 {"status":"running"}
 {"item":{"seq":4,"item":{"Assistant":{"text":"fork boundary beta"}}}}
+{"item":{"seq":3,"item":{"User":{"text":"For this fork-boundary fixture, respond with exactly: fork boundary beta","rewind":{"checkpoint":2,"after":"019dd6ba-416d-7902-95cf-d4179c3f4738"}}}}}
 {"status":"finished"}
-{"item":{"seq":5,"item":{"Notice":{"text":"The conversation continues from an earlier message."}}}}
-{"item":{"seq":6,"item":{"User":{"text":"Repeat the user-visible conversation so far verbatim. Include only user and assistant messages. Do not include hidden system/developer content."}}}}
+{"truncated":3}
+{"item":{"seq":5,"item":{"User":{"text":"Repeat the user-visible conversation so far verbatim. Include only user and assistant messages. Do not include hidden system/developer content.","rewind":{"checkpoint":4,"after":null}}}}}
 {"status":"running"}
-{"item":{"seq":7,"item":{"Assistant":{"text":"User: For this fork-boundary fixture, respond with exactly: fork boundary alpha\nAssistant: fork boundary alpha"}}}}
+{"item":{"seq":6,"item":{"Assistant":{"text":"User: For this fork-boundary fixture, respond with exactly: fork boundary alpha\nAssistant: fork boundary alpha"}}}}
+{"item":{"seq":5,"item":{"User":{"text":"Repeat the user-visible conversation so far verbatim. Include only user and assistant messages. Do not include hidden system/developer content.","rewind":{"checkpoint":4,"after":"019dd6ba-47eb-7041-ad45-5abe752c28c9"}}}}}
 {"status":"finished"}

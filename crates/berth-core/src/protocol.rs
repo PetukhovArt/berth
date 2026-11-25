@@ -529,6 +529,12 @@ pub enum ClientRequest {
         id: QueueId,
     },
 
+    AcpRewind {
+        req_id: u64,
+        agent: AgentId,
+        seq: u64,
+    },
+
     AcpMcpStatus {
         req_id: u64,
         agent: AgentId,
@@ -1008,6 +1014,11 @@ pub enum ServerEvent {
     AcpSessionChanged {
         agent: AgentId,
         state: Box<AcpSessionState>,
+    },
+
+    AcpTruncated {
+        agent: AgentId,
+        from_seq: u64,
     },
 
     AcpAttachment {

@@ -125,6 +125,7 @@ struct AcpLive {
     last_active: Mutex<Instant>,
     state: Mutex<AcpSessionState>,
     next_queue_id: AtomicU64,
+    prompt_item: Mutex<Option<AcpItemAt>>,
 }
 
 impl AcpLive {
@@ -257,6 +258,7 @@ impl Daemon {
             last_active: Mutex::new(Instant::now()),
             state: Default::default(),
             next_queue_id: AtomicU64::new(1),
+            prompt_item: Default::default(),
         });
         map.insert(agent_id.clone(), live.clone());
         drop(map);
@@ -576,9 +578,11 @@ impl Daemon {
             .collect()
     }
 
-    fn acp_push(&self, agent_id: &AgentId, live: &AcpLive, item: AcpItem) {
+    fn acp_push(&self, agent_id: &AgentId, live: &AcpLive, item: AcpItem) -> Option<AcpItemAt> {
         let items = live.transcript.lock().unwrap().push(item);
+        let pushed = items.last().cloned();
         self.acp_emit(agent_id, items, None);
+        pushed
     }
 
     fn acp_emit(&self, agent_id: &AgentId, items: Vec<AcpItemAt>, read_at: Option<Instant>) {

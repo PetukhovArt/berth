@@ -108,6 +108,10 @@ pub enum WatchEvent {
         seq: u64,
         item: Box<berth_core::acp::AcpItem>,
     },
+    AcpTruncated {
+        agent: AgentId,
+        from_seq: u64,
+    },
     AcpSession {
         agent: AgentId,
         state: Box<berth_core::acp::AcpSessionState>,
@@ -654,6 +658,9 @@ impl Actor {
             ServerEvent::AcpSessionChanged { agent, state } => {
                 WatchEvent::AcpSession { agent, state }
             }
+            ServerEvent::AcpTruncated { agent, from_seq } => {
+                WatchEvent::AcpTruncated { agent, from_seq }
+            }
             ServerEvent::ChannelAppended { channel, seq } => {
                 WatchEvent::ChannelAppended { channel, seq }
             }
@@ -847,6 +854,7 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::AcpEditQueued { req_id, .. }
         | ClientRequest::AcpRemoveQueued { req_id, .. }
         | ClientRequest::AcpSendQueuedNow { req_id, .. }
+        | ClientRequest::AcpRewind { req_id, .. }
         | ClientRequest::AcpMcpStatus { req_id, .. }
         | ClientRequest::SetConfigOption { req_id, .. }
         | ClientRequest::AcpAttachment { req_id, .. }

@@ -130,6 +130,8 @@ const openedCall = shallowRef<string | null>(null);
 const opened = computed(() => (openedCall.value ? subagentOf.value.get(openedCall.value) : undefined));
 let savedScroll = 0;
 const checkpointOf = computed(() => checkpointsByPrompt(messages.value, checkpoints.value));
+const composer = useTemplateRef<InstanceType<typeof ChatComposer>>('composer');
+const rewindOf = computed(() => (acp?.session.value?.caps.rewind && !turnRunning.value ? acp.rewinds.value : undefined));
 const slashSource = computed<SlashSource | null>(() => {
   if (acp) return { acpAgent: props.sessionId };
   return harness.value && root.value ? { harness: harness.value, cwd: root.value } : null;
@@ -422,7 +424,7 @@ onBeforeUnmount(() => {
         <ChatStates v-if="loading" class="column" state="loading" />
         <ChatStates v-else-if="shownError" class="column" state="error" :message="shownError" :can-show-terminal="!!terminal" @retry="retry" @show-terminal="showViewInActivePanel('terminal')" />
         <ChatStates v-else-if="!messages.length" class="column" state="empty" />
-        <ChatFeed v-else class="column" :blocks="blocks" :harness="harness" :agent-label="agentLabel" :root="root" :place="place" :panel-id="panelId" :agent-id="agentId" :checkpoint-of="checkpointOf" :spoken="spoken" :subagent-of="subagentOf" :now="now" :found="found" :notes="notes" :working-since="workingSince" :queued="acp?.session.value?.queue" :can-send-now="acp?.session.value?.caps.steer" @restored="loadCheckpoints" @open-subagent="openSubagent" @edit-queued="(id, text) => acp?.editQueued(id, text).catch(fail)" @remove-queued="(id) => acp?.removeQueued(id).catch(fail)" @send-queued-now="(id) => acp?.sendQueuedNow(id).catch(fail)" />
+        <ChatFeed v-else class="column" :blocks="blocks" :harness="harness" :agent-label="agentLabel" :root="root" :place="place" :panel-id="panelId" :agent-id="agentId" :checkpoint-of="checkpointOf" :rewind-of="rewindOf" :spoken="spoken" :subagent-of="subagentOf" :now="now" :found="found" :notes="notes" :working-since="workingSince" :queued="acp?.session.value?.queue" :can-send-now="acp?.session.value?.caps.steer" @restored="loadCheckpoints" @rewound="(text) => composer?.fill(text)" @open-subagent="openSubagent" @edit-queued="(id, text) => acp?.editQueued(id, text).catch(fail)" @remove-queued="(id) => acp?.removeQueued(id).catch(fail)" @send-queued-now="(id) => acp?.sendQueuedNow(id).catch(fail)" />
       </div>
       <FeedbackCard v-if="terminal && request" class="column" :session="terminal" :request="request" :agent-label="agentLabel" :place="place" :questions="acp?.session.value?.caps.questions" @resolved="noteResolved" />
       <div v-if="acp" class="column agent-log" data-testid="chat-agent-log">
@@ -431,7 +433,7 @@ onBeforeUnmount(() => {
       </div>
       <SubagentStrip v-if="stripAgents.length" class="column" :agents="stripAgents" :now="now" @open="openSubagent" />
       <ChatFindBar v-if="find.open.value" ref="findBar" v-model="find.query.value" :index="find.index.value" :total="find.total.value" @step="find.step" @close="find.hide" />
-      <ChatComposer v-if="terminal" :messages="messages" :suggestion="suggestion" :model-chip="modelChip" :sending="sending" :slash-source="slashSource" :stop="turnRunning ? stop : null" :send="submit" :quotes="quotes" :caps="acp?.session.value?.caps ?? null" :options="acp?.session.value?.options ?? []" :mcp="acp?.session.value?.mcp ?? []" :refresh-mcp="refreshMcp" :worktree-id="agent?.worktree_id ?? null" @unquote="(label) => terminal && removePromptQuote(terminal, label)" @option="(id, value) => acp?.setOption(id, value).catch(fail)" />
+      <ChatComposer v-if="terminal" ref="composer" :messages="messages" :suggestion="suggestion" :model-chip="modelChip" :sending="sending" :slash-source="slashSource" :stop="turnRunning ? stop : null" :send="submit" :quotes="quotes" :caps="acp?.session.value?.caps ?? null" :options="acp?.session.value?.options ?? []" :mcp="acp?.session.value?.mcp ?? []" :refresh-mcp="refreshMcp" :worktree-id="agent?.worktree_id ?? null" @unquote="(label) => terminal && removePromptQuote(terminal, label)" @option="(id, value) => acp?.setOption(id, value).catch(fail)" />
       <template v-if="column.box.value && !column.phone.value">
         <div
           v-for="edge in COLUMN_EDGES"

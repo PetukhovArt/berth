@@ -139,6 +139,7 @@ fn open_item(open: &OpenText) -> AcpItemAt {
             TextKind::User => AcpItem::User {
                 text,
                 attachments: Vec::new(),
+                rewind: None,
             },
             TextKind::Assistant => AcpItem::Assistant { text },
             TextKind::Thought => AcpItem::Thought { text },

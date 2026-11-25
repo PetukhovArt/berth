@@ -15,7 +15,7 @@
 {"type":"emit_inbound","label":"user","frame":{"type":"user","message":{"role":"user","content":"Forget that: the code word is now BETA. Reply with the single word ok."},"parent_tool_use_id":null,"session_id":"0255ad61-7188-4a04-ae7c-295304d06e9a","uuid":"6f2f6f64-5180-44ce-a2e0-10a3bc475fd8"}}
 {"type":"emit_inbound","label":"assistant","frame":{"type":"assistant","message":{"model":"claude-haiku-5-5","id":"msg_011ChPpstvBUqCtSptvS11JP","type":"message","role":"assistant","content":[{"type":"text","text":"ok"}],"container":null,"stop_reason":null,"stop_sequence":null,"stop_details":null},"parent_tool_use_id":null,"session_id":"0255ad61-7188-4a04-ae7c-295304d06e9a","uuid":"ccbdcb35-8d34-4460-a5be-00eabf0c2f05"}}
 {"type":"emit_inbound","label":"result/success","frame":{"type":"result","subtype":"success","is_error":false,"stop_reason":"end_turn","terminal_reason":"completed","result":"ok","session_id":"0255ad61-7188-4a04-ae7c-295304d06e9a","uuid":"e34c2653-5e0e-4f93-9dde-3eca7274ddb3"}}
-{"type":"berth","call":{"call":"rewind","args":{"to":"e860f7ef-7fe2-474b-ad24-240b6a896782"}}}
+{"type":"berth","call":{"call":"rewind","args":{"seq":3}}}
 {"type":"berth","call":{"call":"prompt","args":{"text":"What is the code word? Reply with just the word."}}}
 {"type":"expect_outbound","label":"control_request","frame":{"type":"control_request","request_id":"b3","request":{"subtype":"initialize"}}}
 {"type":"expect_outbound","label":"user","frame":{"type":"user","message":{"role":"user","content":[{"type":"text","text":"What is the code word? Reply with just the word."}]}}}

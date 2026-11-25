@@ -7,6 +7,8 @@ pub enum AcpItem {
         text: String,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         attachments: Vec<Attachment>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        rewind: Option<Rewind>,
     },
     Assistant {
         text: String,
@@ -21,6 +23,12 @@ pub enum AcpItem {
     Notice {
         text: String,
     },
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Rewind {
+    pub checkpoint: Option<u32>,
+    pub after: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

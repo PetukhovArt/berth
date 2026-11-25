@@ -203,19 +203,23 @@ impl Daemon {
         Ok(worktree.path)
     }
 
-    pub async fn checkpoint_for_prompt(&self, agent: &AgentId) {
+    pub async fn checkpoint_for_prompt(&self, agent: &AgentId) -> Option<u32> {
         let Ok(Some(row)) = self.store.get_agent(agent) else {
-            return;
+            return None;
         };
         if !takes_checkpoints(row.kind, &crate::config::Config::load()) {
-            return;
+            return None;
         }
         let Ok(dir) = self.checkpoint_dir(agent) else {
-            return;
+            return None;
         };
         let _guard = SERIAL.lock().await;
-        if let Err(e) = take(&dir, agent, false).await {
-            tracing::debug!(agent = %agent, error = %e, "checkpoint skipped");
+        match take(&dir, agent, false).await {
+            Ok(number) => Some(number),
+            Err(e) => {
+                tracing::debug!(agent = %agent, error = %e, "checkpoint skipped");
+                None
+            }
         }
     }
 
@@ -225,11 +229,19 @@ impl Daemon {
     }
 
     pub async fn restore_checkpoint(&self, agent: &AgentId, number: u32) -> Result<()> {
-        let dir = self.checkpoint_dir(agent)?;
-        let _guard = SERIAL.lock().await;
-        restore(&dir, agent, number).await?;
+        self.restore_checkpoint_files(agent, number).await?;
         self.acp_note_checkpoint_restored(agent, number);
         Ok(())
+    }
+
+    pub(crate) async fn restore_checkpoint_files(
+        &self,
+        agent: &AgentId,
+        number: u32,
+    ) -> Result<()> {
+        let dir = self.checkpoint_dir(agent)?;
+        let _guard = SERIAL.lock().await;
+        restore(&dir, agent, number).await
     }
 }
 

@@ -14,6 +14,8 @@
 - Added `Edit` to a queued prompt of an ACP agent, which now shows in the Chat view as a dashed bubble under the working row
 - Added an MCP button to the prompt box of ACP agents: it shows how many MCP servers the session has, with the state of each and a `Refresh` action
 - Added `Send now` to a queued prompt of a Claude agent in the protocol Chat view: the message joins the running turn at the next tool call, or runs right after it when no tool is running
+- Added `Rewind to here` to the messages you sent in the protocol Chat view of Claude and Codex agents: it asks first, then removes that message and everything after it, restores the worktree files from its checkpoint when one exists, and puts the message back in the prompt box
+- Changed new Grok sessions to open in the Chat view over ACP (`grok agent stdio`), with the terminal Grok still in the type list and its limits shown on both
 - Changed the permission and question card in the Chat view to a raised card with the project and branch, and `1`, `2`, `3` keys for its buttons
 - Changed `Restore files` on a checkpoint to ask in a dialog instead of two links under the prompt
 - Changed the Chat view to the new look: a 780 px centered column, rounded prompt bubbles, a colored tile by the agent name, and phase chips in the plan strip

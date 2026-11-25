@@ -71,6 +71,20 @@ function messagesOf(at: AcpItemAt): TranscriptMessage[] {
   return hit;
 }
 
+export type RewindOption = { seq: number; files: boolean };
+
+export function acpRewinds(items: readonly AcpItemAt[]): Map<string, RewindOption> {
+  const out = new Map<string, RewindOption>();
+  let previousAfter = true;
+  for (const { seq, item } of items) {
+    if (!('User' in item)) continue;
+    const rewind = item.User.rewind;
+    if (rewind && previousAfter) out.set(`acp:${seq}`, { seq, files: rewind.checkpoint !== null });
+    previousAfter = !!rewind?.after;
+  }
+  return out;
+}
+
 export const acpMessages = (items: readonly AcpItemAt[]): TranscriptMessage[] => items.flatMap(messagesOf);
 
 const toPlan = (entries: AcpPlanEntry[]): PlanItem[] => entries.map((entry) => ({ text: entry.content, state: PLAN_STATES[entry.status] ?? 'todo' }));

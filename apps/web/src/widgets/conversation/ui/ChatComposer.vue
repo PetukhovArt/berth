@@ -143,6 +143,13 @@ async function sendDraft() {
   }
 }
 
+function fill(text: string) {
+  draft.value = text;
+  void nextTick(() => input.value?.focus());
+}
+
+defineExpose({ fill });
+
 const canSend = computed(() => !!draft.value.trim() || attachments.pending.value.length > 0);
 
 function attach(files: FileList | null | undefined) {
