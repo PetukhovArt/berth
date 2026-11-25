@@ -6,8 +6,7 @@
 //! it is blind to everything orphaned before that mechanism existed. The
 //! agent CLI's own transcript store fills that in: it survived the delete
 //! untouched, and it reaches back over the whole history. It is Claude-only
-//! (codex keeps conversations in a SQLite of its own, cursor-agent in
-//! nothing this can read), and it knows a title and a branch rather than a
+//! (codex keeps conversations in a SQLite of its own), and it knows a title and a branch rather than a
 //! session row.
 //!
 //! Neither source is trusted to be complete, so the merge is a union keyed

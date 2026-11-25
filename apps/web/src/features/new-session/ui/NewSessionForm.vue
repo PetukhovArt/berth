@@ -27,7 +27,7 @@ const conversations = useProjectConversations(location.project, continuing);
 const chosenConversation = computed(() => conversations.choices.value.find((choice) => choice.key === pickedConversation.value && !choice.busy) ?? null);
 
 type AcpKind = `acp:${string}`;
-type Kind = Exclude<AgentKind, 'acp'> | AcpKind | 'terminal';
+type Kind = Exclude<AgentKind, 'acp' | 'cursor' | 'opencode'> | AcpKind | 'terminal';
 const ON_BEFORE_PROVIDERS_LOAD: { label: string; value: Kind }[] = [
   { label: 'Claude', value: 'claude' },
   { label: 'Codex', value: 'codex' },

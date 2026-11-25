@@ -17,6 +17,7 @@
 - Changed the permission and question card in the Chat view to a raised card with the project and branch, and `1`, `2`, `3` keys for its buttons
 - Changed `Restore files` on a checkpoint to ask in a dialog instead of two links under the prompt
 - Changed the Chat view to the new look: a 780 px centered column, rounded prompt bubbles, a colored tile by the agent name, and phase chips in the plan strip
+- Removed the terminal mode of Cursor and OpenCode: they run only in the chat view, turned on in Settings → Providers, and their older terminal sessions stay in the list and the archive but cannot be resumed
 
 ## 0.24.0 (2026-11-25)
 

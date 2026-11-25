@@ -4,7 +4,7 @@ export type GroupOp = 'all' | 'any';
 
 export const ERROR_KINDS = ['usage_limit', 'overloaded', 'server', 'network', 'auth', 'model', 'other'] as const;
 export const STATUSES = ['fresh', 'running', 'finished', 'needs_feedback', 'terminated', 'disconnected'] as const;
-export const ROUTE_KINDS = ['claude', 'codex', 'cursor', 'opencode', 'grok'] as const;
+export const ROUTE_KINDS = ['claude', 'codex', 'grok'] as const;
 const ALL_KINDS: readonly string[] = [...ROUTE_KINDS, 'acp'];
 
 export type Condition =

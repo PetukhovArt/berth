@@ -84,7 +84,7 @@ function fetchProblem(fetched: FetchedSource, branch: string): string {
 }
 
 async function ensureCli(kind: AgentKind) {
-  if (kind === 'cursor' || kind === 'opencode' || kind === 'grok') return;
+  if (kind === 'grok') return;
   const view = await invoke<AiView>('ai_refresh', { kind }).catch(() => null);
   if (view?.status === 'not_installed') throw new Problem(t('forge.openSession.errors.cliMissing', { kind: KIND_LABEL[kind] }));
   if (view?.status === 'signed_out') throw new Problem(t('forge.openSession.errors.cliSignedOut', { kind: KIND_LABEL[kind] }));

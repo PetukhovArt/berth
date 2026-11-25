@@ -289,6 +289,3 @@ pub const BUILT_IN_PROVIDERS: [BuiltInProvider; 8] = [
         driver: "codex",
     },
 ];
-
-pub const NATIVE_OFF_FOR_NEW_INSTALLS: [crate::AgentKind; 2] =
-    [crate::AgentKind::Cursor, crate::AgentKind::OpenCode];

@@ -1,4 +1,4 @@
-use berth_core::acp::{BUILT_IN_PROVIDERS, NATIVE_OFF_FOR_NEW_INSTALLS};
+use berth_core::acp::BUILT_IN_PROVIDERS;
 use berth_core::AgentKind;
 use serde::Serialize;
 use serde_json::{Map, Value};
@@ -6,12 +6,10 @@ use serde_json::{Map, Value};
 use crate::settings::{berth_config_object, berth_config_write};
 
 const PROVIDERS_KEY: &str = "providers";
-const NATIVE: [(AgentKind, &str); 5] = [
+const NATIVE: [(AgentKind, &str); 3] = [
     (AgentKind::Claude, "Claude"),
     (AgentKind::Codex, "Codex"),
     (AgentKind::Grok, "Grok"),
-    (AgentKind::Cursor, "Cursor"),
-    (AgentKind::OpenCode, "OpenCode"),
 ];
 
 const LOG_BYTES_SHOWN: u64 = 64 * 1024;
@@ -90,8 +88,7 @@ pub async fn providers_read() -> Result<Vec<ProviderRow>, String> {
         id: kind.as_str().to_string(),
         name: name.to_string(),
         acp: false,
-        enabled: enabled_in(providers.get(kind.as_str()))
-            .unwrap_or(!NATIVE_OFF_FOR_NEW_INSTALLS.contains(kind)),
+        enabled: enabled_in(providers.get(kind.as_str())).unwrap_or(true),
         command: None,
         program: None,
         args: None,

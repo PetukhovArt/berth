@@ -1,15 +1,9 @@
 //! Managed-hook installation into the agent CLI's config:
 //! `<worktree>/.claude/settings.local.json` (Claude Code),
-//! `~/.codex/hooks.json` (Codex CLI), or `<worktree>/.cursor/hooks.json`
-//! (Cursor CLI).
+//! `~/.codex/hooks.json` (Codex CLI), or `~/.grok/hooks/berth.json` (Grok).
 //!
-//! Claude and Codex share one hooks dialect (PascalCase event names, groups
-//! of `{"hooks": [{"type": "command", ...}]}`). Cursor speaks its own
-//! (verified against cursor-agent 2026.08 + cursor.com/docs/agent/hooks):
-//! camelCase event names (`beforeSubmitPrompt`, `stop`, ...), flat
-//! `{"command": ...}` entries, a required top-level `"version": 1`, and each
-//! hook must print a JSON response (`{"continue": true}`) to stdout or
-//! gating events fall back to fail-open error handling.
+//! The three share one hooks dialect (PascalCase event names, groups of
+//! `{"hooks": [{"type": "command", ...}]}`).
 //!
 //! Rules, each one paid for by a bug:
 //! - MERGE, never replace: user hooks are preserved untouched.
@@ -20,7 +14,7 @@
 //!   so a berth install replaces them instead of running beside them.
 //! - A corrupt file ABORTS the install — never clobber user data.
 //! - Commands are env-guarded, so the hooks are inert when the user runs
-//!   `claude`/`codex`/`cursor-agent` outside berth (no BERTH_* in env →
+//!   `claude`/`codex`/`grok` outside berth (no BERTH_* in env →
 //!   exit 0).
 //!
 //! Codex caveat, and the reason its hooks are the one set that does NOT go
@@ -41,15 +35,16 @@ use serde_json::{json, Map, Value};
 use std::path::{Path, PathBuf};
 
 use super::windows_command;
-use crate::git_exclude::{add_to_block, CREATED_HOOK_FILES_BLOCK};
+use crate::git_exclude::{add_to_block, remove_from_block, CREATED_HOOK_FILES_BLOCK};
 
-/// The hooks file's name under codex's home and cursor's per-worktree dir.
-/// Claude keeps its hooks in its settings file instead.
+/// The hooks file's name under codex's home. Claude keeps its hooks in its
+/// settings file instead.
 const HOOKS_FILE: &str = "hooks.json";
 const HOOK_TAG: &str = "_berthManaged";
 /// Claude Code's per-checkout settings: hooks and permission rules both.
 const CLAUDE_SETTINGS_FILE: &str = "settings.local.json";
-/// The CLIs' config directories: `.claude` and `.cursor` are per-worktree;
+/// The CLIs' config directories: `.claude` is per-worktree and `.cursor` holds
+/// only what an older berth wrote there;
 /// `.codex` is both the worktree-local one an older berth wrote (pruned
 /// now) and the name under `$HOME` when `$CODEX_HOME` is unset.
 const CLAUDE_DIR: &str = ".claude";
@@ -61,11 +56,7 @@ const CURSOR_TITLE_RULE_FILE: &str = "berth-title.mdc";
 const CLAUDE_SETTINGS_IN_CHECKOUT: &str = ".claude/settings.local.json";
 const CURSOR_HOOKS_IN_CHECKOUT: &str = ".cursor/hooks.json";
 const CURSOR_TITLE_RULE_IN_CHECKOUT: &str = ".cursor/rules/berth-title.mdc";
-pub const WRITTEN_IN_CHECKOUT: [&str; 3] = [
-    CLAUDE_SETTINGS_IN_CHECKOUT,
-    CURSOR_HOOKS_IN_CHECKOUT,
-    CURSOR_TITLE_RULE_IN_CHECKOUT,
-];
+pub const WRITTEN_IN_CHECKOUT: [&str; 1] = [CLAUDE_SETTINGS_IN_CHECKOUT];
 /// How long a hook waits on the daemon. Hooks run inline in the agent's
 /// turn, so a hung daemon has to cost seconds, not a stuck session.
 pub(super) const HOOK_CURL_TIMEOUT_SECS: u32 = 3;
@@ -118,18 +109,6 @@ const GROK_EVENTS: &[(&str, Option<&str>)] = &[
     ("StopFailure", None),
     ("SessionStart", None),
     ("Notification", None),
-];
-
-/// (cursor hook event, berth hookEvent query value). Cursor has no
-/// PermissionRequest hook and berth always runs cursor-agent with
-/// `--force`, so waiting-on-user is simply not detectable — busy/idle is.
-/// `sessionEnd` is skipped: PTY-exit synthetics already cover agent death.
-const CURSOR_EVENTS: &[(&str, &str)] = &[
-    ("sessionStart", "SessionStart"),
-    ("beforeSubmitPrompt", "UserPromptSubmit"),
-    ("stop", "Stop"),
-    ("subagentStart", "SubagentStart"),
-    ("subagentStop", "SubagentStop"),
 ];
 
 /// The shell test every hook opens with. Outside berth (a bare `claude`
@@ -188,24 +167,12 @@ const EVENTS_THE_DAEMON_MUST_SEE_IN_ORDER: &[&str] = &[
 /// Permission rules letting Claude Code run berth's own commands without a
 /// permission prompt: the auto-title `berth rename`, and the `berth
 /// worktree` relocation its appended system prompt tells it to use
-/// (codex/cursor run with their skip-permissions flags).
+/// (codex runs with its skip-permissions flag).
 const CLAUDE_ALLOW_RULES: &[&str] = &[
     "Bash(berth rename:*)",
     "Bash(berth worktree:*)",
     "Bash(berth spawn:*)",
 ];
-
-/// Cursor variant: the payload arrives on stdin like Claude's, but cursor
-/// expects a JSON response on stdout — `{"continue": true}` keeps gating
-/// events (beforeSubmitPrompt) flowing and is ignored by the rest.
-fn cursor_hook_command(event: &str) -> String {
-    format!(
-        "if {}; then printf '{{\"continue\": true}}\\n'; exit 0; fi; \
-         {} >/dev/null 2>&1 || true; printf '{{\"continue\": true}}\\n'",
-        env_guard(),
-        hook_curl("cursor", event)
-    )
-}
 
 fn is_berth_command(cmd: Option<&Value>) -> bool {
     cmd.and_then(Value::as_str)
@@ -223,7 +190,7 @@ fn is_berth_group(group: &Value) -> bool {
         return true;
     }
     // Legacy/untagged detection by command signature — nested Claude/Codex
-    // shape and flat Cursor shape both.
+    // shape and the flat shape an older berth wrote for Cursor both.
     if is_berth_command(group.get("command")) {
         return true;
     }
@@ -427,6 +394,49 @@ pub fn prune_codex_worktree_hooks(cwd: &Path) -> Result<()> {
     write_hooks_root(&dir, HOOKS_FILE, &root)
 }
 
+pub fn prune_cursor_worktree_hooks(cwd: &Path) -> Result<()> {
+    let dir = cwd.join(CURSOR_DIR);
+    let path = dir.join(HOOKS_FILE);
+    let mut removed = Vec::new();
+    if path.exists() {
+        let mut root = load_hooks_root(&path)?;
+        let before = root.clone();
+        if let Some(hooks_obj) = root.get_mut("hooks").and_then(Value::as_object_mut) {
+            purge_berth_groups(hooks_obj);
+        }
+        let holds_nothing = root.as_object().is_some_and(|o| {
+            o.iter().all(|(k, v)| {
+                k == "version" || (k == "hooks" && v.as_object().is_some_and(Map::is_empty))
+            })
+        });
+        if before != root && holds_nothing {
+            std::fs::remove_file(&path).with_context(|| format!("remove {}", path.display()))?;
+            removed.push(CURSOR_HOOKS_IN_CHECKOUT);
+        } else if before != root {
+            write_hooks_root(&dir, HOOKS_FILE, &root)?;
+        }
+    }
+    let rules = dir.join("rules");
+    for (name, in_checkout) in [
+        (CURSOR_TITLE_RULE_FILE, Some(CURSOR_TITLE_RULE_IN_CHECKOUT)),
+        (legacy::CURSOR_TITLE_RULE, None),
+    ] {
+        let rule = rules.join(name);
+        if rule.exists() {
+            std::fs::remove_file(&rule).with_context(|| format!("remove {}", rule.display()))?;
+            removed.extend(in_checkout);
+        }
+    }
+    for file in removed {
+        if let Err(error) = remove_from_block(cwd, &CREATED_HOOK_FILES_BLOCK, file) {
+            tracing::debug!(cwd = %cwd.display(), %file, %error, "hook file still in git's exclude");
+        }
+    }
+    let _ = std::fs::remove_dir(&rules);
+    let _ = std::fs::remove_dir(&dir);
+    Ok(())
+}
+
 /// Strip berth's groups from under EVERY event key of a loaded hooks
 /// object (not just the ones about to be reinstalled: stale keys from an
 /// older install shape must go, and events berth may drop in the future
@@ -439,43 +449,6 @@ fn purge_berth_groups(hooks_obj: &mut Map<String, Value>) {
         }
     }
     hooks_obj.retain(|_, groups| groups.as_array().map(|a| !a.is_empty()).unwrap_or(true));
-}
-
-/// Merge berth's managed hooks for Cursor into `<cwd>/.cursor/hooks.json`,
-/// in Cursor's own dialect. Also migrates away the Claude-shaped groups an
-/// older berth wrote there (events Cursor never fires — the original
-/// "cursor status never updates" bug).
-pub fn install_cursor_hooks(cwd: &Path) -> Result<()> {
-    let dir = cwd.join(CURSOR_DIR);
-    let path = dir.join(HOOKS_FILE);
-    let created = !path.exists();
-    let mut root = load_hooks_root(&path)?;
-
-    let root_obj = root_object_mut(&mut root, &path)?;
-    // Cursor requires a top-level version; never overwrite an existing one.
-    root_obj.entry("version").or_insert(json!(1));
-    let hooks = root_obj.entry("hooks").or_insert_with(|| json!({}));
-    let hooks_obj = object_mut(hooks, "\"hooks\"", &path)?;
-
-    // The stale PascalCase keys from the old Claude-shaped install go here.
-    purge_berth_groups(hooks_obj);
-
-    for (cursor_event, berth_event) in CURSOR_EVENTS {
-        let groups = hooks_obj
-            .entry(cursor_event.to_string())
-            .or_insert_with(|| json!([]));
-        let groups_arr = array_mut(groups, &format!("hooks.{cursor_event}"), &path)?;
-        groups_arr.push(json!({
-            "command": cursor_hook_command(berth_event),
-            "_berthManaged": true,
-        }));
-    }
-
-    write_hooks_root(&dir, HOOKS_FILE, &root)?;
-    if created {
-        exclude_from_git(cwd, CURSOR_HOOKS_IN_CHECKOUT);
-    }
-    Ok(())
 }
 
 fn load_hooks_root(path: &Path) -> Result<Value> {
@@ -561,44 +534,6 @@ fn merge_managed_hooks(
     Ok(())
 }
 
-/// Cursor can't receive daemon-injected context (its hooks are gating-only,
-/// answering with their own JSON), so the auto-title instruction ships as a
-/// managed always-on project rule instead. The file is wholly berth-owned
-/// (namespaced filename) and rewritten on every spawn. Firing outside
-/// berth or on later prompts is harmless: the rule env-guards itself, and
-/// the daemon accepts at most one auto-title per session.
-pub fn install_cursor_title_rule(cwd: &Path) -> Result<()> {
-    let dir = cwd.join(CURSOR_DIR).join("rules");
-    write_text_atomic(&dir, CURSOR_TITLE_RULE_FILE, &cursor_title_rule())?;
-    exclude_from_git(cwd, CURSOR_TITLE_RULE_IN_CHECKOUT);
-    let old = dir.join(legacy::CURSOR_TITLE_RULE);
-    if old.exists() {
-        std::fs::remove_file(&old).with_context(|| format!("remove {}", old.display()))?;
-    }
-    Ok(())
-}
-
-/// Same instruction the injectable CLIs get, wrapped in cursor's rule
-/// frontmatter and an env guard (a project rule can't be switched off from
-/// the daemon's side the way an injection can).
-fn cursor_title_rule() -> String {
-    format!(
-        "---
-description: Berth session auto-title (managed by berth — edits are overwritten)
-alwaysApply: true
----
-
-This rule applies only when the environment variable BERTH_AGENT_ID is set
-(the session runs inside berth). If it is unset, ignore this rule entirely.
-
-On the first user message of a new conversation:
-
-{}
-",
-        super::AUTO_TITLE_INSTRUCTION
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -639,15 +574,6 @@ mod tests {
              -H \"Content-Type: application/json\" --data-binary @- \
              \"$BERTH_API_URL/api/hooks/grok?agentId=$BERTH_AGENT_ID&hookEvent=Stop\" \
              >/dev/null 2>&1 || true"
-        );
-        assert_eq!(
-            cursor_hook_command("Stop"),
-            "if [ -z \"$BERTH_AGENT_ID\" ] || [ -z \"$BERTH_API_URL\" ]; then \
-             printf '{\"continue\": true}\\n'; exit 0; fi; \
-             curl -sS -m 3 --noproxy '*' -X POST -H \"Authorization: Bearer $BERTH_API_TOKEN\" \
-             -H \"Content-Type: application/json\" --data-binary @- \
-             \"$BERTH_API_URL/api/hooks/cursor?agentId=$BERTH_AGENT_ID&hookEvent=Stop\" \
-             >/dev/null 2>&1 || true; printf '{\"continue\": true}\\n'"
         );
     }
 
@@ -941,22 +867,6 @@ mod tests {
     }
 
     #[test]
-    fn cursor_title_rule_is_written_and_rewritten() {
-        let tmp = tempfile::tempdir().unwrap();
-        install_cursor_title_rule(tmp.path()).unwrap();
-        let path = tmp.path().join(".cursor/rules/berth-title.mdc");
-        let text = std::fs::read_to_string(&path).unwrap();
-        assert!(text.contains("alwaysApply: true"));
-        assert!(text.contains("berth rename"));
-        assert!(text.contains("BERTH_AGENT_ID"), "must be env-guarded");
-        // Wholly berth-owned: a scribbled-on file is simply replaced.
-        std::fs::write(&path, "user scribbles").unwrap();
-        install_cursor_title_rule(tmp.path()).unwrap();
-        let text = std::fs::read_to_string(&path).unwrap();
-        assert!(text.contains("berth rename"));
-    }
-
-    #[test]
     fn preserves_user_hooks_and_settings() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().join(".claude");
@@ -1082,130 +992,16 @@ mod tests {
     }
 
     #[test]
-    fn cursor_installs_native_dialect_into_missing_file() {
-        let tmp = tempfile::tempdir().unwrap();
-        install_cursor_hooks(tmp.path()).unwrap();
-        let hooks = read_json(tmp.path(), ".cursor/hooks.json");
-        // Cursor requires the top-level version marker.
-        assert_eq!(hooks["version"], json!(1));
-        // camelCase cursor events, flat command entries.
-        let stop = &hooks["hooks"]["stop"];
-        assert_eq!(stop.as_array().unwrap().len(), 1);
-        assert_eq!(stop[0]["_berthManaged"], json!(true));
-        let cmd = stop[0]["command"].as_str().unwrap();
-        assert!(cmd.contains("/api/hooks/cursor?"), "cursor endpoint: {cmd}");
-        assert!(cmd.contains("hookEvent=Stop"));
-        // Gating hooks must answer cursor with a JSON response.
-        assert!(
-            cmd.contains("{\"continue\": true}"),
-            "stdout response: {cmd}"
-        );
-        let submit = &hooks["hooks"]["beforeSubmitPrompt"][0];
-        assert!(submit["command"]
-            .as_str()
-            .unwrap()
-            .contains("hookEvent=UserPromptSubmit"));
-        assert!(hooks["hooks"]["sessionStart"][0]["command"]
-            .as_str()
-            .unwrap()
-            .contains("hookEvent=SessionStart"));
-        assert!(hooks["hooks"]["subagentStop"][0]["command"]
-            .as_str()
-            .unwrap()
-            .contains("hookEvent=SubagentStop"));
-        // Claude-dialect events must not appear — cursor never fires them.
-        for key in [
-            "Stop",
-            "UserPromptSubmit",
-            "SessionStart",
-            "PermissionRequest",
-        ] {
-            assert!(hooks["hooks"].get(key).is_none(), "{key} leaked");
-        }
-    }
-
-    #[test]
-    fn cursor_reinstall_does_not_accumulate_duplicates() {
-        let tmp = tempfile::tempdir().unwrap();
-        install_cursor_hooks(tmp.path()).unwrap();
-        install_cursor_hooks(tmp.path()).unwrap();
-        let hooks = read_json(tmp.path(), ".cursor/hooks.json");
-        for (event, _) in CURSOR_EVENTS {
-            assert_eq!(
-                hooks["hooks"][*event].as_array().unwrap().len(),
-                1,
-                "{event} accumulated duplicates"
-            );
-        }
-    }
-
-    #[test]
-    fn cursor_migrates_legacy_claude_shaped_groups_and_keeps_foreign() {
-        // An older berth wrote Claude-dialect groups (PascalCase events,
-        // nested hooks arrays) that cursor never fires, while another tool
-        // wrote flat tagged groups into the same file. Migration must remove
-        // the former and preserve the latter.
-        let tmp = tempfile::tempdir().unwrap();
-        let dir = tmp.path().join(".cursor");
-        std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(
-            dir.join("hooks.json"),
-            serde_json::to_string(&json!({
-                "version": 1,
-                "hooks": {
-                    "Stop": [
-                        { "_berthManaged": true,
-                          "hooks": [{ "type": "command",
-                            "command": "curl $BERTH_API_URL/api/hooks/cursor?agentId=$BERTH_AGENT_ID&hookEvent=Stop" }] }
-                    ],
-                    "UserPromptSubmit": [
-                        { "_berthManaged": true,
-                          "hooks": [{ "type": "command",
-                            "command": "curl $BERTH_API_URL/api/hooks/cursor?agentId=$BERTH_AGENT_ID&hookEvent=UserPromptSubmit" }] }
-                    ],
-                    "stop": [
-                        { "command": "curl $OTHER_TOOL_URL/hooks/cursor", "_otherToolManaged": true }
-                    ]
-                }
-            }))
-            .unwrap(),
-        )
-        .unwrap();
-
-        install_cursor_hooks(tmp.path()).unwrap();
-        let hooks = read_json(tmp.path(), ".cursor/hooks.json");
-        // Stale Claude-dialect keys are gone entirely (empty arrays pruned).
-        assert!(hooks["hooks"].get("Stop").is_none());
-        assert!(hooks["hooks"].get("UserPromptSubmit").is_none());
-        // Foreign managed group survives ahead of ours.
-        let stop = hooks["hooks"]["stop"].as_array().unwrap();
-        assert_eq!(stop.len(), 2, "mc group + berth group");
-        assert_eq!(stop[0]["_otherToolManaged"], json!(true));
-        assert_eq!(stop[1]["_berthManaged"], json!(true));
-    }
-
-    #[test]
-    fn cursor_corrupt_file_aborts_without_clobbering() {
-        let tmp = tempfile::tempdir().unwrap();
-        let dir = tmp.path().join(".cursor");
-        std::fs::create_dir_all(&dir).unwrap();
-        let original = "{ not json";
-        std::fs::write(dir.join("hooks.json"), original).unwrap();
-        assert!(install_cursor_hooks(tmp.path()).is_err());
-        let after = std::fs::read_to_string(dir.join("hooks.json")).unwrap();
-        assert_eq!(after, original, "corrupt file must be left untouched");
-    }
-
-    #[test]
     fn per_kind_installs_do_not_interfere() {
         let tmp = tempfile::tempdir().unwrap();
         let codex_dir = tempfile::tempdir().unwrap();
         install_claude_hooks(tmp.path()).unwrap();
         install_codex_hooks(codex_dir.path()).unwrap();
-        install_cursor_hooks(tmp.path()).unwrap();
+        let grok_dir = tempfile::tempdir().unwrap();
+        install_grok_hooks(grok_dir.path()).unwrap();
         let claude = read_settings(tmp.path());
         let codex = read_json(codex_dir.path(), "hooks.json");
-        let cursor = read_json(tmp.path(), ".cursor/hooks.json");
+        let grok = read_json(grok_dir.path(), "hooks/berth.json");
         assert!(claude["hooks"]["Stop"][0]["hooks"][0]["command"]
             .as_str()
             .unwrap()
@@ -1214,10 +1010,10 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("/api/hooks/codex?"));
-        assert!(cursor["hooks"]["stop"][0]["command"]
+        assert!(grok["hooks"]["Stop"][0]["hooks"][0]["command"]
             .as_str()
             .unwrap()
-            .contains("/api/hooks/cursor?"));
+            .contains("/api/hooks/grok?"));
     }
 
     fn git_in(repo: &Path, args: &[&str]) -> String {
@@ -1262,8 +1058,6 @@ mod tests {
         );
 
         install_claude_hooks(&worktree).unwrap();
-        install_cursor_hooks(&worktree).unwrap();
-        install_cursor_title_rule(&worktree).unwrap();
         install_claude_hooks(&worktree).unwrap();
 
         assert_eq!(git_in(&worktree, &["status", "--porcelain"]), "");
@@ -1273,8 +1067,6 @@ mod tests {
             "{exclude}"
         );
         assert_eq!(exclude.matches("/.claude/settings.local.json").count(), 1);
-        assert!(exclude.contains("/.cursor/hooks.json"));
-        assert!(exclude.contains("/.cursor/rules/berth-title.mdc"));
     }
 
     #[test]

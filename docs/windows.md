@@ -33,7 +33,7 @@ To build the desktop app from your own `main`, see [Desktop working copy](#deskt
 You also need:
 
 - A recent Rust toolchain: <https://rustup.rs>.
-- At least one agent CLI on `PATH`: `claude`, `codex`, `cursor-agent`, `opencode` or `grok`. CLIs installed through npm
+- At least one agent CLI on `PATH`: `claude`, `codex` or `grok`, or the CLI of an ACP agent such as `cursor-agent` or `opencode`. CLIs installed through npm
   (`.cmd` shims) are resolved and launched correctly.
 - Git for Windows.
 - `gh` and/or `glab`, if you want to connect GitHub or GitLab through their CLI instead of a token.

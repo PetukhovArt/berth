@@ -236,7 +236,7 @@ mod platform {
         if !is_batch_file(&resolved) {
             return (resolved.display().to_string(), args.to_vec());
         }
-        // npm installs `codex` and `cursor-agent` as `.cmd` shims, and
+        // npm installs `codex` as a `.cmd` shim, and
         // `CreateProcess` cannot execute one — only `cmd.exe` can. `call`
         // ahead of the shim keeps `cmd /c`'s quote-stripping rule off the
         // path, which would otherwise mangle a quoted program path.

@@ -614,7 +614,7 @@ impl AgentStatusMachine {
     /// Periodic tick, two jobs.
     ///
     /// First, `progress_busy` is the CLI's *current* advertised busy state
-    /// (`None` when it advertises none: codex, cursor, a session with no live
+    /// (`None` when it advertises none: codex, a session with no live
     /// PTY). `Progress` events report edges only, so an end-of-turn that
     /// landed while the status said something else leaves no second edge to
     /// wait for and the agent wedges — `needs_feedback` especially, since
@@ -1300,7 +1300,7 @@ mod tests {
     }
 
     /// The level must not talk over a CLI that is still working, and must not
-    /// speak at all for one that never advertises a level (codex, cursor, a
+    /// speak at all for one that never advertises a level (codex, a
     /// session with no live PTY).
     #[test]
     fn tick_leaves_a_busy_or_silent_cli_alone() {

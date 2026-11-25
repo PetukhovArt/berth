@@ -9,8 +9,6 @@
 //! A terminal gets the same for a Claude Code the user started in it, so
 //! the session's stored name stays the one name every client shows.
 //!
-//! Cursor's CLI has no rename, so it has nothing here.
-//!
 //! [`Store::adopt_cli_title`]: crate::store::Store::adopt_cli_title
 
 use crate::registry::{sanitize_title, Daemon};

@@ -134,8 +134,6 @@ export const settings = {
       description: 'Which type is selected by default in the new session form.',
       claude: 'Claude',
       codex: 'Codex',
-      cursor: 'Cursor',
-      opencode: 'OpenCode',
       grok: 'Grok',
       terminal: 'Terminal',
     },

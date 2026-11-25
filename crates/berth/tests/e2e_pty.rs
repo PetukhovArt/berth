@@ -2038,10 +2038,6 @@ async fn create_agent_refuses_when_the_cli_is_not_installed() {
     let env = TestEnv::new();
     let repo = env.make_repo();
     let shell = env.blind_shell();
-    let cursor_turned_on = r#"{"providers":{"cursor":{"enabled":true}}}"#;
-    let data = env.tmp.path().join("data");
-    std::fs::create_dir_all(&data).unwrap();
-    std::fs::write(data.join("config.json"), cursor_turned_on).unwrap();
     let mut daemon = env.spawn_daemon_with_shell(&shell);
 
     let mut c = connect(&env.sock()).await;
@@ -2051,9 +2047,6 @@ async fn create_agent_refuses_when_the_cli_is_not_installed() {
     for (req_id, kind, want) in [
         (10u64, AgentKind::Claude, "claude"),
         (11, AgentKind::Codex, "codex"),
-        // Cursor's binary is `cursor-agent`; the message must name that, not
-        // the kind, or the user goes looking for the wrong thing to install.
-        (12, AgentKind::Cursor, "cursor-agent"),
     ] {
         write_frame(
             &mut c,

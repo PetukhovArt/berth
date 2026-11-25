@@ -146,8 +146,7 @@ impl Daemon {
         effort: Option<String>,
     ) -> Result<()> {
         let config = crate::config::Config::load();
-        if kind == AgentKind::Acp
-            || !config.prewarm
+        if !config.prewarm
             || crate::acp::providers::ensure_native_enabled(&config.providers, kind).is_err()
         {
             return Ok(());
@@ -442,12 +441,7 @@ mod tests {
         );
         assert_eq!(prompted_adoption(claude, false, old, "fix it"), Cold);
         assert_eq!(prompted_adoption(claude, true, young, "a\x1b[201~b"), Cold);
-        for kind in [
-            AgentKind::Codex,
-            AgentKind::Cursor,
-            AgentKind::OpenCode,
-            AgentKind::Grok,
-        ] {
+        for kind in [AgentKind::Codex, AgentKind::Grok] {
             assert_eq!(prompted_adoption(kind, true, young, "fix it"), Cold);
         }
     }

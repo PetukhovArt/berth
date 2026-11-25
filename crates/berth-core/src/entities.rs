@@ -61,13 +61,11 @@ pub enum AgentKind {
 impl AgentKind {
     /// Every kind, for callers that must cover all of them (menus, the
     /// boot-time CLI probe warm) and should fail to compile if one is added.
-    pub const ALL: [AgentKind; 5] = [
-        AgentKind::Claude,
-        AgentKind::Codex,
-        AgentKind::Cursor,
-        AgentKind::OpenCode,
-        AgentKind::Grok,
-    ];
+    pub const ALL: [AgentKind; 3] = [AgentKind::Claude, AgentKind::Codex, AgentKind::Grok];
+
+    pub fn terminal_removed(&self) -> bool {
+        matches!(self, AgentKind::Cursor | AgentKind::OpenCode)
+    }
 
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -92,16 +90,12 @@ impl AgentKind {
         })
     }
 
-    /// Binary the kind launches. Differs from `as_str` only for Cursor,
-    /// whose agent CLI ships as `cursor-agent` (`cursor` opens the editor).
     pub fn cli_program(&self) -> &'static str {
         match self {
             AgentKind::Claude => "claude",
             AgentKind::Codex => "codex",
-            AgentKind::Cursor => "cursor-agent",
-            AgentKind::OpenCode => "opencode",
             AgentKind::Grok => "grok",
-            AgentKind::Acp => "",
+            AgentKind::Cursor | AgentKind::OpenCode | AgentKind::Acp => "",
         }
     }
 }

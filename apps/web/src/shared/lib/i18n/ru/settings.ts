@@ -137,8 +137,6 @@ export const settings: Translation<typeof en> = {
       description: 'Какой тип выбран по умолчанию в форме новой сессии.',
       claude: 'Claude',
       codex: 'Codex',
-      cursor: 'Cursor',
-      opencode: 'OpenCode',
       grok: 'Grok',
       terminal: 'Терминал',
     },

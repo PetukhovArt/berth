@@ -1,6 +1,6 @@
 # How Berth works
 
-Berth is a tmux-style terminal multiplexer for AI coding agents: run Claude / Codex / Cursor CLI
+Berth is a tmux-style terminal multiplexer for AI coding agents: run Claude / Codex / Grok CLI
 sessions across git repos and worktrees; they keep running after you close the UI. Vocabulary lives
 in `GLOSSARY.md`. Details live in the code — this file is the map, not the spec.
 
@@ -31,8 +31,8 @@ Everything persists in SQLite under the data dir.
 
 At spawn the daemon writes managed hooks into the agent CLI's config; the hooks curl the daemon's
 loopback HTTP receiver with a per-boot bearer token. Hook events plus the PTY's OSC 9;4 progress
-escapes drive a per-agent state machine that maps to the colored status dots. Claude and Codex share
-one hooks dialect; Cursor speaks its own. The same hook channel powers auto-titling.
+escapes drive a per-agent state machine that maps to the colored status dots. Claude, Codex and Grok share
+one hooks dialect. The same hook channel powers auto-titling.
 
 ## Side paths
 

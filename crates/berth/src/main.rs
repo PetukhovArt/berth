@@ -27,16 +27,18 @@ struct Cli {
 
 /// `--kind` for `berth spawn`: one of the agent CLIs berth runs.
 fn parse_agent_kind(s: &str) -> Result<berth_core::AgentKind, String> {
-    berth_core::AgentKind::parse(s).ok_or_else(|| {
-        format!(
-            "unknown harness `{s}` — expected one of {}",
-            berth_core::AgentKind::ALL
-                .iter()
-                .map(|k| k.as_str())
-                .collect::<Vec<_>>()
-                .join(", ")
-        )
-    })
+    berth_core::AgentKind::parse(s)
+        .filter(|kind| berth_core::AgentKind::ALL.contains(kind))
+        .ok_or_else(|| {
+            format!(
+                "unknown harness `{s}` — expected one of {}",
+                berth_core::AgentKind::ALL
+                    .iter()
+                    .map(|k| k.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        })
 }
 
 #[derive(clap::Args)]
@@ -137,7 +139,7 @@ enum Command {
         /// The task the new session starts on; multiple words need no quotes.
         #[arg(required = true, num_args = 1..)]
         task: Vec<String>,
-        /// Harness for the new session: claude, codex, cursor, opencode or grok (default:
+        /// Harness for the new session: claude, codex or grok (default:
         /// the same as this session's).
         #[arg(long, value_name = "KIND", value_parser = parse_agent_kind)]
         kind: Option<berth_core::AgentKind>,

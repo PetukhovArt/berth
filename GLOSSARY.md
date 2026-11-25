@@ -36,11 +36,11 @@ One row in the sessions list: an Agent or a Terminal Session, bound to a Worktre
 _Avoid_: tab
 
 **Agent**
-A Session running an agent CLI (`claude`, `codex`, `cursor-agent`).
+A Session running an agent CLI (`claude`, `codex`, `grok`).
 _Avoid_: the claude
 
 **Agent Kind**
-Which CLI an Agent runs: `claude`, `codex`, `cursor`, `opencode` or `grok`, or `acp` for an ACP Agent.
+Which CLI an Agent runs: `claude`, `codex` or `grok`, or `acp` for an ACP Agent. Rows with `cursor` or `opencode` ran in a terminal before that mode was removed: they stay readable and cannot be resumed.
 _Avoid_: harness, agent type
 
 **ACP Agent**

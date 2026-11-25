@@ -1,15 +1,12 @@
 //! Agent-CLI hook receiver: a loopback-only HTTP endpoint the shell hook
-//! one-liners POST to (`/api/hooks/claude`, `/api/hooks/codex`, and
-//! `/api/hooks/cursor`). Codex mirrors Claude's hook events and payload
-//! shape; cursor speaks its own dialect, but its installer translates event
-//! names into the `hookEvent` query param and the payload fields are aliased
-//! here (`conversation_id`, `subagent_id`, `workspace_roots`), so one
-//! handler serves all three. Fail-soft on both sides — a malformed payload
+//! one-liners POST to (`/api/hooks/claude`, `/api/hooks/codex` and
+//! `/api/hooks/grok`). Codex and Grok mirror Claude's hook events and payload
+//! shape, so one handler serves all three. Fail-soft on both sides — a malformed payload
 //! still gets a 200 so a broken hook never faults the user's agent turn.
 
 pub mod claude_mod;
 pub mod installer;
-pub mod opencode;
+pub mod removed_modes;
 mod windows_command;
 
 use crate::status::HookEvent;
@@ -26,7 +23,7 @@ use tokio::sync::mpsc;
 
 /// The auto-title instruction, in the one wording every channel that
 /// carries it uses: the UserPromptSubmit context injection (claude/codex)
-/// and cursor's always-on project rule. Repeats on every prompt until a
+/// and grok's rules. Repeats on every prompt until a
 /// title sticks, so it has to read sanely on a session that already has one.
 pub const AUTO_TITLE_INSTRUCTION: &str = "[berth] Before addressing the \
 user's request, run this shell command exactly once:\n\n  berth rename \
@@ -61,8 +58,8 @@ enum HookDialect {
     /// CLI's stdout, where it lands in the model's context — so on that
     /// event the body must be empty or the instruction, never diagnostics.
     Injectable,
-    /// Cursor: every hook answers with its own gating JSON and drops the
-    /// body, so the `{"ok": …}` diagnostics can stay.
+    /// Grok discards the body of every hook, so the `{"ok": …}`
+    /// diagnostics can stay.
     Plain,
 }
 
@@ -106,20 +103,14 @@ pub struct HookDelivery {
 pub struct HookPayload {
     pub hook_event_name: Option<String>,
     pub session_id: Option<String>,
-    /// Cursor names the resumable chat id `conversation_id` (== its
-    /// `session_id`, but only the alias is guaranteed on every event).
-    pub conversation_id: Option<String>,
     #[serde(alias = "notificationType")]
     pub notification_type: Option<String>,
     pub tool_name: Option<String>,
     pub agent_id: Option<String>,
-    /// Cursor's name for the subagent id in subagentStart/subagentStop.
     pub subagent_id: Option<String>,
     pub source: Option<String>,
     pub exit_code: Option<i32>,
     pub cwd: Option<String>,
-    /// Cursor sends no `cwd`; its first workspace root plays the role.
-    pub workspace_roots: Option<Vec<String>>,
     pub transcript_path: Option<String>,
     pub tool_input: Option<serde_json::Value>,
     pub permission_suggestions: Option<serde_json::Value>,
@@ -130,15 +121,11 @@ pub struct HookPayload {
 
 impl HookPayload {
     fn session_id(&self) -> Option<String> {
-        self.session_id
-            .clone()
-            .or_else(|| self.conversation_id.clone())
+        self.session_id.clone()
     }
 
     fn cwd(&self) -> Option<String> {
-        self.cwd
-            .clone()
-            .or_else(|| self.workspace_roots.as_ref()?.first().cloned())
+        self.cwd.clone()
     }
 
     fn subagent_id(&self) -> Option<String> {
@@ -211,14 +198,11 @@ pub async fn start_hook_server(
     });
     // Claude and Codex UserPromptSubmit hooks pipe this server's response
     // body to the CLI's stdout, where it lands in the model's context —
-    // that's the auto-title instruction channel. Cursor's dialect has no
-    // such channel (its hooks answer with their own gating JSON), so it
-    // takes the plain route.
+    // that's the auto-title instruction channel. Grok discards that body,
+    // so it takes the plain route.
     let app = Router::new()
         .route("/api/hooks/claude", post(receive_injectable_hook))
         .route("/api/hooks/codex", post(receive_injectable_hook))
-        .route("/api/hooks/opencode", post(receive_injectable_hook))
-        .route("/api/hooks/cursor", post(receive_plain_hook))
         .route("/api/hooks/grok", post(receive_plain_hook))
         .with_state(state);
 
@@ -250,8 +234,8 @@ async fn receive_injectable_hook(
     receive_hook(HookDialect::Injectable, state, query, headers, body).await
 }
 
-/// Cursor route: every hook command answers cursor with its own gating JSON
-/// and discards this body, so the `{"ok": ...}` diagnostics stay.
+/// Grok route: its hooks discard this body, so the `{"ok": ...}`
+/// diagnostics stay.
 async fn receive_plain_hook(
     State(state): State<Arc<HookServerState>>,
     Query(query): Query<HookQuery>,
@@ -518,10 +502,10 @@ mod tests {
         .await;
         assert_eq!(body, HOOK_OK);
 
-        // Cursor's dialect can't inject — no instruction even while pending.
+        // Grok's hooks discard the body — no instruction even while pending.
         let (_, body) = http_post(
             env.port,
-            "/api/hooks/cursor?agentId=pending&hookEvent=UserPromptSubmit",
+            "/api/hooks/grok?agentId=pending&hookEvent=UserPromptSubmit",
             &env.token,
             payload,
         )
@@ -574,7 +558,7 @@ mod tests {
 
         let (_, body) = http_post(
             env.port,
-            "/api/hooks/cursor?agentId=titled&hookEvent=SessionStart",
+            "/api/hooks/grok?agentId=titled&hookEvent=SessionStart",
             &env.token,
             payload,
         )
@@ -653,37 +637,9 @@ mod tests {
         .unwrap();
         assert_eq!(payload.cwd.as_deref(), Some("/w/feat"));
         assert_eq!(payload.session_id.as_deref(), Some("s1"));
-        // Absent cwd stays None (codex/cursor payloads may not send it).
+        // Absent cwd stays None (codex payloads may not send it).
         let payload: HookPayload = serde_json::from_str(r#"{"session_id":"s1"}"#).unwrap();
         assert!(payload.cwd.is_none());
-    }
-
-    #[test]
-    fn cursor_payload_aliases_map_to_claude_fields() {
-        // Real cursor-agent payload shape: conversation_id + workspace_roots,
-        // no cwd; session_id happens to be present too but the aliases must
-        // carry the day when it is not.
-        let payload: HookPayload = serde_json::from_str(
-            r#"{"conversation_id":"c1","workspace_roots":["/w/feat","/w/extra"],
-                "hook_event_name":"stop","status":"completed"}"#,
-        )
-        .unwrap();
-        assert_eq!(payload.session_id().as_deref(), Some("c1"));
-        assert_eq!(payload.cwd().as_deref(), Some("/w/feat"));
-        // Explicit session_id wins over the alias.
-        let payload: HookPayload =
-            serde_json::from_str(r#"{"session_id":"s1","conversation_id":"c1"}"#).unwrap();
-        assert_eq!(payload.session_id().as_deref(), Some("s1"));
-        // subagent_id alias feeds the SubagentStart/Stop events.
-        let payload: HookPayload =
-            serde_json::from_str(r#"{"subagent_id":"sub-1","conversation_id":"c1"}"#).unwrap();
-        assert_eq!(payload.subagent_id().as_deref(), Some("sub-1"));
-        match parse_event("SubagentStart", &payload) {
-            Some(HookEvent::SubagentStart { subagent_id }) => {
-                assert_eq!(subagent_id.as_deref(), Some("sub-1"));
-            }
-            other => panic!("unexpected event: {other:?}"),
-        }
     }
 
     #[test]

@@ -173,8 +173,6 @@ export const SETTINGS = {
     options: [
       { value: 'claude', label: 'settings.def.sessionsDefaultKind.claude' },
       { value: 'codex', label: 'settings.def.sessionsDefaultKind.codex' },
-      { value: 'cursor', label: 'settings.def.sessionsDefaultKind.cursor' },
-      { value: 'opencode', label: 'settings.def.sessionsDefaultKind.opencode' },
       { value: 'grok', label: 'settings.def.sessionsDefaultKind.grok' },
       { value: 'terminal', label: 'settings.def.sessionsDefaultKind.terminal' },
     ],

@@ -1331,7 +1331,7 @@ impl Daemon {
     /// process match its row. Kill it and respawn it resumed in the target,
     /// with a prompt naming the checkout it now runs in so the conversation
     /// carries straight on (Claude takes that prompt as an argument; codex
-    /// and cursor resume silent and wait for the user). Gated on the
+    /// resumes silent and waits for the user). Gated on the
     /// turn-end hooks — Stop, and the idle notification a Stop-less end
     /// still fires — so a Bash hook from the same turn never triggers it.
     pub fn complete_pending_move(self: &Arc<Self>, id: &AgentId, event: &HookEvent) {
@@ -1361,8 +1361,8 @@ impl Daemon {
         self.last_cwd.lock().unwrap().remove(id);
         self.carry_claude_transcript(&agent, &target);
         // Claude only: its `--resume <sid> "<prompt>"` is verified; whether
-        // `codex resume` / `cursor-agent --resume` take a trailing prompt is
-        // not, so their relocated sessions keep waiting for the user.
+        // `codex resume` takes a trailing prompt is not, so its relocated
+        // sessions keep waiting for the user.
         let prompt = relocation_prompt(&target);
         let prompt = (agent.kind == AgentKind::Claude).then_some(prompt.as_str());
         if let Err(e) =
@@ -1720,6 +1720,9 @@ impl Daemon {
     ) -> Result<Arc<PtySession>> {
         // Whatever spawns this agent, it runs in `worktree` from here: a
         // relocation still pending for it has been overtaken.
+        if agent.kind.terminal_removed() {
+            bail!("{} runs only in the chat view", agent.kind.as_str());
+        }
         self.pending_moves.lock().unwrap().remove(&agent.id);
         self.pending_ends.lock().unwrap().remove(&agent.id);
         // Managed status hooks; a failure here degrades to "no status
@@ -1740,13 +1743,8 @@ impl Daemon {
                 hooks::installer::install_codex_hooks(&hooks::installer::codex_home())
                     .and_then(|()| hooks::installer::prune_codex_worktree_hooks(&worktree.path))
             }
-            // Cursor also gets the managed auto-title project rule — its
-            // hook dialect has no context-injection channel.
-            AgentKind::Cursor => hooks::installer::install_cursor_hooks(&worktree.path)
-                .and_then(|()| hooks::installer::install_cursor_title_rule(&worktree.path)),
-            AgentKind::OpenCode => hooks::opencode::install_plugin(&hooks::opencode::plugin_dir()),
             AgentKind::Grok => hooks::installer::install_grok_hooks(&hooks::installer::grok_home()),
-            AgentKind::Acp => Ok(()),
+            AgentKind::Cursor | AgentKind::OpenCode | AgentKind::Acp => Ok(()),
         };
         if let Err(e) = install_result {
             tracing::warn!(error = %e, cwd = %worktree.path.display(), "hook install failed");
@@ -1834,8 +1832,7 @@ impl Daemon {
         Ok(session)
     }
 
-    /// A resumed session (`claude --resume` / `codex resume` /
-    /// `cursor-agent --resume`) dies fast when
+    /// A resumed session (`claude --resume` / `codex resume`) dies fast when
     /// it is stale/deleted — fall back to a fresh session instead of leaving
     /// a dead pane.
     fn arm_resume_fallback(
@@ -2018,18 +2015,17 @@ impl Daemon {
 
 /// Program + args for an agent PTY. An override (tests) is used verbatim —
 /// no resume args. Otherwise the kind picks the CLI and its resume shape:
-/// `claude --resume <sid>` and `cursor-agent --resume <sid>` (flag) vs
-/// `codex resume <sid>` (subcommand, so resume args must lead). Codex and
-/// cursor always get their skip-permissions flag (`--yolo` / `--force`),
-/// appended after the resume args.
+/// `claude --resume <sid>` (flag) vs `codex resume <sid>` (subcommand, so
+/// resume args must lead). Codex always gets its skip-permissions flag
+/// (`--yolo`), appended after the resume args.
 /// Model/effort choices follow: `claude --model m --effort e`,
-/// `codex -m m -c model_reasoning_effort=e` (cursor has neither knob).
+/// `codex -m m -c model_reasoning_effort=e`.
 /// Claude then gets berth's worktree guidance appended to its system
 /// prompt, any persisted PR scope is composed into that same system-prompt
 /// argument, and an `initial_prompt` — the relocation notice a `berth
 /// worktree` respawn opens with, or the starting prompt an AGENT PRESET
 /// launch composes — goes last, as the CLI's trailing positional prompt
-/// (`claude [prompt]`, `codex [PROMPT]`, `cursor-agent [prompt...]`).
+/// (`claude [prompt]`, `codex [PROMPT]`).
 ///
 /// The plain shape, as every restart/resume spawns it: no initial prompt,
 /// guidance on. Tests assert against this; the daemon calls the full form.
@@ -2058,7 +2054,7 @@ fn agent_spawn_command(
 /// of Claude's own EnterWorktree tool, whose checkout lands under
 /// `<repo>/.claude/worktrees/` on a `worktree-*` branch — a layout the
 /// worktree list only adopts after the fact, and not where a berth user
-/// keeps their worktrees. Claude only: codex and cursor have no
+/// keeps their worktrees. Claude only: codex has no
 /// system-prompt flag, and no EnterWorktree to steer away from.
 pub const CLAUDE_WORKTREE_GUIDANCE: &str = "[berth] This session runs inside berth, which \
 manages this project's git worktrees. When the user asks you to work in a worktree (\"do this in a \
@@ -2122,21 +2118,19 @@ fn agent_spawn_command_with(
     let (mut args, resumed) = match (kind, session_id) {
         (AgentKind::Claude, Some(sid)) => (vec!["--resume".to_string(), sid.to_string()], true),
         (AgentKind::Codex, Some(sid)) => (vec!["resume".to_string(), sid.to_string()], true),
-        (AgentKind::Cursor, Some(sid)) => (vec!["--resume".to_string(), sid.to_string()], true),
-        (AgentKind::OpenCode, Some(sid)) => (vec!["--session".to_string(), sid.to_string()], true),
         (AgentKind::Grok, Some(sid)) => (vec!["--resume".to_string(), sid.to_string()], true),
-        (AgentKind::Acp, _) | (_, None) => (Vec::new(), false),
+        (AgentKind::Cursor | AgentKind::OpenCode | AgentKind::Acp, _) | (_, None) => {
+            (Vec::new(), false)
+        }
     };
     match kind {
         AgentKind::Codex => args.push("--yolo".to_string()),
-        AgentKind::Cursor => args.push("--force".to_string()),
         AgentKind::Grok => args.push("--always-approve".to_string()),
-        AgentKind::Claude | AgentKind::OpenCode | AgentKind::Acp => {}
+        _ => {}
     }
     // Claude and codex spell the model flag the same way, and it follows
-    // the skip-permissions flag in both (`codex --yolo --model …`). Cursor
-    // has no model knob at all — a choice for it is simply ignored.
-    if let (Some(m), AgentKind::Claude | AgentKind::Codex | AgentKind::OpenCode) = (model, kind) {
+    // the skip-permissions flag in both (`codex --yolo --model …`).
+    if let (Some(m), AgentKind::Claude | AgentKind::Codex) = (model, kind) {
         args.extend(["--model".to_string(), m.to_string()]);
     }
     if let (Some(m), AgentKind::Grok) = (model, kind) {
@@ -2176,19 +2170,8 @@ fn agent_spawn_command_with(
                 args.push(p.to_string());
             }
         }
-        AgentKind::Cursor => {
-            // `cursor-agent [options] [prompt...]` — the trailing positional.
-            if let Some(p) = initial_prompt {
-                args.push(p.to_string());
-            }
-        }
-        AgentKind::OpenCode => {
-            if let Some(p) = initial_prompt {
-                args.extend(["--prompt".to_string(), p.to_string()]);
-            }
-        }
         AgentKind::Grok => crate::grok::push_tail_args(&mut args, resumed, effort, initial_prompt),
-        AgentKind::Acp => {}
+        AgentKind::Cursor | AgentKind::OpenCode | AgentKind::Acp => {}
     }
     (program, args, resumed)
 }
@@ -2280,15 +2263,10 @@ pub(crate) mod tests {
             agent_spawn_command(AgentKind::Claude, None, None, None, None),
             ("claude".into(), guided(&[]), false)
         );
-        // Codex/cursor always run in skip-permissions mode.
+        // Codex always runs in skip-permissions mode.
         assert_eq!(
             agent_spawn_command(AgentKind::Codex, None, None, None, None),
             ("codex".into(), vec!["--yolo".to_string()], false)
-        );
-        // Cursor's agent CLI is `cursor-agent`, not `cursor` (the editor).
-        assert_eq!(
-            agent_spawn_command(AgentKind::Cursor, None, None, None, None),
-            ("cursor-agent".into(), vec!["--force".to_string()], false)
         );
         // Claude resumes with a flag; codex with a subcommand (order matters).
         assert_eq!(
@@ -2304,18 +2282,6 @@ pub(crate) mod tests {
                     "resume".to_string(),
                     "sid-2".to_string(),
                     "--yolo".to_string()
-                ],
-                true
-            )
-        );
-        assert_eq!(
-            agent_spawn_command(AgentKind::Cursor, Some("sid-3"), None, None, None),
-            (
-                "cursor-agent".into(),
-                vec![
-                    "--resume".to_string(),
-                    "sid-3".to_string(),
-                    "--force".to_string()
                 ],
                 true
             )
@@ -2376,11 +2342,6 @@ pub(crate) mod tests {
                 guided(&["--resume", "sid", "--model", "sonnet"]),
                 true
             )
-        );
-        // Cursor has no model/effort knobs — choices are ignored.
-        assert_eq!(
-            agent_spawn_command(AgentKind::Cursor, None, Some("m"), Some("e"), None),
-            ("cursor-agent".into(), vec!["--force".to_string()], false)
         );
         // Override still wins over everything.
         assert_eq!(
@@ -2452,7 +2413,7 @@ pub(crate) mod tests {
         let mut expected = guided(&["--resume", "sid", "--model", "opus"]);
         expected.push("carry on".into());
         assert_eq!(args, expected);
-        // Codex and cursor take it as their trailing positional too.
+        // Codex takes it as its trailing positional too.
         assert_eq!(
             agent_spawn_command_with(
                 AgentKind::Codex,
@@ -2466,20 +2427,6 @@ pub(crate) mod tests {
             )
             .1,
             vec!["resume", "sid", "--yolo", "carry on"]
-        );
-        assert_eq!(
-            agent_spawn_command_with(
-                AgentKind::Cursor,
-                Some("sid"),
-                None,
-                None,
-                None,
-                Some("carry on"),
-                None,
-                true
-            )
-            .1,
-            vec!["--resume", "sid", "--force", "carry on"]
         );
         // A fresh spawn with a starting prompt (an AGENT PRESET launch):
         // model, effort and system prompt all precede it.
@@ -2519,20 +2466,6 @@ pub(crate) mod tests {
                 "model_reasoning_effort=high",
                 "fix auth"
             ]
-        );
-        assert_eq!(
-            agent_spawn_command_with(
-                AgentKind::Cursor,
-                None,
-                None,
-                None,
-                None,
-                Some("fix auth"),
-                None,
-                true
-            )
-            .1,
-            vec!["--force", "fix auth"]
         );
         // An override is verbatim: no guidance, no prompt.
         assert_eq!(
@@ -2607,7 +2540,7 @@ pub(crate) mod tests {
             (AgentKind::Claude, " \n ", "is empty"),
             (AgentKind::Codex, "fix\0auth", "NUL"),
             (
-                AgentKind::Cursor,
+                AgentKind::Grok,
                 &*"x".repeat(MAX_STARTING_PROMPT_BYTES + 1),
                 "too long",
             ),
@@ -3361,9 +3294,6 @@ pub(crate) mod tests {
 
     #[test]
     fn cli_missing_message_names_the_binary_not_the_kind() {
-        // Cursor ships its agent as `cursor-agent`; naming the kind would
-        // send the user off to install the wrong thing.
-        assert!(cli_missing_message(AgentKind::Cursor).starts_with("cursor-agent was not found"));
         assert!(cli_missing_message(AgentKind::Claude).starts_with("claude was not found"));
         assert!(cli_missing_message(AgentKind::Codex).starts_with("codex was not found"));
         // No "restart berth": agent CLIs are spawned through the user's

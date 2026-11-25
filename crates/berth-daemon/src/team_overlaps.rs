@@ -147,8 +147,7 @@ mod tests {
 
     #[test]
     fn hook_files_berth_writes_are_no_module() {
-        let out =
-            ".claude/settings.local.json\0.cursor/hooks.json\0.claude/skills/x.md\0src/a/b.rs\0";
+        let out = ".claude/settings.local.json\0.claude/skills/x.md\0src/a/b.rs\0";
         assert_eq!(modules_of(names(out)), [".claude/skills", "src/a"]);
     }
 }

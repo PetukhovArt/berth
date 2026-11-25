@@ -4,7 +4,7 @@ import type { Provider } from '../../../shared/api/providers';
 
 export type KindState = 'ready' | 'missing' | 'signedOut';
 
-const ACCOUNT_OF: Readonly<Record<string, AiKind>> = { claude: 'claude', codex: 'codex', opencode: 'opencode' };
+const ACCOUNT_OF: Readonly<Record<string, AiKind>> = { claude: 'claude', codex: 'codex' };
 
 export function useKindStates() {
   const ai = useAiAccounts();

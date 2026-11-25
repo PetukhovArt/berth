@@ -418,7 +418,8 @@ fn target(entry: &str) -> Option<(AgentKind, Option<&str>)> {
         Some((k, m)) => (k, Some(m.trim()).filter(|m| !m.is_empty())),
         None => (entry, None),
     };
-    Some((AgentKind::parse(kind.trim())?, model))
+    let kind = AgentKind::parse(kind.trim()).filter(|kind| !kind.terminal_removed())?;
+    Some((kind, model))
 }
 
 fn next_in_chain(chain: &[String], f: &Facts) -> Option<RouteAction> {

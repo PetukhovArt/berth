@@ -1,6 +1,6 @@
 # berth
 
-Run Claude Code, Codex, Cursor, OpenCode and Grok agents across your projects and git worktrees, and see at a glance which
+Run Claude Code, Codex and Grok agents, and Cursor, OpenCode and other ACP agents in the chat view, across your projects and git worktrees, and see at a glance which
 one needs you. A daemon owns the terminals, so the agents keep working after you close the window.
 
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
@@ -22,7 +22,7 @@ Download the desktop app from the [latest release](https://github.com/PetukhovAr
 The app brings the `berth` command with it, starts the daemon when none is running and updates itself
 from new releases ([details](docs/getting-started.md#install-the-desktop-app)).
 
-You need at least one agent CLI on your `PATH`: `claude`, `codex`, `cursor-agent`, `opencode` or `grok`.
+You need at least one agent CLI on your `PATH`: `claude`, `codex` or `grok`, or the CLI of an ACP agent such as `cursor-agent` or `opencode`.
 
 To install only the `berth` command, on macOS and Linux:
 

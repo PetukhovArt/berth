@@ -76,8 +76,8 @@ impl UsageTailer {
     /// One pass, reading only the bytes appended since the last one.
     /// Blocking; call via spawn_blocking.
     ///
-    /// An agent absent from `tokens` was **not measured** — a Codex or
-    /// Cursor session, one with no session id yet, or one whose transcript
+    /// An agent absent from `tokens` was **not measured** — a Codex
+    /// session, one with no session id yet, or one whose transcript
     /// could not be located. Never read that as zero. An agent measured
     /// with nothing spent is present with an empty `by_model`.
     pub(crate) fn sweep(&mut self, agents: &[AgentTranscript]) -> Sweep {

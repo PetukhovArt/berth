@@ -14,13 +14,13 @@ use crate::registry::{CreateAgentSpec, Daemon};
 /// What berth appends to Claude's system prompt so "start a new berth
 /// session that …" becomes one `berth spawn` call instead of the model
 /// trying to launch an agent process itself. Claude only, like the worktree
-/// guidance: codex and cursor have no system-prompt flag.
+/// guidance: codex has no system-prompt flag.
 pub const CLAUDE_SPAWN_GUIDANCE: &str = "[berth] When the user asks you to start a new berth \
 session (\"start a new berth session that …\", \"spin up another session to …\", \"open a new \
 session for …\"), do not launch an agent process yourself. Run this shell command instead, exactly \
 once:\n\n  berth spawn \"<task>\"\n\nwhere <task> is the work the user wants that session to do, \
 in their own words — the new session opens on it as its first prompt, so make it self-contained. \
-Add `--kind claude|codex|cursor|opencode|grok` only when the user names the harness; otherwise the new session \
+Add `--kind claude|codex|grok` only when the user names the harness; otherwise the new session \
 matches this one. berth starts it beside this session, in the same worktree, unless the user wants \
 it in another worktree or branch of this project: then add `--worktree <branch>`, which reuses that \
 branch's worktree or creates the branch and its worktree when there is none, and `--base <ref>` \

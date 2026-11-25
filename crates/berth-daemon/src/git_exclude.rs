@@ -58,6 +58,15 @@ pub fn add_to_block(checkout: &Path, block: &ExcludeBlock, path: &str) -> Result
     })
 }
 
+pub fn remove_from_block(checkout: &Path, block: &ExcludeBlock, path: &str) -> Result<()> {
+    let (_, common_dir) = git_dirs(checkout)?;
+    let removed = anchored_pattern(path);
+    rewrite(&common_dir, block, |mut held| {
+        held.remove(&removed);
+        held
+    })
+}
+
 fn rewrite(
     common_dir: &Path,
     block: &ExcludeBlock,

@@ -189,14 +189,12 @@ async fn serve() -> Result<()> {
         });
     }
 
-    if let Ok((_, _, agents, _)) = daemon.store.load_tree() {
-        let kinds_in_use: Vec<_> = agents.iter().map(|agent| agent.kind).collect();
-        if let Err(e) = acp::providers::keep_native_kinds_in_use(
-            &berth_core::paths::config_path(),
-            &kinds_in_use,
-        ) {
-            tracing::warn!(error = %e, "could not keep native providers in use turned on");
-        }
+    if let Ok((_, worktrees, _, _)) = daemon.store.load_tree() {
+        let paths: Vec<_> = worktrees
+            .into_iter()
+            .map(|worktree| worktree.path)
+            .collect();
+        tokio::task::spawn_blocking(move || hooks::removed_modes::prune(paths));
     }
 
     tokio::spawn(daemon.clone().run_scheduler());

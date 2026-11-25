@@ -40,7 +40,7 @@ berth end-session        # end the current session once its turn ends: it moves 
                          # Sessions tree, where opening it resumes the conversation, and to the
                          # Archive after session_archive_after; warns about scheduled prompts
                          # aimed at it
-berth spawn <task> [--kind <claude|codex|cursor|opencode|grok>] [--worktree <branch> [--base <ref>]]
+berth spawn <task> [--kind <claude|codex|grok>] [--worktree <branch> [--base <ref>]]
                          # start a new agent session beside the current one, in the same worktree,
                          # opening on <task>; --kind defaults to this session's agent kind.
                          # --worktree starts it in that branch's worktree of the project instead,

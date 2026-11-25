@@ -10,7 +10,7 @@ type Member = { id: string; name: string; worktree: string; project: string; pat
 
 const REFRESH_MS = 30_000;
 const MODULE_DEPTH = 2;
-const WRITTEN_BY_BERTH = new Set(['.claude/settings.local.json', '.cursor/hooks.json', '.cursor/rules/berth-title.mdc']);
+const WRITTEN_BY_BERTH = new Set(['.claude/settings.local.json']);
 
 const modulesByPath = shallowRef<ReadonlyMap<string, ReadonlySet<string>>>(new Map());
 const touchedByChannel = shallowRef<ReadonlyMap<string, readonly ChannelTouching[]>>(new Map());

@@ -13,8 +13,6 @@ const KINDS: { label: string; value: AgentKind }[] = [
   { label: 'Claude', value: 'claude' },
   { label: 'Codex', value: 'codex' },
   { label: 'Grok', value: 'grok' },
-  { label: 'OpenCode', value: 'opencode' },
-  { label: 'Cursor', value: 'cursor' },
 ];
 
 const dock = useSessionDock();

@@ -8,8 +8,8 @@
 //! `"stoppedByUser": true` into the worker's `.meta.json` beside its
 //! transcript.
 //!
-//! This is a Claude-only accelerator, not a replacement: codex and
-//! cursor-agent write no such file, and for them (and for a Claude session
+//! This is a Claude-only accelerator, not a replacement: codex
+//! writes no such file, and for it (and for a Claude session
 //! whose transcript path we never saw) the quiet grace stays the floor.
 //!
 //! The status machine stays pure — it never reads a file. It reports which

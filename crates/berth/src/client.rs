@@ -313,7 +313,7 @@ async fn rename_current_agent(title: &str, mode: RenameMode) -> Result<()> {
     Ok(())
 }
 
-/// CLI: `berth spawn "<task>" [--kind <claude|codex|cursor|opencode|grok>]` from inside
+/// CLI: `berth spawn "<task>" [--kind <claude|codex|grok>]` from inside
 /// an agent session — ask the daemon to start a new agent beside this one,
 /// in the same worktree, opening on `task` as its first prompt. The caller
 /// is untouched: no relocation, no turn-end wait. Never spawns a daemon: no

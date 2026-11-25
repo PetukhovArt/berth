@@ -177,7 +177,7 @@ pub enum ClientRequest {
         /// runs `berth rename` on its first prompt).
         auto_title: bool,
         /// The first turn handed to the CLI as its positional prompt
-        /// (`claude "<text>"`, `codex "<text>"`, `cursor-agent "<text>"`) —
+        /// (`claude "<text>"`, `codex "<text>"`) —
         /// what an AGENT PRESET launch composes from its prefix, the task
         /// and its postfix. Request-only: never
         /// persisted, so a RESUME can never replay it. Skips PREWARM POOL
@@ -301,7 +301,7 @@ pub enum ClientRequest {
         id: AgentId,
     },
     /// Respawn; resumes the stored session id (`claude --resume` /
-    /// `codex resume` / `cursor-agent --resume`) when one is stored.
+    /// `codex resume`) when one is stored.
     RestartAgent {
         req_id: u64,
         id: AgentId,
