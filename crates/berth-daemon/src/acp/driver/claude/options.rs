@@ -57,7 +57,7 @@ pub fn config_options(
     let label = resolved
         .filter(|_| current != DEFAULT_MODEL)
         .and_then(model_label);
-    let named: Vec<Model> = models
+    let mut named: Vec<Model> = models
         .iter()
         .cloned()
         .map(|mut choice| {
@@ -67,6 +67,18 @@ pub fn config_options(
             choice
         })
         .collect();
+    if !models.iter().any(|choice| choice.value == current) {
+        if let Some(base) = models
+            .iter()
+            .find(|choice| choice.value != DEFAULT_MODEL && current.contains(choice.value.as_str()))
+        {
+            named.push(Model {
+                value: current.into(),
+                name: model_label(current).unwrap_or_else(|| current.into()),
+                ..base.clone()
+            });
+        }
+    }
     options::config_options(&named, current, effort.unwrap_or(DEFAULT_EFFORT))
 }
 
@@ -116,5 +128,22 @@ mod tests {
             .map(|choice| choice["name"].as_str().unwrap())
             .collect();
         assert_eq!(names, ["default", "sonnet", "opus", "Haiku 4.5"]);
+    }
+
+    #[test]
+    fn a_full_model_id_is_its_own_choice() {
+        let options = config_options(
+            &static_models(),
+            Some("claude-haiku-4-5-20251001"),
+            None,
+            None,
+        );
+        let choices = options[0]["options"].as_array().unwrap();
+        let last = choices.last().unwrap();
+        assert_eq!(last["value"], "claude-haiku-4-5-20251001");
+        assert_eq!(last["name"], "Haiku 4.5");
+        assert_eq!(choices.len(), 5);
+        assert_eq!(options[0]["currentValue"], "claude-haiku-4-5-20251001");
+        assert_eq!(options.as_array().unwrap().len(), 2);
     }
 }

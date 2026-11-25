@@ -20,19 +20,13 @@ use std::sync::Arc;
 fn remembered_choice<'a>(
     category: OptionCategory,
     choices: &'a [Choice],
-    wanted: &str,
+    wanted: &'a str,
 ) -> Option<&'a str> {
-    let named = |choice: &&Choice| choice.value == wanted;
-    let aliased = |choice: &&Choice| {
-        category == OptionCategory::Model
-            && choice.value != "default"
-            && wanted.contains(choice.value.as_str())
-    };
     choices
         .iter()
-        .find(named)
-        .or_else(|| choices.iter().find(aliased))
+        .find(|choice| choice.value == wanted)
         .map(|choice| choice.value.as_str())
+        .or((category == OptionCategory::Model).then_some(wanted))
 }
 
 impl Daemon {
@@ -472,5 +466,37 @@ impl Daemon {
             .get_worktree(worktree)?
             .context("worktree not found")?;
         files::list(&worktree.path, query, limit).await
+    }
+}
+
+#[cfg(test)]
+mod remembered_tests {
+    use super::*;
+
+    fn choice(value: &str) -> Choice {
+        Choice {
+            value: value.into(),
+            name: value.into(),
+            description: None,
+        }
+    }
+
+    #[test]
+    fn a_remembered_model_keeps_its_exact_id() {
+        let choices = [choice("default"), choice("haiku")];
+        let model = OptionCategory::Model;
+        assert_eq!(remembered_choice(model, &choices, "haiku"), Some("haiku"));
+        assert_eq!(
+            remembered_choice(model, &choices, "claude-haiku-4-5-20251001"),
+            Some("claude-haiku-4-5-20251001")
+        );
+    }
+
+    #[test]
+    fn an_unknown_effort_is_not_applied() {
+        let choices = [choice("low"), choice("high")];
+        let effort = OptionCategory::ThoughtLevel;
+        assert_eq!(remembered_choice(effort, &choices, "high"), Some("high"));
+        assert_eq!(remembered_choice(effort, &choices, "max"), None);
     }
 }
