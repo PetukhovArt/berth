@@ -11,6 +11,8 @@ export const attention = {
     strip: 'Watching {label}',
     idle: 'Berth types into the Agent when the pipeline fails, a thread opens or the target branch conflicts',
     sent: 'Sent to the Agent: {text}',
+    idleNamed: 'Berth types into {name} when the pipeline fails, a thread opens or the target branch conflicts',
+    sentTo: 'Sent to {name}: {text}',
     stop: 'Stop',
     stopWatching: 'Stop watching',
   },

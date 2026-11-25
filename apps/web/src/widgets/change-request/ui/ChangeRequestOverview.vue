@@ -104,7 +104,7 @@ const pipelineStatus = computed(() => (pipeline.value ? pipeline.value.status : 
             <VButton size="small" severity="secondary" :label="watching ? t('attention.watch.stopWatching') : `${t('attention.watch.action')} ${number}`" :aria-pressed="watching" data-testid="cr-fact-watch" @click="toggleWatch(target)">
               <template #icon><Eye :size="14" /></template>
             </VButton>
-            <p class="pipe-id hint-text">{{ t('attention.watch.idle') }}</p>
+            <p class="pipe-id hint-text">{{ session ? t('attention.watch.idleNamed', { name: session.name }) : t('attention.watch.idle') }}</p>
           </template>
         </section>
 
@@ -182,12 +182,24 @@ const pipelineStatus = computed(() => (pipeline.value ? pipeline.value.status : 
 }
 
 .next-step :deep(.git-step) {
-  flex-direction: column-reverse;
+  flex-direction: column;
   align-items: stretch;
 }
 
 .next-step :deep(.git-step > .hint) {
+  order: 1;
   white-space: normal;
+}
+
+.next-step :deep(.git-step > .form),
+.next-step :deep(.git-step > .error) {
+  position: static;
+  width: auto;
+  max-width: none;
+}
+
+.next-step :deep(.git-step .actions) {
+  flex-wrap: wrap;
 }
 
 .hint {

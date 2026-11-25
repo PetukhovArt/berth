@@ -31,6 +31,8 @@
 - Changed the Task note button in the Channel view to a grey button beside Send, and the Task note banner, spacing and disabled controls to follow the design
 - Changed the Session screen on a phone to show the model, Checkpoints and Task note buttons in one row that scrolls sideways, above a Chat and Changes switch as wide as the screen
 - Changed the session rows in the Sessions tab on a phone to cards with the status under the name, and Cancel and Create in New session to larger buttons
+- Changed the Watch strip and the Session section of a merge request to name the session that berth types into
+- Fixed the Next step form in the facts panel of a merge request opening below the window edge, out of reach; it now opens under the button
 
 ## 0.22.0 (2026-11-24)
 

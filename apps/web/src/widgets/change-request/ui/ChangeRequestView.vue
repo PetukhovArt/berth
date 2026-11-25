@@ -166,7 +166,7 @@ onMounted(() => {
           <a class="pop-title" :href="pipeline.url" @click.prevent="openUrl(pipeline.url)">{{ t('forge.request.pipelineNumber', { id: pipeline.id }) }} <ExternalLink :size="12" /></a>
           <PipelineJobs compact />
         </div>
-        <WatchStrip v-if="watching && cr.state === 'open'" :target="target" :url="cr.url" />
+        <WatchStrip v-if="watching && cr.state === 'open'" :target="target" :url="cr.url" :session-name="session?.name" />
         <p v-if="discussionsFailure" class="notice" role="alert" :title="discussionsFailure" data-testid="cr-discussions-failure">
           <StatusIcon tone="feedback" /><span>{{ t('forge.request.discussionsFailed') }}</span>
         </p>

@@ -10,7 +10,7 @@ import { lastWake, refreshWatches, stopWatching } from '../model/watch';
 
 const REFRESH_MS = 30_000;
 
-const props = defineProps<{ target: ChangeRequestRef; url: string }>();
+const props = defineProps<{ target: ChangeRequestRef; url: string; sessionName?: string }>();
 const scope = useScope();
 const refresh = () => void refreshWatches().catch(() => undefined);
 onMounted(() => {
@@ -19,7 +19,9 @@ onMounted(() => {
 });
 const text = computed(() => {
   const wake = lastWake(props.target);
-  return wake ? t('attention.watch.sent', { text: wake }) : t('attention.watch.idle');
+  const name = props.sessionName;
+  if (wake) return name ? t('attention.watch.sentTo', { name, text: wake }) : t('attention.watch.sent', { text: wake });
+  return name ? t('attention.watch.idleNamed', { name }) : t('attention.watch.idle');
 });
 </script>
 
