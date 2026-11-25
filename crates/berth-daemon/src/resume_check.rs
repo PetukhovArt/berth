@@ -1,16 +1,9 @@
 use crate::agent;
 use berth_core::AgentKind;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 pub const FRESH_START_NOTICE: &str =
     "\x1b[2m[berth: claude never saved the previous conversation, starting a new one]\x1b[0m\r\n";
-
-pub fn claude_projects_root() -> Option<PathBuf> {
-    match std::env::var_os("CLAUDE_CONFIG_DIR") {
-        Some(dir) if !dir.is_empty() => Some(PathBuf::from(dir).join("projects")),
-        _ => crate::orphans::claude_projects_dir(),
-    }
-}
 
 pub fn claude_transcript_missing(kind: AgentKind, session_id: Option<&str>, root: &Path) -> bool {
     let Some(sid) = session_id else {

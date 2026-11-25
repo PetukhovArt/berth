@@ -1758,7 +1758,7 @@ impl Daemon {
             .agent_pr_url(&agent.id)?
             .as_deref()
             .map(agent::claude::pr_system_prompt);
-        let unsaved_conversation = resume_check::claude_projects_root().is_some_and(|root| {
+        let unsaved_conversation = crate::orphans::claude_projects_dir().is_some_and(|root| {
             resume_check::claude_transcript_missing(agent.kind, agent.session_id.as_deref(), &root)
         });
         let fresh_agent;

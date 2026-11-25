@@ -1078,6 +1078,17 @@ impl Store {
         Ok(changed == 1)
     }
 
+    /// A name taken from a chat's first prompt. Unlike a CLI title it leaves
+    /// the auto-title pending, so an agent rename still applies; the CLI title
+    /// column only marks that the first prompt already named the chat.
+    pub fn set_prompt_title(&self, id: &AgentId, title: &str) -> Result<bool> {
+        let changed = self.conn.lock().unwrap().execute(
+            "UPDATE agents SET name = ?2, cli_title = ?2 WHERE id = ?1 AND auto_title_pending = 1 AND cli_title IS NULL",
+            params![id.as_str(), title],
+        )?;
+        Ok(changed == 1)
+    }
+
     /// Whether the session still awaits its agent-driven auto-title (drives
     /// the hook server's decision to inject the titling instruction).
     pub fn agent_auto_title_pending(&self, id: &AgentId) -> Result<bool> {

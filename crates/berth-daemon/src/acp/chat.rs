@@ -1,14 +1,14 @@
 use super::conn::RpcError;
 use super::driver::{INCOMPATIBLE, STEER};
 use super::{files, map, prompt, AcpLive, AUTO_TITLE_CHARS};
-use crate::registry::Daemon;
+use crate::registry::{sanitize_title, Daemon};
 use crate::status::HookEvent;
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use berth_core::acp::{
-    AcpItem, AcpSessionState, AttachmentUpload, OptionCategory, PromptInput, QueueId, QueuedPrompt,
-    Rewind,
+    AcpItem, AcpSessionState, AttachmentUpload, Choice, OptionCategory, PromptInput, QueueId,
+    QueuedPrompt, Rewind,
 };
 use berth_core::{AgentId, ServerEvent, WorktreeId};
 use serde_json::{json, Value};
@@ -16,6 +16,24 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
+
+fn remembered_choice<'a>(
+    category: OptionCategory,
+    choices: &'a [Choice],
+    wanted: &str,
+) -> Option<&'a str> {
+    let named = |choice: &&Choice| choice.value == wanted;
+    let aliased = |choice: &&Choice| {
+        category == OptionCategory::Model
+            && choice.value != "default"
+            && wanted.contains(choice.value.as_str())
+    };
+    choices
+        .iter()
+        .find(named)
+        .or_else(|| choices.iter().find(aliased))
+        .map(|choice| choice.value.as_str())
+}
 
 impl Daemon {
     pub async fn acp_prompt(self: &Arc<Self>, agent_id: &AgentId, text: &str) -> Result<()> {
@@ -119,8 +137,20 @@ impl Daemon {
             return;
         }
         let first_line = text.lines().next().unwrap_or_default();
-        let title: String = first_line.chars().take(AUTO_TITLE_CHARS).collect();
-        let _ = self.adopt_cli_title(agent_id, &title);
+        let title = sanitize_title(
+            &first_line
+                .chars()
+                .take(AUTO_TITLE_CHARS)
+                .collect::<String>(),
+        );
+        if !title.is_empty()
+            && self
+                .store
+                .set_prompt_title(agent_id, &title)
+                .unwrap_or(false)
+        {
+            let _ = self.broadcast_agent(agent_id);
+        }
     }
 
     async fn acp_turn_ended(
@@ -368,23 +398,22 @@ impl Daemon {
             let Some(wanted) = wanted else {
                 continue;
             };
-            let id = live
+            let found = live
                 .state
                 .lock()
                 .unwrap()
                 .options
                 .iter()
-                .find(|option| {
-                    option.category == category
-                        && option.current != wanted
-                        && option.choices.iter().any(|choice| choice.value == wanted)
-                })
-                .map(|option| option.id.clone());
-            let Some(id) = id else {
+                .filter(|option| option.category == category)
+                .find_map(|option| {
+                    let value = remembered_choice(category, &option.choices, &wanted)?;
+                    (option.current != value).then(|| (option.id.clone(), value.to_string()))
+                });
+            let Some((id, value)) = found else {
                 continue;
             };
             if let Err(error) = self
-                .acp_request_option(agent_id, live, sid, &id, &wanted)
+                .acp_request_option(agent_id, live, sid, &id, &value)
                 .await
             {
                 tracing::debug!(agent = %agent_id, error = %error, "remembered option not applied");

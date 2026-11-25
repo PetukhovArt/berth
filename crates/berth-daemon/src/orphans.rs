@@ -131,7 +131,10 @@ pub fn resume_notice(orphan: &OrphanedSession, worktree: &Worktree) -> Option<St
 /// Where Claude Code keeps its conversations: one directory per working
 /// directory, named after it, holding one `<session-id>.jsonl` per session.
 pub(crate) fn claude_projects_dir() -> Option<PathBuf> {
-    berth_core::env::home_dir().map(|home| home.join(".claude").join("projects"))
+    match berth_core::env::non_empty("CLAUDE_CONFIG_DIR") {
+        Some(dir) => Some(PathBuf::from(dir).join("projects")),
+        None => berth_core::env::home_dir().map(|home| home.join(".claude").join("projects")),
+    }
 }
 
 /// Claude Code's name for the directory of a given working directory: every
