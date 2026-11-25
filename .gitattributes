@@ -7,3 +7,4 @@ scripts/** text=auto eol=lf
 /.husky/* text eol=lf
 /.oxlintrc.json text eol=lf
 /.dockerignore text eol=lf
+crates/berth-daemon/fixtures/** text eol=lf
