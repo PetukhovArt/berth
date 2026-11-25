@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
+use berth_core::acp::FeedbackAnswer;
 use berth_core::{AgentId, SessionRef};
 use serde_json::Value;
 
@@ -277,7 +278,9 @@ impl Daemon {
 
     async fn answer_option(self: &Arc<Self>, agent: &AgentId, option: u8) -> Result<()> {
         if self.is_acp_agent(agent) {
-            return self.answer_feedback(agent, option).await;
+            return self
+                .answer_feedback(agent, FeedbackAnswer::Option(option))
+                .await;
         }
         let session = self
             .session(&SessionRef::Agent(agent.clone()))

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
+use berth_core::acp::FeedbackAnswer;
 use berth_core::{AgentId, ChannelEvent, FeedbackKind, FeedbackRequest, ServerEvent, SessionRef};
 use berth_hub::client::HubClient;
 use berth_hub::{Event, EVENT_TAG, KIND_ANSWER, KIND_REQUEST, KIND_SETTLED};
@@ -296,7 +297,7 @@ impl Daemon {
             let Answer::Option(i) = answer else {
                 bail!("an ACP agent is answered with one of its options");
             };
-            return self.answer_feedback(agent, i).await;
+            return self.answer_feedback(agent, FeedbackAnswer::Option(i)).await;
         }
         let keys = match answer {
             Answer::Allow => crate::feedback::ALLOW_KEY.to_vec(),
@@ -495,6 +496,7 @@ mod tests {
             detail: Some("pnpm test".into()),
             options: vec![],
             always_allow: false,
+            form: None,
         }
     }
 
@@ -570,6 +572,7 @@ mod tests {
             detail: None,
             options: vec!["Half up".into(), "Half even".into()],
             always_allow: false,
+            form: None,
         };
         assert!(Answer::parse("2").unwrap().fits(&question));
         assert!(!Answer::parse("3").unwrap().fits(&question));

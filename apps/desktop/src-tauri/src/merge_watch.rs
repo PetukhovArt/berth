@@ -305,6 +305,7 @@ async fn type_prompt(berth: &Berth, prompt: Prompt) {
         req_id: 0,
         agent,
         text,
+        attachments: Vec::new(),
     };
     let result = match serde_json::to_value(request) {
         Ok(request) => berth::berth_call(berth, request).await.map(drop),

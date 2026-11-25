@@ -98,6 +98,7 @@ pub fn from_hook(
             detail: tool_input.and_then(detail),
             options: Vec::new(),
             always_allow: false,
+            form: None,
         }),
         _ => None,
     }
@@ -135,6 +136,7 @@ fn question(input: &Value) -> Option<FeedbackRequest> {
         detail: None,
         options,
         always_allow: false,
+        form: None,
     })
 }
 

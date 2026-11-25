@@ -108,6 +108,10 @@ pub enum WatchEvent {
         seq: u64,
         item: Box<berth_core::acp::AcpItem>,
     },
+    AcpSession {
+        agent: AgentId,
+        state: Box<berth_core::acp::AcpSessionState>,
+    },
     ChannelAppended {
         channel: String,
         seq: i64,
@@ -647,6 +651,9 @@ impl Actor {
                 WatchEvent::TaskNote { worktree, text }
             }
             ServerEvent::AcpItem { agent, seq, item } => WatchEvent::AcpItem { agent, seq, item },
+            ServerEvent::AcpSessionChanged { agent, state } => {
+                WatchEvent::AcpSession { agent, state }
+            }
             ServerEvent::ChannelAppended { channel, seq } => {
                 WatchEvent::ChannelAppended { channel, seq }
             }
@@ -762,7 +769,9 @@ fn reply_req_id(event: &ServerEvent) -> Option<u64> {
         | ServerEvent::ChannelTouched { req_id, .. }
         | ServerEvent::ChannelGrants { req_id, .. }
         | ServerEvent::AcpTranscript { req_id, .. }
-        | ServerEvent::AcpCommands { req_id, .. }
+        | ServerEvent::AcpSessionState { req_id, .. }
+        | ServerEvent::AcpAttachment { req_id, .. }
+        | ServerEvent::WorktreeFiles { req_id, .. }
         | ServerEvent::Hub { req_id, .. }
         | ServerEvent::Metrics { req_id, .. } => Some(*req_id),
         ServerEvent::Error { req_id, .. } => *req_id,
@@ -834,7 +843,12 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::CreateAcpAgent { req_id, .. }
         | ClientRequest::AcpPrompt { req_id, .. }
         | ClientRequest::AcpTranscript { req_id, .. }
-        | ClientRequest::AcpCommands { req_id, .. }
+        | ClientRequest::AcpSessionState { req_id, .. }
+        | ClientRequest::AcpEditQueued { req_id, .. }
+        | ClientRequest::AcpRemoveQueued { req_id, .. }
+        | ClientRequest::SetConfigOption { req_id, .. }
+        | ClientRequest::AcpAttachment { req_id, .. }
+        | ClientRequest::ListWorktreeFiles { req_id, .. }
         | ClientRequest::AnswerFeedback { req_id, .. }
         | ClientRequest::AnswerInChannel { req_id, .. }
         | ClientRequest::GetUsageLimits { req_id }

@@ -1,10 +1,17 @@
+mod blobs;
+mod chat;
 pub mod conn;
 mod driver;
+mod files;
+mod latency;
 mod lifecycle;
 pub mod map;
 #[cfg(test)]
 mod mock;
+mod persist;
+mod prompt;
 pub mod providers;
+mod questions;
 #[cfg(test)]
 mod replay;
 #[cfg(test)]
@@ -15,9 +22,10 @@ pub mod wire;
 use crate::registry::Daemon;
 use crate::status::HookEvent;
 use anyhow::{bail, Context, Result};
-use berth_core::acp::{AcpCommand, AcpItem, AcpItemAt};
-use berth_core::{AgentId, AgentKind, EntityId, ServerEvent, WorktreeId};
-use conn::{Conn, Inbound, RpcError};
+use berth_core::acp::{AcpItem, AcpItemAt, AcpSessionState, FeedbackAnswer, QuestionForm};
+use berth_core::WorktreeId;
+use berth_core::{AgentId, AgentKind, EntityId, FeedbackKind, FeedbackRequest, ServerEvent};
+use conn::{Conn, Inbound};
 use providers::AcpProvider;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -26,10 +34,10 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, watch};
+use tokio::time::sleep_until;
 use transcript::Transcript;
 use wire::{DaemonHost, Host};
 
-const ITEMS_KEPT_PER_AGENT: u64 = 5000;
 const SESSION_READY_TIMEOUT: Duration = Duration::from_secs(180);
 const ACP_PROTOCOL_VERSION: u64 = 1;
 const METHOD_NOT_FOUND: i64 = -32601;
@@ -38,6 +46,9 @@ const AUTO_TITLE_CHARS: usize = 60;
 #[derive(Default)]
 pub struct AcpSessions {
     live: Mutex<HashMap<AgentId, Arc<AcpLive>>>,
+    blobs: blobs::Blobs,
+    persist: persist::Persist,
+    latency: latency::Latency,
 }
 
 impl AcpSessions {
@@ -76,11 +87,25 @@ enum Pending {
         rpc_id: Value,
         option_ids: Vec<String>,
     },
+    Question {
+        rpc_id: Value,
+        form: QuestionForm,
+    },
     SignIn {
         method_ids: Vec<String>,
         cwd: PathBuf,
         previous_session: Option<String>,
     },
+}
+
+impl Pending {
+    fn cancel_reply(&self) -> Option<(Value, Value)> {
+        match self {
+            Pending::Permission { rpc_id, .. } => Some((rpc_id.clone(), cancelled_outcome())),
+            Pending::Question { rpc_id, .. } => Some((rpc_id.clone(), json!({"action": "cancel"}))),
+            Pending::SignIn { .. } => None,
+        }
+    }
 }
 
 type SessionReady = Option<Result<String, String>>;
@@ -96,7 +121,8 @@ struct AcpLive {
     notifications_handled: AtomicU64,
     replay_until: AtomicU64,
     last_active: Mutex<Instant>,
-    commands: Mutex<Vec<AcpCommand>>,
+    state: Mutex<AcpSessionState>,
+    next_queue_id: AtomicU64,
 }
 
 impl AcpLive {
@@ -228,7 +254,8 @@ impl Daemon {
             notifications_handled: AtomicU64::new(0),
             replay_until: AtomicU64::new(0),
             last_active: Mutex::new(Instant::now()),
-            commands: Mutex::new(Vec::new()),
+            state: Default::default(),
+            next_queue_id: AtomicU64::new(1),
         });
         map.insert(agent_id.clone(), live.clone());
         drop(map);
@@ -251,22 +278,50 @@ impl Daemon {
         live: Arc<AcpLive>,
         mut inbound: mpsc::UnboundedReceiver<Inbound>,
     ) {
-        while let Some(message) = inbound.recv().await {
+        loop {
+            let due = live.transcript.lock().unwrap().flush_due();
+            let message = match due {
+                Some(at) => tokio::select! {
+                    message = inbound.recv() => message,
+                    _ = sleep_until(at) => {
+                        self.acp_flush_tail(&agent_id, &live);
+                        continue;
+                    }
+                },
+                None => inbound.recv().await,
+            };
+            let Some(message) = message else {
+                break;
+            };
             match message {
-                Inbound::Notification { method, params } if method == "session/update" => {
+                Inbound::Notification {
+                    method,
+                    params,
+                    read_at,
+                } if method == "session/update" => {
                     if let Some(commands) = map::available_commands(&params) {
-                        *live.commands.lock().unwrap() = commands;
+                        live.state.lock().unwrap().commands = commands;
+                        self.acp_push_state(&agent_id, &live);
+                    }
+                    if let Some(options) = map::config_option_update(&params) {
+                        live.state.lock().unwrap().options = options;
+                        self.acp_push_state(&agent_id, &live);
                     }
                     let n = live.notifications_handled.fetch_add(1, Ordering::SeqCst) + 1;
                     if n > live.replay_until.load(Ordering::SeqCst) {
-                        self.acp_update(&agent_id, &live, &params)
+                        self.acp_update(&agent_id, &live, &params, read_at)
                     }
                 }
                 Inbound::Notification { .. } => {}
-                Inbound::Request { id, method, params }
-                    if method == "session/request_permission" =>
-                {
+                Inbound::Request {
+                    id, method, params, ..
+                } if method == "session/request_permission" => {
                     self.acp_permission(&agent_id, &live, id, &params).await
+                }
+                Inbound::Request {
+                    id, method, params, ..
+                } if method == "elicitation/create" => {
+                    self.acp_elicitation(&agent_id, &live, id, &params).await
                 }
                 Inbound::Request { id, method, .. } => {
                     tracing::debug!(agent = %agent_id, method, "ACP request berth does not serve");
@@ -284,18 +339,35 @@ impl Daemon {
         }
     }
 
-    fn acp_update(self: &Arc<Self>, agent_id: &AgentId, live: &AcpLive, params: &Value) {
+    fn acp_update(
+        self: &Arc<Self>,
+        agent_id: &AgentId,
+        live: &AcpLive,
+        params: &Value,
+        read_at: Instant,
+    ) {
         let update = map::session_update(params);
         if let map::Update::Title(title) = &update {
             let _ = self.adopt_cli_title(agent_id, title);
             return;
         }
-        let items = live
-            .transcript
-            .lock()
-            .unwrap()
-            .apply(update, Instant::now());
-        self.acp_emit(agent_id, items);
+        let (items, stamp) = {
+            let mut transcript = live.transcript.lock().unwrap();
+            let items = transcript.apply(update, tokio::time::Instant::now(), read_at);
+            let stamp = transcript.stamp(&items);
+            (items, stamp)
+        };
+        self.acp_emit(agent_id, items, stamp);
+    }
+
+    fn acp_flush_tail(&self, agent_id: &AgentId, live: &AcpLive) {
+        let (items, stamp) = {
+            let mut transcript = live.transcript.lock().unwrap();
+            let items = transcript.flush();
+            let stamp = transcript.stamp(&items);
+            (items, stamp)
+        };
+        self.acp_emit(agent_id, items, stamp);
     }
 
     async fn acp_permission(
@@ -306,19 +378,49 @@ impl Daemon {
         params: &Value,
     ) {
         let permission = map::permission(params);
-        let tail = live.transcript.lock().unwrap().flush();
-        self.acp_emit(agent_id, tail);
+        let pending = Pending::Permission {
+            rpc_id,
+            option_ids: permission.option_ids,
+        };
+        self.acp_wait_for_human(agent_id, live, pending, permission.request)
+            .await;
+    }
+
+    async fn acp_elicitation(
+        self: &Arc<Self>,
+        agent_id: &AgentId,
+        live: &AcpLive,
+        rpc_id: Value,
+        params: &Value,
+    ) {
+        let Some((message, form)) = map::elicitation(params) else {
+            let _ = live.conn.respond(rpc_id, json!({"action": "cancel"})).await;
+            return;
+        };
+        let request = FeedbackRequest {
+            kind: FeedbackKind::Question,
+            title: message,
+            detail: None,
+            options: questions::option_names(&form),
+            always_allow: false,
+            form: Some(form.clone()),
+        };
+        self.acp_wait_for_human(agent_id, live, Pending::Question { rpc_id, form }, request)
+            .await;
+    }
+
+    async fn acp_wait_for_human(
+        self: &Arc<Self>,
+        agent_id: &AgentId,
+        live: &AcpLive,
+        pending: Pending,
+        request: FeedbackRequest,
+    ) {
+        self.acp_flush_tail(agent_id, live);
         live.touch();
-        let replaced = live
-            .permission
-            .lock()
-            .unwrap()
-            .replace(Pending::Permission {
-                rpc_id,
-                option_ids: permission.option_ids,
-            });
-        if let Some(Pending::Permission { rpc_id, .. }) = replaced {
-            let _ = live.conn.respond(rpc_id, cancelled_outcome()).await;
+        let replaced = live.permission.lock().unwrap().replace(pending);
+        if let Some((rpc_id, reply)) = replaced.as_ref().and_then(Pending::cancel_reply) {
+            let _ = live.conn.respond(rpc_id, reply).await;
         }
         self.apply_hook_event(
             agent_id,
@@ -329,7 +431,7 @@ impl Daemon {
             },
             live.current_session_id(),
         );
-        self.set_feedback_request(agent_id, permission.request);
+        self.set_feedback_request(agent_id, request);
     }
 
     fn acp_exited(&self, agent_id: &AgentId, live: &Arc<AcpLive>, exit_code: Option<i32>) {
@@ -341,8 +443,8 @@ impl Daemon {
             }
             unanswered
         });
-        let tail = live.transcript.lock().unwrap().flush();
-        self.acp_emit(agent_id, tail);
+        self.acp_flush_tail(agent_id, live);
+        self.acp.persist.flush(&self.store, agent_id);
         if !self.acp.remove_if_same(agent_id, live) && self.acp.is_live(agent_id) {
             return;
         }
@@ -359,74 +461,11 @@ impl Daemon {
             .is_some_and(|agent| agent.kind == AgentKind::Acp)
     }
 
-    pub async fn acp_prompt(self: &Arc<Self>, agent_id: &AgentId, text: &str) -> Result<()> {
-        let text = text.trim();
-        if text.is_empty() {
-            bail!("the prompt is empty");
-        }
-        let live = self.acp_ensure(agent_id)?;
-        let sid = live.session_id().await?;
-        live.touch();
-        if live.turn_open.swap(true, Ordering::SeqCst) {
-            bail!("a turn is already running; wait for it or stop it");
-        }
-        self.checkpoint_for_prompt(agent_id).await;
-        self.acp_title_from_prompt(agent_id, text);
-        self.acp_push(agent_id, &live, AcpItem::User { text: text.into() });
-        self.apply_hook_event(agent_id, HookEvent::UserPromptSubmit, Some(sid.clone()));
-        let daemon = self.clone();
-        let agent_id = agent_id.clone();
-        let prompt = json!({"sessionId": sid, "prompt": [{"type": "text", "text": text}]});
-        tokio::spawn(async move {
-            let outcome = live.conn.request("session/prompt", prompt).await;
-            daemon.acp_turn_ended(&agent_id, &live, sid, outcome);
-        });
-        Ok(())
-    }
-
-    fn acp_title_from_prompt(self: &Arc<Self>, agent_id: &AgentId, text: &str) {
-        if !self
-            .store
-            .agent_auto_title_pending(agent_id)
-            .unwrap_or(false)
-        {
-            return;
-        }
-        let first_line = text.lines().next().unwrap_or_default();
-        let title: String = first_line.chars().take(AUTO_TITLE_CHARS).collect();
-        let _ = self.adopt_cli_title(agent_id, &title);
-    }
-
-    fn acp_turn_ended(
-        &self,
+    pub async fn answer_feedback(
+        self: &Arc<Self>,
         agent_id: &AgentId,
-        live: &AcpLive,
-        sid: String,
-        outcome: Result<Value, RpcError>,
-    ) {
-        let tail = live.transcript.lock().unwrap().flush();
-        self.acp_emit(agent_id, tail);
-        live.turn_open.store(false, Ordering::SeqCst);
-        live.touch();
-        live.permission.lock().unwrap().take();
-        let notice = match &outcome {
-            Err(RpcError::Closed) => return,
-            Err(error) => Some(format!("The turn failed: {error}")),
-            Ok(result) => match result.get("stopReason").and_then(Value::as_str) {
-                Some("end_turn") | Some("cancelled") => None,
-                Some("refusal") => Some("The agent refused to continue.".into()),
-                Some("max_tokens") => Some("The turn hit the token limit.".into()),
-                Some("max_turn_requests") => Some("The turn hit its request limit.".into()),
-                other => other.map(|r| format!("The turn stopped: {r}")),
-            },
-        };
-        if let Some(text) = notice {
-            self.acp_push(agent_id, live, AcpItem::Notice { text });
-        }
-        self.apply_hook_event(agent_id, HookEvent::Stop, Some(sid));
-    }
-
-    pub async fn answer_feedback(self: &Arc<Self>, agent_id: &AgentId, option: u8) -> Result<()> {
+        answer: FeedbackAnswer,
+    ) -> Result<()> {
         let live = self
             .acp
             .get(agent_id)
@@ -437,52 +476,65 @@ impl Daemon {
             .unwrap()
             .take()
             .context("the agent is not waiting for an answer")?;
-        let (rpc_id, option_ids) = match pending {
-            Pending::Permission { rpc_id, option_ids } => (rpc_id, option_ids),
-            Pending::SignIn {
-                method_ids,
-                cwd,
-                previous_session,
-            } => {
-                let Some(method_id) = method_ids.get(option as usize).cloned() else {
-                    live.permission.lock().unwrap().replace(Pending::SignIn {
-                        method_ids,
-                        cwd,
-                        previous_session,
-                    });
-                    bail!("no such option");
-                };
-                self.clear_feedback(agent_id);
-                live.ready.send_replace(None);
-                tokio::spawn(self.clone().acp_sign_in(
-                    agent_id.clone(),
-                    live,
-                    method_id,
-                    cwd,
-                    previous_session,
-                ));
-                return Ok(());
-            }
+        let reply = match &pending {
+            Pending::SignIn { .. } => None,
+            _ => match pending.reply_to(&answer) {
+                Ok(reply) => Some(reply),
+                Err(error) => {
+                    live.permission.lock().unwrap().replace(pending);
+                    return Err(error);
+                }
+            },
+        };
+        let Some((rpc_id, result)) = reply else {
+            return self.acp_answer_sign_in(agent_id, live, pending, answer);
         };
         live.touch();
-        let Some(option_id) = option_ids.get(option as usize).cloned() else {
-            live.permission
-                .lock()
-                .unwrap()
-                .replace(Pending::Permission { rpc_id, option_ids });
-            bail!("no such option");
-        };
-        live.conn
-            .respond(
-                rpc_id,
-                json!({"outcome": {"outcome": "selected", "optionId": option_id}}),
-            )
-            .await?;
+        live.conn.respond(rpc_id, result).await?;
         self.apply_hook_event(
             agent_id,
             HookEvent::UserPromptSubmit,
             live.current_session_id(),
         );
+        Ok(())
+    }
+
+    fn acp_answer_sign_in(
+        self: &Arc<Self>,
+        agent_id: &AgentId,
+        live: Arc<AcpLive>,
+        pending: Pending,
+        answer: FeedbackAnswer,
+    ) -> Result<()> {
+        let Pending::SignIn {
+            method_ids,
+            cwd,
+            previous_session,
+        } = pending
+        else {
+            bail!("not a sign-in");
+        };
+        let method_id = match answer {
+            FeedbackAnswer::Option(option) => method_ids.get(option as usize).cloned(),
+            FeedbackAnswer::Form(_) => None,
+        };
+        let Some(method_id) = method_id else {
+            live.permission.lock().unwrap().replace(Pending::SignIn {
+                method_ids,
+                cwd,
+                previous_session,
+            });
+            bail!("no such option");
+        };
+        self.clear_feedback(agent_id);
+        live.ready.send_replace(None);
+        tokio::spawn(self.clone().acp_sign_in(
+            agent_id.clone(),
+            live,
+            method_id,
+            cwd,
+            previous_session,
+        ));
         Ok(())
     }
 
@@ -497,24 +549,20 @@ impl Daemon {
             self.acp.kill(agent_id);
             return;
         };
+        live.state.lock().unwrap().queue.clear();
+        self.acp_push_state(agent_id, &live);
         let _ = live
             .conn
             .notify("session/cancel", json!({"sessionId": sid}))
             .await;
         let pending = live.permission.lock().unwrap().take();
-        if let Some(Pending::Permission { rpc_id, .. }) = pending {
-            let _ = live.conn.respond(rpc_id, cancelled_outcome()).await;
+        if let Some((rpc_id, reply)) = pending.as_ref().and_then(Pending::cancel_reply) {
+            let _ = live.conn.respond(rpc_id, reply).await;
         }
     }
 
-    pub fn acp_commands(&self, agent_id: &AgentId) -> Vec<AcpCommand> {
-        self.acp
-            .get(agent_id)
-            .map(|live| live.commands.lock().unwrap().clone())
-            .unwrap_or_default()
-    }
-
     pub fn acp_transcript(&self, agent_id: &AgentId, after: u64) -> Result<Vec<AcpItemAt>> {
+        self.acp.persist.flush(&self.store, agent_id);
         self.store
             .acp_items_after(agent_id, after)?
             .into_iter()
@@ -529,20 +577,14 @@ impl Daemon {
 
     fn acp_push(&self, agent_id: &AgentId, live: &AcpLive, item: AcpItem) {
         let items = live.transcript.lock().unwrap().push(item);
-        self.acp_emit(agent_id, items);
+        self.acp_emit(agent_id, items, None);
     }
 
-    fn acp_emit(&self, agent_id: &AgentId, items: Vec<AcpItemAt>) {
+    fn acp_emit(&self, agent_id: &AgentId, items: Vec<AcpItemAt>, read_at: Option<Instant>) {
+        let mut written = Vec::with_capacity(items.len());
         for AcpItemAt { seq, item } in items {
             match serde_json::to_string(&item) {
-                Ok(json) => {
-                    if let Err(e) =
-                        self.store
-                            .put_acp_item(agent_id, seq, &json, ITEMS_KEPT_PER_AGENT)
-                    {
-                        tracing::warn!(agent = %agent_id, error = %e, "persist ACP item failed");
-                    }
-                }
+                Ok(json) => written.push((seq, json, is_open(&item))),
                 Err(e) => tracing::warn!(error = %e, "encode ACP item failed"),
             }
             self.broadcast(ServerEvent::AcpItem {
@@ -551,10 +593,52 @@ impl Daemon {
                 item: Box::new(item),
             });
         }
+        if let Some(read_at) = read_at {
+            self.acp.latency.record(agent_id, read_at.elapsed());
+        }
+        for (seq, json, open) in written {
+            self.acp.persist.put(&self.store, agent_id, seq, json, open);
+        }
     }
 
     fn try_broadcast_acp_agent(&self, agent_id: &AgentId) {
         let _ = self.broadcast_agent(agent_id);
+    }
+}
+
+impl Pending {
+    fn reply_to(&self, answer: &FeedbackAnswer) -> Result<(Value, Value)> {
+        match (self, answer) {
+            (Pending::Permission { rpc_id, option_ids }, FeedbackAnswer::Option(option)) => {
+                let option_id = option_ids.get(*option as usize).context("no such option")?;
+                Ok((
+                    rpc_id.clone(),
+                    json!({"outcome": {"outcome": "selected", "optionId": option_id}}),
+                ))
+            }
+            (Pending::Question { rpc_id, form }, answer) => {
+                let answers = match answer {
+                    FeedbackAnswer::Option(option) => {
+                        questions::answers_for_option(form, *option as usize)?
+                    }
+                    FeedbackAnswer::Form(answers) => answers.clone(),
+                };
+                let content = questions::content(form, &answers)?;
+                Ok((
+                    rpc_id.clone(),
+                    json!({"action": "accept", "content": content}),
+                ))
+            }
+            _ => bail!("this request takes another kind of answer"),
+        }
+    }
+}
+
+fn is_open(item: &AcpItem) -> bool {
+    match item {
+        AcpItem::User { .. } | AcpItem::Assistant { .. } | AcpItem::Thought { .. } => true,
+        AcpItem::Tool(tool) => !matches!(tool.status.as_str(), "completed" | "failed"),
+        AcpItem::Plan { .. } | AcpItem::Notice { .. } => false,
     }
 }
 

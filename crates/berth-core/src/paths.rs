@@ -110,6 +110,10 @@ pub fn acp_log_path(agent_id: &str) -> PathBuf {
     data_dir().join("acp-logs").join(format!("{agent_id}.log"))
 }
 
+pub fn acp_blob_dir() -> PathBuf {
+    data_dir().join("acp-attachments")
+}
+
 pub fn log_dir() -> PathBuf {
     // Tests and parallel instances override the data dir; keep their logs
     // beside their data instead of the real user's state dir.

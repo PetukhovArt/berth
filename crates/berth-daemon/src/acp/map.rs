@@ -1,4 +1,7 @@
-use berth_core::acp::{AcpCommand, AcpDiff, AcpPlanEntry, AcpTool};
+use berth_core::acp::{
+    AcpCommand, AcpDiff, AcpPlanEntry, AcpTool, Applies, ChatCaps, Choice, ConfigOption,
+    OptionCategory, QuestionForm, Questions,
+};
 use berth_core::{FeedbackKind, FeedbackRequest};
 use serde_json::Value;
 
@@ -77,6 +80,78 @@ pub fn available_commands(params: &Value) -> Option<Vec<AcpCommand>> {
     Some(commands)
 }
 
+pub fn config_option_update(params: &Value) -> Option<Vec<ConfigOption>> {
+    let update = params.get("update")?;
+    (str_at(update, "sessionUpdate") == Some("config_option_update"))
+        .then(|| config_options(update))
+        .flatten()
+}
+
+pub fn config_options(holder: &Value) -> Option<Vec<ConfigOption>> {
+    let options = holder.get("configOptions")?.as_array()?;
+    Some(options.iter().filter_map(config_option).collect())
+}
+
+fn config_option(option: &Value) -> Option<ConfigOption> {
+    if str_at(option, "type") != Some("select") {
+        return None;
+    }
+    let id = str_at(option, "id")?;
+    let mut choices = Vec::new();
+    for entry in option.get("options")?.as_array()? {
+        match entry.get("options").and_then(Value::as_array) {
+            Some(group) => choices.extend(group.iter().filter_map(choice)),
+            None => choices.extend(choice(entry)),
+        }
+    }
+    Some(ConfigOption {
+        id: id.to_string(),
+        name: str_at(option, "name").unwrap_or(id).to_string(),
+        category: match str_at(option, "category") {
+            Some("model") => OptionCategory::Model,
+            Some("thought_level") => OptionCategory::ThoughtLevel,
+            Some("mode") => OptionCategory::Mode,
+            _ => OptionCategory::Other,
+        },
+        current: str_at(option, "currentValue")?.to_string(),
+        choices,
+        applies: Applies::Now,
+    })
+}
+
+fn choice(entry: &Value) -> Option<Choice> {
+    let value = str_at(entry, "value")?;
+    Some(Choice {
+        value: value.to_string(),
+        name: str_at(entry, "name").unwrap_or(value).to_string(),
+        description: str_at(entry, "description").map(str::to_string),
+    })
+}
+
+pub fn chat_caps(initialized: &Value) -> ChatCaps {
+    let prompt = |key: &str| {
+        initialized
+            .pointer("/agentCapabilities/promptCapabilities")
+            .and_then(|caps| caps.get(key))
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+    };
+    ChatCaps {
+        images: prompt("image"),
+        embedded_files: prompt("embeddedContext"),
+        questions: Questions::Typed,
+        ..ChatCaps::default()
+    }
+}
+
+pub fn elicitation(params: &Value) -> Option<(String, QuestionForm)> {
+    if str_at(params, "mode") != Some("form") {
+        return None;
+    }
+    let form = crate::acp::questions::form_from_schema(params.get("requestedSchema")?)?;
+    Some((str_at(params, "message")?.to_string(), form))
+}
+
 pub fn permission(params: &Value) -> Permission {
     let call = params.get("toolCall").cloned().unwrap_or(Value::Null);
     let patch = tool_patch(&call);
@@ -103,6 +178,7 @@ pub fn permission(params: &Value) -> Permission {
                 .or(patch.diff.map(|d| d.path)),
             options: names,
             always_allow: false,
+            form: None,
         },
         option_ids,
     }

@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 use tokio::sync::{mpsc, oneshot};
 
 #[derive(Debug)]
@@ -12,10 +13,12 @@ pub enum Inbound {
         id: Value,
         method: String,
         params: Value,
+        read_at: Instant,
     },
     Notification {
         method: String,
         params: Value,
+        read_at: Instant,
     },
     Response(Response),
     Exited(Option<i32>),
@@ -133,8 +136,8 @@ async fn read_wire(
 ) {
     let mut exit_code = None;
     while let Some(read) = wire.recv().await {
-        let line = match read {
-            WireIn::Line(line) => line,
+        let (line, read_at) = match read {
+            WireIn::Line { text, read_at } => (text, read_at),
             WireIn::Exited(code) => {
                 exit_code = code;
                 break;
@@ -144,7 +147,7 @@ async fn read_wire(
             tracing::debug!("ACP agent wrote a non-JSON line to stdout");
             continue;
         };
-        if let Some(inbound) = route(message, &waiters) {
+        if let Some(inbound) = route(message, &waiters, read_at) {
             if matches!(&inbound, Inbound::Notification { method, .. } if method == "session/update")
             {
                 notifications_seen.fetch_add(1, Ordering::SeqCst);
@@ -158,7 +161,7 @@ async fn read_wire(
     let _ = tx.send(Inbound::Exited(exit_code));
 }
 
-fn route(mut message: Value, waiters: &Waiters) -> Option<Inbound> {
+fn route(mut message: Value, waiters: &Waiters, read_at: Instant) -> Option<Inbound> {
     let params = message
         .get_mut("params")
         .map(Value::take)
@@ -166,8 +169,17 @@ fn route(mut message: Value, waiters: &Waiters) -> Option<Inbound> {
     if let Some(method) = message.get("method").and_then(Value::as_str) {
         let method = method.to_string();
         return Some(match message.get_mut("id").map(Value::take) {
-            Some(id) if !id.is_null() => Inbound::Request { id, method, params },
-            _ => Inbound::Notification { method, params },
+            Some(id) if !id.is_null() => Inbound::Request {
+                id,
+                method,
+                params,
+                read_at,
+            },
+            _ => Inbound::Notification {
+                method,
+                params,
+                read_at,
+            },
         });
     }
     let id = message.get("id").and_then(Value::as_u64)?;

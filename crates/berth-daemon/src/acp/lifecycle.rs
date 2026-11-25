@@ -1,5 +1,5 @@
 use super::conn::RpcError;
-use super::{AcpLive, Pending, ACP_PROTOCOL_VERSION};
+use super::{map, AcpLive, Pending, ACP_PROTOCOL_VERSION};
 use crate::registry::Daemon;
 use crate::status::HookEvent;
 use berth_core::acp::{AcpItem, AcpItemAt};
@@ -83,7 +83,8 @@ impl Daemon {
                     "protocolVersion": ACP_PROTOCOL_VERSION,
                     "clientCapabilities": {
                         "fs": {"readTextFile": false, "writeTextFile": false},
-                        "terminal": false
+                        "terminal": false,
+                        "elicitation": {"form": {}}
                     },
                     "clientInfo": {"name": "berth", "version": env!("CARGO_PKG_VERSION")}
                 }),
@@ -92,15 +93,17 @@ impl Daemon {
         let opened = match initialized {
             Ok(result) => {
                 *live.capabilities.lock().unwrap() = Capabilities::from_initialize(&result);
+                live.state.lock().unwrap().caps = map::chat_caps(&result);
                 self.acp_open_session(&agent_id, &live, &cwd, previous_session.as_deref())
                     .await
             }
             Err(error) => Err(error),
         };
-        self.acp_settle_session(agent_id, live, cwd, previous_session, opened);
+        self.acp_settle_session(agent_id, live, cwd, previous_session, opened)
+            .await;
     }
 
-    fn acp_settle_session(
+    async fn acp_settle_session(
         &self,
         agent_id: AgentId,
         live: Arc<AcpLive>,
@@ -110,6 +113,8 @@ impl Daemon {
     ) {
         match opened {
             Ok(Opened::Session(sid)) => {
+                self.acp_apply_remembered(&agent_id, &live, &sid).await;
+                self.acp_push_state(&agent_id, &live);
                 self.apply_hook_event(
                     &agent_id,
                     HookEvent::SessionStart {
@@ -144,6 +149,12 @@ impl Daemon {
         }
     }
 
+    fn acp_take_options(&self, live: &AcpLive, opened: &Value) {
+        if let Some(options) = map::config_options(opened) {
+            live.state.lock().unwrap().options = options;
+        }
+    }
+
     async fn acp_open_session(
         &self,
         agent_id: &AgentId,
@@ -157,7 +168,10 @@ impl Daemon {
         if let Some(old) = previous_session {
             if caps.resume {
                 match live.conn.request("session/resume", params(old)).await {
-                    Ok(_) => return Ok(Opened::Session(old.to_string())),
+                    Ok(opened) => {
+                        self.acp_take_options(live, &opened);
+                        return Ok(Opened::Session(old.to_string()));
+                    }
                     Err(e) if needs_sign_in(&e, &caps) => return Ok(Opened::NeedsSignIn),
                     Err(RpcError::Closed) => return Err(RpcError::Closed),
                     Err(e) => {
@@ -171,7 +185,10 @@ impl Daemon {
                 live.replay_until
                     .store(live.conn.notifications_seen(), Ordering::SeqCst);
                 match loaded {
-                    Ok(_) => return Ok(Opened::Session(old.to_string())),
+                    Ok(opened) => {
+                        self.acp_take_options(live, &opened);
+                        return Ok(Opened::Session(old.to_string()));
+                    }
                     Err(e) if needs_sign_in(&e, &caps) => return Ok(Opened::NeedsSignIn),
                     Err(RpcError::Closed) => return Err(RpcError::Closed),
                     Err(e) => {
@@ -189,6 +206,7 @@ impl Daemon {
             Err(e) if needs_sign_in(&e, &caps) => return Ok(Opened::NeedsSignIn),
             Err(e) => return Err(e),
         };
+        self.acp_take_options(live, &created);
         let sid = created
             .get("sessionId")
             .and_then(Value::as_str)
@@ -254,6 +272,7 @@ impl Daemon {
                 ),
                 options: names,
                 always_allow: false,
+                form: None,
             },
         );
     }
@@ -287,7 +306,8 @@ impl Daemon {
                 Ok(Opened::NeedsSignIn)
             }
         };
-        self.acp_settle_session(agent_id, live, cwd, previous_session, opened);
+        self.acp_settle_session(agent_id, live, cwd, previous_session, opened)
+            .await;
     }
 
     pub(crate) fn reap_idle_acp(&self, timeout: Duration) {
@@ -345,6 +365,7 @@ impl Daemon {
                 seq,
                 item: AcpItem::Notice { text },
             }],
+            None,
         );
     }
 

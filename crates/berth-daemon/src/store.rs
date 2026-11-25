@@ -1216,6 +1216,14 @@ impl Store {
         Ok(())
     }
 
+    pub fn set_agent_effort(&self, id: &AgentId, effort: Option<&str>) -> Result<()> {
+        self.conn.lock().unwrap().execute(
+            "UPDATE agents SET effort = ?2 WHERE id = ?1",
+            params![id.as_str(), effort],
+        )?;
+        Ok(())
+    }
+
     // ---- orphaned sessions ----
 
     /// Copy every resumable AGENT of `worktree_id` into `orphaned_sessions`.

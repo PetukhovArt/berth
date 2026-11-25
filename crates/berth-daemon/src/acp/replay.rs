@@ -4,6 +4,7 @@ use crate::hooks::HookEnv;
 use crate::registry::Daemon;
 use crate::store::Store;
 use anyhow::{bail, ensure, Context, Result};
+use berth_core::acp::{AcpSessionState, Answers, AttachmentUpload, FeedbackAnswer, QueueId};
 use berth_core::{AgentId, EntityId, ServerEvent, WorktreeId};
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -26,14 +27,35 @@ enum Step {
     ExpectOutbound { frame: Value },
     EmitInbound { frame: Value },
     RuntimeExit { code: Option<i32> },
+    Wait { ms: u64 },
 }
 
 #[derive(Deserialize)]
 #[serde(tag = "call", content = "args", rename_all = "snake_case")]
 enum Call {
-    Create { name: String },
-    Prompt { text: String },
-    Answer { option: u8 },
+    Create {
+        name: String,
+    },
+    Prompt {
+        text: String,
+        #[serde(default)]
+        attachments: Vec<AttachmentUpload>,
+    },
+    Answer {
+        option: Option<u8>,
+        form: Option<Answers>,
+    },
+    SetOption {
+        id: String,
+        value: String,
+    },
+    EditQueued {
+        id: u64,
+        text: String,
+    },
+    RemoveQueued {
+        id: u64,
+    },
     Stop,
     Resume,
 }
@@ -100,6 +122,21 @@ fn git(repo: &Path, args: &[&str]) {
     assert!(out.status.success(), "{args:?}: {out:?}");
 }
 
+fn hide_blobs(value: &mut Value) {
+    match value {
+        Value::Array(items) => items.iter_mut().for_each(hide_blobs),
+        Value::Object(fields) => {
+            for (key, field) in fields.iter_mut() {
+                match field {
+                    Value::String(_) if key == "blob" => *field = json!("<blob>"),
+                    _ => hide_blobs(field),
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
 fn map_strings(value: &mut Value, change: &impl Fn(&str) -> String) {
     match value {
         Value::String(text) => *text = change(text),
@@ -121,6 +158,20 @@ fn matches(expected: &Value, actual: &Value, workspace: &str) -> bool {
         }
         _ => expected == actual,
     }
+}
+
+fn session_summary(state: &AcpSessionState) -> Value {
+    json!({
+        "caps": state.caps,
+        "options": state.options.iter().map(|option| json!({
+            "id": option.id,
+            "category": option.category,
+            "current": option.current,
+            "choices": option.choices.len(),
+        })).collect::<Vec<_>>(),
+        "commands": state.commands.iter().map(|command| &command.name).collect::<Vec<_>>(),
+        "queue": state.queue.iter().map(|queued| json!({"id": queued.id, "text": queued.prompt.text})).collect::<Vec<_>>(),
+    })
 }
 
 fn item_seq(observed: &Value) -> Option<u64> {
@@ -155,6 +206,7 @@ pub(super) async fn daemon_in(tmp: &Path) -> Result<(Arc<Daemon>, WorktreeId, St
 impl Run {
     async fn new(tmp: &Path) -> Result<Run> {
         let (daemon, worktree, workspace) = daemon_in(tmp).await?;
+        daemon.acp.blobs.move_to(tmp.join("blobs"));
         Ok(Run {
             events: daemon.events.subscribe(),
             workspace,
@@ -197,8 +249,31 @@ impl Run {
                 self.agent = Some(id);
                 self.take_peer();
             }
-            Call::Prompt { text } => self.daemon.acp_prompt(self.agent()?, &text).await?,
-            Call::Answer { option } => self.daemon.answer_feedback(self.agent()?, option).await?,
+            Call::Prompt { text, attachments } => {
+                self.daemon
+                    .acp_prompt_with(self.agent()?, &text, attachments)
+                    .await?
+            }
+            Call::Answer { option, form } => {
+                let answer = match (option, form) {
+                    (Some(option), _) => FeedbackAnswer::Option(option),
+                    (None, Some(form)) => FeedbackAnswer::Form(form),
+                    (None, None) => bail!("an answer needs an option or a form"),
+                };
+                self.daemon.answer_feedback(self.agent()?, answer).await?
+            }
+            Call::SetOption { id, value } => {
+                let daemon = self.daemon.clone();
+                let agent = self.agent()?.clone();
+                tokio::spawn(async move { daemon.acp_set_option(&agent, &id, &value).await });
+            }
+            Call::EditQueued { id, text } => {
+                self.daemon
+                    .acp_edit_queued(self.agent()?, QueueId(id), &text)?
+            }
+            Call::RemoveQueued { id } => {
+                self.daemon.acp_remove_queued(self.agent()?, QueueId(id))?
+            }
             Call::Stop => {
                 self.daemon
                     .stop_agent_or_its_acp_turn(self.agent()?)
@@ -238,7 +313,7 @@ impl Run {
     fn emit_inbound(&self, mut frame: Value) -> Result<()> {
         map_strings(&mut frame, &|s| s.replace(WORKSPACE, &self.workspace));
         let peer = self.peer.as_ref().context("no agent process")?;
-        peer.to_berth.send(WireIn::Line(frame.to_string()))?;
+        peer.to_berth.send(WireIn::line(frame.to_string()))?;
         Ok(())
     }
 
@@ -265,9 +340,13 @@ impl Run {
                 ServerEvent::FeedbackRequestChanged { agent: a, request } if a == agent => {
                     json!({"feedback": request})
                 }
+                ServerEvent::AcpSessionChanged { agent: a, state } if a == agent => {
+                    json!({"session": session_summary(&state)})
+                }
                 _ => continue,
             };
             map_strings(&mut seen, &|s| s.replace(&self.workspace, WORKSPACE));
+            hide_blobs(&mut seen);
             match (item_seq(&seen), out.last_mut()) {
                 (Some(seq), Some(last)) if item_seq(last) == Some(seq) => *last = seen,
                 _ => out.push(seen),
@@ -294,6 +373,11 @@ impl Run {
                 }
                 Step::ExpectOutbound { frame } => self.expect_outbound(&frame).await?,
                 Step::EmitInbound { frame } => self.emit_inbound(frame)?,
+                Step::Wait { ms } => {
+                    tokio::time::pause();
+                    tokio::time::advance(Duration::from_millis(ms)).await;
+                    tokio::time::resume();
+                }
                 Step::RuntimeExit { code } => {
                     let peer = self.peer.as_ref().context("no agent process")?;
                     peer.to_berth.send(WireIn::Exited(code))?;

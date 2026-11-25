@@ -194,7 +194,7 @@ fn takes_checkpoints(kind: AgentKind, config: &crate::config::Config) -> bool {
 }
 
 impl Daemon {
-    fn checkpoint_dir(&self, agent: &AgentId) -> Result<PathBuf> {
+    pub(crate) fn checkpoint_dir(&self, agent: &AgentId) -> Result<PathBuf> {
         let agent = self.store.get_agent(agent)?.context("agent not found")?;
         let worktree = self
             .store

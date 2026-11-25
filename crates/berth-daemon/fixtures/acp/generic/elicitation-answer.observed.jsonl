@@ -1,0 +1,9 @@
+{"session":{"caps":{"images":false,"embedded_files":false,"questions":"typed","mcp":"none","rewind":false,"steer":false,"terminal_view":false},"options":[],"commands":[],"queue":[]}}
+{"item":{"seq":1,"item":{"User":{"text":"set it up"}}}}
+{"status":"running"}
+{"status":"needs_feedback"}
+{"feedback":{"kind":"Question","title":"Which stack?","detail":null,"options":[],"always_allow":false,"form":{"questions":[{"id":"stack","header":"Stack","text":"Stack","choices":[{"value":"web","name":"Web","description":null},{"value":"cli","name":"CLI","description":null}],"multi_select":false,"free_text_allowed":false},{"id":"extras","header":"Extras","text":"Extras","choices":[{"value":"lint","name":"Lint","description":null},{"value":"ci","name":"CI","description":null}],"multi_select":true,"free_text_allowed":false},{"id":"note","header":"Note","text":"Note","choices":[],"multi_select":false,"free_text_allowed":true}]}}}
+{"feedback":null}
+{"status":"running"}
+{"item":{"seq":2,"item":{"Assistant":{"text":"Done."}}}}
+{"status":"finished"}

@@ -1,0 +1,20 @@
+{"session":{"caps":{"images":false,"embedded_files":false,"questions":"typed","mcp":"none","rewind":false,"steer":false,"terminal_view":false},"options":[],"commands":[],"queue":[]}}
+{"item":{"seq":1,"item":{"User":{"text":"first"}}}}
+{"status":"running"}
+{"session":{"caps":{"images":false,"embedded_files":false,"questions":"typed","mcp":"none","rewind":false,"steer":false,"terminal_view":false},"options":[],"commands":[],"queue":[{"id":1,"text":"second draft"}]}}
+{"session":{"caps":{"images":false,"embedded_files":false,"questions":"typed","mcp":"none","rewind":false,"steer":false,"terminal_view":false},"options":[],"commands":[],"queue":[{"id":1,"text":"second draft"},{"id":2,"text":"dropped"}]}}
+{"session":{"caps":{"images":false,"embedded_files":false,"questions":"typed","mcp":"none","rewind":false,"steer":false,"terminal_view":false},"options":[],"commands":[],"queue":[{"id":1,"text":"second draft"},{"id":2,"text":"dropped"},{"id":3,"text":"third"}]}}
+{"session":{"caps":{"images":false,"embedded_files":false,"questions":"typed","mcp":"none","rewind":false,"steer":false,"terminal_view":false},"options":[],"commands":[],"queue":[{"id":1,"text":"second"},{"id":2,"text":"dropped"},{"id":3,"text":"third"}]}}
+{"session":{"caps":{"images":false,"embedded_files":false,"questions":"typed","mcp":"none","rewind":false,"steer":false,"terminal_view":false},"options":[],"commands":[],"queue":[{"id":1,"text":"second"},{"id":3,"text":"third"}]}}
+{"item":{"seq":2,"item":{"Assistant":{"text":"One."}}}}
+{"status":"finished"}
+{"session":{"caps":{"images":false,"embedded_files":false,"questions":"typed","mcp":"none","rewind":false,"steer":false,"terminal_view":false},"options":[],"commands":[],"queue":[{"id":3,"text":"third"}]}}
+{"item":{"seq":3,"item":{"User":{"text":"second"}}}}
+{"status":"running"}
+{"item":{"seq":4,"item":{"Assistant":{"text":"Two."}}}}
+{"status":"finished"}
+{"session":{"caps":{"images":false,"embedded_files":false,"questions":"typed","mcp":"none","rewind":false,"steer":false,"terminal_view":false},"options":[],"commands":[],"queue":[]}}
+{"item":{"seq":5,"item":{"User":{"text":"third"}}}}
+{"status":"running"}
+{"item":{"seq":6,"item":{"Assistant":{"text":"Three."}}}}
+{"status":"finished"}

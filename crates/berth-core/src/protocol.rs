@@ -1,4 +1,6 @@
-use crate::acp::{AcpCommand, AcpItem, AcpItemAt};
+use crate::acp::{
+    AcpItem, AcpItemAt, AcpSessionState, AttachmentUpload, FeedbackAnswer, QuestionForm, QueueId,
+};
 use crate::attention::Attention;
 use crate::entities::{
     Agent, AgentKind, AgentStatus, Entity, EntityId, OrphanedSession, Project, TerminalTab,
@@ -10,7 +12,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 66;
+pub const PROTOCOL_VERSION: u32 = 67;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -504,6 +506,40 @@ pub enum ClientRequest {
         req_id: u64,
         agent: AgentId,
         text: String,
+        #[serde(default)]
+        attachments: Vec<AttachmentUpload>,
+    },
+
+    AcpEditQueued {
+        req_id: u64,
+        agent: AgentId,
+        id: QueueId,
+        text: String,
+    },
+
+    AcpRemoveQueued {
+        req_id: u64,
+        agent: AgentId,
+        id: QueueId,
+    },
+
+    SetConfigOption {
+        req_id: u64,
+        agent: AgentId,
+        id: String,
+        value: String,
+    },
+
+    AcpAttachment {
+        req_id: u64,
+        blob: String,
+    },
+
+    ListWorktreeFiles {
+        req_id: u64,
+        worktree: WorktreeId,
+        query: String,
+        limit: u32,
     },
 
     AcpTranscript {
@@ -515,7 +551,7 @@ pub enum ClientRequest {
     AnswerFeedback {
         req_id: u64,
         agent: AgentId,
-        option: u8,
+        answer: FeedbackAnswer,
     },
 
     AnswerInChannel {
@@ -536,7 +572,7 @@ pub enum ClientRequest {
         error: Option<String>,
     },
 
-    AcpCommands {
+    AcpSessionState {
         req_id: u64,
         agent: AgentId,
     },
@@ -715,6 +751,8 @@ pub struct FeedbackRequest {
     pub options: Vec<String>,
     #[serde(default)]
     pub always_allow: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub form: Option<QuestionForm>,
 }
 
 /// One local branch of a project, as `ListBranches` reports it.
@@ -950,10 +988,25 @@ pub enum ServerEvent {
         pcm_path: String,
     },
 
-    AcpCommands {
+    AcpSessionState {
         req_id: u64,
         agent: AgentId,
-        commands: Vec<AcpCommand>,
+        state: Box<AcpSessionState>,
+    },
+
+    AcpSessionChanged {
+        agent: AgentId,
+        state: Box<AcpSessionState>,
+    },
+
+    AcpAttachment {
+        req_id: u64,
+        data: String,
+    },
+
+    WorktreeFiles {
+        req_id: u64,
+        files: Vec<String>,
     },
 
     Hub {

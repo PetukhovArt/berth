@@ -1,9 +1,10 @@
 use super::map::{apply_patch, TextKind, ToolPatch, Update};
 use berth_core::acp::{AcpItem, AcpItemAt, AcpTool};
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant as ReadAt};
+use tokio::time::Instant;
 
-const TEXT_EMIT_GAP: Duration = Duration::from_millis(200);
+const TEXT_EMIT_GAP: Duration = Duration::from_millis(50);
 
 struct OpenText {
     seq: u64,
@@ -17,6 +18,7 @@ pub struct Transcript {
     last_seq: u64,
     open: Option<OpenText>,
     tools: HashMap<String, (u64, AcpTool)>,
+    read_at: Option<ReadAt>,
 }
 
 impl Transcript {
@@ -25,6 +27,7 @@ impl Transcript {
             last_seq,
             open: None,
             tools: HashMap::new(),
+            read_at: None,
         }
     }
 
@@ -38,7 +41,8 @@ impl Transcript {
         out
     }
 
-    pub fn apply(&mut self, update: Update, now: Instant) -> Vec<AcpItemAt> {
+    pub fn apply(&mut self, update: Update, now: Instant, read_at: ReadAt) -> Vec<AcpItemAt> {
+        self.read_at.get_or_insert(read_at);
         match update {
             Update::Text(kind, chunk) => self.text(kind, chunk, now),
             Update::Tool(patch) => self.tool(patch),
@@ -47,10 +51,25 @@ impl Transcript {
         }
     }
 
+    pub fn flush_due(&self) -> Option<Instant> {
+        self.open
+            .as_ref()
+            .filter(|open| open.unsent)
+            .map(|open| open.emitted_at + TEXT_EMIT_GAP)
+    }
+
+    pub fn stamp(&mut self, emitted: &[AcpItemAt]) -> Option<ReadAt> {
+        if emitted.is_empty() {
+            return None;
+        }
+        self.read_at.take()
+    }
+
     pub fn flush(&mut self) -> Vec<AcpItemAt> {
         match &mut self.open {
             Some(open) if open.unsent => {
                 open.unsent = false;
+                open.emitted_at = Instant::now();
                 vec![open_item(open)]
             }
             _ => Vec::new(),
@@ -117,7 +136,10 @@ fn open_item(open: &OpenText) -> AcpItemAt {
     AcpItemAt {
         seq: open.seq,
         item: match open.kind {
-            TextKind::User => AcpItem::User { text },
+            TextKind::User => AcpItem::User {
+                text,
+                attachments: Vec::new(),
+            },
             TextKind::Assistant => AcpItem::Assistant { text },
             TextKind::Thought => AcpItem::Thought { text },
         },
@@ -136,9 +158,9 @@ mod tests {
     fn chunks_coalesce_into_one_item_and_the_tail_flushes() {
         let mut t = Transcript::after(10);
         let now = Instant::now();
-        let first = t.apply(chunk("Hel"), now);
+        let first = t.apply(chunk("Hel"), now, ReadAt::now());
         assert_eq!(first[0].seq, 11);
-        assert!(t.apply(chunk("lo"), now).is_empty());
+        assert!(t.apply(chunk("lo"), now, ReadAt::now()).is_empty());
         let tail = t.flush();
         assert_eq!(
             tail,
@@ -156,8 +178,8 @@ mod tests {
     fn a_tool_closes_the_text_run_and_its_update_keeps_the_seq() {
         let mut t = Transcript::after(0);
         let now = Instant::now();
-        t.apply(chunk("a"), now);
-        t.apply(chunk("b"), now);
+        t.apply(chunk("a"), now, ReadAt::now());
+        t.apply(chunk("b"), now, ReadAt::now());
         let call = t.apply(
             Update::Tool(ToolPatch {
                 id: "t".into(),
@@ -165,6 +187,7 @@ mod tests {
                 ..Default::default()
             }),
             now,
+            ReadAt::now(),
         );
         assert_eq!(call.len(), 2);
         assert_eq!(call[1].seq, 2);
@@ -175,11 +198,12 @@ mod tests {
                 ..Default::default()
             }),
             now,
+            ReadAt::now(),
         );
         let AcpItem::Tool(tool) = &update[0].item else {
             panic!("not a tool")
         };
         assert_eq!((update[0].seq, tool.status.as_str()), (2, "completed"));
-        assert_eq!(t.apply(chunk("c"), now)[0].seq, 3);
+        assert_eq!(t.apply(chunk("c"), now, ReadAt::now())[0].seq, 3);
     }
 }

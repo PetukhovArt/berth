@@ -134,7 +134,7 @@ impl Daemon {
 
 fn indexed(item: AcpItem) -> Option<(&'static str, String)> {
     let (role, text) = match item {
-        AcpItem::User { text } => ("user", text),
+        AcpItem::User { text, .. } => ("user", text),
         AcpItem::Assistant { text } => ("assistant", text),
         _ => return None,
     };

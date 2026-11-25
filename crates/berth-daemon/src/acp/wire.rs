@@ -5,6 +5,7 @@ use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command};
 use tokio::sync::mpsc;
@@ -14,8 +15,17 @@ const LOG_BYTES_KEPT: usize = 4 * 1024 * 1024;
 
 #[derive(Debug)]
 pub enum WireIn {
-    Line(String),
+    Line { text: String, read_at: Instant },
     Exited(Option<i32>),
+}
+
+impl WireIn {
+    pub fn line(text: String) -> Self {
+        Self::Line {
+            text,
+            read_at: Instant::now(),
+        }
+    }
 }
 
 pub struct Wire {
@@ -149,7 +159,7 @@ async fn read_stdout(
 ) {
     let mut lines = BufReader::new(stdout).lines();
     while let Ok(Some(line)) = lines.next_line().await {
-        let _ = inbound.send(WireIn::Line(line));
+        let _ = inbound.send(WireIn::line(line));
     }
     let code = child.wait().await.ok().and_then(|s| s.code());
     let _ = inbound.send(WireIn::Exited(code));

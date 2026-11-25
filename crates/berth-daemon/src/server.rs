@@ -521,12 +521,66 @@ async fn handle_client(
                     req_id,
                     agent,
                     text,
+                    attachments,
                 } => {
                     let daemon = daemon.clone();
                     let out_tx = out_tx.clone();
                     tokio::spawn(async move {
-                        reply_done(&out_tx, req_id, daemon.acp_prompt(&agent, &text).await).await;
+                        let sent = daemon.acp_prompt_with(&agent, &text, attachments).await;
+                        reply_done(&out_tx, req_id, sent).await;
                     });
+                }
+                ClientRequest::AcpEditQueued {
+                    req_id,
+                    agent,
+                    id,
+                    text,
+                } => {
+                    reply_done(&out_tx, req_id, daemon.acp_edit_queued(&agent, id, &text)).await;
+                }
+                ClientRequest::AcpRemoveQueued { req_id, agent, id } => {
+                    reply_done(&out_tx, req_id, daemon.acp_remove_queued(&agent, id)).await;
+                }
+                ClientRequest::SetConfigOption {
+                    req_id,
+                    agent,
+                    id,
+                    value,
+                } => {
+                    let daemon = daemon.clone();
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let set = daemon.acp_set_option(&agent, &id, &value).await;
+                        reply_done(&out_tx, req_id, set).await;
+                    });
+                }
+                ClientRequest::AcpAttachment { req_id, blob } => {
+                    let ev = match daemon.acp_attachment(&blob).await {
+                        Ok(data) => ServerEvent::AcpAttachment { req_id, data },
+                        Err(e) => ServerEvent::Error {
+                            req_id: Some(req_id),
+                            message: format!("{e:#}"),
+                        },
+                    };
+                    let _ = out_tx.send(ev).await;
+                }
+                ClientRequest::ListWorktreeFiles {
+                    req_id,
+                    worktree,
+                    query,
+                    limit,
+                } => {
+                    let ev = match daemon
+                        .list_worktree_files(&worktree, &query, limit as usize)
+                        .await
+                    {
+                        Ok(files) => ServerEvent::WorktreeFiles { req_id, files },
+                        Err(e) => ServerEvent::Error {
+                            req_id: Some(req_id),
+                            message: format!("{e:#}"),
+                        },
+                    };
+                    let _ = out_tx.send(ev).await;
                 }
                 ClientRequest::AcpTranscript {
                     req_id,
@@ -546,25 +600,25 @@ async fn handle_client(
                     };
                     let _ = out_tx.send(ev).await;
                 }
-                ClientRequest::AcpCommands { req_id, agent } => {
-                    let commands = daemon.acp_commands(&agent);
+                ClientRequest::AcpSessionState { req_id, agent } => {
+                    let state = Box::new(daemon.acp_session(&agent));
                     let _ = out_tx
-                        .send(ServerEvent::AcpCommands {
+                        .send(ServerEvent::AcpSessionState {
                             req_id,
                             agent,
-                            commands,
+                            state,
                         })
                         .await;
                 }
                 ClientRequest::AnswerFeedback {
                     req_id,
                     agent,
-                    option,
+                    answer,
                 } => {
                     reply_done(
                         &out_tx,
                         req_id,
-                        daemon.answer_feedback(&agent, option).await,
+                        daemon.answer_feedback(&agent, answer).await,
                     )
                     .await;
                 }

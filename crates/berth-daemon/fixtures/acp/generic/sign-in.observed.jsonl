@@ -1,8 +1,9 @@
-{"item":{"item":{"Notice":{"text":"generic needs you to sign in."}},"seq":1}}
+{"item":{"seq":1,"item":{"Notice":{"text":"generic needs you to sign in."}}}}
 {"status":"needs_feedback"}
-{"feedback":{"always_allow":false,"detail":"The agent opens its own sign-in flow, usually in the browser.","kind":"Question","options":["Log in with the browser"],"title":"Sign in to generic"}}
+{"feedback":{"kind":"Question","title":"Sign in to generic","detail":"The agent opens its own sign-in flow, usually in the browser.","options":["Log in with the browser"],"always_allow":false}}
 {"feedback":null}
-{"item":{"item":{"User":{"text":"hello"}},"seq":2}}
+{"session":{"caps":{"images":false,"embedded_files":false,"questions":"typed","mcp":"none","rewind":false,"steer":false,"terminal_view":false},"options":[],"commands":[],"queue":[]}}
+{"item":{"seq":2,"item":{"User":{"text":"hello"}}}}
 {"status":"running"}
-{"item":{"item":{"Assistant":{"text":"signed in"}},"seq":3}}
+{"item":{"seq":3,"item":{"Assistant":{"text":"signed in"}}}}
 {"status":"finished"}

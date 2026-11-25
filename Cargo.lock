@@ -537,6 +537,7 @@ version = "0.24.0"
 dependencies = [
  "anyhow",
  "axum",
+ "base64 0.22.1",
  "berth-core",
  "berth-hub",
  "nix 0.31.3",
