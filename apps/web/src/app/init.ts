@@ -18,9 +18,22 @@ import { initBerthIdleSync } from './berthIdle';
 import { initLocale } from './locale';
 import { initTray } from './tray';
 
+function blockFileNavigation(): () => void {
+  const block = (event: DragEvent) => {
+    if (event.dataTransfer?.types.includes('Files')) event.preventDefault();
+  };
+  window.addEventListener('dragover', block);
+  window.addEventListener('drop', block);
+  return () => {
+    window.removeEventListener('dragover', block);
+    window.removeEventListener('drop', block);
+  };
+}
+
 export function initApp(): () => void {
   const disposers: (() => void)[] = [];
   disposers.push(initLocale());
+  disposers.push(blockFileNavigation());
   setTranslator(t);
   void loadHostPlatform();
   disposers.push(initAppearance());
