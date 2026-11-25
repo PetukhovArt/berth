@@ -47,7 +47,9 @@ type Entity = { Workspace: Workspace } | { Project: Project } | { Worktree: Work
 type EntityId = { Workspace: string } | { Project: string } | { Worktree: string } | { Agent: string } | { Terminal: string };
 
 type AcpChoice = { value: string; name: string; description: string | null };
-type AcpQuestionForm = { questions: { id: string; header: string; text: string; choices: AcpChoice[]; multi_select: boolean; free_text_allowed: boolean }[] };
+export type AcpQuestion = { id: string; header: string; text: string; choices: AcpChoice[]; multi_select: boolean; free_text_allowed: boolean };
+export type AcpQuestionForm = { questions: AcpQuestion[] };
+export type AcpAnswers = Record<string, string[]>;
 export type FeedbackRequest = { kind: 'Permission' | 'Question'; title: string; detail: string | null; options: string[]; always_allow?: boolean; form?: AcpQuestionForm };
 
 type ArchivedExternal = { kind: AgentKind; session_id: string; archived_at: number };
@@ -64,14 +66,20 @@ type WatchEvent =
   | { type: 'feedback_request'; agent: string; request: FeedbackRequest | null }
   | { type: 'task_note'; worktree: string; text: string }
   | { type: 'acp_item'; agent: string; seq: number; item: AcpItem }
+  | { type: 'acp_session'; agent: string; state: AcpSessionState }
   | { type: 'channel_appended'; channel: string; seq: number }
   | { type: 'hub_changed' }
   | { type: 'error'; message: string };
 
 type AcpTool = { id: string; title: string; kind: string; status: string; detail: string | null; diff: { path: string; old: string | null; new: string } | null; output: string | null };
 export type AcpPlanEntry = { content: string; priority: string; status: string };
-type AcpAttachment = { Image: { blob: string; mime: string; name: string } } | { File: { blob: string; mime: string; name: string } } | { WorktreeFile: { path: string } };
-type AcpSessionState = { commands: { name: string; description: string }[] };
+export type AcpAttachment = { Image: { blob: string; mime: string; name: string } } | { File: { blob: string; mime: string; name: string } } | { WorktreeFile: { path: string } };
+export type AcpAttachmentUpload = { Image: { mime: string; name: string; data: string } } | { File: { mime: string; name: string; text: string } } | { WorktreeFile: { path: string } };
+type AcpOptionCategory = 'Model' | 'ThoughtLevel' | 'Mode' | 'Other';
+export type AcpConfigOption = { id: string; name: string; category: AcpOptionCategory; current: string; choices: AcpChoice[]; applies: 'now' | 'next_start' };
+export type AcpChatCaps = { images: boolean; embedded_files: boolean; questions: 'none' | 'choice' | 'typed'; mcp: 'none' | 'list' | 'toggle'; rewind: boolean; steer: boolean; terminal_view: boolean };
+export type AcpQueuedPrompt = { id: number; prompt: { text: string; attachments: AcpAttachment[] } };
+export type AcpSessionState = { caps: AcpChatCaps; options: AcpConfigOption[]; commands: { name: string; description: string }[]; queue: AcpQueuedPrompt[] };
 export type AcpItem = { User: { text: string; attachments?: AcpAttachment[] } } | { Assistant: { text: string } } | { Thought: { text: string } } | { Tool: AcpTool } | { Plan: { entries: AcpPlanEntry[] } } | { Notice: { text: string } };
 export type AcpItemAt = { seq: number; item: AcpItem };
 
@@ -80,6 +88,13 @@ const acpListeners = new Set<(agent: string, item: AcpItemAt) => void>();
 export function onAcpItem(listener: (agent: string, item: AcpItemAt) => void): () => void {
   acpListeners.add(listener);
   return () => acpListeners.delete(listener);
+}
+
+const acpSessionListeners = new Set<(agent: string, state: AcpSessionState) => void>();
+
+export function onAcpSession(listener: (agent: string, state: AcpSessionState) => void): () => void {
+  acpSessionListeners.add(listener);
+  return () => acpSessionListeners.delete(listener);
 }
 
 const spawnListeners = new Set<(agent: string, spawnedBy: string) => void>();
@@ -308,6 +323,9 @@ function createStore(): BerthStore {
       case 'acp_item':
         for (const listener of acpListeners) listener(event.agent, { seq: event.seq, item: event.item });
         return;
+      case 'acp_session':
+        for (const listener of acpSessionListeners) listener(event.agent, event.state);
+        return;
       case 'channel_appended':
         for (const listener of channelListeners) listener(event.channel);
         return;
@@ -401,11 +419,13 @@ export type BerthReply =
   | { ChannelGrants: { req_id: number; grants: { channel: string; agent: string; member: string; member_name: string }[] } }
   | { AcpTranscript: { req_id: number; agent: string; items: AcpItemAt[] } }
   | { AcpSessionState: { req_id: number; agent: string; state: AcpSessionState } }
+  | { AcpAttachment: { req_id: number; data: string } }
+  | { WorktreeFiles: { req_id: number; files: string[] } }
   | { Hub: { req_id: number; json: string } };
 
 export class BerthCallError extends Error {}
 
-const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote', 'RouterConfig', 'ProjectSetup', 'Checkpoints', 'Channels', 'ChannelEvents', 'ChannelPresence', 'ChannelOpened', 'ChannelTouched', 'ChannelGrants', 'AcpTranscript', 'AcpSessionState', 'Hub']);
+const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote', 'RouterConfig', 'ProjectSetup', 'Checkpoints', 'Channels', 'ChannelEvents', 'ChannelPresence', 'ChannelOpened', 'ChannelTouched', 'ChannelGrants', 'AcpTranscript', 'AcpSessionState', 'AcpAttachment', 'WorktreeFiles', 'Hub']);
 
 function isBerthReply(value: unknown): value is BerthReply {
   if (typeof value !== 'object' || value === null) return false;
@@ -451,18 +471,46 @@ export function isAcpAgent(agent: string): boolean {
   return useBerth()?.entities.value.agents.get(agent)?.kind === 'acp';
 }
 
-export async function acpPrompt(agent: string, text: string): Promise<void> {
-  await acknowledged({ AcpPrompt: { agent, text } });
+export async function acpPrompt(agent: string, text: string, attachments: AcpAttachmentUpload[] = []): Promise<void> {
+  await acknowledged({ AcpPrompt: { agent, text, attachments } });
 }
 
 export async function answerFeedback(agent: string, option: number): Promise<void> {
   await acknowledged({ AnswerFeedback: { agent, answer: { Option: option } } });
 }
 
+export async function answerFeedbackForm(agent: string, answers: AcpAnswers): Promise<void> {
+  await acknowledged({ AnswerFeedback: { agent, answer: { Form: answers } } });
+}
+
 export async function acpSessionState(agent: string): Promise<AcpSessionState> {
   const reply = await call({ AcpSessionState: { agent } });
   if (!('AcpSessionState' in reply)) throw new BerthCallError(t('agents.errors.unexpectedReply', { reply: Object.keys(reply).join('') }));
   return reply.AcpSessionState.state;
+}
+
+export async function setConfigOption(agent: string, id: string, value: string): Promise<void> {
+  await acknowledged({ SetConfigOption: { agent, id, value } });
+}
+
+export async function acpEditQueued(agent: string, id: number, text: string): Promise<void> {
+  await acknowledged({ AcpEditQueued: { agent, id, text } });
+}
+
+export async function acpRemoveQueued(agent: string, id: number): Promise<void> {
+  await acknowledged({ AcpRemoveQueued: { agent, id } });
+}
+
+export async function acpAttachment(blob: string): Promise<string> {
+  const reply = await call({ AcpAttachment: { blob } });
+  if (!('AcpAttachment' in reply)) throw new BerthCallError(t('agents.errors.unexpectedReply', { reply: Object.keys(reply).join('') }));
+  return reply.AcpAttachment.data;
+}
+
+export async function listWorktreeFiles(worktree: string, query: string, limit: number): Promise<string[]> {
+  const reply = await call({ ListWorktreeFiles: { worktree, query, limit } });
+  if (!('WorktreeFiles' in reply)) throw new BerthCallError(t('agents.errors.unexpectedReply', { reply: Object.keys(reply).join('') }));
+  return reply.WorktreeFiles.files;
 }
 
 export async function acpTranscript(agent: string, after: number): Promise<AcpItemAt[]> {

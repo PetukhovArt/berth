@@ -1,3 +1,4 @@
+import type { AcpAttachment } from './berth';
 type ShellKind = 'command' | 'output';
 export type FileEdit = { path: string; additions: number; deletions: number };
 export type SubagentFacts = {
@@ -23,6 +24,7 @@ export type ShellMessage = {
   callOf?: string;
   exit?: number;
   subagent?: SubagentFacts;
+  attachments?: AcpAttachment[];
 };
 
 const TAGS = ['bash-input', 'bash-stdout', 'bash-stderr', 'local-command-stdout', 'local-command-stderr', 'local-command-caveat', 'command-name', 'command-message', 'command-args'] as const;

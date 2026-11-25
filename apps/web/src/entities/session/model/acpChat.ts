@@ -1,5 +1,4 @@
-import { computed, onScopeDispose, shallowRef, type ComputedRef, type ShallowRef } from 'vue';
-import { acpTranscript, describeError, onAcpItem, type AcpItem, type AcpItemAt, type AcpPlanEntry } from './berth';
+import type { AcpItem, AcpItemAt, AcpPlanEntry } from './berth';
 import type { TranscriptMessage } from './external';
 import type { PlanItem } from './plan';
 import { t } from '../../../shared/lib/i18n/i18n';
@@ -12,8 +11,6 @@ const TOOL_STATUSES =['pending', 'in_progress', 'failed'] as const;
 
 const isKnownStatus = (status: string): status is (typeof TOOL_STATUSES)[number] => (TOOL_STATUSES as readonly string[]).includes(status);
 const toolStatus = (status: string) => (isKnownStatus(status) ? t(`agents.sessionView.toolStatus.${status}`) : status);
-
-type AcpChat = { messages: ComputedRef<TranscriptMessage[]>; plan: ComputedRef<PlanItem[]>; loading: ShallowRef<boolean>; error: ShallowRef<string | null>; reload: () => Promise<void> };
 
 const fenced = (text: string, lang: string) => {
   const clipped = text.length > OUTPUT_CHARS ? `${text.slice(0, OUTPUT_CHARS)}\n…` : text;
@@ -48,7 +45,7 @@ function lineDelta(before: string, after: string): { additions: number; deletion
 function toMessages(seq: number, item: AcpItem): TranscriptMessage[] {
   const key = `acp:${seq}`;
   const base = { key, at: null, tool: null };
-  if ('User' in item) return [{ ...base, role: 'user', text: item.User.text }];
+  if ('User' in item) return [{ ...base, role: 'user', text: item.User.text, ...(item.User.attachments?.length ? { attachments: item.User.attachments } : {}) }];
   if ('Assistant' in item) return [{ ...base, role: 'assistant', text: item.Assistant.text }];
   if ('Thought' in item) return [{ ...base, role: 'assistant', text: quoted(item.Thought.text) }];
   if ('Notice' in item) return [{ ...base, role: 'assistant', text: `_${item.Notice.text}_` }];
@@ -63,40 +60,22 @@ function toMessages(seq: number, item: AcpItem): TranscriptMessage[] {
   return out;
 }
 
-export const acpMessages = (items: readonly AcpItemAt[]): TranscriptMessage[] => items.flatMap((at) => toMessages(at.seq, at.item));
+const converted = new WeakMap<AcpItem, TranscriptMessage[]>();
+
+function messagesOf(at: AcpItemAt): TranscriptMessage[] {
+  let hit = converted.get(at.item);
+  if (!hit) {
+    hit = toMessages(at.seq, at.item);
+    converted.set(at.item, hit);
+  }
+  return hit;
+}
+
+export const acpMessages = (items: readonly AcpItemAt[]): TranscriptMessage[] => items.flatMap(messagesOf);
 
 const toPlan = (entries: AcpPlanEntry[]): PlanItem[] => entries.map((entry) => ({ text: entry.content, state: PLAN_STATES[entry.status] ?? 'todo' }));
 
-export function useAcpChat(agent: string): AcpChat {
-  const items = shallowRef<ReadonlyMap<number, AcpItem>>(new Map());
-  const loading = shallowRef(true);
-  const error = shallowRef<string | null>(null);
-
-  const put = (seq: number, item: AcpItem) => {
-    items.value = new Map(items.value).set(seq, item);
-  };
-  onScopeDispose(onAcpItem((from, at) => from === agent && put(at.seq, at.item)));
-
-  async function reload() {
-    try {
-      const loaded = await acpTranscript(agent, 0);
-      const next = new Map(items.value);
-      for (const at of loaded) if (!next.has(at.seq)) next.set(at.seq, at.item);
-      items.value = next;
-      error.value = null;
-    } catch (e) {
-      error.value = describeError(e);
-    } finally {
-      loading.value = false;
-    }
-  }
-  void reload();
-
-  const ordered = computed(() => [...items.value].sort(([a], [b]) => a - b));
-  const messages = computed(() => ordered.value.flatMap(([seq, item]) => toMessages(seq, item)));
-  const plan = computed(() => {
-    const last = ordered.value.findLast(([, item]) => 'Plan' in item)?.[1];
-    return last && 'Plan' in last ? toPlan(last.Plan.entries) : [];
-  });
-  return { messages, plan, loading, error, reload };
+export function acpPlan(items: readonly AcpItemAt[]): PlanItem[] {
+  const last = items.findLast((at) => 'Plan' in at.item)?.item;
+  return last && 'Plan' in last ? toPlan(last.Plan.entries) : [];
 }

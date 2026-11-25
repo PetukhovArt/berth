@@ -3,7 +3,7 @@ import { createDictation, type HoldToTalkIssue } from '../../../shared/lib/dicta
 import { useDock } from '../../../shared/model/dock';
 import { useSettings } from '../../../shared/config/settings/store';
 import { tr, type PlainKey } from '../../../shared/lib/i18n/translate';
-import { describeError, enqueuePrompt, submitPrompt, useBerth, type SessionNode } from '../../../entities/session';
+import { describeError, submitPrompt, useBerth, type SessionNode } from '../../../entities/session';
 
 const NOTICE_MS = 3000;
 const ARMED_MS = 10_000;
@@ -43,9 +43,7 @@ async function deliver(key: string | null, text: string) {
   if (!session) return notify(tr('voice.gone'));
   try {
     const ref = session.ref;
-    const agent = 'Agent' in ref ? useBerth()?.entities.value.agents.get(ref.Agent) : undefined;
-    if (agent?.kind === 'acp' && (agent.status === 'running' || agent.status === 'needs_feedback')) enqueuePrompt(agent.id, text);
-    else await submitPrompt(ref, text);
+    await submitPrompt(ref, text);
     notify(tr('voice.sent', { name: session.name, text }));
   } catch (e) {
     notify(describeError(e));
