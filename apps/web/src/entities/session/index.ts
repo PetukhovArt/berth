@@ -17,7 +17,7 @@ export { listSlashCommands, matchSlashCommands } from './model/slashCommands';
 export type { SlashCommand, SlashSource } from './model/slashCommands';
 export { acpMessages } from './model/acpChat';
 export { useChat } from './model/chat';
-export { MAX_UPLOAD_BYTES, attachmentName, attachmentSrc, fileUpload, uploadName, uploadSrc } from './model/attachments';
+export { ATTACH_BUDGET, MAX_IMAGE_SOURCE_BYTES, MAX_TEXT_BYTES, attachmentName, attachmentSrc, fileUpload, uploadName, uploadSrc, uploadWeight } from './model/attachments';
 export { withShellBlocks } from './model/shellTags';
 export type { FileEdit } from './model/shellTags';
 export { useLinkedPlan } from './model/linkedPlan';

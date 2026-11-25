@@ -1,23 +1,29 @@
 import { computed, shallowRef } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { MAX_UPLOAD_BYTES, fileUpload, type AcpAttachmentUpload } from '../../../entities/session';
+import { ATTACH_BUDGET, MAX_IMAGE_SOURCE_BYTES, MAX_TEXT_BYTES, fileUpload, uploadWeight, type AcpAttachmentUpload } from '../../../entities/session';
 
 export type Pending = { id: number; upload: AcpAttachmentUpload };
+
+const MB = 1024 * 1024;
 
 export function useAttachments(images: () => boolean, notify: (text: string) => void) {
   const pending = shallowRef<readonly Pending[]>([]);
   let nextId = 0;
 
   const push = (upload: AcpAttachmentUpload) => (pending.value = [...pending.value, { id: nextId++, upload }]);
+  const room = () => ATTACH_BUDGET - pending.value.reduce((sum, entry) => sum + uploadWeight(entry.upload), 0);
 
   async function add(files: readonly File[]) {
     for (const file of files) {
-      if (file.size > MAX_UPLOAD_BYTES) notify(t('chat.attach.tooLarge', { name: file.name }));
-      else if (file.type.startsWith('image/') && !images()) notify(t('chat.attach.noImages'));
+      const image = file.type.startsWith('image/');
+      const limit = image ? MAX_IMAGE_SOURCE_BYTES : MAX_TEXT_BYTES;
+      if (file.size > limit) notify(t('chat.attach.tooLarge', { name: file.name, limit: limit / MB }));
+      else if (image && !images()) notify(t('chat.attach.noImages'));
       else {
-        const upload = await fileUpload(file).catch(() => null);
-        if (upload) push(upload);
-        else notify(t('chat.attach.notText', { name: file.name }));
+        const result = await fileUpload(file, room()).catch(() => 'notText' as const);
+        if (result === 'overBudget') notify(t('chat.attach.overBudget', { name: file.name }));
+        else if (result === 'notText') notify(t('chat.attach.notText', { name: file.name }));
+        else push(result);
       }
     }
   }

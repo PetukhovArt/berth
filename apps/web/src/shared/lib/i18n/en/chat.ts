@@ -57,7 +57,8 @@ export const chat = {
     remove: 'Remove {name}',
     noImages: 'This agent does not take images',
     notText: '{name} is not a text file',
-    tooLarge: '{name} is larger than 10 MB',
+    tooLarge: '{name} is larger than {limit} MB',
+    overBudget: '{name} does not fit in one message with the other attachments',
   },
   mention: { list: 'Files in this worktree' },
   queued: {

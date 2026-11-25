@@ -60,7 +60,8 @@ export const chat: Translation<typeof en> = {
     remove: 'Убрать {name}',
     noImages: 'Этот агент не принимает изображения',
     notText: '{name} не текстовый файл',
-    tooLarge: '{name} больше 10 МБ',
+    tooLarge: '{name} больше {limit} МБ',
+    overBudget: '{name} не помещается в одно сообщение вместе с другими вложениями',
   },
   mention: { list: 'Файлы этого рабочего дерева' },
   queued: {
