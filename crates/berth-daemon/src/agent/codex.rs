@@ -1,3 +1,4 @@
+use super::setup::{HookFormat, Mcp, McpFormat, Setup, AGENTS_SKILLS};
 use super::{no_env, History, Hooks, Launch, Limits, Profile, Terminal};
 use crate::cli_title::CodexIndex;
 use crate::hooks::installer;
@@ -35,6 +36,20 @@ pub static PROFILE: Profile = Profile {
         enabled: |_| true,
         windows: limits::windows,
     }),
+    setup: &Setup {
+        skills: AGENTS_SKILLS,
+        rule: None,
+        reads_agents_md: true,
+        mcp: Some(Mcp {
+            file: ".codex/config.toml",
+            format: McpFormat::Toml,
+            approved_in_settings: false,
+        }),
+        mcp_over_acp: false,
+        hooks: Some(HookFormat::Codex),
+        imports_hooks_of: &[],
+        plugins: false,
+    },
 };
 
 fn title(_transcript: Option<&Path>, session_id: &str, codex: &mut CodexIndex) -> Option<String> {

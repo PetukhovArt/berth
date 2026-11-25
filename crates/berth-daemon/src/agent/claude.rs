@@ -1,3 +1,4 @@
+use super::setup::{HookFormat, Mcp, McpFormat, Rule, RuleFormat, Setup};
 use super::{no_env, History, Hooks, Launch, Limits, Profile, Terminal};
 use crate::cli_title::{self, CodexIndex};
 use crate::hooks::{claude_mod, installer};
@@ -32,6 +33,24 @@ pub static PROFILE: Profile = Profile {
         enabled: |config| config.claude_limits,
         windows: limits::windows,
     }),
+    setup: &Setup {
+        skills: ".claude/skills",
+        rule: Some(Rule {
+            dir: ".claude/rules",
+            ext: "md",
+            format: RuleFormat::Plain,
+        }),
+        reads_agents_md: false,
+        mcp: Some(Mcp {
+            file: ".mcp.json",
+            format: McpFormat::Json { typed_remote: true },
+            approved_in_settings: true,
+        }),
+        mcp_over_acp: false,
+        hooks: Some(HookFormat::Claude),
+        imports_hooks_of: &[],
+        plugins: true,
+    },
 };
 
 fn title(transcript: Option<&Path>, _session_id: &str, _codex: &mut CodexIndex) -> Option<String> {

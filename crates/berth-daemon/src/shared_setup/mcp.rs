@@ -15,6 +15,7 @@ pub(super) struct McpServer {
     pub url: Option<String>,
 }
 
+#[derive(Clone, Copy)]
 pub(super) enum RemoteShape {
     Typed,
     BareUrl,

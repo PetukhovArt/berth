@@ -8,6 +8,8 @@ use serde_json::{json, Map, Value};
 
 use super::hooks::{grok_file, HookItem};
 use super::mcp::{mcp_json, mcp_toml, opencode_json, pretty, McpServer, RemoteShape};
+use crate::agent::setup::{HookFormat, McpFormat, RuleFormat, Setup};
+use crate::agent::{self, ALL};
 
 pub const SETUP_FILE: &str = "berth-setup.toml";
 
@@ -60,17 +62,54 @@ pub(super) struct Plan {
     pub skipped: Vec<String>,
 }
 
-const ALL_KINDS: [AgentKind; 6] = [
-    AgentKind::Claude,
-    AgentKind::Codex,
-    AgentKind::Cursor,
-    AgentKind::OpenCode,
-    AgentKind::Grok,
-    AgentKind::Acp,
-];
+fn setup_of(kind: AgentKind) -> &'static Setup {
+    agent::of(kind).setup
+}
 
-fn reads_agents_md(kind: AgentKind) -> bool {
-    !matches!(kind, AgentKind::Claude | AgentKind::Cursor)
+enum McpFile {
+    Json(RemoteShape, Map<String, Value>),
+    OpenCode(Map<String, Value>),
+    Toml(toml::Table),
+}
+
+impl McpFile {
+    fn new(format: &McpFormat) -> Self {
+        match format {
+            McpFormat::Json { typed_remote } => Self::Json(
+                if *typed_remote {
+                    RemoteShape::Typed
+                } else {
+                    RemoteShape::BareUrl
+                },
+                Map::new(),
+            ),
+            McpFormat::OpenCode => Self::OpenCode(Map::new()),
+            McpFormat::Toml => Self::Toml(toml::Table::new()),
+        }
+    }
+
+    fn insert(&mut self, name: &str, server: &McpServer) {
+        let name = name.to_string();
+        match self {
+            Self::Json(shape, map) => {
+                map.insert(name, server.json(*shape));
+            }
+            Self::OpenCode(map) => {
+                map.insert(name, server.opencode());
+            }
+            Self::Toml(table) => {
+                table.insert(name, server.toml());
+            }
+        }
+    }
+
+    fn render(self) -> Result<Vec<u8>> {
+        match self {
+            Self::Json(_, map) => mcp_json(map),
+            Self::OpenCode(map) => opencode_json(map),
+            Self::Toml(table) => mcp_toml(table),
+        }
+    }
 }
 
 type SelectedInOrder = Vec<(String, Vec<AgentKind>)>;
@@ -142,7 +181,7 @@ impl SetupFile {
             if !in_project {
                 continue;
             }
-            let kinds = set.kinds.as_deref().unwrap_or(&ALL_KINDS);
+            let kinds = set.kinds.as_deref().unwrap_or(&ALL);
             select(&mut selection.skills, &set.skills, kinds);
             select(&mut selection.instructions, &set.instructions, kinds);
             select(&mut selection.mcp, &set.mcp, kinds);
@@ -166,52 +205,28 @@ impl SetupFile {
     }
 
     fn plan_mcp(&self, mcp: &SelectedInOrder, plan: &mut Plan) -> Result<()> {
-        let mut claude = Map::new();
-        let mut cursor = Map::new();
-        let mut opencode = Map::new();
-        let mut codex = toml::Table::new();
-        let mut grok = toml::Table::new();
+        let mut files: BTreeMap<&str, McpFile> = BTreeMap::new();
         for (name, kinds) in mcp {
             let server = &self.mcp[name];
-            if kinds.contains(&AgentKind::Claude) {
-                claude.insert(name.clone(), server.json(RemoteShape::Typed));
-                plan.claude_mcp_servers.push(name.clone());
-            }
-            if kinds.contains(&AgentKind::Cursor) {
-                cursor.insert(name.clone(), server.json(RemoteShape::BareUrl));
-            }
-            if kinds.contains(&AgentKind::Codex) {
-                codex.insert(name.clone(), server.toml());
-            }
-            if kinds.contains(&AgentKind::OpenCode) {
-                opencode.insert(name.clone(), server.opencode());
-            }
-            if kinds.contains(&AgentKind::Grok) {
-                grok.insert(name.clone(), server.toml());
+            for target in kinds.iter().filter_map(|k| setup_of(*k).mcp.as_ref()) {
+                files
+                    .entry(target.file)
+                    .or_insert_with(|| McpFile::new(&target.format))
+                    .insert(name, server);
+                if target.approved_in_settings {
+                    plan.claude_mcp_servers.push(name.clone());
+                }
             }
         }
-        let files = &mut plan.whole_files;
-        if !claude.is_empty() {
-            files.insert(".mcp.json".into(), mcp_json(claude)?);
-        }
-        if !cursor.is_empty() {
-            files.insert(".cursor/mcp.json".into(), mcp_json(cursor)?);
-        }
-        if !codex.is_empty() {
-            files.insert(".codex/config.toml".into(), mcp_toml(codex)?);
-        }
-        if !opencode.is_empty() {
-            files.insert(".opencode/opencode.json".into(), opencode_json(opencode)?);
-        }
-        if !grok.is_empty() {
-            files.insert(".grok/config.toml".into(), mcp_toml(grok)?);
+        for (file, servers) in files {
+            plan.whole_files.insert(file.into(), servers.render()?);
         }
         Ok(())
     }
 
     fn plan_plugins(&self, plugins: &SelectedInOrder, plan: &mut Plan) {
         for (name, kinds) in plugins {
-            if !kinds.contains(&AgentKind::Claude) {
+            if !kinds.iter().any(|k| setup_of(*k).plugins) {
                 continue;
             }
             let plugin = &self.plugins[name];
@@ -241,8 +256,8 @@ impl SetupFile {
     ) -> Result<Vec<(String, Value)>> {
         let mut names: Vec<&String> = Vec::new();
         for set in &self.sets {
-            let kinds = set.kinds.as_deref().unwrap_or(&ALL_KINDS);
-            if !kinds.contains(&AgentKind::Codex) {
+            let kinds = set.kinds.as_deref().unwrap_or(&ALL);
+            if hook_setup(kinds, HookFormat::Codex).is_none() {
                 continue;
             }
             for name in &set.hooks {
@@ -262,7 +277,7 @@ impl SetupFile {
         self.select(project)
             .mcp
             .iter()
-            .filter(|(_, kinds)| kinds.contains(&AgentKind::Acp))
+            .filter(|(_, kinds)| kinds.iter().any(|k| setup_of(*k).mcp_over_acp))
             .filter_map(|(name, _)| self.mcp[name].acp(name, http))
             .collect()
     }
@@ -274,19 +289,11 @@ fn plan_skills(root: &Path, skills: &SelectedInOrder, plan: &mut Plan) -> Result
         if !src.is_dir() {
             bail!("skill `{name}`: {} is not a directory", src.display());
         }
-        if kinds.contains(&AgentKind::Claude) {
-            copy_dir(
-                &src,
-                &format!(".claude/skills/{name}"),
-                &mut plan.whole_files,
-            )?;
-        }
-        if kinds.iter().any(|k| *k != AgentKind::Claude) {
-            copy_dir(
-                &src,
-                &format!(".agents/skills/{name}"),
-                &mut plan.whole_files,
-            )?;
+        let mut dirs: Vec<&str> = kinds.iter().map(|k| setup_of(*k).skills).collect();
+        dirs.sort();
+        dirs.dedup();
+        for dir in dirs {
+            copy_dir(&src, &format!("{dir}/{name}"), &mut plan.whole_files)?;
         }
     }
     Ok(())
@@ -296,22 +303,17 @@ fn plan_instructions(root: &Path, instructions: &SelectedInOrder, plan: &mut Pla
     let mut agents_md_sections = Vec::new();
     for (name, kinds) in instructions {
         let body = read_text(&root.join("instructions").join(format!("{name}.md")))?;
-        if kinds.contains(&AgentKind::Claude) {
-            plan.whole_files.insert(
-                format!(".claude/rules/{name}.md"),
-                body.clone().into_bytes(),
-            );
-        }
-        if kinds.contains(&AgentKind::Cursor) {
-            plan.whole_files.insert(
-                format!(".cursor/rules/{name}.mdc"),
-                format!(
+        for rule in kinds.iter().filter_map(|k| setup_of(*k).rule.as_ref()) {
+            let text = match rule.format {
+                RuleFormat::Plain => body.clone(),
+                RuleFormat::AlwaysApply => format!(
                     "---\ndescription: {name} (berth shared setup)\nalwaysApply: true\n---\n\n{body}"
-                )
-                .into_bytes(),
-            );
+                ),
+            };
+            let path = format!("{}/{name}.{}", rule.dir, rule.ext);
+            plan.whole_files.insert(path, text.into_bytes());
         }
-        if kinds.iter().any(|k| reads_agents_md(*k)) {
+        if kinds.iter().any(|k| setup_of(*k).reads_agents_md) {
             agents_md_sections.push(body.trim_end().to_string());
         }
     }
@@ -332,24 +334,30 @@ fn plan_hooks(root: &Path, hooks: &SelectedInOrder, plan: &mut Plan) -> Result<(
     let mut grok_groups = Vec::new();
     for (name, kinds) in hooks {
         let item = HookItem::read(root, name)?;
-        let claude = kinds.contains(&AgentKind::Claude);
-        let cursor = kinds.contains(&AgentKind::Cursor);
-        if claude {
-            plan.claude_hook_groups.extend(item.claude());
-        }
-        if cursor {
-            let entries = item.cursor(&mut plan.skipped);
-            if !claude {
-                plan.cursor_hook_entries.extend(entries);
-            }
-        }
-        if kinds.contains(&AgentKind::Codex) && !item.codex(&mut plan.skipped).is_empty() {
-            plan.codex_hook_items.push(name.clone());
-        }
-        if kinds.contains(&AgentKind::Grok) {
-            let groups = item.grok(&mut plan.skipped);
-            if !claude && !cursor {
-                grok_groups.extend(groups);
+        for format in HookFormat::ALL {
+            let Some(setup) = hook_setup(kinds, format) else {
+                continue;
+            };
+            let imported = setup.imports_hooks_of.iter().any(|k| kinds.contains(k));
+            match format {
+                HookFormat::Claude => plan.claude_hook_groups.extend(item.claude()),
+                HookFormat::Cursor => {
+                    let entries = item.cursor(&mut plan.skipped);
+                    if !imported {
+                        plan.cursor_hook_entries.extend(entries);
+                    }
+                }
+                HookFormat::Codex => {
+                    if !item.codex(&mut plan.skipped).is_empty() {
+                        plan.codex_hook_items.push(name.clone());
+                    }
+                }
+                HookFormat::Grok => {
+                    let groups = item.grok(&mut plan.skipped);
+                    if !imported {
+                        grok_groups.extend(groups);
+                    }
+                }
             }
         }
     }
@@ -358,6 +366,11 @@ fn plan_hooks(root: &Path, hooks: &SelectedInOrder, plan: &mut Plan) -> Result<(
             .insert(GROK_HOOKS_FILE.into(), pretty(&grok_file(grok_groups))?);
     }
     Ok(())
+}
+
+fn hook_setup(kinds: &[AgentKind], format: HookFormat) -> Option<&'static Setup> {
+    let mut setups = kinds.iter().map(|k| setup_of(*k));
+    setups.find(|s| s.hooks == Some(format))
 }
 
 fn select(selected: &mut SelectedInOrder, names: &[String], kinds: &[AgentKind]) {

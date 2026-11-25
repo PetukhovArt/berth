@@ -5,9 +5,13 @@ use anyhow::Result;
 use berth_core::{Agent, AgentKind, UsageWindow};
 use std::path::Path;
 
+pub mod chat;
 pub mod claude;
 pub mod codex;
 pub mod grok;
+pub mod setup;
+
+use setup::Setup;
 
 pub struct Launch<'a> {
     pub session: Option<&'a str>,
@@ -62,20 +66,26 @@ pub struct Profile {
     pub terminal: Option<Terminal>,
     pub history: Option<History>,
     pub limits: Option<Limits>,
+    pub setup: &'static Setup,
 }
 
-static CHAT_ONLY: Profile = Profile {
-    terminal: None,
-    history: None,
-    limits: None,
-};
+pub const ALL: [AgentKind; 6] = [
+    AgentKind::Claude,
+    AgentKind::Codex,
+    AgentKind::Cursor,
+    AgentKind::OpenCode,
+    AgentKind::Grok,
+    AgentKind::Acp,
+];
 
 pub fn of(kind: AgentKind) -> &'static Profile {
     match kind {
         AgentKind::Claude => &claude::PROFILE,
         AgentKind::Codex => &codex::PROFILE,
         AgentKind::Grok => &grok::PROFILE,
-        AgentKind::Cursor | AgentKind::OpenCode | AgentKind::Acp => &CHAT_ONLY,
+        AgentKind::Cursor => &chat::CURSOR,
+        AgentKind::OpenCode => &chat::OPENCODE,
+        AgentKind::Acp => &chat::ACP,
     }
 }
 

@@ -1,7 +1,9 @@
+use super::setup::{HookFormat, Mcp, McpFormat, Setup, AGENTS_SKILLS};
 use super::{no_args, Hooks, Launch, Limits, Profile, Terminal};
 use crate::hooks::{installer, AUTO_TITLE_INSTRUCTION};
 use crate::launch;
 use anyhow::Result;
+use berth_core::AgentKind;
 use std::path::Path;
 
 mod limits;
@@ -30,6 +32,20 @@ pub static PROFILE: Profile = Profile {
         enabled: |config| config.grok_limits,
         windows: limits::windows,
     }),
+    setup: &Setup {
+        skills: AGENTS_SKILLS,
+        rule: None,
+        reads_agents_md: true,
+        mcp: Some(Mcp {
+            file: ".grok/config.toml",
+            format: McpFormat::Toml,
+            approved_in_settings: false,
+        }),
+        mcp_over_acp: false,
+        hooks: Some(HookFormat::Grok),
+        imports_hooks_of: &[AgentKind::Claude, AgentKind::Cursor],
+        plugins: false,
+    },
 };
 
 pub const HOOKS: Hooks = Hooks {
