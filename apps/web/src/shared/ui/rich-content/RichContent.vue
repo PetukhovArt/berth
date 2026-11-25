@@ -9,6 +9,7 @@ import ImageViewer from './ImageViewer.vue';
 import MermaidView from './MermaidView.vue';
 import { t } from '../../lib/i18n/i18n';
 import { renderRich } from '../../lib/content/render';
+import { createStreamRenderer } from '../../lib/content/streamRender';
 
 type Diagram = { key: string; el: HTMLElement; source: string };
 
@@ -24,6 +25,7 @@ const props = withDefaults(
     basePath?: string;
     variant?: 'compact' | 'document';
     breaks?: boolean;
+    streaming?: boolean;
   }>(),
   { variant: 'compact', breaks: true },
 );
@@ -33,8 +35,10 @@ const body = useTemplateRef<HTMLElement>('body');
 const diagrams = shallowRef<Diagram[]>([]);
 const emojiTick = shallowRef(0);
 const viewing = shallowRef<{ src: string; alt: string; origin: string | null } | null>(null);
+const streamRender = props.streaming ? createStreamRenderer() : null;
 const rendered = computed(() => {
   void emojiTick.value;
+  if (streamRender && props.markdown !== undefined) return streamRender(props.markdown, props.breaks, emojiTick.value);
   return renderRich({ markdown: props.markdown, html: props.html, breaks: props.breaks });
 });
 
