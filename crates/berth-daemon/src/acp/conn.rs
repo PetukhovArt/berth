@@ -1,17 +1,10 @@
-use anyhow::{Context, Result};
-use berth_core::platform::{self, NoWindow};
+use super::wire::{Process, Wire, WireIn};
+use anyhow::{anyhow, Result};
 use serde_json::{json, Value};
-use std::collections::{HashMap, VecDeque};
-use std::path::Path;
-use std::process::Stdio;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{Child, ChildStdin, Command};
 use tokio::sync::{mpsc, oneshot};
-
-const STDERR_LINES_KEPT: usize = 200;
-const LOG_BYTES_KEPT: usize = 4 * 1024 * 1024;
 
 #[derive(Debug)]
 pub enum Inbound {
@@ -56,61 +49,30 @@ pub enum RpcError {
 type Waiters = Mutex<HashMap<u64, oneshot::Sender<Result<Value, RpcError>>>>;
 
 pub struct Conn {
-    stdin: tokio::sync::Mutex<Option<ChildStdin>>,
+    outbound: mpsc::UnboundedSender<String>,
+    process: Arc<dyn Process>,
     waiters: Arc<Waiters>,
     next_id: AtomicU64,
-    pid: Option<u32>,
-    stderr: Arc<Mutex<VecDeque<String>>>,
     notifications_seen: Arc<AtomicU64>,
 }
 
 impl Conn {
-    pub fn spawn(
-        program: &Path,
-        args: &[String],
-        cwd: &Path,
-        log: Option<&Path>,
-    ) -> Result<(Arc<Conn>, mpsc::UnboundedReceiver<Inbound>)> {
-        let mut command = Command::new(program);
-        command
-            .args(args)
-            .current_dir(cwd)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .kill_on_drop(true)
-            .no_window();
-        platform::lead_process_tree(&mut command);
-        let mut child = command
-            .spawn()
-            .with_context(|| format!("start {}", program.display()))?;
-        let stdin = child.stdin.take().context("agent stdin")?;
-        let stdout = child.stdout.take().context("agent stdout")?;
-        let stderr = child.stderr.take().context("agent stderr")?;
+    pub fn over(wire: Wire) -> (Arc<Conn>, mpsc::UnboundedReceiver<Inbound>) {
         let conn = Arc::new(Conn {
-            stdin: tokio::sync::Mutex::new(Some(stdin)),
+            outbound: wire.outbound,
+            process: wire.process,
             waiters: Default::default(),
             next_id: AtomicU64::new(1),
-            pid: child.id(),
-            stderr: Default::default(),
             notifications_seen: Default::default(),
         });
         let (tx, rx) = mpsc::unbounded_channel();
-        let log = log.and_then(|path| {
-            if let Some(dir) = path.parent() {
-                let _ = std::fs::create_dir_all(dir);
-            }
-            std::fs::File::create(path).ok()
-        });
-        tokio::spawn(read_stderr(stderr, conn.stderr.clone(), log));
-        tokio::spawn(read_stdout(
-            stdout,
-            child,
+        tokio::spawn(read_wire(
+            wire.inbound,
             conn.waiters.clone(),
             conn.notifications_seen.clone(),
             tx,
         ));
-        Ok((conn, rx))
+        (conn, rx)
     }
 
     pub async fn request(&self, method: &str, params: Value) -> Result<Value, RpcError> {
@@ -145,11 +107,7 @@ impl Conn {
     }
 
     pub fn kill(&self) {
-        if let Some(pid) = self.pid {
-            if let Err(error) = platform::kill_process_tree(pid) {
-                tracing::debug!(pid, error, "ACP agent kill failed");
-            }
-        }
+        self.process.kill();
     }
 
     pub fn notifications_seen(&self) -> u64 {
@@ -157,58 +115,31 @@ impl Conn {
     }
 
     pub fn stderr_tail(&self) -> Vec<String> {
-        self.stderr.lock().unwrap().iter().cloned().collect()
+        self.process.stderr_tail()
     }
 
     async fn write(&self, message: &Value) -> Result<()> {
-        let mut line = serde_json::to_vec(message)?;
-        line.push(b'\n');
-        let mut stdin = self.stdin.lock().await;
-        let pipe = stdin.as_mut().context("agent stdin closed")?;
-        let written = async {
-            pipe.write_all(&line).await?;
-            pipe.flush().await
-        }
-        .await;
-        if written.is_err() {
-            *stdin = None;
-        }
-        Ok(written?)
+        self.outbound
+            .send(serde_json::to_string(message)?)
+            .map_err(|_| anyhow!("agent stdin closed"))
     }
 }
 
-async fn read_stderr(
-    stderr: tokio::process::ChildStderr,
-    tail: Arc<Mutex<VecDeque<String>>>,
-    mut log: Option<std::fs::File>,
-) {
-    let mut lines = BufReader::new(stderr).lines();
-    let mut logged = 0usize;
-    while let Ok(Some(line)) = lines.next_line().await {
-        if let Some(file) = log.as_mut() {
-            use std::io::Write;
-            logged += line.len() + 1;
-            if logged > LOG_BYTES_KEPT || writeln!(file, "{line}").is_err() {
-                log = None;
-            }
-        }
-        let mut tail = tail.lock().unwrap();
-        if tail.len() == STDERR_LINES_KEPT {
-            tail.pop_front();
-        }
-        tail.push_back(line);
-    }
-}
-
-async fn read_stdout(
-    stdout: tokio::process::ChildStdout,
-    mut child: Child,
+async fn read_wire(
+    mut wire: mpsc::UnboundedReceiver<WireIn>,
     waiters: Arc<Waiters>,
     notifications_seen: Arc<AtomicU64>,
     tx: mpsc::UnboundedSender<Inbound>,
 ) {
-    let mut lines = BufReader::new(stdout).lines();
-    while let Ok(Some(line)) = lines.next_line().await {
+    let mut exit_code = None;
+    while let Some(read) = wire.recv().await {
+        let line = match read {
+            WireIn::Line(line) => line,
+            WireIn::Exited(code) => {
+                exit_code = code;
+                break;
+            }
+        };
         let Ok(message) = serde_json::from_str::<Value>(&line) else {
             tracing::debug!("ACP agent wrote a non-JSON line to stdout");
             continue;
@@ -224,8 +155,7 @@ async fn read_stdout(
     for (_, waiter) in waiters.lock().unwrap().drain() {
         let _ = waiter.send(Err(RpcError::Closed));
     }
-    let code = child.wait().await.ok().and_then(|s| s.code());
-    let _ = tx.send(Inbound::Exited(code));
+    let _ = tx.send(Inbound::Exited(exit_code));
 }
 
 fn route(mut message: Value, waiters: &Waiters) -> Option<Inbound> {

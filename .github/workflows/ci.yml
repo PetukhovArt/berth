@@ -18,6 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: rustup toolchain install
       - run: cargo fmt --all -- --check
+      - run: node scripts/no-kind-branch.mjs
 
   # Clippy checks and the tests build the workspace in different modes, so one
   # runner does both serially for nothing: they run side by side, each with its

@@ -1,0 +1,18 @@
+{"type":"transcript_start","provider":"generic","protocol":"acp","version":"1","scenario":"permission-answer"}
+{"type":"berth","call":{"call":"create","args":{"name":"a"}}}
+{"type":"expect_outbound","label":"initialize","frame":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1,"clientInfo":{"name":"berth","version":"<any>"}}}}
+{"type":"emit_inbound","label":"initialize","frame":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":1,"agentCapabilities":{},"authMethods":[]}}}
+{"type":"expect_outbound","label":"session/new","frame":{"jsonrpc":"2.0","id":2,"method":"session/new","params":{"cwd":"<workspace>","mcpServers":[]}}}
+{"type":"emit_inbound","label":"session/new","frame":{"jsonrpc":"2.0","id":2,"result":{"sessionId":"s-1"}}}
+{"type":"berth","call":{"call":"prompt","args":{"text":"run the tests"}}}
+{"type":"expect_outbound","label":"session/prompt","frame":{"jsonrpc":"2.0","id":3,"method":"session/prompt","params":{"sessionId":"s-1","prompt":[{"type":"text","text":"run the tests"}]}}}
+{"type":"emit_inbound","label":"chunk","frame":{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s-1","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Let me "}}}}}
+{"type":"emit_inbound","label":"chunk","frame":{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s-1","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"check."}}}}}
+{"type":"emit_inbound","label":"tool_call","frame":{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s-1","update":{"sessionUpdate":"tool_call","toolCallId":"t1","title":"Run tests","kind":"execute","status":"pending","rawInput":{"command":"cargo test"}}}}}
+{"type":"emit_inbound","label":"permission","frame":{"jsonrpc":"2.0","id":99,"method":"session/request_permission","params":{"sessionId":"s-1","toolCall":{"toolCallId":"t1","title":"Run tests","rawInput":{"command":"cargo test"}},"options":[{"optionId":"allow-once","name":"Allow once","kind":"allow_once"},{"optionId":"reject-once","name":"Reject","kind":"reject_once"}]}}}
+{"type":"berth","call":{"call":"answer","args":{"option":0}}}
+{"type":"expect_outbound","label":"permission answer","frame":{"jsonrpc":"2.0","id":99,"result":{"outcome":{"outcome":"selected","optionId":"allow-once"}}}}
+{"type":"emit_inbound","label":"tool_call_update","frame":{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s-1","update":{"sessionUpdate":"tool_call_update","toolCallId":"t1","status":"completed","content":[{"type":"content","content":{"type":"text","text":"ok"}}]}}}}
+{"type":"emit_inbound","label":"plan","frame":{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s-1","update":{"sessionUpdate":"plan","entries":[{"content":"Run tests","priority":"high","status":"completed"}]}}}}
+{"type":"emit_inbound","label":"session/prompt","frame":{"jsonrpc":"2.0","id":3,"result":{"stopReason":"end_turn"}}}
+{"type":"berth","call":{"call":"stop"}}

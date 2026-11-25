@@ -1,0 +1,8 @@
+{"item":{"item":{"User":{"text":"one"}},"seq":1}}
+{"status":"running"}
+{"item":{"item":{"Assistant":{"text":"first answer"}},"seq":2}}
+{"status":"finished"}
+{"item":{"item":{"User":{"text":"two"}},"seq":3}}
+{"status":"running"}
+{"item":{"item":{"Assistant":{"text":"second answer"}},"seq":4}}
+{"status":"finished"}

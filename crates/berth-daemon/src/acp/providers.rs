@@ -1,9 +1,9 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use berth_core::acp::{BUILT_IN_PROVIDERS as BUILT_IN, NATIVE_OFF_FOR_NEW_INSTALLS};
 use berth_core::AgentKind;
 use serde::Deserialize;
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
@@ -75,13 +75,6 @@ pub struct AcpProvider {
     pub command: String,
     pub args: Vec<String>,
     pub enabled: bool,
-}
-
-impl AcpProvider {
-    pub fn program(&self) -> Result<PathBuf> {
-        berth_core::platform::resolve_program(&self.command)
-            .with_context(|| format!("{}: `{}` is not installed", self.name, self.command))
-    }
 }
 
 pub fn resolve(config: &ProvidersConfig, id: &str) -> Option<AcpProvider> {

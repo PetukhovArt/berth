@@ -1,0 +1,8 @@
+{"item":{"item":{"Notice":{"text":"generic needs you to sign in."}},"seq":1}}
+{"status":"needs_feedback"}
+{"feedback":{"always_allow":false,"detail":"The agent opens its own sign-in flow, usually in the browser.","kind":"Question","options":["Log in with the browser"],"title":"Sign in to generic"}}
+{"feedback":null}
+{"item":{"item":{"User":{"text":"hello"}},"seq":2}}
+{"status":"running"}
+{"item":{"item":{"Assistant":{"text":"signed in"}},"seq":3}}
+{"status":"finished"}

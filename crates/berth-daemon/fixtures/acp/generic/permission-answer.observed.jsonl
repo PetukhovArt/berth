@@ -1,0 +1,11 @@
+{"item":{"item":{"User":{"text":"run the tests"}},"seq":1}}
+{"status":"running"}
+{"item":{"item":{"Assistant":{"text":"Let me check."}},"seq":2}}
+{"item":{"item":{"Tool":{"detail":"cargo test","diff":null,"id":"t1","kind":"execute","output":null,"status":"pending","title":"Run tests"}},"seq":3}}
+{"status":"needs_feedback"}
+{"feedback":{"always_allow":false,"detail":"cargo test","kind":"Permission","options":["Allow once","Reject"],"title":"Run tests"}}
+{"feedback":null}
+{"status":"running"}
+{"item":{"item":{"Tool":{"detail":"cargo test","diff":null,"id":"t1","kind":"execute","output":"ok","status":"completed","title":"Run tests"}},"seq":3}}
+{"item":{"item":{"Plan":{"entries":[{"content":"Run tests","priority":"high","status":"completed"}]}},"seq":4}}
+{"status":"finished"}

@@ -1,13 +1,16 @@
 pub mod conn;
+mod driver;
 mod lifecycle;
 pub mod map;
-pub mod providers;
-pub mod transcript;
-
 #[cfg(test)]
 mod mock;
+pub mod providers;
+#[cfg(test)]
+mod replay;
 #[cfg(test)]
 mod tests;
+pub mod transcript;
+pub mod wire;
 
 use crate::registry::Daemon;
 use crate::status::HookEvent;
@@ -24,6 +27,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, watch};
 use transcript::Transcript;
+use wire::{DaemonHost, Host};
 
 const ITEMS_KEPT_PER_AGENT: u64 = 5000;
 const SESSION_READY_TIMEOUT: Duration = Duration::from_secs(180);
@@ -132,29 +136,31 @@ impl Daemon {
     ) -> Result<EntityId> {
         let config = crate::config::Config::load();
         let provider = providers::resolve_enabled(&config.providers, provider_id)?;
-        self.create_acp_agent_with(worktree, name, provider, auto_title)
+        let id = AgentId::generate();
+        let host = Arc::new(DaemonHost { agent: id.clone() });
+        self.create_acp_agent_with(id, worktree, name, provider, auto_title, host)
     }
 
     pub(crate) fn create_acp_agent_with(
         self: &Arc<Self>,
+        id: AgentId,
         worktree_id: WorktreeId,
         name: String,
         provider: AcpProvider,
         auto_title: bool,
+        host: Arc<dyn Host>,
     ) -> Result<EntityId> {
         let worktree = self
             .store
             .get_worktree(&worktree_id)?
             .context("worktree not found")?;
-        let program = provider.program()?;
-        let id = AgentId::generate();
         let name = match name.trim() {
             "" => provider.name.clone(),
             trimmed => trimmed.to_string(),
         };
         self.store
             .insert_acp_agent(&id, &worktree_id, &name, &provider.id, auto_title)?;
-        if let Err(spawn_error) = self.acp_start(&id, &worktree.path, &provider, &program, None) {
+        if let Err(spawn_error) = self.acp_start(&id, &worktree.path, &provider, None, host) {
             let _ = self.store.delete_agent(&id);
             return Err(spawn_error);
         }
@@ -186,14 +192,10 @@ impl Daemon {
             .store
             .get_worktree(&agent.worktree_id)?
             .context("worktree not found")?;
-        let program = provider.program()?;
-        let live = self.acp_start(
-            agent_id,
-            &worktree.path,
-            &provider,
-            &program,
-            agent.session_id,
-        )?;
+        let host = Arc::new(DaemonHost {
+            agent: agent_id.clone(),
+        });
+        let live = self.acp_start(agent_id, &worktree.path, &provider, agent.session_id, host)?;
         self.try_broadcast_acp_agent(agent_id);
         Ok(live)
     }
@@ -203,15 +205,16 @@ impl Daemon {
         agent_id: &AgentId,
         cwd: &Path,
         provider: &AcpProvider,
-        program: &Path,
         previous_session: Option<String>,
+        host: Arc<dyn Host>,
     ) -> Result<Arc<AcpLive>> {
         let mut map = self.acp.live.lock().unwrap();
         if let Some(live) = map.get(agent_id) {
             return Ok(live.clone());
         }
-        let log = berth_core::paths::acp_log_path(&agent_id.0);
-        let (conn, inbound) = Conn::spawn(program, &provider.args, cwd, Some(&log))?;
+        let wire = driver::open(driver::ACP, provider, cwd, host)
+            .with_context(|| provider.name.clone())?;
+        let (conn, inbound) = Conn::over(wire);
         let live = Arc::new(AcpLive {
             conn,
             provider_name: provider.name.clone(),

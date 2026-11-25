@@ -1,0 +1,15 @@
+{"type":"transcript_start","provider":"generic","protocol":"acp","version":"1","scenario":"sign-in"}
+{"type":"berth","call":{"call":"create","args":{"name":"a"}}}
+{"type":"expect_outbound","label":"initialize","frame":{"jsonrpc":"2.0","id":1,"method":"initialize"}}
+{"type":"emit_inbound","label":"initialize","frame":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":1,"agentCapabilities":{},"authMethods":[{"id":"agent_login","name":"Log in with the browser"}]}}}
+{"type":"expect_outbound","label":"session/new","frame":{"jsonrpc":"2.0","id":2,"method":"session/new"}}
+{"type":"emit_inbound","label":"session/new","frame":{"jsonrpc":"2.0","id":2,"error":{"code":-32000,"message":"Authentication required"}}}
+{"type":"berth","call":{"call":"answer","args":{"option":0}}}
+{"type":"expect_outbound","label":"authenticate","frame":{"jsonrpc":"2.0","id":3,"method":"authenticate","params":{"methodId":"agent_login"}}}
+{"type":"emit_inbound","label":"authenticate","frame":{"jsonrpc":"2.0","id":3,"result":{}}}
+{"type":"expect_outbound","label":"session/new","frame":{"jsonrpc":"2.0","id":4,"method":"session/new"}}
+{"type":"emit_inbound","label":"session/new","frame":{"jsonrpc":"2.0","id":4,"result":{"sessionId":"s-2"}}}
+{"type":"berth","call":{"call":"prompt","args":{"text":"hello"}}}
+{"type":"expect_outbound","label":"session/prompt","frame":{"jsonrpc":"2.0","id":5,"method":"session/prompt","params":{"sessionId":"s-2"}}}
+{"type":"emit_inbound","label":"chunk","frame":{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s-2","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"signed in"}}}}}
+{"type":"emit_inbound","label":"session/prompt","frame":{"jsonrpc":"2.0","id":5,"result":{"stopReason":"end_turn"}}}
