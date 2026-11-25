@@ -23,6 +23,7 @@ export type ShellMessage = {
   toolKind?: string;
   callOf?: string;
   exit?: number;
+  failed?: boolean;
   subagent?: SubagentFacts;
   attachments?: AcpAttachment[];
 };

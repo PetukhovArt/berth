@@ -1,5 +1,5 @@
 import { computed, onScopeDispose, shallowRef, triggerRef, type ComputedRef, type ShallowRef } from 'vue';
-import { acpEditQueued, acpMcpStatus, acpPrompt, acpRemoveQueued, acpSendQueuedNow, acpSessionState, acpTranscript, answerFeedbackForm, describeError, onAcpItem, onAcpQueueCleared, onAcpSession, onAcpTruncated, setConfigOption, type AcpAnswers, type AcpAttachmentUpload, type AcpItemAt, type AcpSessionState } from './berth';
+import { acpEditQueued, acpMcpStatus, acpPrompt, acpRemoveQueued, acpSendQueuedNow, acpSessionState, acpTranscript, answerFeedbackForm, describeError, onAcpItem, onAcpSession, onAcpTruncated, setConfigOption, type AcpAnswers, type AcpAttachmentUpload, type AcpItemAt, type AcpSessionState } from './berth';
 import { acpMessages, acpPlan, acpRewinds, type RewindOption } from './acpChat';
 import type { TranscriptMessage } from './external';
 import type { PlanItem } from './plan';
@@ -32,7 +32,7 @@ function slot(items: readonly AcpItemAt[], seq: number): number {
   return low;
 }
 
-export function useChat(agent: string, onQueueCleared?: (texts: string[]) => void): Chat {
+export function useChat(agent: string): Chat {
   const items = shallowRef<AcpItemAt[]>([]);
   const session = shallowRef<AcpSessionState | null>(null);
   const loading = shallowRef(true);
@@ -63,7 +63,6 @@ export function useChat(agent: string, onQueueCleared?: (texts: string[]) => voi
       items.value = items.value.filter((at) => at.seq < fromSeq);
     }),
   );
-  onScopeDispose(onAcpQueueCleared((from, texts) => from === agent && onQueueCleared?.(texts)));
   onScopeDispose(
     onAcpSession((from, state) => {
       if (from !== agent) return;

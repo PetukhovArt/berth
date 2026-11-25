@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplate
 import { Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, TriangleAlert } from '../../../shared/ui/icons';
 import { VButton, VMessage } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
-import { acpRewind, AGENT_KIND_LABEL, clearHandoff, clearMessageFocus, messageFocusOf, continueInBerth, handoffOf, externalKey, externalOrigin, isChat, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePhases, derivePlan, PlanStrip, deriveSubagents, stripVisible, sendInput, useFeedbackRequest, sessionKey, stopAgent, useChat, useSessionStates, clearPromptQuotes, promptQuotesOf, removePromptQuote, type AcpAttachmentUpload, type SessionRef, type SlashSource } from '../../../entities/session';
+import { acpRewind, AGENT_KIND_LABEL, clearHandoff, clearMessageFocus, messageFocusOf, continueInBerth, handoffOf, externalKey, externalOrigin, isChat, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePhases, derivePlan, PlanStrip, deriveSubagents, stripVisible, sendInput, useFeedbackRequest, sessionKey, stopAgent, useChat, holdRestored, restoredCount, takeRestored, useSessionStates, clearPromptQuotes, promptQuotesOf, removePromptQuote, type AcpAttachmentUpload, type SessionRef, type SlashSource } from '../../../entities/session';
 import { showViewInActivePanel, worktreeOf } from '../../../features/session-view-switch';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
@@ -42,7 +42,7 @@ function edgeX(edge: ColumnEdge): number {
   if (!box) return 0;
   return edge === 'left' ? box.left : box.left + box.width;
 }
-const acp = props.harness === 'acp' ? useChat(props.sessionId, (texts) => composer.value?.restore(texts)) : null;
+const acp = props.harness === 'acp' ? useChat(props.sessionId) : null;
 const harness = computed<Harness | null>(() => (props.harness === 'acp' ? null : props.harness));
 const transcript = shallowRef<TranscriptMessage[]>([]);
 const messages = computed(() => acp?.messages.value ?? transcript.value);
@@ -133,8 +133,13 @@ const checkpointOf = computed(() => checkpointsByPrompt(messages.value, checkpoi
 const composer = useTemplateRef<InstanceType<typeof ChatComposer>>('composer');
 async function rewindTo(seq: number, text: string) {
   await acpRewind(props.sessionId, seq);
-  composer.value?.restore([text]);
+  holdRestored(props.sessionId, [text]);
 }
+const heldCount = computed(() => (acp ? restoredCount(props.sessionId) : 0));
+function drainRestored() {
+  if (composer.value && heldCount.value) composer.value.restore(takeRestored(props.sessionId));
+}
+watch(heldCount, drainRestored, { flush: 'post' });
 const rewindOf = computed(() => (acp?.session.value?.caps.rewind && !turnRunning.value ? acp.rewinds.value : undefined));
 const slashSource = computed<SlashSource | null>(() => {
   if (acp) return { acpAgent: props.sessionId };
@@ -269,6 +274,7 @@ watch(
 );
 
 onMounted(() => {
+  drainRestored();
   const element = section.value;
   if (!element) return;
   observer = new IntersectionObserver((entries) => {

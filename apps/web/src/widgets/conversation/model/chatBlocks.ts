@@ -69,7 +69,7 @@ function secondsBetween(first: TranscriptMessage | undefined, last: TranscriptMe
 
 function changedFiles(messages: readonly TranscriptMessage[]): ChangedFile[] {
   const byPath = new Map<string, ChangedFile>();
-  for (const edit of messages.flatMap((message) => message.edits ?? [])) {
+  for (const edit of messages.filter((message) => !message.failed).flatMap((message) => message.edits ?? [])) {
     const known = byPath.get(edit.path);
     byPath.set(edit.path, known ? { path: edit.path, additions: known.additions + edit.additions, deletions: known.deletions + edit.deletions } : { ...edit });
   }
@@ -140,6 +140,7 @@ export function toolCounts(calls: readonly ToolCall[]): [ToolCategory, number][]
   const edited = new Set<string>();
   for (const call of calls) {
     if (call.category === 'edit' && call.message.edits?.length) {
+      if (call.message.failed) continue;
       for (const edit of call.message.edits) edited.add(edit.path);
       counts.set('edit', edited.size);
     } else counts.set(call.category, (counts.get(call.category) ?? 0) + 1);

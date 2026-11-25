@@ -2,6 +2,7 @@ import { createChannel, hasBackend, invoke } from '../../../bridge';
 import { computed, shallowRef, type ComputedRef, type ShallowRef } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { watchUsageLimits } from './limits';
+import { holdRestored } from './restoredPrompts';
 
 export type AgentKind = 'claude' | 'codex' | 'cursor' | 'opencode' | 'grok' | 'acp';
 export type Backend = 'chat' | 'terminal';
@@ -102,13 +103,6 @@ const acpTruncatedListeners = new Set<(agent: string, fromSeq: number) => void>(
 export function onAcpTruncated(listener: (agent: string, fromSeq: number) => void): () => void {
   acpTruncatedListeners.add(listener);
   return () => acpTruncatedListeners.delete(listener);
-}
-
-const acpQueueClearedListeners = new Set<(agent: string, texts: string[]) => void>();
-
-export function onAcpQueueCleared(listener: (agent: string, texts: string[]) => void): () => void {
-  acpQueueClearedListeners.add(listener);
-  return () => acpQueueClearedListeners.delete(listener);
 }
 
 const acpSessionListeners = new Set<(agent: string, state: AcpSessionState) => void>();
@@ -352,7 +346,7 @@ function createStore(): BerthStore {
         for (const listener of acpTruncatedListeners) listener(event.agent, event.from_seq);
         return;
       case 'acp_queue_cleared':
-        for (const listener of acpQueueClearedListeners) listener(event.agent, event.texts);
+        holdRestored(event.agent, event.texts);
         return;
       case 'acp_session':
         for (const listener of acpSessionListeners) listener(event.agent, event.state);
