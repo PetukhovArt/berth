@@ -5,13 +5,12 @@ use std::time::{Duration, SystemTime};
 
 const OWN_SERVER_FLAG: &str = "--no-daemon";
 
-pub fn with_own_server(args: Vec<String>) -> Vec<String> {
-    if !codex_knows_own_server_flag() {
-        return args;
+pub fn own_server_args() -> Vec<String> {
+    if codex_knows_own_server_flag() {
+        vec![OWN_SERVER_FLAG.to_string()]
+    } else {
+        Vec::new()
     }
-    let mut out = vec![OWN_SERVER_FLAG.to_string()];
-    out.extend(args);
-    out
 }
 
 fn codex_knows_own_server_flag() -> bool {

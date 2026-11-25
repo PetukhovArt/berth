@@ -87,8 +87,6 @@ fn mods_restricted_by_policy() -> bool {
     })
 }
 
-pub fn with_plugin_dir(dir: &Path, args: Vec<String>) -> Vec<String> {
-    let mut out = vec!["--plugin-dir".to_string(), dir.display().to_string()];
-    out.extend(args);
-    out
+pub fn plugin_dir_args(dir: &Path) -> Vec<String> {
+    vec!["--plugin-dir".to_string(), dir.display().to_string()]
 }

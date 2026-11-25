@@ -1,8 +1,9 @@
 //! The daemon's world: persisted entity tree + live PTY sessions, and the
 //! operations the IPC surface exposes over them.
 
+use crate::agent;
 use crate::git;
-use crate::hooks::{self, HookEnv};
+use crate::hooks::HookEnv;
 use crate::launch;
 use crate::pty::{PtyEvent, PtySession, SpawnSpec, DEFAULT_COLS, DEFAULT_ROWS};
 use crate::resume_check;
@@ -1371,7 +1372,9 @@ impl Daemon {
         // `codex resume` takes a trailing prompt is not, so its relocated
         // sessions keep waiting for the user.
         let prompt = relocation_prompt(&target);
-        let prompt = (agent.kind == AgentKind::Claude).then_some(prompt.as_str());
+        let prompt = agent::terminal(agent.kind)
+            .is_some_and(|terminal| terminal.prompt_on_resume)
+            .then_some(prompt.as_str());
         if let Err(e) =
             self.spawn_agent_session_with(&agent, &target, DEFAULT_COLS, DEFAULT_ROWS, prompt)
         {
@@ -1727,33 +1730,14 @@ impl Daemon {
     ) -> Result<Arc<PtySession>> {
         // Whatever spawns this agent, it runs in `worktree` from here: a
         // relocation still pending for it has been overtaken.
-        if agent.kind.program().is_none() {
+        let Some(terminal) = agent::terminal(agent.kind) else {
             bail!("{} runs only in the chat view", agent.kind.as_str());
-        }
+        };
         self.pending_moves.lock().unwrap().remove(&agent.id);
         self.pending_ends.lock().unwrap().remove(&agent.id);
         // Managed status hooks; a failure here degrades to "no status
         // updates", never blocks the spawn.
-        let reports_through_mod = agent.kind == AgentKind::Claude
-            && env::var(env::AGENT_CMD).is_none()
-            && hooks::claude_mod::claude_loads_mods();
-        let install_result = match agent.kind {
-            AgentKind::Claude if reports_through_mod => {
-                hooks::claude_mod::install_mod(&hooks::claude_mod::plugin_dir())
-                    .and_then(|()| hooks::installer::install_claude_settings(&worktree.path))
-            }
-            AgentKind::Claude => hooks::installer::install_claude_hooks(&worktree.path),
-            // Codex's hooks live in its home, not the worktree, so one
-            // trust approval covers every worktree (see installer docs);
-            // any per-worktree copy an older berth left is pruned.
-            AgentKind::Codex => {
-                hooks::installer::install_codex_hooks(&hooks::installer::codex_home())
-                    .and_then(|()| hooks::installer::prune_codex_worktree_hooks(&worktree.path))
-            }
-            AgentKind::Grok => hooks::installer::install_grok_hooks(&hooks::installer::grok_home()),
-            AgentKind::Cursor | AgentKind::OpenCode | AgentKind::Acp => Ok(()),
-        };
-        if let Err(e) = install_result {
+        if let Err(e) = (terminal.hooks.install)(&worktree.path) {
             tracing::warn!(error = %e, cwd = %worktree.path.display(), "hook install failed");
         }
 
@@ -1763,7 +1747,7 @@ impl Daemon {
             .store
             .agent_pr_url(&agent.id)?
             .as_deref()
-            .map(claude_pr_system_prompt);
+            .map(agent::claude::pr_system_prompt);
         let unsaved_conversation = resume_check::claude_projects_root().is_some_and(|root| {
             resume_check::claude_transcript_missing(agent.kind, agent.session_id.as_deref(), &root)
         });
@@ -1778,22 +1762,18 @@ impl Daemon {
         } else {
             agent
         };
-        let (program, args, resumed) = agent_spawn_command_with(
-            agent.kind,
-            agent.session_id.as_deref(),
-            agent.model.as_deref(),
-            agent.effort.as_deref(),
-            cmd_override.as_deref(),
-            initial_prompt,
-            pr_system_prompt.as_deref(),
-            true,
-        );
-        let args = if reports_through_mod {
-            hooks::claude_mod::with_plugin_dir(&hooks::claude_mod::plugin_dir(), args)
-        } else if agent.kind == AgentKind::Codex && cmd_override.is_none() {
-            crate::codex_server::with_own_server(args)
-        } else {
+        let launch_args = agent::Launch {
+            session: agent.session_id.as_deref(),
+            model: agent.model.as_deref(),
+            effort: agent.effort.as_deref(),
+            prompt: initial_prompt,
+            system_prompt: pr_system_prompt.as_deref(),
+        };
+        let (program, args, resumed) = terminal.command(&launch_args, cmd_override.as_deref());
+        let args = if cmd_override.is_some() {
             args
+        } else {
+            [(terminal.leading_args)(), args].concat()
         };
         // Put the agent in the environment the user's own terminal would
         // give it (see `crate::launch`). Overrides (tests) stay verbatim.
@@ -1811,9 +1791,7 @@ impl Daemon {
             ),
             (env::API_TOKEN.into(), self.hook_env.token.clone()),
         ];
-        if agent.kind == AgentKind::Grok {
-            agent_env.extend(launch::grok_hook_shell_env());
-        }
+        agent_env.extend((terminal.env)());
         let spec = SpawnSpec {
             program,
             args,
@@ -1830,7 +1808,7 @@ impl Daemon {
         if unsaved_conversation {
             session.print_notice(resume_check::FRESH_START_NOTICE);
         }
-        if agent.kind == AgentKind::Claude {
+        if terminal.suggestion_scan {
             session.arm_suggestion_scan();
         }
         if resumed {
@@ -2020,61 +1998,6 @@ impl Daemon {
     }
 }
 
-/// Program + args for an agent PTY. An override (tests) is used verbatim —
-/// no resume args. Otherwise the kind picks the CLI and its resume shape:
-/// `claude --resume <sid>` (flag) vs `codex resume <sid>` (subcommand, so
-/// resume args must lead). Codex always gets its skip-permissions flag
-/// (`--yolo`), appended after the resume args.
-/// Model/effort choices follow: `claude --model m --effort e`,
-/// `codex -m m -c model_reasoning_effort=e`.
-/// Claude then gets berth's worktree guidance appended to its system
-/// prompt, any persisted PR scope is composed into that same system-prompt
-/// argument, and an `initial_prompt` — the relocation notice a `berth
-/// worktree` respawn opens with, or the starting prompt an AGENT PRESET
-/// launch composes — goes last, as the CLI's trailing positional prompt
-/// (`claude [prompt]`, `codex [PROMPT]`).
-///
-/// The plain shape, as every restart/resume spawns it: no initial prompt,
-/// guidance on. Tests assert against this; the daemon calls the full form.
-#[cfg(test)]
-fn agent_spawn_command(
-    kind: AgentKind,
-    session_id: Option<&str>,
-    model: Option<&str>,
-    effort: Option<&str>,
-    cmd_override: Option<&str>,
-) -> (String, Vec<String>, bool) {
-    agent_spawn_command_with(
-        kind,
-        session_id,
-        model,
-        effort,
-        cmd_override,
-        None,
-        None,
-        true,
-    )
-}
-
-/// What berth appends to Claude's system prompt: how to take a "do this
-/// in a worktree" request through berth (`Daemon::enter_worktree`) instead
-/// of Claude's own EnterWorktree tool, whose checkout lands under
-/// `<repo>/.claude/worktrees/` on a `worktree-*` branch — a layout the
-/// worktree list only adopts after the fact, and not where a berth user
-/// keeps their worktrees. Claude only: codex has no
-/// system-prompt flag, and no EnterWorktree to steer away from.
-pub const CLAUDE_WORKTREE_GUIDANCE: &str = "[berth] This session runs inside berth, which \
-manages this project's git worktrees. When the user asks you to work in a worktree (\"do this in a \
-worktree\", \"in a new worktree\", \"branch this off in its own checkout\"), do not use the \
-EnterWorktree tool and do not run `git worktree add` yourself. Run this shell command instead, \
-exactly once:\n\n  berth worktree <name>\n\nwhere <name> is the branch name the user gave, or a \
-short kebab-case name for the task (`berth worktree` with no name invents one; `--base <ref>` picks \
-the start point). berth creates the worktree, associates this session with it, and relocates the \
-session into it once your current turn ends. So when the command succeeds, end your turn at once: \
-tell the user in one line that the session is moving into the worktree, and make no further tool \
-calls or edits — you will be resumed inside the worktree with a prompt to carry on there. If the \
-command fails, report the error and carry on in the current checkout.";
-
 /// The prompt a relocated Claude session is resumed with: it names the
 /// checkout the process now runs in and asks for the work to pick back up
 /// there, so the user never has to type "continue".
@@ -2085,102 +2008,6 @@ fn relocation_prompt(worktree: &Worktree) -> String {
         worktree.branch,
         worktree.path.display()
     )
-}
-
-/// The invariant attached to a Claude AGENT created from an OPEN PRS row.
-/// It is regenerated from the persisted URL for every fresh process so a
-/// RESUME cannot silently lose the scope the user chose at creation time.
-fn claude_pr_system_prompt(pr_url: &str) -> String {
-    format!(
-        "[berth] This session was created from the OPEN PRS row for {pr_url}. All work in this \
-         session must be scoped to that pull request. Inspect the PR before acting, and do not \
-         modify or report on unrelated work. Before editing, make sure changes are made on the \
-         PR's head branch (using a dedicated worktree if necessary), never in an unrelated \
-         checkout. Keep reviews, tests, commits, pushes, and CI actions limited to this PR."
-    )
-}
-
-// Eight positional knobs is one over clippy's line; the callers are the two
-// thin wrappers above and the tests, so a builder would only add ceremony.
-#[allow(clippy::too_many_arguments)]
-fn agent_spawn_command_with(
-    kind: AgentKind,
-    session_id: Option<&str>,
-    model: Option<&str>,
-    effort: Option<&str>,
-    cmd_override: Option<&str>,
-    initial_prompt: Option<&str>,
-    additional_system_prompt: Option<&str>,
-    guidance: bool,
-) -> (String, Vec<String>, bool) {
-    if let Some(cmd) = cmd_override {
-        let mut parts = cmd.split_whitespace().map(String::from).collect::<Vec<_>>();
-        if parts.is_empty() {
-            parts.push(kind.program().unwrap_or_default().into());
-        }
-        let program = parts.remove(0);
-        return (program, parts, false);
-    }
-    let program = kind.program().unwrap_or_default().to_string();
-    let (mut args, resumed) = match (kind, session_id) {
-        (AgentKind::Claude, Some(sid)) => (vec!["--resume".to_string(), sid.to_string()], true),
-        (AgentKind::Codex, Some(sid)) => (vec!["resume".to_string(), sid.to_string()], true),
-        (AgentKind::Grok, Some(sid)) => (vec!["--resume".to_string(), sid.to_string()], true),
-        (AgentKind::Cursor | AgentKind::OpenCode | AgentKind::Acp, _) | (_, None) => {
-            (Vec::new(), false)
-        }
-    };
-    match kind {
-        AgentKind::Codex => args.push("--yolo".to_string()),
-        AgentKind::Grok => args.push("--always-approve".to_string()),
-        _ => {}
-    }
-    // Claude and codex spell the model flag the same way, and it follows
-    // the skip-permissions flag in both (`codex --yolo --model …`).
-    if let (Some(m), AgentKind::Claude | AgentKind::Codex) = (model, kind) {
-        args.extend(["--model".to_string(), m.to_string()]);
-    }
-    if let (Some(m), AgentKind::Grok) = (model, kind) {
-        args.extend(["-m".to_string(), m.to_string()]);
-    }
-    match kind {
-        AgentKind::Claude => {
-            if let Some(e) = effort {
-                args.extend(["--effort".to_string(), e.to_string()]);
-            }
-            let mut system_prompt = Vec::new();
-            if guidance {
-                system_prompt.push(CLAUDE_WORKTREE_GUIDANCE);
-                system_prompt.push(crate::sibling::CLAUDE_SPAWN_GUIDANCE);
-                system_prompt.push(crate::enter_project::CLAUDE_ENTER_GUIDANCE);
-                system_prompt.push(crate::self_end::CLAUDE_END_GUIDANCE);
-            }
-            if let Some(prompt) = additional_system_prompt {
-                system_prompt.push(prompt);
-            }
-            if !system_prompt.is_empty() {
-                args.extend([
-                    "--append-system-prompt".to_string(),
-                    system_prompt.join("\n\n"),
-                ]);
-            }
-            if let Some(p) = initial_prompt {
-                args.push(p.to_string());
-            }
-        }
-        AgentKind::Codex => {
-            if let Some(e) = effort {
-                args.extend(["-c".to_string(), format!("model_reasoning_effort={e}")]);
-            }
-            // `codex [OPTIONS] [PROMPT]` — the trailing positional.
-            if let Some(p) = initial_prompt {
-                args.push(p.to_string());
-            }
-        }
-        AgentKind::Grok => crate::grok::push_tail_args(&mut args, resumed, effort, initial_prompt),
-        AgentKind::Cursor | AgentKind::OpenCode | AgentKind::Acp => {}
-    }
-    (program, args, resumed)
 }
 
 /// Validate an AGENT PRESET's composed starting prompt before it becomes the
@@ -2244,279 +2071,6 @@ pub(crate) fn cli_missing_message(kind: AgentKind) -> String {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-
-    /// Claude argv: `args`, then berth's appended guidance (worktree and
-    /// spawn, one `--append-system-prompt`).
-    fn guided(args: &[&str]) -> Vec<String> {
-        args.iter()
-            .map(|s| s.to_string())
-            .chain([
-                "--append-system-prompt".to_string(),
-                [
-                    CLAUDE_WORKTREE_GUIDANCE,
-                    crate::sibling::CLAUDE_SPAWN_GUIDANCE,
-                    crate::enter_project::CLAUDE_ENTER_GUIDANCE,
-                    crate::self_end::CLAUDE_END_GUIDANCE,
-                ]
-                .join("\n\n"),
-            ])
-            .collect()
-    }
-
-    #[test]
-    fn spawn_command_per_kind_resume_shapes() {
-        // Fresh sessions: bare CLI (Claude plus its system-prompt guidance).
-        assert_eq!(
-            agent_spawn_command(AgentKind::Claude, None, None, None, None),
-            ("claude".into(), guided(&[]), false)
-        );
-        // Codex always runs in skip-permissions mode.
-        assert_eq!(
-            agent_spawn_command(AgentKind::Codex, None, None, None, None),
-            ("codex".into(), vec!["--yolo".to_string()], false)
-        );
-        // Claude resumes with a flag; codex with a subcommand (order matters).
-        assert_eq!(
-            agent_spawn_command(AgentKind::Claude, Some("sid-1"), None, None, None),
-            ("claude".into(), guided(&["--resume", "sid-1"]), true)
-        );
-        // Skip-permissions flags trail the resume args.
-        assert_eq!(
-            agent_spawn_command(AgentKind::Codex, Some("sid-2"), None, None, None),
-            (
-                "codex".into(),
-                vec![
-                    "resume".to_string(),
-                    "sid-2".to_string(),
-                    "--yolo".to_string()
-                ],
-                true
-            )
-        );
-        // Override wins for both kinds and never gets resume args.
-        assert_eq!(
-            agent_spawn_command(
-                AgentKind::Claude,
-                Some("sid"),
-                None,
-                None,
-                Some("/bin/sh -i")
-            ),
-            ("/bin/sh".into(), vec!["-i".to_string()], false)
-        );
-        assert_eq!(
-            agent_spawn_command(AgentKind::Codex, Some("sid"), None, None, Some("/bin/sh")),
-            ("/bin/sh".into(), vec![], false)
-        );
-    }
-
-    #[test]
-    fn spawn_command_model_and_effort_flags() {
-        // Claude gets --model/--effort; either alone works.
-        assert_eq!(
-            agent_spawn_command(AgentKind::Claude, None, Some("opus"), Some("high"), None),
-            (
-                "claude".into(),
-                guided(&["--model", "opus", "--effort", "high"]),
-                false
-            )
-        );
-        assert_eq!(
-            agent_spawn_command(AgentKind::Claude, None, None, Some("max"), None),
-            ("claude".into(), guided(&["--effort", "max"]), false)
-        );
-        // Codex takes --model plus a config override for effort, after --yolo.
-        assert_eq!(
-            agent_spawn_command(AgentKind::Codex, None, Some("gpt-5.5"), Some("high"), None),
-            (
-                "codex".into(),
-                vec![
-                    "--yolo".to_string(),
-                    "--model".to_string(),
-                    "gpt-5.5".to_string(),
-                    "-c".to_string(),
-                    "model_reasoning_effort=high".to_string()
-                ],
-                false
-            )
-        );
-        // Resume keeps the model/effort flags (a fallback fresh spawn needs
-        // them, and the CLIs accept them alongside resume).
-        assert_eq!(
-            agent_spawn_command(AgentKind::Claude, Some("sid"), Some("sonnet"), None, None),
-            (
-                "claude".into(),
-                guided(&["--resume", "sid", "--model", "sonnet"]),
-                true
-            )
-        );
-        // Override still wins over everything.
-        assert_eq!(
-            agent_spawn_command(AgentKind::Claude, None, Some("opus"), None, Some("/bin/sh")),
-            ("/bin/sh".into(), vec![], false)
-        );
-    }
-
-    #[test]
-    fn spawn_command_grok_shapes() {
-        let title = crate::hooks::AUTO_TITLE_INSTRUCTION;
-        assert_eq!(
-            agent_spawn_command_with(
-                AgentKind::Grok,
-                None,
-                Some("grok-4.6"),
-                Some("high"),
-                None,
-                Some("fix it"),
-                None,
-                true
-            ),
-            (
-                "grok".into(),
-                vec![
-                    "--always-approve",
-                    "-m",
-                    "grok-4.6",
-                    "--reasoning-effort",
-                    "high",
-                    "--rules",
-                    title,
-                    "fix it"
-                ]
-                .into_iter()
-                .map(String::from)
-                .collect(),
-                false
-            )
-        );
-        assert_eq!(
-            agent_spawn_command(AgentKind::Grok, Some("sid-5"), None, None, None),
-            (
-                "grok".into(),
-                vec![
-                    "--resume".to_string(),
-                    "sid-5".to_string(),
-                    "--always-approve".to_string()
-                ],
-                true
-            )
-        );
-    }
-
-    #[test]
-    fn spawn_command_initial_prompt_is_the_trailing_positional_argument() {
-        // The relocation notice trails everything, guidance included.
-        let (_, args, resumed) = agent_spawn_command_with(
-            AgentKind::Claude,
-            Some("sid"),
-            Some("opus"),
-            None,
-            None,
-            Some("carry on"),
-            None,
-            true,
-        );
-        assert!(resumed);
-        let mut expected = guided(&["--resume", "sid", "--model", "opus"]);
-        expected.push("carry on".into());
-        assert_eq!(args, expected);
-        // Codex takes it as its trailing positional too.
-        assert_eq!(
-            agent_spawn_command_with(
-                AgentKind::Codex,
-                Some("sid"),
-                None,
-                None,
-                None,
-                Some("carry on"),
-                None,
-                true
-            )
-            .1,
-            vec!["resume", "sid", "--yolo", "carry on"]
-        );
-        // A fresh spawn with a starting prompt (an AGENT PRESET launch):
-        // model, effort and system prompt all precede it.
-        let mut expected = guided(&["--model", "opus", "--effort", "high"]);
-        expected.push("fix auth".into());
-        assert_eq!(
-            agent_spawn_command_with(
-                AgentKind::Claude,
-                None,
-                Some("opus"),
-                Some("high"),
-                None,
-                Some("fix auth"),
-                None,
-                true
-            )
-            .1,
-            expected
-        );
-        assert_eq!(
-            agent_spawn_command_with(
-                AgentKind::Codex,
-                None,
-                Some("gpt-5.5"),
-                Some("high"),
-                None,
-                Some("fix auth"),
-                None,
-                true
-            )
-            .1,
-            vec![
-                "--yolo",
-                "--model",
-                "gpt-5.5",
-                "-c",
-                "model_reasoning_effort=high",
-                "fix auth"
-            ]
-        );
-        // An override is verbatim: no guidance, no prompt.
-        assert_eq!(
-            agent_spawn_command_with(
-                AgentKind::Claude,
-                None,
-                None,
-                None,
-                Some("/bin/sh -i"),
-                Some("carry on"),
-                None,
-                true
-            ),
-            ("/bin/sh".into(), vec!["-i".to_string()], false)
-        );
-    }
-
-    #[test]
-    fn spawn_command_keeps_pr_scope_and_url_in_claudes_system_prompt() {
-        let pr_url = "https://github.com/PetukhovArt/berth/pull/42";
-        let pr_prompt = claude_pr_system_prompt(pr_url);
-        let (_, args, resumed) = agent_spawn_command_with(
-            AgentKind::Claude,
-            Some("sid"),
-            None,
-            None,
-            None,
-            None,
-            Some(&pr_prompt),
-            true,
-        );
-        assert!(resumed);
-        let prompts = args
-            .windows(2)
-            .filter(|pair| pair[0] == "--append-system-prompt")
-            .map(|pair| pair[1].as_str())
-            .collect::<Vec<_>>();
-        assert_eq!(prompts.len(), 1, "Claude gets one composed system prompt");
-        assert!(prompts[0].contains(CLAUDE_WORKTREE_GUIDANCE));
-        assert!(prompts[0].contains(crate::sibling::CLAUDE_SPAWN_GUIDANCE));
-        assert!(prompts[0].contains(crate::self_end::CLAUDE_END_GUIDANCE));
-        assert!(prompts[0].contains("All work in this session must be scoped"));
-        assert!(prompts[0].contains(pr_url));
-    }
 
     pub(crate) fn test_daemon() -> Arc<Daemon> {
         let store = Arc::new(Store::open_in_memory().unwrap());

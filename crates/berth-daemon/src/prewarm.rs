@@ -33,7 +33,7 @@ pub(crate) struct WarmSpare {
 }
 
 fn signals_input_ready(kind: AgentKind) -> bool {
-    kind == AgentKind::Claude
+    crate::agent::terminal(kind).is_some_and(|terminal| terminal.boot_signal)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

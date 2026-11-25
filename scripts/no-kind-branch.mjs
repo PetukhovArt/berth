@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-const CAP = 85;
+const CAP = 62;
 
 const ROOTS = ['crates', 'apps/desktop/src-tauri/src'];
 const SKIPPED_PATH = /(^|\/)(tests|berth-transcripts|driver)\/|(^|\/)(tests|[a-z_]+_tests)\.rs$|\/acp\/driver\/|^crates\/berth-core\/src\/agent\.rs$|^crates\/berth-daemon\/src\/agent\//;

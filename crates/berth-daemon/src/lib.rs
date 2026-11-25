@@ -1,4 +1,5 @@
 pub mod acp;
+pub mod agent;
 pub mod auto_archive;
 pub mod branches;
 pub mod channel_requests;
@@ -12,7 +13,6 @@ pub mod external_archive;
 pub mod feedback;
 pub mod git;
 pub mod git_exclude;
-pub mod grok;
 pub mod hooks;
 mod hub_admin;
 mod hub_stream;
