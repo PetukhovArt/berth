@@ -112,6 +112,10 @@ pub enum WatchEvent {
         agent: AgentId,
         from_seq: u64,
     },
+    AcpQueueCleared {
+        agent: AgentId,
+        texts: Vec<String>,
+    },
     AcpSession {
         agent: AgentId,
         state: Box<berth_core::acp::AcpSessionState>,
@@ -660,6 +664,9 @@ impl Actor {
             }
             ServerEvent::AcpTruncated { agent, from_seq } => {
                 WatchEvent::AcpTruncated { agent, from_seq }
+            }
+            ServerEvent::AcpQueueCleared { agent, texts } => {
+                WatchEvent::AcpQueueCleared { agent, texts }
             }
             ServerEvent::ChannelAppended { channel, seq } => {
                 WatchEvent::ChannelAppended { channel, seq }

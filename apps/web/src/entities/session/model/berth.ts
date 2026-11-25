@@ -69,6 +69,7 @@ type WatchEvent =
   | { type: 'acp_item'; agent: string; seq: number; item: AcpItem }
   | { type: 'acp_session'; agent: string; state: AcpSessionState }
   | { type: 'acp_truncated'; agent: string; from_seq: number }
+  | { type: 'acp_queue_cleared'; agent: string; texts: string[] }
   | { type: 'channel_appended'; channel: string; seq: number }
   | { type: 'hub_changed' }
   | { type: 'error'; message: string };
@@ -99,6 +100,13 @@ const acpTruncatedListeners = new Set<(agent: string, fromSeq: number) => void>(
 export function onAcpTruncated(listener: (agent: string, fromSeq: number) => void): () => void {
   acpTruncatedListeners.add(listener);
   return () => acpTruncatedListeners.delete(listener);
+}
+
+const acpQueueClearedListeners = new Set<(agent: string, texts: string[]) => void>();
+
+export function onAcpQueueCleared(listener: (agent: string, texts: string[]) => void): () => void {
+  acpQueueClearedListeners.add(listener);
+  return () => acpQueueClearedListeners.delete(listener);
 }
 
 const acpSessionListeners = new Set<(agent: string, state: AcpSessionState) => void>();
@@ -340,6 +348,9 @@ function createStore(): BerthStore {
         return;
       case 'acp_truncated':
         for (const listener of acpTruncatedListeners) listener(event.agent, event.from_seq);
+        return;
+      case 'acp_queue_cleared':
+        for (const listener of acpQueueClearedListeners) listener(event.agent, event.texts);
         return;
       case 'acp_session':
         for (const listener of acpSessionListeners) listener(event.agent, event.state);

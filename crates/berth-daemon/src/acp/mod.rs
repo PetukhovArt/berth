@@ -552,8 +552,19 @@ impl Daemon {
             self.acp.kill(agent_id);
             return;
         };
-        live.state.lock().unwrap().queue.clear();
+        let cleared = std::mem::take(&mut live.state.lock().unwrap().queue);
         self.acp_push_state(agent_id, &live);
+        let texts: Vec<String> = cleared
+            .into_iter()
+            .map(|queued| queued.prompt.text)
+            .filter(|text| !text.is_empty())
+            .collect();
+        if !texts.is_empty() {
+            self.broadcast(ServerEvent::AcpQueueCleared {
+                agent: agent_id.clone(),
+                texts,
+            });
+        }
         let _ = live
             .conn
             .notify("session/cancel", json!({"sessionId": sid}))

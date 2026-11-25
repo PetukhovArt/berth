@@ -1021,6 +1021,11 @@ pub enum ServerEvent {
         from_seq: u64,
     },
 
+    AcpQueueCleared {
+        agent: AgentId,
+        texts: Vec<String>,
+    },
+
     AcpAttachment {
         req_id: u64,
         data: String,

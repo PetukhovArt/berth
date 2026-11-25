@@ -42,7 +42,7 @@ function edgeX(edge: ColumnEdge): number {
   if (!box) return 0;
   return edge === 'left' ? box.left : box.left + box.width;
 }
-const acp = props.harness === 'acp' ? useChat(props.sessionId) : null;
+const acp = props.harness === 'acp' ? useChat(props.sessionId, (texts) => composer.value?.restore(texts)) : null;
 const harness = computed<Harness | null>(() => (props.harness === 'acp' ? null : props.harness));
 const transcript = shallowRef<TranscriptMessage[]>([]);
 const messages = computed(() => acp?.messages.value ?? transcript.value);
