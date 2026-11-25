@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added find in the Chat view: `Ctrl+F` opens a bar with the match count, next and previous buttons and highlights in the loaded messages, and `Esc` closes it
 - Added a `Working · 40s · Esc to interrupt` row to the end of the Chat view while a turn runs, and `Esc` interrupts the turn
 - Added a short `Allowed` or `Answered` line to the Chat view after you answer a permission request or a question
 - Added `Try again` and `Show terminal` buttons to the Chat view when it cannot read the conversation, and a loading skeleton in place of the plain text

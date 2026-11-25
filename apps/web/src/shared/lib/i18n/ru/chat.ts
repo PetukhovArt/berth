@@ -33,6 +33,15 @@ export const chat: Translation<typeof en> = {
     retry: 'Повторить',
     showTerminal: 'Показать терминал',
   },
+  find: {
+    open: 'Поиск в чате',
+    placeholder: 'Поиск в чате',
+    count: '{index} из {total}',
+    none: 'Нет совпадений',
+    next: 'Следующее совпадение',
+    previous: 'Предыдущее совпадение',
+    close: 'Закрыть поиск',
+  },
   plan: {
     phases: 'Этапы',
   },

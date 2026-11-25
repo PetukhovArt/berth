@@ -13,7 +13,9 @@ import { forwardSlashes } from '../../../shared/lib/homePath';
 import { COLUMN_EDGES, COLUMN_GUTTER, useChatColumn, type ColumnEdge } from '../model/chatColumn';
 import { useClock } from '../model/clock';
 import type { FeedNote } from '../model/feedNotes';
+import { useChatFind } from '../model/useChatFind';
 import ChatFeed from './ChatFeed.vue';
+import ChatFindBar from './ChatFindBar.vue';
 import ChatStates from './ChatStates.vue';
 import FeedbackCard from './FeedbackCard.vue';
 import ChatComposer from './ChatComposer.vue';
@@ -122,6 +124,8 @@ const place = computed(() => {
 });
 const notes = shallowRef<FeedNote[]>([]);
 let noteId = 0;
+const find = useChatFind(scroller, () => blocks.value);
+const findBar = useTemplateRef<InstanceType<typeof ChatFindBar>>('findBar');
 const stripAgents = computed(() => (stripVisible(roster.value.current, now.value) ? roster.value.current : []));
 const openedCall = shallowRef<string | null>(null);
 const opened = computed(() => (openedCall.value ? subagentOf.value.get(openedCall.value) : undefined));
@@ -324,8 +328,12 @@ function retry() {
   else void load();
 }
 
-function onKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && turnRunning.value && !event.defaultPrevented) void stop();
+async function onKeydown(event: KeyboardEvent) {
+  if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 'f') {
+    event.preventDefault();
+    await find.show();
+    findBar.value?.focus();
+  } else if (event.key === 'Escape' && turnRunning.value && !event.defaultPrevented && !find.open.value) void stop();
 }
 
 async function stop() {
@@ -428,6 +436,7 @@ onBeforeUnmount(() => {
         </li>
       </ul>
       <SubagentStrip v-if="stripAgents.length" class="column" :agents="stripAgents" :now="now" @open="openSubagent" />
+      <ChatFindBar v-if="find.open.value" ref="findBar" v-model="find.query.value" :index="find.index.value" :total="find.total.value" @step="find.step" @close="find.hide" />
       <ChatComposer v-if="terminal" :messages="messages" :suggestion="suggestion" :model-chip="modelChip" :sending="sending" :slash-source="slashSource" :stop="turnRunning ? stop : null" :send="submit" :quotes="quotes" @unquote="(label) => terminal && removePromptQuote(terminal, label)" />
       <template v-if="column.box.value && !column.phone.value">
         <div

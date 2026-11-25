@@ -30,6 +30,15 @@ export const chat = {
     retry: 'Try again',
     showTerminal: 'Show terminal',
   },
+  find: {
+    open: 'Find in chat',
+    placeholder: 'Find in chat',
+    count: '{index} of {total}',
+    none: 'No matches',
+    next: 'Next match',
+    previous: 'Previous match',
+    close: 'Close find',
+  },
   plan: {
     phases: 'Phases',
   },
