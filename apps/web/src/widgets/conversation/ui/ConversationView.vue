@@ -319,7 +319,7 @@ async function submit(text: string, viaVoice: boolean, uploads: AcpAttachmentUpl
 }
 
 function fail(e: unknown) {
-  error.value = describeError(e);
+  composer.value?.notify(describeError(e));
 }
 
 async function refreshMcp() {

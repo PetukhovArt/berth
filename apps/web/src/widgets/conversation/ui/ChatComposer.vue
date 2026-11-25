@@ -148,7 +148,7 @@ function fill(text: string) {
   void nextTick(() => input.value?.focus());
 }
 
-defineExpose({ fill });
+defineExpose({ fill, notify: (text: string) => say(text, BLOCKED_NOTICE_MS) });
 
 const canSend = computed(() => !!draft.value.trim() || attachments.pending.value.length > 0);
 
