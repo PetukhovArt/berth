@@ -1,0 +1,10 @@
+{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":false,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"gpt-6-luna","choices":3},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
+{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":false,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"gpt-6-luna","choices":3},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[],"mcp":[{"name":"codex_apps","status":"connected"}]}}
+{"item":{"seq":1,"item":{"User":{"text":"Use request_user_input to ask one multiple-choice clarifying question about whether this fixture should prefer strict schemas or UI flexibility. After receiving the answer, respond exactly: plan questions fixture complete"}}}}
+{"status":"running"}
+{"status":"needs_feedback"}
+{"feedback":{"kind":"Question","title":"Should this fixture prefer strict schemas or UI flexibility?","detail":null,"options":["Strict schemas (Recommended)","UI flexibility"],"always_allow":false,"form":{"questions":[{"id":"q0","header":"Fixture","text":"Should this fixture prefer strict schemas or UI flexibility?","choices":[{"value":"Strict schemas (Recommended)","name":"Strict schemas (Recommended)","description":"Keep fixture data tightly validated, even if UI variations are harder to represent."},{"value":"UI flexibility","name":"UI flexibility","description":"Allow fixture shapes that better support varied UI states, with looser validation."}],"multi_select":false,"free_text_allowed":true}]}}}
+{"feedback":null}
+{"status":"running"}
+{"item":{"seq":2,"item":{"Assistant":{"text":"plan questions fixture complete"}}}}
+{"status":"finished"}

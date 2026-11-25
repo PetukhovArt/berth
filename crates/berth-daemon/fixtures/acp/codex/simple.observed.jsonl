@@ -1,0 +1,6 @@
+{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":false,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"gpt-6-luna","choices":3},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
+{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":false,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"gpt-6-luna","choices":3},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[],"mcp":[{"name":"codex_apps","status":"connected"}]}}
+{"item":{"seq":1,"item":{"User":{"text":"Respond with the following text: fixture simple ok"}}}}
+{"status":"running"}
+{"item":{"seq":2,"item":{"Assistant":{"text":"fixture simple ok"}}}}
+{"status":"finished"}

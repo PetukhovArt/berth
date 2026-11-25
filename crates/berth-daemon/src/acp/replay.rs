@@ -78,6 +78,9 @@ enum Call {
     Rewind {
         to: Option<String>,
     },
+    RewindInBackground {
+        to: Option<String>,
+    },
 }
 
 struct Peer {
@@ -307,6 +310,11 @@ impl Run {
             }
             Call::Rewind { to } => {
                 self.daemon.acp_rewind(self.agent()?, to).await?;
+            }
+            Call::RewindInBackground { to } => {
+                let daemon = self.daemon.clone();
+                let agent = self.agent()?.clone();
+                tokio::spawn(async move { daemon.acp_rewind(&agent, to).await });
             }
             Call::RefreshMcp => {
                 let daemon = self.daemon.clone();
