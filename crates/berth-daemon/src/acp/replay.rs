@@ -11,6 +11,7 @@ use berth_core::{AgentId, EntityId, ServerEvent, WorktreeId};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
@@ -227,6 +228,7 @@ pub(super) async fn daemon_in(tmp: &Path) -> Result<(Arc<Daemon>, WorktreeId, St
             token: String::new(),
         },
     );
+    daemon.acp.skip_terminal_spawn.store(true, Ordering::SeqCst);
     let EntityId::Project(project) = daemon.add_project(&repo, None, false, None).await? else {
         bail!("expected a project id");
     };

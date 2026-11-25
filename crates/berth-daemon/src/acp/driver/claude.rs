@@ -5,7 +5,9 @@ mod options;
 mod tools;
 
 use super::options::Model;
-use super::translator::{run, text_at, Frame, Outputs, Translator, MCP_STATUS, REWIND, STEER};
+use super::translator::{
+    run, text_at, Frame, Outputs, Translator, INCOMPATIBLE, MCP_STATUS, REWIND, STEER,
+};
 use super::Driver;
 use crate::acp::providers::AcpProvider;
 use crate::acp::wire::{Host, LaunchSpec, Wire};
@@ -212,6 +214,14 @@ impl ClaudeTranslator {
         self.plan_tools.clear();
         self.tasks.clear();
         self.steered.clear();
+    }
+
+    fn fail_handshake(&mut self, out: &mut Outputs, reason: &str) {
+        out.stop_native();
+        self.forget_native(out);
+        if let Some(id) = self.turn.take() {
+            out.fail_with(id, INCOMPATIBLE, reason.trim());
+        }
     }
 
     fn request(
@@ -536,6 +546,10 @@ impl ClaudeTranslator {
                     json!({"sessionUpdate": "available_commands_update", "availableCommands": commands}),
                 );
             }
+            Control::Initialize => {
+                let error = text_at(response, "error");
+                self.fail_handshake(out, &format!("claude refused the handshake: {error}"));
+            }
             Control::McpStatus(id) if failed => out.fail(id, text_at(response, "error")),
             Control::McpStatus(id) => {
                 let servers: Vec<Value> = body["mcpServers"]
@@ -629,10 +643,19 @@ impl Translator for ClaudeTranslator {
     }
 
     fn native_exited(&mut self, code: Option<i32>, out: &mut Outputs) -> Result<()> {
+        let handshaking = self
+            .controls
+            .values()
+            .any(|control| matches!(control, Control::Initialize));
+        let code = code.map(|c| format!(" with code {c}")).unwrap_or_default();
+        let tail = out.failure_tail();
+        if handshaking {
+            let reason = format!("claude exited{code} before the handshake\n{tail}");
+            self.fail_handshake(out, &reason);
+            return Ok(());
+        }
         self.forget_native(out);
         if let Some(id) = self.turn.take() {
-            let code = code.map(|c| format!(" with code {c}")).unwrap_or_default();
-            let tail = out.failure_tail();
             let reason = format!("claude exited{code} during the turn\n{tail}");
             out.fail(id, reason.trim());
         }

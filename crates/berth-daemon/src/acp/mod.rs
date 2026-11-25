@@ -2,6 +2,7 @@ mod blobs;
 mod chat;
 pub mod conn;
 mod driver;
+mod fallback;
 mod files;
 mod latency;
 mod lifecycle;
@@ -52,6 +53,7 @@ pub struct AcpSessions {
     blobs: blobs::Blobs,
     persist: persist::Persist,
     latency: latency::Latency,
+    skip_terminal_spawn: AtomicBool,
 }
 
 impl AcpSessions {

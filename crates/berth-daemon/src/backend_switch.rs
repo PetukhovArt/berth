@@ -37,8 +37,17 @@ impl Daemon {
                 Some(providers::resolve_enabled(&crate::config::Config::load().providers, id)?.id)
             }
         };
+        self.set_backend(id, to, provider.as_deref())
+    }
+
+    pub(crate) fn set_backend(
+        &self,
+        id: &AgentId,
+        to: Backend,
+        provider: Option<&str>,
+    ) -> Result<()> {
         self.kill_session(&SessionRef::Agent(id.clone()));
-        self.store.set_agent_backend(id, to, provider.as_deref())?;
+        self.store.set_agent_backend(id, to, provider)?;
         if to == Backend::Chat {
             self.acp_notice(id, BACK_IN_CHAT.into());
         }

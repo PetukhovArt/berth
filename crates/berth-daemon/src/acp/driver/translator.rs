@@ -10,6 +10,7 @@ pub const MCP_STATUS: &str = "_berth/mcp_status";
 pub const STEER: &str = "_berth/steer";
 
 const FAILURE_CODE: i64 = -32000;
+pub const INCOMPATIBLE: i64 = -32001;
 const STDERR_LINES_IN_FAILURE: usize = 8;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -102,10 +103,14 @@ impl Outputs {
     }
 
     pub fn fail(&mut self, id: Value, message: &str) {
+        self.fail_with(id, FAILURE_CODE, message);
+    }
+
+    pub fn fail_with(&mut self, id: Value, code: i64, message: &str) {
         self.send(json!({
             "jsonrpc": "2.0",
             "id": id,
-            "error": {"code": FAILURE_CODE, "message": message},
+            "error": {"code": code, "message": message},
         }));
     }
 

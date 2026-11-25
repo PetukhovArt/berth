@@ -1,5 +1,5 @@
 use super::conn::RpcError;
-use super::driver::STEER;
+use super::driver::{INCOMPATIBLE, STEER};
 use super::{files, map, prompt, AcpLive, AUTO_TITLE_CHARS};
 use crate::registry::Daemon;
 use crate::status::HookEvent;
@@ -84,6 +84,7 @@ impl Daemon {
         let live = live.clone();
         Box::pin(async move {
             let checkpoint = daemon.checkpoint_for_prompt(&agent_id).await;
+            let prompt = input.text.clone();
             daemon.acp_title_from_prompt(&agent_id, &input.text);
             let pushed = daemon.acp_push(
                 &agent_id,
@@ -102,7 +103,9 @@ impl Daemon {
             let params = json!({"sessionId": sid, "prompt": blocks});
             tokio::spawn(async move {
                 let outcome = live.conn.request("session/prompt", params).await;
-                daemon.acp_turn_ended(&agent_id, &live, sid, outcome).await;
+                daemon
+                    .acp_turn_ended(&agent_id, &live, sid, &prompt, outcome)
+                    .await;
             });
         })
     }
@@ -125,6 +128,7 @@ impl Daemon {
         agent_id: &AgentId,
         live: &Arc<AcpLive>,
         sid: String,
+        prompt: &str,
         outcome: Result<Value, RpcError>,
     ) {
         self.acp_flush_tail(agent_id, live);
@@ -132,6 +136,15 @@ impl Daemon {
         self.acp.persist.flush(&self.store, agent_id);
         live.touch();
         live.permission.lock().unwrap().take();
+        if let Err(RpcError::Remote {
+            code: INCOMPATIBLE,
+            message,
+        }) = &outcome
+        {
+            if self.acp_fall_back(agent_id, prompt, message) {
+                return;
+            }
+        }
         let notice = match &outcome {
             Err(RpcError::Closed) => {
                 live.state.lock().unwrap().queue.clear();
