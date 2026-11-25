@@ -47,6 +47,8 @@ export const agents = {
   },
   session: {
     restart: 'Restart',
+    openInTerminal: 'Open in terminal',
+    backToChat: 'Back to chat',
     move: 'Move…',
     end: 'End session',
     archive: 'Archive',

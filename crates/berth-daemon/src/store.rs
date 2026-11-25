@@ -960,6 +960,7 @@ impl Store {
         provider: &str,
         auto_title: bool,
     ) -> Result<()> {
+        let kind = AgentKind::of_provider(provider);
         let now = now_ms();
         self.conn.lock().unwrap().execute(
             "INSERT INTO agents (id, worktree_id, name, status, archived, archived_at, kind, sort_order, created_at, status_changed_at, auto_title_pending, unseen, acp_provider, backend)
@@ -969,12 +970,25 @@ impl Store {
                 worktree.as_str(),
                 name,
                 AgentStatus::Fresh.as_str(),
-                AgentKind::Acp.as_str(),
+                kind.as_str(),
                 now,
                 auto_title as i64,
                 provider,
                 Backend::Chat.as_str(),
             ],
+        )?;
+        Ok(())
+    }
+
+    pub fn set_agent_backend(
+        &self,
+        id: &AgentId,
+        backend: Backend,
+        provider: Option<&str>,
+    ) -> Result<()> {
+        self.conn.lock().unwrap().execute(
+            "UPDATE agents SET backend = ?2, acp_provider = COALESCE(acp_provider, ?3) WHERE id = ?1",
+            params![id.as_str(), backend.as_str(), provider],
         )?;
         Ok(())
     }
@@ -1570,15 +1584,16 @@ fn row_to_worktree(r: &rusqlite::Row) -> rusqlite::Result<Worktree> {
 }
 
 fn row_to_agent(r: &rusqlite::Row) -> rusqlite::Result<Agent> {
-    let kind = AgentKind::parse(&r.get::<_, String>(5)?).unwrap_or_default();
+    let column_kind = AgentKind::parse(&r.get::<_, String>(5)?).unwrap_or_default();
+    let acp_provider: Option<String> = r.get(13)?;
     Ok(Agent {
         id: AgentId(r.get(0)?),
         worktree_id: WorktreeId(r.get(1)?),
         name: r.get(2)?,
         status: AgentStatus::parse(&r.get::<_, String>(3)?).unwrap_or(AgentStatus::Fresh),
         archived: r.get::<_, i64>(4)? != 0,
-        kind,
-        backend: Backend::of(kind, r.get::<_, Option<String>>(15)?.as_deref()),
+        kind: column_kind.of_chat_row(acp_provider.as_deref()),
+        backend: Backend::of(column_kind, r.get::<_, Option<String>>(15)?.as_deref()),
         session_id: r.get(6)?,
         sort_order: r.get(7)?,
         status_changed_at: r.get(8)?,
@@ -1592,7 +1607,7 @@ fn row_to_agent(r: &rusqlite::Row) -> rusqlite::Result<Agent> {
         provider_error: None,
         routed_from: None,
         route_suggestion: None,
-        acp_provider: r.get(13)?,
+        acp_provider,
     })
 }
 

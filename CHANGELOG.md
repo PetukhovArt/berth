@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added `Open in terminal` and `Back to chat` to the session menu: a Claude, Codex or Grok agent moves between its chat and its terminal and resumes the same conversation
 - Added a `Launch Berth at login` setting to the desktop app on Windows, macOS and Linux: Berth starts when you sign in, hidden in the tray or menu bar
 - Added find in the Chat view: `Ctrl+F` opens a bar with the match count, next and previous buttons and highlights in the loaded messages, and `Esc` closes it
 - Added a `Working · 40s · Esc to interrupt` row to the end of the Chat view while a turn runs, and `Esc` interrupts the turn

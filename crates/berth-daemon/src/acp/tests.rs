@@ -2,8 +2,9 @@ use super::mock::mock_agent_args;
 use super::providers::AcpProvider;
 use super::replay::daemon_in;
 use super::wire::DaemonHost;
+use crate::registry::Daemon;
 use berth_core::acp::AcpItem;
-use berth_core::{AgentId, AgentStatus, ServerEvent};
+use berth_core::{AgentId, AgentStatus, Backend, ServerEvent};
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
@@ -92,4 +93,70 @@ async fn a_turn_finishes_only_after_the_answer_sent_before_its_reply() {
         })
     );
     daemon.acp.kill(&agent);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_agent_moves_to_its_terminal_and_back_to_its_chat() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (daemon, worktree, _) = daemon_in(tmp.path()).await.unwrap();
+    let script = vec![
+        json!({"expect": "initialize", "result": {"protocolVersion": 1, "agentCapabilities": {}, "authMethods": []}}),
+        json!({"expect": "session/new", "result": {"sessionId": "mock-1"}}),
+        json!({"expect": "session/prompt"}),
+    ];
+    let script_path = tmp.path().join("idle.json");
+    std::fs::write(&script_path, json!(script).to_string()).unwrap();
+    let provider = AcpProvider {
+        id: "grok".into(),
+        name: "Mock".into(),
+        command: std::env::current_exe().unwrap().display().to_string(),
+        args: mock_agent_args(&script_path),
+        driver: berth_core::acp::ACP_DRIVER.into(),
+        enabled: true,
+    };
+    daemon.cli_probes.lock().unwrap().insert(
+        berth_core::AgentKind::Grok,
+        (true, std::time::Instant::now()),
+    );
+    let agent = AgentId::generate();
+    let host = Arc::new(DaemonHost {
+        agent: agent.clone(),
+    });
+    daemon
+        .create_acp_agent_with(
+            agent.clone(),
+            worktree,
+            "mock".into(),
+            provider,
+            false,
+            host,
+        )
+        .unwrap();
+    let row = |daemon: &Daemon| daemon.store.get_agent(&agent).unwrap().unwrap();
+    assert_eq!(row(&daemon).kind, berth_core::AgentKind::Grok);
+    assert_eq!(row(&daemon).backend, Backend::Chat);
+    assert!(daemon.acp.is_live(&agent));
+
+    daemon
+        .switch_backend(&agent, Backend::Terminal)
+        .await
+        .unwrap();
+    assert_eq!(row(&daemon).backend, Backend::Terminal);
+    assert_eq!(row(&daemon).acp_provider.as_deref(), Some("grok"));
+    assert!(!daemon.acp.is_live(&agent));
+
+    let mut events = daemon.events.subscribe();
+    daemon.switch_backend(&agent, Backend::Chat).await.unwrap();
+    assert_eq!(row(&daemon).backend, Backend::Chat);
+    tokio::time::timeout(EVENT_WAIT, async {
+        loop {
+            if let ServerEvent::AcpItem { item, .. } = events.recv().await.unwrap() {
+                if matches!(*item, AcpItem::Notice { .. }) {
+                    return;
+                }
+            }
+        }
+    })
+    .await
+    .expect("no notice about the missing terminal turns");
 }

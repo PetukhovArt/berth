@@ -44,7 +44,7 @@ Which CLI an Agent runs: `claude`, `codex` or `grok`, or `acp` for an ACP Agent.
 _Avoid_: harness, agent type
 
 **Backend**
-How an Agent runs: `chat` (the daemon drives the CLI over a protocol and keeps the transcript) or `terminal` (the CLI runs in a PTY). Stored per Agent beside its Agent Kind; a row from before the column is `chat` for Agent Kind `acp` and `terminal` otherwise. Not a Provider.
+How an Agent runs: `chat` (the daemon drives the CLI over a protocol and keeps the transcript) or `terminal` (the CLI runs in a PTY). Stored per Agent beside its Agent Kind; a row from before the column is `chat` for Agent Kind `acp` and `terminal` otherwise. An Agent of a native Agent Kind can switch between the two: the live side stops and the other one resumes the stored session id. Not a Provider.
 _Avoid_: mode, view
 
 **ACP Agent**

@@ -4,7 +4,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { watchUsageLimits } from './limits';
 
 export type AgentKind = 'claude' | 'codex' | 'cursor' | 'opencode' | 'grok' | 'acp';
-type Backend = 'chat' | 'terminal';
+export type Backend = 'chat' | 'terminal';
 export const AGENT_KIND_LABEL: Readonly<Record<AgentKind, string>> = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode', grok: 'Grok', acp: 'ACP' };
 const LIMIT_KINDS: readonly AgentKind[] = ['claude', 'codex', 'grok'];
 const SECONDS_LIMIT = 1e11;
@@ -575,6 +575,10 @@ export async function renameSession(session: SessionRef, name: string): Promise<
 
 export async function restartAgent(id: string): Promise<void> {
   await acknowledged({ RestartAgent: { id } });
+}
+
+export async function setAgentBackend(id: string, backend: Backend): Promise<void> {
+  await acknowledged({ SetAgentBackend: { id, backend } });
 }
 
 export async function switchAgentModel(id: string, model: string | null): Promise<void> {

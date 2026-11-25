@@ -4,7 +4,8 @@ import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
 import { VContextMenu, VInputText } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
-import { canContinueAsAgent, continueTerminalInDock, sessionStateOf, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, isStopped, useAction, useHollow, StatusDot } from '../../../entities/session';
+import { canContinueAsAgent, continueTerminalInDock, sessionStateOf, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, setAgentBackend, otherBackend, useBerth, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, isStopped, useAction, useHollow, StatusDot } from '../../../entities/session';
+import { useProviders } from '../../../shared/api/providers';
 import { MoveAgentDialog } from '../../../features/move-agent';
 import { routeRuleLabel } from '../../../features/edit-router';
 import SessionDeleteConfirm from './SessionDeleteConfirm.vue';
@@ -49,6 +50,11 @@ function applySuggestion() {
 }
 
 const movableAgent = computed(() => ('Agent' in props.session.ref ? props.session.ref.Agent : null));
+const providers = useProviders();
+const otherSide = computed(() => {
+  const agent = movableAgent.value ? useBerth()?.entities.value.agents.get(movableAgent.value) : undefined;
+  return agent ? otherBackend(agent, providers.value) : null;
+});
 
 const menuItems = computed<MenuAction[]>(() => {
   const session = props.session.ref;
@@ -63,6 +69,9 @@ const menuItems = computed<MenuAction[]>(() => {
     { key: 'archive', label: t('agents.session.archive'), command: () => void action.run(() => archiveAgent(session.Agent)) },
     { key: 'rename', label: t('common.rename'), command: startRename },
     { key: 'restart', label: t('agents.session.restart'), command: () => void action.run(() => restartAgent(session.Agent)) },
+    ...(otherSide.value
+      ? [{ key: 'backend', label: t(otherSide.value === 'terminal' ? 'agents.session.openInTerminal' : 'agents.session.backToChat'), command: () => void action.run(() => setAgentBackend(session.Agent, otherSide.value!)), testid: 'session-switch-backend' }]
+      : []),
     { key: 'move', label: t('agents.session.move'), command: () => (moving.value = true) },
     { key: 'delete', label: t('agents.session.deleteForever'), command: () => (mode.value = 'confirming-delete') },
   ];

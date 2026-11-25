@@ -50,6 +50,20 @@ impl AgentKind {
         }
     }
 
+    pub fn of_provider(provider_id: &str) -> AgentKind {
+        Self::NATIVE
+            .into_iter()
+            .find(|kind| kind.as_str() == provider_id)
+            .unwrap_or(AgentKind::Acp)
+    }
+
+    pub fn of_chat_row(self, provider_id: Option<&str>) -> AgentKind {
+        match (self, provider_id) {
+            (AgentKind::Acp, Some(id)) => Self::of_provider(id),
+            _ => self,
+        }
+    }
+
     pub fn program(&self) -> Option<&'static str> {
         match self {
             AgentKind::Claude => Some("claude"),

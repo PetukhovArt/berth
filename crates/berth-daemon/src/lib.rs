@@ -1,6 +1,7 @@
 pub mod acp;
 pub mod agent;
 pub mod auto_archive;
+pub mod backend_switch;
 pub mod branches;
 pub mod channel_requests;
 pub mod channels;

@@ -74,7 +74,7 @@ pub struct Daemon {
     pub(crate) prewarm: crate::prewarm::PrewarmPool,
     /// Cached `command -v` results per CLI so a missing binary doesn't get
     /// re-probed (login shell spawn) on every prewarm request.
-    cli_probes: Mutex<HashMap<AgentKind, (bool, Instant)>>,
+    pub(crate) cli_probes: Mutex<HashMap<AgentKind, (bool, Instant)>>,
     /// How many client connections are attached per session — a session
     /// with attachments (and its whole worktree) is "in view" and exempt
     /// from idle reaping.
@@ -1670,9 +1670,6 @@ impl Daemon {
         match sref {
             SessionRef::Agent(id) => {
                 let agent = self.store.get_agent(id)?.context("agent not found")?;
-                if agent.backend == Backend::Chat {
-                    bail!("an ACP agent has no terminal");
-                }
                 if agent.archived {
                     bail!("agent is archived — unarchive it first");
                 }
@@ -1732,6 +1729,9 @@ impl Daemon {
         // relocation still pending for it has been overtaken.
         let Some(terminal) = agent::terminal(agent.kind) else {
             bail!("{} runs only in the chat view", agent.kind.as_str());
+        if agent.backend == Backend::Chat {
+            bail!("an ACP agent has no terminal");
+        }
         };
         self.pending_moves.lock().unwrap().remove(&agent.id);
         self.pending_ends.lock().unwrap().remove(&agent.id);

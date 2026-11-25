@@ -5,7 +5,7 @@ use berth_core::acp::{
 };
 use berth_core::codec::{read_frame, write_frame};
 use berth_core::{
-    AgentId, ClientRequest, FeedbackKind, FeedbackRequest, ServerEvent, SpawnWorktree,
+    AgentId, Backend, ClientRequest, FeedbackKind, FeedbackRequest, ServerEvent, SpawnWorktree,
 };
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -284,6 +284,14 @@ async fn client_requests_for_chats_round_trip_full_and_minimal() {
             req_id: 1,
             agent: agent(),
             answer,
+        })
+        .await;
+    }
+    for backend in [Backend::Chat, Backend::Terminal] {
+        assert_round_trips_by_debug_form(ClientRequest::SetAgentBackend {
+            req_id: 1,
+            id: agent(),
+            backend,
         })
         .await;
     }

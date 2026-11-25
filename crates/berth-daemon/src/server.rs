@@ -1105,6 +1105,14 @@ async fn handle_client(
                 ClientRequest::RestartAgent { req_id, id } => {
                     reply_done(&out_tx, req_id, daemon.restart_agent(&id).await).await;
                 }
+                ClientRequest::SetAgentBackend {
+                    req_id,
+                    id,
+                    backend,
+                } => {
+                    let done = daemon.switch_backend(&id, backend).await;
+                    reply_done(&out_tx, req_id, done).await;
+                }
                 ClientRequest::SwitchAgentModel { req_id, id, model } => {
                     let done = daemon.switch_agent_model(&id, model).await;
                     reply_done(&out_tx, req_id, done).await;

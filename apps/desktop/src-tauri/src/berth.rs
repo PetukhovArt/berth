@@ -825,6 +825,7 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::UnarchiveExternalSession { req_id, .. }
         | ClientRequest::DeleteAgent { req_id, .. }
         | ClientRequest::RestartAgent { req_id, .. }
+        | ClientRequest::SetAgentBackend { req_id, .. }
         | ClientRequest::SwitchAgentModel { req_id, .. }
         | ClientRequest::ContinueAgentIn { req_id, .. }
         | ClientRequest::GetRouterConfig { req_id }

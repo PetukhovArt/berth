@@ -1,7 +1,7 @@
 use crate::acp::{
     AcpItem, AcpItemAt, AcpSessionState, AttachmentUpload, FeedbackAnswer, QuestionForm, QueueId,
 };
-use crate::agent::AgentKind;
+use crate::agent::{AgentKind, Backend};
 use crate::attention::Attention;
 use crate::entities::{
     Agent, AgentStatus, Entity, EntityId, OrphanedSession, Project, TerminalTab, Workspace,
@@ -13,7 +13,7 @@ use std::path::PathBuf;
 
 /// Bump on any breaking change to these enums. The daemon refuses mismatched
 /// clients; the client then offers a kill-and-restart of the old daemon.
-pub const PROTOCOL_VERSION: u32 = 68;
+pub const PROTOCOL_VERSION: u32 = 69;
 
 /// Max IPC frame size (length prefix sanity bound).
 pub const MAX_FRAME_LEN: u32 = 4 * 1024 * 1024;
@@ -306,6 +306,13 @@ pub enum ClientRequest {
     RestartAgent {
         req_id: u64,
         id: AgentId,
+    },
+    /// Move an agent between its chat and its terminal, resuming the
+    /// stored conversation on the other side.
+    SetAgentBackend {
+        req_id: u64,
+        id: AgentId,
+        backend: Backend,
     },
     SwitchAgentModel {
         req_id: u64,

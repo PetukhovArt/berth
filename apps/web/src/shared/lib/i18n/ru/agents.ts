@@ -50,6 +50,8 @@ export const agents: Translation<typeof en> = {
   },
   session: {
     restart: 'Перезапустить',
+    openInTerminal: 'Открыть в терминале',
+    backToChat: 'Вернуть в чат',
     move: 'Перенести…',
     end: 'Завершить',
     archive: 'В архив',
