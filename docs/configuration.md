@@ -180,6 +180,24 @@ named. berth also lists the files it writes or creates in the repository's `.git
 they stay out of `git status` and out of commits. Remove `shared_setup` and run
 `berth shared-setup sync` to take everything back out.
 
+## Chat or terminal
+
+A new Claude or Grok session opens in the chat view: berth drives the CLI over a protocol and keeps the
+transcript. Codex opens in its terminal. In New Session the plain name is the chat (`Claude`) and the
+terminal sits beside it (`Claude (terminal)`). A session also switches either way from its row menu
+(`Open in terminal`, `Back to chat`) and resumes the same conversation; turns taken in the other view
+are not shown in the chat history. Sessions that already exist, and Resume or Continue of a
+conversation, keep the way they ran.
+
+Settings > Providers turns the chat off per agent. By hand it is `config.json`:
+
+```json
+{ "providers": { "acp": { "claude": { "enabled": false } } } }
+```
+
+A new Claude session then opens in its terminal. A `claude` that cannot run as a chat moves its
+session to the terminal on its own, once, and says so in the chat.
+
 ## Chat bridge
 
 The daemon can post a short message to a chat when an Agent starts waiting on you, when an Agent

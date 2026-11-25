@@ -196,7 +196,7 @@ impl Daemon {
                     .filter(|a| &a.worktree_id == worktree)
                     .map(|a| a.name.clone())
                     .collect::<Vec<_>>();
-                self.create_agent(CreateAgentSpec {
+                self.create_agent_by_default(CreateAgentSpec {
                     worktree: worktree.clone(),
                     name: crate::sibling::sibling_name(&taken),
                     kind: *kind,

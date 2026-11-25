@@ -44,7 +44,7 @@ Which CLI an Agent runs: `claude`, `codex` or `grok`, or `acp` for an ACP Agent.
 _Avoid_: harness, agent type
 
 **Backend**
-How an Agent runs: `chat` (the daemon drives the CLI over a protocol and keeps the transcript) or `terminal` (the CLI runs in a PTY). Stored per Agent beside its Agent Kind; a row from before the column is `chat` for Agent Kind `acp` and `terminal` otherwise. An Agent of a native Agent Kind can switch between the two: the live side stops and the other one resumes the stored session id. Not a Provider.
+How an Agent runs: `chat` (the daemon drives the CLI over a protocol and keeps the transcript) or `terminal` (the CLI runs in a PTY). Stored per Agent beside its Agent Kind; a row from before the column is `chat` for Agent Kind `acp` and `terminal` otherwise. A new Claude or Grok Agent starts as `chat`, a new Codex Agent as `terminal`. An Agent of a native Agent Kind can switch between the two: the live side stops and the other one resumes the stored session id. Not a Provider.
 _Avoid_: mode, view
 
 **ACP Agent**
@@ -52,7 +52,7 @@ An Agent whose CLI speaks the Agent Client Protocol over stdio instead of runnin
 _Avoid_: headless agent, chat agent
 
 **Provider**
-An entry in Settings for an agent CLI berth can launch, with an enabled flag: a native Agent Kind, or an ACP agent definition (command and args; the built-ins are Cursor, OpenCode, Antigravity, Gemini, Kiro, Pi and Grok, which is on by default and is the default chat agent of a new Grok session). Not the model vendor behind an API error.
+An entry in Settings for an agent CLI berth can launch, with an enabled flag: a native Agent Kind, or an ACP agent definition (command and args; the built-ins are Cursor, OpenCode, Antigravity, Gemini, Kiro, Pi, Grok and Claude, the last two on by default and the default chat agent of a new Claude or Grok session, whose terminal stays in the type list). Not the model vendor behind an API error.
 _Avoid_: integration, backend
 
 **Terminal Session**

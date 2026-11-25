@@ -109,7 +109,10 @@ impl Daemon {
                 .await?
         } else {
             let spec = self.sibling_spec(id, kind, &starting_prompt, target)?;
-            self.create_agent(spec).await?
+            match kind {
+                Some(_) => self.create_agent_by_default(spec).await?,
+                None => self.create_agent(spec).await?,
+            }
         };
         if let EntityId::Agent(agent) = &created {
             self.broadcast(ServerEvent::AgentSpawned {
@@ -139,13 +142,7 @@ impl Daemon {
             .create_acp_agent(worktree, name, &provider, true)
             .await?;
         if let EntityId::Agent(child) = &created {
-            let (daemon, child, prompt) =
-                (self.clone(), child.clone(), starting_prompt.to_string());
-            tokio::spawn(async move {
-                if let Err(error) = daemon.acp_prompt(&child, &prompt).await {
-                    tracing::warn!(agent = %child, error = %error, "first prompt of a spawned chat failed");
-                }
-            });
+            self.acp_first_prompt(child.clone(), starting_prompt.to_string());
         }
         Ok(created)
     }

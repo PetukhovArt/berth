@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
-use berth_core::{AgentId, Backend, SessionRef};
+use berth_core::{AgentId, Backend, EntityId, SessionRef};
 
 use crate::acp::providers;
 use crate::agent;
-use crate::registry::{cli_missing_message, Daemon};
+use crate::registry::{cli_missing_message, CreateAgentSpec, Daemon};
 
 const BACK_IN_CHAT: &str =
     "Back in the chat. The turns taken in the terminal are not shown here, but the agent still has them.";
@@ -38,6 +38,34 @@ impl Daemon {
             }
         };
         self.set_backend(id, to, provider.as_deref())
+    }
+
+    pub(crate) async fn create_agent_by_default(
+        self: &Arc<Self>,
+        spec: CreateAgentSpec,
+    ) -> Result<EntityId> {
+        let providers = crate::config::Config::load().providers;
+        let chat = providers::default_chat(&providers, spec.kind)
+            .filter(|_| spec.model.is_none() && spec.effort.is_none());
+        let Some(provider) = chat else {
+            return self.create_agent(spec).await;
+        };
+        let created = self
+            .create_acp_agent(spec.worktree, spec.name, &provider.id, spec.auto_title)
+            .await?;
+        if let (EntityId::Agent(id), Some(prompt)) = (&created, spec.starting_prompt) {
+            self.acp_first_prompt(id.clone(), prompt);
+        }
+        Ok(created)
+    }
+
+    pub(crate) fn acp_first_prompt(self: &Arc<Self>, id: AgentId, prompt: String) {
+        let daemon = self.clone();
+        tokio::spawn(async move {
+            if let Err(error) = daemon.acp_prompt(&id, &prompt).await {
+                tracing::warn!(agent = %id, error = %error, "first prompt of a new chat failed");
+            }
+        });
     }
 
     pub(crate) fn set_backend(

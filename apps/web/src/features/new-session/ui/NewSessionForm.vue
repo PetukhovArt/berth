@@ -36,13 +36,18 @@ const ON_BEFORE_PROVIDERS_LOAD: { label: string; value: Kind }[] = [
 const providers = useProviders();
 const kindStates = useKindStates();
 type KindOption = { label: string; value: Kind; state: KindState; disabled: boolean; provider: Provider | null };
+function kindLabel(provider: Provider): string {
+  if (provider.acp) return provider.on_by_default ? provider.name : t('agents.newSession.acpProvider', { name: provider.name });
+  const chat = chatAgentFor(provider.id, providers.value);
+  return chat ? t('agents.newSession.terminalOf', { name: chat.name }) : provider.name;
+}
+
 const KINDS = computed<KindOption[]>(() => {
   const enabled = providers.value.filter((provider) => provider.enabled);
   const agents: KindOption[] = providers.value.length
     ? enabled.map((provider) => {
         const state = kindStates.stateOf(provider);
-        const label = provider.acp ? t('agents.newSession.acpProvider', { name: provider.name }) : provider.name;
-        return { label, value: (provider.acp ? `acp:${provider.id}` : provider.id) as Kind, state, disabled: state !== 'ready', provider };
+        return { label: kindLabel(provider), value: (provider.acp ? `acp:${provider.id}` : provider.id) as Kind, state, disabled: state !== 'ready', provider };
       })
     : ON_BEFORE_PROVIDERS_LOAD.map((option) => ({ ...option, state: 'ready' as const, disabled: false, provider: null }));
   return [...agents, { label: t('agents.newSession.terminal'), value: 'terminal', state: 'ready', disabled: false, provider: null }];

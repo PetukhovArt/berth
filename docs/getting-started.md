@@ -101,8 +101,8 @@ Projects sit in workspaces, named groups of projects shown in the tree. Every in
 ## 2. Start a session
 
 `Ctrl+Shift+N` (`Cmd+Shift+N` on macOS) opens `New Session`. Pick the project, then where to run: the
-main checkout, an existing worktree, or `New worktree…` with a new branch. Pick the type (Claude, Codex,
-Grok, an ACP agent turned on in Settings → Providers, or a plain terminal), and for an agent the model, the effort and an optional first prompt.
+main checkout, an existing worktree, or `New worktree…` with a new branch. Pick the type (Claude and Grok open in the chat view, `Claude (terminal)` and
+`Grok (terminal)` in a terminal, then Codex, an ACP agent turned on in Settings → Providers, or a plain terminal), and for an agent the model, the effort and an optional first prompt.
 
 A new worktree is a real `git worktree`, created under `<repo>/../<repo-name>-worktrees/<branch>`.
 That is the point of it: two agents in two worktrees edit two directories and never collide.

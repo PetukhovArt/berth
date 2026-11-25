@@ -23,6 +23,7 @@
 - Added the `berth` commands to Claude chats: `berth rename`, `worktree`, `enter`, `spawn` and `end-session` work from a chat as they do from a terminal, and a chat that runs `berth worktree` restarts in the new worktree when its turn ends, with the conversation kept
 - Changed `Stop` and `Esc` in the Chat view to put the queued prompts back into the prompt box, in order, instead of dropping them
 - Changed new Grok sessions to open in the Chat view over ACP (`grok agent stdio`), with the terminal Grok still in the type list and its limits shown on both
+- Changed new Claude sessions to open in the Chat view, with `Claude (terminal)` in New Session and `Open in terminal` in the session menu for the terminal; sessions that already exist and Resume or Continue keep the way they ran
 - Changed the permission and question card in the Chat view to a raised card with the project and branch, and `1`, `2`, `3` keys for its buttons
 - Changed `Restore files` on a checkpoint to ask in a dialog instead of two links under the prompt
 - Changed the Chat view to the new look: a 780 px centered column, rounded prompt bubbles, a colored tile by the agent name, and phase chips in the plan strip

@@ -87,6 +87,14 @@ pub fn resolve(config: &ProvidersConfig, id: &str) -> Option<AcpProvider> {
     })
 }
 
+pub fn default_chat(config: &ProvidersConfig, kind: AgentKind) -> Option<AcpProvider> {
+    BUILT_IN
+        .iter()
+        .find(|built_in| built_in.id == kind.as_str() && built_in.on_by_default)
+        .and_then(|built_in| resolve(config, built_in.id))
+        .filter(|provider| provider.enabled)
+}
+
 pub fn resolve_enabled(config: &ProvidersConfig, id: &str) -> Result<AcpProvider> {
     let Some(provider) = resolve(config, id) else {
         bail!("unknown ACP provider `{id}`");
@@ -113,7 +121,7 @@ mod tests {
         assert_eq!(pi.command, "npx");
         assert_eq!(pi.args, ["-y", "pi-acp"]);
         assert!(resolve_enabled(&none, "gemini").is_err());
-        assert!(!resolve(&none, "claude").unwrap().enabled);
+        assert!(!resolve(&none, "codex").unwrap().enabled);
 
         let on = config(r#"{"acp": {"gemini": {"enabled": true}}}"#);
         let gemini = resolve_enabled(&on, "gemini").unwrap();
@@ -130,6 +138,16 @@ mod tests {
         assert_eq!(grok.driver, ACP_DRIVER);
         let off = config(r#"{"acp": {"grok": {"enabled": false}}}"#);
         assert!(resolve_enabled(&off, "grok").is_err());
+    }
+
+    #[test]
+    fn claude_and_grok_open_in_the_chat_view_and_codex_in_its_terminal() {
+        let none = ProvidersConfig::default();
+        assert_eq!(default_chat(&none, AgentKind::Claude).unwrap().id, "claude");
+        assert_eq!(default_chat(&none, AgentKind::Grok).unwrap().id, "grok");
+        assert!(default_chat(&none, AgentKind::Codex).is_none());
+        let off = config(r#"{"acp": {"claude": {"enabled": false}}}"#);
+        assert!(default_chat(&off, AgentKind::Claude).is_none());
     }
 
     #[test]

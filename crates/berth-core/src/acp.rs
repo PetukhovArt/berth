@@ -291,11 +291,11 @@ pub const BUILT_IN_PROVIDERS: [BuiltInProvider; 9] = [
     },
     BuiltInProvider {
         id: "claude",
-        name: "Claude (protocol)",
+        name: "Claude",
         command: "claude",
         args: &[],
         driver: "claude",
-        on_by_default: false,
+        on_by_default: true,
     },
     BuiltInProvider {
         id: "codex",
