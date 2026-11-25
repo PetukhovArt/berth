@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, shallowRef } from 'vue';
+import { computed, shallowRef, useTemplateRef } from 'vue';
 import { VButton, VSelect } from '../../../shared/ui/kit';
+import ConfirmPopover from '../../../shared/ui/ConfirmPopover.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { HubMember, HubRole } from '../../../entities/session';
 import { useChanges } from '../model/changes';
@@ -10,6 +11,8 @@ const props = defineProps<{ members: HubMember[]; roles: HubRole[]; me: string }
 const ORDER = { approved: 0, pending: 1, revoked: 2 } as const;
 
 const { busy, errors, run } = useChanges();
+const confirm = useTemplateRef<InstanceType<typeof ConfirmPopover>>('confirm');
+const revoking = shallowRef<HubMember | null>(null);
 const revision = shallowRef(0);
 
 const rows = computed(() => [...props.members].sort((a, b) => ORDER[a.status] - ORDER[b.status]));
@@ -20,7 +23,18 @@ async function setRole(member: HubMember, role: string) {
   if (!(await run(member.id, { SetRole: { member: member.id, role } }))) revision.value++;
 }
 
-const revoke = (member: HubMember) => run(member.id, { Revoke: { member: member.id } });
+function askRevoke(member: HubMember, event: MouseEvent) {
+  const target = event.currentTarget as HTMLElement;
+  revoking.value = member;
+  setTimeout(() => confirm.value?.show(target), 0);
+}
+
+async function confirmRevoke() {
+  const member = revoking.value;
+  if (!member) return;
+  await run(member.id, { Revoke: { member: member.id } });
+  confirm.value?.hide();
+}
 </script>
 
 <template>
@@ -58,12 +72,21 @@ const revoke = (member: HubMember) => run(member.id, { Revoke: { member: member.
             :disabled="busy.has(member.id) || member.id === me"
             :title="member.id === me ? t('hub.members.self') : undefined"
             :data-testid="`hub-admin-member-revoke-${member.id}`"
-            @click="revoke(member)"
+            @click="askRevoke(member, $event)"
           />
         </template>
         <p v-if="errors.get(member.id)" class="error" role="alert" :data-testid="`hub-admin-member-error-${member.id}`">{{ errors.get(member.id) }}</p>
       </li>
     </ul>
+    <ConfirmPopover
+      ref="confirm"
+      :question="t('hub.members.revokeQuestion', { name: revoking?.name ?? '' })"
+      :confirm-label="t('hub.members.revokeConfirm')"
+      :busy="revoking ? busy.has(revoking.id) : false"
+      testid="hub-admin-member-revoke-confirm"
+      @confirm="confirmRevoke"
+      @cancel="revoking = null"
+    />
   </section>
 </template>
 

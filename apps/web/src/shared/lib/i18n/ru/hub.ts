@@ -71,6 +71,8 @@ export const hub: Translation<typeof en> = {
     approveAs: 'Одобрить как…',
     self: 'Своё устройство меняет другой админ или владелец admin token.',
     revoke: 'Отозвать',
+    revokeQuestion: 'Отозвать доступ у {name}? Устройство потеряет доступ, пока не подключится заново.',
+    revokeConfirm: 'Отозвать',
     you: '{name} (вы)',
     status: {
       pending: 'Ждёт',

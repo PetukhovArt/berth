@@ -68,6 +68,8 @@ export const hub = {
     approveAs: 'Approve as…',
     self: 'Another admin or the admin token changes your own device.',
     revoke: 'Revoke',
+    revokeQuestion: 'Revoke {name}? This device loses access until it pairs again.',
+    revokeConfirm: 'Revoke',
     you: '{name} (you)',
     status: {
       pending: 'Pending',
