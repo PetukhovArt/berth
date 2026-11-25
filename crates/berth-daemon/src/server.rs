@@ -594,17 +594,21 @@ async fn handle_client(
                     query,
                     limit,
                 } => {
-                    let ev = match daemon
-                        .list_worktree_files(&worktree, &query, limit as usize)
-                        .await
-                    {
-                        Ok(files) => ServerEvent::WorktreeFiles { req_id, files },
-                        Err(e) => ServerEvent::Error {
-                            req_id: Some(req_id),
-                            message: format!("{e:#}"),
-                        },
-                    };
-                    let _ = out_tx.send(ev).await;
+                    let daemon = daemon.clone();
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        let ev = match daemon
+                            .list_worktree_files(&worktree, &query, limit as usize)
+                            .await
+                        {
+                            Ok(files) => ServerEvent::WorktreeFiles { req_id, files },
+                            Err(e) => ServerEvent::Error {
+                                req_id: Some(req_id),
+                                message: format!("{e:#}"),
+                            },
+                        };
+                        let _ = out_tx.send(ev).await;
+                    });
                 }
                 ClientRequest::AcpTranscript {
                     req_id,
