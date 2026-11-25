@@ -1,6 +1,6 @@
 import { computed, shallowRef, watch, type ComputedRef, type Ref, type ShallowRef } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { describeError, externalKey, isHarness, listProjectConversations, placeExternal, useBerth, useExternalSessions, type Entities, type Harness, type OrphanedSession } from '../../../entities/session';
+import { describeError, externalKey, isChat, isHarness, listProjectConversations, placeExternal, useBerth, useExternalSessions, type Entities, type Harness, type OrphanedSession } from '../../../entities/session';
 
 export type ConversationChoice = {
   key: string;
@@ -80,7 +80,7 @@ export function useProjectConversations(project: Ref<string | null>, active: Ref
     }
     const terminalNames = new Map([...entities.terminals.values()].map((terminal) => [`terminal:${terminal.id}`, terminal.name]));
     for (const agent of entities.agents.values()) {
-      if (!agent.session_id || !isHarness(agent.kind)) continue;
+      if (!agent.session_id || isChat(agent) || !isHarness(agent.kind)) continue;
       const worktree = entities.worktrees.get(agent.worktree_id);
       if (worktree?.project_id !== id) continue;
       put(agent.kind, agent.session_id, agent.name, checkoutOf(entities, id, worktree.path, worktree.branch, true), 0);

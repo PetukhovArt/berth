@@ -4,6 +4,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { watchUsageLimits } from './limits';
 
 export type AgentKind = 'claude' | 'codex' | 'cursor' | 'opencode' | 'grok' | 'acp';
+type Backend = 'chat' | 'terminal';
 export const AGENT_KIND_LABEL: Readonly<Record<AgentKind, string>> = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode', grok: 'Grok', acp: 'ACP' };
 const LIMIT_KINDS: readonly AgentKind[] = ['claude', 'codex', 'grok'];
 const SECONDS_LIMIT = 1e11;
@@ -27,6 +28,7 @@ type Agent = {
   unseen: boolean;
   status_changed_at: number;
   kind: AgentKind;
+  backend?: Backend;
   model: string | null;
   effort: string | null;
   session_id: string | null;
@@ -496,8 +498,11 @@ export function createAcpAgent(worktree: string, name: string, provider: string,
   return acknowledged({ CreateAcpAgent: { worktree, name, provider, auto_title: autoTitle } });
 }
 
+export const isChat = (agent: { kind: AgentKind; backend?: Backend }): boolean => (agent.backend ?? (agent.kind === 'acp' ? 'chat' : 'terminal')) === 'chat';
+
 export function isAcpAgent(agent: string): boolean {
-  return useBerth()?.entities.value.agents.get(agent)?.kind === 'acp';
+  const found = useBerth()?.entities.value.agents.get(agent);
+  return !!found && isChat(found);
 }
 
 export async function acpPrompt(agent: string, text: string, attachments: AcpAttachmentUpload[] = []): Promise<void> {

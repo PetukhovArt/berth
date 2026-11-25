@@ -1,6 +1,6 @@
 import { computed } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { externalKey, focusMessage, isHarness, openChannel, sessionKey, useBerth, useExternalSessions, useSessionDock, type ConversationHit, type ExternalSession } from '../../../entities/session';
+import { externalKey, focusMessage, isChat, isHarness, openChannel, sessionKey, useBerth, useExternalSessions, useSessionDock, type AgentKind, type ConversationHit, type ExternalSession } from '../../../entities/session';
 import { openCleanup } from '../../../features/cleanup';
 import { openLeaf, type WorkNode } from '../../../features/work-tree';
 import type { SearchRow } from './rows';
@@ -9,8 +9,8 @@ const SHORT_ID = 8;
 
 type Conversation = Pick<ExternalSession, 'harness' | 'id' | 'title'>;
 
-const conversationKeyOfAgent = (agent: { id: string; kind: string; session_id?: string | null }): string | null => {
-  if (agent.kind === 'acp') return `acp:${agent.id}`;
+const conversationKeyOfAgent = (agent: { id: string; kind: AgentKind; backend?: 'chat' | 'terminal'; session_id?: string | null }): string | null => {
+  if (isChat(agent)) return `acp:${agent.id}`;
   return agent.session_id ? `${agent.kind}:${agent.session_id}` : null;
 };
 
@@ -34,7 +34,7 @@ export function useOpener(words: () => readonly string[]) {
     const session = node.data?.session;
     const agent = session ? berth?.entities.value.agents.get(session.id) : undefined;
     if (!session || !agent?.session_id) return null;
-    return isHarness(agent.kind) ? { harness: agent.kind, id: agent.session_id, title: session.name } : null;
+    return !isChat(agent) && isHarness(agent.kind) ? { harness: agent.kind, id: agent.session_id, title: session.name } : null;
   }
 
   function conversationKeyOf(node: WorkNode): string | null {

@@ -1,12 +1,12 @@
 import { shallowRef, toValue, watch, type MaybeRefOrGetter, type ShallowRef } from 'vue';
-import { acpTranscript, type AgentKind } from './berth';
+import { acpTranscript, isChat, type AgentKind } from './berth';
 import { acpMessages } from './acpChat';
 import { isHarness, readTranscript, type TranscriptMessage } from './external';
 
-type Source = { id: string; kind: AgentKind; session_id: string | null };
+type Source = { id: string; kind: AgentKind; backend?: 'chat' | 'terminal'; session_id: string | null };
 
 async function load(source: Source, tail: number): Promise<TranscriptMessage[]> {
-  if (source.kind === 'acp') return acpMessages(await acpTranscript(source.id, 0));
+  if (isChat(source)) return acpMessages(await acpTranscript(source.id, 0));
   if (isHarness(source.kind) && source.session_id) return readTranscript({ harness: source.kind, id: source.session_id }, tail);
   return [];
 }

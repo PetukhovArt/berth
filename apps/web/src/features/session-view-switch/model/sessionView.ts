@@ -4,7 +4,7 @@ import { hasChanges } from './worktreeChanged';
 import { knownMr } from '../../../entities/merge-request';
 import { useDock } from '../../../shared/model/dock';
 import { useIsPhone } from '../../../shared/ui/kit';
-import { useSessionDock, useBerth, sessionStateOf, useExternalSessions, externalKey, isHarness, type Harness, type SessionRef } from '../../../entities/session';
+import { useSessionDock, useBerth, sessionStateOf, useExternalSessions, externalKey, isChat, isHarness, type Harness, type SessionRef } from '../../../entities/session';
 
 export type SessionWorktree = { path: string; branch: string };
 
@@ -29,7 +29,8 @@ function statusOf(panelId: string) {
 function acpAgentOf(panelId: string): string | null {
   const ref = useBerth()?.sessions.value.get(panelId)?.ref;
   if (!ref || !('Agent' in ref)) return null;
-  return useBerth()?.entities.value.agents.get(ref.Agent)?.kind === 'acp' ? ref.Agent : null;
+  const agent = useBerth()?.entities.value.agents.get(ref.Agent);
+  return agent && isChat(agent) ? ref.Agent : null;
 }
 
 function chatOf(panelId: string): { harness: Harness | 'acp'; sessionId: string; terminal: SessionRef } | null {

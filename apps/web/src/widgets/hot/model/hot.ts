@@ -1,5 +1,5 @@
 import { computed, shallowRef, watch, type ComputedRef } from 'vue';
-import { attentionOf, externalTarget, feedbackText, urgencyOf, readTranscript, isHarness, useExternalSessions, useBerth, useSessionStates, type AgentKind, type Harness, type SessionState, type SessionStatus, useSessionDock } from '../../../entities/session';
+import { attentionOf, externalTarget, feedbackText, urgencyOf, readTranscript, isChat, isHarness, useExternalSessions, useBerth, useSessionStates, type AgentKind, type Harness, type SessionState, type SessionStatus, useSessionDock } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
 
@@ -59,7 +59,7 @@ function create() {
         const path = sessions.paths.value.get(state.key);
         const agent = 'Agent' in node.ref ? entities?.agents.get(node.id) : undefined;
         const link = agent ? undefined : external?.linked.value.get(state.key);
-        const source = agent?.session_id && isHarness(agent.kind) ? { harness: agent.kind, id: agent.session_id } : link?.running ? { harness: link.harness, id: link.id } : null;
+        const source = agent?.session_id && !isChat(agent) && isHarness(agent.kind) ? { harness: agent.kind, id: agent.session_id } : link?.running ? { harness: link.harness, id: link.id } : null;
         const request = agent && state.status === 'needs_feedback' ? berth?.feedback.value.get(node.id) : undefined;
         const failure = node.providerError;
         const notice = request ? (request.kind === 'Permission' && request.detail ? `${request.title}: ${request.detail}` : feedbackText(request)) : failure ? `${t(`agents.route.errorKind.${failure.kind}`)}: ${failure.message}` : null;
