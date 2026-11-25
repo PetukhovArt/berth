@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, shallowRef } from 'vue';
+import { computed, reactive, shallowRef, useTemplateRef } from 'vue';
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiInput from '../../../shared/ui/UiInput.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { AcpAnswers, AcpQuestion, AcpQuestionForm } from '../../../entities/session';
-import { digitIndex } from '../model/digitKey';
+import { useDigitKeys } from '../model/digitKey';
 
-const props = defineProps<{ form: AcpQuestionForm; typed: boolean }>();
+const props = defineProps<{ form: AcpQuestionForm; typed: boolean; panelId?: string }>();
 const emit = defineEmits<{ submit: [answers: AcpAnswers] }>();
 
 const picked = shallowRef<Readonly<Record<string, readonly string[]>>>({});
@@ -41,20 +41,18 @@ function enter(question: AcpQuestion) {
   } else if (complete.value) emit('submit', answers.value);
 }
 
-function onKey(event: KeyboardEvent) {
-  const index = digitIndex(event);
-  const choice = instant.value && index !== null ? props.form.questions[0]!.choices[index] : undefined;
-  if (!choice) return;
-  event.preventDefault();
-  choose(props.form.questions[0]!, choice.value);
-}
+const root = useTemplateRef<HTMLElement>('root');
 
-onMounted(() => window.addEventListener('keydown', onKey));
-onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
+useDigitKeys(root, () => props.panelId, (index) => {
+  const choice = instant.value ? props.form.questions[0]!.choices[index] : undefined;
+  if (!choice) return false;
+  choose(props.form.questions[0]!, choice.value);
+  return true;
+});
 </script>
 
 <template>
-  <div class="form" data-testid="question-form">
+  <div ref="root" class="form" data-testid="question-form">
     <fieldset v-for="question in form.questions" :key="question.id" class="question">
       <legend v-if="!instant" class="text">{{ question.text }}</legend>
       <div class="options">

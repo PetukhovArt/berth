@@ -426,7 +426,7 @@ onBeforeUnmount(() => {
         <ChatStates v-else-if="!messages.length" class="column" state="empty" />
         <ChatFeed v-else class="column" :blocks="blocks" :harness="harness" :agent-label="agentLabel" :root="root" :place="place" :panel-id="panelId" :agent-id="agentId" :checkpoint-of="checkpointOf" :rewind-of="rewindOf" :spoken="spoken" :subagent-of="subagentOf" :now="now" :found="found" :notes="notes" :working-since="workingSince" :queued="acp?.session.value?.queue" :can-send-now="acp?.session.value?.caps.steer" @restored="loadCheckpoints" @rewound="(text) => composer?.fill(text)" @open-subagent="openSubagent" @edit-queued="(id, text) => acp?.editQueued(id, text).catch(fail)" @remove-queued="(id) => acp?.removeQueued(id).catch(fail)" @send-queued-now="(id) => acp?.sendQueuedNow(id).catch(fail)" />
       </div>
-      <FeedbackCard v-if="terminal && request" class="column" :session="terminal" :request="request" :agent-label="agentLabel" :place="place" :questions="acp?.session.value?.caps.questions" @resolved="noteResolved" />
+      <FeedbackCard v-if="terminal && request" class="column" :session="terminal" :request="request" :agent-label="agentLabel" :place="place" :questions="acp?.session.value?.caps.questions" :panel-id="panelId" @resolved="noteResolved" />
       <div v-if="acp" class="column agent-log" data-testid="chat-agent-log">
         <UiButton type="button" class="agent-log-toggle" :aria-expanded="agentLog !== null" data-testid="chat-agent-log-toggle" @click="toggleAgentLog">{{ t('agents.sessionView.chatAgentLog') }}</UiButton>
         <pre v-if="agentLog !== null" class="agent-log-text mono" data-testid="chat-agent-log-text">{{ agentLog || t('agents.sessionView.chatAgentLogEmpty') }}</pre>
