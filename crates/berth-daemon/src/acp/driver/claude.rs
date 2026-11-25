@@ -66,6 +66,7 @@ struct ClaudeTranslator {
     model: Option<String>,
     effort: Option<String>,
     models: Vec<Model>,
+    resolved: Option<String>,
     turn: Option<Value>,
     interrupted: bool,
     asked: HashMap<u64, Asked>,
@@ -111,6 +112,7 @@ impl ClaudeTranslator {
             model: None,
             effort: None,
             models: options::static_models(),
+            resolved: None,
             turn: None,
             interrupted: false,
             asked: HashMap::new(),
@@ -125,7 +127,25 @@ impl ClaudeTranslator {
     }
 
     fn config_options(&self) -> Value {
-        options::config_options(&self.models, self.model.as_deref(), self.effort.as_deref())
+        options::config_options(
+            &self.models,
+            self.model.as_deref(),
+            self.effort.as_deref(),
+            self.resolved.as_deref(),
+        )
+    }
+
+    fn note_model(&mut self, model: &str, out: &mut Outputs) {
+        if !options::is_real_model(model) || self.resolved.as_deref() == Some(model) {
+            return;
+        }
+        self.resolved = Some(model.to_string());
+        if self.model.is_some() {
+            out.update(
+                &self.session,
+                json!({"sessionUpdate": "config_option_update", "configOptions": self.config_options()}),
+            );
+        }
     }
 
     fn spec(&mut self) -> LaunchSpec {
@@ -310,6 +330,7 @@ impl ClaudeTranslator {
         match id {
             "model" => {
                 self.model = Some(value.to_string());
+                self.resolved = None;
                 if live {
                     self.control(
                         out,
@@ -460,6 +481,9 @@ impl ClaudeTranslator {
             self.last_assistant = frame["uuid"].as_str().map(str::to_string);
         }
         let message = &frame["message"];
+        if !nested {
+            self.note_model(text_at(message, "model"), out);
+        }
         let streamed = self.streamed.contains(text_at(message, "id")) || nested;
         for block in message["content"].as_array().into_iter().flatten() {
             match text_at(block, "type") {
@@ -621,6 +645,9 @@ impl Translator for ClaudeTranslator {
         };
         match text_at(&frame, "type") {
             "stream_event" => self.stream_event(&frame, out),
+            "system" if text_at(&frame, "subtype") == "init" => {
+                self.note_model(text_at(&frame, "model"), out)
+            }
             "assistant" => self.assistant(&frame, out),
             "user" => self.user(&frame, out),
             "control_response" => self.control_response(&frame, out),
