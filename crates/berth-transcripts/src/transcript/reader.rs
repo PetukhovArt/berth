@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use serde_json::Value;
 
 use super::message::{
-    claude_messages, codex_messages, record_of, Harness, Role, TranscriptMessage,
+    claude_messages, codex_messages, grok_messages, record_of, Harness, Role, TranscriptMessage,
 };
 use super::turn_files::line_model;
 use super::{subagents, tool_exit};
@@ -103,6 +103,7 @@ fn read_messages(
             match harness {
                 Harness::Claude => claude_messages(&line, record, in_subagent, &mut messages),
                 Harness::Codex => codex_messages(&line, record, &mut messages),
+                Harness::Grok => grok_messages(&line, record, &mut messages),
             }
             for message in &mut messages[from..] {
                 if message.role == Role::Assistant {

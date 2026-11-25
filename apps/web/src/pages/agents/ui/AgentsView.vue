@@ -6,7 +6,7 @@ import { phoneSection } from '../../../widgets/mobile-nav';
 import { SessionPanel } from '../../../widgets/terminal';
 import { useIsPhone } from '../../../shared/ui/kit';
 import { useDock } from '../../../shared/model/dock';
-import { useSessionDock, isSessionRef, useBerth, type Harness } from '../../../entities/session';
+import { useSessionDock, isSessionRef, isHarness, useBerth } from '../../../entities/session';
 import { openIssue } from '../../../entities/jira-issue';
 import { ProjectTree } from '../../../widgets/project-tree';
 import { BaseNotice, NewSessionForm, cancelCreate, creatingIn, onCreated } from '../../../features/new-session';
@@ -36,7 +36,6 @@ const sessions = useSessionDock();
 const { onReady } = dock.useHost();
 const mobile = useIsPhone();
 const { activeKey, detail } = dock;
-const isHarness = (value: unknown): value is Harness => value === 'claude' || value === 'codex';
 const str = (value: unknown) => (typeof value === 'string' ? value : '');
 </script>
 

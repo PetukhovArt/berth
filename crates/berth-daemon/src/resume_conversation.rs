@@ -58,8 +58,8 @@ impl Daemon {
         session_id: &str,
         name: &str,
     ) -> Result<EntityId> {
-        if !matches!(kind, AgentKind::Claude | AgentKind::Codex) {
-            bail!("only a Claude or Codex conversation resumes as an agent");
+        if !matches!(kind, AgentKind::Claude | AgentKind::Codex | AgentKind::Grok) {
+            bail!("only a Claude, Codex or Grok conversation resumes as an agent");
         }
         let session_id = session_id.trim();
         if session_id.is_empty() {

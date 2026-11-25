@@ -22,6 +22,7 @@ pub async fn slash_commands(harness: Harness, cwd: String) -> Result<Vec<SlashCo
     spawn_blocking(move || match harness {
         Harness::Claude => claude_commands(Path::new(&cwd)),
         Harness::Codex => codex_commands(),
+        Harness::Grok => Vec::new(),
     })
     .await
     .map_err(|e| e.to_string())

@@ -1,8 +1,6 @@
 import { computed, shallowRef, watch, type ComputedRef, type Ref, type ShallowRef } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { describeError, externalKey, listProjectConversations, placeExternal, useBerth, useExternalSessions, type Entities, type OrphanedSession } from '../../../entities/session';
-
-type Harness = 'claude' | 'codex';
+import { describeError, externalKey, isHarness, listProjectConversations, placeExternal, useBerth, useExternalSessions, type Entities, type Harness, type OrphanedSession } from '../../../entities/session';
 
 export type ConversationChoice = {
   key: string;
@@ -20,7 +18,6 @@ export type ProjectConversations = {
   error: ShallowRef<string | null>;
 };
 
-const isHarness = (kind: string): kind is Harness => kind === 'claude' || kind === 'codex';
 const normalize = (path: string) => path.replaceAll('\\', '/').replace(/\/+$/, '').toLowerCase();
 
 function checkoutOf(entities: Entities, project: string, path: string, branch: string, live: boolean): string {

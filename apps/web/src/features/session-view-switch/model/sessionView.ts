@@ -4,7 +4,7 @@ import { hasChanges } from './worktreeChanged';
 import { knownMr } from '../../../entities/merge-request';
 import { useDock } from '../../../shared/model/dock';
 import { useIsPhone } from '../../../shared/ui/kit';
-import { useSessionDock, useBerth, sessionStateOf, useExternalSessions, externalKey, type Harness, type SessionRef } from '../../../entities/session';
+import { useSessionDock, useBerth, sessionStateOf, useExternalSessions, externalKey, isHarness, type Harness, type SessionRef } from '../../../entities/session';
 
 export type SessionWorktree = { path: string; branch: string };
 
@@ -43,8 +43,8 @@ function chatOf(panelId: string): { harness: Harness | 'acp'; sessionId: string;
   if (linked?.running) return { harness: linked.harness, sessionId: linked.id, terminal: session.ref };
   if (!('Agent' in session.ref)) return null;
   const agent = berth?.entities.value.agents.get(session.ref.Agent);
-  if (agent?.kind !== 'claude' || !agent.session_id) return null;
-  const own = external?.anyByKey.value.get(externalKey({ harness: 'claude', id: agent.session_id }));
+  if (!agent?.session_id || !isHarness(agent.kind)) return null;
+  const own = external?.anyByKey.value.get(externalKey({ harness: agent.kind, id: agent.session_id }));
   return own ? { harness: own.harness, sessionId: own.id, terminal: session.ref } : null;
 }
 

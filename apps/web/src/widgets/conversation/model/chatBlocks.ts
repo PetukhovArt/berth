@@ -21,6 +21,8 @@ const CATEGORY_BY_TOOL: Readonly<Record<string, ToolCategory>> = {
   Write: 'edit',
   NotebookEdit: 'edit',
   apply_patch: 'edit',
+  write: 'edit',
+  search_replace: 'edit',
   Bash: 'run',
   BashOutput: 'run',
   KillShell: 'run',
@@ -28,12 +30,16 @@ const CATEGORY_BY_TOOL: Readonly<Record<string, ToolCategory>> = {
   exec_command: 'run',
   write_stdin: 'run',
   local_shell: 'run',
+  run_terminal_command: 'run',
   Grep: 'search',
   Glob: 'search',
   LS: 'search',
+  grep: 'search',
+  list_dir: 'search',
   WebSearch: 'search',
   web_search: 'search',
   WebFetch: 'fetch',
+  web_fetch: 'fetch',
 };
 
 const CATEGORY_BY_KIND: Readonly<Record<string, ToolCategory>> = {

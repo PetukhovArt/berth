@@ -5,6 +5,7 @@ pub mod channel_requests;
 pub mod channels;
 pub mod checkpoints;
 pub mod cli_title;
+pub mod codex_server;
 pub mod config;
 pub mod enter_project;
 pub mod external_archive;

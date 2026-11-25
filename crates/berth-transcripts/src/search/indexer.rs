@@ -7,8 +7,8 @@ use rusqlite::{params, Connection};
 use serde_json::Value;
 
 use crate::transcript::{
-    claude_messages, codex_messages, renamed_title, session_facts, title_line, Harness, Role,
-    TranscriptMessage,
+    claude_messages, codex_messages, grok_messages, renamed_title, session_facts, title_line,
+    Harness, Role, TranscriptMessage,
 };
 
 pub struct Listed {
@@ -92,6 +92,7 @@ fn harness_name(harness: Harness) -> &'static str {
     match harness {
         Harness::Claude => "claude",
         Harness::Codex => "codex",
+        Harness::Grok => "grok",
     }
 }
 
@@ -100,6 +101,7 @@ fn messages_of(harness: Harness, line: &Value, record: u64) -> Vec<TranscriptMes
     match harness {
         Harness::Claude => claude_messages(line, record, false, &mut out),
         Harness::Codex => codex_messages(line, record, &mut out),
+        Harness::Grok => grok_messages(line, record, &mut out),
     }
     out.retain(|message| message.tool.is_none() && !message.text.is_empty());
     out

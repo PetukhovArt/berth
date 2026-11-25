@@ -108,7 +108,9 @@ pub fn file_edits(name: Option<&str>, input: &Value) -> Vec<FileEdit> {
         return Vec::new();
     };
     let (additions, deletions) = match name.unwrap_or_default() {
-        "Edit" => count(str_of(&input, "old_string"), str_of(&input, "new_string")),
+        "Edit" | "search_replace" => {
+            count(str_of(&input, "old_string"), str_of(&input, "new_string"))
+        }
         "MultiEdit" => input["edits"]
             .as_array()
             .map(|edits| {
@@ -118,7 +120,7 @@ pub fn file_edits(name: Option<&str>, input: &Value) -> Vec<FileEdit> {
                 })
             })
             .unwrap_or_default(),
-        "Write" => count("", str_of(&input, "content")),
+        "Write" | "write" => count("", str_of(&input, "content")),
         "NotebookEdit" => count("", str_of(&input, "new_source")),
         _ => return Vec::new(),
     };
@@ -135,6 +137,7 @@ pub fn line_model(harness: Harness, line: &Value) -> Option<String> {
         Harness::Codex if line["type"].as_str() == Some("turn_context") => {
             &line["payload"]["model"]
         }
+        Harness::Grok if line["type"].as_str() == Some("assistant") => &line["model_id"],
         _ => return None,
     };
     model

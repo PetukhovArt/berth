@@ -47,6 +47,15 @@ fn codex_exit(payload: &Value) -> Option<i32> {
     int_after(head, "process exited with code").or_else(|| int_after(head, "exit code"))
 }
 
+fn grok_exit(line: &Value) -> Option<i32> {
+    let text = line["content"].as_str()?;
+    let first = text.lines().next()?.trim_start();
+    if !first.starts_with("exit:") {
+        return None;
+    }
+    int_after(first, "exit")
+}
+
 pub fn call_ids(harness: Harness, line: &Value, in_subagent: bool) -> Vec<String> {
     match harness {
         Harness::Claude => {
@@ -78,6 +87,17 @@ pub fn call_ids(harness: Harness, line: &Value, in_subagent: bool) -> Vec<String
             } else {
                 Vec::new()
             }
+        }
+        Harness::Grok => {
+            if line["type"].as_str() != Some("assistant") {
+                return Vec::new();
+            }
+            line["tool_calls"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|call| call["id"].as_str().unwrap_or_default().to_owned())
+                .collect()
         }
     }
 }
@@ -114,6 +134,16 @@ pub fn results(harness: Harness, line: &Value) -> Vec<(String, i32)> {
             payload["call_id"]
                 .as_str()
                 .zip(codex_exit(payload))
+                .map(|(id, code)| vec![(id.to_owned(), code)])
+                .unwrap_or_default()
+        }
+        Harness::Grok => {
+            if line["type"].as_str() != Some("tool_result") {
+                return Vec::new();
+            }
+            line["tool_call_id"]
+                .as_str()
+                .zip(grok_exit(line))
                 .map(|(id, code)| vec![(id.to_owned(), code)])
                 .unwrap_or_default()
         }

@@ -360,6 +360,13 @@ fn codex_identity() -> (Option<String>, Option<String>) {
         .and_then(|token| token.split('.').nth(1))
         .and_then(|payload| URL_SAFE_NO_PAD.decode(payload).ok())
         .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok());
+pub(crate) fn grok_home() -> Option<PathBuf> {
+    std::env::var_os("GROK_HOME")
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .or_else(|| home().map(|home| home.join(".grok")))
+}
+
     let Some(claims) = claims else {
         return (None, None);
     };

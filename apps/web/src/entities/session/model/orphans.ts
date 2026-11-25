@@ -1,5 +1,5 @@
 import { t } from '../../../shared/lib/i18n/i18n';
-import { acknowledged, call, BerthCallError, type BerthReply } from './berth';
+import { acknowledged, call, BerthCallError, type AgentKind, type BerthReply } from './berth';
 
 export type OrphanedSession = Extract<BerthReply, { OrphanedSessions: unknown }>['OrphanedSessions']['sessions'][number];
 
@@ -17,7 +17,7 @@ export function listProjectConversations(project: string): Promise<OrphanedSessi
   return listResumable(project, true);
 }
 
-export type ResumableConversation = { harness: 'claude' | 'codex'; id: string; title: string };
+export type ResumableConversation = { harness: AgentKind; id: string; title: string };
 
 export async function resumeConversation(conversation: ResumableConversation, worktree: string): Promise<string> {
   const created = await acknowledged({ ResumeConversation: { worktree, kind: conversation.harness, session_id: conversation.id, name: conversation.title } });

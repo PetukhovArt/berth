@@ -2,14 +2,18 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::subagents::{self, Subagent};
-use super::text::{clip, owned, shown_user_text, single_line, TEXT_CHARS};
+use super::text::{
+    clip, content_text, grok_user_text, owned, shown_user_text, single_line, TEXT_CHARS,
+};
 use super::turn_files::{file_edits, FileEdit};
 
 const TOOL_CHARS: usize = 240;
-const TOOL_KEYS: [&str; 11] = [
+const TOOL_KEYS: [&str; 13] = [
     "command",
     "cmd",
     "file_path",
+    "target_file",
+    "target_directory",
     "path",
     "pattern",
     "url",
@@ -25,6 +29,7 @@ const TOOL_KEYS: [&str; 11] = [
 pub enum Harness {
     Claude,
     Codex,
+    Grok,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -265,4 +270,74 @@ pub fn codex_messages(line: &Value, record: u64, out: &mut Vec<TranscriptMessage
         _ => return,
     };
     out.push(message);
+}
+
+pub fn grok_messages(line: &Value, record: u64, out: &mut Vec<TranscriptMessage>) {
+    let plain = |part: usize, role: Role, text: String| TranscriptMessage {
+        key: message_key(record, part),
+        role,
+        text,
+        tool: None,
+        at: None,
+        input: None,
+        model: None,
+        edits: Vec::new(),
+        exit: None,
+        subagent: None,
+    };
+    match line["type"].as_str() {
+        Some("user") => {
+            if let Some(text) = grok_user_text(line) {
+                out.push(plain(0, Role::User, text));
+            }
+        }
+        Some("assistant") => {
+            let text = content_text(&line["content"]).unwrap_or_default();
+            let text = clip(text.trim(), TEXT_CHARS);
+            if !text.is_empty() {
+                out.push(plain(0, Role::Assistant, text));
+            }
+            let calls = line["tool_calls"].as_array().into_iter().flatten();
+            for (index, call) in calls.enumerate() {
+                let arguments = &call["arguments"];
+                out.push(TranscriptMessage {
+                    tool: owned(&call["name"]).or_else(|| Some("tool".to_owned())),
+                    edits: file_edits(call["name"].as_str(), arguments),
+                    ..plain(index + 1, Role::Assistant, tool_summary(arguments))
+                });
+            }
+        }
+        _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn grok_chat_history_gives_prompts_replies_and_tools_keyed_by_record_offset() {
+        let lines = [
+            r#"{"type":"user","content":[{"type":"text","text":"<user_info>os</user_info>"}]}"#,
+            r#"{"type":"user","content":[{"type":"text","text":"<user_query>\nfix it\n</user_query>"}],"prompt_index":0}"#,
+            r#"{"type":"reasoning","id":"rs_1","summary":[]}"#,
+            r#"{"type":"assistant","content":"on it","tool_calls":[{"id":"c1","name":"search_replace","arguments":"{\"file_path\":\"a.rs\",\"old_string\":\"x\",\"new_string\":\"y\\nz\"}"}]}"#,
+            r#"{"type":"tool_result","tool_call_id":"c1","content":"done"}"#,
+        ];
+        let mut out = Vec::new();
+        let mut offsets = Vec::new();
+        let mut at = 0u64;
+        for line in lines {
+            offsets.push(at);
+            grok_messages(&serde_json::from_str(line).unwrap(), at, &mut out);
+            at += line.len() as u64 + 1;
+        }
+        assert_eq!(out.len(), 3);
+        assert_eq!((out[0].role, out[0].text.as_str()), (Role::User, "fix it"));
+        assert_eq!(out[0].key, format!("{}:0", offsets[1]));
+        assert_eq!(out[1].text, "on it");
+        assert_eq!(out[2].tool.as_deref(), Some("search_replace"));
+        assert_eq!(out[2].key, format!("{}:1", offsets[3]));
+        assert_eq!(out[2].edits[0].additions, 2);
+    }
 }

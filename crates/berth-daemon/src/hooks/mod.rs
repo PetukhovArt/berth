@@ -10,6 +10,7 @@
 pub mod claude_mod;
 pub mod installer;
 pub mod opencode;
+mod windows_command;
 
 use crate::status::HookEvent;
 use crate::store::Store;

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added the Chat view to Codex and Grok agents, the same view Claude agents have, and Grok conversations started outside berth to the conversation list, search and Continue conversation
+- Fixed Codex agents never getting a status or a Chat view when another Codex was already open: berth now starts each Codex with its own background server
+- Windows: Fixed Codex agents never reporting their status, because the berth hooks were written for sh and Codex runs them through cmd or PowerShell
+
 ## 0.23.0 (2026-11-25)
 
 - Added a Next step section to the facts panel of a merge request that runs the git step of its worktree, and a pill beside Discussions that counts unresolved threads or says all are resolved

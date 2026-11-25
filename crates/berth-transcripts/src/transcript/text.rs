@@ -94,3 +94,9 @@ pub(super) fn shown_user_text(text: &str) -> Option<String> {
     }
     Some(clip(trimmed, TEXT_CHARS))
 }
+
+pub(super) fn grok_user_text(line: &Value) -> Option<String> {
+    line["prompt_index"].as_u64()?;
+    let text = content_text(&line["content"])?;
+    shown_user_text(tag_value(&text, "user_query").unwrap_or(&text))
+}

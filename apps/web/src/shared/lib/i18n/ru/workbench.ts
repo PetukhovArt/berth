@@ -110,6 +110,7 @@ export const workbench: Translation<typeof en> = {
     harness: {
       claude: 'Claude Code',
       codex: 'Codex',
+      grok: 'Grok',
     },
     startedIn: 'Запущена вне Berth ({host})',
     startedOutside: 'Запущена вне Berth',

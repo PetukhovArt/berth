@@ -1785,6 +1785,8 @@ impl Daemon {
         );
         let args = if reports_through_mod {
             hooks::claude_mod::with_plugin_dir(&hooks::claude_mod::plugin_dir(), args)
+        } else if agent.kind == AgentKind::Codex && cmd_override.is_none() {
+            crate::codex_server::with_own_server(args)
         } else {
             args
         };

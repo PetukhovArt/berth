@@ -40,6 +40,7 @@ use berth_core::legacy;
 use serde_json::{json, Map, Value};
 use std::path::{Path, PathBuf};
 
+use super::windows_command;
 use crate::git_exclude::{add_to_block, CREATED_HOOK_FILES_BLOCK};
 
 /// The hooks file's name under codex's home and cursor's per-worktree dir.
@@ -67,7 +68,7 @@ pub const WRITTEN_IN_CHECKOUT: [&str; 3] = [
 ];
 /// How long a hook waits on the daemon. Hooks run inline in the agent's
 /// turn, so a hung daemon has to cost seconds, not a stuck session.
-const HOOK_CURL_TIMEOUT_SECS: u32 = 3;
+pub(super) const HOOK_CURL_TIMEOUT_SECS: u32 = 3;
 
 /// (hook event, optional matcher)
 const CLAUDE_EVENTS: &[(&str, Option<&str>)] = &[
@@ -238,10 +239,12 @@ fn managed_group(endpoint: &str, event: &str, matcher: Option<&str>) -> Value {
     if let Some(m) = matcher {
         group.insert("matcher".into(), json!(m));
     }
-    group.insert(
-        "hooks".into(),
-        json!([{ "type": "command", "command": hook_command(endpoint, event) }]),
-    );
+    let mut hook = json!({ "type": "command", "command": hook_command(endpoint, event) });
+    if endpoint == "codex" {
+        let passthrough = matches!(event, "UserPromptSubmit" | "SessionStart");
+        hook["commandWindows"] = json!(windows_command::command(endpoint, event, passthrough));
+    }
+    group.insert("hooks".into(), json!([hook]));
     group.insert(HOOK_TAG.into(), json!(true));
     Value::Object(group)
 }
@@ -823,6 +826,35 @@ mod tests {
             .as_str()
             .unwrap();
         assert!(!submit.contains(">/dev/null 2>&1"), "stdout: {submit}");
+        let win = stop[0]["hooks"][0]["commandWindows"].as_str().unwrap();
+        assert!(win.starts_with("powershell -NoProfile"), "{win}");
+        let script = decode_utf16_base64(win.rsplit(' ').next().unwrap());
+        assert!(script.contains("/api/hooks/codex?agentId="), "{script}");
+        assert!(script.contains("hookEvent=Stop"), "{script}");
+    }
+
+    fn decode_utf16_base64(s: &str) -> String {
+        let alphabet = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let digits: Vec<u32> = s
+            .bytes()
+            .filter_map(|c| alphabet.iter().position(|a| *a == c))
+            .map(|v| v as u32)
+            .collect();
+        let mut bytes = Vec::new();
+        for chunk in digits.chunks(4) {
+            let n = chunk
+                .iter()
+                .enumerate()
+                .fold(0u32, |a, (i, d)| a | d << (18 - 6 * i));
+            for i in 0..chunk.len() - 1 {
+                bytes.push((n >> (16 - 8 * i)) as u8);
+            }
+        }
+        let units: Vec<u16> = bytes
+            .chunks(2)
+            .map(|b| u16::from_le_bytes([b[0], b[1]]))
+            .collect();
+        String::from_utf16(&units).unwrap()
     }
 
     #[test]

@@ -7,7 +7,8 @@ import { resumeConversation } from './orphans';
 import { withShellBlocks, type ShellMessage } from './shellTags';
 import { archiveExternalSession, describeError, externalArchiveKey, sessionKey, unarchiveExternalSession, useBerth, worktreesOfProject, type Entities, type SessionRef, type SessionStatus } from './berth';
 
-export type Harness = 'claude' | 'codex';
+const RESUME_COMMAND = { claude: 'claude --resume', codex: 'codex resume', grok: 'grok --resume' } as const;
+export type Harness = keyof typeof RESUME_COMMAND;
 type ExternalStatus = Extract<SessionStatus, 'running' | 'finished' | 'closed'>;
 export type ExternalSession = {
   harness: Harness;
@@ -46,8 +47,10 @@ const OWNER_RETRIES = 3;
 export const externalKey = (session: Pick<ExternalSession, 'harness' | 'id'>) => `${EXTERNAL_PREFIX}${session.harness}:${session.id}`;
 export const isExternalPanel = (id: string) => id.startsWith(EXTERNAL_PREFIX);
 
+export const isHarness = (kind: unknown): kind is Harness => typeof kind === 'string' && Object.keys(RESUME_COMMAND).includes(kind);
+
 export function resumeCommand(session: Pick<ExternalSession, 'harness' | 'id'>): string {
-  return session.harness === 'claude' ? `claude --resume ${session.id}` : `codex resume ${session.id}`;
+  return `${RESUME_COMMAND[session.harness]} ${session.id}`;
 }
 
 export function externalOrigin(session: ExternalSession): string {

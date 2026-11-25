@@ -9,6 +9,7 @@ export type SlashSource = { harness: Harness; cwd: string } | { acpAgent: string
 const BUILT_INS = {
   claude: ['add-dir', 'agents', 'clear', 'compact', 'config', 'context', 'cost', 'doctor', 'export', 'help', 'hooks', 'init', 'mcp', 'memory', 'model', 'permissions', 'plugin', 'resume', 'review', 'rewind', 'security-review', 'status', 'usage'],
   codex: ['approvals', 'compact', 'diff', 'init', 'mcp', 'mention', 'model', 'new', 'review', 'status'],
+  grok: [],
 } as const satisfies Record<Harness, readonly string[]>;
 
 type BuiltIn = (typeof BUILT_INS)[Harness][number];

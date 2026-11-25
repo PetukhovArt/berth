@@ -15,6 +15,7 @@ const TERM_CHARS: usize = 3;
 enum HitHarness {
     Claude,
     Codex,
+    Grok,
     Acp,
 }
 
@@ -96,6 +97,7 @@ fn harness_of(name: &str) -> Option<HitHarness> {
     match name {
         "claude" => Some(HitHarness::Claude),
         "codex" => Some(HitHarness::Codex),
+        "grok" => Some(HitHarness::Grok),
         "acp" => Some(HitHarness::Acp),
         _ => None,
     }
@@ -105,6 +107,7 @@ fn harness_name(harness: HitHarness) -> &'static str {
     match harness {
         HitHarness::Claude => "claude",
         HitHarness::Codex => "codex",
+        HitHarness::Grok => "grok",
         HitHarness::Acp => "acp",
     }
 }

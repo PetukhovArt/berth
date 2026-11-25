@@ -300,7 +300,7 @@ async function stop() {
   if (!props.terminal) return;
   try {
     if (acp) await stopAgent(props.sessionId);
-    else await sendInput(props.terminal, '\x1b');
+    else await sendInput(props.terminal, props.harness === 'grok' ? '\x03' : '\x1b');
   } catch (e) {
     error.value = describeError(e);
   }

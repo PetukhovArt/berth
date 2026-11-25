@@ -6,7 +6,9 @@ use serde_json::Value;
 
 use super::message::Harness;
 use super::reader::{read_tail, records};
-use super::text::{content_text, owned, prompt_of, shown_user_text, single_line, valid_id};
+use super::text::{
+    content_text, grok_user_text, owned, prompt_of, shown_user_text, single_line, valid_id,
+};
 
 const HEAD_LINES: usize = 50;
 const HEAD_BYTES: u64 = 512 * 1024;
@@ -206,6 +208,43 @@ fn codex_tail(tail: &mut Tail, line: &Value) {
     }
 }
 
+fn grok_summary(transcript: &Path) -> Value {
+    std::fs::read(transcript.with_file_name("summary.json"))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null)
+}
+
+fn grok_title(summary: &Value) -> Option<String> {
+    owned(&summary["session_summary"]).or_else(|| owned(&summary["generated_title"]))
+}
+
+fn grok_head(head: &mut Head, line: &Value) {
+    if line["type"].as_str() == Some("user") && head.prompt.is_none() {
+        head.prompt = grok_user_text(line);
+    }
+}
+
+fn grok_tail(tail: &mut Tail, line: &Value) {
+    match line["type"].as_str().unwrap_or_default() {
+        "assistant" => {
+            tail.counted += 1;
+            let calls = line["tool_calls"].as_array().is_some_and(|c| !c.is_empty());
+            if calls {
+                tail.last = Last::Running;
+            } else if content_text(&line["content"]).is_some_and(|text| !text.trim().is_empty()) {
+                tail.last = Last::Finished;
+            }
+        }
+        "user" if line["prompt_index"].is_u64() => {
+            tail.counted += 1;
+            tail.last = Last::Running;
+        }
+        "tool_result" => tail.last = Last::Running,
+        _ => {}
+    }
+}
+
 fn read_head(path: &Path, harness: Harness) -> Head {
     let mut head = Head::default();
     let Ok(file) = File::open(path) else {
@@ -225,7 +264,15 @@ fn read_head(path: &Path, harness: Harness) -> Head {
         match harness {
             Harness::Claude => claude_head(&mut head, &value),
             Harness::Codex => codex_head(&mut head, &value),
+            Harness::Grok => grok_head(&mut head, &value),
         }
+    }
+    if harness == Harness::Grok {
+        let summary = grok_summary(path);
+        head.cwd = owned(&summary["info"]["cwd"]);
+        head.branch = owned(&summary["head_branch"]);
+        head.ai = grok_title(&summary);
+        head.automated = summary["session_kind"].as_str() == Some("headless");
     }
     head
 }
@@ -239,7 +286,13 @@ pub fn read_tail_facts(path: &Path, harness: Harness) -> Tail {
         match harness {
             Harness::Claude => claude_tail(&mut tail, &line),
             Harness::Codex => codex_tail(&mut tail, &line),
+            Harness::Grok => grok_tail(&mut tail, &line),
         }
+    }
+    if harness == Harness::Grok {
+        let summary = grok_summary(path);
+        tail.branch = owned(&summary["head_branch"]);
+        tail.ai = grok_title(&summary);
     }
     tail
 }
@@ -259,6 +312,11 @@ pub fn id_of(harness: Harness, path: &Path, head: &Head) -> String {
                 let start = stem.len().saturating_sub(36);
                 stem.get(start..).unwrap_or(&stem).to_owned()
             }),
+        Harness::Grok => path
+            .parent()
+            .and_then(Path::file_name)
+            .map(|dir| dir.to_string_lossy().into_owned())
+            .unwrap_or_default(),
     }
 }
 

@@ -107,6 +107,7 @@ export const workbench = {
     harness: {
       claude: 'Claude Code',
       codex: 'Codex',
+      grok: 'Grok',
     },
     startedIn: 'Started outside Berth ({host})',
     startedOutside: 'Started outside Berth',

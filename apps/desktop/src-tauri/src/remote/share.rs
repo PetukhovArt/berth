@@ -114,6 +114,7 @@ impl Feed {
         let harness = match agent.kind {
             AgentKind::Claude => Harness::Claude,
             AgentKind::Codex => Harness::Codex,
+            AgentKind::Grok => Harness::Grok,
             AgentKind::Acp => return self.acp_items(agent).await,
             _ => return json!({ "transcript": [] }),
         };

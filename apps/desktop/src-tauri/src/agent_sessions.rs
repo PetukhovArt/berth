@@ -15,7 +15,7 @@ use serde_json::Value;
 use sysinfo::{Pid, Process, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
 use tokio::task::{spawn_blocking, JoinHandle};
 
-use crate::connectors::ai::{claude_dir, codex_home};
+use crate::connectors::ai::{claude_dir, codex_home, grok_home};
 use crate::sink::BoxSink;
 
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
@@ -28,6 +28,7 @@ const IDLE_MS: u64 = 4 * 3_600_000;
 const START_SLACK_MS: u64 = 5_000;
 const LIVE_ID_SLACK_MS: u64 = 120_000;
 const HOST_DEPTH: usize = 8;
+const GROK_TRANSCRIPT: &str = "chat_history.jsonl";
 const CLAUDE_BATCH: [&str; 13] = [
     "-p",
     "--print",
@@ -205,6 +206,29 @@ fn codex_root() -> Option<PathBuf> {
     codex_home().map(|dir| dir.join("sessions"))
 }
 
+fn grok_root() -> Option<PathBuf> {
+    grok_home().map(|dir| dir.join("sessions"))
+}
+
+fn grok_files(root: &Path, since: u64, out: &mut Vec<Found>) {
+    for (_, folder) in subdirs(root) {
+        for (_, session) in subdirs(&folder) {
+            let path = session.join(GROK_TRANSCRIPT);
+            let Ok(meta) = fs::metadata(&path) else {
+                continue;
+            };
+            let signature = signature_of(&meta);
+            if meta.is_file() && signature.modified >= since {
+                out.push(Found {
+                    harness: Harness::Grok,
+                    path,
+                    signature,
+                });
+            }
+        }
+    }
+}
+
 fn subdirs(dir: &Path) -> Vec<(String, PathBuf)> {
     let Ok(entries) = fs::read_dir(dir) else {
         return Vec::new();
@@ -290,6 +314,9 @@ fn scan(since: u64) -> Vec<Found> {
             jsonl_files(&dir, Harness::Codex, since, &mut found);
         }
     }
+    if let Some(root) = grok_root() {
+        grok_files(&root, since, &mut found);
+    }
     found
 }
 
@@ -298,6 +325,10 @@ fn refresh_entry(cache: &mut HashMap<PathBuf, Entry>, found: &Found) {
         if entry.signature != found.signature {
             entry.signature = found.signature;
             entry.tail = read_tail_facts(&found.path, found.harness);
+            if entry.head.prompt.is_none() || entry.cwd_key.is_none() {
+                entry.head = head_of(found.harness, &found.path);
+                entry.cwd_key = entry.head.cwd.as_deref().map(normalize);
+            }
         }
         return;
     }
@@ -368,6 +399,7 @@ fn interactive(harness: Harness, args: &[String]) -> bool {
             .iter()
             .find(|arg| !arg.starts_with('-') || CODEX_BATCH.contains(&arg.as_str()))
             .is_none_or(|first| !CODEX_BATCH.contains(&first.as_str())),
+        Harness::Grok => false,
     }
 }
 
@@ -391,6 +423,7 @@ fn resume_id(harness: Harness, args: &[String]) -> Option<String> {
     let id = match harness {
         Harness::Claude => value_after(&["--resume", "-r", "--session-id"]),
         Harness::Codex => value_after(&["resume"]),
+        Harness::Grok => None,
     };
     id.filter(|id| valid_id(id))
 }
@@ -508,7 +541,7 @@ fn processes() -> Vec<Proc> {
             let started = process.start_time().saturating_mul(1000);
             let live = match harness {
                 Harness::Claude => claude_live_id(*pid, started),
-                Harness::Codex => None,
+                Harness::Codex | Harness::Grok => None,
             };
             Some(Proc {
                 harness: *harness,
@@ -628,6 +661,7 @@ pub(crate) fn collect(since_days: Option<u32>) -> Vec<AgentSession> {
         .iter()
         .filter_map(|item| cache.get(&item.path))
         .filter(|entry| !entry.head.automated && entry.cwd_key.is_some())
+        .filter(|entry| entry.harness != Harness::Grok || entry.head.prompt.is_some())
         .collect();
     candidates.sort_by_key(|entry| std::cmp::Reverse(entry.signature.modified));
     let mut ids = HashSet::new();
@@ -681,6 +715,14 @@ fn locate(harness: Harness, id: &str) -> Result<PathBuf, String> {
                         .and_then(OsStr::to_str)
                         .is_some_and(|name| name.ends_with(&suffix))
                 })
+                .ok_or_else(missing)
+        }
+        Harness::Grok => {
+            let root = grok_root().ok_or_else(missing)?;
+            subdirs(&root)
+                .into_iter()
+                .map(|(_, dir)| dir.join(id).join(GROK_TRANSCRIPT))
+                .find(|path| path.is_file())
                 .ok_or_else(missing)
         }
     }

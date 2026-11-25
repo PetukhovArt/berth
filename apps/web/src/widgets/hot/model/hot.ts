@@ -1,5 +1,5 @@
 import { computed, shallowRef, watch, type ComputedRef } from 'vue';
-import { attentionOf, externalTarget, feedbackText, urgencyOf, readTranscript, useExternalSessions, useBerth, useSessionStates, type AgentKind, type Harness, type SessionState, type SessionStatus, useSessionDock } from '../../../entities/session';
+import { attentionOf, externalTarget, feedbackText, urgencyOf, readTranscript, isHarness, useExternalSessions, useBerth, useSessionStates, type AgentKind, type Harness, type SessionState, type SessionStatus, useSessionDock } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useDock } from '../../../shared/model/dock';
 
@@ -26,8 +26,6 @@ const NOTICE_CHARS = 300;
 const PREVIEW_DEBOUNCE_MS = 800;
 
 const LABELS: Partial<Record<SessionStatus, HotLabel>> = { needs_feedback: 'feedback', running: 'working', terminated: 'error', limit: 'limit' };
-
-const isHarness = (kind: AgentKind | undefined): kind is Harness => kind === 'claude' || kind === 'codex';
 
 function previewOf(messages: readonly { role: string; text: string; tool: string | null }[]): string | null {
   for (let index = messages.length - 1; index >= 0; index--) {
