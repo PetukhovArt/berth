@@ -136,11 +136,16 @@ async fn an_agent_moves_to_its_terminal_and_back_to_its_chat() {
     assert_eq!(row(&daemon).kind, berth_core::AgentKind::Grok);
     assert_eq!(row(&daemon).backend, Backend::Chat);
     assert!(daemon.acp.is_live(&agent));
+    daemon.acp_prompt(&agent, "go").await.unwrap();
+    assert_eq!(row(&daemon).status, AgentStatus::Running);
 
     daemon
         .switch_backend(&agent, Backend::Terminal)
         .await
         .unwrap();
+    assert_eq!(row(&daemon).status, AgentStatus::Finished);
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert_eq!(row(&daemon).status, AgentStatus::Finished);
     assert_eq!(row(&daemon).backend, Backend::Terminal);
     assert_eq!(row(&daemon).acp_provider.as_deref(), Some("grok"));
     assert!(!daemon.acp.is_live(&agent));

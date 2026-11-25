@@ -6,6 +6,7 @@ use berth_core::{AgentId, Backend, EntityId, SessionRef};
 use crate::acp::{providers, ChatLaunch};
 use crate::agent;
 use crate::registry::{cli_missing_message, CreateAgentSpec, Daemon};
+use crate::status::HookEvent;
 
 const BACK_IN_CHAT: &str =
     "Back in the chat. The turns taken in the terminal are not shown here, but the agent still has them.";
@@ -37,6 +38,7 @@ impl Daemon {
                 Some(providers::resolve_enabled(&crate::config::Config::load().providers, id)?.id)
             }
         };
+        self.apply_hook_event(id, HookEvent::SessionEnded { exit_code: Some(0) }, None);
         self.set_backend(id, to, provider.as_deref())
     }
 
