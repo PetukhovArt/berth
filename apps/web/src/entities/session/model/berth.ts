@@ -46,7 +46,9 @@ type Terminal = { id: string; worktree_id: string; name: string; sort_order: num
 type Entity = { Workspace: Workspace } | { Project: Project } | { Worktree: Worktree } | { Agent: Agent } | { Terminal: Terminal };
 type EntityId = { Workspace: string } | { Project: string } | { Worktree: string } | { Agent: string } | { Terminal: string };
 
-export type FeedbackRequest = { kind: 'Permission' | 'Question'; title: string; detail: string | null; options: string[]; always_allow?: boolean };
+type AcpChoice = { value: string; name: string; description: string | null };
+type AcpQuestionForm = { questions: { id: string; header: string; text: string; choices: AcpChoice[]; multi_select: boolean; free_text_allowed: boolean }[] };
+export type FeedbackRequest = { kind: 'Permission' | 'Question'; title: string; detail: string | null; options: string[]; always_allow?: boolean; form?: AcpQuestionForm };
 
 type ArchivedExternal = { kind: AgentKind; session_id: string; archived_at: number };
 
@@ -68,7 +70,9 @@ type WatchEvent =
 
 type AcpTool = { id: string; title: string; kind: string; status: string; detail: string | null; diff: { path: string; old: string | null; new: string } | null; output: string | null };
 export type AcpPlanEntry = { content: string; priority: string; status: string };
-export type AcpItem = { User: { text: string } } | { Assistant: { text: string } } | { Thought: { text: string } } | { Tool: AcpTool } | { Plan: { entries: AcpPlanEntry[] } } | { Notice: { text: string } };
+type AcpAttachment = { Image: { blob: string; mime: string; name: string } } | { File: { blob: string; mime: string; name: string } } | { WorktreeFile: { path: string } };
+type AcpSessionState = { commands: { name: string; description: string }[] };
+export type AcpItem = { User: { text: string; attachments?: AcpAttachment[] } } | { Assistant: { text: string } } | { Thought: { text: string } } | { Tool: AcpTool } | { Plan: { entries: AcpPlanEntry[] } } | { Notice: { text: string } };
 export type AcpItemAt = { seq: number; item: AcpItem };
 
 const acpListeners = new Set<(agent: string, item: AcpItemAt) => void>();
@@ -396,12 +400,12 @@ export type BerthReply =
   | { ChannelTouched: { req_id: number; touched: { member: string; name: string; agent: string; modules: string[] }[] } }
   | { ChannelGrants: { req_id: number; grants: { channel: string; agent: string; member: string; member_name: string }[] } }
   | { AcpTranscript: { req_id: number; agent: string; items: AcpItemAt[] } }
-  | { AcpCommands: { req_id: number; agent: string; commands: { name: string; description: string }[] } }
+  | { AcpSessionState: { req_id: number; agent: string; state: AcpSessionState } }
   | { Hub: { req_id: number; json: string } };
 
 export class BerthCallError extends Error {}
 
-const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote', 'RouterConfig', 'ProjectSetup', 'Checkpoints', 'Channels', 'ChannelEvents', 'ChannelPresence', 'ChannelOpened', 'ChannelTouched', 'ChannelGrants', 'AcpTranscript', 'AcpCommands', 'Hub']);
+const REPLY_VARIANTS = new Set(['Ack', 'OrphanedSessions', 'Branches', 'WorktreeEntered', 'Metrics', 'UsageLimits', 'TaskNote', 'RouterConfig', 'ProjectSetup', 'Checkpoints', 'Channels', 'ChannelEvents', 'ChannelPresence', 'ChannelOpened', 'ChannelTouched', 'ChannelGrants', 'AcpTranscript', 'AcpSessionState', 'Hub']);
 
 function isBerthReply(value: unknown): value is BerthReply {
   if (typeof value !== 'object' || value === null) return false;
@@ -452,7 +456,13 @@ export async function acpPrompt(agent: string, text: string): Promise<void> {
 }
 
 export async function answerFeedback(agent: string, option: number): Promise<void> {
-  await acknowledged({ AnswerFeedback: { agent, option } });
+  await acknowledged({ AnswerFeedback: { agent, answer: { Option: option } } });
+}
+
+export async function acpSessionState(agent: string): Promise<AcpSessionState> {
+  const reply = await call({ AcpSessionState: { agent } });
+  if (!('AcpSessionState' in reply)) throw new BerthCallError(t('agents.errors.unexpectedReply', { reply: Object.keys(reply).join('') }));
+  return reply.AcpSessionState.state;
 }
 
 export async function acpTranscript(agent: string, after: number): Promise<AcpItemAt[]> {

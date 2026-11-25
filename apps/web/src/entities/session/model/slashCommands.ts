@@ -1,6 +1,6 @@
 import { invoke } from '../../../bridge';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { BerthCallError, call } from './berth';
+import { acpSessionState } from './berth';
 import type { Harness } from './external';
 
 export type SlashCommand = { name: string; description: string };
@@ -49,9 +49,7 @@ function builtIns(harness: Harness): SlashCommand[] {
 }
 
 async function acpCommands(agent: string): Promise<SlashCommand[]> {
-  const reply = await call({ AcpCommands: { agent } });
-  if (!('AcpCommands' in reply)) throw new BerthCallError(t('agents.errors.unexpectedReply', { reply: Object.keys(reply).join('') }));
-  return reply.AcpCommands.commands;
+  return (await acpSessionState(agent)).commands;
 }
 
 export async function listSlashCommands(source: SlashSource): Promise<SlashCommand[]> {
