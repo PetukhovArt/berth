@@ -1,4 +1,5 @@
 import { shallowRef } from 'vue';
+import { navigate } from './nav';
 
 const KEY = 'berth.firstRun.dismissed';
 
@@ -23,6 +24,7 @@ export function dismissFirstRun(): void {
 }
 
 export function reopenFirstRun(): void {
+  void navigate({ kind: 'agents' });
   firstRunDismissed.value = false;
   try {
     localStorage.removeItem(KEY);

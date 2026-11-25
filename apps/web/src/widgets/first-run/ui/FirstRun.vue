@@ -71,7 +71,6 @@ const hostOf = (url: string) => {
 };
 const signedIn = (account: string | undefined) => (account ? t('workbench.firstRun.signedInAs', { account }) : t('workbench.firstRun.signedIn'));
 
-function toggle(path: string, on: boolean) {
 const hostKey = (d: Detected) => `${d.kind}:${d.base_url}`;
 const hosts = computed(() => detected.value.filter((d) => d.kind === 'github' || d.kind === 'gitlab'));
 const skippedHosts = shallowRef<Set<string>>(new Set());
@@ -88,6 +87,7 @@ function toggleHost(d: Detected, on: boolean) {
   skippedHosts.value = next;
 }
 
+function toggle(path: string, on: boolean) {
   const next = new Set(selected.value);
   if (on) next.add(path);
   else next.delete(path);
@@ -100,14 +100,21 @@ async function start() {
   adding.value = true;
   addError.value = null;
   try {
-    for (const project of picked.value) {
-      await addProject(id, { path: project.path, name: null, createMissing: false });
-      toggle(project.path, false);
+    const chosen = picked.value;
+    const failures: unknown[] = [];
+    for (const project of chosen) {
+      try {
+        await addProject(id, { path: project.path, name: null, createMissing: false });
+        toggle(project.path, false);
+      } catch (e) {
+        failures.push(e);
+      }
     }
-    dismissFirstRun();
+    if (chosen.length > 0 && failures.length === chosen.length) throw failures[0];
     for (const host of hostsToAdd.value) {
       await addConnector({ kind: host.kind, baseUrl: host.base_url, label: hostOf(host.base_url), auth: 'cli', token: null, email: null });
     }
+    dismissFirstRun();
   } catch (e) {
     addError.value = describeError(e);
   } finally {
@@ -147,9 +154,9 @@ function onKey(event: KeyboardEvent) {
 
 onMounted(() => {
   void refresh();
-  window.addEventListener('keydown', onKey);
   void listConnectors();
   void detectConnectors();
+  window.addEventListener('keydown', onKey);
   window.addEventListener('focus', recheckAfterInstall);
   historyProjects()
     .then((list) => {
@@ -230,7 +237,6 @@ onUnmounted(() => {
               </span>
               <span class="state" data-tone="ok">{{ signedIn(c.account?.username) }}</span>
             </li>
-          </ul>
             <li v-for="d in hosts" :key="hostKey(d)" class="agent" :data-testid="`first-run-host-${hostOf(d.base_url)}`">
               <label class="pick">
                 <UiInput type="checkbox" class="check" :checked="!skippedHosts.has(hostKey(d))" :disabled="adding" :aria-label="hostOf(d.base_url)" data-testid="first-run-host-check" @change="toggleHost(d, ($event.target as HTMLInputElement).checked)" />
@@ -238,6 +244,7 @@ onUnmounted(() => {
               </label>
               <span class="state">{{ hostVia(d) }}</span>
             </li>
+          </ul>
         </div>
         <div v-if="!phoneRowDismissed" class="phone" data-testid="first-run-phone">
           <UiButton type="button" class="phone-open" :title="t('workbench.firstRun.phoneOpen')" data-testid="first-run-phone-open" @click="openSettings('remote')">
