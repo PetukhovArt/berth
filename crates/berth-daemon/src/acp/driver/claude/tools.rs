@@ -1,10 +1,9 @@
+use crate::acp::driver::shape::{self, ALLOW_ALWAYS, ALLOW_ONCE};
+use crate::acp::driver::translator::str_at;
 use serde_json::{json, Map, Value};
 
 pub const ASK_USER: &str = "AskUserQuestion";
 pub const TODO_WRITE: &str = "TodoWrite";
-pub const ALLOW_ONCE: &str = "allow_once";
-pub const ALLOW_ALWAYS: &str = "allow_always";
-pub const REJECT_ONCE: &str = "reject_once";
 
 fn kind(tool: &str) -> &'static str {
     match tool {
@@ -15,10 +14,6 @@ fn kind(tool: &str) -> &'static str {
         "WebFetch" | "WebSearch" => "fetch",
         _ => "other",
     }
-}
-
-fn str_at<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
-    value.get(key).and_then(Value::as_str)
 }
 
 fn path_of(input: &Value) -> Option<&str> {
@@ -62,20 +57,19 @@ pub fn tool_call(id: &str, name: &str, input: &Value) -> Value {
 }
 
 pub fn plan(input: &Value) -> Value {
-    let entries: Vec<Value> = input
-        .get("todos")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(|todo| {
-            Some(json!({
-                "content": str_at(todo, "content")?,
-                "priority": "medium",
-                "status": str_at(todo, "status").unwrap_or("pending"),
-            }))
-        })
-        .collect();
-    json!({"sessionUpdate": "plan", "entries": entries})
+    shape::plan_update(
+        input
+            .get("todos")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|todo| {
+                Some((
+                    str_at(todo, "content")?,
+                    str_at(todo, "status").unwrap_or("pending"),
+                ))
+            }),
+    )
 }
 
 pub fn result_update(id: &str, failed: bool, content: &Value) -> Value {
@@ -88,15 +82,7 @@ pub fn result_update(id: &str, failed: bool, content: &Value) -> Value {
             .join("\n"),
         _ => String::new(),
     };
-    let mut update = json!({
-        "sessionUpdate": "tool_call_update",
-        "toolCallId": id,
-        "status": if failed { "failed" } else { "completed" },
-    });
-    if !text.is_empty() {
-        update["content"] = json!([{"type": "content", "content": {"type": "text", "text": text}}]);
-    }
-    update
+    shape::tool_update(id, if failed { "failed" } else { "completed" }, &text)
 }
 
 pub fn permission_params(session_id: &str, request: &Value) -> Value {
@@ -106,12 +92,6 @@ pub fn permission_params(session_id: &str, request: &Value) -> Value {
         .get("permission_suggestions")
         .and_then(Value::as_array)
         .is_some_and(|suggestions| !suggestions.is_empty());
-    let mut options = vec![json!({"optionId": ALLOW_ONCE, "name": "Allow", "kind": ALLOW_ONCE})];
-    if always {
-        options
-            .push(json!({"optionId": ALLOW_ALWAYS, "name": "Always allow", "kind": ALLOW_ALWAYS}));
-    }
-    options.push(json!({"optionId": REJECT_ONCE, "name": "Deny", "kind": REJECT_ONCE}));
     json!({
         "sessionId": session_id,
         "toolCall": {
@@ -122,7 +102,7 @@ pub fn permission_params(session_id: &str, request: &Value) -> Value {
             "rawInput": input,
             "locations": path_of(&input).map(|path| vec![json!({"path": path})]).unwrap_or_default(),
         },
-        "options": options,
+        "options": shape::permission_options(always),
     })
 }
 
@@ -136,58 +116,14 @@ pub fn permission_reply(option_id: Option<&str>, input: &Value, suggestions: &Va
     }
 }
 
-fn question_id(index: usize) -> String {
-    format!("q{index}")
-}
-
 pub fn elicitation_params(questions: &[Value]) -> Value {
-    let mut properties = Map::new();
-    for (index, question) in questions.iter().enumerate() {
-        let mut choices: Vec<Value> = question
-            .get("options")
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-            .filter_map(|option| {
-                let label = str_at(option, "label")?;
-                Some(json!({
-                    "const": label,
-                    "title": label,
-                    "description": str_at(option, "description"),
-                }))
-            })
-            .collect();
-        choices.push(json!({"type": "string"}));
-        let header = str_at(question, "header").or(str_at(question, "question"));
-        let schema = if question.get("multiSelect").and_then(Value::as_bool) == Some(true) {
-            json!({"type": "array", "items": {"anyOf": choices}})
-        } else {
-            json!({"type": "string", "oneOf": choices})
-        };
-        let mut property = schema;
-        property["title"] = json!(header);
-        property["description"] = json!(str_at(question, "question"));
-        properties.insert(question_id(index), property);
-    }
-    json!({
-        "mode": "form",
-        "message": questions.first().and_then(|q| str_at(q, "question")).unwrap_or("Claude has a question"),
-        "requestedSchema": {"type": "object", "properties": properties},
-    })
+    shape::elicitation_params(questions, "Claude has a question")
 }
 
 pub fn question_reply(questions: &[Value], content: &Value) -> Option<Value> {
     let mut answers = Map::new();
     for (index, question) in questions.iter().enumerate() {
-        let given = content.get(question_id(index))?;
-        let text = match given {
-            Value::Array(values) => values
-                .iter()
-                .filter_map(Value::as_str)
-                .collect::<Vec<_>>()
-                .join(", "),
-            other => other.as_str()?.to_string(),
-        };
+        let text = shape::answer_values(content, index)?.join(", ");
         answers.insert(str_at(question, "question")?.to_string(), json!(text));
     }
     Some(Value::Object(answers))

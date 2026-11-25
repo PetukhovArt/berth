@@ -4,12 +4,12 @@ mod live;
 mod options;
 mod tools;
 
-use super::translator::{run, Frame, Outputs, Translator, MCP_STATUS, REWIND};
+use super::options::Model;
+use super::translator::{run, text_at, Frame, Outputs, Translator, MCP_STATUS, REWIND};
 use super::Driver;
 use crate::acp::providers::AcpProvider;
 use crate::acp::wire::{Host, LaunchSpec, Wire};
 use anyhow::{anyhow, bail, ensure, Result};
-use options::Model;
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -86,10 +86,6 @@ fn new_session_id() -> String {
         &hex[16..20],
         &hex[20..]
     )
-}
-
-fn text_at<'a>(value: &'a Value, key: &str) -> &'a str {
-    value.get(key).and_then(Value::as_str).unwrap_or_default()
 }
 
 impl ClaudeTranslator {
@@ -192,13 +188,6 @@ impl ClaudeTranslator {
         self.controls.clear();
         self.streamed.clear();
         self.plan_tools.clear();
-    }
-
-    fn chunk(&self, out: &mut Outputs, kind: &str, text: &str) {
-        out.update(
-            &self.session,
-            json!({"sessionUpdate": kind, "content": {"type": "text", "text": text}}),
-        );
     }
 
     fn request(
@@ -424,7 +413,7 @@ impl ClaudeTranslator {
         }
         self.streamed
             .insert(text_at(frame, "api_message_id").to_string());
-        self.chunk(out, kind, text);
+        out.chunk(&self.session, kind, text);
     }
 
     fn assistant(&mut self, frame: &Value, out: &mut Outputs) {
@@ -437,11 +426,13 @@ impl ClaudeTranslator {
         for block in message["content"].as_array().into_iter().flatten() {
             match text_at(block, "type") {
                 "text" if !streamed => {
-                    self.chunk(out, "agent_message_chunk", text_at(block, "text"))
+                    out.chunk(&self.session, "agent_message_chunk", text_at(block, "text"))
                 }
-                "thinking" if !streamed && !text_at(block, "thinking").is_empty() => {
-                    self.chunk(out, "agent_thought_chunk", text_at(block, "thinking"))
-                }
+                "thinking" if !streamed && !text_at(block, "thinking").is_empty() => out.chunk(
+                    &self.session,
+                    "agent_thought_chunk",
+                    text_at(block, "thinking"),
+                ),
                 "tool_use" => {
                     let (id, name, input) = (
                         text_at(block, "id"),

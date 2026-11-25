@@ -1,8 +1,12 @@
 mod acp;
+mod blocks;
 mod claude;
+mod codex;
+mod options;
+mod shape;
 mod translator;
 
-pub use translator::REWIND;
+pub use translator::{MCP_STATUS, REWIND};
 
 use super::providers::AcpProvider;
 use super::wire::{Host, Wire};
@@ -15,8 +19,11 @@ pub trait Driver: Sync {
     fn open(&self, provider: &AcpProvider, cwd: &Path, host: Arc<dyn Host>) -> Result<Wire>;
 }
 
-static DRIVERS: &[(&str, &dyn Driver)] =
-    &[(ACP_DRIVER, &acp::PassThrough), ("claude", &claude::Claude)];
+static DRIVERS: &[(&str, &dyn Driver)] = &[
+    (ACP_DRIVER, &acp::PassThrough),
+    ("claude", &claude::Claude),
+    ("codex", &codex::Codex),
+];
 
 pub fn open(provider: &AcpProvider, cwd: &Path, host: Arc<dyn Host>) -> Result<Wire> {
     let driver = DRIVERS

@@ -1,16 +1,9 @@
-use serde_json::{json, Value};
+use crate::acp::driver::options::{self, Model};
+use serde_json::Value;
 
 const DEFAULT_MODEL: &str = "default";
 const DEFAULT_EFFORT: &str = "medium";
 const EFFORTS: [&str; 5] = ["low", "medium", "high", "xhigh", "max"];
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Model {
-    pub value: String,
-    pub name: String,
-    pub description: Option<String>,
-    pub efforts: Vec<String>,
-}
 
 pub fn static_models() -> Vec<Model> {
     ["default", "sonnet", "opus", "haiku"]
@@ -20,6 +13,8 @@ pub fn static_models() -> Vec<Model> {
             name: value.to_string(),
             description: None,
             efforts: EFFORTS.iter().map(|e| e.to_string()).collect(),
+            default_effort: None,
+            images: true,
         })
         .collect()
 }
@@ -44,6 +39,8 @@ pub fn models_from(initialized: &Value) -> Vec<Model> {
                     .flatten()
                     .filter_map(|e| e.as_str().map(str::to_string))
                     .collect(),
+                default_effort: None,
+                images: true,
                 value,
             })
         })
@@ -51,33 +48,9 @@ pub fn models_from(initialized: &Value) -> Vec<Model> {
 }
 
 pub fn config_options(models: &[Model], model: Option<&str>, effort: Option<&str>) -> Value {
-    let current = model.unwrap_or(DEFAULT_MODEL);
-    let mut options = vec![json!({
-        "id": "model",
-        "name": "Model",
-        "category": "model",
-        "type": "select",
-        "currentValue": current,
-        "options": models.iter().map(|m| json!({
-            "value": m.value,
-            "name": m.name,
-            "description": m.description,
-        })).collect::<Vec<_>>(),
-    })];
-    let efforts = models
-        .iter()
-        .find(|m| m.value == current)
-        .map(|m| m.efforts.as_slice())
-        .unwrap_or_default();
-    if !efforts.is_empty() {
-        options.push(json!({
-            "id": "effort",
-            "name": "Effort",
-            "category": "thought_level",
-            "type": "select",
-            "currentValue": effort.unwrap_or(DEFAULT_EFFORT),
-            "options": efforts.iter().map(|e| json!({"value": e, "name": e})).collect::<Vec<_>>(),
-        }));
-    }
-    Value::Array(options)
+    options::config_options(
+        models,
+        model.unwrap_or(DEFAULT_MODEL),
+        effort.unwrap_or(DEFAULT_EFFORT),
+    )
 }

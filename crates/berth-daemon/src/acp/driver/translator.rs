@@ -29,7 +29,7 @@ pub enum Frame {
 }
 
 impl Frame {
-    fn parse(line: &str) -> Option<Frame> {
+    pub fn parse(line: &str) -> Option<Frame> {
         let mut message: Value = serde_json::from_str(line).ok()?;
         let params = message
             .get_mut("params")
@@ -59,6 +59,14 @@ impl Frame {
         };
         Some(Frame::Response { id: id?, outcome })
     }
+}
+
+pub fn str_at<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
+    value.get(key).and_then(Value::as_str)
+}
+
+pub fn text_at<'a>(value: &'a Value, key: &str) -> &'a str {
+    str_at(value, key).unwrap_or_default()
 }
 
 pub trait Translator: Send + 'static {
@@ -106,6 +114,13 @@ impl Outputs {
             "method": "session/update",
             "params": {"sessionId": session_id, "update": update},
         }));
+    }
+
+    pub fn chunk(&mut self, session_id: &str, kind: &str, text: &str) {
+        self.update(
+            session_id,
+            json!({"sessionUpdate": kind, "content": {"type": "text", "text": text}}),
+        );
     }
 
     pub fn ask(&mut self, method: &str, params: Value) -> u64 {

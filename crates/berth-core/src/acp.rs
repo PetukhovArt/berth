@@ -223,7 +223,7 @@ pub struct BuiltInProvider {
     pub driver: &'static str,
 }
 
-pub const BUILT_IN_PROVIDERS: [BuiltInProvider; 7] = [
+pub const BUILT_IN_PROVIDERS: [BuiltInProvider; 8] = [
     BuiltInProvider {
         id: "cursor",
         name: "Cursor",
@@ -272,6 +272,13 @@ pub const BUILT_IN_PROVIDERS: [BuiltInProvider; 7] = [
         command: "claude",
         args: &[],
         driver: "claude",
+    },
+    BuiltInProvider {
+        id: "codex",
+        name: "Codex (protocol)",
+        command: "codex",
+        args: &[],
+        driver: "codex",
     },
 ];
 
