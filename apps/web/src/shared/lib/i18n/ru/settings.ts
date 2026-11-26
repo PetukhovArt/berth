@@ -6,6 +6,7 @@ export const settings: Translation<typeof en> = {
   search: 'Найти настройку',
   openJson: 'Открыть settings.json',
   backToSettings: 'К настройкам',
+  backTo: 'Назад к «{name}»',
   openExternal: 'Открыть в редакторе',
   openExternalTitle: 'Открыть файл в редакторе по умолчанию',
   appOnly: 'Доступно только в приложении',

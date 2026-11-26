@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, shallowRef, watch, type Component } from 'vue';
-import { Bot, ExternalLink, FileJson, FileText, History, Keyboard, MessageSquare, Palette, Plug, RefreshCw, Search, SlidersHorizontal, Smartphone, SquareTerminal, Users, Waypoints } from '../../../shared/ui/icons';
+import { computed, onMounted, onUnmounted, shallowRef, watch, type Component } from 'vue';
+import { ArrowLeft, Bot, ExternalLink, FileJson, FileText, History, Keyboard, MessageSquare, Palette, Plug, RefreshCw, Search, SlidersHorizontal, Smartphone, SquareTerminal, Users, Waypoints } from '../../../shared/ui/icons';
 import { VButton, VInputText, VMessage } from '../../../shared/ui/kit';
 import { ConnectorsPanel } from '../../../features/manage-connectors';
 import { RouterPanel } from '../../../features/edit-router';
@@ -9,7 +9,8 @@ import { HubAdminPanel } from '../../../features/hub-admin';
 import BackBar from '../../../shared/ui/BackBar.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { withViewTransition } from '../../../shared/ui/motion/motion';
-import { requestedSettingsCategory } from '../../../shared/model/nav';
+import { leaveSettings, requestedSettingsCategory, viewBeforeSettings } from '../../../shared/model/nav';
+import { useDock } from '../../../shared/model/dock';
 import SettingRow from './SettingRow.vue';
 import { KeymapPanel } from '../../../features/keymap-editor';
 import { RemotePanel } from '../../../features/remote-access';
@@ -107,11 +108,44 @@ watch(
 function onSearchKey(event: KeyboardEvent) {
   if (event.key === 'Escape') query.value = '';
 }
+
+const dock = useDock();
+const backLabel = computed(() => {
+  const back = viewBeforeSettings.value;
+  if (back?.kind === 'jira') return t('shell.nav.jira');
+  if (back?.kind === 'confluence') return t('shell.nav.confluence');
+  return dock.activeTitle.value || t('common.back');
+});
+
+const EDITABLE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"]), .cm-editor';
+const OPEN_OVERLAY = '[role="dialog"], [role="menu"], [role="listbox"], .p-overlay-mask, .p-popover, .p-select-overlay, .p-multiselect-overlay, .p-contextmenu';
+
+function onEscape(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing) return;
+  if (event.target instanceof Element && event.target.closest(EDITABLE)) return;
+  if (document.querySelector(OPEN_OVERLAY)) return;
+  void leaveSettings();
+}
+
+onMounted(() => window.addEventListener('keydown', onEscape));
+onUnmounted(() => window.removeEventListener('keydown', onEscape));
 </script>
 
 <template>
   <section class="page" data-testid="settings-view" :data-detail="headerHidden" :aria-label="t('settings.title')">
     <header class="header vr-toolbar vr-master-only">
+      <UiButton
+        type="button"
+        class="back"
+        :title="t('settings.backTo', { name: backLabel })"
+        :aria-label="t('settings.backTo', { name: backLabel })"
+        data-testid="settings-back"
+        @click="leaveSettings()"
+      >
+        <ArrowLeft :size="14" />
+        <span class="back-label">{{ backLabel }}</span>
+      </UiButton>
+      <span class="divider" role="separator" aria-orientation="vertical" />
       <h1><SlidersHorizontal :size="18" />{{ t('settings.title') }}</h1>
       <label class="search">
         <Search :size="16" />
@@ -217,6 +251,45 @@ function onSearchKey(event: KeyboardEvent) {
   align-items: center;
   padding: var(--vr-space-4) var(--vr-page-gutter);
   border-bottom: 1px solid var(--vr-color-border);
+}
+
+.back {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--vr-space-1);
+  max-width: 14rem;
+  height: var(--vr-size-row);
+  padding: 0 var(--vr-space-2);
+  font: inherit;
+  font-size: var(--vr-font-size-label);
+  color: var(--vr-color-text-muted);
+  background: none;
+  border: 0;
+  border-radius: var(--vr-radius-md);
+  cursor: pointer;
+}
+
+.back:hover,
+.back:focus-visible {
+  color: var(--vr-color-text);
+  background: var(--vr-color-nav-hover);
+}
+
+.back-label {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.divider {
+  flex: none;
+  align-self: center;
+  width: 1px;
+  height: 1rem;
+  margin: 0 var(--vr-space-3);
+  background: var(--vr-color-border-strong);
 }
 
 h1 {

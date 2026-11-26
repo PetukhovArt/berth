@@ -3,6 +3,7 @@ export const settings = {
   search: 'Find a setting',
   openJson: 'Open settings.json',
   backToSettings: 'Back to settings',
+  backTo: 'Back to {name}',
   openExternal: 'Open in editor',
   openExternalTitle: 'Open the file in the default editor',
   appOnly: 'Available in the app only',

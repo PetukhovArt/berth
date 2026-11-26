@@ -5,7 +5,7 @@ import { useConnectors } from '../../../shared/api/connectors/api';
 import { useForgeInbox } from '../../../entities/merge-request';
 import { shortcutLabel } from '../../../shared/lib/commands/keymap';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { navigate, view } from '../../../shared/model/nav';
+import { leaveSettings, navigate, view } from '../../../shared/model/nav';
 import { requestSidebarSearch, sidebarCollapsed, sidebarSearchRequests, toggleSidebar } from '../../../shared/model/sidebar';
 import ProjectTree from './ProjectTree.vue';
 import { treeTab, useWorkTree } from '../../../features/work-tree';
@@ -128,7 +128,7 @@ function openRailTab(id: (typeof workTabs.value)[number]['id']) {
 }
 
 function toggleSettings() {
-  void navigate({ kind: view.value.kind === 'settings' ? 'agents' : 'settings' });
+  void (view.value.kind === 'settings' ? leaveSettings() : navigate({ kind: 'settings' }));
 }
 
 let stopPolling: (() => void) | undefined;

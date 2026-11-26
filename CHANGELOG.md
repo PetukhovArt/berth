@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added a `Back` button to the Settings header that returns to the session or view you came from: `Esc` does the same, and the gear in the sidebar now switches Settings off again
 - Added search to dropdown lists with more than 7 options, such as projects and branches: type to filter, matches are highlighted, Enter picks the first one
 
 ## 0.24.0 (2026-11-25)

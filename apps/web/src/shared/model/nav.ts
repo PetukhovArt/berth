@@ -12,10 +12,19 @@ export type View =
 export const view = ref<View>({ kind: 'agents' });
 export const requestedSettingsCategory = ref<string | null>(null);
 
+export const viewBeforeSettings = ref<View | null>(null);
+
 export function navigate(next: View): Promise<void> {
   return withViewTransition(() => {
+    if (next.kind === 'settings' && view.value.kind !== 'settings') viewBeforeSettings.value = view.value;
     view.value = next;
   });
+}
+
+export function leaveSettings(): Promise<void> {
+  const back = viewBeforeSettings.value;
+  viewBeforeSettings.value = null;
+  return navigate(back && back.kind !== 'settings' ? back : { kind: 'agents' });
 }
 
 export function openSettings(category?: string): void {
