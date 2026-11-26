@@ -9,6 +9,7 @@ import { GitStepButton } from '../../../features/git-step';
 import TaskNoteButton from './TaskNoteButton.vue';
 import CheckpointsButton from './CheckpointsButton.vue';
 import RouteButton from './RouteButton.vue';
+import BackendSwitchButton from './BackendSwitchButton.vue';
 import ContinueAsAgentButton from './ContinueAsAgentButton.vue';
 import { OverlapChip } from '../../../features/overlaps';
 import { ShareButton } from '../../../features/share-session';
@@ -109,6 +110,7 @@ watch(
       <div v-if="meta" class="meta" data-testid="session-header-meta">{{ meta }}</div>
     </div>
     <div class="actions">
+      <BackendSwitchButton v-if="agent" :agent-id="agent.id" />
       <RouteButton v-if="agent" :agent-id="agent.id" :kind="agent.kind" :model="agent.model" :resumable="!!agent.session_id" :error="agent.provider_error ?? null" />
       <CheckpointsButton v-if="agent && !inspectorShown" :agent-id="agent.id" :name="agent.name" :kind="agent.kind" :refresh-key="status" />
       <ShareButton v-if="agent && isDesktop" :agent-id="agent.id" :name="node.name" />
