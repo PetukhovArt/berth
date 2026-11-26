@@ -72,3 +72,9 @@ jobs:
       # e2e_pty is `#![cfg(unix)]`, e2e_windows is `#![cfg(windows)]`
       # — each host runs its own half of the end-to-end grid.
       - run: cargo test --workspace --exclude berth-desktop --locked
+
+      # The tests built the berth binary: check that docs/cli.md and
+      # docs/configuration.md name every command and settings key it has.
+      - name: Docs match the code
+        if: runner.os == 'Linux'
+        run: node scripts/docs-drift.mjs target/debug/berth

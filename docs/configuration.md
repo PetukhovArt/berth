@@ -69,6 +69,7 @@ file or a missing key means the default.
 | `channel_chain_limit` | `4` | how many Agent-authored messages in a row a channel delivers to Sessions before it stops, so two Agents cannot loop |
 | `git_init_on_create` | `true` | `git init` a directory that `Add Project` creates because it did not exist |
 | `shared_setup` | none | a directory, or a git URL, holding the skills, MCP servers, hooks, Claude plugins and instructions berth installs into every project (see below) |
+| `providers` | `{}` | which agents berth may start. `providers.acp.<id>` turns a chat (ACP) provider on or off with `enabled`, or defines one with `name`, `command`, `args` and `driver`; `providers.<kind>.enabled` set to `false` turns off a terminal agent such as `cursor`. Settings > Providers writes it (see [Chat or terminal](#chat-or-terminal)) |
 | `worktree_base` | `{}` | project name (or repo folder name) to the branch a new worktree starts from, like `{"my-app": "develop"}`. A project not listed starts from `develop`, `main` or `master`, the first one it has. The branch is fetched from `origin` first; when the fetch fails the local branch is used. Applies to `berth worktree` without `--base` and to `New worktree…` in the desktop app, whose `sessions.worktreeBase` sets it |
 
 ## Shared setup
@@ -287,7 +288,7 @@ daemon's database too: a restart delivers them once the Agent is idle, and never
 or a usage limit. The daemon writes the default file on first start and rereads it when it changes.
 Suggestions show under the Agent's row in the sidebar for an Agent that has a provider error or
 has finished its turn or waits on you, never for one that is working normally. With the default
-`mode = "suggest"` nothing switches until you click one. Settings → Sessions edits the same file:
+`mode = "suggest"` nothing switches until you click one. Settings → LLM Router edits the same file:
 the fallback chain and each rule's conditions as rows joined by and / or, with not and groups. The
 daemon validates and formats what you save, so hand edits and the editor stay in one compact shape.
 
@@ -323,11 +324,108 @@ of a usage limit, the session that took over offers to return to the original ag
 the limit has reset and its turn has ended. That offer is always a chip you click; berth never moves
 a task back on its own. The offer lives in the daemon's memory and is gone after a daemon restart.
 
+## Model router
+
+`apps/model-router` is a small proxy for the Anthropic Messages API that runs on your machine. An agent
+that talks to that API, such as Claude Code with `ANTHROPIC_BASE_URL=http://127.0.0.1:4466`, sends its
+requests there, and the proxy forwards each one along a chain of upstream models, moving to the next on
+a 408, 429, 500, 502, 503, 504 or 529 answer or a network error. It is not part of the desktop app or
+the daemon: start it from a checkout with `pnpm --filter @berth/model-router start`.
+
+It reads `~/.berth/routes.yaml` (`BERTH_ROUTES` names another file) on every request, so edits apply at
+once. `apps/model-router/routes.example.yaml` is a starting point:
+
+```yaml
+providers:
+  claude: { type: anthropic, base: https://api.anthropic.com, auth: passthrough }
+  openrouter: { type: anthropic, base: https://openrouter.ai/api, key: OPENROUTER_API_KEY, auth: bearer, compat: true }
+
+models:
+  main: [claude/*, openrouter/google/gemma-4-31b-it:free]
+  fast: [claude/*, openrouter/google/gemma-4-26b-a4b-it:free]
+
+routes:
+  - match: haiku
+    use: fast
+  - use: main
+```
+
+- A provider has a `base` URL and an `auth`: `passthrough` forwards the client's own headers, so a
+  Claude sign-in keeps working, while `bearer` and `x-api-key` (the default) send the key from the
+  environment variable `key` names. `compat: true` is for an upstream that only imitates the Anthropic
+  API: the request loses `thinking`, `output_config` and `context_management`, and system messages are
+  folded into user ones.
+- A model is a named chain of `provider/model` targets; `provider/*` keeps the model the client asked
+  for.
+- Routes are tried in order. `match` is a case-insensitive regular expression against the requested
+  model, and a route without one catches everything. `use` names a chain or a single target.
+
+| Variable | Effect |
+|---|---|
+| `BERTH_ROUTES` | the routes file (default `~/.berth/routes.yaml`) |
+| `BERTH_ROUTER_PORT` | the port it listens on, on `127.0.0.1` only (default 4466) |
+| `BERTH_ROUTER_KEY` | when set, a client must send it as `Authorization: Bearer` or `x-api-key` |
+| `HTTPS_PROXY` | required: the router sends every upstream request through this proxy and refuses to start without it |
+
 ## Desktop app settings
 
 The desktop app keeps its own settings in `~/.berth/settings.json` and its key bindings in
 `~/.berth/keymap.json`. Both are edited from the app's Settings, which can also open either file in
 your editor; hand edits apply while the app runs. `BERTH_HOME` moves the directory.
+
+Every key in `settings.json`, by the Settings page that shows it. A key marked "writes" is stored in the
+daemon's `config.json` too, so it applies to every client of that daemon.
+
+| Key | Default | Page | What it does |
+|---|---|---|---|
+| `theme` | `dark` | Appearance | color scheme: `dark`, `light`, or `system` to follow the OS |
+| `ui.language` | `en` | Appearance | interface language: `en` or `ru` |
+| `ui.font_size` | `14` | Appearance | base size of interface text in pixels, 12 to 20; the terminal has its own |
+| `ui.animations` | `true` | Appearance | smooth transitions between views and animated lists |
+| `ui.statusAnimation` | `ripple` | Appearance | how a session shows its status in the tree and on its tab: `ripple`, `blink` or `row`; needs `ui.animations` |
+| `workbench.tabs` | `scroll` | Appearance | `scroll` keeps one line of tabs per panel that scrolls sideways, `wrap` uses several lines, `projects` one compact line per project |
+| `window.closeToTray` | `false` | Appearance | closing the window hides Berth to the tray instead of quitting |
+| `app.launchAtLogin` | `false` | Appearance | start the app hidden when you sign in (see below) |
+| `terminal.font_family` | the app's monospace font | Terminal | comma-separated font families, as in CSS `font-family` |
+| `terminal.font_size` | `13` | Terminal | terminal text size in pixels, 8 to 32; `Ctrl` with the wheel, `mod-=`, `mod--` and `mod-0` change it too |
+| `terminal.line_height` | `1` | Terminal | line height as a multiple of the font size, 1 to 2 |
+| `terminal.scrollback` | `3000` | Terminal | scrollback lines each terminal keeps, up to 100000 |
+| `terminal.evictHiddenAfter` | `10` | Terminal | minutes a hidden session tab keeps its terminal; after that it frees it and reconnects with history when shown again. `0` keeps terminals |
+| `terminal.cursor_blink` | `true` | Terminal | blinking cursor |
+| `terminal.option_as_meta` | `true` on macOS, `false` elsewhere | Terminal | on macOS, Option+key sends Esc+key, so Option+B, Option+F and Option+Backspace work by word; off, Option types accented characters |
+| `sessions.default_kind` | `claude` | Sessions | the type New Session selects: `claude`, `codex`, `grok` or `terminal` |
+| `sessions.default_model` | empty | Sessions | model New Session fills in; empty lets the agent pick |
+| `sessions.default_effort` | empty | Sessions | effort New Session fills in; empty lets the agent pick |
+| `sessions.mrPrompt` | empty | Sessions | first prompt of a session opened from a merge request, with `{url}`, `{title}`, `{description}`, `{branch}`, `{target}`, `{issue}` and `{author}`; empty uses the built-in prompt in the interface language |
+| `sessions.mrEndedSession` | `ask` | Sessions | what Open in session does when the merge request's worktree has an ended session and no live one: `ask`, `continue` the ended one, or start a `new` one |
+| `sessions.worktreeBase` | `{}` | Sessions | writes `worktree_base` |
+| `sessions.archiveOnMerge` | `false` | Sessions | when the merge request of a worktree is merged, its idle sessions move to Ended and leave the Inbox |
+| `sessions.archiveOnClose` | `true` | Sessions | closing an agent's tab ends its session; off, the close button asks what to do |
+| `sessions.externalDays` | `14` | Sessions | how many days back the tree shows Claude Code and Codex sessions started outside Berth; `0` hides them |
+| `cleanup.staleDays` | `30` | Sessions | Cleanup offers an unmerged worktree once it has had no commits and no sessions for this many days |
+| `sessions.restoreOnRestart` | `true` | Sessions | reopens the session tabs that were open after a restart, and writes `restore_sessions` |
+| `daemon.gitInitOnCreate` | `true` | Sessions | writes `git_init_on_create` |
+| `daemon.prewarm` | `true` | Sessions | writes `prewarm` |
+| `daemon.claudeLimits` | `false` | Sessions | writes `claude_limits` |
+| `daemon.grokLimits` | `false` | Sessions | writes `grok_limits` |
+| `daemon.checkpointsClaude` | `false` | Sessions | writes `checkpoints_claude` |
+| `sessions.unloadIdleAfter` | `5m` | Sessions | writes `session_idle_timeout`: `off`, `1m`, `5m`, `15m`, `30m` or `1h` |
+| `sessions.archiveEndedAfter` | `7d` | Sessions | writes `session_archive_after`: `off`, `1d`, `3d`, `7d`, `14d` or `30d` |
+| `workbench.hot` | `titlebar` | Sessions | session keys: `Alt+1` to `Alt+9` focus the Nth live session and `Ctrl+Tab` switches between recent ones; `off` turns them off |
+| `voice.wakePhrase` | `hey berth` | Sessions | the words that start a spoken prompt while the wake word is on (see [Voice](#voice)) |
+| `files.autoSave` | `off` | Files | `off` saves with `mod-s`, `onBlur` saves when the editor loses focus, `afterDelay` one second after the last edit |
+| `tree.jiraProjects` | `{}` | Connectors | Jira key to project name, like `{"APP": "my-app"}`, so a Jira issue links to a project when no branch of it names the issue |
+| `connectors.trackerWriteBack` | `false` | Connectors | when an Agent finishes, post its status and branch as a comment on the Jira issue whose key is in the branch name, or the GitLab issue whose number starts it |
+| `connectors.autoReconnect` | `true` | Connectors | while the network is up, retry unreachable connectors every 15 seconds for up to 5 minutes and re-check working ones every 5 minutes; a rejected token is not retried |
+| `remote.enabled` | `false` | Remote access | serve Berth to a phone or a browser (see [remote access](remote-access-tailscale.md)) |
+| `remote.bind` | `localhost` | Remote access | where it listens: `localhost`, `lan`, `tailscale` (the machine's 100.x address) or `tailscale-https` (localhost, published with `tailscale serve`) |
+| `remote.port` | `4477` | Remote access | TCP port of the remote access server, 1024 to 65535 |
+| `app.autoUpdate` | `true` | Updates | every 10 minutes check for a newer version and get it ready in the background, then offer a restart |
+| `app.sourceRepo` | empty | Updates | the berth checkout a working copy builds `main` from; empty means the checkout this build came from |
+
+Internal keys, read from neither file: `worktree_default_bases`.
+It is the built-in list of branches a new worktree falls back to (`develop`, `main`, `master`), kept
+in the daemon defaults that the daemon and the desktop app share.
 
 `app.launchAtLogin` (Settings > Appearance, off by default) starts the app when you sign in to the
 computer. It opens hidden, so the tray or menu bar icon is the only sign of it, and it never takes
@@ -340,7 +438,7 @@ macOS it starts the working copy's `app/current` launcher, so an update does not
 ### Voice
 
 The desktop app on Windows and macOS, when it was built with the local speech engine (the installers from
-the GitHub releases have it; the install script builds it in when it finds LLVM and CMake, see [windows.md](windows.md#desktop-working-copy) and
+the GitHub releases have it; the install script builds it in when it finds LLVM and CMake, see [windows.md](windows.md#speech-engine) and
 [macos.md](macos.md)), recognises speech on your computer: dictation runs
 [whisper.cpp](https://github.com/ggml-org/whisper.cpp) with the multilingual `base` model and detects
 the language on its own, and the wake word runs a
@@ -377,10 +475,14 @@ recognition is unavailable).
 | `BERTH_DATA_DIR` | data dir (database, config, logs), which is how tests and parallel instances isolate themselves |
 | `BERTH_RUNTIME_DIR` | runtime dir holding the socket / endpoint file and pidfile |
 | `BERTH_METRICS_SAMPLE_MS` | how often the daemon samples CPU, memory and token use; tests shorten it |
+| `BERTH_IDLE_REAP_MS` | how often the daemon looks for idle sessions to unload (default 15000); tests shorten it |
+| `BERTH_WORKTREE_SYNC_MS` | how often the daemon looks for worktrees made outside berth (default 2000); tests shorten it |
 | `BERTH_AGENT_CMD` | replace every agent CLI with one command line, taken verbatim (`make dev AGENT=/bin/cat`) |
 | `BERTH_INSTALL_URL` | install-script URL used by `berth upgrade` |
 | `BERTH_INSTALL_DIR` | install destination for `install.sh` (default `~/.local/bin`) |
 | `BERTH_HOME` | the desktop app's settings directory (default `~/.berth`) |
+| `BERTH_SECRETS` | `file` makes the desktop app keep connector secrets in `secrets.json` in its settings directory instead of the system keychain, which dev runs use; `berth-server` also takes `auto` (the default) and `keyring` |
+| `BERTH_APP_ROOT` | install root of the desktop working copy, moved for a test (see [Windows](windows.md) and [macOS](macos.md)) |
 | `BERTH_REMOTE` | `ssh` destination of another machine; the desktop app shows that machine's Daemon instead of the local one (see below) |
 
 ### Berth on another machine

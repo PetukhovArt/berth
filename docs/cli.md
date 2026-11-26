@@ -19,10 +19,13 @@ A directory whose name matches a command needs the long form or a `./` prefix.
 berth daemon             # run the daemon (normally started for you)
 berth daemon --foreground  # stay attached to the terminal instead of logging to file, for debugging
 berth kill               # stop the daemon and all sessions cleanly
+berth socket             # start the daemon when none runs and print its socket path
 ```
 
-A command that needs the daemon starts one from its own binary when none is running. The desktop app
-starts `berth daemon` from your `PATH` on Windows and macOS.
+A command that needs the daemon starts one from its own binary when none is running. The installed
+desktop app starts `berth daemon` from the `berth` it ships with, next to its own executable; a working
+copy or a build from source starts the `berth` on your `PATH`. The desktop app runs `berth socket` over
+ssh to reach a daemon on another machine (see [Berth on another machine](configuration.md#berth-on-another-machine)).
 
 ## Run by agents
 
@@ -77,7 +80,7 @@ ignored: a hook only ever sends the prompt you saved, and never runs a command.
 ## JSON for scripts and chat bots
 
 ```sh
-berth sessions [--all]   # list sessions (--all adds archived ones)
+berth sessions [--all]   # list live sessions (--all adds ended and archived ones)
 berth attention          # only the sessions that need you
 berth send <session> <message...> [--no-enter]
                          # type a message into a running session and press Enter
@@ -281,6 +284,8 @@ What it installs and where is in [configuration](configuration.md#shared-setup).
 berth upgrade            # install the latest release over this one (--force on a local cargo build)
 ```
 
-It runs `install.sh` again, so it works on macOS and Linux only. On Windows it refuses and names the
-way to update from a checkout. Upgrading while a daemon is running is safe: sessions keep running on
-the old binary until you `berth kill`, and an idle old daemon is shut down for you.
+On macOS and Linux it runs `install.sh` again. On Windows it downloads the zip of the version the
+latest release names and swaps the running `berth.exe` for it; the old file stays as `berth.old.exe`
+until nothing runs it (see [Windows](windows.md)). On both it refuses to replace a local cargo build
+unless you pass `--force`. Upgrading while a daemon is running is safe: sessions keep running on the old
+binary until you `berth kill`, and an idle old daemon is shut down for you.
