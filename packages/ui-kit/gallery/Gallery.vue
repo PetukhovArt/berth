@@ -96,6 +96,7 @@ const dialogOpen = ref(false);
 
 const menuItems = [{ label: 'Rename', command: () => undefined }, { label: 'Move to worktree', command: () => undefined }, { separator: true }, { label: 'Close', command: () => undefined }];
 
+const popoverOpen = ref(false);
 const popover = ref<InstanceType<typeof VPopover>>();
 const popoverAnchor = ref<InstanceType<typeof VButton>>();
 const confirm = ref<InstanceType<typeof ConfirmPopover>>();
@@ -354,8 +355,8 @@ onMounted(async () => {
     <Section id="popover" title="VPopover · ConfirmPopover" base="PrimeVue Popover" adds="VPopover is a re-export. ConfirmPopover (apps/web/src/shared/ui) adds a question, a cancel button focused on show and a danger confirm.">
       <div class="row">
         <Cell class="open" label="popover">
-          <VButton ref="popoverAnchor" label="Popover trigger" severity="secondary" size="small" @click="popover?.toggle($event)" />
-          <VPopover ref="popover">
+          <VButton ref="popoverAnchor" v-tooltip="'Opens the popover'" :aria-expanded="popoverOpen" aria-haspopup="dialog" label="Popover trigger" severity="secondary" size="small" @click="popover?.toggle($event)" />
+          <VPopover ref="popover" @show="popoverOpen = true" @hide="popoverOpen = false">
             <div class="pop-body">
               <strong>Share session</strong>
               <span>Anyone with the link can read the transcript.</span>

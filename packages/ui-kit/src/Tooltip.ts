@@ -37,12 +37,42 @@ function name(el: HTMLElement, value: Value) {
   el.dataset[NAMED] = text;
 }
 
+const dismissers = new WeakMap<HTMLElement, () => void>();
+
+const hide = (el: HTMLElement) => el.dispatchEvent(new MouseEvent('mouseleave'));
+
+const expanded = (el: HTMLElement) => el.getAttribute('aria-expanded') === 'true';
+
+function dismissOnPress(el: HTMLElement) {
+  if (dismissers.has(el)) return;
+  const dismiss = () => hide(el);
+  const refuse = (event: Event) => {
+    if (expanded(el)) event.stopImmediatePropagation();
+  };
+  el.addEventListener('pointerdown', dismiss);
+  el.addEventListener('click', dismiss);
+  el.addEventListener('mouseenter', refuse, true);
+  el.addEventListener('focus', refuse, true);
+  dismissers.set(el, () => {
+    el.removeEventListener('pointerdown', dismiss);
+    el.removeEventListener('click', dismiss);
+    el.removeEventListener('mouseenter', refuse, true);
+    el.removeEventListener('focus', refuse, true);
+  });
+}
+
 const forward = Object.fromEntries(
   HOOKS.map((hook) => [
     hook,
     (el: HTMLElement, binding: DirectiveBinding<Value>, vnode: VNode, prev: VNode | null) => {
       (Tooltip[hook] as ((...args: unknown[]) => void) | undefined)?.(el, normalize(binding), vnode, prev);
+      if (hook === 'mounted') dismissOnPress(el);
       if (hook === 'mounted' || hook === 'updated') name(el, binding.value);
+      if (hook === 'updated' && expanded(el)) hide(el);
+      if (hook === 'unmounted') {
+        dismissers.get(el)?.();
+        dismissers.delete(el);
+      }
     },
   ]),
 );

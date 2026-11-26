@@ -11,6 +11,7 @@
 - Fixed box-drawing diagrams in chat and Markdown code blocks: lines and arrows now line up with the text instead of falling short
 - Fixed Chinese and Japanese names of authors and reviewers breaking between characters on a phone: a name stays on one line and ends with an ellipsis when it does not fit
 - Fixed the Settings category list showing only the first 7 sections: it now uses the full height of the window and scrolls only when the window is too short
+- Fixed a button's tooltip staying on screen over the popover the button opens, such as the route and share buttons in the session header
 - Removed the OpenClaw skill: `berth sessions`, `berth attention` and `berth send` stay
 
 ## 0.24.0 (2026-11-25)
