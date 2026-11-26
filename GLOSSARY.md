@@ -1,6 +1,8 @@
 # Berth
 
-Terminal multiplexer for AI coding agents: a daemon owns the PTY sessions; the desktop app and its phone client attach and detach without losing work.
+Berth is a self-hosted agent platform: it runs coding agents from any vendor for you and your team, on your own machines. A daemon owns the agents' sessions; the desktop app and its phone client attach and detach without losing work.
+
+This file holds the terms the code has today. Platform terms that are planned but not built yet live in `VISION.md`.
 
 ## The tree
 
@@ -171,6 +173,10 @@ Clearing Unseen — happens when any dock panel of a focused, visible, connected
 Why an unarchived Agent wants the user: Needs Feedback, Unseen or Terminated. A status change raises Attention when the agent has a reason after it that it did not have before; the Daemon stamps it on the status event as `raised`.
 _Avoid_: needs me, alert
 
+**Inbox**
+The section at the top of the sidebar, and a tab on the phone, that lists what waits on the user: Agents with Attention or a usage limit, and Channels with unread messages. A permission or a question can be answered from its row; a row can be snoozed or settled, and `Alt+J` opens the next one that needs you.
+_Avoid_: notifications, queue
+
 **Rollup**
 Parent rows (Worktree, Project, Workspace) show their children's worst status: red beats yellow; violet whenever anything Unseen is underneath.
 _Avoid_: parent dot
@@ -204,6 +210,18 @@ _Avoid_: move into a worktree
 **Starting Prompt**
 The first prompt passed to the CLI as an argument on a cold spawn. Never persisted — Resume does not replay it.
 _Avoid_: first prompt
+
+**Task Note**
+A short text (up to 16 KB) kept per Worktree that the Daemon hands to every Agent of that Worktree at `SessionStart` as extra context. On a team hub it is shared with the Channel of the task, so colleagues' Agents get it too.
+_Avoid_: memo, sticky note
+
+**LLM Router**
+The Daemon's rules in `router.toml` that, when an Agent hits a provider error or a usage limit, suggest (or, with `mode = "auto"`, apply) the next agent in a fallback chain, another model, or continuing the conversation in another Agent Kind. Edited in its own Settings category.
+_Avoid_: model router (that is `apps/model-router`, a proxy), fallback
+
+**Trigger**
+A stored prompt the Daemon sends without a person: on a schedule (`berth schedule`, once after a delay or repeating every 60 seconds or more) or when a webhook is called (`berth webhook`, a secret-protected `POST`). It types into an existing Agent or starts a new one in a Worktree. `berth triggers` lists and removes them.
+_Avoid_: cron job, automation
 
 ## Daemon mechanisms
 
@@ -240,6 +258,32 @@ _Avoid_: group, level, scopes
 **Instruct Ceiling**
 The hub's answer to which authors may instruct this device's Agents: those whose Role holds `agents.instruct` and who share a Channel with it. A grant in the Daemon takes effect only inside it; the owner's own messages and promoted ones do not depend on it.
 _Avoid_: instruct permission check, trust list
+
+**Overlap**
+A colleague on the same team hub whose Agents change the same module (the first two path segments of a changed file) as yours. Each Daemon reports the modules its Worktrees touch to the hub; the session header shows the Overlaps as a chip.
+_Avoid_: conflict (an Overlap is not a git conflict)
+
+**Chat Bridge**
+The Daemon's link to a messenger (`messenger/`): Telegram or a webhook gets a message when an Agent waits on you or finishes, and the owner's messages to the Telegram bot, voice notes included, become prompts.
+_Avoid_: bot, notifier
+
+## Desktop app
+
+**Connector**
+A sign-in the desktop app holds for an outside service: GitHub, GitLab, Jira or Confluence. Merge requests, reviews, tasks and tracker write-back read through it.
+_Avoid_: integration, account
+
+**Watch**
+Following one merge request from its Agent: while it is watched (50 at most per daemon), a failed pipeline, a new open thread or a new conflict is typed into the Agent as a prompt. The merge request watcher checks each watched request every minute and runs in the desktop app or `berth-server`, one per Daemon.
+_Avoid_: subscribe, monitor
+
+**Device**
+A phone or browser paired with the desktop app for remote access, with its own token and a scope: full, read-only, or a single Session. Each Device can be revoked alone.
+_Avoid_: client, pairing
+
+**Welcome Page**
+The first-run page of the desktop app: what berth found on this machine (agent CLIs, projects from Claude Code and Codex history, connectors, remote access) and the next step to start. It can be opened again from the command palette.
+_Avoid_: onboarding, first run wizard
 
 ## Finding things
 
