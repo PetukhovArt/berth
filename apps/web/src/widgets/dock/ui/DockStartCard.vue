@@ -5,8 +5,7 @@ import { shortcutLabel } from '../../../shared/lib/commands/keymap';
 import { useSettings } from '../../../shared/config/settings/store';
 import { enabledNativeAgent, useProviders } from '../../../shared/api/providers';
 import { ArrowUp, ChevronDown } from '../../../shared/ui/icons';
-import { UiButton } from '../../../shared/ui/UiButton';
-import { VTextarea } from '../../../shared/ui/kit';
+import { VButton, VTextarea, vTooltip } from '../../../shared/ui/kit';
 import { defaultMainTarget, startCreate, startCreateInMain } from '../../../features/new-session';
 
 const target = computed(() => defaultMainTarget());
@@ -51,15 +50,14 @@ function onKey(event: KeyboardEvent) {
       <div class="card">
         <VTextarea v-model="prompt" rows="3" auto-resize class="prompt" :aria-label="t('workbench.startCard.placeholder')" :placeholder="t('workbench.startCard.placeholder')" data-testid="dock-start-prompt" @keydown="onKey" />
         <div class="bar">
-          <UiButton v-for="chip in chips" :key="chip" type="button" class="chip" :title="t('workbench.startCard.options')" data-testid="dock-start-chip" @click="openOptions">
-            {{ chip }}
-            <ChevronDown :size="10" :stroke-width="1.8" />
-          </UiButton>
+          <VButton v-for="chip in chips" :key="chip" v-tooltip="t('workbench.startCard.options')" :label="chip" icon-pos="right" severity="secondary" size="small" data-testid="dock-start-chip" @click="openOptions">
+            <template #icon><ChevronDown :size="10" :stroke-width="1.8" /></template>
+          </VButton>
           <span class="spacer" />
           <span class="enter">{{ t('workbench.startCard.enter') }}</span>
-          <UiButton type="button" class="go" :title="t('workbench.startCard.start')" :aria-label="t('workbench.startCard.start')" data-testid="dock-start-go" @click="start">
-            <ArrowUp :size="14" :stroke-width="1.9" />
-          </UiButton>
+          <VButton v-tooltip="t('workbench.startCard.start')" rounded :aria-label="t('workbench.startCard.start')" data-testid="dock-start-go" @click="start">
+            <template #icon><ArrowUp :size="14" :stroke-width="1.9" /></template>
+          </VButton>
         </div>
       </div>
       <p class="foot">{{ t('workbench.startCard.foot', { branch: target.worktree.branch }) }}</p>
@@ -125,45 +123,12 @@ function onKey(event: KeyboardEvent) {
   font-size: var(--vr-font-size-xs);
 }
 
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--vr-space-2);
-  height: 26px;
-  padding: 0 var(--vr-space-2);
-  font: inherit;
-  color: var(--vr-color-text);
-  white-space: nowrap;
-  cursor: pointer;
-  background: var(--vr-color-surface-muted);
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-}
-
-.chip:hover {
-  background: var(--vr-color-nav-hover);
-}
-
 .spacer {
   flex: 1;
 }
 
 .enter {
   color: var(--vr-color-text-subtle);
-}
-
-.go {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  color: var(--vr-color-accent-contrast);
-  cursor: pointer;
-  background: var(--vr-color-accent);
-  border: 0;
-  border-radius: var(--vr-radius-full);
 }
 
 .foot {

@@ -5,14 +5,13 @@ import { FileText, GitPullRequest, Network, Search, Ticket, X } from '../../../s
 import { isDirtyPath, settleDirty } from '../../../entities/document';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { METRICS_PANEL, archiveAgent, archiveExternal, deleteAgent, endAgent, useAction, useBerth, isExternalPanel, stopAgent, useExternalSessions, useSessionStates, StatusDot } from '../../../entities/session';
-import { VContextMenu, VDialog, VMessage } from '../../../shared/ui/kit';
+import { VButton, VContextMenu, VDialog, VMessage, vTooltip } from '../../../shared/ui/kit';
 import DialogActions from '../../../shared/ui/DialogActions.vue';
 import { useSettings } from '../../../shared/config/settings/store';
 import { FILE_PANEL_PREFIX, isFilePanel } from '../../../shared/lib/markdownFiles';
 import { panelTitle } from '../../../shared/model/dock';
 import { SessionViewSwitch } from '../../../features/session-view-switch';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
 
 const berth = useBerth();
@@ -112,7 +111,7 @@ function onClose() {
 </script>
 
 <template>
-  <span ref="tab" class="tab status-host" tabindex="-1" :title="tabName()" :data-testid="`${kindOf(panel)}-tab`" :data-panel-id="panel.id" :data-session-id="session(panel.id)?.id" :data-active="active" :data-menu-open="menuOpen" @auxclick.middle="onClose">
+  <span ref="tab" v-tooltip="tabName()" class="tab status-host" tabindex="-1" :data-testid="`${kindOf(panel)}-tab`" :data-panel-id="panel.id" :data-session-id="session(panel.id)?.id" :data-active="active" :data-menu-open="menuOpen" @auxclick.middle="onClose">
     <Search v-if="kindOf(panel) === 'search'" :size="12" />
     <FileText v-else-if="kindOf(panel) === 'file'" :size="12" />
     <GitPullRequest v-else-if="kindOf(panel) === 'review'" :size="12" />
@@ -126,8 +125,10 @@ function onClose() {
     </template>
     <span class="name">{{ tabName() }}</span>
     <SessionViewSwitch v-if="kindOf(panel) === 'conversation'" :panel="panel" :active="active" />
-    <span v-if="isFilePanel(panel.id) && isDirtyPath(panel.id.slice(FILE_PANEL_PREFIX.length))" class="dirty" :title="t('files.editor.dirty')" data-testid="file-tab-dirty" />
-    <UiButton class="close" :title="t('common.close')" :aria-label="t('common.close')" data-testid="session-tab-close" @pointerdown.stop @click.stop="onClose"><X :size="12" /></UiButton>
+    <span v-if="isFilePanel(panel.id) && isDirtyPath(panel.id.slice(FILE_PANEL_PREFIX.length))" v-tooltip="t('files.editor.dirty')" class="dirty" data-testid="file-tab-dirty" />
+    <VButton v-tooltip="t('common.close')" class="close" text severity="secondary" size="small" :aria-label="t('common.close')" data-testid="session-tab-close" @pointerdown.stop @click.stop="onClose">
+      <template #icon><X :size="12" /></template>
+    </VButton>
     <VContextMenu ref="menu" :model="menuItems" @show="menuOpen = true" @hide="onMenuHide">
       <template #item="{ item, props: itemProps }">
         <a v-bind="itemProps.action" :class="{ danger: item.key === 'delete' }" :data-testid="`session-tab-close-${item.key}`">{{ item.label }}</a>
@@ -230,17 +231,9 @@ function onClose() {
 }
 
 .close {
-  display: inline-flex;
   flex: none;
-  align-items: center;
-  justify-content: center;
   width: 18px;
   height: 18px;
-  padding: 0;
-  color: inherit;
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-sm);
   visibility: hidden;
 }
 
@@ -248,10 +241,6 @@ function onClose() {
 .tab[data-active='true'] .close,
 .tab[data-menu-open='true'] .close {
   visibility: visible;
-}
-
-.close:hover {
-  background: var(--vr-color-nav-hover);
 }
 
 .confirm {

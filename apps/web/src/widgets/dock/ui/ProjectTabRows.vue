@@ -7,8 +7,8 @@ import { useSessionDock, useBerth, worktreesOfProject, placeExternal, useExterna
 import { startCreate } from '../../../features/new-session';
 import DockTab from './DockTab.vue';
 import { FILE_PANEL_PREFIX, isFilePanel } from '../../../shared/lib/markdownFiles';
+import { VButton, vTooltip } from '../../../shared/ui/kit';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ api: DockviewApi | null }>();
 
 const berth = useBerth();
@@ -86,14 +86,14 @@ function create(projectId: string) {
 <template>
   <div class="rows" data-testid="project-tab-rows">
     <div v-for="row in rows" :key="row.key" class="row" :data-current="row.current" data-testid="project-tab-row">
-      <span class="project" :title="row.label">{{ row.label }}</span>
+      <span v-tooltip="row.label" class="project">{{ row.label }}</span>
       <div class="items">
         <div v-for="panel in row.items" :key="panel.id" class="item" :data-active="panel.id === activeId" @click="panel.api.setActive()">
           <DockTab :panel="panel.api" :active="panel.id === activeId" />
         </div>
-        <UiButton v-if="row.projectId" class="add" :title="t('agents.project.newSession')" :aria-label="t('agents.project.newSession')" data-testid="project-row-new-session" @click="create(row.projectId)">
-          <Plus :size="12" />
-        </UiButton>
+        <VButton v-if="row.projectId" v-tooltip="t('agents.project.newSession')" class="add" text severity="secondary" size="small" :aria-label="t('agents.project.newSession')" data-testid="project-row-new-session" @click="create(row.projectId)">
+          <template #icon><Plus :size="12" /></template>
+        </VButton>
       </div>
     </div>
   </div>
@@ -149,21 +149,17 @@ function create(projectId: string) {
   cursor: pointer;
 }
 
-.item:hover,
-.add:hover {
+.item:hover {
   color: var(--vr-color-text);
   background: var(--vr-color-nav-hover);
 }
 
 .add {
-  display: flex;
   flex: none;
-  align-items: center;
+  width: auto;
+  height: auto;
   padding: 0 var(--vr-space-3);
-  color: var(--vr-color-text-muted);
-  background: none;
-  border: 0;
-  cursor: pointer;
+  border-radius: 0;
 }
 
 .item[data-active='true'] {
