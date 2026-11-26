@@ -215,29 +215,6 @@ watch(
   display: none;
 }
 
-:root[data-vr-viewport='phone'] .session-header :deep(.modes) {
-  display: flex;
-  flex: 1 1 100%;
-  min-width: 0;
-}
-
-:root[data-vr-viewport='phone'] .session-header :deep(.modes .mode) {
-  flex: 1 1 auto;
-  justify-content: center;
-  min-width: 0;
-  height: 32px;
-  padding: 0 var(--vr-space-1);
-}
-
-:root[data-vr-viewport='phone'] .session-header :deep(.modes .name) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-:root[data-vr-viewport='phone'] .session-header :deep(.modes .key) {
-  display: none;
-}
-
 .actions {
   display: contents;
 }
