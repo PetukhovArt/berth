@@ -231,7 +231,7 @@ jobs:
       - name: Speech engine libraries
         if: runner.os != 'Linux'
         run: |
-          version=$(tr -d '\r' < Cargo.lock | sed -n '/^name = "sherpa-onnx-sys"$/{n;s/^version = "\(.*\)"$/\1/p;q;}')
+          version=$(awk -F'"' '/^name = "sherpa-onnx-sys"/ { found = 1; next } found && /^version = / { print $2; exit }' Cargo.lock)
           test -n "$version"
           case "${{ matrix.target }}" in
             x86_64-pc-windows-msvc) stem="sherpa-onnx-v$version-win-x64-shared-MT-Release-lib" ;;
