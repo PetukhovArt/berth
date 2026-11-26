@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue';
 import { ChevronDown, ChevronUp } from '../../../shared/ui/icons';
-import { vTooltip } from '../../../shared/ui/kit';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VRowButton, vTooltip } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { subagentCounts, type Subagent } from '../../../entities/session';
 import SubagentRow from './SubagentRow.vue';
@@ -18,17 +17,21 @@ const names = computed(() => props.agents.filter((agent) => agent.state === 'run
 
 <template>
   <div class="strip" :data-open="open" data-testid="subagent-strip">
-    <UiButton v-tooltip="open ? t('chat.subagents.collapse') : t('chat.subagents.expand')" type="button" class="head" :aria-expanded="open" data-testid="subagent-strip-toggle" @click="open = !open">
-      <ChevronDown v-if="open" :size="12" />
-      <ChevronUp v-else :size="12" />
-      <span class="title">{{ t('chat.subagents.strip') }}</span>
-      <span class="summary" data-testid="subagent-strip-summary">
-        <span v-if="counts.running" class="working" data-testid="subagent-strip-working">{{ t('chat.subagents.runningOf', { running: counts.running, total: agents.length }) }} · {{ names }}</span>
-        <span v-if="counts.done">{{ t('chat.subagents.done', { count: counts.done }) }}</span>
-        <span v-if="counts.failed" class="failed">{{ t('chat.subagents.failed', { count: counts.failed }) }}</span>
-        <span v-if="counts.stopped">{{ t('chat.subagents.stopped', { count: counts.stopped }) }}</span>
+    <VRowButton v-tooltip="open ? t('chat.subagents.collapse') : t('chat.subagents.expand')" class="head" :aria-expanded="open" data-testid="subagent-strip-toggle" @click="open = !open">
+      <template #leading>
+        <ChevronDown v-if="open" :size="12" />
+        <ChevronUp v-else :size="12" />
+      </template>
+      <span class="body">
+        <span class="title">{{ t('chat.subagents.strip') }}</span>
+        <span class="summary" data-testid="subagent-strip-summary">
+          <span v-if="counts.running" class="working" data-testid="subagent-strip-working">{{ t('chat.subagents.runningOf', { running: counts.running, total: agents.length }) }} · {{ names }}</span>
+          <span v-if="counts.done">{{ t('chat.subagents.done', { count: counts.done }) }}</span>
+          <span v-if="counts.failed" class="failed">{{ t('chat.subagents.failed', { count: counts.failed }) }}</span>
+          <span v-if="counts.stopped">{{ t('chat.subagents.stopped', { count: counts.stopped }) }}</span>
+        </span>
       </span>
-    </UiButton>
+    </VRowButton>
     <ul v-if="open" class="rows" data-testid="subagent-strip-rows">
       <li v-for="agent in agents" :key="agent.callId" class="item">
         <SubagentRow :agent="agent" :now="now" :openable="true" @open="emit('open', $event)" />
@@ -48,33 +51,28 @@ const names = computed(() => props.agents.filter((agent) => agent.state === 'run
 }
 
 .head {
-  display: flex;
-  align-items: center;
   gap: var(--vr-space-2);
-  box-sizing: border-box;
-  width: 100%;
   min-height: var(--vr-size-row);
-  padding: 0 var(--vr-space-3);
-  font: inherit;
-  font-size: var(--vr-font-size-label);
+  padding-block: 0;
+  padding-inline: var(--vr-space-3);
   color: var(--vr-color-text);
-  text-align: left;
-  cursor: pointer;
-  background: none;
-  border: 0;
+  border-radius: 0;
 }
 
 :root[data-vr-viewport='phone'] .head {
   min-height: var(--vr-size-touch);
 }
 
-.head:hover {
-  background: var(--vr-color-nav-hover);
+.body {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-2);
+  min-width: 0;
 }
 
 .title {
+  flex: none;
   font-weight: 600;
-  white-space: nowrap;
 }
 
 .summary {

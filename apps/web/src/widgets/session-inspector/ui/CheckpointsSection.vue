@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue';
 import { RotateCcw } from '../../../shared/ui/icons';
-import { VButton, VMessage, vTooltip } from '../../../shared/ui/kit';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton, VMessage, VRowButton, vTooltip } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { promptOfCheckpoint, useAgentMessages, useCheckpoints, type AgentKind, type Checkpoint } from '../../../entities/session';
 import InspectorSection from './InspectorSection.vue';
@@ -55,18 +54,13 @@ watch(
             <VButton :label="t('checkpoints.confirmRestore')" size="small" :disabled="busy" data-testid="inspector-checkpoint-confirm-restore" @click="confirm(item.number)" />
           </div>
         </div>
-        <UiButton
-          v-else
-          v-tooltip="`${label(item)}\n${t('checkpoints.restore')}`"
-          type="button"
-          class="row entry"
-          :data-testid="`inspector-checkpoint-restore-${item.number}`"
-          @click="pending = item.number"
-        >
-          <RotateCcw class="icon" :size="12" />
-          <span class="grow">{{ label(item) }}</span>
-          <span class="end">{{ formatDate(item.created_at * 1000, { timeStyle: 'short' }) }}</span>
-        </UiButton>
+        <VRowButton v-else v-tooltip="`${label(item)}\n${t('checkpoints.restore')}`" class="entry" :data-testid="`inspector-checkpoint-restore-${item.number}`" @click="pending = item.number">
+          <template #leading><RotateCcw class="icon" :size="12" /></template>
+          {{ label(item) }}
+          <template #trailing>
+            <span class="end">{{ formatDate(item.created_at * 1000, { timeStyle: 'short' }) }}</span>
+          </template>
+        </VRowButton>
       </li>
     </ul>
     <VMessage v-if="error" severity="error" size="small" data-testid="inspector-checkpoints-error">{{ error }}</VMessage>
@@ -86,19 +80,24 @@ watch(
 }
 
 .entry {
-  width: 100%;
-  padding: 0 6px;
-  font: inherit;
-  text-align: left;
-  background: none;
-  border: 0;
+  gap: var(--vr-space-2);
+  min-height: 22px;
+  padding-block: 0;
+  padding-inline: 6px;
+  font-size: var(--vr-font-size-sm);
+  color: var(--vr-color-text);
   border-radius: var(--vr-radius-sm);
-  cursor: pointer;
 }
 
-.entry:hover,
-.entry:focus-visible {
-  background: var(--vr-color-nav-hover);
+.icon {
+  color: var(--vr-color-text-subtle);
+}
+
+.end {
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-subtle);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .confirm {

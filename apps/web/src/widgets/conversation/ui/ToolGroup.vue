@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue';
 import { ChevronDown, ChevronRight } from '../../../shared/ui/icons';
-import { vTooltip } from '../../../shared/ui/kit';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VRowButton, vTooltip } from '../../../shared/ui/kit';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { withinWorktree } from '../../../shared/lib/worktreePath';
@@ -23,12 +22,16 @@ const summary = computed(() => {
 
 <template>
   <div class="group" :data-open="open" data-testid="chat-tool-group">
-    <UiButton v-tooltip="t('chat.tools.expand')" type="button" class="head" :aria-expanded="open" data-testid="chat-tool-group-toggle" @click="open = !open">
-      <ChevronDown v-if="open" :size="10" />
-      <ChevronRight v-else :size="10" />
-      <span class="summary" data-testid="chat-tool-group-summary">{{ summary }}</span>
-      <span v-if="seconds !== null" class="time">{{ durationLabel(seconds) }}</span>
-    </UiButton>
+    <VRowButton v-tooltip="t('chat.tools.expand')" class="head" :aria-expanded="open" data-testid="chat-tool-group-toggle" @click="open = !open">
+      <template #leading>
+        <ChevronDown v-if="open" :size="10" />
+        <ChevronRight v-else :size="10" />
+      </template>
+      <span data-testid="chat-tool-group-summary">{{ summary }}</span>
+      <template v-if="seconds !== null" #trailing>
+        <span class="time">{{ durationLabel(seconds) }}</span>
+      </template>
+    </VRowButton>
     <ol v-if="open" class="calls" data-testid="chat-tool-calls">
       <li v-for="call in calls" :key="call.message.key" class="call" :data-category="call.category" data-testid="chat-tool-call">
         <div class="row">
@@ -51,35 +54,15 @@ const summary = computed(() => {
 }
 
 .head {
-  display: flex;
-  align-items: center;
   gap: var(--vr-space-2);
-  width: 100%;
   min-height: 36px;
-  padding: 0 var(--vr-space-3);
-  font: inherit;
-  font-size: var(--vr-font-size-label);
+  padding-block: 0;
+  padding-inline: var(--vr-space-3);
   color: var(--vr-color-text-muted);
-  text-align: left;
-  cursor: pointer;
-  background: none;
-  border: 0;
-}
-
-.head:hover {
-  background: var(--vr-color-nav-hover);
-}
-
-.summary {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  border-radius: 0;
 }
 
 .time {
-  flex: none;
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-subtle);
 }

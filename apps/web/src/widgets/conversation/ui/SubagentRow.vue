@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { CheckCircle2, LoaderCircle, Square, TriangleAlert } from '../../../shared/ui/icons';
-import { vTooltip } from '../../../shared/ui/kit';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VRowButton, vTooltip } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { modelLabel, subagentSeconds, type Subagent } from '../../../entities/session';
 import { durationLabel } from '../model/duration';
@@ -16,8 +15,8 @@ const ICONS = { running: LoaderCircle, done: CheckCircle2, failed: TriangleAlert
 </script>
 
 <template>
-  <UiButton v-tooltip="openable ? t('chat.subagents.open', { name: agent.description }) : agent.description" type="button" class="row" :disabled="!openable" :data-state="agent.state" :data-call-id="agent.callId" data-testid="subagent-row" @click="emit('open', agent.callId)">
-    <component :is="ICONS[agent.state]" :size="14" class="mark" />
+  <VRowButton v-tooltip="openable ? t('chat.subagents.open', { name: agent.description }) : agent.description" class="row" :disabled="!openable" :data-state="agent.state" :data-call-id="agent.callId" data-testid="subagent-row" @click="emit('open', agent.callId)">
+    <template #leading><component :is="ICONS[agent.state]" :size="14" class="mark" /></template>
     <span class="text">
       <span class="name" data-testid="subagent-row-name">{{ agent.description }}</span>
       <span class="meta">
@@ -25,44 +24,33 @@ const ICONS = { running: LoaderCircle, done: CheckCircle2, failed: TriangleAlert
         <span v-if="agent.model" class="model">{{ modelLabel(agent.model) }}</span>
       </span>
     </span>
-    <span class="when">
-      <span v-if="seconds !== null" class="time" data-testid="subagent-row-time">{{ durationLabel(seconds) }}</span>
-      <span class="state" data-testid="subagent-row-state">{{ t(`chat.subagents.state.${agent.state}`) }}</span>
-    </span>
-  </UiButton>
+    <template #trailing>
+      <span class="when">
+        <span v-if="seconds !== null" class="time" data-testid="subagent-row-time">{{ durationLabel(seconds) }}</span>
+        <span class="state" data-testid="subagent-row-state">{{ t(`chat.subagents.state.${agent.state}`) }}</span>
+      </span>
+    </template>
+  </VRowButton>
 </template>
 
 <style scoped>
 .row {
-  display: flex;
-  align-items: center;
   gap: var(--vr-space-2);
-  box-sizing: border-box;
-  width: 100%;
   min-height: var(--vr-size-row);
-  padding: var(--vr-space-1) var(--vr-space-3);
-  font: inherit;
+  padding-inline: var(--vr-space-3);
   color: var(--vr-color-text);
-  text-align: left;
-  cursor: pointer;
-  background: none;
-  border: 0;
+  border-radius: 0;
 }
 
 :root[data-vr-viewport='phone'] .row {
   min-height: var(--vr-size-touch);
 }
 
-.row:hover:not(:disabled) {
-  background: var(--vr-color-nav-hover);
-}
-
 .row:disabled {
-  cursor: default;
+  opacity: 1;
 }
 
 .mark {
-  flex: none;
   color: var(--vr-color-text-subtle);
 }
 
@@ -80,7 +68,6 @@ const ICONS = { running: LoaderCircle, done: CheckCircle2, failed: TriangleAlert
 
 .text {
   display: flex;
-  flex: 1;
   flex-direction: column;
   min-width: 0;
 }
@@ -109,7 +96,6 @@ const ICONS = { running: LoaderCircle, done: CheckCircle2, failed: TriangleAlert
 
 .when {
   display: flex;
-  flex: none;
   flex-direction: column;
   align-items: flex-end;
   font-size: var(--vr-font-size-2xs);
