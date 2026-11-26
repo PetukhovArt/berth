@@ -323,6 +323,7 @@ onMounted(async () => {
       <div class="row">
         <Cell v-for="severity in TAG_SEVERITIES" :key="severity" :label="severity"><VTag :value="severity" :severity="severity" /></Cell>
         <Cell label="rounded"><VTag value="rounded" severity="info" rounded /></Cell>
+        <Cell label="beside controls (vr-tag-control)"><VTag value="label" severity="secondary" rounded class="vr-tag-control" /></Cell>
       </div>
     </Section>
 

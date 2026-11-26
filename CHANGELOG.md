@@ -4,7 +4,7 @@
 
 - Added a `Back` button to the Settings header that returns to the session or view you came from: `Esc` does the same, and the gear in the sidebar now switches Settings off again
 - Added search to dropdown lists with more than 7 options, such as projects and branches: type to filter, matches are highlighted, Enter picks the first one
-- Changed connector errors from red strips above the tree to a plug icon in the title bar: its list shows each failing connector's full message and since when, with `Retry` and `Configure` buttons
+- Changed connector errors from red strips above the tree to a plug icon with the number of failures beside it in the title bar: its list shows each failing connector's full message and since when, with `Retry` and `Configure` buttons
 - Fixed the running sessions line on the phone inbox being cut off at the screen edge: a long list of names now ends with an ellipsis
 - Fixed unchecked checkboxes being almost invisible in the dark theme and faint in the light one: the box border is now clearly visible
 - Fixed the first-run screen on a phone: the merge requests list is no longer covered by the footer, its heading fits on two lines and long host names no longer overlap their status
