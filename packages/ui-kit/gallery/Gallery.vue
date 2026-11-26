@@ -485,7 +485,6 @@ onMounted(async () => {
         <Cell class="field" label="disabled"><VListbox :model-value="shortValue" :options="SHORT" label="Agent disabled" disabled /></Cell>
       </div>
     </Section>
-  </main>
 
     <Section id="rowbutton" title="VRowButton" base="native button (custom, no PrimeVue base)" adds="Wrapper (RowButton.vue). Full-width interactive row with leading, default and trailing slots, an active state that also sets aria-current, compact and regular density, a depth indent for tree rows, a stacked layout for bottom navigation and a focus-visible ring. Native Enter and Space; tabindex, role and aria-* pass through for roving focus.">
       <p class="row-title">States</p>
@@ -543,4 +542,5 @@ onMounted(async () => {
         </Cell>
       </div>
     </Section>
+  </main>
 </template>
