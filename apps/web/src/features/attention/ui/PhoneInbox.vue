@@ -41,7 +41,6 @@ const runningLine = computed(() => (running.value.length ? t('mobile.runningLine
   overflow: hidden;
   font-size: var(--vr-font-size-label);
   text-align: left;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

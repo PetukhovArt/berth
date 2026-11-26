@@ -1,3 +1,9 @@
+.p-button-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .p-button-icon-only.p-button-sm {
   padding-inline: 0;
 }
