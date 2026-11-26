@@ -20,6 +20,7 @@ mod relocate;
 mod replay;
 mod rewind;
 mod shim;
+mod slash;
 #[cfg(test)]
 mod tests;
 pub mod transcript;

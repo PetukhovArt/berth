@@ -61,6 +61,9 @@ impl Daemon {
         let live = self.acp_ensure(agent_id)?;
         let sid = live.session_id().await?;
         live.touch();
+        if !notice && self.acp_slash(agent_id, &live, text).await? {
+            return Ok(());
+        }
         let worktree = self.checkpoint_dir(agent_id)?;
         let input = PromptInput {
             text: text.trim().into(),

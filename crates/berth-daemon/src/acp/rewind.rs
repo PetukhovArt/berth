@@ -67,7 +67,7 @@ impl Daemon {
         Ok((rewind.checkpoint, to))
     }
 
-    async fn acp_rewind_session(
+    pub(super) async fn acp_rewind_session(
         &self,
         agent_id: &AgentId,
         live: &AcpLive,
