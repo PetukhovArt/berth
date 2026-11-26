@@ -36,7 +36,7 @@
   },
   "size": {
     "$type": "dimension",
-    "sidebar": { "$value": "300px" }, "meta": { "$value": "280px" }, "avatar": { "$value": "36px" }, "avatar-sm": { "$value": "24px" }, "row": { "$value": "32px" }, "column": { "$value": "780px" }, "touch": { "$value": "44px" }, "row-touch": { "$value": "40px" }, "icon-touch": { "$value": "40px" }
+    "sidebar": { "$value": "300px" }, "meta": { "$value": "280px" }, "avatar": { "$value": "36px" }, "avatar-sm": { "$value": "24px" }, "row": { "$value": "32px" }, "control": { "$value": "28px" }, "column": { "$value": "780px" }, "touch": { "$value": "44px" }, "row-touch": { "$value": "40px" }, "icon-touch": { "$value": "40px" }
   },
   "font": {
     "scale": { "$type": "number", "$value": 1 },

@@ -2,7 +2,8 @@ import { Archive, Eye, EyeOff, Folder, FolderGit2, FolderOpen, FolderSearch, Git
 import { AGENT_KIND_LABEL, pinnedFirst, externalKey, placeExternal, type ExternalSession, worktreesOfProject, type Entities, type SessionNode, type WorktreeNode, rollupOf, type Rollup, type SessionState, type WorkspaceNode } from '../../../entities/session';
 import type { ConnectorView, InboxItem, JiraIssueSummary, PipelineStatus } from '../../../shared/api/connectors/api';
 import { numberLabel, itemId, pipelineRollup } from '../../../entities/merge-request';
-import { t, compareText } from '../../../shared/lib/i18n/i18n';
+import { t, compareText, useI18n } from '../../../shared/lib/i18n/i18n';
+import { groupByDate, type DateBucket } from './dateGroups';
 import { matchesWords } from '../../../shared/lib/fuzzy';
 import type { TreeNode } from '../../../shared/ui/explorer-tree/types';
 import { type RepoRef, projectOfRepo, repoRefOf, connectorBase, type Remote } from '../../../entities/repo';
@@ -28,6 +29,7 @@ type NodeData = {
   notes?: ReviewNoteView[];
   reviewState?: ReviewState;
   where?: string;
+  when?: string;
 };
 
 export type WorkNode = TreeNode<NodeData>;
@@ -184,6 +186,33 @@ function place(sources: Sources): Placed {
 
 const externalText = (session: ExternalSession) => `${session.title} ${session.branch ?? ''} ${session.cwd} ${session.harness}`;
 const externalLeaf = (session: ExternalSession): WorkNode => ({ id: externalKey(session), kind: 'external', label: session.title, title: session.cwd, custom: true, data: { external: session } });
+const datedLeaf = (session: ExternalSession, when: string): WorkNode => ({ ...externalLeaf(session), data: { external: session, when } });
+
+function whenLabel(time: number, bucket: DateBucket, now: Date, flat: boolean): string {
+  const { formatDate, formatTime } = useI18n();
+  if (bucket === 'today' || (bucket === 'yesterday' && !flat)) return formatTime(time);
+  if (bucket === 'yesterday') return t('workbench.dates.yesterday');
+  if (bucket === 'week') return formatDate(time, { weekday: 'short' });
+  return formatDate(time, new Date(time).getFullYear() === now.getFullYear() ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+const isDated = (session: ExternalSession) => !session.running && session.updated_at > 0;
+
+function dateRows(id: string, sessions: readonly SessionNode[], external: readonly ExternalSession[], linked: ReadonlyMap<string, ExternalSession>, now: Date): WorkNode[] {
+  const grouping = groupByDate(external, (session) => (isDated(session) ? session.updated_at : null), now);
+  const loose = [...sessions.map(sessionLeaf(linked)), ...grouping.loose.map((session) => externalLeaf(session))];
+  const flat = grouping.flat.map(({ item, bucket }) => datedLeaf(item,whenLabel(item.updated_at, bucket, now, true)));
+  const groups = grouping.groups.map(({ bucket, items, open }) =>
+    group(
+      `${id}|date:${bucket}`,
+      'date',
+      t(`workbench.dates.${bucket}`),
+      items.map((session) => datedLeaf(session, whenLabel(session.updated_at, bucket, now, false))),
+      { defaultExpanded: open, countAlways: true },
+    ),
+  );
+  return [...loose, ...flat, ...groups];
+}
 const liveRollup = (sessions: readonly SessionNode[], external: readonly ExternalSession[], states: ReadonlyMap<string, SessionState>) =>
   rollupOf([...sessions.map((session) => session.key), ...external.filter((session) => session.running).map(externalKey)].flatMap((key) => states.get(key) ?? []));
 
@@ -217,7 +246,7 @@ function looseFolders(prefix: string, placed: Placed, match: (text: string) => b
   });
 }
 
-function worktreeNodes(prefix: string, project: ProjectNode, links: Links, placed: Placed, match: (text: string) => boolean, filtering: boolean): WorkNode[] {
+function worktreeNodes(prefix: string, project: ProjectNode, links: Links, placed: Placed, match: (text: string) => boolean, filtering: boolean, now: Date): WorkNode[] {
   return projectWorktrees(project, placed).flatMap((worktree) => {
     const linkedText = (session: SessionNode) => {
       const link = placed.linked.get(session.key);
@@ -228,7 +257,7 @@ function worktreeNodes(prefix: string, project: ProjectNode, links: Links, place
     const external = placedHere.filter((session) => match(`${externalText(session)} ${worktree.branch} ${project.name}`));
     if (!worktree.main && !worktree.sessions.length && !placedHere.length) return [];
     if (filtering && !sessions.length && !external.length) return [];
-    const children = [...sessions.map(sessionLeaf(placed.linked)), ...external.map(externalLeaf)];
+    const children = dateRows(`${prefix}wt:${worktree.id}`, sessions, external, placed.linked, now);
     const rollup = liveRollup(worktree.sessions, placedHere, placed.states);
     return [
       {
@@ -353,7 +382,7 @@ function liveSources(sources: Sources): Sources {
   };
 }
 
-export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly = false): WorkNode[] {
+export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly = false, now = new Date()): WorkNode[] {
   const sources = liveOnly ? liveSources(given) : given;
   const links = link(sources);
   const match = (text: string) => matchesWords(query, text);
@@ -377,7 +406,7 @@ export function buildTree(given: Sources, tab: TreeTab, query: string, liveOnly 
     if (!sources.berth && !sources.external.length && !sources.archivedExternal.length) return [];
     const workspaceNodes = sources.workspaces.flatMap((workspace): WorkNode[] => {
       const children = pinnedFirst(workspace.projects, sources.entities?.projects).flatMap((project): WorkNode[] => {
-        const worktrees = [...worktreeNodes('s|', project, links, placed, match, pruned), ...projectEnded('s|', project, match), ...otherFolders('s|', project, placed, match), ...projectArchive('s|', project, placed, match)];
+        const worktrees = [...worktreeNodes('s|', project, links, placed, match, pruned, now), ...projectEnded('s|', project, match), ...otherFolders('s|', project, placed, match), ...projectArchive('s|', project, placed, match)];
         if (pruned && !worktrees.length) return [];
         const rollup = projectRollup(project);
         const pin = (sources.entities?.projects.get(project.id)?.pin_order ?? null) !== null;

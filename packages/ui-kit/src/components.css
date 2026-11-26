@@ -119,3 +119,20 @@
   align-items: center;
   gap: var(--vr-space-2);
 }
+
+:root :is(.p-button-sm:not(.p-button-link), .p-togglebutton-sm) {
+  min-height: var(--vr-size-control);
+}
+
+:root :is(.p-inputtext-sm, .p-select-sm, .p-multiselect-sm) {
+  height: var(--vr-size-control);
+}
+
+:root .p-inputtext-sm {
+  padding-block: 0;
+}
+
+:root .p-tag.vr-tag-control {
+  min-height: var(--vr-size-control);
+  padding-inline: var(--vr-space-3);
+}

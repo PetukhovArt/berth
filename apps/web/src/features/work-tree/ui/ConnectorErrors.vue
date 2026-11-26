@@ -2,7 +2,6 @@
 import { computed, shallowRef, useTemplateRef } from 'vue';
 import { Unplug } from '../../../shared/ui/icons';
 import { VButton, VPopover } from '../../../shared/ui/kit';
-import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { openSettings } from '../../../shared/model/nav';
 import { useWorkTree } from '../model/useWorkTree';
@@ -34,10 +33,9 @@ function configure() {
 
 <template>
   <template v-if="count">
-    <UiButton type="button" class="connector-errors" :title="tooltip" :aria-label="label" aria-haspopup="dialog" data-testid="titlebar-connector-errors" @click="popover?.toggle($event)">
-      <Unplug :size="15" :stroke-width="1.6" />
-      <span class="badge" data-testid="titlebar-connector-errors-count">{{ count }}</span>
-    </UiButton>
+    <VButton v-tooltip="tooltip" text severity="danger" size="small" :label="String(count)" :aria-label="label" aria-haspopup="dialog" data-testid="titlebar-connector-errors" @click="popover?.toggle($event)">
+      <template #icon><Unplug :size="14" :stroke-width="1.6" /></template>
+    </VButton>
     <VPopover ref="popover">
       <div class="panel" role="dialog" :aria-label="t('titleBar.connectors.title', { count })" data-testid="connector-errors-panel">
         <p class="title">{{ t('titleBar.connectors.title', { count }) }}</p>
@@ -57,42 +55,6 @@ function configure() {
 </template>
 
 <style scoped>
-.connector-errors {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  height: 26px;
-  min-width: 28px;
-  padding: 0 6px;
-  color: var(--vr-color-danger);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
-  cursor: pointer;
-}
-
-.connector-errors:hover,
-.connector-errors:focus-visible {
-  background: var(--vr-color-nav-hover);
-}
-
-.badge {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  min-width: 1.45em;
-  padding: 0 0.25em;
-  font-size: var(--vr-font-size-2xs);
-  font-weight: 700;
-  line-height: 1.45;
-  text-align: center;
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-danger);
-  border-radius: var(--vr-radius-full);
-}
-
 .panel {
   display: flex;
   flex-direction: column;

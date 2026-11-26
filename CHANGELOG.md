@@ -24,18 +24,20 @@
 - Added the `berth` commands to Claude chats: `berth rename`, `worktree`, `enter`, `spawn` and `end-session` work from a chat as they do from a terminal, and a chat that runs `berth worktree` restarts in the new worktree when its turn ends, with the conversation kept
 - Added a `Back` button to the Settings header that returns to the session or view you came from: `Esc` does the same, and the gear in the sidebar now switches Settings off again
 - Added search to dropdown lists with more than 7 options, such as projects and branches: type to filter, matches are highlighted, Enter picks the first one
+- Added date groups to a worktree with more than 5 earlier conversations in the Sessions tree: Today, Yesterday, Last 7 days, Last 30 days and Earlier, with the newest groups open and the older ones collapsed to a count
 - Changed `Stop` and `Esc` in the Chat view to put the queued prompts back into the prompt box, in order, instead of dropping them
 - Changed new Grok sessions to open in the Chat view over ACP (`grok agent stdio`), with the terminal Grok still in the type list and its limits shown on both
 - Changed new Claude sessions to open in the Chat view, with `Claude (terminal)` in New Session and `Open in terminal` in the session menu for the terminal; sessions that already exist and Resume or Continue keep the way they ran
 - Changed the permission and question card in the Chat view to a raised card with the project and branch, and `1`, `2`, `3` keys for its buttons
 - Changed `Restore files` on a checkpoint to ask in a dialog instead of two links under the prompt
 - Changed the Chat view to the new look: a 780 px centered column, rounded prompt bubbles, a colored tile by the agent name, and phase chips in the plan strip
-- Changed connector errors from red strips above the tree to a plug icon in the title bar: its list shows each failing connector's full message and since when, with `Retry` and `Configure` buttons
+- Changed connector errors from red strips above the tree to a plug icon with the number of failures beside it in the title bar: its list shows each failing connector's full message and since when, with `Retry` and `Configure` buttons
 - Fixed starting the desktop app a second time: it now brings the running window to the front and exits, instead of opening a second copy
 - Fixed the app freezing on a code block without a language that starts with a long line of dashes, such as an ASCII table rule, in the Chat view, the markdown preview and diffs
 - Fixed the running sessions line on the phone inbox being cut off at the screen edge: a long list of names now ends with an ellipsis
 - Fixed unchecked checkboxes being almost invisible in the dark theme and faint in the light one: the box border is now clearly visible
 - Fixed the first-run screen on a phone: the merge requests list is no longer covered by the footer, its heading fits on two lines and long host names no longer overlap their status
+- Fixed wide Markdown tables in chat and previews running off the right edge: cell text now wraps to the available width, and only a table with unbreakable content scrolls sideways
 - Fixed box-drawing diagrams in chat and Markdown code blocks: lines and arrows now line up with the text instead of falling short
 - Fixed Chinese and Japanese names of authors and reviewers breaking between characters on a phone: a name stays on one line and ends with an ellipsis when it does not fit
 - Fixed the Settings category list showing only the first 7 sections: it now uses the full height of the window and scrolls only when the window is too short

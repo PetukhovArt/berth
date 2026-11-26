@@ -160,11 +160,11 @@ onMounted(() => {
             <span>{{ t('forge.request.reviewers') }}</span>
             <span v-for="r in cr.reviewers" :key="r.username" class="person" data-testid="cr-reviewer"><PersonAvatar :person="r" small /><PersonName :person="r" /></span>
           </span>
-          <VTag v-for="label in cr.labels" :key="label" severity="secondary" rounded :value="label" />
+          <VTag v-for="label in cr.labels" :key="label" class="vr-tag-control" severity="secondary" rounded :value="label" />
           <VToggleButton v-if="pipeline" v-model="pipelineOpen" size="small" :aria-expanded="pipelineOpen" data-testid="cr-pipeline-chip">
             <StatusIcon v-if="pipelineStatus !== 'none'" :tone="pipelineTone(pipelineStatus)" />{{ pipelineLabel(pipelineStatus) }}
           </VToggleButton>
-          <VTag v-else severity="secondary" rounded data-testid="cr-pipeline-chip"><StatusIcon v-if="pipelineStatus !== 'none'" :tone="pipelineTone(pipelineStatus)" />{{ pipelineLabel(pipelineStatus) }}</VTag>
+          <VTag v-else class="vr-tag-control" severity="secondary" rounded data-testid="cr-pipeline-chip"><StatusIcon v-if="pipelineStatus !== 'none'" :tone="pipelineTone(pipelineStatus)" />{{ pipelineLabel(pipelineStatus) }}</VTag>
         </div>
 
         <div v-if="pipeline && pipelineOpen" class="pipeline-pop" data-testid="cr-pipeline-jobs">

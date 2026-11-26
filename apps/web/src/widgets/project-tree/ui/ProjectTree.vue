@@ -218,7 +218,7 @@ const moreItems = computed(() => {
             @open="(split) => node.data?.session && sessions.openSession(node.data.session, undefined, false, split)"
             @open-conversation="node.data.linked && sessions.openLinkedConversation(node.data.session, node.data.linked)"
           />
-          <ExternalSessionRow v-else-if="node.kind === 'external' && node.data?.external" :session="node.data.external" :active="node.id === dock.activeKey.value" @open="(split) => node.data?.external && sessions.openExternal(node.data.external, split)" />
+          <ExternalSessionRow v-else-if="node.kind === 'external' && node.data?.external" :session="node.data.external" :when="node.data.when" :active="node.id === dock.activeKey.value" @open="(split) => node.data?.external && sessions.openExternal(node.data.external, split)" />
           <EndedRow v-else-if="node.kind === 'ended-session' && node.data?.session" :session="node.data.session" :where="node.data.where" />
           <ArchivedRow v-else-if="node.kind === 'archived' && node.data?.session" :session="node.data.session" :where="node.data.where" />
           <ArchivedExternalRow v-else-if="node.kind === 'archived-external' && node.data?.external" :session="node.data.external" @open="(split) => node.data?.external && sessions.openExternal(node.data.external, split)" />

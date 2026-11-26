@@ -10,6 +10,7 @@ import { createScope, type Scope } from '../../../shared/lib/scope';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { buildTree, tabCounts, type ReviewMeta, type ReviewNoteView, type ReviewSource, type ReviewState, type Sources, type TreeTab } from './tree';
 
+const DAY_CHECK_MS = 60_000;
 const TAB_KEY = 'berth.tree.tab';
 const OLD_KEYS = ['berth.tree.mode', 'berth.tree.expanded.project', 'berth.tree.expanded.type'];
 const TABS: readonly TreeTab[] = ['sessions', 'mrs', 'reviews', 'tasks'];
@@ -214,8 +215,15 @@ function createWorkTree(scope: Scope) {
   });
   const activeTab = computed<TreeTab>(() => (tabs.value.some((tab) => tab.id === treeTab.value) ? treeTab.value : 'sessions'));
 
-  const nodes = computed(() => buildTree(sources.value, activeTab.value, treeQuery.value, treeLiveOnly.value));
-  const all = computed(() => buildTree(sources.value, 'all', ''));
+  const today = shallowRef(new Date());
+  const dayTimer = setInterval(() => {
+    const now = new Date();
+    if (now.toDateString() !== today.value.toDateString()) today.value = now;
+  }, DAY_CHECK_MS);
+  scope.add(() => clearInterval(dayTimer));
+
+  const nodes = computed(() => buildTree(sources.value, activeTab.value, treeQuery.value, treeLiveOnly.value, today.value));
+  const all = computed(() => buildTree(sources.value, 'all', '', false, today.value));
 
   const failureSince = new Map<string, number>();
   const failures = shallowRef<ConnectorFailure[]>([]);

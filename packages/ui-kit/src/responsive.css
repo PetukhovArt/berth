@@ -11,6 +11,7 @@
 :root[data-vr-viewport='phone'] {
   --vr-page-gutter: var(--vr-space-3);
   --vr-size-row: var(--vr-size-row-touch);
+  --vr-size-control: var(--vr-size-row-touch);
 }
 
 body {
