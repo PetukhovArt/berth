@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, shallowRef, watch } from 'vue';
-import { VButton, VDialog, VInputText, VMessage, VSelect, VTextarea, useIsPhone } from '../../../shared/ui/kit';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton, VDialog, VInputText, VMessage, VSelect, VTextarea, useIsPhone, vTooltip } from '../../../shared/ui/kit';
 import DialogActions from '../../../shared/ui/DialogActions.vue';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, X } from '../../../shared/ui/icons';
 import { t } from '../../../shared/lib/i18n/i18n';
@@ -274,8 +273,10 @@ function onVisible(visible: boolean) {
   >
     <template #header>
       <span class="p-dialog-title">{{ t('agents.newSession.title') }}</span>
-      <UiButton v-if="phone" type="button" class="close" :title="t('common.close')" :aria-label="t('common.close')" data-testid="new-session-close" @click="emit('close')"><X :size="18" /></UiButton>
-      <UiButton v-else type="button" class="esc" :title="t('common.close')" :aria-label="t('common.close')" data-testid="new-session-close" @click="emit('close')">Esc</UiButton>
+      <VButton v-if="phone" v-tooltip="t('common.close')" class="close" text severity="secondary" :aria-label="t('common.close')" data-testid="new-session-close" @click="emit('close')">
+        <template #icon><X :size="18" /></template>
+      </VButton>
+      <VButton v-else v-tooltip="t('common.close')" class="esc" size="small" outlined severity="secondary" label="Esc" :aria-label="t('common.close')" data-testid="new-session-close" @click="emit('close')" />
     </template>
     <div v-if="noProjects" class="empty" data-testid="new-session-no-projects">
       <span class="empty-title">{{ t('agents.newSession.noProjectsTitle') }}</span>
@@ -322,7 +323,7 @@ function onVisible(visible: boolean) {
                       <span v-if="option.state === 'missing'" class="kind-badge">{{ t('agents.newSession.kindMissing') }}</span>
                       <template v-else-if="option.state === 'signedOut'">
                         <span class="kind-badge">{{ t('agents.newSession.kindSignedOut') }}</span>
-                        <UiButton v-if="option.provider" type="button" class="kind-action" data-testid="new-session-kind-sign-in" @mousedown.stop @click.stop="kindStates.signIn(option.provider)">{{ t('agents.newSession.kindSignIn') }}</UiButton>
+                        <VButton v-if="option.provider" size="small" text severity="secondary" :label="t('agents.newSession.kindSignIn')" data-testid="new-session-kind-sign-in" @mousedown.stop @click.stop="kindStates.signIn(option.provider)" />
                       </template>
                     </span>
                   </template>
@@ -365,14 +366,12 @@ function onVisible(visible: boolean) {
             </ChipField>
           </template>
           <span class="spacer" />
-          <UiButton type="button" class="chips-action" :aria-pressed="continuing" data-testid="new-session-continue" @click="continuing = !continuing">
-            <span>{{ continuing ? t('agents.newSession.newTask') : t('agents.newSession.continueMode') }}</span>
-            <component :is="continuing ? ChevronLeft : ChevronRight" :size="14" aria-hidden="true" />
-          </UiButton>
-          <UiButton type="button" class="chips-action" :aria-expanded="expanded" data-testid="new-session-more" @click="expanded = !expanded">
-            <span>{{ expanded ? t('agents.newSession.fewer') : t('agents.newSession.more') }}</span>
-            <component :is="expanded ? ChevronUp : ChevronDown" :size="14" aria-hidden="true" />
-          </UiButton>
+          <VButton class="chips-action" size="small" severity="secondary" icon-pos="right" :label="continuing ? t('agents.newSession.newTask') : t('agents.newSession.continueMode')" :aria-pressed="continuing" data-testid="new-session-continue" @click="continuing = !continuing">
+            <template #icon><component :is="continuing ? ChevronLeft : ChevronRight" :size="14" aria-hidden="true" /></template>
+          </VButton>
+          <VButton class="chips-action" size="small" severity="secondary" icon-pos="right" :label="expanded ? t('agents.newSession.fewer') : t('agents.newSession.more')" :aria-expanded="expanded" data-testid="new-session-more" @click="expanded = !expanded">
+            <template #icon><component :is="expanded ? ChevronUp : ChevronDown" :size="14" aria-hidden="true" /></template>
+          </VButton>
         </div>
         <label v-if="expanded && location.plan.value.kind === 'create'" class="row">
           <span class="row-label">{{ t('agents.newSession.setupCommand') }}</span>
@@ -431,7 +430,7 @@ function onVisible(visible: boolean) {
       <VMessage v-else-if="action.error.value" severity="error" size="small" data-testid="new-session-error">{{ action.error.value }}</VMessage>
       <p v-if="started" class="started" role="status" data-testid="new-session-started">
         <span>{{ started.text }}</span>
-        <UiButton type="button" class="started-open" data-testid="new-session-started-open" @click="emit('created', started.session)">{{ t('agents.newSession.startedOpen') }}</UiButton>
+        <VButton size="small" text :label="t('agents.newSession.startedOpen')" data-testid="new-session-started-open" @click="emit('created', started.session)" />
       </p>
       <div class="footer">
         <label v-if="!many && !continuing" class="name">
@@ -481,40 +480,13 @@ function onVisible(visible: boolean) {
 }
 
 .chips-action {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--vr-space-1);
-  height: 28px;
-  padding: 0 var(--vr-space-2) 0 var(--vr-space-3);
-  font: inherit;
-  font-size: var(--vr-font-size-label);
-  color: var(--vr-color-text);
   white-space: nowrap;
-  cursor: pointer;
-  background: var(--vr-color-surface-muted);
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-}
-
-.chips-action:hover {
-  background: var(--vr-color-nav-hover);
-}
-
-.chips-action svg {
-  flex: none;
-  color: var(--vr-color-text-muted);
 }
 
 .esc {
   margin-left: auto;
-  padding: 1px 6px;
   font-family: var(--vr-font-mono);
   font-size: var(--vr-font-size-2xs);
-  color: var(--vr-color-text-muted);
-  cursor: pointer;
-  background: none;
-  border: 1px solid var(--vr-color-border-strong);
-  border-radius: 4px;
 }
 
 .esc:hover {
@@ -540,10 +512,6 @@ function onVisible(visible: boolean) {
 .row-input {
   flex: 1;
   min-width: 0;
-}
-
-.form :deep(.p-inputtext) {
-  border-radius: var(--vr-radius-sm);
 }
 
 .mono {
@@ -581,15 +549,6 @@ function onVisible(visible: boolean) {
   color: var(--vr-color-text-muted);
 }
 
-.started-open {
-  padding: 0;
-  font: inherit;
-  color: var(--vr-color-link);
-  cursor: pointer;
-  background: none;
-  border: 0;
-}
-
 .kind-option {
   display: flex;
   align-items: center;
@@ -624,18 +583,6 @@ function onVisible(visible: boolean) {
   white-space: nowrap;
 }
 
-.kind-action {
-  padding: 0;
-  font: inherit;
-  font-size: var(--vr-font-size-label);
-  color: var(--vr-color-link);
-  white-space: nowrap;
-  cursor: pointer;
-  background: none;
-  border: 0;
-  pointer-events: auto;
-}
-
 .prompt {
   min-height: 84px;
   padding: 12px 14px;
@@ -656,15 +603,6 @@ function onVisible(visible: boolean) {
   background: var(--vr-color-surface-muted);
   box-shadow: none;
   font-size: var(--vr-font-size-label);
-}
-
-.chip :deep(.p-select-label) {
-  padding: 0 9px;
-  white-space: nowrap;
-}
-
-.chip :deep(.p-select-dropdown) {
-  width: 1.6rem;
 }
 
 .pair {
@@ -729,17 +667,7 @@ function onVisible(visible: boolean) {
 }
 
 .close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--vr-size-icon-touch);
-  height: var(--vr-size-icon-touch);
   margin-left: auto;
-  color: var(--vr-color-text-muted);
-  cursor: pointer;
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
 }
 
 :root[data-vr-viewport='phone'] .form {
@@ -773,13 +701,6 @@ function onVisible(visible: boolean) {
 
 :root[data-vr-viewport='phone'] .chip {
   height: auto;
-  min-height: var(--vr-size-row-touch);
-}
-
-:root[data-vr-viewport='phone'] .chip:not(.chip-input) :deep(.p-select-label) {
-  display: flex;
-  align-items: center;
-  align-self: stretch;
   min-height: var(--vr-size-row-touch);
 }
 
@@ -830,17 +751,4 @@ function onVisible(visible: boolean) {
   flex: 1 0 100%;
 }
 
-:root[data-vr-viewport='phone'] .actions :deep(.p-button) {
-  flex: 1 1 0;
-  min-height: var(--vr-size-row-touch);
-  border-radius: var(--vr-radius-lg);
-}
-
-:root[data-vr-viewport='phone'] .actions :deep(.p-button[type='submit']) {
-  flex-grow: 1.4;
-}
-
-:root[data-vr-viewport='phone'] .actions :deep(.p-button-secondary) {
-  background: var(--vr-color-surface-muted);
-}
 </style>

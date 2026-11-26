@@ -173,18 +173,6 @@ const summary = computed(() => {
   white-space: nowrap;
 }
 
-.chip :deep(.p-select-label) {
-  display: flex;
-  align-items: center;
-  align-self: stretch;
-  padding: 0 9px;
-  white-space: nowrap;
-}
-
-.chip :deep(.p-select-dropdown) {
-  width: 1.6rem;
-}
-
 .row {
   display: flex;
   align-items: center;
@@ -244,12 +232,6 @@ const summary = computed(() => {
 :root[data-vr-viewport='phone'] .chip {
   height: auto;
   min-height: var(--vr-size-row-touch);
-}
-
-:root[data-vr-viewport='phone'] .chip :deep(.p-select-label) {
-  min-height: var(--vr-size-row-touch);
-  white-space: normal;
-  overflow-wrap: anywhere;
 }
 
 :root[data-vr-viewport='phone'] .fixed {
