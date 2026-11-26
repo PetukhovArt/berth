@@ -13,6 +13,7 @@ import './responsive.css';
 import './button.css';
 import { installMotion } from './motion';
 import { installViewport } from './viewport';
+import { selectFilterTexts } from './Select';
 
 export const DARK_CLASS = 'vr-dark';
 
@@ -77,7 +78,7 @@ const BerthPreset =definePreset(Aura, {
   },
 });
 
-export type KitLocale = Partial<Omit<PrimeVueLocaleOptions, 'aria'>> & { aria?: Partial<PrimeVueLocaleAriaOptions> };
+export type KitLocale = Partial<Omit<PrimeVueLocaleOptions, 'aria'>> & { aria?: Partial<PrimeVueLocaleAriaOptions>; filterPlaceholder?: string; filterCount?: string };
 
 export function installUiKit(app: App, locale: () => KitLocale): void {
   app.use(PrimeVue, { theme: { preset: BerthPreset, options: { darkModeSelector: `.${DARK_CLASS}` } } });
@@ -85,7 +86,9 @@ export function installUiKit(app: App, locale: () => KitLocale): void {
   const defaults = config.locale;
   if (defaults)
     watchEffect(() => {
-      const { aria, ...strings } = locale();
+      const { aria, filterPlaceholder, filterCount, ...strings } = locale();
+      selectFilterTexts.placeholder = filterPlaceholder ?? '';
+      selectFilterTexts.count = filterCount ?? '';
       config.locale = { ...defaults, ...strings, aria: { ...defaults.aria, ...aria } };
     });
   installMotion(app);
@@ -98,7 +101,7 @@ export { useIsPhone } from './viewport';
 export { default as VButton } from 'primevue/button';
 export { default as VInputText } from 'primevue/inputtext';
 export { default as VTextarea } from 'primevue/textarea';
-export { default as VSelect } from 'primevue/select';
+export { VSelect } from './Select';
 export { default as VTag } from 'primevue/tag';
 export { default as VMessage } from 'primevue/message';
 export { default as VMultiSelect } from 'primevue/multiselect';

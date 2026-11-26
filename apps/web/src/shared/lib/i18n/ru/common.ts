@@ -26,6 +26,8 @@ export const common: Translation<typeof en> = {
   kit: {
     emptyMessage: 'Нет доступных вариантов',
     emptySearchMessage: 'Ничего не найдено',
+    filterPlaceholder: 'Введите для поиска',
+    filterCount: '{0} из {1}',
     searchMessage: 'Найдено результатов: {0}',
     selectionMessage: 'Выбрано: {0}',
     emptySelectionMessage: 'Ничего не выбрано',

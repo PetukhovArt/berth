@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added search to dropdown lists with more than 7 options, such as projects and branches: type to filter, matches are highlighted, Enter picks the first one
+
 ## 0.24.0 (2026-11-25)
 
 - Added the Chat view to Codex and Grok agents, the same view Claude agents have, and Grok conversations started outside berth to the conversation list, search and Continue conversation

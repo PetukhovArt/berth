@@ -79,3 +79,15 @@
   transition: none;
   animation: vr-toast-out var(--vr-motion-overlay-out) var(--vr-motion-ease-accelerate) both;
 }
+
+:root .vr-select-match {
+  color: var(--vr-color-link);
+  font-weight: 600;
+}
+
+:root .vr-select-count {
+  padding: 6px 12px;
+  border-top: 1px solid var(--vr-color-border);
+  color: var(--vr-color-text-muted);
+  font-size: var(--vr-font-size-xs);
+}
