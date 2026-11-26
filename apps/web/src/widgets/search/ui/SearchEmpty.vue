@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { MIN_MESSAGE_QUERY } from '../../../entities/session';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton } from '../../../shared/ui/kit';
 
 defineProps<{ query: string; canWiden: boolean }>();
 const emit = defineEmits<{ widen: []; clear: [] }>();
@@ -14,8 +14,8 @@ const { t } = useI18n();
     <p class="title">{{ t('search.empty.title', { query }) }}</p>
     <p class="hint">{{ t('search.empty.hint', { count: MIN_MESSAGE_QUERY }) }}</p>
     <div class="actions">
-      <UiButton v-if="canWiden" type="button" class="action" data-testid="search-empty-everywhere" @click="emit('widen')">{{ t('search.empty.everywhere') }}</UiButton>
-      <UiButton type="button" class="action" data-testid="search-empty-clear" @click="emit('clear')">{{ t('search.empty.clear') }}</UiButton>
+      <VButton v-if="canWiden" outlined severity="secondary" size="small" :label="t('search.empty.everywhere')" data-testid="search-empty-everywhere" @click="emit('widen')" />
+      <VButton outlined severity="secondary" size="small" :label="t('search.empty.clear')" data-testid="search-empty-clear" @click="emit('clear')" />
     </div>
   </div>
 </template>
@@ -58,25 +58,5 @@ const { t } = useI18n();
   justify-content: center;
   gap: var(--vr-space-2);
   margin-top: var(--vr-space-2);
-}
-
-.action {
-  padding: var(--vr-space-1) var(--vr-space-3);
-  color: var(--vr-color-text);
-  font: inherit;
-  font-size: var(--vr-font-size-xs);
-  cursor: pointer;
-  background: none;
-  border: 1px solid var(--vr-color-border);
-  border-radius: var(--vr-radius-sm);
-}
-
-.action:hover {
-  background: var(--vr-color-nav-hover);
-}
-
-.action:focus-visible {
-  outline: 2px solid var(--vr-color-accent);
-  outline-offset: 1px;
 }
 </style>

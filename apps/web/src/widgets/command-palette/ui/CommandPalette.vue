@@ -149,11 +149,12 @@ onMounted(() => input.value?.focus());
   min-width: 0;
   box-sizing: border-box;
   font: inherit;
+  padding: 0;
   font-size: var(--vr-font-size-sm);
   color: var(--vr-color-text);
   background: none;
   border: 0;
-  outline: none;
+  box-shadow: none;
 }
 
 .results {
