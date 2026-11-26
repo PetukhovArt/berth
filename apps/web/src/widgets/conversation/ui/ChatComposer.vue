@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, shallowRef, useId, useTemplateRef, watch } from 'vue';
 import { isDesktop } from '../../../bridge';
-import { ArrowUp, Mic, Paperclip, Square, X } from '../../../shared/ui/icons';
-import { VButton, VSelectButton, VTextarea, useIsPhone, vTooltip } from '../../../shared/ui/kit';
+import { ArrowUp, Ellipsis, Mic, Paperclip, Radio, Square, X } from '../../../shared/ui/icons';
+import { VButton, VMenu, VSelectButton, VTextarea, useIsPhone, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { PlainKey } from '../../../shared/lib/i18n/translate';
 import { speechLang, useHoldToTalk, type HoldToTalkIssue } from '../../../shared/lib/dictation';
@@ -92,6 +92,11 @@ const talkPanel = computed(() => phone.value && showTalk.value && !typing.value)
 const { activeKey } = useDock();
 const diffAvailable = computed(() => !!activeKey.value && isAvailable(activeKey.value, 'diff'));
 const quickSending = shallowRef(false);
+const quickMenu = useTemplateRef<InstanceType<typeof VMenu>>('quickMenu');
+const quickItems = computed(() => [
+  { label: t('chat.quick.tests'), testid: 'chat-quick-tests', disabled: quickSending.value, command: () => void sendQuick(t('chat.quick.tests')) },
+  ...(diffAvailable.value ? [{ label: t('chat.quick.diff'), testid: 'chat-quick-diff', command: () => showViewInActivePanel('diff') }] : []),
+]);
 
 async function sendQuick(text: string) {
   if (quickSending.value) return;
@@ -272,13 +277,8 @@ function handsFree() {
 
 <template>
   <form class="composer" data-testid="chat-composer" :data-phone="phone || undefined" @submit.prevent="sendDraft">
-    <div v-if="talkPanel && !voice.active.value" class="quick" data-testid="chat-quick">
-      <VButton class="chip" :label="t('chat.quick.tests')" severity="secondary" size="small" rounded :disabled="quickSending" data-testid="chat-quick-tests" @click="sendQuick(t('chat.quick.tests'))" />
-      <VButton v-if="diffAvailable" class="chip" :label="t('chat.quick.diff')" severity="secondary" size="small" rounded data-testid="chat-quick-diff" @click="showViewInActivePanel('diff')" />
-      <VButton v-if="stop" class="chip" :label="t('chat.quick.stop')" severity="secondary" size="small" rounded data-testid="chat-quick-stop" @click="stop" />
-    </div>
     <VSelectButton
-      v-if="showVoice && (voice.active.value || talkPanel)"
+      v-if="showVoice && voice.active.value"
       v-model="voiceMode"
       class="modes"
       :options="[
@@ -301,31 +301,35 @@ function handsFree() {
     <template v-else>
       <p v-if="talkNote" class="talk-note" :data-cancelling="talk.cancelling.value || undefined" data-testid="chat-talk-note" role="status">{{ talkNote }}</p>
       <VButton v-if="shownSuggestion && talkPanel" v-tooltip="t('agents.sessionView.chatSuggestion')" class="suggestion" :label="shownSuggestion" text severity="secondary" size="small" data-testid="chat-suggestion" @click="acceptSuggestion" />
-      <div v-if="talkPanel" class="talk-panel">
-        <div class="talk-row">
-          <VButton v-tooltip="t('chat.typeMode')" class="aa" :label="t('chat.typeGlyph')" severity="secondary" rounded :aria-label="t('chat.typeMode')" data-testid="chat-type-mode" @click="typing = true" />
-          <VButton
-            v-tooltip="t('agents.sessionView.chatTalk')"
-            class="talk big"
-            rounded
-            :data-holding="talk.holding.value || undefined"
-            :data-cancelling="talk.cancelling.value || undefined"
-            :aria-label="t('agents.sessionView.chatTalk')"
-            data-testid="chat-talk"
-            @pointerdown="talk.start"
-            @pointermove="talk.move"
-            @pointerup="talk.release"
-            @pointercancel="talk.release"
-            @contextmenu.prevent
-          >
-            <template #icon><Mic :size="26" /></template>
-          </VButton>
-          <VButton v-if="stop" v-tooltip="t('agents.sessionView.chatStop')" class="aa" severity="danger" rounded :aria-label="t('agents.sessionView.chatStop')" data-testid="chat-stop" @click="stop">
-            <template #icon><Square :size="14" fill="currentColor" /></template>
-          </VButton>
-          <span v-else class="aa-balance" aria-hidden="true" />
-        </div>
-        <p class="hint">{{ t(stop ? 'chat.talkHintRunning' : 'chat.talkHint') }}</p>
+      <div v-if="talkPanel" class="talk-row" data-testid="chat-talk-row">
+        <VButton v-tooltip="t('chat.typeMode')" class="aa" :label="t('chat.typeGlyph')" severity="secondary" rounded :aria-label="t('chat.typeMode')" data-testid="chat-type-mode" @click="typing = true" />
+        <VButton
+          v-tooltip="t('agents.sessionView.chatTalk')"
+          class="talk wide"
+          rounded
+          :label="t('chat.holdToTalk')"
+          :data-holding="talk.holding.value || undefined"
+          :data-cancelling="talk.cancelling.value || undefined"
+          :aria-label="t('agents.sessionView.chatTalk')"
+          data-testid="chat-talk"
+          @pointerdown="talk.start"
+          @pointermove="talk.move"
+          @pointerup="talk.release"
+          @pointercancel="talk.release"
+          @contextmenu.prevent
+        >
+          <template #icon><Mic :size="20" /></template>
+        </VButton>
+        <VButton v-if="showVoice" v-tooltip="t('chat.handsFree')" class="aa" severity="secondary" rounded :aria-label="t('chat.handsFree')" data-testid="chat-voice-start" @click="handsFree">
+          <template #icon><Radio :size="18" /></template>
+        </VButton>
+        <VButton v-if="stop" v-tooltip="t('agents.sessionView.chatStop')" class="aa" severity="danger" rounded :aria-label="t('agents.sessionView.chatStop')" data-testid="chat-stop" @click="stop">
+          <template #icon><Square :size="14" fill="currentColor" /></template>
+        </VButton>
+        <VButton class="aa" text severity="secondary" rounded :aria-label="t('chat.quick.more')" aria-haspopup="menu" data-testid="chat-quick-more" @click="quickMenu?.toggle($event)">
+          <template #icon><Ellipsis :size="18" /></template>
+        </VButton>
+        <VMenu ref="quickMenu" :model="quickItems" :label="t('chat.quick.more')" />
       </div>
       <div v-else class="box" @dragover.prevent @drop.prevent="onDrop">
         <ul v-if="slashOpen" :id="listId" ref="slashList" class="slash" role="listbox" :aria-label="t(popupKind === 'mention' ? 'chat.mention.list' : 'chat.slash.list')" :data-testid="popupKind === 'mention' ? 'chat-mention-list' : 'chat-slash-list'">
@@ -676,22 +680,14 @@ function handsFree() {
   color: var(--vr-color-danger);
 }
 
-.talk-panel {
+.talk-row {
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: var(--vr-space-2);
 }
 
-.talk-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--vr-space-4);
-}
-
-.aa,
-.aa-balance {
+.aa {
+  flex: none;
   width: 44px;
   height: 44px;
 }
@@ -700,36 +696,19 @@ function handsFree() {
   margin-left: var(--vr-space-1);
 }
 
-.talk.big {
-  width: 64px;
-  height: 64px;
+.talk.wide {
+  flex: 1;
+  width: auto;
+  height: 44px;
 }
 
-.talk.big[data-holding] {
-  box-shadow: 0 0 0 6px var(--vr-color-nav-active);
+.talk.wide[data-holding] {
+  box-shadow: 0 0 0 4px var(--vr-color-nav-active);
 }
 
-.talk.big[data-cancelling] {
+.talk.wide[data-cancelling] {
   color: var(--vr-color-accent-contrast);
   background: var(--vr-color-danger);
-}
-
-.hint {
-  margin: 0;
-  font-size: var(--vr-font-size-2xs);
-  color: var(--vr-color-text-subtle);
-}
-
-.quick {
-  display: flex;
-  gap: 6px;
-  align-self: stretch;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.quick .chip {
-  flex: none;
 }
 
 .modes {
