@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch, type ShallowRef } from 'vue';
 import { Check, ChevronDown, ChevronRight, ChevronUp, Columns2, Folder, FolderOpen, ListTree, Rows2, Search, WrapText, X } from '../../../shared/ui/icons';
-import { useIsPhone, VInputText } from '../../../shared/ui/kit';
+import { useIsPhone, VButton, VInputText, VSelectButton, VTag, VToggleButton, vTooltip } from '../../../shared/ui/kit';
 import type { DiffFile, Discussion } from '../../../shared/api/connectors/api';
 import type { PromptQuote } from '../../../entities/session';
 import { t, compareText } from '../../../shared/lib/i18n/i18n';
@@ -200,7 +200,16 @@ function note(file: DiffFile): string | null {
   return null;
 }
 
+const STATUS_SEVERITY = { added: 'success', deleted: 'danger', modified: 'secondary', renamed: 'info' } as const;
 const STATUS_MARK: Record<DiffFile['status'], string> = { added: 'A', deleted: 'D', modified: 'M', renamed: 'R' };
+const modeOptions = computed(() => [
+  { value: 'unified', label: t('forge.diff.unified'), title: t('forge.diff.unified'), testId: 'diff-mode-unified' },
+  { value: 'split', label: t('forge.diff.split'), title: t('forge.diff.split'), testId: 'diff-mode-split' },
+]);
+const fileViewOptions = computed(() => [
+  { value: 'code', label: t('forge.diff.code'), testId: 'diff-file-code' },
+  { value: 'preview', label: t('forge.diff.preview'), testId: 'diff-file-preview' },
+]);
 const STATUS_TITLE_KEY = { added: 'forge.diff.status.added', deleted: 'forge.diff.status.deleted', modified: 'forge.diff.status.modified', renamed: 'forge.diff.status.renamed' } as const;
 
 function buildTree(): TreeNode {
@@ -512,7 +521,9 @@ defineExpose({ focusThread, focusFile, root });
       <div class="tree-filter">
         <Search :size="14" />
         <VInputText v-model="filter" class="tree-input" :placeholder="t('forge.diff.filter')" autocomplete="off" data-testid="diff-filter" />
-        <UiButton class="icon vr-phone-only" :aria-label="t('mobile.back')" data-testid="diff-files-close" @click="filesOpen = false"><X :size="16" /></UiButton>
+        <VButton class="vr-phone-only" size="small" severity="secondary" text :aria-label="t('mobile.back')" data-testid="diff-files-close" @click="filesOpen = false">
+          <template #icon><X :size="16" /></template>
+        </VButton>
       </div>
       <div v-auto-animate class="tree-list">
         <template v-for="row in treeRows" :key="row.key">
@@ -523,14 +534,14 @@ defineExpose({ focusThread, focusFile, root });
           </UiButton>
           <UiButton
             v-else
+            v-tooltip="row.path"
             class="tree-row"
             :data-active="activeIndex === row.index"
             :style="{ paddingLeft: `${8 + row.depth * 12}px` }"
-            :title="row.path"
             data-testid="diff-tree-file"
             @click="pickFile(row.index)"
           >
-            <span class="mark" :data-status="files[row.index]!.status" :title="t(STATUS_TITLE_KEY[files[row.index]!.status])">{{ STATUS_MARK[files[row.index]!.status] }}</span>
+            <span v-tooltip="t(STATUS_TITLE_KEY[files[row.index]!.status])" class="mark" :data-status="files[row.index]!.status">{{ STATUS_MARK[files[row.index]!.status] }}</span>
             <span class="tree-name">{{ row.name }}</span>
             <Check v-if="reviewedFlags[row.index]" :size="12" class="tree-reviewed" data-testid="diff-tree-reviewed" />
             <span class="counts"><span class="add">+{{ row.additions }}</span> <span class="del">−{{ row.deletions }}</span></span>
@@ -542,7 +553,9 @@ defineExpose({ focusThread, focusFile, root });
 
     <div class="main vr-detail">
       <header class="toolbar">
-        <UiButton class="mode vr-phone-only" data-testid="diff-files-open" @click="filesOpen = true"><ListTree :size="14" />{{ t('forge.diff.files') }}</UiButton>
+        <VButton class="vr-phone-only" size="small" severity="secondary" text :label="t('forge.diff.files')" data-testid="diff-files-open" @click="filesOpen = true">
+          <template #icon><ListTree :size="14" /></template>
+        </VButton>
         <template v-if="phone">
           <span class="summary"><span class="count">{{ t('forge.diff.fileCount', { count: files.length }) }}</span> <span class="add">+{{ totals.additions }}</span> <span class="del">−{{ totals.deletions }}</span></span>
           <slot name="scope" />
@@ -550,15 +563,20 @@ defineExpose({ focusThread, focusFile, root });
         <span v-if="scope && files.length" class="summary reviewed-count" data-testid="diff-reviewed-count">{{ t('forge.diff.reviewedCount', { done: reviewedCount, total: files.length }) }}</span>
         <span class="spacer" />
         <span v-if="unresolved.length" class="group">
-          <UiButton class="icon" :title="t('forge.diff.prevThreadTitle')" :aria-label="t('forge.diff.prevThread')" data-testid="diff-prev-thread" @click="stepThread(-1)"><ChevronUp :size="14" /></UiButton>
+          <VButton v-tooltip="t('forge.diff.prevThreadTitle')" size="small" severity="secondary" text :aria-label="t('forge.diff.prevThread')" data-testid="diff-prev-thread" @click="stepThread(-1)">
+            <template #icon><ChevronUp :size="14" /></template>
+          </VButton>
           <span>{{ t('forge.diff.unresolvedCount', { count: unresolved.length }) }}</span>
-          <UiButton class="icon" :title="t('forge.diff.nextThreadTitle')" :aria-label="t('forge.diff.nextThread')" data-testid="diff-next-thread" @click="stepThread(1)"><ChevronDown :size="14" /></UiButton>
+          <VButton v-tooltip="t('forge.diff.nextThreadTitle')" size="small" severity="secondary" text :aria-label="t('forge.diff.nextThread')" data-testid="diff-next-thread" @click="stepThread(1)">
+            <template #icon><ChevronDown :size="14" /></template>
+          </VButton>
         </span>
-        <UiButton class="mode" :data-active="wrap" :aria-pressed="wrap" :title="t('forge.diff.wrap')" data-testid="diff-wrap" @click="toggleWrap"><WrapText :size="14" />{{ t('forge.diff.wrap') }}</UiButton>
-        <span class="group vr-wide-only" role="group" :aria-label="t('forge.diff.modeLabel')">
-          <UiButton class="mode" :data-active="mode === 'unified'" :title="t('forge.diff.unified')" data-testid="diff-mode-unified" @click="setMode('unified')"><Rows2 :size="14" />{{ t('forge.diff.unified') }}</UiButton>
-          <UiButton class="mode" :data-active="mode === 'split'" :title="t('forge.diff.split')" data-testid="diff-mode-split" @click="setMode('split')"><Columns2 :size="14" />{{ t('forge.diff.split') }}</UiButton>
-        </span>
+        <VToggleButton v-tooltip="t('forge.diff.wrap')" :model-value="wrap" size="small" data-testid="diff-wrap" @update:model-value="toggleWrap">
+          <WrapText :size="14" />{{ t('forge.diff.wrap') }}
+        </VToggleButton>
+        <VSelectButton class="vr-wide-only" :model-value="mode" :options="modeOptions" :label="t('forge.diff.modeLabel')" @update:model-value="setMode($event as Mode)">
+          <template #option="{ option }"><component :is="option.value === 'split' ? Columns2 : Rows2" :size="14" />{{ option.label }}</template>
+        </VSelectButton>
         <slot name="actions" />
       </header>
 
@@ -572,31 +590,25 @@ defineExpose({ focusThread, focusFile, root });
         </div>
         <div v-else-if="!visible.length" class="state" data-testid="diff-no-match">
           <p class="state-text">{{ t('common.noResults') }}</p>
-          <div class="state-actions"><UiButton class="state-button" @click="filter = ''">{{ t('forge.diff.clearFilter') }}</UiButton></div>
+          <div class="state-actions"><VButton size="small" severity="secondary" :label="t('forge.diff.clearFilter')" @click="filter = ''" /></div>
         </div>
         <section v-for="{ file, i } in entries" :key="`${file.old_path}>${file.new_path}`" :ref="(el) => (fileEls[i] = el as HTMLElement | null)" class="file" :data-index="i" data-testid="diff-file">
           <header class="file-head" @click="toggleCollapsed(i)">
             <ChevronRight :size="14" class="chev vr-chevron" :data-open="!collapsed.has(i)" />
-            <span class="path" :title="file.new_path">
+            <span v-tooltip="file.new_path" class="path">
               <template v-if="file.status === 'renamed' && file.old_path !== file.new_path">{{ file.old_path }} → </template>{{ file.new_path }}
             </span>
-            <span class="pill" :data-status="file.status" data-testid="diff-file-status">{{ t(STATUS_TITLE_KEY[file.status]) }}</span>
+            <VTag class="pill" :severity="STATUS_SEVERITY[file.status]" rounded :value="t(STATUS_TITLE_KEY[file.status])" data-testid="diff-file-status" />
             <span class="counts"><span class="add">+{{ file.additions }}</span> <span class="del">−{{ file.deletions }}</span></span>
             <span class="spacer" />
-            <span v-if="canPreview(file)" class="group switch" role="group" :aria-label="t('forge.diff.fileView')" @click.stop>
-              <UiButton class="mode" :data-active="!previewing.has(i)" data-testid="diff-file-code" @click="setPreview(i, false)">{{ t('forge.diff.code') }}</UiButton>
-              <UiButton class="mode" :data-active="previewing.has(i)" data-testid="diff-file-preview" @click="setPreview(i, true)">{{ t('forge.diff.preview') }}</UiButton>
+            <span v-if="canPreview(file)" class="head-control" @click.stop>
+              <VSelectButton :model-value="previewing.has(i) ? 'preview' : 'code'" :options="fileViewOptions" :label="t('forge.diff.fileView')" @update:model-value="setPreview(i, $event === 'preview')" />
             </span>
-            <UiButton
-              v-if="scope"
-              class="mode reviewed"
-              :data-active="reviewedFlags[i]"
-              :aria-pressed="reviewedFlags[i]"
-              data-testid="diff-file-reviewed"
-              @click.stop="toggleReviewed(i)"
-            >
-              <Check :size="14" />{{ t('forge.diff.reviewed') }}
-            </UiButton>
+            <span v-if="scope" class="head-control" @click.stop>
+              <VToggleButton :model-value="reviewedFlags[i]" size="small" data-testid="diff-file-reviewed" @update:model-value="toggleReviewed(i)">
+                <Check :size="14" />{{ t('forge.diff.reviewed') }}
+              </VToggleButton>
+            </span>
           </header>
 
           <template v-if="!collapsed.has(i)">
@@ -694,35 +706,9 @@ defineExpose({ focusThread, focusFile, root });
   color: var(--vr-color-success);
 }
 
-.reviewed {
+.head-control {
+  display: inline-flex;
   flex: none;
-  height: 22px;
-  padding: 0 var(--vr-space-2);
-  font-size: var(--vr-font-size-2xs);
-  white-space: nowrap;
-  border-color: var(--vr-color-border);
-}
-
-.reviewed[data-active='true'] {
-  color: var(--vr-color-success);
-}
-
-.switch {
-  flex: none;
-  padding: 2px;
-  background: var(--vr-color-surface-muted);
-  border-radius: 7px;
-}
-
-.switch .mode {
-  height: 20px;
-  padding: 0 var(--vr-space-2);
-  font-size: var(--vr-font-size-2xs);
-  border-radius: 5px;
-}
-
-.switch .mode[data-active='true'] {
-  background: var(--vr-color-surface);
 }
 
 .tree-head {
@@ -749,15 +735,6 @@ defineExpose({ focusThread, focusFile, root });
 
 .toolbar > .group:not([role='group']) {
   gap: var(--vr-space-2);
-}
-
-.toolbar > .group:not([role='group']) .icon {
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  background: var(--vr-color-surface-muted);
-  border-radius: var(--vr-radius-sm);
 }
 
 .reviewed-count {
@@ -873,27 +850,6 @@ defineExpose({ focusThread, focusFile, root });
   flex-wrap: wrap;
 }
 
-.toolbar .mode {
-  white-space: nowrap;
-}
-
-.toolbar > .group[role='group'] {
-  padding: 2px;
-  gap: 2px;
-  border-radius: 7px;
-  background: var(--vr-color-surface-muted);
-}
-
-.toolbar > .group[role='group'] .mode {
-  height: 22px;
-  padding: 0 9px;
-  border-radius: 5px;
-}
-
-.toolbar > .group[role='group'] .mode[data-active='true'] {
-  background: var(--vr-color-surface);
-}
-
 .spacer {
   flex: 1;
 }
@@ -902,30 +858,6 @@ defineExpose({ focusThread, focusFile, root });
   display: inline-flex;
   align-items: center;
   gap: var(--vr-space-1);
-}
-
-.icon,
-.mode {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--vr-space-1);
-  padding: 2px var(--vr-space-2);
-  color: var(--vr-color-text-muted);
-  font: inherit;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--vr-radius-sm);
-  cursor: pointer;
-}
-
-.icon:hover,
-.mode:hover {
-  color: var(--vr-color-text);
-}
-
-.mode[data-active='true'] {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-active);
 }
 
 .files {
@@ -963,21 +895,6 @@ defineExpose({ focusThread, focusFile, root });
   display: none;
 }
 
-.state-button {
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  padding: 0 10px;
-  color: var(--vr-color-text);
-  font: inherit;
-  font-size: var(--vr-font-size-xs);
-  white-space: nowrap;
-  background: var(--vr-color-surface-muted);
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-  cursor: pointer;
-}
-
 .file {
   border-bottom: 1px solid var(--vr-color-border);
 }
@@ -1005,23 +922,6 @@ defineExpose({ focusThread, focusFile, root });
 
 .pill {
   flex: none;
-  padding: 1px 7px;
-  color: var(--vr-color-text-muted);
-  font-size: var(--vr-font-size-2xs);
-  background: var(--vr-color-chip-bg);
-  border-radius: var(--vr-radius-full);
-}
-
-.pill[data-status='added'] {
-  color: var(--vr-color-success);
-}
-
-.pill[data-status='deleted'] {
-  color: var(--vr-color-danger);
-}
-
-.pill[data-status='renamed'] {
-  color: var(--vr-color-conflict);
 }
 
 .path {
