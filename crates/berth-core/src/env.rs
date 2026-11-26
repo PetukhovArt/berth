@@ -1,5 +1,5 @@
 //! Names of the environment variables berth reads and sets, so the daemon,
-//! the TUI, the CLI, the hook installers and the e2e tests all spell them
+//! the CLI, the hook installers and the e2e tests all spell them
 //! from one place — a typo here fails to build instead of silently falling
 //! back to a default.
 
@@ -25,9 +25,9 @@ pub const IDLE_REAP_MS: &str = "BERTH_IDLE_REAP_MS";
 pub const WORKTREE_SYNC_MS: &str = "BERTH_WORKTREE_SYNC_MS";
 /// Metrics sampler tick in ms; tests shorten it.
 pub const METRICS_SAMPLE_MS: &str = "BERTH_METRICS_SAMPLE_MS";
-/// `RUST_LOG`-style tracing filter for both the daemon and the TUI.
+/// `RUST_LOG`-style tracing filter.
 pub const LOG: &str = "BERTH_LOG";
-/// Overrides the install script URL `berth upgrade` / `berth ssh` fetch.
+/// Overrides the install script URL `berth upgrade`
 pub const INSTALL_URL: &str = "BERTH_INSTALL_URL";
 pub const REMOTE: &str = "BERTH_REMOTE";
 
@@ -42,10 +42,7 @@ pub const AGENT_SESSION_VARS: &[&str] = &[
     crate::legacy::API_TOKEN,
 ];
 
-/// `TERM` every PTY child is given. The pane is berth's own grid, a vt100
-/// parser the TUI repaints through ratatui, and that grid keeps 24-bit
-/// colour whatever terminal berth itself runs in, so the child never hears
-/// the host's `TERM`.
+/// `TERM` every PTY child is given.
 pub const PANE_TERM: &str = "xterm-256color";
 /// `COLORTERM` for the same grid, so chalk-style detection picks truecolor
 /// over the 256-colour downsample `TERM` alone allows.
@@ -54,7 +51,6 @@ pub const PANE_COLORTERM: &str = "truecolor";
 /// `FORCE_COLOR=0` describes the shell the daemon happened to be started
 /// from, or a login-only profile, not the pane; Claude Code reads either as
 /// "no colour at all" and paints its whole UI in the default foreground.
-/// The TUI still honours its own `NO_COLOR`.
 pub const PANE_COLOR_OVERRIDES: &[&str] = &["NO_COLOR", "FORCE_COLOR"];
 
 /// Vars Claude Code sets on its own subprocesses to tie them to the session

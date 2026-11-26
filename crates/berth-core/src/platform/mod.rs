@@ -91,9 +91,8 @@ pub const PROFILE_HOME_VAR: &str = imp::PROFILE_HOME_VAR;
 
 /// `cmd.no_window()` — chainable, platform-free at the call site.
 ///
-/// On Windows a console child spawned from a process without a console (the
-/// DETACHED_PROCESS daemon, or the TUI once its console is in raw mode's
-/// alternate screen) allocates a brand-new visible console — every git poll
+/// On Windows a console child spawned from a process without a console
+/// allocates a brand-new visible console — every git poll
 /// and `gh` call flashed a window while the user browsed worktrees.
 /// `CREATE_NO_WINDOW` runs the child with a console but no window, which is
 /// exactly what a captured-output helper wants. Elsewhere this is a no-op.

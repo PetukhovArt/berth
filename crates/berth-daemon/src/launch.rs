@@ -118,7 +118,7 @@ mod platform {
         // Own session: the interactive shell must not reach the daemon's
         // controlling terminal (--foreground runs have one). zsh's job-control
         // init opens /dev/tty and makes itself the foreground process group,
-        // SIGTTIN-stopping whatever TUI owns that terminal.
+        // SIGTTIN-stopping whatever owns that terminal.
         unsafe {
             probe.pre_exec(|| match nix::unistd::setsid() {
                 Ok(_) => Ok(()),
@@ -199,8 +199,7 @@ mod platform {
 #[cfg(windows)]
 mod platform {
     use super::*;
-    // The PATH × PATHEXT lookup lives in berth-core so the TUI's editor
-    // spawn can share it; this module keeps the daemon-only policy (shell
+    // this module keeps the daemon-only policy (shell
     // choice, `.cmd` shim wrapping).
     use berth_core::platform::resolve_program;
 

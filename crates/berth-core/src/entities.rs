@@ -127,7 +127,7 @@ pub struct Agent {
     #[serde(default)]
     pub unseen: bool,
     /// Epoch ms of the last status change; 0 = unknown (pre-upgrade rows or
-    /// never-run agents). Drives the TUI's RECENT session group.
+    /// never-run agents).
     #[serde(default)]
     pub status_changed_at: i64,
     #[serde(default)]

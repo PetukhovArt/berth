@@ -3099,7 +3099,7 @@ async fn workspace_scope_is_per_connection() {
     .unwrap();
     // Wait for the upsert itself, not just the Ack: the Ack is written from
     // the request loop and the upsert from the broadcast forwarder, and the
-    // daemon promises no order between them (the TUI handles either).
+    // daemon promises no order between them
     let is_project_upsert = |e: &ServerEvent| {
         matches!(
             e,

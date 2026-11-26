@@ -1,4 +1,4 @@
-//! Memory and CPU readings for the TUI's metrics modal and diagnostics
+//! Memory and CPU readings for the metrics
 //! card: one machine-wide process sweep, then a per-session sum over each
 //! PTY child's process subtree (an agent CLI fans out into node workers,
 //! shells, MCP servers — the user cares about the whole tree, not just the

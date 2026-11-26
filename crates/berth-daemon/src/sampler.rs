@@ -29,7 +29,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 /// How often the process table is swept. A CPU delta wants a regular,
-/// not-too-long interval; this matches the TUI's own metrics poll.
+/// not-too-long interval.
 const TICK: Duration = Duration::from_secs(5);
 
 /// Transcripts are re-read every Nth tick. A token total is monotone and

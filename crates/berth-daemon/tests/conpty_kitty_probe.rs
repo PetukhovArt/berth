@@ -174,16 +174,16 @@ fn probe_claude_kitty_negotiation() {
     eprintln!("{}", text.escape_debug());
 }
 
-/// What a *console app* — berth's own TUI, which reads `INPUT_RECORD`s
-/// through crossterm — sees when the outer terminal injects a chord as
+/// What a *console app* which reads `INPUT_RECORD`s
+/// through crossterm sees when the outer terminal injects a chord as
 /// text, the way a Windows Terminal `sendInput` binding does.
 ///
 /// Kitty CSI-u dies at conhost — at most a stray ESC record survives (a raw-VT child
 /// would have received it verbatim — see `probe_input_csi_u_raw_mode_node`),
 /// so a `sendInput "\\u001b[13;2u"` binding, the recipe for running an agent
 /// CLI straight in Windows Terminal, makes Shift+Enter vanish on the way
-/// into berth. `ESC CR` survives as Alt+Enter, which the TUI re-encodes
-/// into the child's own dialect — that is the binding to keep.
+/// into berth. `ESC CR` survives as Alt+Enter
+/// — that is the binding to keep.
 #[test]
 fn injected_csi_u_dies_at_conhost_while_esc_cr_becomes_alt_enter() {
     // Some conhosts swallow the whole sequence (no record at all); the Win10

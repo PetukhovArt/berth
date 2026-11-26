@@ -17,8 +17,8 @@ pub struct Config {
     /// Kill idle session PTYs in worktrees no client is looking at once
     /// they've gone unwatched this long: "1m" | "5m" | "15m" | "30m" | "1h"
     /// ("off" disables reaping entirely; any `<n>s`/`<n>m`/`<n>h` works).
-    /// Bounds what prewarming and walked-away-from sessions cost. Pinned
-    /// agents, running or feedback-waiting agents, and terminals with a
+    /// Bounds what prewarming and walked-away-from sessions cost.
+    /// running or feedback-waiting agents, and terminals with a
     /// command running are spared; a reaped session revives on the next
     /// attach (agents resume their conversation). Malformed
     /// values fall back to the 5m default.

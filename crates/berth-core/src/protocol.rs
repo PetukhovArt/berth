@@ -218,8 +218,7 @@ pub enum ClientRequest {
     /// right now. A live PTY is killed and respawned (resumed) in the new
     /// path — left running, its hooks would keep reporting the old
     /// checkout's cwd and the daemon would re-home the row right back.
-    /// The daemon-side primitive behind `EnterWorktree`; no TUI verb sends
-    /// it any more.
+    /// The daemon-side primitive behind `EnterWorktree`
     MoveAgent {
         req_id: u64,
         id: AgentId,
@@ -251,8 +250,7 @@ pub enum ClientRequest {
     /// AGENT KIND / MODEL / EFFORT unless `kind` names another harness —
     /// with `starting_prompt` as the new CLI's first prompt, so it begins
     /// the task at once. The caller's own process is untouched. Answered
-    /// with `Ack { created: Some(EntityId::Agent(..)) }`; the row reaches
-    /// every TUI as an ordinary `EntityUpserted`.
+    /// with `Ack { created: Some(EntityId::Agent(..)) }`
     SpawnSiblingAgent {
         req_id: u64,
         id: AgentId,

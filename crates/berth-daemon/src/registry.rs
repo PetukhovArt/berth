@@ -643,7 +643,7 @@ impl Daemon {
     // ---- projects ----
 
     /// Register a repo as a project. `workspace` is the caller's own scope
-    /// (a TUI that switched with OpenWorkspace); `None` — a one-shot
+    /// (switched with OpenWorkspace); `None` — a one-shot
     /// `berth add`, or a client still on whatever it booted into — means
     /// the remembered default. A scope naming a workspace that has since
     /// been deleted falls back the same way rather than failing the add.
@@ -2069,8 +2069,8 @@ fn shell_has_children(session: &PtySession) -> bool {
     berth_core::platform::has_child_processes(pid)
 }
 
-/// Why a create was refused when the agent CLI isn't installed. One line —
-/// the TUI shows it in the footer flash, which truncates. Unlike git (which
+/// Why a create was refused when the agent CLI isn't installed.
+/// Unlike git (which
 /// the daemon runs with its own inherited PATH), agent CLIs are spawned
 /// through the user's login shell, so a fresh install is picked up on the
 /// next try with no daemon restart.

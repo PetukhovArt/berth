@@ -1118,8 +1118,6 @@ impl Store {
     }
 
     pub fn set_agent_archived(&self, id: &AgentId, archived: bool) -> Result<()> {
-        // Stamp the archive time (cleared on unarchive) so the TUI can
-        // order the ARCHIVED group newest-first.
         let archived_at = if archived { now_ms() } else { 0 };
         // An archived row is out of sight by definition: nothing left to
         // go and read, so its unseen-finish flag goes with it.

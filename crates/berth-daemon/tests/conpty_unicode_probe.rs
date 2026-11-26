@@ -5,7 +5,7 @@
 //! letter per word left standing at roughly the right columns — the shape a
 //! column-width disagreement makes, not the shape lost bytes make. Three
 //! layers could own it: the child, ConPTY's differential repaint, and the
-//! `vt100` grid the TUI renders from. These probes cut the stack at ConPTY:
+//! `vt100` grid. These probes cut the stack at ConPTY:
 //! they assert the master reader sees the text, and that feeding exactly
 //! those bytes to `vt100` at the same width reproduces every word.
 //!

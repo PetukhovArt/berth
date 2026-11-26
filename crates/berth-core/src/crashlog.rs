@@ -1,7 +1,4 @@
-//! Panic capture to a log file. The TUI owns the terminal (panic output to
-//! stderr is lost with the alternate screen) and the daemon runs with stderr
-//! on /dev/null, so a hook that appends to the process's log file is the only
-//! way a crash leaves a trace.
+//! Panic capture to a log file.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};

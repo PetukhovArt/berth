@@ -11,8 +11,7 @@ use tokio::process::Command;
 /// Shown when the `git` binary itself is missing. Every other git failure
 /// carries git's own stderr; this one git never gets to print, so spelling out
 /// the fix is on us — otherwise the user sees "No such file or directory" and
-/// blames the directory they just picked. Kept to one line: the TUI shows it
-/// in the footer flash, which truncates.
+/// blames the directory they just picked. Kept to one line
 pub const GIT_MISSING: &str =
     "git was not found on your PATH — berth needs it. Install git (https://git-scm.com/downloads), then restart berth.";
 

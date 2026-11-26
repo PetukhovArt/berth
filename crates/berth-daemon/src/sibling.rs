@@ -32,8 +32,8 @@ sessions list on its own. This session is unaffected: carry on with whatever els
 asked, and if starting the session was the whole request, tell the user in one line that it is \
 running. If the command fails, report the error.";
 
-/// The first free `agent-N` among `taken` — the same default the TUI's
-/// name prompt offers, which is what makes the new row eligible for
+/// The first free `agent-N` among `taken` — the default
+/// which is what makes the new row eligible for
 /// AUTO-TITLE (the daemon titles only rows created on the default name).
 pub(crate) fn sibling_name(taken: &[String]) -> String {
     (1..)
