@@ -211,6 +211,13 @@ jobs:
             # libclang comes with the Xcode Command Line Tools.
             command -v cmake >/dev/null || brew install cmake
             xcode-select -p
+            # cmake-rs builds whisper.cpp for macOS 10.13 unless told otherwise, and its
+            # std::filesystem needs 10.15 ("'path' is unavailable: introduced in macOS 10.15").
+            # Apple silicon starts at 11.0.
+            case "${{ matrix.target }}" in
+              aarch64-*) echo 'MACOSX_DEPLOYMENT_TARGET=11.0' >> "$GITHUB_ENV" ;;
+              *) echo 'MACOSX_DEPLOYMENT_TARGET=10.15' >> "$GITHUB_ENV" ;;
+            esac
           fi
 
       # The Windows build links sherpa-onnx as DLLs, which the installer has to
@@ -225,6 +232,11 @@ jobs:
           cargo build --release --locked -p berth-desktop --lib --features updater,voice --target ${{ matrix.target }}
           for dll in sherpa-onnx-c-api onnxruntime; do
             cp "target/${{ matrix.target }}/release/$dll.dll" apps/desktop/src-tauri/binaries/
+          done
+          # whisper.cpp makes berth-desktop.exe import MSVCP140.dll, which a Windows without the
+          # Visual C++ runtime lacks; the app-local copies beside the exe cover that.
+          for dll in msvcp140 vcruntime140 vcruntime140_1; do
+            cp "/c/Windows/System32/$dll.dll" apps/desktop/src-tauri/binaries/
           done
 
       - name: Build

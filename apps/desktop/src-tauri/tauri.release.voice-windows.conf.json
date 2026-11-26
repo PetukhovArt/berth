@@ -2,7 +2,10 @@
   "bundle": {
     "resources": {
       "binaries/sherpa-onnx-c-api.dll": "sherpa-onnx-c-api.dll",
-      "binaries/onnxruntime.dll": "onnxruntime.dll"
+      "binaries/onnxruntime.dll": "onnxruntime.dll",
+      "binaries/msvcp140.dll": "msvcp140.dll",
+      "binaries/vcruntime140.dll": "vcruntime140.dll",
+      "binaries/vcruntime140_1.dll": "vcruntime140_1.dll"
     }
   }
 }
