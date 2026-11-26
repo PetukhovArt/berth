@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { Inbox } from '../../../shared/ui/icons';
 import { isRunning, useChannelUnread, useSessionDock, useSessionStates } from '../../../entities/session';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton } from '../../../shared/ui/kit';
 import { useInbox } from '../model/inbox';
 import InboxSection from './InboxSection.vue';
 
@@ -20,7 +20,7 @@ const runningLine = computed(() => (running.value.length ? t('mobile.runningLine
 <template>
   <section class="phone-inbox" data-testid="phone-inbox">
     <InboxSection />
-    <UiButton v-if="runningLine" type="button" class="running" data-testid="phone-inbox-running" @click="dock.openKey(running[0]!.key)">{{ runningLine }}</UiButton>
+    <VButton v-if="runningLine" class="running" text severity="secondary" size="small" :label="runningLine" data-testid="phone-inbox-running" @click="dock.openKey(running[0]!.key)" />
     <p v-if="empty" class="empty" data-testid="phone-inbox-empty"><Inbox :size="22" />{{ t('mobile.inboxEmpty') }}</p>
   </section>
 </template>
@@ -35,19 +35,14 @@ const runningLine = computed(() => (running.value.length ? t('mobile.runningLine
 }
 
 .running {
-  display: block;
   width: 100%;
+  justify-content: flex-start;
   padding: var(--vr-space-2) var(--vr-space-1);
   overflow: hidden;
-  font: inherit;
   font-size: var(--vr-font-size-label);
-  color: var(--vr-color-text-muted);
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: pointer;
-  background: none;
-  border: 0;
 }
 
 .empty {

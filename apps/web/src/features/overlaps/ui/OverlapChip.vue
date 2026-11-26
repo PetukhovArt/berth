@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { TriangleAlert } from '../../../shared/ui/icons';
+import { VTag, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useOverlaps } from '../model/overlaps';
 
@@ -12,28 +13,24 @@ const title = computed(() => (overlap.value ? t('agents.overlap.title', { names:
 </script>
 
 <template>
-  <span v-if="overlap" class="overlap" :class="{ compact }" :title="title" :aria-label="title" data-testid="overlap-chip">
+  <VTag v-if="overlap" v-tooltip="title" class="overlap" :class="{ compact }" severity="secondary" rounded :aria-label="title" data-testid="overlap-chip">
     <TriangleAlert :size="12" />
     <span v-if="!compact" class="label">{{ label }}</span>
-  </span>
+  </VTag>
 </template>
 
 <style scoped>
 .overlap {
-  display: inline-flex;
   flex: 0 1 auto;
-  align-items: center;
   gap: 5px;
   min-width: 0;
   max-width: 260px;
   height: 22px;
   padding: 0 8px;
   overflow: hidden;
-  color: var(--vr-color-text-muted);
   font-size: var(--vr-font-size-xs);
+  font-weight: 400;
   white-space: nowrap;
-  background: var(--vr-color-surface-muted);
-  border-radius: var(--vr-radius-full);
 }
 
 .label {
