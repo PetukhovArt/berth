@@ -1,8 +1,8 @@
-{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
+{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"toggle","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
 {"item":{"seq":1,"item":{"User":{"text":"Remember the code word ALPHA. Reply with the single word ok.","attachments":[],"rewind":{"checkpoint":1,"after":null}}}}}
 {"status":"running"}
-{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
-{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":["deep-research","design","design-sync"],"queue":[]}}
+{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"toggle","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
+{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"toggle","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":["deep-research","design","design-sync"],"queue":[]}}
 {"item":{"seq":2,"item":{"Assistant":{"text":"ok"}}}}
 {"item":{"seq":1,"item":{"User":{"text":"Remember the code word ALPHA. Reply with the single word ok.","attachments":[],"rewind":{"checkpoint":1,"after":"e860f7ef-7fe2-474b-ad24-240b6a896782"}}}}}
 {"status":"finished"}
@@ -14,8 +14,8 @@
 {"truncated":3}
 {"item":{"seq":5,"item":{"User":{"text":"What is the code word? Reply with just the word.","attachments":[],"rewind":{"checkpoint":4,"after":null}}}}}
 {"status":"running"}
-{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":["deep-research","design","design-sync"],"queue":[]}}
-{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":["deep-research","design","design-sync"],"queue":[]}}
+{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"toggle","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":["deep-research","design","design-sync"],"queue":[]}}
+{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"toggle","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":["deep-research","design","design-sync"],"queue":[]}}
 {"item":{"seq":6,"item":{"Assistant":{"text":"ALPHA"}}}}
 {"item":{"seq":5,"item":{"User":{"text":"What is the code word? Reply with just the word.","attachments":[],"rewind":{"checkpoint":4,"after":"3b43f30d-ba07-4c22-b68a-813aafc6f266"}}}}}
 {"status":"finished"}

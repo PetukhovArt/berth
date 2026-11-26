@@ -1,5 +1,6 @@
 use crate::acp::{
-    AcpItem, AcpItemAt, AcpSessionState, AttachmentUpload, FeedbackAnswer, QuestionForm, QueueId,
+    AcpItem, AcpItemAt, AcpSessionState, AttachmentUpload, FeedbackAnswer, McpAction,
+    QuestionForm, QueueId,
 };
 use crate::agent::{AgentKind, Backend};
 use crate::attention::Attention;
@@ -552,6 +553,13 @@ pub enum ClientRequest {
     AcpMcpStatus {
         req_id: u64,
         agent: AgentId,
+    },
+
+    AcpMcpControl {
+        req_id: u64,
+        agent: AgentId,
+        server: String,
+        action: McpAction,
     },
 
     SetConfigOption {

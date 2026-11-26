@@ -1,16 +1,16 @@
-{"session":{"caps":{"embedded_files":true,"images":true,"mcp":"list","questions":"typed","rewind":true,"steer":true,"terminal_view":false},"commands":[],"options":[{"category":"Model","choices":4,"current":"default","id":"model"},{"category":"ThoughtLevel","choices":5,"current":"medium","id":"effort"}],"queue":[]}}
+{"session":{"caps":{"embedded_files":true,"images":true,"mcp":"toggle","questions":"typed","rewind":true,"steer":true,"terminal_view":false},"commands":[],"options":[{"category":"Model","choices":4,"current":"default","id":"model"},{"category":"ThoughtLevel","choices":5,"current":"medium","id":"effort"}],"queue":[]}}
 {"item":{"item":{"User":{"attachments":[],"rewind":{"after":null,"checkpoint":1},"text":"Remember the code word ALPHA. Reply with the single word ok."}},"seq":1}}
 {"status":"running"}
-{"session":{"caps":{"embedded_files":true,"images":true,"mcp":"list","questions":"typed","rewind":true,"steer":true,"terminal_view":false},"commands":[],"options":[{"category":"Model","choices":4,"current":"default","id":"model"},{"category":"ThoughtLevel","choices":5,"current":"medium","id":"effort"}],"queue":[]}}
-{"session":{"caps":{"embedded_files":true,"images":true,"mcp":"list","questions":"typed","rewind":true,"steer":true,"terminal_view":false},"commands":["deep-research","design","design-sync"],"options":[{"category":"Model","choices":4,"current":"default","id":"model"},{"category":"ThoughtLevel","choices":5,"current":"medium","id":"effort"}],"queue":[]}}
+{"session":{"caps":{"embedded_files":true,"images":true,"mcp":"toggle","questions":"typed","rewind":true,"steer":true,"terminal_view":false},"commands":[],"options":[{"category":"Model","choices":4,"current":"default","id":"model"},{"category":"ThoughtLevel","choices":5,"current":"medium","id":"effort"}],"queue":[]}}
+{"session":{"caps":{"embedded_files":true,"images":true,"mcp":"toggle","questions":"typed","rewind":true,"steer":true,"terminal_view":false},"commands":["deep-research","design","design-sync"],"options":[{"category":"Model","choices":4,"current":"default","id":"model"},{"category":"ThoughtLevel","choices":5,"current":"medium","id":"effort"}],"queue":[]}}
 {"item":{"item":{"Assistant":{"text":"ok"}},"seq":2}}
 {"item":{"item":{"User":{"attachments":[],"rewind":{"after":"e860f7ef-7fe2-474b-ad24-240b6a896782","checkpoint":1},"text":"Remember the code word ALPHA. Reply with the single word ok."}},"seq":1}}
 {"status":"finished"}
 {"truncated":0}
 {"item":{"item":{"User":{"attachments":[],"rewind":{"after":null,"checkpoint":2},"text":"Say ok."}},"seq":3}}
 {"status":"running"}
-{"session":{"caps":{"embedded_files":true,"images":true,"mcp":"list","questions":"typed","rewind":true,"steer":true,"terminal_view":false},"commands":["deep-research","design","design-sync"],"options":[{"category":"Model","choices":4,"current":"default","id":"model"},{"category":"ThoughtLevel","choices":5,"current":"medium","id":"effort"}],"queue":[]}}
-{"session":{"caps":{"embedded_files":true,"images":true,"mcp":"list","questions":"typed","rewind":true,"steer":true,"terminal_view":false},"commands":["deep-research","design","design-sync"],"options":[{"category":"Model","choices":4,"current":"default","id":"model"},{"category":"ThoughtLevel","choices":5,"current":"medium","id":"effort"}],"queue":[]}}
+{"session":{"caps":{"embedded_files":true,"images":true,"mcp":"toggle","questions":"typed","rewind":true,"steer":true,"terminal_view":false},"commands":["deep-research","design","design-sync"],"options":[{"category":"Model","choices":4,"current":"default","id":"model"},{"category":"ThoughtLevel","choices":5,"current":"medium","id":"effort"}],"queue":[]}}
+{"session":{"caps":{"embedded_files":true,"images":true,"mcp":"toggle","questions":"typed","rewind":true,"steer":true,"terminal_view":false},"commands":["deep-research","design","design-sync"],"options":[{"category":"Model","choices":4,"current":"default","id":"model"},{"category":"ThoughtLevel","choices":5,"current":"medium","id":"effort"}],"queue":[]}}
 {"item":{"item":{"Assistant":{"text":"ok"}},"seq":4}}
 {"item":{"item":{"User":{"attachments":[],"rewind":{"after":"3b43f30d-ba07-4c22-b68a-813aafc6f266","checkpoint":2},"text":"Say ok."}},"seq":3}}
 {"status":"finished"}

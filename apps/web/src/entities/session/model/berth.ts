@@ -85,7 +85,8 @@ type AcpOptionCategory = 'Model' | 'ThoughtLevel' | 'Mode' | 'Other';
 export type AcpConfigOption = { id: string; name: string; category: AcpOptionCategory; current: string; choices: AcpChoice[]; applies: 'now' | 'next_start' };
 export type AcpChatCaps = { images: boolean; embedded_files: boolean; questions: 'none' | 'choice' | 'typed'; mcp: 'none' | 'list' | 'toggle'; rewind: boolean; steer: boolean; terminal_view: boolean };
 export type AcpQueuedPrompt = { id: number; prompt: { text: string; attachments: AcpAttachment[] } };
-export type AcpMcpServer = { name: string; status: string | null };
+export type AcpMcpAction = 'reconnect' | 'enable' | 'disable' | 'authenticate';
+export type AcpMcpServer = { name: string; status: string | null; error?: string | null; auth_url?: string | null };
 export type AcpSessionState = { caps: AcpChatCaps; options: AcpConfigOption[]; commands: { name: string; description: string }[]; queue: AcpQueuedPrompt[]; mcp: AcpMcpServer[] };
 type AcpRewind = { checkpoint: number | null; after: string | null };
 export type AcpItem = { User: { text: string; attachments?: AcpAttachment[]; rewind?: AcpRewind | null } } | { Assistant: { text: string } } | { Thought: { text: string } } | { Tool: AcpTool } | { Plan: { entries: AcpPlanEntry[] } } | { Notice: { text: string } };
@@ -541,6 +542,10 @@ export async function acpRewind(agent: string, seq: number): Promise<void> {
 
 export async function acpMcpStatus(agent: string): Promise<void> {
   await acknowledged({ AcpMcpStatus: { agent } });
+}
+
+export async function acpMcpControl(agent: string, server: string, action: AcpMcpAction): Promise<void> {
+  await acknowledged({ AcpMcpControl: { agent, server, action } });
 }
 
 export async function acpAttachment(blob: string): Promise<string> {

@@ -864,6 +864,7 @@ fn rpc_req_id(request: &mut ClientRequest) -> Option<&mut u64> {
         | ClientRequest::AcpSendQueuedNow { req_id, .. }
         | ClientRequest::AcpRewind { req_id, .. }
         | ClientRequest::AcpMcpStatus { req_id, .. }
+        | ClientRequest::AcpMcpControl { req_id, .. }
         | ClientRequest::SetConfigOption { req_id, .. }
         | ClientRequest::AcpAttachment { req_id, .. }
         | ClientRequest::ListWorktreeFiles { req_id, .. }

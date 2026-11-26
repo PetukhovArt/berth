@@ -7,7 +7,7 @@ mod shape;
 mod translator;
 
 pub use shape::elicitation_params;
-pub use translator::{INCOMPATIBLE, MCP_STATUS, REWIND, STEER};
+pub use translator::{INCOMPATIBLE, MCP_CONTROL, MCP_STATUS, REWIND, STEER};
 
 use super::providers::AcpProvider;
 use super::wire::{Host, Wire};

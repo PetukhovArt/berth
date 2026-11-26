@@ -7,6 +7,7 @@ use tokio::sync::mpsc;
 
 pub const REWIND: &str = "_berth/rewind";
 pub const MCP_STATUS: &str = "_berth/mcp_status";
+pub const MCP_CONTROL: &str = "_berth/mcp_control";
 pub const STEER: &str = "_berth/steer";
 
 const FAILURE_CODE: i64 = -32000;

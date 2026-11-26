@@ -1,8 +1,8 @@
-{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
+{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"toggle","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
 {"item":{"seq":1,"item":{"User":{"text":"Use the TaskCreate tool to create two tasks titled \"step one\" and \"step two\". Then use TaskUpdate to mark the first task completed. Then reply done. Do not use any other tool except ToolSearch.","attachments":[],"rewind":{"checkpoint":1,"after":null}}}}}
 {"status":"running"}
-{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
-{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":["deep-research","design","design-sync"],"queue":[]}}
+{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"toggle","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":[],"queue":[]}}
+{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"toggle","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":["deep-research","design","design-sync"],"queue":[]}}
 {"item":{"seq":2,"item":{"Thought":{"text":""}}}}
 {"item":{"seq":3,"item":{"Tool":{"id":"toolu_01EU5gULXRsvnRYZ2ZLZwpq8","title":"ToolSearch","kind":"other","status":"completed","detail":null,"diff":null,"output":null}}}}
 {"item":{"seq":4,"item":{"Thought":{"text":""}}}}
@@ -10,7 +10,7 @@
 {"item":{"seq":6,"item":{"Plan":{"entries":[{"content":"step one","priority":"medium","status":"pending"},{"content":"step two","priority":"medium","status":"pending"}]}}}}
 {"item":{"seq":7,"item":{"Plan":{"entries":[{"content":"step one","priority":"medium","status":"completed"},{"content":"step two","priority":"medium","status":"pending"}]}}}}
 {"item":{"seq":8,"item":{"Assistant":{"text":"Done"}}}}
-{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"list","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":["deep-research","design","design-sync"],"queue":[]}}
+{"session":{"caps":{"images":true,"embedded_files":true,"questions":"typed","mcp":"toggle","rewind":true,"steer":true,"terminal_view":false},"options":[{"id":"model","category":"Model","current":"default","choices":4},{"id":"effort","category":"ThoughtLevel","current":"medium","choices":5}],"commands":["deep-research","design","design-sync"],"queue":[]}}
 {"item":{"seq":8,"item":{"Assistant":{"text":"Done."}}}}
 {"item":{"seq":1,"item":{"User":{"text":"Use the TaskCreate tool to create two tasks titled \"step one\" and \"step two\". Then use TaskUpdate to mark the first task completed. Then reply done. Do not use any other tool except ToolSearch.","attachments":[],"rewind":{"checkpoint":1,"after":"9484b41e-7c22-4be6-8ea1-a046b33b02be"}}}}}
 {"status":"finished"}

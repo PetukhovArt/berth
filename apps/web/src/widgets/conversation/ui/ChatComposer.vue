@@ -8,7 +8,7 @@ import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { PlainKey } from '../../../shared/lib/i18n/translate';
 import { speechLang, useHoldToTalk, type HoldToTalkIssue } from '../../../shared/lib/dictation';
-import { AttachmentChip, listSlashCommands, matchSlashCommands, uploadName, uploadSrc, type AcpAttachmentUpload, type AcpChatCaps, type AcpConfigOption, type AcpMcpServer, type PromptQuote, type SlashCommand, type SlashSource, type TranscriptMessage, useAttachments } from '../../../entities/session';
+import { AttachmentChip, listSlashCommands, matchSlashCommands, uploadName, uploadSrc, type AcpAttachmentUpload, type AcpChatCaps, type AcpConfigOption, type AcpMcpAction, type AcpMcpServer, type PromptQuote, type SlashCommand, type SlashSource, type TranscriptMessage, useAttachments } from '../../../entities/session';
 import { useDock } from '../../../shared/model/dock';
 import { isAvailable, showViewInActivePanel } from '../../../features/session-view-switch';
 import { useMention } from '../model/useMention';
@@ -24,7 +24,7 @@ const SLASH_QUERY = /^\/(\S*)$/;
 
 type PopupItem = { key: string; label: string; description: string };
 
-const props = defineProps<{ messages: TranscriptMessage[]; suggestion: string | null; modelChip: string; sending: boolean; slashSource: SlashSource | null; stop: (() => Promise<void>) | null; send: (text: string, spoken: boolean, uploads?: AcpAttachmentUpload[]) => Promise<boolean>; quotes: readonly PromptQuote[]; caps: AcpChatCaps | null; options: readonly AcpConfigOption[]; mcp: readonly AcpMcpServer[]; refreshMcp: () => Promise<void>; worktreeId: string | null }>();
+const props = defineProps<{ messages: TranscriptMessage[]; suggestion: string | null; modelChip: string; sending: boolean; slashSource: SlashSource | null; stop: (() => Promise<void>) | null; send: (text: string, spoken: boolean, uploads?: AcpAttachmentUpload[]) => Promise<boolean>; quotes: readonly PromptQuote[]; caps: AcpChatCaps | null; options: readonly AcpConfigOption[]; mcp: readonly AcpMcpServer[]; refreshMcp: () => Promise<void>; controlMcp: (server: string, action: AcpMcpAction) => Promise<void>; worktreeId: string | null }>();
 const emit = defineEmits<{ unquote: [label: string]; option: [id: string, value: string] }>();
 
 const phone = useIsPhone();
@@ -327,7 +327,7 @@ function handsFree() {
           <OptionPicker v-if="modelOption" :option="modelOption" kind="model" @pick="(id, value) => emit('option', id, value)" />
           <span v-else-if="modelChip" class="model" :title="modelChip" data-testid="chat-model">{{ modelChip }}</span>
           <OptionPicker v-if="effortOption" :option="effortOption" kind="effort" @pick="(id, value) => emit('option', id, value)" />
-          <McpPicker v-if="mcp.length" :servers="mcp" :refresh="refreshMcp" />
+          <McpPicker v-if="mcp.length" :servers="mcp" :manage="caps?.mcp === 'toggle'" :refresh="refreshMcp" :control="controlMcp" />
           <span class="grow" />
           <span v-if="!phone" class="keys" data-testid="chat-keys">{{ t(stop && caps ? 'chat.keysQueue' : 'chat.keysHint') }}</span>
           <UiButton v-if="talkBlocked" type="button" class="talk blocked" aria-disabled="true" :aria-label="t('chat.talkMode')" :title="t(secure ? 'chat.talkUnavailable' : 'chat.talkNeedsHttps')" data-testid="chat-talk-blocked" @click="explainBlocked"><Mic :size="14" /></UiButton>

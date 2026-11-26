@@ -72,7 +72,7 @@ export const chat = {
     sendNow: 'Send now',
   },
   option: { applyOnRestart: 'Applies from the next start' },
-  mcp: { title: 'MCP servers', refresh: 'Refresh', configured: 'configured', connected: 'connected', failed: 'failed', pending: 'connecting', needsAuth: 'needs sign-in', disabled: 'disabled' },
+  mcp: { title: 'MCP servers', refresh: 'Refresh', configured: 'configured', connected: 'connected', failed: 'failed', pending: 'connecting', needsAuth: 'needs sign-in', disabled: 'disabled', reconnect: 'Reconnect', enable: 'Enable', disable: 'Disable', signIn: 'Sign in' },
   question: { placeholder: 'Type another answer', submit: 'Send' },
   typeMode: 'Type',
   typeGlyph: 'Aa',

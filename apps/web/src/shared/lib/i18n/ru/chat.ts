@@ -75,7 +75,7 @@ export const chat: Translation<typeof en> = {
     sendNow: 'Отправить сейчас',
   },
   option: { applyOnRestart: 'Применится при следующем запуске' },
-  mcp: { title: 'MCP-серверы', refresh: 'Обновить', configured: 'настроен', connected: 'подключён', failed: 'ошибка', pending: 'подключается', needsAuth: 'нужен вход', disabled: 'выключен' },
+  mcp: { title: 'MCP-серверы', refresh: 'Обновить', configured: 'настроен', connected: 'подключён', failed: 'ошибка', pending: 'подключается', needsAuth: 'нужен вход', disabled: 'выключен', reconnect: 'Переподключить', enable: 'Включить', disable: 'Выключить', signIn: 'Войти' },
   question: { placeholder: 'Введите другой ответ', submit: 'Отправить' },
   typeMode: 'Текст',
   typeGlyph: 'Аа',

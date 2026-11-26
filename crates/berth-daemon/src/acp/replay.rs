@@ -6,7 +6,7 @@ use crate::registry::Daemon;
 use crate::store::Store;
 use anyhow::{bail, ensure, Context, Result};
 use berth_core::acp::{
-    AcpSessionState, Answers, AttachmentUpload, FeedbackAnswer, QueueId, ACP_DRIVER,
+    AcpSessionState, Answers, AttachmentUpload, FeedbackAnswer, McpAction, QueueId, ACP_DRIVER,
 };
 use berth_core::{AgentId, EntityId, ServerEvent, WorktreeId};
 use serde::Deserialize;
@@ -88,6 +88,10 @@ enum Call {
     Stop,
     Resume,
     RefreshMcp,
+    McpControl {
+        server: String,
+        action: McpAction,
+    },
     Rewind {
         seq: u64,
     },
@@ -353,6 +357,11 @@ impl Run {
                 let daemon = self.daemon.clone();
                 let agent = self.agent()?.clone();
                 tokio::spawn(async move { daemon.acp_refresh_mcp(&agent).await });
+            }
+            Call::McpControl { server, action } => {
+                let daemon = self.daemon.clone();
+                let agent = self.agent()?.clone();
+                tokio::spawn(async move { daemon.acp_mcp_control(&agent, &server, action).await });
             }
             Call::Resume => {
                 let agent = self.agent()?.clone();

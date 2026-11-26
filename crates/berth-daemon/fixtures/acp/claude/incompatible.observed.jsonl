@@ -1,4 +1,4 @@
-{"session":{"caps":{"embedded_files":true,"images":true,"mcp":"list","questions":"typed","rewind":true,"steer":true,"terminal_view":false},"commands":[],"options":[{"category":"Model","choices":4,"current":"default","id":"model"},{"category":"ThoughtLevel","choices":5,"current":"medium","id":"effort"}],"queue":[]}}
+{"session":{"caps":{"embedded_files":true,"images":true,"mcp":"toggle","questions":"typed","rewind":true,"steer":true,"terminal_view":false},"commands":[],"options":[{"category":"Model","choices":4,"current":"default","id":"model"},{"category":"ThoughtLevel","choices":5,"current":"medium","id":"effort"}],"queue":[]}}
 {"item":{"item":{"User":{"attachments":[],"rewind":{"after":null,"checkpoint":1},"text":"Say hi."}},"seq":1}}
 {"status":"running"}
 {"item":{"item":{"Notice":{"text":"claude refused the handshake: Unsupported control request: initialize\nThis agent cannot run as a chat here and now runs in its terminal."}},"seq":2}}

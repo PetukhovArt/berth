@@ -4,13 +4,38 @@ import { Plug, RefreshCw } from '../../../shared/ui/icons';
 import { VPopover } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import type { AcpMcpServer } from '../../../entities/session';
+import { openUrl } from '../../../bridge';
+import type { AcpMcpAction, AcpMcpServer } from '../../../entities/session';
 
-const props = defineProps<{ servers: readonly AcpMcpServer[]; refresh: () => Promise<void> }>();
+const props = defineProps<{ servers: readonly AcpMcpServer[]; manage: boolean; refresh: () => Promise<void>; control: (server: string, action: AcpMcpAction) => Promise<void> }>();
 
 const { t } = useI18n();
 const popover = useTemplateRef<InstanceType<typeof VPopover>>('popover');
 const refreshing = shallowRef(false);
+const busy = shallowRef<string | null>(null);
+
+const ACTIONS: Record<string, readonly AcpMcpAction[]> = {
+  connected: ['disable'],
+  failed: ['reconnect', 'disable'],
+  pending: ['disable'],
+  'needs-auth': ['authenticate', 'disable'],
+  disabled: ['enable'],
+};
+
+function actionsOf(status: string | null): readonly AcpMcpAction[] {
+  return props.manage && status ? (ACTIONS[status] ?? []) : [];
+}
+
+async function run(server: AcpMcpServer, action: AcpMcpAction) {
+  busy.value = server.name;
+  try {
+    await props.control(server.name, action);
+    const url = action === 'authenticate' ? props.servers.find((s) => s.name === server.name)?.auth_url : null;
+    if (url) await openUrl(url);
+  } finally {
+    busy.value = null;
+  }
+}
 
 async function reload() {
   refreshing.value = true;
@@ -58,7 +83,10 @@ function tone(status: string | null): string {
       <div v-for="server in servers" :key="server.name" class="item" data-testid="chat-mcp-server" :data-status="server.status ?? 'configured'">
         <span class="dot" :data-tone="tone(server.status)" />
         <span class="name">{{ server.name }}</span>
-        <span class="state">{{ label(server.status) }}</span>
+        <span class="state" :title="server.error ?? undefined">{{ label(server.status) }}</span>
+        <UiButton v-for="action in actionsOf(server.status)" :key="action" type="button" class="act" :disabled="busy === server.name" :data-testid="`chat-mcp-${action}`" @click="run(server, action)">
+          {{ t(action === 'authenticate' ? 'chat.mcp.signIn' : `chat.mcp.${action}`) }}
+        </UiButton>
       </div>
       <UiButton type="button" class="refresh" :disabled="refreshing" :aria-busy="refreshing" data-testid="chat-mcp-refresh" @click="reload">
         <RefreshCw :size="13" />
@@ -145,6 +173,22 @@ function tone(status: string | null): string {
 
 .dot[data-tone='wait'] {
   background: var(--vr-status-running);
+}
+
+.act {
+  flex: none;
+  padding: 0 var(--vr-space-2);
+  font: inherit;
+  font-size: var(--vr-font-size-control);
+  color: var(--vr-color-text-muted);
+  cursor: pointer;
+  background: var(--vr-color-surface-muted);
+  border: 0;
+  border-radius: var(--vr-radius-sm);
+}
+
+.act:hover:not(:disabled) {
+  color: var(--vr-color-text);
 }
 
 .name {

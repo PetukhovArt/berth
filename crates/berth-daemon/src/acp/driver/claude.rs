@@ -6,7 +6,7 @@ mod tools;
 
 use super::options::Model;
 use super::translator::{
-    run, text_at, Frame, Outputs, Translator, INCOMPATIBLE, MCP_STATUS, REWIND, STEER,
+    run, text_at, Frame, Outputs, Translator, INCOMPATIBLE, MCP_CONTROL, MCP_STATUS, REWIND, STEER,
 };
 use super::Driver;
 use crate::acp::providers::AcpProvider;
@@ -54,6 +54,7 @@ enum Asked {
 enum Control {
     Initialize,
     McpStatus(Value),
+    ManageMcp(Value),
     Fire,
 }
 
@@ -226,7 +227,7 @@ impl ClaudeTranslator {
     fn forget_native(&mut self, out: &mut Outputs) {
         self.asked.clear();
         for (_, control) in self.controls.drain() {
-            if let Control::McpStatus(id) = control {
+            if let Control::McpStatus(id) | Control::ManageMcp(id) = control {
                 out.fail(id, "claude is no longer running");
             }
         }
@@ -259,7 +260,7 @@ impl ClaudeTranslator {
                     "agentCapabilities": {
                         "sessionCapabilities": {"resume": {}},
                         "promptCapabilities": {"image": true, "embeddedContext": true},
-                        "_meta": {"berth": {"rewind": true, "steer": true, "mcp": "list"}},
+                        "_meta": {"berth": {"rewind": true, "steer": true, "mcp": "toggle"}},
                     },
                     "authMethods": [],
                 }),
@@ -318,6 +319,22 @@ impl ClaudeTranslator {
                     json!({"subtype": "mcp_status"}),
                     Control::McpStatus(id),
                 )?;
+            }
+            MCP_CONTROL => {
+                let server = text_at(params, "server");
+                let request = match text_at(params, "action") {
+                    "reconnect" => json!({"subtype": "mcp_reconnect", "serverName": server}),
+                    "enable" => {
+                        json!({"subtype": "mcp_toggle", "serverName": server, "enabled": true})
+                    }
+                    "disable" => {
+                        json!({"subtype": "mcp_toggle", "serverName": server, "enabled": false})
+                    }
+                    "authenticate" => json!({"subtype": "mcp_authenticate", "serverName": server}),
+                    other => bail!("{other} is not an MCP action"),
+                };
+                self.ensure_native(out)?;
+                self.control(out, request, Control::ManageMcp(id))?;
             }
             other => bail!("{other} is not supported"),
         }
@@ -574,13 +591,23 @@ impl ClaudeTranslator {
                 let error = text_at(response, "error");
                 self.fail_handshake(out, &format!("claude refused the handshake: {error}"));
             }
-            Control::McpStatus(id) if failed => out.fail(id, text_at(response, "error")),
+            Control::McpStatus(id) | Control::ManageMcp(id) if failed => {
+                out.fail(id, text_at(response, "error"))
+            }
+            Control::ManageMcp(id) => out.reply(
+                id,
+                if body.is_null() {
+                    json!({})
+                } else {
+                    body.clone()
+                },
+            ),
             Control::McpStatus(id) => {
                 let servers: Vec<Value> = body["mcpServers"]
                     .as_array()
                     .into_iter()
                     .flatten()
-                    .map(|s| json!({"name": s["name"], "status": s["status"]}))
+                    .map(|s| json!({"name": s["name"], "status": s["status"], "error": s["error"]}))
                     .collect();
                 out.reply(id, json!({"servers": servers}));
             }

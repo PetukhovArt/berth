@@ -1,5 +1,5 @@
 import { computed, onScopeDispose, shallowRef, triggerRef, type ComputedRef, type ShallowRef } from 'vue';
-import { acpEditQueued, acpMcpStatus, acpPrompt, acpRemoveQueued, acpSendQueuedNow, acpSessionState, acpTranscript, answerFeedbackForm, describeError, onAcpItem, onAcpSession, onAcpTruncated, setConfigOption, type AcpAnswers, type AcpAttachmentUpload, type AcpItemAt, type AcpSessionState } from './berth';
+import { acpEditQueued, acpMcpControl, acpMcpStatus, acpPrompt, acpRemoveQueued, acpSendQueuedNow, acpSessionState, acpTranscript, answerFeedbackForm, describeError, onAcpItem, onAcpSession, onAcpTruncated, setConfigOption, type AcpAnswers, type AcpAttachmentUpload, type AcpMcpAction, type AcpItemAt, type AcpSessionState } from './berth';
 import { acpMessages, acpPlan, acpRewinds, type RewindOption } from './acpChat';
 import type { TranscriptMessage } from './external';
 import type { PlanItem } from './plan';
@@ -19,6 +19,7 @@ export type Chat = {
   removeQueued: (id: number) => Promise<void>;
   sendQueuedNow: (id: number) => Promise<void>;
   refreshMcp: () => Promise<void>;
+  controlMcp: (server: string, action: AcpMcpAction) => Promise<void>;
 };
 
 function slot(items: readonly AcpItemAt[], seq: number): number {
@@ -106,5 +107,6 @@ export function useChat(agent: string): Chat {
     removeQueued: (id) => acpRemoveQueued(agent, id),
     sendQueuedNow: (id) => acpSendQueuedNow(agent, id),
     refreshMcp: () => acpMcpStatus(agent),
+    controlMcp: (server, action) => acpMcpControl(agent, server, action),
   };
 }

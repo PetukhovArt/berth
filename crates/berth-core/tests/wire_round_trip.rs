@@ -136,10 +136,14 @@ fn state(full: bool) -> AcpSessionState {
             McpServer {
                 name: "fs".into(),
                 status: Some("ready".into()),
+                error: None,
+                auth_url: None,
             },
             McpServer {
                 name: "git".into(),
-                status: None,
+                status: Some("failed".into()),
+                error: Some("Connection closed".into()),
+                auth_url: Some("https://example.com/authorize".into()),
             },
         ],
     }
