@@ -5,6 +5,7 @@ import { ArrowRight, ExternalLink, GitMerge, GitPullRequest, GitPullRequestClose
 import { VButton, VMessage, VTabs, VTag, VToggleButton, vTooltip } from '../../../shared/ui/kit';
 import { forgeChangeRequest, openUrl, useConnectors, type ChangeRequest, type Discussion } from '../../../shared/api/connectors/api';
 import PersonAvatar from '../../../shared/ui/PersonAvatar.vue';
+import PersonName from '../../../shared/ui/PersonName.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useScope, visibleInterval } from '../../../shared/lib/scope';
 import { ArchitectureAction } from '../../../features/architecture';
@@ -149,7 +150,7 @@ onMounted(() => {
             <code>{{ cr.source_branch }}</code><ArrowRight :size="12" /><code>{{ cr.target_branch }}</code>
           </span>
           <span aria-hidden="true">·</span>
-          <span class="person"><PersonAvatar :person="cr.author" small />{{ cr.author.name || cr.author.username }}</span>
+          <span class="person"><PersonAvatar :person="cr.author" small /><PersonName :person="cr.author" /></span>
           <span aria-hidden="true">·</span>
           <span v-tooltip="fullDate(cr.updated_at)">{{ t('forge.request.updated', { time: relativeTime(cr.updated_at) }) }}</span>
         </div>
@@ -157,7 +158,7 @@ onMounted(() => {
         <div class="meta">
           <span v-if="cr.reviewers.length" class="person reviewers" data-testid="cr-reviewers">
             <span>{{ t('forge.request.reviewers') }}</span>
-            <span v-for="r in cr.reviewers" :key="r.username" class="person" data-testid="cr-reviewer"><PersonAvatar :person="r" small />{{ r.name || r.username }}</span>
+            <span v-for="r in cr.reviewers" :key="r.username" class="person" data-testid="cr-reviewer"><PersonAvatar :person="r" small /><PersonName :person="r" /></span>
           </span>
           <VTag v-for="label in cr.labels" :key="label" severity="secondary" rounded :value="label" />
           <VToggleButton v-if="pipeline" v-model="pipelineOpen" size="small" :aria-expanded="pipelineOpen" data-testid="cr-pipeline-chip">
@@ -372,6 +373,11 @@ code {
   display: inline-flex;
   align-items: center;
   gap: var(--vr-space-2);
+  max-width: 100%;
+}
+
+.reviewers {
+  flex-wrap: wrap;
 }
 
 .pipeline-pop {

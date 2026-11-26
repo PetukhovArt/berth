@@ -6,6 +6,7 @@ import { describeError, forgeReply, forgeResolve, type ChangeRequestRef, type Di
 import type { PromptQuote } from '../../../entities/session';
 import { copyText } from '../../../shared/lib/atlassian';
 import PersonAvatar from '../../../shared/ui/PersonAvatar.vue';
+import PersonName from '../../../shared/ui/PersonName.vue';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import CommentComposer from './CommentComposer.vue';
@@ -111,7 +112,7 @@ defineExpose({ expand });
         <PersonAvatar v-if="!note.system" :person="note.author" small />
         <div class="body">
           <div class="meta">
-            <b v-if="!note.system">{{ note.author.name || note.author.username }}</b>
+            <PersonName v-if="!note.system" class="author" :person="note.author" />
             <span v-tooltip="fullDate(note.created_at)">{{ relativeTime(note.created_at) }}</span>
           </div>
           <p v-if="note.system" class="system">{{ note.body }}</p>
@@ -246,8 +247,9 @@ defineExpose({ expand });
   font-size: var(--vr-font-size-xs);
 }
 
-.meta b {
+.meta .author {
   color: var(--vr-color-text);
+  font-weight: 700;
 }
 
 .foot {

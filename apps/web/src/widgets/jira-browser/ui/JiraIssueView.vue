@@ -4,6 +4,7 @@ import { VBadge, VButton, VMessage, VTag, vTooltip } from '../../../shared/ui/ki
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
 import { describeError, jiraIssue, openUrl, reloadWhenRecovered, type JiraIssue } from '../../../shared/api/connectors/api';
+import PersonName from '../../../shared/ui/PersonName.vue';
 import { PersonAvatar, PriorityMark, StatusChip, TypeIcon } from '../../../entities/jira-issue';
 import Skeleton from '../../../shared/ui/Skeleton.vue';
 import { copyText } from '../../../shared/lib/atlassian';
@@ -86,7 +87,7 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
           <dd><PriorityMark :priority="issue.priority" /></dd>
           <dt>{{ t('jira.issue.assignee') }}</dt>
           <dd>
-            <span v-if="issue.assignee" class="person"><PersonAvatar :connector="issue.connector" :person="issue.assignee" small />{{ issue.assignee.name }}</span>
+            <span v-if="issue.assignee" class="person"><PersonAvatar :connector="issue.connector" :person="issue.assignee" small /><PersonName :person="issue.assignee" /></span>
             <span v-else class="muted">{{ t('jira.issue.unassigned') }}</span>
           </dd>
           <dt>{{ t('jira.issue.reporter') }}</dt>
@@ -154,7 +155,7 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
           <PersonAvatar :connector="issue.connector" :person="comment.author" />
           <div class="comment-main">
             <div class="comment-head">
-              <strong>{{ comment.author.name }}</strong>
+              <PersonName class="comment-author" :person="comment.author" />
               <span v-tooltip="formatDate(comment.created)" class="muted">{{ formatRelative(comment.created) }}</span>
             </div>
             <RichContent :html="comment.body_html" :connector="issue.connector" />
@@ -261,6 +262,7 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
   display: inline-flex;
   align-items: center;
   gap: var(--vr-space-2);
+  max-width: 100%;
 }
 
 .section h2 {
@@ -323,6 +325,10 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
 .comment-main {
   flex: 1;
   min-width: 0;
+}
+
+.comment-author {
+  font-weight: 700;
 }
 
 .comment-head {
