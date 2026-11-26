@@ -198,6 +198,11 @@ jobs:
       - name: Speech engine tools
         if: runner.os != 'Linux'
         run: |
+          # The cache action prunes everything it does not know from target/, among it the
+          # sherpa-onnx archive that sherpa-onnx-sys unpacks into target/sherpa-onnx-prebuilt,
+          # but keeps the build script's output that points at it: the next run then fails
+          # with LNK1181 on sherpa-onnx-c-api.lib. Clearing the crate makes the script run again.
+          cargo clean --release --target ${{ matrix.target }} -p sherpa-onnx-sys
           if [ "$RUNNER_OS" = Windows ]; then
             if [ ! -f "/c/Program Files/LLVM/bin/libclang.dll" ]; then choco install llvm -y --no-progress; fi
             if ! command -v cmake >/dev/null; then
