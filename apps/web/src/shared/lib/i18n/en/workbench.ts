@@ -103,6 +103,13 @@ export const workbench = {
     approvedTitle: 'This request is approved',
     pendingTitle: 'Waiting for your review',
   },
+  dates: {
+    today: 'Today',
+    yesterday: 'Yesterday',
+    week: 'Last 7 days',
+    month: 'Last 30 days',
+    older: 'Earlier',
+  },
   external: {
     harness: {
       claude: 'Claude Code',

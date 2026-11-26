@@ -424,6 +424,11 @@ function onKey(event: KeyboardEvent) {
   font-weight: 600;
 }
 
+.group > .toggle > .label[data-kind='date'] {
+  font-size: var(--vr-font-size-xs);
+  color: var(--vr-color-text-subtle);
+}
+
 .count {
   flex: none;
   padding: 0 0 0 var(--vr-space-1);

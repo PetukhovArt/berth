@@ -106,6 +106,13 @@ export const workbench: Translation<typeof en> = {
     approvedTitle: 'Этот запрос одобрен',
     pendingTitle: 'Ждёт вашего ревью',
   },
+  dates: {
+    today: 'Сегодня',
+    yesterday: 'Вчера',
+    week: 'Последние 7 дней',
+    month: 'Последние 30 дней',
+    older: 'Ранее',
+  },
   external: {
     harness: {
       claude: 'Claude Code',

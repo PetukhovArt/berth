@@ -7,7 +7,7 @@ import { primaryPressed } from '../../../shared/lib/platform';
 import { archiveExternal, externalOrigin, resumeCommand, type ExternalSession, StatusDot, useAction } from '../../../entities/session';
 
 import { UiButton } from '../../../shared/ui/UiButton';
-const props = defineProps<{ session: ExternalSession; active: boolean }>();
+const props = defineProps<{ session: ExternalSession; active: boolean; when?: string }>();
 const emit = defineEmits<{ open: [split: boolean] }>();
 
 const { t, formatRelative, formatDate } = useI18n();
@@ -41,7 +41,7 @@ const menuItems = computed(() => [
     >
       <StatusDot :status="session.status" :unseen="false" />
       <span class="name">{{ session.title }}</span>
-      <span class="label">{{ session.running ? t(`agents.status.${session.status}`) : formatRelative(session.updated_at) }}</span>
+      <span class="label">{{ session.running ? t(`agents.status.${session.status}`) : (when ?? formatRelative(session.updated_at)) }}</span>
     </UiButton>
     <VContextMenu ref="menu" :model="menuItems">
       <template #item="{ item, props: itemProps }">
