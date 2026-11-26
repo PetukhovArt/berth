@@ -3,11 +3,10 @@ import { computed } from 'vue';
 import { Archive, ChevronRight, FileText, GitPullRequest, MessageSquare, Ticket, Zap } from '../../../shared/ui/icons';
 import { markedSegments, revealFirstMatch, stripMarks, wholeWordStart, wordSegments } from '../../../shared/lib/segments';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { useIsPhone, vTooltip } from '../../../shared/ui/kit';
+import { useIsPhone, VRowButton, vTooltip } from '../../../shared/ui/kit';
 import { HarnessIcon, StatusIcon, useSessionStates } from '../../../entities/session';
 import { pipelineTone } from '../../../entities/merge-request';
 import type { ConversationRow, SearchRow } from '../model/rows';
-import { UiButton } from '../../../shared/ui/UiButton';
 import Highlighted from './Highlighted.vue';
 
 const props = defineProps<{ row: SearchRow; query: string; current: boolean; blocked: string | null; heading: string; testid: string; folded?: ConversationRow; compact?: boolean }>();
@@ -163,10 +162,10 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
       </span>
     </template>
     <span v-if="conversation?.snippets.length" class="snippets">
-      <UiButton v-for="snippet in conversation.snippets" :key="snippet.key" type="button" class="snippet" data-testid="search-snippet" @click.stop="emit('openConversation', snippet.key)">
-        <span class="role" :data-user="snippet.user">{{ snippet.role }}</span>
+      <VRowButton v-for="snippet in conversation.snippets" :key="snippet.key" align="start" class="snippet" data-testid="search-snippet" @click.stop="emit('openConversation', snippet.key)">
+        <template #leading><span class="role" :data-user="snippet.user">{{ snippet.role }}</span></template>
         <span class="snippet-text" v-tooltip="snippet.plain"><Highlighted :segments="snippet.segments" /></span>
-      </UiButton>
+      </VRowButton>
     </span>
   </li>
 </template>
@@ -308,28 +307,8 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
 }
 
 .snippet {
-  display: flex;
-  align-items: baseline;
-  gap: var(--vr-space-2);
-  min-width: 0;
-  padding: var(--vr-space-1) var(--vr-space-2);
   color: var(--vr-color-text-muted);
-  font: inherit;
   font-size: var(--vr-font-size-xs);
-  text-align: start;
-  cursor: pointer;
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-}
-
-.snippet:hover {
-  background: var(--vr-color-nav-hover);
-}
-
-.snippet:focus-visible {
-  outline: 2px solid var(--vr-color-accent);
-  outline-offset: -2px;
 }
 
 .role {
@@ -343,10 +322,9 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
 
 .snippet-text {
   display: -webkit-box;
-  flex: 1;
-  min-width: 0;
   overflow: hidden;
   overflow-wrap: anywhere;
+  white-space: normal;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
