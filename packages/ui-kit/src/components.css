@@ -101,6 +101,19 @@
   font-weight: 600;
 }
 
+:root .vr-listbox-fill {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+:root .vr-listbox-fill .p-listbox-list-container {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 :root .vr-listbox-option {
   display: inline-flex;
   align-items: center;

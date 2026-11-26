@@ -5,7 +5,7 @@ import { FILTER_FROM_OPTIONS, highlight, selectFilterTexts } from './optionFilte
 
 type Option = { value: string; label: string; disabled?: boolean };
 
-const props = withDefaults(defineProps<{ options: Option[]; label: string; filter?: boolean; multiple?: boolean; allowEmpty?: boolean; flat?: boolean; testId?: string }>(), { filter: undefined });
+const props = withDefaults(defineProps<{ options: Option[]; label: string; filter?: boolean; multiple?: boolean; allowEmpty?: boolean; flat?: boolean; fill?: boolean; testId?: string }>(), { filter: undefined });
 const model = defineModel<string | string[] | null>({ default: null });
 const query = ref('');
 const remount = ref(0);
@@ -25,7 +25,7 @@ function onUpdate(value: string | string[] | null) {
     :key="remount"
     :model-value="model"
     class="vr-listbox"
-    :class="{ 'vr-listbox-flat': flat }"
+    :class="{ 'vr-listbox-flat': flat, 'vr-listbox-fill': fill }"
     :options="options"
     option-label="label"
     option-value="value"
@@ -35,7 +35,7 @@ function onUpdate(value: string | string[] | null) {
     :filter="filtered"
     :filter-placeholder="selectFilterTexts.placeholder"
     :aria-label="label"
-    scroll-height="16rem"
+    :scroll-height="fill ? 'none' : '16rem'"
     @update:model-value="onUpdate"
     @filter="query = $event.value"
   >

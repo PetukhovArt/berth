@@ -181,7 +181,7 @@ onUnmounted(() => window.removeEventListener('keydown', onEscape));
 
     <div class="body vr-master-detail" :data-detail="showDetail">
       <nav class="categories vr-master" :aria-label="t('settings.categoriesLabel')">
-        <VListbox flat :filter="false" :model-value="activeCategory" :options="categoryOptions" :label="t('settings.categoriesLabel')" test-id="settings-category" @update:model-value="pickCategory($event as CategoryId)">
+        <VListbox flat fill :filter="false" :model-value="activeCategory" :options="categoryOptions" :label="t('settings.categoriesLabel')" test-id="settings-category" @update:model-value="pickCategory($event as CategoryId)">
           <template #option="{ option }">
             <component :is="CATEGORY_ICONS[option.value as CategoryId]" :size="14" />
             {{ option.label }}
@@ -317,6 +317,7 @@ h1 {
   display: grid;
   flex: 1;
   grid-template-columns: minmax(12rem, max-content) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
 }
 

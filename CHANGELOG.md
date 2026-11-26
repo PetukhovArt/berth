@@ -8,6 +8,7 @@
 - Fixed the running sessions line on the phone inbox being cut off at the screen edge: a long list of names now ends with an ellipsis
 - Fixed unchecked checkboxes being almost invisible in the dark theme and faint in the light one: the box border is now clearly visible
 - Fixed box-drawing diagrams in chat and Markdown code blocks: lines and arrows now line up with the text instead of falling short
+- Fixed the Settings category list showing only the first 7 sections: it now uses the full height of the window and scrolls only when the window is too short
 - Removed the OpenClaw skill: `berth sessions`, `berth attention` and `berth send` stay
 
 ## 0.24.0 (2026-11-25)
