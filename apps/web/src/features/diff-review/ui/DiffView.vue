@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch, type ShallowRef } from 'vue';
 import { Check, ChevronDown, ChevronRight, ChevronUp, Columns2, Folder, FolderOpen, ListTree, Rows2, Search, WrapText, X } from '../../../shared/ui/icons';
-import { useIsPhone, VButton, VInputText, VSelectButton, VTag, VToggleButton, vTooltip } from '../../../shared/ui/kit';
+import { useIsPhone, VButton, VInputText, VRowButton, VSelectButton, VTag, VToggleButton, vTooltip } from '../../../shared/ui/kit';
 import type { DiffFile, Discussion } from '../../../shared/api/connectors/api';
 import type { PromptQuote } from '../../../entities/session';
 import { t, compareText } from '../../../shared/lib/i18n/i18n';
@@ -12,8 +12,6 @@ import MarkdownPreview from './MarkdownPreview.vue';
 import { fingerprint, loadMarks, saveMarks, type Marks } from '../lib/reviewed';
 import { parsePatch } from '../lib/patch';
 import { flatName, treePlace } from '../lib/treePlace';
-
-import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ files: DiffFile[]; discussions: Discussion[]; connector?: string; project?: string; headSha?: string; requestUrl?: string; root?: string; quotable?: boolean; state?: { text: string; testid: string; alert?: boolean } | null }>();
 const emit = defineEmits<{ quote: [quote: PromptQuote] }>();
 
@@ -527,25 +525,23 @@ defineExpose({ focusThread, focusFile, root });
       </div>
       <div v-auto-animate class="tree-list">
         <template v-for="row in treeRows" :key="row.key">
-          <UiButton v-if="row.kind === 'dir'" class="tree-row dir" :style="{ paddingLeft: `${8 + row.depth * 12}px` }" @click="toggleDir(row)">
-            <component :is="row.open ? FolderOpen : Folder" :size="14" />
-            <span class="tree-name">{{ row.name }}</span>
-            <span class="counts"><span class="add">+{{ row.additions }}</span> <span class="del">−{{ row.deletions }}</span></span>
-          </UiButton>
-          <UiButton
-            v-else
-            v-tooltip="row.path"
-            class="tree-row"
-            :data-active="activeIndex === row.index"
-            :style="{ paddingLeft: `${8 + row.depth * 12}px` }"
-            data-testid="diff-tree-file"
-            @click="pickFile(row.index)"
-          >
-            <span v-tooltip="t(STATUS_TITLE_KEY[files[row.index]!.status])" class="mark" :data-status="files[row.index]!.status">{{ STATUS_MARK[files[row.index]!.status] }}</span>
-            <span class="tree-name">{{ row.name }}</span>
-            <Check v-if="reviewedFlags[row.index]" :size="12" class="tree-reviewed" data-testid="diff-tree-reviewed" />
-            <span class="counts"><span class="add">+{{ row.additions }}</span> <span class="del">−{{ row.deletions }}</span></span>
-          </UiButton>
+          <VRowButton v-if="row.kind === 'dir'" density="compact" :depth="row.depth" class="dir" @click="toggleDir(row)">
+            <template #leading><component :is="row.open ? FolderOpen : Folder" :size="14" /></template>
+            {{ row.name }}
+            <template #trailing><span class="counts"><span class="add">+{{ row.additions }}</span> <span class="del">−{{ row.deletions }}</span></span></template>
+          </VRowButton>
+          <VRowButton v-else v-tooltip="row.path" density="compact" :depth="row.depth" :active="activeIndex === row.index" data-testid="diff-tree-file" @click="pickFile(row.index)">
+            <template #leading>
+              <span v-tooltip="t(STATUS_TITLE_KEY[files[row.index]!.status])" class="mark" :data-status="files[row.index]!.status">{{ STATUS_MARK[files[row.index]!.status] }}</span>
+            </template>
+            {{ row.name }}
+            <template #trailing>
+              <span class="tree-meta">
+                <Check v-if="reviewedFlags[row.index]" :size="12" class="tree-reviewed" data-testid="diff-tree-reviewed" />
+                <span class="counts"><span class="add">+{{ row.additions }}</span> <span class="del">−{{ row.deletions }}</span></span>
+              </span>
+            </template>
+          </VRowButton>
         </template>
         <p v-if="!treeRows.length && files.length" class="tree-empty vr-phone-only">{{ t('common.noResults') }}</p>
       </div>
@@ -666,39 +662,19 @@ defineExpose({ focusThread, focusFile, root });
 .tree-list {
   flex: 1;
   min-height: 0;
-  padding: var(--vr-space-1) 0;
+  padding: var(--vr-space-1) 6px;
   overflow: auto;
 }
 
 .tree-empty {
-  margin: var(--vr-space-3);
+  margin: var(--vr-space-3) calc(var(--vr-space-3) - 6px);
   color: var(--vr-color-text-muted);
 }
 
-.tree-row {
-  display: flex;
+.tree-meta {
+  display: inline-flex;
   align-items: center;
   gap: 7px;
-  width: calc(100% - 12px);
-  min-height: 28px;
-  margin: 0 6px;
-  padding-right: var(--vr-space-2);
-  color: inherit;
-  font: inherit;
-  font-size: var(--vr-font-size-xs);
-  text-align: left;
-  background: none;
-  border: none;
-  border-radius: var(--vr-radius-sm);
-  cursor: pointer;
-}
-
-:root[data-vr-viewport='phone'] .tree-row {
-  min-height: var(--vr-size-row);
-}
-
-.tree-row:hover {
-  background: var(--vr-color-nav-hover);
 }
 
 .tree-reviewed {
@@ -751,20 +727,8 @@ defineExpose({ focusThread, focusFile, root });
   }
 }
 
-.tree-row[data-active='true'] {
-  background: var(--vr-color-nav-active);
-}
-
-.tree-row.dir {
+.dir {
   color: var(--vr-color-text-muted);
-}
-
-.tree-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 .counts {

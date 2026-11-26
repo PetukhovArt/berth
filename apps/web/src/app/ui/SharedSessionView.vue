@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue';
 import { remoteFetch } from '../../bridge';
 import { Eye, FileText, GitBranch, Wrench, X } from '../../shared/ui/icons';
-import { UiButton } from '../../shared/ui/UiButton';
+import { VButton, VRowButton, vTooltip } from '../../shared/ui/kit';
 import RichContent from '../../shared/ui/rich-content/RichContent.vue';
 import { t } from '../../shared/lib/i18n/i18n';
 import type { DiffFile } from '../../shared/api/connectors/api';
@@ -143,15 +143,16 @@ onBeforeUnmount(() => {
         <p v-if="!feed?.changes.length" class="state">{{ t('remote.share.noChanges') }}</p>
         <ul v-else class="files">
           <li v-for="change in feed.changes" :key="change.path" class="file" :data-status="change.status">
-            <UiButton v-if="feed.diffs" type="button" class="file-open" :aria-pressed="opened?.path === change.path" data-testid="shared-session-file" @click="openDiff(change.path)">
-              <FileText :size="12" />
-              <span class="path mono" :title="change.path">{{ change.path }}</span>
-              <span class="added">+{{ change.additions }}</span>
-              <span class="removed">-{{ change.deletions }}</span>
-            </UiButton>
+            <VRowButton v-if="feed.diffs" density="compact" :active="opened?.path === change.path" data-testid="shared-session-file" @click="openDiff(change.path)">
+              <template #leading><FileText :size="12" /></template>
+              <span v-tooltip="change.path" class="path mono">{{ change.path }}</span>
+              <template #trailing>
+                <span class="counts"><span class="added">+{{ change.additions }}</span><span class="removed">-{{ change.deletions }}</span></span>
+              </template>
+            </VRowButton>
             <template v-else>
               <FileText :size="12" />
-              <span class="path mono" :title="change.path">{{ change.path }}</span>
+              <span v-tooltip="change.path" class="path mono">{{ change.path }}</span>
               <span class="added">+{{ change.additions }}</span>
               <span class="removed">-{{ change.deletions }}</span>
             </template>
@@ -162,8 +163,10 @@ onBeforeUnmount(() => {
     <div v-if="opened" class="diff-layer" data-testid="shared-session-diff">
       <header class="diff-head">
         <FileText :size="14" />
-        <span class="diff-path mono" :title="opened.path">{{ opened.path }}</span>
-        <UiButton type="button" class="diff-close" :title="t('remote.share.diffClose')" :aria-label="t('remote.share.diffClose')" data-testid="shared-session-diff-close" @click="opened = null"><X :size="16" /></UiButton>
+        <span v-tooltip="opened.path" class="diff-path mono">{{ opened.path }}</span>
+        <VButton v-tooltip="t('remote.share.diffClose')" size="small" severity="secondary" text rounded :aria-label="t('remote.share.diffClose')" data-testid="shared-session-diff-close" @click="opened = null">
+          <template #icon><X :size="16" /></template>
+        </VButton>
       </header>
       <p v-if="opened.failed" class="state" role="alert" data-testid="shared-session-diff-failed">{{ t('remote.share.diffFailed') }}</p>
       <p v-else-if="!opened.file" class="state">{{ t('remote.share.diffLoading') }}</p>
@@ -271,25 +274,9 @@ onBeforeUnmount(() => {
   font-size: var(--vr-font-size-xs);
 }
 
-.file-open {
-  display: flex;
-  align-items: center;
+.counts {
+  display: inline-flex;
   gap: var(--vr-space-1);
-  width: 100%;
-  min-width: 0;
-  padding: 2px 0;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-  cursor: pointer;
-}
-
-.file-open:hover,
-.file-open[aria-pressed='true'] {
-  background: var(--vr-color-surface-muted);
 }
 
 .diff-layer {
@@ -321,20 +308,6 @@ onBeforeUnmount(() => {
   text-align: left;
 }
 
-.diff-close {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  color: var(--vr-color-text-muted);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-full);
-  cursor: pointer;
-}
-
 .diff-body {
   flex: 1;
   min-height: 0;
@@ -343,6 +316,7 @@ onBeforeUnmount(() => {
 .path {
   flex: 1;
   min-width: 0;
+  display: block;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;

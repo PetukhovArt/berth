@@ -4,8 +4,7 @@ import type { ChangeRequestRef, ChangeRequestSummary } from '../../../shared/api
 import { t } from '../../../shared/lib/i18n/i18n';
 import { numberLabel, pipelineLabel } from '../lib/format';
 import { lookupMr, mrLookupFailed, MR_RETRY_MS } from '../model/worktreeMr';
-
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton, vTooltip } from '../../../shared/ui/kit';
 const props = defineProps<{ path: string; branch: string; summary?: ChangeRequestSummary }>();
 const emit = defineEmits<{ open: [ref: ChangeRequestRef] }>();
 
@@ -49,31 +48,28 @@ function open() {
 </script>
 
 <template>
-  <UiButton v-if="summary" class="badge" :title="title" :aria-label="title" data-testid="worktree-badge" @click.stop="open">
+  <VButton v-if="summary" v-tooltip="title" link class="badge" :aria-label="title" data-testid="worktree-badge" @click.stop="open">
     <span class="num">{{ numberLabel(summary) }}</span>
     <span class="pipe"><slot name="pipeline" :pipeline="summary.pipeline" /></span>
-  </UiButton>
+  </VButton>
 </template>
 
 <style scoped>
 .badge {
-  display: inline-flex;
   flex: none;
-  align-items: center;
   gap: 4px;
   height: 18px;
-  padding: 0;
   color: var(--vr-color-text-muted);
   font-family: var(--vr-font-mono);
   font-size: var(--vr-font-size-2xs);
   line-height: 1;
-  background: none;
-  border: none;
-  cursor: pointer;
+  border-width: 0;
 }
 
-.badge:hover {
+.badge:not(:disabled):hover,
+.badge:not(:disabled):active {
   color: var(--vr-color-text);
+  border-width: 0;
 }
 
 .pipe {
