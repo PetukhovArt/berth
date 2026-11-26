@@ -85,6 +85,24 @@
   font-weight: 600;
 }
 
+:root :is(.p-select-overlay, .p-multiselect-overlay) :is(.p-select-header, .p-multiselect-header) {
+  padding: var(--vr-space-1) var(--vr-space-1) 0;
+}
+
+:root :is(.p-select-overlay, .p-multiselect-overlay) .p-inputtext {
+  padding-block: 4px;
+  padding-inline-start: 8px;
+  border-radius: var(--vr-radius-sm);
+  font-size: var(--vr-font-size-sm);
+}
+
+:root :is(.p-select-overlay, .p-multiselect-overlay) .p-inputicon {
+  inset-inline-end: 8px;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+}
+
 :root .vr-select-count {
   padding: 6px 12px;
   border-top: 1px solid var(--vr-color-border);

@@ -288,7 +288,7 @@ function onVisible(visible: boolean) {
         <VTextarea
           v-else-if="kind !== 'terminal'"
           v-model="prompt"
-          rows="3"
+          rows="2"
           auto-resize
           class="prompt"
           :autofocus="!phone"
@@ -584,14 +584,14 @@ function onVisible(visible: boolean) {
 }
 
 .prompt {
-  min-height: 84px;
-  padding: 12px 14px;
-  border: 1px solid var(--vr-color-border-strong);
-  border-radius: 12px;
+  min-height: 64px;
+  padding: 8px 10px;
+  border: 1px solid var(--vr-color-border);
+  border-radius: var(--vr-radius-md);
   background: var(--vr-color-surface-sunken);
   box-shadow: none;
-  font-size: var(--vr-font-size-sm);
-  line-height: 1.57;
+  font-size: var(--vr-font-size-label);
+  line-height: 1.5;
   resize: none;
 }
 
