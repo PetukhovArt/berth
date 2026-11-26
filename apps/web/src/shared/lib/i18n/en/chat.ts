@@ -34,6 +34,7 @@ export const chat = {
     errorTitle: 'Could not read the conversation',
     retry: 'Try again',
     showTerminal: 'Show terminal',
+    showAgentLog: 'Show agent log',
   },
   find: {
     open: 'Find in chat',

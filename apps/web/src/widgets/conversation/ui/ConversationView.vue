@@ -7,7 +7,7 @@ import { acpRewind, AGENT_KIND_LABEL, clearHandoff, clearMessageFocus, messageFo
 import { showViewInActivePanel, worktreeOf } from '../../../features/session-view-switch';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { readAcpAgentLog } from '../../../shared/api/providers';
+import { agentLogFor } from '../../../shared/model/agentLog';
 import { chatBlocks } from '../model/chatBlocks';
 import { forwardSlashes } from '../../../shared/lib/homePath';
 import { COLUMN_EDGES, COLUMN_GUTTER, useChatColumn, type ColumnEdge } from '../model/chatColumn';
@@ -59,7 +59,6 @@ const todos = computed(() => {
   const named = new Set(phases.value.map((phase) => phase.text));
   return plan.value.filter((item) => !named.has(item.text));
 });
-const agentLog = shallowRef<string | null>(null);
 const checkpoints = shallowRef<Checkpoint[]>([]);
 const spoken = shallowRef<ReadonlySet<string>>(new Set());
 const focus = messageFocusOf(props.harness, props.sessionId);
@@ -70,17 +69,6 @@ let seekWords: readonly string[] = [];
 const found = shallowRef<string | null>(null);
 let foundTimer: ReturnType<typeof setTimeout> | undefined;
 
-async function toggleAgentLog() {
-  if (agentLog.value !== null) {
-    agentLog.value = null;
-    return;
-  }
-  try {
-    agentLog.value = await readAcpAgentLog(props.sessionId);
-  } catch (e) {
-    agentLog.value = describeError(e);
-  }
-}
 let generation = 0;
 let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -432,15 +420,11 @@ onBeforeUnmount(() => {
     <div v-show="!opened" class="body" :style="column.style.value" data-testid="chat-body">
       <div ref="scroller" class="scroll" data-testid="conversation-scroll">
         <ChatStates v-if="loading" class="column" state="loading" />
-        <ChatStates v-else-if="shownError" class="column" state="error" :message="shownError" :can-show-terminal="!!terminal" @retry="retry" @show-terminal="showViewInActivePanel('terminal')" />
+        <ChatStates v-else-if="shownError" class="column" state="error" :message="shownError" :can-show-terminal="!!terminal" :can-show-agent-log="!!acp" @retry="retry" @show-terminal="showViewInActivePanel('terminal')" @show-agent-log="agentLogFor = sessionId" />
         <ChatStates v-else-if="!messages.length" class="column" state="empty" />
         <ChatFeed v-else class="column" :blocks="blocks" :harness="harness" :agent-label="agentLabel" :root="root" :place="place" :panel-id="panelId" :agent-id="agentId" :checkpoint-of="checkpointOf" :rewind-of="rewindOf" :spoken="spoken" :subagent-of="subagentOf" :now="now" :found="found" :notes="notes" :working-since="workingSince" :queued="acp?.session.value?.queue" :can-send-now="acp?.session.value?.caps.steer" @restored="loadCheckpoints" :rewind="rewindTo" @open-subagent="openSubagent" @edit-queued="(id, text) => acp?.editQueued(id, text).catch(fail)" @remove-queued="(id) => acp?.removeQueued(id).catch(fail)" @send-queued-now="(id) => acp?.sendQueuedNow(id).catch(fail)" />
       </div>
       <FeedbackCard v-if="terminal && request" class="column" :session="terminal" :request="request" :agent-label="agentLabel" :place="place" :questions="acp?.session.value?.caps.questions" :panel-id="panelId" @resolved="noteResolved" />
-      <div v-if="acp" class="column agent-log" data-testid="chat-agent-log">
-        <UiButton type="button" class="agent-log-toggle" :aria-expanded="agentLog !== null" data-testid="chat-agent-log-toggle" @click="toggleAgentLog">{{ t('agents.sessionView.chatAgentLog') }}</UiButton>
-        <pre v-if="agentLog !== null" class="agent-log-text mono" data-testid="chat-agent-log-text">{{ agentLog || t('agents.sessionView.chatAgentLogEmpty') }}</pre>
-      </div>
       <SubagentStrip v-if="stripAgents.length" class="column" :agents="stripAgents" :now="now" @open="openSubagent" />
       <ChatFindBar v-if="find.open.value" ref="findBar" v-model="find.query.value" :index="find.index.value" :total="find.total.value" @step="find.step" @close="find.hide" />
       <ChatComposer v-if="terminal" ref="composer" :messages="messages" :suggestion="suggestion" :model-chip="modelChip" :sending="sending" :slash-source="slashSource" :stop="turnRunning ? stop : null" :send="submit" :quotes="quotes" :caps="acp?.session.value?.caps ?? null" :options="acp?.session.value?.options ?? []" :mcp="acp?.session.value?.mcp ?? []" :refresh-mcp="refreshMcp" :worktree-id="agent?.worktree_id ?? null" @unquote="(label) => terminal && removePromptQuote(terminal, label)" @option="(id, value) => acp?.setOption(id, value).catch(fail)" />
@@ -471,30 +455,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.agent-log {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--vr-space-1);
-  padding: var(--vr-space-1) 0 0;
-}
-
-.agent-log-toggle {
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-text-muted);
-}
-
-.agent-log-text {
-  align-self: stretch;
-  max-height: 200px;
-  margin: 0;
-  overflow: auto;
-  font-size: var(--vr-font-size-2xs);
-  white-space: pre-wrap;
-  color: var(--vr-color-text-muted);
-}
-
 .conversation {
   outline: none;
   display: flex;

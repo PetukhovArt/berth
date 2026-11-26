@@ -2,7 +2,7 @@
 import { computed, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { latestModel, modelLabel, sessionStateOf, StatusIcon, useAgentMessages, useBerth, useExternalSessions, type AgentKind, type SessionStatus } from '../../../entities/session';
+import { isChat, latestModel, modelLabel, sessionStateOf, StatusIcon, useAgentMessages, useBerth, useExternalSessions, type AgentKind, type SessionStatus } from '../../../entities/session';
 import { knownMr, lookupMr, numberLabel } from '../../../entities/merge-request';
 import { SessionViewSwitch } from '../../../features/session-view-switch';
 import { GitStepButton } from '../../../features/git-step';
@@ -11,6 +11,7 @@ import CheckpointsButton from './CheckpointsButton.vue';
 import RouteButton from './RouteButton.vue';
 import BackendSwitchButton from './BackendSwitchButton.vue';
 import ContinueAsAgentButton from './ContinueAsAgentButton.vue';
+import AgentLogButton from './AgentLogButton.vue';
 import { OverlapChip } from '../../../features/overlaps';
 import { ShareButton } from '../../../features/share-session';
 import { isDesktop } from '../../../bridge';
@@ -113,6 +114,7 @@ watch(
       <BackendSwitchButton v-if="agent" :agent-id="agent.id" />
       <RouteButton v-if="agent" :agent-id="agent.id" :kind="agent.kind" :model="agent.model" :resumable="!!agent.session_id" :error="agent.provider_error ?? null" />
       <CheckpointsButton v-if="agent && !inspectorShown" :agent-id="agent.id" :name="agent.name" :kind="agent.kind" :refresh-key="status" />
+      <AgentLogButton v-if="agent && isChat(agent)" :agent-id="agent.id" />
       <ShareButton v-if="agent && isDesktop" :agent-id="agent.id" :name="node.name" />
       <ContinueAsAgentButton v-if="terminalId && lapsed" :terminal="terminalId" :terminal-key="panel.id" :conversation="lapsed" />
       <TaskNoteButton v-if="worktree && !inspectorShown" :worktree-id="worktree.id" :branch="worktree.branch" />

@@ -37,6 +37,7 @@ export const chat: Translation<typeof en> = {
     errorTitle: 'Не удалось прочитать разговор',
     retry: 'Повторить',
     showTerminal: 'Показать терминал',
+    showAgentLog: 'Показать лог агента',
   },
   find: {
     open: 'Поиск в чате',

@@ -3,8 +3,8 @@ import { TriangleAlert } from '../../../shared/ui/icons';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { t } from '../../../shared/lib/i18n/i18n';
 
-defineProps<{ state: 'loading' | 'empty' | 'error'; message?: string | null; canShowTerminal?: boolean }>();
-const emit = defineEmits<{ retry: []; showTerminal: [] }>();
+defineProps<{ state: 'loading' | 'empty' | 'error'; message?: string | null; canShowTerminal?: boolean; canShowAgentLog?: boolean }>();
+const emit = defineEmits<{ retry: []; showTerminal: []; showAgentLog: [] }>();
 </script>
 
 <template>
@@ -24,6 +24,7 @@ const emit = defineEmits<{ retry: []; showTerminal: [] }>();
     <div class="actions">
       <UiButton type="button" class="action primary" data-testid="chat-retry" @click="emit('retry')">{{ t('chat.state.retry') }}</UiButton>
       <UiButton v-if="canShowTerminal" type="button" class="action" data-testid="chat-show-terminal" @click="emit('showTerminal')">{{ t('chat.state.showTerminal') }}</UiButton>
+      <UiButton v-if="canShowAgentLog" type="button" class="action" data-testid="chat-show-agent-log" @click="emit('showAgentLog')">{{ t('chat.state.showAgentLog') }}</UiButton>
     </div>
   </div>
 </template>
