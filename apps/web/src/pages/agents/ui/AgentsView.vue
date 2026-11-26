@@ -96,7 +96,7 @@ const str = (value: unknown) => (typeof value === 'string' ? value : '');
       </template>
     </DockArea>
     <SessionInspector v-if="!mobile" />
-    <NewSessionForm v-if="creatingIn" :key="creatingIn.worktree ?? ''" :worktree="creatingIn.worktree" :project-locked="creatingIn.projectLocked" :prompt="creatingIn.prompt" @close="cancelCreate" @created="onCreated" />
+    <NewSessionForm v-if="creatingIn" :key="creatingIn.worktree ?? ''" :worktree="creatingIn.worktree" :project-locked="creatingIn.projectLocked" :prompt="creatingIn.prompt" :uploads="creatingIn.uploads" :auto-start="creatingIn.autoStart" @close="cancelCreate" @created="onCreated" />
     <BaseNotice />
   </div>
 </template>

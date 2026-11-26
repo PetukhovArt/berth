@@ -1,12 +1,14 @@
 import { shallowRef } from 'vue';
 import { navigate, view } from '../../../shared/model/nav';
-import { useBerth, worktreesOfProject, type SessionRef, useSessionDock } from '../../../entities/session';
+import { useBerth, worktreesOfProject, type AcpAttachmentUpload, type SessionRef, useSessionDock } from '../../../entities/session';
 
-export const creatingIn = shallowRef<{ worktree: string | null; projectLocked: boolean; prompt?: string } | null>(null);
+export type Launch = { prompt?: string; uploads?: AcpAttachmentUpload[]; autoStart?: boolean };
 
-export function startCreate(worktreeId: string | null, projectLocked = false, prompt?: string): void {
+export const creatingIn = shallowRef<({ worktree: string | null; projectLocked: boolean } & Launch) | null>(null);
+
+export function startCreate(worktreeId: string | null, projectLocked = false, launch: Launch = {}): void {
   if (view.value.kind !== 'agents') void navigate({ kind: 'agents' });
-  creatingIn.value = { worktree: worktreeId, projectLocked, prompt };
+  creatingIn.value = { worktree: worktreeId, projectLocked, ...launch };
 }
 
 export function defaultMainTarget() {
@@ -21,8 +23,8 @@ export function defaultMainTarget() {
   return worktree && owner ? { worktree, project: owner } : undefined;
 }
 
-export function startCreateInMain(prompt?: string): void {
-  startCreate(defaultMainTarget()?.worktree.id ?? null, false, prompt);
+export function startCreateInMain(launch: Launch = {}): void {
+  startCreate(defaultMainTarget()?.worktree.id ?? null, false, launch);
 }
 
 export function onCreated(session: SessionRef): void {

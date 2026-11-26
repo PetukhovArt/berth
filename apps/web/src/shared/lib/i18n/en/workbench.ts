@@ -81,6 +81,7 @@ export const workbench = {
     title: 'What should an Agent do?',
     placeholder: 'Describe the task',
     enter: 'Enter to start',
+    noFiles: 'This agent runs in a terminal and takes no files. Pick a chat agent to attach them.',
     start: 'Start a Session',
     options: 'Change the Project, branch or agent',
     foot: 'Your most recent Project and agent. The Session starts on {branch}.',

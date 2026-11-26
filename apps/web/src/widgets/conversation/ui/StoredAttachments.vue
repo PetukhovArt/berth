@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { shallowRef, watchEffect } from 'vue';
-import { attachmentName, attachmentSrc, type AcpAttachment } from '../../../entities/session';
-import AttachmentChip from './AttachmentChip.vue';
+import { AttachmentChip, attachmentName, attachmentSrc, type AcpAttachment } from '../../../entities/session';
 
 const props = defineProps<{ attachments: readonly AcpAttachment[] }>();
 

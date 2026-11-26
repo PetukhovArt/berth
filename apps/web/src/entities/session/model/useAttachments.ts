@@ -1,6 +1,7 @@
 import { computed, shallowRef } from 'vue';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { ATTACH_BUDGET, MAX_IMAGE_SOURCE_BYTES, MAX_TEXT_BYTES, fileUpload, uploadWeight, type AcpAttachmentUpload } from '../../../entities/session';
+import { ATTACH_BUDGET, MAX_IMAGE_SOURCE_BYTES, MAX_TEXT_BYTES, fileUpload, uploadWeight } from './attachments';
+import type { AcpAttachmentUpload } from './berth';
 
 export type Pending = { id: number; upload: AcpAttachmentUpload };
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, shallowRef, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue';
 import { VButton, VDialog, VInputText, VMessage, VSelect, VTextarea, useIsPhone } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import DialogActions from '../../../shared/ui/DialogActions.vue';
@@ -8,7 +8,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { useSettings } from '../../../shared/config/settings/store';
 import { chordJoiner, modifierGlyphs, onlyPrimaryPressed, primaryModifier, primaryPressed } from '../../../shared/lib/platform';
 import { invoke } from '../../../bridge';
-import { createAcpAgent, createAgent, createTerminal, entitySessionRef, resumeConversation, type AgentKind, type SessionRef, useAction, useBerth } from '../../../entities/session';
+import { acpPrompt, createAcpAgent, createAgent, createTerminal, entitySessionRef, resumeConversation, type AcpAttachmentUpload, type AgentKind, type SessionRef, useAction, useBerth } from '../../../entities/session';
 import { chatAgentFor, defaultChatAgent, enabledNativeAgent, useProviders, type Provider } from '../../../shared/api/providers';
 import { useSessionTarget } from '../model/sessionTarget';
 import { useKindStates, type KindState } from '../model/kindStates';
@@ -18,7 +18,7 @@ import NewSessionTarget from './NewSessionTarget.vue';
 import ContinueConversation from './ContinueConversation.vue';
 import ChipField from './ChipField.vue';
 
-const props = defineProps<{ worktree: string | null; projectLocked: boolean; prompt?: string }>();
+const props = defineProps<{ worktree: string | null; projectLocked: boolean; prompt?: string; uploads?: AcpAttachmentUpload[]; autoStart?: boolean }>();
 const emit = defineEmits<{ close: []; created: [session: SessionRef] }>();
 const location = useSessionTarget(props.worktree);
 const continuing = shallowRef(false);
@@ -222,6 +222,7 @@ async function submit(background = false) {
       if (!sessionName || !worktree) continue;
       const acpProvider = acpProviderOf(chosenKind);
       const startingPrompt = withPromptFrame({ before: before.value, after: after.value }, prompt.value);
+      const uploads = acpProvider ? (props.uploads ?? []) : [];
       const id =
         chosenKind === 'terminal'
           ? await createTerminal(worktree, sessionName)
@@ -229,7 +230,7 @@ async function submit(background = false) {
             ? await createAcpAgent(worktree, sessionName, acpProvider, sessionName === defaults[index], {
               model: takesLaunchOptions(chosenKind) ? optional(model.value) : null,
               effort: takesLaunchOptions(chosenKind) ? optional(effort.value) : null,
-              startingPrompt,
+              startingPrompt: uploads.length ? null : startingPrompt,
             })
             : await createAgent({
               worktree,
@@ -241,6 +242,7 @@ async function submit(background = false) {
               startingPrompt,
             });
       const created = entitySessionRef(id);
+      if (uploads.length && created && 'Agent' in created) await acpPrompt(created.Agent, startingPrompt ?? '', uploads);
       first ??= created;
     }
     if (first && background) startedInBackground(names[0] ?? '', first, chosen.length);
@@ -269,6 +271,14 @@ function onFormKey(event: KeyboardEvent) {
   if (startable()) void submit(true);
 }
 
+const starting = shallowRef(!!props.autoStart);
+
+onMounted(async () => {
+  if (!props.autoStart) return;
+  if (startable()) await submit();
+  starting.value = false;
+});
+
 function onVisible(visible: boolean) {
   if (!visible) emit('close');
 }
@@ -276,7 +286,7 @@ function onVisible(visible: boolean) {
 
 <template>
   <VDialog
-    :visible="true"
+    :visible="!starting"
     modal
     position="top"
     :closable="false"

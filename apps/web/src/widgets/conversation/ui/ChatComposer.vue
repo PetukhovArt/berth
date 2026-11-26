@@ -8,13 +8,11 @@ import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { PlainKey } from '../../../shared/lib/i18n/translate';
 import { speechLang, useHoldToTalk, type HoldToTalkIssue } from '../../../shared/lib/dictation';
-import { listSlashCommands, matchSlashCommands, uploadName, uploadSrc, type AcpAttachmentUpload, type AcpChatCaps, type AcpConfigOption, type AcpMcpServer, type PromptQuote, type SlashCommand, type SlashSource, type TranscriptMessage } from '../../../entities/session';
+import { AttachmentChip, listSlashCommands, matchSlashCommands, uploadName, uploadSrc, type AcpAttachmentUpload, type AcpChatCaps, type AcpConfigOption, type AcpMcpServer, type PromptQuote, type SlashCommand, type SlashSource, type TranscriptMessage, useAttachments } from '../../../entities/session';
 import { useDock } from '../../../shared/model/dock';
 import { isAvailable, showViewInActivePanel } from '../../../features/session-view-switch';
-import { useAttachments } from '../model/useAttachments';
 import { useMention } from '../model/useMention';
 import { useVoiceLoop } from '../model/useVoiceLoop';
-import AttachmentChip from './AttachmentChip.vue';
 import OptionPicker from './OptionPicker.vue';
 import McpPicker from './McpPicker.vue';
 
