@@ -12,13 +12,15 @@ const HOOKS: Hook[] = ['created', 'beforeMount', 'mounted', 'beforeUpdate', 'upd
 
 const textOf = (value: Value) => (typeof value === 'string' ? value : value && typeof value === 'object' ? value.value : undefined);
 
+const touch = () => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+
 function normalize(binding: DirectiveBinding<Value>): DirectiveBinding<Value> {
   const { value, modifiers } = binding;
   const placed = PLACED.some((name) => modifiers[name]);
   return {
     ...binding,
     modifiers: placed ? modifiers : { ...modifiers, bottom: true },
-    value: typeof value === 'string' ? { value, showDelay: SHOW_DELAY } : value && typeof value === 'object' ? { showDelay: SHOW_DELAY, ...value } : value,
+    value: typeof value === 'string' ? { value, showDelay: SHOW_DELAY, disabled: touch() } : value && typeof value === 'object' ? { showDelay: SHOW_DELAY, disabled: touch(), ...value } : value,
   };
 }
 

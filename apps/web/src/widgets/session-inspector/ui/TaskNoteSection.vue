@@ -44,7 +44,7 @@ watch(
 <template>
   <InspectorSection :title="t('inspector.taskNote.title')" testid="inspector-task-note">
     <template v-if="!editing" #action>
-      <VButton :label="note ? t('inspector.taskNote.edit') : t('inspector.taskNote.add')" text size="small" data-testid="inspector-task-note-edit" @click="edit" />
+      <VButton :label="note ? t('inspector.taskNote.edit') : t('inspector.taskNote.add')" link size="small" data-testid="inspector-task-note-edit" @click="edit" />
     </template>
     <form v-if="editing" class="form" data-testid="inspector-task-note-form" @submit.prevent="save(draft)" @keydown.esc.stop="editing = false">
       <VTextarea v-model="draft" rows="4" auto-resize :placeholder="t('taskNote.placeholder')" :aria-label="t('inspector.taskNote.title')" data-testid="inspector-task-note-text" autofocus />

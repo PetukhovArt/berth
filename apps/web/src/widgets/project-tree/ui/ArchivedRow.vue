@@ -74,7 +74,7 @@ async function confirmDelete() {
   opacity: 1;
 }
 
-.icon.danger:hover {
+.icon.danger:not(:disabled):hover {
   color: var(--vr-color-danger);
 }
 

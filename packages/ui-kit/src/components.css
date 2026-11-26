@@ -41,7 +41,11 @@
   display: inline-flex;
   align-items: center;
   gap: var(--vr-space-1);
-  padding: 0.25rem 0.75rem;
+  padding: 2px 0.75rem;
+}
+
+:root .p-togglebutton {
+  white-space: nowrap;
 }
 
 :root .vr-tabs .p-tablist-tab-list {

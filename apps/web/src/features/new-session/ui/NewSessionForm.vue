@@ -323,7 +323,7 @@ function onVisible(visible: boolean) {
                       <span v-if="option.state === 'missing'" class="kind-badge">{{ t('agents.newSession.kindMissing') }}</span>
                       <template v-else-if="option.state === 'signedOut'">
                         <span class="kind-badge">{{ t('agents.newSession.kindSignedOut') }}</span>
-                        <VButton v-if="option.provider" size="small" text severity="secondary" :label="t('agents.newSession.kindSignIn')" data-testid="new-session-kind-sign-in" @mousedown.stop @click.stop="kindStates.signIn(option.provider)" />
+                        <VButton v-if="option.provider" link size="small" :label="t('agents.newSession.kindSignIn')" data-testid="new-session-kind-sign-in" @mousedown.stop @click.stop="kindStates.signIn(option.provider)" />
                       </template>
                     </span>
                   </template>
@@ -430,7 +430,7 @@ function onVisible(visible: boolean) {
       <VMessage v-else-if="action.error.value" severity="error" size="small" data-testid="new-session-error">{{ action.error.value }}</VMessage>
       <p v-if="started" class="started" role="status" data-testid="new-session-started">
         <span>{{ started.text }}</span>
-        <VButton size="small" text :label="t('agents.newSession.startedOpen')" data-testid="new-session-started-open" @click="emit('created', started.session)" />
+        <VButton link size="small" :label="t('agents.newSession.startedOpen')" data-testid="new-session-started-open" @click="emit('created', started.session)" />
       </p>
       <div class="footer">
         <label v-if="!many && !continuing" class="name">
@@ -749,6 +749,20 @@ function onVisible(visible: boolean) {
 
 :root[data-vr-viewport='phone'] .actions {
   flex: 1 0 100%;
+}
+
+:root[data-vr-viewport='phone'] .actions :deep(.action) {
+  flex: 1 1 0;
+  min-height: var(--vr-size-row-touch);
+  border-radius: var(--vr-radius-lg);
+}
+
+:root[data-vr-viewport='phone'] .actions :deep(.action[type='submit']) {
+  flex-grow: 1.4;
+}
+
+:root[data-vr-viewport='phone'] .actions :deep(.action:not([type='submit'])) {
+  background: var(--vr-color-surface-muted);
 }
 
 </style>

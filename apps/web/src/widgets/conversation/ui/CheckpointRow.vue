@@ -43,7 +43,7 @@ async function restore() {
         <span class="time">{{ formatTime(checkpoint.created_at * 1000) }}</span>
       </span>
       <span class="dot" aria-hidden="true">·</span>
-      <VButton :label="t('chat.restore')" text size="small" data-testid="chat-checkpoint-restore" @click="confirming = true" />
+      <VButton :label="t('chat.restore')" link size="small" data-testid="chat-checkpoint-restore" @click="confirming = true" />
     </template>
     <span v-if="error" class="error" role="alert">{{ error }}</span>
   </div>

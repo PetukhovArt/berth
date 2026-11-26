@@ -32,6 +32,7 @@ function isSingle(): boolean {
   <div class="dialog-actions">
     <div v-if="$slots.start" class="start"><slot name="start" :size="size" /></div>
     <VButton
+      class="action"
       type="button"
       :label="cancelLabel ?? (isSingle() ? t('common.close') : t('common.cancel'))"
       :size="size"
@@ -44,6 +45,7 @@ function isSingle(): boolean {
     <slot name="middle" :size="size" />
     <VButton
       v-if="confirmLabel"
+      class="action"
       :type="submit ? 'submit' : 'button'"
       :label="confirmLabel"
       :size="size"

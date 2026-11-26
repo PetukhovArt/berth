@@ -67,8 +67,8 @@ visibleInterval(scope, POLL_MS, () => {
       <span class="end" :data-open="mr.unresolved_threads > 0">{{ mr.unresolved_threads > 0 ? t('inspector.mr.unresolved', { count: mr.unresolved_threads }) : t('inspector.mr.resolved') }}</span>
     </div>
     <div class="actions">
-      <VButton :label="t('inspector.mr.open')" text size="small" data-testid="inspector-mr-open" @click="showViewInActivePanel('mr')" />
-      <VButton v-tooltip="mr.url" :label="t('common.openInBrowser')" icon-pos="right" text size="small" data-testid="inspector-mr-browser" @click="openUrl(mr.url)">
+      <VButton :label="t('inspector.mr.open')" link size="small" data-testid="inspector-mr-open" @click="showViewInActivePanel('mr')" />
+      <VButton v-tooltip="mr.url" :label="t('common.openInBrowser')" icon-pos="right" link size="small" data-testid="inspector-mr-browser" @click="openUrl(mr.url)">
         <template #icon><ExternalLink :size="11" /></template>
       </VButton>
     </div>

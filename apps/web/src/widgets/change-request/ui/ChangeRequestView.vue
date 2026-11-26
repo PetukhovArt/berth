@@ -110,7 +110,7 @@ onMounted(() => {
   <section class="cr" data-testid="change-request">
     <VMessage v-if="failure" class="failure" severity="warn" data-testid="cr-failure">
       <span class="notice-text">{{ t('forge.request.loadFailed', { number: requestLabel, reason: failure }) }}</span>
-      <VButton size="small" severity="secondary" text :label="t('common.refresh')" data-testid="cr-failure-refresh" @click="load" />
+      <VButton link size="small" :label="t('common.refresh')" data-testid="cr-failure-refresh" @click="load" />
     </VMessage>
     <div v-else-if="!cr" class="skeleton" aria-busy="true" data-testid="cr-loading">
       <span class="loading">{{ t('common.loading') }}</span>

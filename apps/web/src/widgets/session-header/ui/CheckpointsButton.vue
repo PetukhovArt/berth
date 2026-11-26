@@ -80,7 +80,7 @@ watch(
             <template v-else>
               <span class="label">{{ label(item) }}</span>
               <span class="time">{{ time(item) }}</span>
-              <VButton :label="t('checkpoints.restore')" text size="small" :data-testid="`checkpoint-restore-${item.number}`" @click="pending = item.number" />
+              <VButton :label="t('checkpoints.restore')" link size="small" :data-testid="`checkpoint-restore-${item.number}`" @click="pending = item.number" />
             </template>
           </li>
         </ul>

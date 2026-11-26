@@ -30,7 +30,7 @@ const text = computed(() => {
     <Eye :size="14" class="eye" />
     <span class="label">{{ t('attention.watch.strip', { label: numberLabel({ url, number: target.number }) }) }}</span>
     <span class="text">{{ text }}</span>
-    <VButton size="small" severity="secondary" text :label="t('attention.watch.stop')" data-testid="cr-watch-stop" @click="stopWatching(target)" />
+    <VButton link size="small" :label="t('attention.watch.stop')" data-testid="cr-watch-stop" @click="stopWatching(target)" />
   </div>
 </template>
 

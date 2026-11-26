@@ -59,6 +59,8 @@ const dangerButton = {
   focusRing: { color: v('btn-danger'), shadow: 'none' },
 };
 
+const linkButton = { color: v('color-link'), hoverColor: v('color-link'), activeColor: v('color-link') };
+
 const tint = (token: string, share: number) => `color-mix(in srgb, ${v(token)} ${share}%, white)`;
 const shade = (token: string, share: number) => `color-mix(in srgb, ${v(token)} ${share}%, black)`;
 
@@ -103,6 +105,8 @@ const BerthPreset = definePreset(Aura, {
   },
   components: {
     toggleswitch: { root: { slideDuration: v('motion-base') } },
+    tag: { root: { fontSize: v('font-size-xs'), fontWeight: '500', padding: '1px 8px' } },
+    togglebutton: { root: { sm: { fontSize: v('font-size-label'), padding: '2px' } }, content: { sm: { padding: '2px 0.75rem' } } },
     tooltip: {
       root: { maxWidth: '20rem', padding: '4px 8px', borderRadius: v('radius-md'), shadow: v('shadow-popover') },
       colorScheme: { light: { root: { background: v('color-surface-raised'), color: v('color-text') } }, dark: { root: { background: v('color-surface-raised'), color: v('color-text') } } },
@@ -132,8 +136,8 @@ const BerthPreset = definePreset(Aura, {
     button: {
       root: { borderRadius: v('radius-md'), gap: '6px', sm: { fontSize: v('font-size-label'), paddingX: '11px', paddingY: '3px', iconOnlyWidth: '28px' } },
       colorScheme: {
-        light: { root: { danger: dangerButton }, outlined: { danger: { color: '{red.600}' } }, text: { danger: { color: '{red.600}' } } },
-        dark: { root: { danger: dangerButton } },
+        light: { root: { danger: dangerButton }, outlined: { danger: { color: '{red.600}' } }, text: { danger: { color: '{red.600}' } }, link: linkButton },
+        dark: { root: { danger: dangerButton }, link: linkButton },
       },
     },
   },
@@ -159,7 +163,7 @@ export function installUiKit(app: App, locale: () => KitLocale): void {
 export { setMotionEnabled, isMotionEnabled } from './motion';
 export { useIsPhone } from './viewport';
 
-export { default as VButton } from 'primevue/button';
+export { VButton } from './Button';
 export { default as VInputText } from 'primevue/inputtext';
 export { default as VTextarea } from 'primevue/textarea';
 export { VSelect } from './Select';

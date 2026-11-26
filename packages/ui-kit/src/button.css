@@ -1,3 +1,25 @@
 .p-button-icon-only.p-button-sm {
   padding-inline: 0;
 }
+
+.p-button.p-button-link {
+  min-height: 0;
+  height: auto;
+  padding: 0;
+  gap: 3px;
+  font-size: var(--vr-font-size-xs);
+  font-weight: 400;
+  text-decoration: none;
+  background: transparent;
+  border-color: transparent;
+  border-radius: var(--vr-radius-sm);
+}
+
+.p-button.p-button-link:not(:disabled):hover {
+  text-decoration: underline;
+  background: transparent;
+}
+
+.p-button.p-button-link:disabled {
+  color: var(--vr-color-text-muted);
+}
