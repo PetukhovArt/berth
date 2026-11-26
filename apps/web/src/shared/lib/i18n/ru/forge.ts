@@ -42,6 +42,7 @@ export const forge: Translation<typeof en> = {
     noSession: 'Над этим запросом не работает ни одна сессия',
     openIssue: 'Открыть {key}',
     pipelineNumber: 'Пайплайн #{id}',
+    tabsLabel: 'Разделы',
     tabOverview: 'Обзор',
     tabChanges: 'Изменения',
     tabPipeline: 'Пайплайн',

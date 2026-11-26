@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { vTooltip } from '../../../shared/ui/kit';
 import { openUrl, type PipelineJob } from '../../../shared/api/connectors/api';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { formatDuration, jobTone } from '../../../entities/merge-request';
@@ -28,7 +29,7 @@ const stages = computed(() => {
     <p v-if="!pipelineJobs.length" class="empty">{{ t('forge.pipelineJobs.empty') }}</p>
     <section v-for="stage in stages" :key="stage.name" class="stage">
       <h4>{{ stage.name }}</h4>
-      <component :is="compact ? 'a' : 'div'" v-for="job in stage.jobs" :key="job.id" class="job" :title="job.status" :href="compact ? job.url : undefined" data-testid="pipeline-job" @click.prevent="compact && openUrl(job.url)">
+      <component :is="compact ? 'a' : 'div'" v-for="job in stage.jobs" :key="job.id" v-tooltip="job.status" class="job" :href="compact ? job.url : undefined" data-testid="pipeline-job" @click.prevent="compact && openUrl(job.url)">
         <StatusIcon :tone="pipelineTone(jobTone(job.status))" />
         <span class="name">{{ job.name }}</span>
         <span class="status">{{ job.status }}</span>
