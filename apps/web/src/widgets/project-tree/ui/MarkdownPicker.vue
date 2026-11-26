@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
-import { VPopover } from '../../../shared/ui/kit';
+import { VButton, VMessage, VPopover, vTooltip } from '../../../shared/ui/kit';
 import { FileText } from '../../../shared/ui/icons';
 import { describeError } from '../../../shared/api/connectors/api';
 import { subsequenceScore } from '../../../shared/lib/fuzzy';
@@ -8,7 +8,6 @@ import { usePickerList } from '../../../shared/lib/usePickerList';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { listWorktreeMarkdown, type MarkdownEntry } from '../../../shared/lib/markdownFiles';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 import UiInput from '../../../shared/ui/UiInput.vue';
 const props = defineProps<{ root: string }>();
 const emit = defineEmits<{ open: [path: string] }>();
@@ -77,22 +76,22 @@ function onShow() {
 </script>
 
 <template>
-  <UiButton class="trigger" type="button" :title="t('files.picker.open')" :aria-label="t('files.picker.open')" aria-haspopup="dialog" data-testid="worktree-markdown" @click="toggle">
-    <FileText :size="14" />
-  </UiButton>
+  <VButton v-tooltip="t('files.picker.open')" class="trigger" text severity="secondary" size="small" :aria-label="t('files.picker.open')" aria-haspopup="dialog" data-testid="worktree-markdown" @click="toggle">
+    <template #icon><FileText :size="14" /></template>
+  </VButton>
   <VPopover ref="popover" @show="onShow">
     <div class="picker" role="dialog" :aria-label="t('files.picker.open')" data-testid="markdown-picker">
       <UiInput ref="input" v-model="query" class="query" type="text" :placeholder="t('files.picker.filter')" :aria-label="t('files.picker.filter')" autocomplete="off" data-testid="markdown-picker-input" @keydown="onKey" />
-      <p v-if="failure" class="note failure" role="alert">{{ failure }}</p>
+      <VMessage v-if="failure" class="failure" severity="error" size="small">{{ failure }}</VMessage>
       <ul ref="list" class="results" role="listbox">
         <li
           v-for="(file, position) in results"
+          v-tooltip="file.rel"
           :key="file.path"
           class="item"
           role="option"
           :aria-selected="position === index"
           :data-current="position === index"
-          :title="file.rel"
           data-testid="markdown-picker-item"
           @pointermove="index = position"
           @click="choose(file)"
@@ -109,22 +108,9 @@ function onShow() {
 
 <style scoped>
 .trigger {
-  display: inline-flex;
   flex: none;
-  align-items: center;
-  justify-content: center;
   width: 22px;
   height: 22px;
-  padding: 0;
-  color: var(--vr-color-text-muted);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-}
-
-.trigger:hover {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
 }
 
 .picker {
@@ -136,13 +122,6 @@ function onShow() {
 .query {
   box-sizing: border-box;
   width: 100%;
-  padding: var(--vr-space-2) var(--vr-space-3);
-  font: inherit;
-  color: var(--vr-color-text);
-  background: none;
-  border: 0;
-  border-bottom: 1px solid var(--vr-color-border);
-  outline: none;
 }
 
 .results {
@@ -188,7 +167,6 @@ function onShow() {
 }
 
 .failure {
-  margin: 0;
-  color: var(--vr-color-danger);
+  margin: var(--vr-space-1);
 }
 </style>

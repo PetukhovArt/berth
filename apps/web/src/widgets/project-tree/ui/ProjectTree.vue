@@ -2,9 +2,10 @@
 import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
 import { Check, ChevronRight, Ellipsis, GitPullRequestDraft, MessageSquare, Plus, RefreshCw, Search, TriangleAlert, X } from '../../../shared/ui/icons';
 import { tabIcons } from '../model/tabIcons';
+import { tabBadgeSeverity } from '../model/tabBadge';
 import { sidebarSearchRequests } from '../../../shared/model/sidebar';
 import { shortcutLabel } from '../../../shared/lib/commands/keymap';
-import { VContextMenu, useIsPhone } from '../../../shared/ui/kit';
+import { VBadge, VButton, VContextMenu, VSelectButton, VTag, useIsPhone, vTooltip } from '../../../shared/ui/kit';
 import ArchivedExternalRow from './ArchivedExternalRow.vue';
 import ArchivedRow from './ArchivedRow.vue';
 import EndedRow from './EndedRow.vue';
@@ -28,7 +29,6 @@ import { ChannelsSection } from '../../../features/channels';
 import { startCreate } from '../../../features/new-session';
 import { openLeaf, type ReviewMeta, type ReviewVerdict, type WorkNode, treeLiveOnly, treeProjectsCollapsed, treeQuery, treeTab, useWorkTree } from '../../../features/work-tree';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 import { reopenFirstRun } from '../../../shared/model/firstRun';
 import UiInput from '../../../shared/ui/UiInput.vue';
 const props = withDefaults(defineProps<{ tabsShown?: readonly string[]; withInbox?: boolean }>(), { tabsShown: undefined, withInbox: true });
@@ -38,6 +38,14 @@ const dock = useDock();
 const sessions = useSessionDock();
 const { berth, nodes, tabs, activeTab } = useWorkTree();
 const shownTabs = computed(() => (props.tabsShown ? tabs.value.filter((tab) => props.tabsShown?.includes(tab.id)) : tabs.value));
+
+const tabOptions = computed(() => shownTabs.value.map((tab) => ({ value: tab.id, label: tab.label, title: tab.count ? `${tab.label} · ${tab.title}` : tab.label, testId: `tree-tab-${tab.id}` })));
+const tabCount = (id: string) => tabs.value.find((tab) => tab.id === id);
+
+function selectTab(id: string | string[] | null) {
+  const tab = typeof id === 'string' ? tabs.value.find((candidate) => candidate.id === id) : undefined;
+  if (tab) treeTab.value = tab.id;
+}
 
 const filtering = computed(() => treeQuery.value.trim().length > 0);
 const projectsOpen = computed(() => !treeProjectsCollapsed.value || filtering.value);
@@ -123,29 +131,23 @@ const moreItems = computed(() => {
   <section class="project-tree" data-testid="project-tree">
     <div class="head">
       <div class="tabs-box">
-        <div v-if="shownTabs.length > 1" class="tabs" role="tablist" :aria-label="t('workbench.tabs')" :data-n="shownTabs.length">
-          <UiButton
-            v-for="tab in shownTabs"
-            :key="tab.id"
-            class="tab"
-            role="tab"
-            :aria-selected="activeTab === tab.id"
-            :aria-label="tab.label"
-            :title="tab.count ? `${tab.label} · ${tab.title}` : tab.label"
-            :data-testid="`tree-tab-${tab.id}`"
-            @click="treeTab = tab.id"
-          >
-            <component :is="tabIcons[tab.id]" :size="13" class="tab-icon" />
-            <span class="tab-label">{{ tab.label }}</span>
-            <span v-if="tab.count" class="badge" :data-tone="tab.tone" :data-testid="`tree-tab-count-${tab.id}`">{{ tab.count }}</span>
-          </UiButton>
+        <div v-if="shownTabs.length > 1" class="tabs" :data-n="shownTabs.length">
+          <VSelectButton class="tabs-select" :model-value="activeTab" :options="tabOptions" :label="t('workbench.tabs')" @update:model-value="selectTab">
+            <template #option="{ option }">
+              <component :is="tabIcons[option.value as keyof typeof tabIcons]" :size="13" class="tab-icon" />
+              <span class="tab-label">{{ option.label }}</span>
+              <VBadge v-if="tabCount(option.value)?.count" :value="tabCount(option.value)?.count" :severity="tabBadgeSeverity(tabCount(option.value)!.tone)" size="small" :data-testid="`tree-tab-count-${option.value}`" />
+            </template>
+          </VSelectButton>
         </div>
       </div>
     </div>
     <label class="filter">
       <Search :size="14" />
-      <UiInput ref="filterInput" v-model="treeQuery" :placeholder="t('workbench.filter')" :aria-label="t('workbench.filter')" :title="filterTitle" data-testid="tree-filter" @keydown.esc="clearFilter" />
-      <UiButton v-if="treeQuery" type="button" class="icon" :title="t('workbench.clearFilter')" :aria-label="t('workbench.clearFilter')" data-testid="tree-filter-clear" @click="clearFilterButton"><X :size="14" /></UiButton>
+      <UiInput ref="filterInput" v-model="treeQuery" v-tooltip="filterTitle" :placeholder="t('workbench.filter')" :aria-label="t('workbench.filter')" data-testid="tree-filter" @keydown.esc="clearFilter" />
+      <VButton v-if="treeQuery" v-tooltip="t('workbench.clearFilter')" class="icon" text severity="secondary" size="small" :aria-label="t('workbench.clearFilter')" data-testid="tree-filter-clear" @click="clearFilterButton">
+        <template #icon><X :size="14" /></template>
+      </VButton>
     </label>
     <InboxSection v-if="withInbox && activeTab === 'sessions'" class="pinned-inbox" :query="treeQuery" />
     <div class="scroll">
@@ -155,13 +157,17 @@ const moreItems = computed(() => {
       </MrSessionNotice>
       <ChannelsSection v-if="activeTab === 'sessions' && !filtering" />
       <div v-if="activeTab === 'sessions'" class="section-head" data-testid="project-tree-head">
-        <UiButton class="section-toggle" :aria-expanded="projectsOpen" :disabled="filtering" data-testid="project-tree-toggle" @click="treeProjectsCollapsed = !treeProjectsCollapsed">
+        <VButton class="section-toggle" text severity="secondary" size="small" :aria-expanded="projectsOpen" :disabled="filtering" data-testid="project-tree-toggle" @click="treeProjectsCollapsed = !treeProjectsCollapsed">
           <ChevronRight :size="14" class="chevron vr-chevron" />
           <span class="section-title">{{ t('workbench.tree') }}</span>
-        </UiButton>
+        </VButton>
         <span class="section-actions">
-          <UiButton v-if="moreItems.length" class="icon more" :data-active="liveShown" :title="t('workbench.more')" :aria-label="t('workbench.more')" aria-haspopup="menu" data-testid="tree-more" @click="moreMenu?.show($event)"><Ellipsis :size="14" /></UiButton>
-          <UiButton v-if="addWorkspaceId" class="icon" :title="t('agents.project.add')" :aria-label="t('agents.project.add')" data-testid="project-add" @click="projectAdd?.openAdd()"><Plus :size="14" /></UiButton>
+          <VButton v-if="moreItems.length" v-tooltip="t('workbench.more')" class="icon more" text severity="secondary" size="small" :data-active="liveShown" :aria-label="t('workbench.more')" aria-haspopup="menu" data-testid="tree-more" @click="moreMenu?.show($event)">
+            <template #icon><Ellipsis :size="14" /></template>
+          </VButton>
+          <VButton v-if="addWorkspaceId" v-tooltip="t('agents.project.add')" class="icon" text severity="secondary" size="small" :aria-label="t('agents.project.add')" data-testid="project-add" @click="projectAdd?.openAdd()">
+            <template #icon><Plus :size="14" /></template>
+          </VButton>
         </span>
       </div>
       <ProjectActions v-if="activeTab === 'sessions' && addWorkspaceId" ref="projectAdd" :workspace-id="addWorkspaceId" bare @added="treeProjectsCollapsed = false" />
@@ -181,18 +187,18 @@ const moreItems = computed(() => {
         </template>
         <template #rollup="{ node }">
           <StatusIcon v-if="node.kind !== 'project' && node.data?.rollup?.total" :status="node.data.rollup.status" :unseen="node.data.rollup.unseen" />
-          <span v-if="node.data?.pipeline && node.data.pipeline !== 'none'" class="pipe" :title="pipelineLabel(node.data.pipeline)"><StatusIcon :tone="pipelineTone(node.data.pipeline)" /></span>
+          <span v-if="node.data?.pipeline && node.data.pipeline !== 'none'" v-tooltip="pipelineLabel(node.data.pipeline)" class="pipe"><StatusIcon :tone="pipelineTone(node.data.pipeline)" /></span>
         </template>
         <template #leaf="{ node, data }">
           <span v-if="data?.item" class="line" data-testid="tree-mr-row" :data-mr="`${data.item.project}!${data.item.number}`" @contextmenu="showArchMenu($event, data.item, data.review)">
-            <span v-if="data.item.draft" class="draft" :title="t('forge.draft')" :aria-label="t('forge.draft')" data-testid="tree-mr-draft"><GitPullRequestDraft :size="14" /></span>
+            <span v-if="data.item.draft" v-tooltip="t('forge.draft')" class="draft" :aria-label="t('forge.draft')" data-testid="tree-mr-draft"><GitPullRequestDraft :size="14" /></span>
             <span class="key">{{ numberLabel(data.item) }}</span>
-            <span v-if="jiraRefs(data.review)" class="refs" data-testid="tree-mr-refs">{{ jiraRefs(data.review) }}</span>
+            <VTag v-if="jiraRefs(data.review)" class="refs" :value="jiraRefs(data.review)" rounded data-testid="tree-mr-refs" />
             <span class="title">{{ shownTitle(data.item) }}</span>
-            <span v-if="data.verdict" class="verdict" :data-verdict="data.verdict" :title="verdictTitle(data.verdict, data.review?.note)" data-testid="tree-mr-verdict">{{ verdictText(data.verdict) }}</span>
-            <span v-else-if="data.review?.note" class="verdict note" :title="data.review.note" data-testid="tree-mr-note">{{ data.review.note }}</span>
-            <span v-if="data.item.unresolved_threads" class="threads" :title="t('forge.unresolvedThreads', { count: data.item.unresolved_threads })"><MessageSquare :size="12" />{{ data.item.unresolved_threads }}</span>
-            <span v-if="data.item.pipeline !== 'none'" class="pipe" :title="pipelineLabel(data.item.pipeline)"><StatusIcon :tone="pipelineTone(data.item.pipeline)" /></span>
+            <VTag v-if="data.verdict" v-tooltip="verdictTitle(data.verdict, data.review?.note)" class="verdict" :value="verdictText(data.verdict)" :severity="data.verdict === 'pending' ? 'secondary' : 'success'" rounded data-testid="tree-mr-verdict" />
+            <VTag v-else-if="data.review?.note" v-tooltip="data.review.note" class="verdict note" :value="data.review.note" severity="secondary" rounded data-testid="tree-mr-note" />
+            <span v-if="data.item.unresolved_threads" v-tooltip="t('forge.unresolvedThreads', { count: data.item.unresolved_threads })" class="threads"><MessageSquare :size="12" />{{ data.item.unresolved_threads }}</span>
+            <span v-if="data.item.pipeline !== 'none'" v-tooltip="pipelineLabel(data.item.pipeline)" class="pipe"><StatusIcon :tone="pipelineTone(data.item.pipeline)" /></span>
           </span>
           <span v-else-if="data?.issue" class="line" data-testid="tree-issue-row">
             <TypeIcon :type="data.issue.issue_type" />
@@ -216,12 +222,12 @@ const moreItems = computed(() => {
           <EndedRow v-else-if="node.kind === 'ended-session' && node.data?.session" :session="node.data.session" :where="node.data.where" />
           <ArchivedRow v-else-if="node.kind === 'archived' && node.data?.session" :session="node.data.session" :where="node.data.where" />
           <ArchivedExternalRow v-else-if="node.kind === 'archived-external' && node.data?.external" :session="node.data.external" @open="(split) => node.data?.external && sessions.openExternal(node.data.external, split)" />
-          <div v-else-if="node.kind === 'review-state' && node.data?.reviewState" class="review-state" :data-error="!!node.data.reviewState.error" :title="node.data.reviewState.error ?? undefined" role="status" data-testid="review-state">
+          <div v-else-if="node.kind === 'review-state' && node.data?.reviewState" v-tooltip="node.data.reviewState.error ?? undefined" class="review-state" :data-error="!!node.data.reviewState.error" role="status" data-testid="review-state">
             <template v-if="node.data.reviewState.error"><TriangleAlert :size="12" /><span class="review-text">{{ node.data.reviewState.error }}</span></template>
             <template v-else><RefreshCw :size="12" class="spin" /><span class="review-text">{{ node.label }}</span></template>
           </div>
           <ul v-else-if="node.kind === 'review-notes' && node.data?.notes" class="review-notes" :aria-label="node.label" data-testid="review-notes">
-            <li v-for="(note, index) in node.data.notes" :key="index" :title="note.text"><b v-if="note.refs.length">{{ note.refs.join(', ') }}</b> {{ note.text }}</li>
+            <li v-for="(note, index) in node.data.notes" :key="index" v-tooltip="note.text"><b v-if="note.refs.length">{{ note.refs.join(', ') }}</b> {{ note.text }}</li>
           </ul>
         </template>
         <template #badges="{ node }">
@@ -234,7 +240,9 @@ const moreItems = computed(() => {
           <template v-if="node.kind === 'worktree' && node.data?.worktree">
             <OpenChannelAction v-if="!node.data.worktree.main" :channel-key="channelKeyOf(node.data.worktree.branch)" variant="icon" />
             <MarkdownPicker :root="node.data.worktree.path" @open="sessions.openFile($event, { worktreeId: node.data.worktree.id })" />
-            <UiButton class="icon" :title="t('agents.newSession.action')" :aria-label="t('agents.newSession.action')" data-testid="worktree-new-session" @click="startCreate(node.data.worktree.id, true)"><Plus :size="14" /></UiButton>
+            <VButton v-tooltip="t('agents.newSession.action')" class="icon" text severity="secondary" size="small" :aria-label="t('agents.newSession.action')" data-testid="worktree-new-session" @click="startCreate(node.data.worktree.id, true)">
+              <template #icon><Plus :size="14" /></template>
+            </VButton>
           </template>
           <WorkspaceActions v-else-if="node.kind === 'workspace' && node.data?.workspaceId" :workspace-id="node.data.workspaceId" />
           <RepoActions v-else-if="node.kind === 'repo' && node.data?.repo" :repo="node.data.repo" />
@@ -254,8 +262,8 @@ const moreItems = computed(() => {
             <span class="empty-title">{{ t('workbench.emptyTree.title') }}</span>
             <span class="empty-text">{{ t('workbench.emptyTree.text') }}</span>
             <div class="empty-actions">
-              <UiButton class="empty-primary" data-testid="tree-empty-add" @click="projectAdd?.openAdd()">{{ t('workbench.emptyTree.add') }}</UiButton>
-              <UiButton class="empty-secondary" data-testid="tree-empty-welcome" @click="reopenFirstRun">{{ t('workbench.emptyTree.welcome') }}</UiButton>
+              <VButton size="small" :label="t('workbench.emptyTree.add')" data-testid="tree-empty-add" @click="projectAdd?.openAdd()" />
+              <VButton size="small" severity="secondary" :label="t('workbench.emptyTree.welcome')" data-testid="tree-empty-welcome" @click="reopenFirstRun" />
             </div>
           </div>
           <p v-else class="empty" data-testid="tree-empty">{{ filtering ? t('workbench.nothingFound') : t('workbench.empty') }}</p>
@@ -264,7 +272,7 @@ const moreItems = computed(() => {
     </div>
     <VContextMenu ref="moreMenu" :model="moreItems">
       <template #item="{ item, props: itemProps }">
-        <a v-bind="itemProps.action" :title="item.title" :data-testid="`tree-more-${item.key}`">
+        <a v-bind="itemProps.action" v-tooltip="item.title" :data-testid="`tree-more-${item.key}`">
           <span class="more-label">{{ item.label }}</span>
           <Check v-if="item.checked" :size="14" />
         </a>
@@ -272,7 +280,7 @@ const moreItems = computed(() => {
     </VContextMenu>
     <VContextMenu ref="archMenu" :model="archItems">
       <template #item="{ item, props: itemProps }">
-        <a v-bind="itemProps.action" :title="item.title" :data-testid="`mr-menu-${item.key}`">{{ item.label }}</a>
+        <a v-bind="itemProps.action" v-tooltip="item.title" :data-testid="`mr-menu-${item.key}`">{{ item.label }}</a>
       </template>
     </VContextMenu>
   </section>
@@ -303,11 +311,11 @@ const moreItems = computed(() => {
 .filter input {
   flex: 1;
   min-width: 0;
+  padding: 0;
   font: inherit;
-  color: var(--vr-color-text);
   background: none;
   border: 0;
-  outline: none;
+  box-shadow: none;
 }
 
 .head {
@@ -327,39 +335,10 @@ const moreItems = computed(() => {
 
 .tabs {
   display: flex;
-  gap: 2px;
-  padding: 2px;
-  background: var(--vr-color-surface-muted);
-  border-radius: var(--vr-radius-md);
 }
 
-.tab {
-  display: inline-flex;
-  flex: 1 1 auto;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  min-width: 0;
-  height: 24px;
-  padding: 0 4px;
-  font: inherit;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-text-muted);
-  white-space: nowrap;
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-  transition: background var(--vr-motion-overlay-in, 0.12s) ease;
-}
-
-.tab:hover {
-  color: var(--vr-color-text);
-}
-
-.tab[aria-selected='true'] {
-  color: var(--vr-color-text);
-  background: var(--vr-color-surface);
-  box-shadow: var(--vr-elevation-card);
+.tabs-select {
+  width: 100%;
 }
 
 .tab-icon {
@@ -373,25 +352,12 @@ const moreItems = computed(() => {
   text-overflow: ellipsis;
 }
 
-.badge {
-  flex: none;
-  font-size: var(--vr-font-size-2xs);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--vr-color-text-muted);
-}
-
-.badge[data-tone='accent'] {
-  color: var(--vr-color-text);
-}
-
-.badge[data-tone='alert'] {
-  color: var(--vr-status-feedback);
-}
-
 @container tabs (max-width: 196px) {
   .tab-label {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
   }
 
   .tab-icon {
@@ -401,7 +367,10 @@ const moreItems = computed(() => {
 
 @container tabs (max-width: 248px) {
   .tabs[data-n='4'] .tab-label {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
   }
 
   .tabs[data-n='4'] .tab-icon {
@@ -410,22 +379,9 @@ const moreItems = computed(() => {
 }
 
 .icon {
-  display: inline-flex;
   flex: none;
-  align-items: center;
-  justify-content: center;
   width: 22px;
   height: 22px;
-  padding: 0;
-  color: var(--vr-color-text-muted);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-}
-
-.icon:hover {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
 }
 
 .icon[aria-pressed='true'],
@@ -514,28 +470,13 @@ const moreItems = computed(() => {
 }
 
 .section-toggle {
-  display: flex;
   flex: 1;
-  align-items: center;
+  justify-content: flex-start;
   gap: 7px;
   min-width: 0;
   height: 28px;
   padding: 0 4px 0 6px;
-  font: inherit;
   text-align: left;
-  color: inherit;
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
-  cursor: pointer;
-}
-
-.section-toggle:hover:enabled {
-  background: var(--vr-color-nav-hover);
-}
-
-.section-toggle:disabled {
-  cursor: default;
 }
 
 .section-toggle .chevron {
@@ -611,22 +552,12 @@ const moreItems = computed(() => {
   color: var(--vr-color-conflict);
 }
 
-.refs {
-  flex: none;
-  padding: 0 var(--vr-space-1);
-  font-size: var(--vr-font-size-2xs);
-  color: var(--vr-color-accent);
-  background: var(--vr-color-chip-bg);
-  border-radius: var(--vr-radius-full);
-}
-
+.refs,
 .verdict {
   flex: none;
   padding: 0 var(--vr-space-1);
   font-size: var(--vr-font-size-2xs);
-  color: var(--vr-color-text-muted);
-  background: var(--vr-color-chip-bg);
-  border-radius: var(--vr-radius-full);
+  font-weight: 400;
 }
 
 .verdict.note {
@@ -636,11 +567,6 @@ const moreItems = computed(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.verdict[data-verdict='approved'],
-.verdict[data-verdict='mine'] {
-  color: var(--vr-color-success, var(--vr-color-accent));
 }
 
 .review-state {
@@ -711,30 +637,5 @@ const moreItems = computed(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-}
-
-.empty-primary,
-.empty-secondary {
-  display: inline-flex;
-  flex: none;
-  white-space: nowrap;
-  align-items: center;
-  height: 28px;
-  padding: 0 10px;
-  font: inherit;
-  cursor: pointer;
-  border: 0;
-  border-radius: 7px;
-}
-
-.empty-primary {
-  font-weight: 500;
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-accent);
-}
-
-.empty-secondary {
-  color: var(--vr-color-text);
-  background: var(--vr-color-surface-muted);
 }
 </style>

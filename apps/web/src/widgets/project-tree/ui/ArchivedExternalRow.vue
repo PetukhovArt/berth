@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ArchiveRestore } from '../../../shared/ui/icons';
+import { VButton, VMessage, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
 import { unarchiveExternal, type ExternalSession, HarnessIcon, useAction } from '../../../entities/session';
@@ -18,13 +19,15 @@ function restore() {
 <template>
   <div class="archived" data-testid="archived-external-row" :data-session-id="session.id" :data-harness="session.harness" :data-busy="action.busy.value">
     <div class="line">
-      <UiButton class="open" :title="session.cwd" data-testid="archived-external-open" @click="emit('open', primaryPressed($event))">
+      <UiButton v-tooltip="session.cwd" class="open" data-testid="archived-external-open" @click="emit('open', primaryPressed($event))">
         <HarnessIcon :harness="session.harness" />
         <span class="name">{{ session.title }}</span>
       </UiButton>
-      <UiButton class="icon vr-reveal" :title="t('agents.session.restore')" :aria-label="t('agents.session.restore')" :disabled="action.busy.value" data-testid="archived-external-restore" @click="restore"><ArchiveRestore :size="14" /></UiButton>
+      <VButton v-tooltip="t('agents.session.restore')" class="icon vr-reveal" text severity="secondary" size="small" :aria-label="t('agents.session.restore')" :disabled="action.busy.value" data-testid="archived-external-restore" @click="restore">
+        <template #icon><ArchiveRestore :size="14" /></template>
+      </VButton>
     </div>
-    <p v-if="action.error.value" class="row-error" role="alert" data-testid="archived-external-error">{{ action.error.value }}</p>
+    <VMessage v-if="action.error.value" class="row-error" severity="error" size="small" data-testid="archived-external-error">{{ action.error.value }}</VMessage>
   </div>
 </template>
 
@@ -69,18 +72,9 @@ function restore() {
 }
 
 .icon {
-  display: inline-flex;
   flex: none;
-  align-items: center;
-  justify-content: center;
   width: 22px;
   height: 22px;
-  padding: 0;
-  color: var(--vr-color-text-muted);
-  background: none;
-  border: none;
-  border-radius: var(--vr-radius-sm);
-  cursor: pointer;
   opacity: 0;
 }
 
@@ -89,13 +83,7 @@ function restore() {
   opacity: 1;
 }
 
-.icon:hover {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
-}
-
 .icon:disabled {
-  cursor: default;
   opacity: 0.4;
 }
 
@@ -104,9 +92,6 @@ function restore() {
 }
 
 .row-error {
-  margin: 0;
-  padding: 0 var(--vr-space-2) var(--vr-space-1) var(--vr-space-5);
-  font-size: var(--vr-font-size-2xs);
-  color: var(--vr-color-danger);
+  margin: 0 var(--vr-space-2) var(--vr-space-1) var(--vr-space-5);
 }
 </style>

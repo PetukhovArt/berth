@@ -11,11 +11,12 @@ import ProjectTree from './ProjectTree.vue';
 import { ConnectorErrors, treeTab, useWorkTree } from '../../../features/work-tree';
 import { toggleQuickOpen } from '../../../shared/model/dock';
 import { tabIcons } from '../model/tabIcons';
+import { tabBadgeSeverity } from '../model/tabBadge';
+import { VBadge, VButton, VListbox, vTooltip } from '../../../shared/ui/kit';
 import { useBerth, useSessionDock } from '../../../entities/session';
 import { cleanupCount, openCleanup, removing as cleanupRemoving } from '../../../features/cleanup';
 import { isDesktop } from '../../../bridge';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 defineProps<{ dark: boolean }>();
 const emit = defineEmits<{ theme: [] }>();
 
@@ -118,6 +119,14 @@ const navItems = computed<NavItem[]>(() => {
   return items;
 });
 
+const navOptions = computed(() => navItems.value.map((item) => ({ value: item.kind, label: item.label })));
+const navSelected = computed(() => (navItems.value.some((item) => item.kind === view.value.kind) ? view.value.kind : null));
+
+function selectNav(kind: string | string[] | null) {
+  const item = navItems.value.find((candidate) => candidate.kind === kind);
+  if (item) void navigate({ kind: item.kind });
+}
+
 const shownNav = computed(() => (collapsed.value ? navItems.value.filter((item) => item.kind !== 'agents') : navItems.value));
 const showNav = computed(() => (collapsed.value ? shownNav.value.length > 0 : navItems.value.length > 1));
 
@@ -159,40 +168,54 @@ onUnmounted(() => {
   >
     <slot name="head" />
     <div v-if="collapsed" class="top">
-      <UiButton class="item rail-item" :title="t('agents.layouts.quickOpenTitle')" :aria-label="t('agents.layouts.quickOpen')" data-testid="sidebar-search-open" @click="toggleQuickOpen">
-        <Search :size="16" />
-      </UiButton>
+      <VButton v-tooltip.right="t('agents.layouts.quickOpenTitle')" class="item rail-item" text severity="secondary" size="small" :aria-label="t('agents.layouts.quickOpen')" data-testid="sidebar-search-open" @click="toggleQuickOpen">
+        <template #icon><Search :size="16" /></template>
+      </VButton>
       <span class="rail-divider" role="separator" />
-      <UiButton
+      <VButton
         v-for="tab in workTabs"
         :key="tab.id"
+        v-tooltip.right="tab.count ? `${tab.label} · ${tab.title}` : tab.label"
         class="item rail-item"
+        text
+        severity="secondary"
+        size="small"
         :data-active="view.kind === 'agents' && activeTab === tab.id"
-        :title="tab.count ? `${tab.label} · ${tab.title}` : tab.label"
         :aria-label="tab.label"
         :data-testid="`rail-tab-${tab.id}`"
         @click="openRailTab(tab.id)"
       >
-        <component :is="tabIcons[tab.id]" :size="16" />
-        <span v-if="tab.count" class="count" :data-tone="tab.tone" :data-testid="`rail-tab-count-${tab.id}`">{{ tab.count }}</span>
-      </UiButton>
+        <template #icon>
+          <component :is="tabIcons[tab.id]" :size="16" />
+          <VBadge v-if="tab.count" class="count" :value="tab.count" :severity="tabBadgeSeverity(tab.tone)" size="small" :data-testid="`rail-tab-count-${tab.id}`" />
+        </template>
+      </VButton>
     </div>
 
     <div v-if="showNav" class="primary">
-      <UiButton
-        v-for="item in shownNav"
-        :key="item.kind"
-        class="item vt-nav"
-        :class="{ 'rail-item': collapsed }"
-        :data-active="view.kind === item.kind"
-        :title="collapsed ? item.label : undefined"
-        :aria-label="collapsed ? item.label : undefined"
-        :data-testid="item.testId"
-        @click="navigate({ kind: item.kind })"
-      >
-        <component :is="item.icon" :size="16" />
-        <span v-if="!collapsed">{{ item.label }}</span>
-      </UiButton>
+      <template v-if="collapsed">
+        <VButton
+          v-for="item in shownNav"
+          :key="item.kind"
+          v-tooltip.right="item.label"
+          class="item rail-item"
+          text
+          severity="secondary"
+          size="small"
+          :data-active="view.kind === item.kind"
+          :aria-label="item.label"
+          :data-testid="item.testId"
+          @click="navigate({ kind: item.kind })"
+        >
+          <template #icon><component :is="item.icon" :size="16" /></template>
+        </VButton>
+      </template>
+      <VListbox v-else flat :model-value="navSelected" :options="navOptions" :label="t('shell.nav.label')" @update:model-value="selectNav">
+        <template #option="{ option }">
+          <component :is="navItems.find((item) => item.kind === option.value)?.icon" :size="16" />
+          <span :data-testid="navItems.find((item) => item.kind === option.value)?.testId">{{ option.label }}</span>
+        </template>
+      </VListbox>
     </div>
 
     <div v-if="!collapsed" class="sections">
@@ -200,47 +223,60 @@ onUnmounted(() => {
     </div>
 
     <footer>
-      <UiButton
+      <VButton
+        v-tooltip="shortcutTitle(t('shell.settings'), 'nav.settings')"
         class="icon"
+        text
+        severity="secondary"
+        size="small"
         :data-active="view.kind === 'settings'"
-        :title="shortcutTitle(t('shell.settings'), 'nav.settings')"
         :aria-label="t('shell.settings')"
         data-testid="open-settings"
         @click="toggleSettings"
       >
-        <Settings :size="16" />
-      </UiButton>
+        <template #icon><Settings :size="16" /></template>
+      </VButton>
       <ConnectorErrors v-if="!isDesktop" />
-      <UiButton
+      <VButton
+        v-tooltip="shortcutTitle(collapseLabel, 'sidebar.toggle')"
         class="icon"
-        :title="shortcutTitle(collapseLabel, 'sidebar.toggle')"
+        text
+        severity="secondary"
+        size="small"
         :aria-label="collapseLabel"
         :aria-expanded="!collapsed"
         data-testid="sidebar-collapse"
         @click="toggleSidebar"
       >
-        <PanelLeftOpen v-if="collapsed" :size="16" />
-        <PanelLeftClose v-else :size="16" />
-      </UiButton>
-      <UiButton v-if="berth" class="icon" :title="t('agents.metrics.open')" :aria-label="t('agents.metrics.title')" data-testid="open-metrics" @click="sessions.openMetrics()"><Activity :size="16" /></UiButton>
-      <UiButton class="icon" :title="dark ? t('shell.themeLight') : t('shell.themeDark')" :aria-label="dark ? t('shell.themeLight') : t('shell.themeDark')" data-testid="toggle-theme" @click="emit('theme')">
-        <Sun v-if="dark" :size="16" />
-        <Moon v-else :size="16" />
-      </UiButton>
-      <UiButton v-if="!collapsed" class="icon lang" :title="t(`common.language.${nextLocale}`)" :aria-label="t('common.language.label')" data-testid="toggle-language" @click="setLocale(nextLocale)">
-        {{ locale.toUpperCase() }}
-      </UiButton>
-      <UiButton
+        <template #icon>
+          <PanelLeftOpen v-if="collapsed" :size="16" />
+          <PanelLeftClose v-else :size="16" />
+        </template>
+      </VButton>
+      <VButton v-if="berth" v-tooltip="t('agents.metrics.open')" class="icon" text severity="secondary" size="small" :aria-label="t('agents.metrics.title')" data-testid="open-metrics" @click="sessions.openMetrics()">
+        <template #icon><Activity :size="16" /></template>
+      </VButton>
+      <VButton v-tooltip="dark ? t('shell.themeLight') : t('shell.themeDark')" class="icon" text severity="secondary" size="small" :aria-label="dark ? t('shell.themeLight') : t('shell.themeDark')" data-testid="toggle-theme" @click="emit('theme')">
+        <template #icon>
+          <Sun v-if="dark" :size="16" />
+          <Moon v-else :size="16" />
+        </template>
+      </VButton>
+      <VButton v-if="!collapsed" v-tooltip="t(`common.language.${nextLocale}`)" class="icon lang" text severity="secondary" size="small" :label="locale.toUpperCase()" :aria-label="t('common.language.label')" data-testid="toggle-language" @click="setLocale(nextLocale)" />
+      <VButton
         v-if="!collapsed && berth && isDesktop && (cleanupCount || cleanupRemoving)"
+        v-tooltip="cleanupRemoving ? t('cleanup.removing', { name: cleanupRemoving.name }) : t('cleanup.buttonCount', { count: cleanupCount })"
         class="cleanup-note"
-        :title="cleanupRemoving ? t('cleanup.removing', { name: cleanupRemoving.name }) : t('cleanup.buttonCount', { count: cleanupCount })"
+        text
+        severity="secondary"
+        size="small"
         :aria-label="t('cleanup.button')"
         data-testid="open-cleanup"
         @click="openCleanup"
       >
         <LoaderCircle v-if="cleanupRemoving" :size="12" class="spin" data-testid="cleanup-removing" />
         <span class="cleanup-text" data-testid="cleanup-count">{{ cleanupRemoving ? t('cleanup.removing', { name: cleanupRemoving.name }) : t('cleanup.buttonCount', { count: cleanupCount }) }}</span>
-      </UiButton>
+      </VButton>
     </footer>
 
     <div
@@ -301,6 +337,7 @@ onUnmounted(() => {
 
 .item.rail-item {
   justify-content: center;
+  width: 100%;
   height: 30px;
   padding: 0;
 }
@@ -350,67 +387,16 @@ onUnmounted(() => {
 }
 
 .item {
-  display: flex;
-  align-items: center;
-  gap: var(--vr-space-2);
-  width: 100%;
-  height: 28px;
-  padding: 0 var(--vr-space-2);
-  font: inherit;
-  text-align: left;
-  color: inherit;
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
-}
-
-.item {
   position: relative;
-}
-
-.count {
-  min-width: 1.45em;
-  padding: 0 var(--vr-space-1);
-  margin-left: auto;
-  font-size: var(--vr-font-size-2xs);
-  font-weight: 600;
-  line-height: 1.45;
-  text-align: center;
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-accent);
-  border-radius: var(--vr-radius-full);
 }
 
 .rail-item .count {
   position: absolute;
   top: 1px;
   right: 0;
-  min-width: 14px;
-  height: 14px;
-  padding: 0 3px;
-  margin-left: 0;
-  font-size: calc(var(--vr-font-size-2xs) * 0.86);
-  line-height: 1;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.count[data-tone='alert'] {
-  background: var(--vr-status-feedback);
-}
-
-.count[data-tone='muted'] {
-  background: var(--vr-color-text-muted);
-}
-
-.item:hover {
-  background: var(--vr-color-nav-hover);
 }
 
 .item[data-active='true'] {
-  font-weight: 600;
   background: var(--vr-color-nav-active);
 }
 
@@ -424,7 +410,6 @@ onUnmounted(() => {
 }
 
 .icon.lang {
-  font: inherit;
   font-size: var(--vr-font-size-2xs);
   font-weight: 600;
 }
@@ -437,25 +422,14 @@ footer {
 }
 
 .cleanup-note {
-  display: inline-flex;
   flex: 1;
-  align-items: center;
+  justify-content: flex-start;
   gap: var(--vr-space-1);
   min-width: 0;
   height: 28px;
   padding: 0 var(--vr-space-1);
-  font: inherit;
   font-size: var(--vr-font-size-2xs);
-  color: var(--vr-color-text-muted);
   text-align: left;
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
-}
-
-.cleanup-note:hover {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
 }
 
 .cleanup-text {
@@ -478,21 +452,11 @@ footer {
 
 .icon {
   flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 28px;
   height: 28px;
-  padding: 0;
-  color: var(--vr-color-chrome);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
 }
 
-.icon:hover,
 .icon[data-active='true'] {
-  color: var(--vr-color-text);
   background: var(--vr-color-nav-hover);
 }
 </style>

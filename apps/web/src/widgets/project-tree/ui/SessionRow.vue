@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
-import { VContextMenu, VInputText } from '../../../shared/ui/kit';
+import { VButton, VContextMenu, VInputText, VMessage, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
 import { canContinueAsAgent, continueTerminalInDock, sessionStateOf, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, isStopped, useAction, useHollow, StatusDot } from '../../../entities/session';
@@ -124,6 +124,7 @@ async function confirmDelete() {
     />
     <template v-else>
       <UiButton
+        v-tooltip="`${session.name} — ${label}`"
         class="row status-host"
         data-testid="session-row"
         :data-session-id="session.id"
@@ -135,7 +136,6 @@ async function confirmDelete() {
         :data-linked-harness="linked?.harness"
         :data-linked-session-id="linked?.id"
         :data-linked-status="linked?.status"
-        :title="`${session.name} — ${label}`"
         @click="emit('open', primaryPressed($event))"
         @contextmenu.prevent="showMenu"
       >
@@ -143,17 +143,24 @@ async function confirmDelete() {
         <span class="name">{{ session.name }}</span>
         <span class="label" data-testid="session-row-label">{{ label }}</span>
       </UiButton>
-      <UiButton v-if="linked" class="more conversation" :title="t('workbench.external.open')" :aria-label="t('workbench.external.open')" data-testid="session-open-conversation" @click="emit('open-conversation')"><MessageSquare :size="14" /></UiButton>
-      <UiButton class="more" :title="t('agents.session.actions')" :aria-label="t('agents.session.actions')" aria-haspopup="menu" data-testid="session-menu" @click="showMenu"><Ellipsis :size="14" /></UiButton>
-      <UiButton
+      <VButton v-if="linked" v-tooltip="t('workbench.external.open')" class="more conversation" text severity="secondary" size="small" :aria-label="t('workbench.external.open')" data-testid="session-open-conversation" @click="emit('open-conversation')">
+        <template #icon><MessageSquare :size="14" /></template>
+      </VButton>
+      <VButton v-tooltip="t('agents.session.actions')" class="more" text severity="secondary" size="small" :aria-label="t('agents.session.actions')" aria-haspopup="menu" data-testid="session-menu" @click="showMenu">
+        <template #icon><Ellipsis :size="14" /></template>
+      </VButton>
+      <VButton
         v-if="session.suggestion"
+        v-tooltip="t('agents.route.suggestTitle', { rule: routeRuleLabel(session.suggestion.rule) })"
         class="suggestion"
-        :title="t('agents.route.suggestTitle', { rule: routeRuleLabel(session.suggestion.rule) })"
+        text
+        severity="secondary"
+        size="small"
+        :label="suggestionText"
         :disabled="action.busy.value"
         data-testid="session-route-suggestion"
         @click="applySuggestion"
-        >{{ suggestionText }}</UiButton
-      >
+      />
     </template>
     <VContextMenu ref="menu" :model="menuItems">
       <template #item="{ item, props: itemProps }">
@@ -162,7 +169,7 @@ async function confirmDelete() {
     </VContextMenu>
     <SessionDeleteConfirm v-if="mode === 'confirming-delete'" :name="session.name" :alive="alive !== false" :busy="action.busy.value" @confirm="confirmDelete" @cancel="cancel" />
     <MoveAgentDialog v-if="moving && movableAgent" :agent="movableAgent" @moved="moving = false" @close="moving = false" />
-    <p v-if="action.error.value" class="row-error" role="alert" data-testid="session-error">{{ action.error.value }}</p>
+    <VMessage v-if="action.error.value" class="row-error" severity="error" size="small" data-testid="session-error">{{ action.error.value }}</VMessage>
   </div>
 </template>
 
@@ -250,16 +257,8 @@ async function confirmDelete() {
   position: absolute;
   top: 0;
   right: var(--vr-space-1);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 22px;
   height: 28px;
-  padding: 0;
-  color: var(--vr-color-text-muted);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-sm);
   opacity: 0;
 }
 
@@ -272,31 +271,16 @@ async function confirmDelete() {
   opacity: 1;
 }
 
-.more:hover {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
-}
-
 .rename {
   margin-left: var(--vr-space-4);
   width: calc(100% - var(--vr-space-4));
 }
 
 .suggestion {
-  display: block;
+  display: flex;
   margin: 0 0 var(--vr-space-1) calc(var(--vr-space-5) + 19px);
-  padding: 1px var(--vr-space-2);
-  font: inherit;
   font-size: var(--vr-font-size-2xs);
   color: var(--vr-status-limit);
-  background: var(--vr-color-surface-muted);
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-  cursor: pointer;
-}
-
-.suggestion:hover {
-  color: var(--vr-color-text);
 }
 
 :root[data-vr-viewport='phone'] .session {
@@ -341,10 +325,7 @@ async function confirmDelete() {
 }
 
 .row-error {
-  margin: 0;
-  padding: 0 var(--vr-space-2) var(--vr-space-1) var(--vr-space-5);
-  font-size: var(--vr-font-size-2xs);
-  color: var(--vr-color-danger);
+  margin: 0 var(--vr-space-2) var(--vr-space-1) var(--vr-space-5);
 }
 
 </style>
