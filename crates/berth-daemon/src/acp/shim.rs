@@ -63,6 +63,7 @@ mod tests {
         );
     }
 
+    #[cfg(windows)]
     #[test]
     fn a_shim_unwraps_to_node_and_its_script() {
         let dir = tempfile::tempdir().unwrap();
