@@ -260,8 +260,15 @@ watch(
   { immediate: true },
 );
 
+async function toBottom() {
+  await nextTick();
+  const el = scroller.value;
+  if (el && !found.value && !seeking.value) el.scrollTop = el.scrollHeight;
+}
+
 onMounted(() => {
   drainRestored();
+  if (acp) void toBottom();
   const element = section.value;
   if (!element) return;
   observer = new IntersectionObserver((entries) => {
@@ -299,8 +306,10 @@ async function submit(text: string, viaVoice: boolean, uploads: AcpAttachmentUpl
   sending.value = true;
   const body = quotes.value.length ? `${quotes.value.map((quote) => quote.text.trimEnd()).join('\n\n')}\n\n${text}` : text;
   try {
-    if (acp) await acp.send(body, uploads);
-    else {
+    if (acp) {
+      await acp.send(body, uploads);
+      void toBottom();
+    } else {
       await sendInput(props.terminal, `\x1b[200~${body}\x1b[201~`);
       await sendInput(props.terminal, '\r');
     }
