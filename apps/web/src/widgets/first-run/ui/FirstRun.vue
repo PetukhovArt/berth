@@ -202,7 +202,7 @@ onUnmounted(() => {
         <div v-if="projects.length" class="block">
           <div class="title-row">
             <h2 class="title">{{ t('workbench.firstRun.projects') }} <span class="hint">{{ t('workbench.firstRun.projectsHint') }}</span></h2>
-            <VButton link size="small" :aria-expanded="expanded" :label="expanded ? t('workbench.firstRun.showFewer') : t('workbench.firstRun.reviewAll')" data-testid="first-run-review-all" @click="expanded = !expanded" />
+            <VButton link size="small" class="title-link" :aria-expanded="expanded" :label="expanded ? t('workbench.firstRun.showFewer') : t('workbench.firstRun.reviewAll')" data-testid="first-run-review-all" @click="expanded = !expanded" />
           </div>
           <ul class="agents" data-testid="first-run-projects">
             <li v-for="p in shown" :key="p.path" class="agent" :data-testid="`first-run-project-${p.name}`">
@@ -224,17 +224,17 @@ onUnmounted(() => {
         <div v-if="forges.length || hosts.length" class="block">
           <div class="title-row">
             <h2 class="title">{{ t('workbench.firstRun.mergeRequests') }} <span class="hint">{{ t('workbench.firstRun.mergeRequestsHint') }}</span></h2>
-            <VButton link size="small" :label="t('workbench.firstRun.jiraOrConfluence')" data-testid="first-run-connectors" @click="openSettings('connectors')" />
+            <VButton link size="small" class="title-link" :label="t('workbench.firstRun.jiraOrConfluence')" data-testid="first-run-connectors" @click="openSettings('connectors')" />
           </div>
           <ul class="agents" data-testid="first-run-forges">
-            <li v-for="c in forges" :key="c.id" class="agent" :data-testid="`first-run-forge-${c.id}`">
+            <li v-for="c in forges" :key="c.id" class="agent forge" :data-testid="`first-run-forge-${c.id}`">
               <span class="pick">
                 <VCheckbox :model-value="true" disabled :aria-label="hostOf(c.base_url)" />
                 <span class="name host">{{ hostOf(c.base_url) }}</span>
               </span>
               <span class="state" data-tone="ok">{{ signedIn(c.account?.username) }}</span>
             </li>
-            <li v-for="d in hosts" :key="hostKey(d)" class="agent" :data-testid="`first-run-host-${hostOf(d.base_url)}`">
+            <li v-for="d in hosts" :key="hostKey(d)" class="agent forge" :data-testid="`first-run-host-${hostOf(d.base_url)}`">
               <label class="pick">
                 <VCheckbox :model-value="!skippedHosts.has(hostKey(d))" :disabled="adding" :aria-label="hostOf(d.base_url)" data-testid="first-run-host-check" @update:model-value="toggleHost(d, $event === true)" />
                 <span class="name host">{{ hostOf(d.base_url) }}</span>
@@ -376,8 +376,17 @@ onUnmounted(() => {
 }
 
 .host {
+  min-width: 0;
+  overflow: hidden;
   font-family: var(--vr-font-mono);
   font-size: var(--vr-font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title-link {
+  flex: none;
+  white-space: nowrap;
 }
 
 .phone {
@@ -475,5 +484,40 @@ onUnmounted(() => {
   font-family: var(--vr-font-mono);
   font-size: var(--vr-font-size-2xs);
   opacity: 0.6;
+}
+
+:root[data-vr-viewport='phone'] .content {
+  padding: var(--vr-space-6) var(--vr-space-4);
+}
+
+:root[data-vr-viewport='phone'] .forge {
+  flex-wrap: wrap;
+  row-gap: var(--vr-space-1);
+}
+
+:root[data-vr-viewport='phone'] .forge .state {
+  margin-left: auto;
+}
+
+:root[data-vr-viewport='phone'] .title-row {
+  align-items: flex-start;
+}
+
+:root[data-vr-viewport='phone'] .title-row .hint {
+  display: block;
+  margin-left: 0;
+}
+
+:root[data-vr-viewport='phone'] .footer {
+  flex-direction: column-reverse;
+  align-items: stretch;
+  height: auto;
+  min-height: 64px;
+  padding: var(--vr-space-3) var(--vr-space-4);
+}
+
+:root[data-vr-viewport='phone'] .footer .spacer,
+:root[data-vr-viewport='phone'] .footer .key {
+  display: none;
 }
 </style>

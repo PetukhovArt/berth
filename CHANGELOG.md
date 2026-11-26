@@ -7,6 +7,7 @@
 - Changed connector errors from red strips above the tree to a plug icon in the title bar: its list shows each failing connector's full message and since when, with `Retry` and `Configure` buttons
 - Fixed the running sessions line on the phone inbox being cut off at the screen edge: a long list of names now ends with an ellipsis
 - Fixed unchecked checkboxes being almost invisible in the dark theme and faint in the light one: the box border is now clearly visible
+- Fixed the first-run screen on a phone: the merge requests list is no longer covered by the footer, its heading fits on two lines and long host names no longer overlap their status
 - Fixed box-drawing diagrams in chat and Markdown code blocks: lines and arrows now line up with the text instead of falling short
 - Fixed the Settings category list showing only the first 7 sections: it now uses the full height of the window and scrolls only when the window is too short
 - Removed the OpenClaw skill: `berth sessions`, `berth attention` and `berth send` stay
