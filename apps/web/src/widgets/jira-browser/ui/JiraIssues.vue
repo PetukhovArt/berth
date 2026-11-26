@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
-import { VButton, VInputText } from '../../../shared/ui/kit';
+import { X } from '../../../shared/ui/icons';
+import { VButton, VInputText, VListbox, VMessage, vTooltip } from '../../../shared/ui/kit';
 import { describeError, jiraSearch, reloadWhenRecovered, type JiraIssueSummary } from '../../../shared/api/connectors/api';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
-import ErrorInline from '../../../shared/ui/ErrorInline.vue';
 import { PersonAvatar, PriorityMark, StatusChip, TypeIcon } from '../../../entities/jira-issue';
 import Skeleton from '../../../shared/ui/Skeleton.vue';
 import { readStored, writeStored } from '../../../shared/lib/atlassian';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 type Filter = { id: string; name: string; jql: string };
 
 const props = defineProps<{ connector: string }>();
@@ -62,6 +61,17 @@ const search = ref<{ $el: HTMLInputElement } | null>(null);
 let seq = 0;
 
 const allFilters = computed(() => [...PRESETS, ...custom.value]);
+const presetOptions = computed(() => PRESETS.map((filter) => ({ value: filter.id, label: presetName(filter.id) })));
+const customOptions = computed(() => custom.value.map((filter) => ({ value: filter.id, label: filter.name })));
+const presetValue = computed(() => (PRESETS.some((filter) => filter.id === activeId.value) ? activeId.value : null));
+const customValue = computed(() => (custom.value.some((filter) => filter.id === activeId.value) ? activeId.value : null));
+const filterOf = (id: string) => custom.value.find((filter) => filter.id === id)!;
+const jqlOf = (id: string) => allFilters.value.find((filter) => filter.id === id)?.jql;
+
+function pickFilter(value: string | string[] | null | undefined) {
+  const filter = allFilters.value.find((item) => item.id === value);
+  if (filter) applyFilter(filter);
+}
 
 const suggestions = computed(() => {
   if (!searchFocused.value) return [];
@@ -193,6 +203,10 @@ function startAdd() {
   editing.value = { id: '', name: '' };
 }
 
+function setEditName(name: string | undefined) {
+  if (editing.value) editing.value = { ...editing.value, name: name ?? '' };
+}
+
 function startRename(filter: Filter) {
   editing.value = { id: filter.id, name: filter.name };
 }
@@ -234,30 +248,37 @@ onMounted(() => void load(false));
   <div ref="root" class="jira-issues vr-split" tabindex="0" data-testid="jira-issues" @keydown="onKey">
     <aside class="filters vr-split-aside" :aria-label="t('jira.list.filters')">
       <div class="group-title">{{ t('jira.list.filters') }}</div>
-      <UiButton v-for="filter in PRESETS" :key="filter.id" class="chip" :class="{ active: activeId === filter.id }" :title="filter.jql" @click="applyFilter(filter)">
-        {{ presetName(filter.id) }}
-      </UiButton>
-      <div class="group-title">{{ t('jira.list.myFilters') }}</div>
-      <div v-for="filter in custom" :key="filter.id" class="chip-row">
-        <VInputText
-          v-if="editing?.id === filter.id"
-          v-model="editing.name"
-          v-focus
-          size="small"
-          class="rename"
-          :aria-label="t('jira.list.filterName')"
-          @keydown.enter.prevent="commitEdit"
-          @keydown.esc.prevent="editing = null"
-          @blur="commitEdit"
-        />
-        <template v-else>
-          <UiButton class="chip" :class="{ active: activeId === filter.id }" :title="filter.jql" @click="applyFilter(filter)" @dblclick="startRename(filter)">
-            {{ filter.name }}
-          </UiButton>
-          <UiButton class="mini vr-reveal" :title="t('common.rename')" :aria-label="t('jira.list.renameFilter')" @click="startRename(filter)">✎</UiButton>
-          <UiButton class="mini vr-reveal" :title="t('common.delete')" :aria-label="t('jira.list.deleteFilter')" @click="removeFilter(filter)">×</UiButton>
+      <VListbox flat :model-value="presetValue" :options="presetOptions" :label="t('jira.list.filters')" :filter="false" test-id="jira-filter" @update:model-value="pickFilter">
+        <template #option="{ option }">
+          <span v-tooltip.right="jqlOf(option.value)">{{ option.label }}</span>
         </template>
-      </div>
+      </VListbox>
+      <div class="group-title">{{ t('jira.list.myFilters') }}</div>
+      <VListbox v-if="custom.length" flat :model-value="customValue" :options="customOptions" :label="t('jira.list.myFilters')" :filter="false" test-id="jira-my-filter" @update:model-value="pickFilter">
+        <template #option="{ option }">
+          <VInputText
+            v-if="editing?.id === option.value"
+            :model-value="editing?.name"
+            @update:model-value="setEditName"
+            v-focus
+            size="small"
+            class="rename"
+            :aria-label="t('jira.list.filterName')"
+            @click.stop
+            @keydown.stop
+            @keydown.enter.prevent="commitEdit"
+            @keydown.esc.prevent="editing = null"
+            @blur="commitEdit"
+          />
+          <span v-else class="filter-row">
+            <span v-tooltip.right="jqlOf(option.value)" class="filter-name" @dblclick="startRename(filterOf(option.value))">{{ option.label }}</span>
+            <VButton v-tooltip="t('common.rename')" class="reveal vr-reveal" size="small" text severity="secondary" label="✎" :aria-label="t('jira.list.renameFilter')" @click.stop="startRename(filterOf(option.value))" />
+            <VButton v-tooltip="t('common.delete')" class="reveal vr-reveal" size="small" text severity="secondary" :aria-label="t('jira.list.deleteFilter')" @click.stop="removeFilter(filterOf(option.value))">
+              <template #icon><X :size="14" /></template>
+            </VButton>
+          </span>
+        </template>
+      </VListbox>
       <VInputText
         v-if="editing?.id === ''"
         v-model="editing.name"
@@ -308,7 +329,10 @@ onMounted(() => void load(false));
       </div>
 
       <div class="body">
-        <ErrorInline v-if="error" :message="error" @retry="load(issues.length > 0)" />
+        <VMessage v-if="error" class="error" severity="error" size="small" data-testid="jira-error">
+          <span class="error-text">{{ error }}</span>
+          <VButton :label="t('common.retry')" size="small" severity="secondary" @click="load(issues.length > 0)" />
+        </VMessage>
         <Skeleton v-if="loading" :rows="10" />
         <div v-else-if="!issues.length && !error" class="empty">{{ t('jira.list.empty') }}</div>
         <table v-else-if="issues.length" class="table">
@@ -336,14 +360,14 @@ onMounted(() => void load(false));
             <tr v-for="(issue, index) in issues" :key="issue.key" :data-row="index" :class="{ cursor: index === cursor }" data-testid="jira-row" @click="clickRow(index)">
               <td><TypeIcon :type="issue.issue_type" /></td>
               <td class="key">{{ issue.key }}</td>
-              <td class="summary" :title="issue.summary">{{ issue.summary }}</td>
+              <td v-tooltip="issue.summary" class="summary">{{ issue.summary }}</td>
               <td><StatusChip :status="issue.status" :category="issue.status_category" /></td>
               <td><PriorityMark :priority="issue.priority" /></td>
               <td>
                 <PersonAvatar v-if="issue.assignee" :connector="issue.connector" :person="issue.assignee" small />
                 <span v-else class="muted">-</span>
               </td>
-              <td class="muted" :title="formatDate(issue.updated)">{{ formatRelative(issue.updated) }}</td>
+              <td v-tooltip="formatDate(issue.updated)" class="muted">{{ formatRelative(issue.updated) }}</td>
             </tr>
           </tbody>
         </table>
@@ -386,59 +410,38 @@ onMounted(() => void load(false));
   text-transform: uppercase;
 }
 
-.chip-row {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.chip {
+.filter-name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  padding: var(--vr-space-1) var(--vr-space-3);
-  border: 1px solid var(--vr-color-border);
-  border-radius: var(--vr-radius-full);
-  background: transparent;
-  color: var(--vr-color-text);
-  font: inherit;
-  font-size: var(--vr-font-size-xs);
-  text-align: left;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
 }
 
-.chip:hover {
-  background: var(--vr-color-nav-hover);
+.filter-row {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--vr-space-1);
+  min-width: 0;
 }
 
-.chip.active {
-  border-color: var(--vr-color-accent);
-  background: var(--vr-color-chip-bg);
-}
-
-.mini {
-  flex: none;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-  background: transparent;
-  color: var(--vr-color-text-muted);
+.filter-row .reveal {
   opacity: 0;
-  cursor: pointer;
 }
 
-.chip-row:hover .mini,
-.chip-row:focus-within .mini {
+.filter-row:hover .reveal,
+.filter-row:focus-within .reveal {
   opacity: 1;
 }
 
-.mini:hover {
-  background: var(--vr-color-nav-hover);
-  color: var(--vr-color-text);
+.error {
+  margin: var(--vr-space-4);
+}
+
+.error-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .rename {
