@@ -9,7 +9,7 @@ import { view } from '../../../shared/model/nav';
 import { StatusDot, isRunning, isStopped, useBerth, useSessionDock, useSessionStates, type SessionStatus } from '../../../entities/session';
 import { useInbox } from '../../../features/attention';
 import { startNewSession } from '../../../features/new-session';
-import { useWorkTree } from '../../../features/work-tree';
+import { ConnectorErrors, useWorkTree } from '../../../features/work-tree';
 import { UiButton } from '../../../shared/ui/UiButton';
 import BrandMark from '../../../shared/ui/BrandMark.vue';
 import { phoneSection } from '../model/section';
@@ -95,6 +95,7 @@ const canCreate = computed(() => !inDetail.value && (phoneSection.value === 'inb
       </p>
       <p v-else-if="summary" class="sub" data-testid="phone-header-summary">{{ summary }}</p>
     </div>
+    <ConnectorErrors />
     <UiButton type="button" class="icon" :aria-pressed="paletteOpen" :aria-label="t('mobile.commands')" :title="t('mobile.commands')" data-testid="phone-header-commands" @click="paletteOpen = !paletteOpen"><Command :size="18" /></UiButton>
     <UiButton v-if="canCreate" type="button" class="icon round" :aria-label="t('agents.newSession.action')" :title="t('agents.newSession.action')" data-testid="phone-header-new" @click="startNewSession()"><Plus :size="20" /></UiButton>
   </header>

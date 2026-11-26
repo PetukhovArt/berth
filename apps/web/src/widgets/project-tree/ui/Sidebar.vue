@@ -8,7 +8,7 @@ import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { leaveSettings, navigate, view } from '../../../shared/model/nav';
 import { requestSidebarSearch, sidebarCollapsed, sidebarSearchRequests, toggleSidebar } from '../../../shared/model/sidebar';
 import ProjectTree from './ProjectTree.vue';
-import { treeTab, useWorkTree } from '../../../features/work-tree';
+import { ConnectorErrors, treeTab, useWorkTree } from '../../../features/work-tree';
 import { toggleQuickOpen } from '../../../shared/model/dock';
 import { tabIcons } from '../model/tabIcons';
 import { useBerth, useSessionDock } from '../../../entities/session';
@@ -210,6 +210,7 @@ onUnmounted(() => {
       >
         <Settings :size="16" />
       </UiButton>
+      <ConnectorErrors v-if="!isDesktop" />
       <UiButton
         class="icon"
         :title="shortcutTitle(collapseLabel, 'sidebar.toggle')"

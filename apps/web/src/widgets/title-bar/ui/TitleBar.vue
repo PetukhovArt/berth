@@ -13,7 +13,7 @@ import { view } from '../../../shared/model/nav';
 import { firstRunActive } from '../../../shared/model/firstRun';
 import { UpdateChip } from '../../../features/update';
 import { WorkspaceSwitcher } from '../../../features/manage-workspace';
-import ConnectorErrors from './ConnectorErrors.vue';
+import { ConnectorErrors } from '../../../features/work-tree';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 import BrandMark from '../../../shared/ui/BrandMark.vue';

@@ -5,7 +5,7 @@ import { VButton, VPopover } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { openSettings } from '../../../shared/model/nav';
-import { useWorkTree } from '../../../features/work-tree';
+import { useWorkTree } from '../model/useWorkTree';
 
 const { t, formatTime } = useI18n();
 const { failures, retryConnector } = useWorkTree();
