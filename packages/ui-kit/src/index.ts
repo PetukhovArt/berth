@@ -184,4 +184,5 @@ export { default as VTabs } from './Tabs.vue';
 export { default as VSelectButton } from './SelectButton.vue';
 export { default as VMenu } from './Menu.vue';
 export { default as VListbox } from './Listbox.vue';
+export { default as VRowButton } from './RowButton.vue';
 export { vTooltip } from './Tooltip';

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref } from 'vue';
-import { DARK_CLASS, VBadge, VButton, VCheckbox, VChipGroup, VContextMenu, VDialog, VInputText, VListbox, VMenu, VMessage, VMultiSelect, VPopover, VProgressBar, VSelect, VSelectButton, VTabs, VTag, VTextarea, VToggleButton, VToggleSwitch, vTooltip } from '../src';
+import { DARK_CLASS, VBadge, VButton, VCheckbox, VChipGroup, VContextMenu, VDialog, VInputText, VListbox, VMenu, VMessage, VMultiSelect, VPopover, VProgressBar, VRowButton, VSelect, VSelectButton, VTabs, VTag, VTextarea, VToggleButton, VToggleSwitch, vTooltip } from '../src';
+import { Folder, FolderOpen, GitBranch, Inbox, MessageSquare, SquareTerminal } from '../../../apps/web/src/shared/ui/icons';
 import DialogActions from '../../../apps/web/src/shared/ui/DialogActions.vue';
 import ConfirmPopover from '../../../apps/web/src/shared/ui/ConfirmPopover.vue';
 import Section from './Section.vue';
@@ -92,6 +93,24 @@ const vmenuAnchor = ref<InstanceType<typeof VButton>>();
 const vmenuItems = [{ label: 'Rename', testid: 'gallery-menu-rename' }, { label: 'Move to worktree' }, { separator: true }, { label: 'Delete', danger: true }];
 const pressed = ref(true);
 const checked = ref(true);
+const ROVING = ['claude-main', 'codex-review', 'cursor-spike', 'claude-docs'];
+const roving = ref('codex-review');
+const NAV = [
+  { label: 'Inbox', icon: Inbox },
+  { label: 'Sessions', icon: SquareTerminal },
+  { label: 'Channels', icon: MessageSquare },
+];
+const nav = ref('Sessions');
+
+function rovingKey(event: KeyboardEvent) {
+  const delta = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
+  if (!delta) return;
+  event.preventDefault();
+  const next = ROVING[(ROVING.indexOf(roving.value) + delta + ROVING.length) % ROVING.length];
+  if (!next) return;
+  roving.value = next;
+  nextTick(() => document.querySelector<HTMLElement>(`[data-testid="gallery-roving-${next}"]`)?.focus());
+}
 const dialogOpen = ref(false);
 
 const menuItems = [{ label: 'Rename', command: () => undefined }, { label: 'Move to worktree', command: () => undefined }, { separator: true }, { label: 'Close', command: () => undefined }];
@@ -186,6 +205,7 @@ onMounted(async () => {
       <a href="#badge">VBadge</a>
       <a href="#vmenu">VMenu</a>
       <a href="#listbox">VListbox</a>
+      <a href="#rowbutton">VRowButton</a>
     </nav>
 
     <Section id="button" title="VButton" base="PrimeVue Button" adds="Re-export. The preset sets radius, gap, the small size and a danger severity built from the btn-danger tokens; button.css fixes icon-only padding.">
@@ -465,4 +485,61 @@ onMounted(async () => {
       </div>
     </Section>
   </main>
+
+    <Section id="rowbutton" title="VRowButton" base="native button (custom, no PrimeVue base)" adds="Wrapper (RowButton.vue). Full-width interactive row with leading, default and trailing slots, an active state that also sets aria-current, compact and regular density, a depth indent for tree rows, a stacked layout for bottom navigation and a focus-visible ring. Native Enter and Space; tabindex, role and aria-* pass through for roving focus.">
+      <p class="row-title">States</p>
+      <div class="row">
+        <Cell class="field" label="default"><VRowButton><template #leading><GitBranch :size="14" /></template>feature/search-filter</VRowButton></Cell>
+        <Cell class="field" label="hover"><VRowButton class="pseudo-hover"><template #leading><GitBranch :size="14" /></template>feature/search-filter</VRowButton></Cell>
+        <Cell class="field" label="focus-visible"><VRowButton class="pseudo-focus"><template #leading><GitBranch :size="14" /></template>feature/search-filter</VRowButton></Cell>
+        <Cell class="field" label="active"><VRowButton active><template #leading><GitBranch :size="14" /></template>feature/search-filter</VRowButton></Cell>
+        <Cell class="field" label="disabled"><VRowButton disabled><template #leading><GitBranch :size="14" /></template>feature/search-filter</VRowButton></Cell>
+      </div>
+      <p class="row-title">Slots and ellipsis</p>
+      <div class="row">
+        <Cell class="field" label="leading, main, trailing">
+          <VRowButton><template #leading><MessageSquare :size="14" /></template>release-notes<template #trailing><span class="rb-meta">3m</span></template></VRowButton>
+        </Cell>
+        <Cell class="field" label="long text ellipsizes, trailing stays">
+          <VRowButton data-testid="gallery-row-long"><template #leading><MessageSquare :size="14" /></template>a very long channel name that cannot fit into the row width<template #trailing><span class="rb-meta">12h</span></template></VRowButton>
+        </Cell>
+        <Cell class="field" label="two lines, align start">
+          <VRowButton align="start">
+            <template #leading><Inbox :size="14" /></template>
+            <span class="rb-body"><span class="rb-line"><span class="rb-name">Fix login redirect</span><span class="rb-meta">5m</span></span><span class="rb-meta">Needs your answer · berth</span></span>
+          </VRowButton>
+        </Cell>
+      </div>
+      <p class="row-title">Density and tree depth</p>
+      <div class="row">
+        <Cell class="field" label="regular"><VRowButton><template #leading><SquareTerminal :size="14" /></template>Regular row</VRowButton></Cell>
+        <Cell class="field" label="compact tree, depth 0 / 1 / 2">
+          <div class="stack">
+            <VRowButton density="compact"><template #leading><FolderOpen :size="14" /></template>src<template #trailing><span class="rb-meta">+12 -3</span></template></VRowButton>
+            <VRowButton density="compact" :depth="1"><template #leading><Folder :size="14" /></template>widgets<template #trailing><span class="rb-meta">+4 -0</span></template></VRowButton>
+            <VRowButton density="compact" :depth="2" active><template #leading><SquareTerminal :size="14" /></template>RowButton.vue<template #trailing><span class="rb-meta">+90 -0</span></template></VRowButton>
+          </div>
+        </Cell>
+      </div>
+      <p class="row-title">Roving focus list (Tab enters, arrows move, Enter and Space activate)</p>
+      <div class="row">
+        <Cell class="field" label="role listbox, aria-selected and tabindex passed through">
+          <div role="listbox" aria-label="Sessions" class="stack" @keydown="rovingKey">
+            <VRowButton v-for="item in ROVING" :key="item" role="option" density="compact" :active="roving === item" :aria-selected="roving === item" :tabindex="roving === item ? 0 : -1" :data-testid="`gallery-roving-${item}`" @click="roving = item">
+              <template #leading><SquareTerminal :size="14" /></template>{{ item }}
+            </VRowButton>
+          </div>
+        </Cell>
+      </div>
+      <p class="row-title">Stacked (phone bottom navigation)</p>
+      <div class="row">
+        <Cell label="stacked, second active">
+          <div class="rb-nav">
+            <VRowButton v-for="item in NAV" :key="item.label" stacked :active="nav === item.label" class="rb-nav-item" @click="nav = item.label">
+              <template #leading><component :is="item.icon" :size="20" /></template>{{ item.label }}
+            </VRowButton>
+          </div>
+        </Cell>
+      </div>
+    </Section>
 </template>
