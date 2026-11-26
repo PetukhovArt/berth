@@ -50,7 +50,7 @@ const Wrapped = defineComponent({
       const extra: Record<string, (slot: any) => unknown> = {};
       if (filter) {
         if (!slots.option) {
-          extra.option = (slot: { option: unknown }) => highlight(labelOf(slot.option, attrs.optionLabel as LabelSource), query.value);
+          extra.option = (slot: { option: unknown }) => highlight(labelOf(slot.option, (attrs.optionLabel ?? attrs['option-label']) as LabelSource), query.value);
         }
         if (!slots.footer) {
           extra.footer = (slot: { options: unknown[] }) =>
