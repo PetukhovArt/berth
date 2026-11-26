@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { VBadge, VButton, VMessage, VTag, vTooltip } from '../../../shared/ui/kit';
+import { VBadge, VButton, VMessage, VRowButton, VTag, vTooltip } from '../../../shared/ui/kit';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
 import { describeError, jiraIssue, openUrl, reloadWhenRecovered, type JiraIssue } from '../../../shared/api/connectors/api';
@@ -10,7 +10,6 @@ import Skeleton from '../../../shared/ui/Skeleton.vue';
 import { copyText } from '../../../shared/lib/atlassian';
 import { OpenChannelAction } from '../../../features/attention';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 const { formatRelative, formatDate } = useI18n();
 
 const props = defineProps<{ connector: string; issueKey: string }>();
@@ -123,22 +122,24 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
 
       <section v-if="issue.subtasks.length" class="section">
         <h2>{{ t('jira.issue.subtasks') }} <VBadge :value="issue.subtasks.length" severity="secondary" size="small" /></h2>
-        <UiButton v-for="sub in issue.subtasks" :key="sub.key" class="row" @click="openKey(sub.key)">
-          <TypeIcon :type="sub.issue_type" />
-          <span class="row-key">{{ sub.key }}</span>
-          <span class="row-text">{{ sub.summary }}</span>
-          <StatusChip :status="sub.status" :category="sub.status_category" />
-        </UiButton>
+        <VRowButton v-for="sub in issue.subtasks" :key="sub.key" @click="openKey(sub.key)">
+          <template #leading>
+            <span class="lead"><TypeIcon :type="sub.issue_type" /><span class="row-key">{{ sub.key }}</span></span>
+          </template>
+          {{ sub.summary }}
+          <template #trailing><StatusChip :status="sub.status" :category="sub.status_category" /></template>
+        </VRowButton>
       </section>
 
       <section v-if="issue.links.length" class="section">
         <h2>{{ t('jira.issue.links') }} <VBadge :value="issue.links.length" severity="secondary" size="small" /></h2>
-        <UiButton v-for="link in issue.links" :key="`${link.relation}-${link.key}`" class="row" @click="openKey(link.key)">
-          <span class="relation">{{ link.relation }}</span>
-          <span class="row-key">{{ link.key }}</span>
-          <span class="row-text">{{ link.summary }}</span>
-          <StatusChip :status="link.status" />
-        </UiButton>
+        <VRowButton v-for="link in issue.links" :key="`${link.relation}-${link.key}`" @click="openKey(link.key)">
+          <template #leading>
+            <span class="lead"><span class="relation">{{ link.relation }}</span><span class="row-key">{{ link.key }}</span></span>
+          </template>
+          {{ link.summary }}
+          <template #trailing><StatusChip :status="link.status" /></template>
+        </VRowButton>
       </section>
 
       <section class="section">
@@ -271,38 +272,15 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
   font-weight: 600;
 }
 
-.row {
+.lead {
   display: flex;
   align-items: center;
   gap: var(--vr-space-3);
-  width: 100%;
-  height: var(--vr-size-row);
-  padding: 0 var(--vr-space-2);
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-  background: transparent;
-  color: var(--vr-color-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.row:hover {
-  background: var(--vr-color-nav-hover);
 }
 
 .row-key {
-  flex: none;
   font-family: var(--vr-font-mono);
   color: var(--vr-color-text-muted);
-}
-
-.row-text {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .relation {

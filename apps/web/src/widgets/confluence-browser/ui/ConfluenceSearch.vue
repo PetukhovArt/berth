@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { VButton, VInputText, VMessage, VTag, vTooltip } from '../../../shared/ui/kit';
+import { VButton, VInputText, VMessage, VRowButton, VTag, vTooltip } from '../../../shared/ui/kit';
 import { confluenceSearch, describeError, reloadWhenRecovered, type ConfluenceHit } from '../../../shared/api/connectors/api';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
 import Skeleton from '../../../shared/ui/Skeleton.vue';
 import { highlightHtml, recentPages, rememberPage, type RecentPage } from '../../../shared/lib/atlassian';
-import { UiButton } from '../../../shared/ui/UiButton';
 
 const props = defineProps<{ connector: string }>();
 const emit = defineEmits<{ open: [payload: { connector: string; id: string }] }>();
@@ -106,14 +105,16 @@ onBeforeUnmount(() => clearTimeout(timer));
         <div v-if="!hits.length" class="empty">{{ t('confluence.search.noHits', { query: searched }) }}</div>
         <ul v-else v-auto-animate class="list">
           <li v-for="hit in hits" :key="hit.id">
-            <UiButton class="hit" data-testid="confluence-hit" @click="openHit(hit)">
-              <span class="title">{{ hit.title }}</span>
-              <span class="meta">
-                <VTag :value="hit.space" severity="secondary" />
-                <span v-tooltip="formatDate(hit.updated)">{{ formatRelative(hit.updated) }}</span>
+            <VRowButton data-testid="confluence-hit" @click="openHit(hit)">
+              <span class="hit">
+                <span class="title">{{ hit.title }}</span>
+                <span class="meta">
+                  <VTag :value="hit.space" severity="secondary" />
+                  <span v-tooltip="formatDate(hit.updated)">{{ formatRelative(hit.updated) }}</span>
+                </span>
+                <span v-if="hit.excerpt" class="excerpt" v-html="highlightHtml(hit.excerpt)" />
               </span>
-              <span v-if="hit.excerpt" class="excerpt" v-html="highlightHtml(hit.excerpt)" />
-            </UiButton>
+            </VRowButton>
           </li>
         </ul>
       </template>
@@ -122,10 +123,12 @@ onBeforeUnmount(() => clearTimeout(timer));
         <div v-if="!recent.length" class="empty">{{ t('confluence.search.prompt') }}</div>
         <ul v-else v-auto-animate class="list">
           <li v-for="page in recent" :key="page.id">
-            <UiButton class="hit" @click="openPage(page)">
-              <span class="title">{{ page.title }}</span>
-              <span class="meta"><VTag :value="page.space" severity="secondary" /></span>
-            </UiButton>
+            <VRowButton @click="openPage(page)">
+              <span class="hit">
+                <span class="title">{{ page.title }}</span>
+                <span class="meta"><VTag :value="page.space" severity="secondary" /></span>
+              </span>
+            </VRowButton>
           </li>
         </ul>
       </template>
@@ -184,21 +187,8 @@ onBeforeUnmount(() => clearTimeout(timer));
   display: grid;
   grid-template-columns: 1fr auto;
   gap: var(--vr-space-1) var(--vr-space-3);
-  width: 100%;
-  padding: var(--vr-space-2) var(--vr-space-3);
-  border: 0;
-  border-radius: var(--vr-radius-md);
-  background: transparent;
-  color: var(--vr-color-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.hit:hover,
-.hit:focus-visible {
-  background: var(--vr-color-nav-hover);
-  outline: none;
+  padding: var(--vr-space-1);
+  white-space: normal;
 }
 
 .title {
