@@ -14,7 +14,7 @@ use std::path::Path;
 #[command(
     name = "berth",
     version,
-    about = "The berth daemon, and the commands agents and scripts run against it"
+    about = "Berth, a self-hosted agent platform: the daemon and the commands agents and scripts run against it"
 )]
 struct Cli {
     #[command(subcommand)]
