@@ -198,11 +198,6 @@ jobs:
       - name: Speech engine tools
         if: runner.os != 'Linux'
         run: |
-          # The cache action prunes everything it does not know from target/, among it the
-          # sherpa-onnx archive that sherpa-onnx-sys unpacks into target/sherpa-onnx-prebuilt,
-          # but keeps the build script's output that points at it: the next run then fails
-          # with LNK1181 on sherpa-onnx-c-api.lib. Clearing the crate makes the script run again.
-          cargo clean --release --target ${{ matrix.target }} -p sherpa-onnx-sys
           if [ "$RUNNER_OS" = Windows ]; then
             if [ ! -f "/c/Program Files/LLVM/bin/libclang.dll" ]; then choco install llvm -y --no-progress; fi
             if ! command -v cmake >/dev/null; then
@@ -225,19 +220,46 @@ jobs:
             esac
           fi
 
-      # The Windows build links sherpa-onnx as DLLs, which the installer has to
-      # carry beside `berth-desktop.exe`: the wake word needs them. The build puts
-      # them next to the executable, but tauri-build wants every resource to exist
-      # before it compiles, so a first cargo build produces them and the release
-      # config below lists them. (macOS links sherpa-onnx statically.)
+      # sherpa-onnx-sys downloads its libraries into target/sherpa-onnx-prebuilt on
+      # its own, and a restored cache breaks that: the cache action prunes the files
+      # but leaves the empty `lib` folder, and the build script treats an existing
+      # folder as done (build.rs: `if lib_dir.is_dir() { return }`), so the link fails
+      # with "could not find native static library" or LNK1181. Downloading the
+      # archive here, outside target/, and pointing SHERPA_ONNX_LIB_DIR at it skips that
+      # logic. The archive names are the ones its build.rs picks for each target
+      # (static on macOS, shared with the `shared` feature on Windows).
       - name: Speech engine libraries
+        if: runner.os != 'Linux'
+        run: |
+          version=$(tr -d '\r' < Cargo.lock | sed -n '/^name = "sherpa-onnx-sys"$/{n;s/^version = "\(.*\)"$/\1/p;q;}')
+          test -n "$version"
+          case "${{ matrix.target }}" in
+            x86_64-pc-windows-msvc) stem="sherpa-onnx-v$version-win-x64-shared-MT-Release-lib" ;;
+            aarch64-apple-darwin) stem="sherpa-onnx-v$version-osx-arm64-static-lib" ;;
+            x86_64-apple-darwin) stem="sherpa-onnx-v$version-osx-x64-static-lib" ;;
+          esac
+          mkdir -p "$RUNNER_TEMP/sherpa-onnx"
+          cd "$RUNNER_TEMP/sherpa-onnx"
+          curl -fsSL --retry 5 --retry-all-errors -o "$stem.tar.bz2" "https://github.com/k2-fsa/sherpa-onnx/releases/download/v$version/$stem.tar.bz2"
+          tar -xjf "$stem.tar.bz2"
+          test -d "$stem/lib"
+          lib="$PWD/$stem/lib"
+          if [ "$RUNNER_OS" = Windows ]; then lib=$(cygpath -w "$lib"); fi
+          echo "SHERPA_ONNX_LIB_DIR=$lib" >> "$GITHUB_ENV"
+          ls "$lib"
+          cd "$GITHUB_WORKSPACE"
+          # The Windows build links sherpa-onnx as DLLs, which the installer has to carry
+          # beside `berth-desktop.exe` (the wake word needs them), and tauri-build wants every
+          # resource to exist before it compiles, so they are copied now.
+          if [ "$RUNNER_OS" = Windows ]; then
+            for dll in sherpa-onnx-c-api onnxruntime; do
+              cp "$lib/$dll.dll" apps/desktop/src-tauri/binaries/
+            done
+          fi
+
+      - name: Visual C++ runtime
         if: runner.os == 'Windows'
         run: |
-          pnpm --filter @berth/web build
-          cargo build --release --locked -p berth-desktop --lib --features updater,voice --target ${{ matrix.target }}
-          for dll in sherpa-onnx-c-api onnxruntime; do
-            cp "target/${{ matrix.target }}/release/$dll.dll" apps/desktop/src-tauri/binaries/
-          done
           # whisper.cpp makes berth-desktop.exe import MSVCP140.dll, which a Windows without the
           # Visual C++ runtime lacks; the app-local copies beside the exe cover that.
           for dll in msvcp140 vcruntime140 vcruntime140_1; do
