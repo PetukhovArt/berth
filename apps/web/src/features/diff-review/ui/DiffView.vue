@@ -566,16 +566,16 @@ defineExpose({ focusThread, focusFile, root });
           <VButton v-tooltip="t('forge.diff.prevThreadTitle')" size="small" severity="secondary" text :aria-label="t('forge.diff.prevThread')" data-testid="diff-prev-thread" @click="stepThread(-1)">
             <template #icon><ChevronUp :size="14" /></template>
           </VButton>
-          <span>{{ t('forge.diff.unresolvedCount', { count: unresolved.length }) }}</span>
+          <span class="nowrap">{{ t('forge.diff.unresolvedCount', { count: unresolved.length }) }}</span>
           <VButton v-tooltip="t('forge.diff.nextThreadTitle')" size="small" severity="secondary" text :aria-label="t('forge.diff.nextThread')" data-testid="diff-next-thread" @click="stepThread(1)">
             <template #icon><ChevronDown :size="14" /></template>
           </VButton>
         </span>
         <VToggleButton v-tooltip="t('forge.diff.wrap')" :model-value="wrap" size="small" data-testid="diff-wrap" @update:model-value="toggleWrap">
-          <WrapText :size="14" />{{ t('forge.diff.wrap') }}
+          <WrapText :size="14" /><span class="tool-label">{{ t('forge.diff.wrap') }}</span>
         </VToggleButton>
         <VSelectButton class="vr-wide-only" :model-value="mode" :options="modeOptions" :label="t('forge.diff.modeLabel')" @update:model-value="setMode($event as Mode)">
-          <template #option="{ option }"><component :is="option.value === 'split' ? Columns2 : Rows2" :size="14" />{{ option.label }}</template>
+          <template #option="{ option }"><component :is="option.value === 'split' ? Columns2 : Rows2" :size="14" /><span class="tool-label">{{ option.label }}</span></template>
         </VSelectButton>
         <slot name="actions" />
       </header>
@@ -738,10 +738,17 @@ defineExpose({ focusThread, focusFile, root });
 }
 
 .reviewed-count {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex: none;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+@container diff-toolbar (max-width: 760px) {
+  :root:not([data-vr-viewport='phone']) .toolbar .tool-label {
+    display: none;
+  }
 }
 
 .tree-row[data-active='true'] {
@@ -856,6 +863,7 @@ defineExpose({ focusThread, focusFile, root });
 
 .group {
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: var(--vr-space-1);
 }
