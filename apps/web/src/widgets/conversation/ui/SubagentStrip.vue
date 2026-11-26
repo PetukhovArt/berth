@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue';
 import { ChevronDown, ChevronUp } from '../../../shared/ui/icons';
+import { vTooltip } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { subagentCounts, type Subagent } from '../../../entities/session';
@@ -17,7 +18,7 @@ const names = computed(() => props.agents.filter((agent) => agent.state === 'run
 
 <template>
   <div class="strip" :data-open="open" data-testid="subagent-strip">
-    <UiButton type="button" class="head" :aria-expanded="open" :title="open ? t('chat.subagents.collapse') : t('chat.subagents.expand')" data-testid="subagent-strip-toggle" @click="open = !open">
+    <UiButton v-tooltip="open ? t('chat.subagents.collapse') : t('chat.subagents.expand')" type="button" class="head" :aria-expanded="open" data-testid="subagent-strip-toggle" @click="open = !open">
       <ChevronDown v-if="open" :size="12" />
       <ChevronUp v-else :size="12" />
       <span class="title">{{ t('chat.subagents.strip') }}</span>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { shallowRef } from 'vue';
 import { RotateCcw } from '../../../shared/ui/icons';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton, vTooltip } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { describeError, restoreCheckpoint, type Checkpoint } from '../../../entities/session';
 
@@ -33,17 +33,17 @@ async function restore() {
   <div class="checkpoint" :data-testid="`chat-checkpoint-${checkpoint.number}`">
     <div v-if="confirming" class="confirm" role="alertdialog" data-testid="chat-checkpoint-confirm">
       <span class="text">{{ t('chat.restoreConfirm') }}</span>
-      <UiButton type="button" class="link muted" @click="confirming = false">{{ t('chat.restoreCancel') }}</UiButton>
-      <UiButton type="button" class="link" :disabled="busy" data-testid="chat-checkpoint-confirm-restore" @click="restore">{{ t('chat.restoreApply') }}</UiButton>
+      <VButton :label="t('chat.restoreCancel')" text severity="secondary" size="small" @click="confirming = false" />
+      <VButton :label="t('chat.restoreApply')" text size="small" :disabled="busy" data-testid="chat-checkpoint-confirm-restore" @click="restore" />
     </div>
     <template v-else>
-      <span class="label" :title="t('chat.checkpointTitle', { number: checkpoint.number })">
+      <span v-tooltip="t('chat.checkpointTitle', { number: checkpoint.number })" class="label">
         <RotateCcw :size="12" />
         {{ t('chat.checkpoint') }}
         <span class="time">{{ formatTime(checkpoint.created_at * 1000) }}</span>
       </span>
       <span class="dot" aria-hidden="true">·</span>
-      <UiButton type="button" class="link" data-testid="chat-checkpoint-restore" @click="confirming = true">{{ t('chat.restore') }}</UiButton>
+      <VButton :label="t('chat.restore')" text size="small" data-testid="chat-checkpoint-restore" @click="confirming = true" />
     </template>
     <span v-if="error" class="error" role="alert">{{ error }}</span>
   </div>
@@ -83,19 +83,6 @@ async function restore() {
 .text {
   flex: 1 1 100%;
   text-align: right;
-}
-
-.link {
-  padding: 0;
-  font: inherit;
-  color: var(--vr-color-link);
-  cursor: pointer;
-  background: none;
-  border: 0;
-}
-
-.link.muted {
-  color: var(--vr-color-text-muted);
 }
 
 .error {

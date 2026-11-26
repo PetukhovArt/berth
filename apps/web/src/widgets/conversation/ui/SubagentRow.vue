@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { CheckCircle2, LoaderCircle, Square, TriangleAlert } from '../../../shared/ui/icons';
+import { vTooltip } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { modelLabel, subagentSeconds, type Subagent } from '../../../entities/session';
@@ -15,7 +16,7 @@ const ICONS = { running: LoaderCircle, done: CheckCircle2, failed: TriangleAlert
 </script>
 
 <template>
-  <UiButton type="button" class="row" :disabled="!openable" :data-state="agent.state" :data-call-id="agent.callId" :title="openable ? t('chat.subagents.open', { name: agent.description }) : agent.description" data-testid="subagent-row" @click="emit('open', agent.callId)">
+  <UiButton v-tooltip="openable ? t('chat.subagents.open', { name: agent.description }) : agent.description" type="button" class="row" :disabled="!openable" :data-state="agent.state" :data-call-id="agent.callId" data-testid="subagent-row" @click="emit('open', agent.callId)">
     <component :is="ICONS[agent.state]" :size="14" class="mark" />
     <span class="text">
       <span class="name" data-testid="subagent-row-name">{{ agent.description }}</span>

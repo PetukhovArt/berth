@@ -2,9 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, shallowRef, useId, useTemplateRef, watch } from 'vue';
 import { isDesktop } from '../../../bridge';
 import { ArrowUp, Mic, Square, X } from '../../../shared/ui/icons';
-import { useIsPhone } from '../../../shared/ui/kit';
-import { UiButton } from '../../../shared/ui/UiButton';
-import UiTextarea from '../../../shared/ui/UiTextarea.vue';
+import { VButton, VSelectButton, VTextarea, useIsPhone, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { PlainKey } from '../../../shared/lib/i18n/translate';
 import { speechLang, useHoldToTalk, type HoldToTalkIssue } from '../../../shared/lib/dictation';
@@ -24,7 +22,7 @@ const emit = defineEmits<{ unquote: [label: string] }>();
 
 const phone = useIsPhone();
 const draft = shallowRef('');
-const input = useTemplateRef<InstanceType<typeof UiTextarea>>('input');
+const input = useTemplateRef<{ $el: HTMLTextAreaElement }>('input');
 const slashList = useTemplateRef<HTMLElement>('slashList');
 const listId = useId();
 const commands = shallowRef<SlashCommand[]>([]);
@@ -107,7 +105,7 @@ watch(
 watch(
   () => props.quotes.length,
   (size, before) => {
-    if (size > before) void nextTick(() => input.value?.focus());
+    if (size > before) void nextTick(() => input.value?.$el.focus());
   },
 );
 
@@ -150,7 +148,7 @@ function moveActive(step: number) {
 
 function pickCommand(command: SlashCommand) {
   draft.value = `/${command.name} `;
-  input.value?.focus();
+  input.value?.$el.focus();
 }
 
 function onSlashKey(event: KeyboardEvent): boolean {
@@ -185,6 +183,14 @@ function explainBlocked() {
   noticeTimer = setTimeout(() => (notice.value = ''), BLOCKED_NOTICE_MS);
 }
 
+const voiceMode = computed({
+  get: () => (voice.active.value ? 'free' : 'hold'),
+  set: (value: string | string[] | null | undefined) => {
+    if (value === 'free') handsFree();
+    else if (value === 'hold') holdMode();
+  },
+});
+
 function holdMode() {
   if (voice.active.value) voice.end();
   typing.value = false;
@@ -199,32 +205,56 @@ function handsFree() {
 <template>
   <form class="composer" data-testid="chat-composer" :data-phone="phone || undefined" @submit.prevent="sendDraft">
     <div v-if="talkPanel && !voice.active.value" class="quick" data-testid="chat-quick">
-      <UiButton type="button" class="chip" :disabled="quickSending" data-testid="chat-quick-tests" @click="sendQuick(t('chat.quick.tests'))">{{ t('chat.quick.tests') }}</UiButton>
-      <UiButton v-if="diffAvailable" type="button" class="chip" data-testid="chat-quick-diff" @click="showViewInActivePanel('diff')">{{ t('chat.quick.diff') }}</UiButton>
-      <UiButton v-if="stop" type="button" class="chip" data-testid="chat-quick-stop" @click="stop">{{ t('chat.quick.stop') }}</UiButton>
+      <VButton class="chip" :label="t('chat.quick.tests')" severity="secondary" size="small" rounded :disabled="quickSending" data-testid="chat-quick-tests" @click="sendQuick(t('chat.quick.tests'))" />
+      <VButton v-if="diffAvailable" class="chip" :label="t('chat.quick.diff')" severity="secondary" size="small" rounded data-testid="chat-quick-diff" @click="showViewInActivePanel('diff')" />
+      <VButton v-if="stop" class="chip" :label="t('chat.quick.stop')" severity="secondary" size="small" rounded data-testid="chat-quick-stop" @click="stop" />
     </div>
-    <div v-if="showVoice && (voice.active.value || talkPanel)" class="modes" role="group" :aria-label="t('chat.voiceMode')" data-testid="chat-voice-modes">
-      <UiButton type="button" class="mode" :aria-pressed="!voice.active.value" data-testid="chat-voice-hold" @click="holdMode">{{ t('chat.holdToTalk') }}</UiButton>
-      <UiButton type="button" class="mode" :aria-pressed="voice.active.value" data-testid="chat-voice-start" @click="handsFree">{{ t('chat.handsFree') }}</UiButton>
-    </div>
+    <VSelectButton
+      v-if="showVoice && (voice.active.value || talkPanel)"
+      v-model="voiceMode"
+      class="modes"
+      :options="[
+        { value: 'hold', label: t('chat.holdToTalk'), testId: 'chat-voice-hold' },
+        { value: 'free', label: t('chat.handsFree'), testId: 'chat-voice-start' },
+      ]"
+      :label="t('chat.voiceMode')"
+      data-testid="chat-voice-modes"
+    />
     <div v-if="voice.active.value" class="voice" data-testid="chat-voice" :data-phase="voice.phase.value" role="status">
       <div class="wave" :data-live="listening || undefined" aria-hidden="true">
         <span v-for="(height, bar) in WAVE_BARS" :key="bar" class="bar" :style="{ '--bar': bar, '--h': `${height}px` }" />
       </div>
       <p class="voice-text" data-testid="chat-voice-status">{{ voiceStatus }}</p>
       <div class="voice-actions">
-        <UiButton type="button" class="pill" data-testid="chat-voice-mute" @click="voice.toggleMute">{{ voice.muted.value ? t('agents.sessionView.chatVoiceUnmute') : t('agents.sessionView.chatVoiceMute') }}</UiButton>
-        <UiButton type="button" class="pill strong" data-testid="chat-voice-end" @click="voice.end">{{ t('agents.sessionView.chatVoiceEnd') }}</UiButton>
+        <VButton class="pill" :label="voice.muted.value ? t('agents.sessionView.chatVoiceUnmute') : t('agents.sessionView.chatVoiceMute')" severity="secondary" rounded data-testid="chat-voice-mute" @click="voice.toggleMute" />
+        <VButton class="pill" :label="t('agents.sessionView.chatVoiceEnd')" rounded data-testid="chat-voice-end" @click="voice.end" />
       </div>
     </div>
     <template v-else>
       <p v-if="talkNote" class="talk-note" :data-cancelling="talk.cancelling.value || undefined" data-testid="chat-talk-note" role="status">{{ talkNote }}</p>
-      <UiButton v-if="shownSuggestion" type="button" class="suggestion" :title="t('agents.sessionView.chatSuggestion')" data-testid="chat-suggestion" @click="acceptSuggestion">{{ shownSuggestion }}</UiButton>
+      <VButton v-if="shownSuggestion" v-tooltip="t('agents.sessionView.chatSuggestion')" class="suggestion" :label="shownSuggestion" text severity="secondary" size="small" data-testid="chat-suggestion" @click="acceptSuggestion" />
       <div v-if="talkPanel" class="talk-panel">
         <div class="talk-row">
-          <UiButton type="button" class="aa" :title="t('chat.typeMode')" :aria-label="t('chat.typeMode')" data-testid="chat-type-mode" @click="typing = true">{{ t('chat.typeGlyph') }}</UiButton>
-          <UiButton type="button" class="talk big" :data-holding="talk.holding.value || undefined" :data-cancelling="talk.cancelling.value || undefined" :aria-label="t('agents.sessionView.chatTalk')" :title="t('agents.sessionView.chatTalk')" data-testid="chat-talk" @pointerdown="talk.start" @pointermove="talk.move" @pointerup="talk.release" @pointercancel="talk.release" @contextmenu.prevent><Mic :size="26" /></UiButton>
-          <UiButton v-if="stop" type="button" class="aa stop" :title="t('agents.sessionView.chatStop')" :aria-label="t('agents.sessionView.chatStop')" data-testid="chat-stop" @click="stop"><Square :size="14" fill="currentColor" /></UiButton>
+          <VButton v-tooltip="t('chat.typeMode')" class="aa" :label="t('chat.typeGlyph')" severity="secondary" rounded :aria-label="t('chat.typeMode')" data-testid="chat-type-mode" @click="typing = true" />
+          <VButton
+            v-tooltip="t('agents.sessionView.chatTalk')"
+            class="talk big"
+            rounded
+            :data-holding="talk.holding.value || undefined"
+            :data-cancelling="talk.cancelling.value || undefined"
+            :aria-label="t('agents.sessionView.chatTalk')"
+            data-testid="chat-talk"
+            @pointerdown="talk.start"
+            @pointermove="talk.move"
+            @pointerup="talk.release"
+            @pointercancel="talk.release"
+            @contextmenu.prevent
+          >
+            <template #icon><Mic :size="26" /></template>
+          </VButton>
+          <VButton v-if="stop" v-tooltip="t('agents.sessionView.chatStop')" class="aa" severity="danger" rounded :aria-label="t('agents.sessionView.chatStop')" data-testid="chat-stop" @click="stop">
+            <template #icon><Square :size="14" fill="currentColor" /></template>
+          </VButton>
           <span v-else class="aa-balance" aria-hidden="true" />
         </div>
         <p class="hint">{{ t(stop ? 'chat.talkHintRunning' : 'chat.talkHint') }}</p>
@@ -237,21 +267,64 @@ function handsFree() {
           </li>
         </ul>
         <div v-if="quotes.length" class="quotes" data-testid="chat-quotes">
-          <span v-for="quote in quotes" :key="quote.label" class="quote" :title="quote.text" data-testid="chat-quote">
+          <span v-for="quote in quotes" :key="quote.label" v-tooltip="quote.text" class="quote" data-testid="chat-quote">
             {{ quote.label }}
-            <UiButton type="button" class="unquote" :aria-label="t('agents.sessionView.chatQuoteRemove', { label: quote.label })" data-testid="chat-quote-remove" @click="emit('unquote', quote.label)"><X :size="12" /></UiButton>
+            <VButton class="unquote" text severity="secondary" size="small" :aria-label="t('agents.sessionView.chatQuoteRemove', { label: quote.label })" data-testid="chat-quote-remove" @click="emit('unquote', quote.label)">
+              <template #icon><X :size="12" /></template>
+            </VButton>
           </span>
         </div>
-        <UiTextarea ref="input" v-model="draft" class="input" rows="2" :placeholder="t(quotes.length ? 'agents.sessionView.chatPlaceholderQuoted' : stop ? 'agents.sessionView.chatPlaceholderRunning' : 'agents.sessionView.chatPlaceholder')" :aria-label="t('agents.sessionView.chatPlaceholder')" role="combobox" aria-autocomplete="list" :aria-expanded="slashOpen" :aria-controls="slashOpen ? listId : undefined" :aria-activedescendant="activeId" data-testid="chat-input" @keydown="onKey" />
+        <VTextarea
+          ref="input"
+          v-model="draft"
+          class="input"
+          rows="2"
+          :placeholder="t(quotes.length ? 'agents.sessionView.chatPlaceholderQuoted' : stop ? 'agents.sessionView.chatPlaceholderRunning' : 'agents.sessionView.chatPlaceholder')"
+          :aria-label="t('agents.sessionView.chatPlaceholder')"
+          role="combobox"
+          aria-autocomplete="list"
+          :aria-expanded="slashOpen"
+          :aria-controls="slashOpen ? listId : undefined"
+          :aria-activedescendant="activeId"
+          data-testid="chat-input"
+          @keydown="onKey"
+        />
         <div class="foot">
-          <span v-if="modelChip" class="model" :title="modelChip" data-testid="chat-model">{{ modelChip }}</span>
+          <span v-if="modelChip" v-tooltip="modelChip" class="model" data-testid="chat-model">{{ modelChip }}</span>
           <span class="grow" />
           <span v-if="!phone" class="keys">{{ t('chat.keysHint') }}</span>
-          <UiButton v-if="talkBlocked" type="button" class="talk blocked" aria-disabled="true" :aria-label="t('chat.talkMode')" :title="t(secure ? 'chat.talkUnavailable' : 'chat.talkNeedsHttps')" data-testid="chat-talk-blocked" @click="explainBlocked"><Mic :size="14" /></UiButton>
-          <UiButton v-else-if="showTalk && phone" type="button" class="talk" :aria-label="t('chat.talkMode')" :title="t('chat.talkMode')" data-testid="chat-talk-mode" @click="typing = false"><Mic :size="14" /></UiButton>
-          <UiButton v-else-if="showTalk" type="button" class="talk" :data-holding="talk.holding.value || undefined" :data-cancelling="talk.cancelling.value || undefined" :aria-label="t('agents.sessionView.chatTalk')" :title="t('agents.sessionView.chatTalk')" data-testid="chat-talk" @pointerdown="talk.start" @pointermove="talk.move" @pointerup="talk.release" @pointercancel="talk.release" @contextmenu.prevent><Mic :size="14" /></UiButton>
-          <UiButton v-if="stop && !draft.trim()" type="button" class="send stop" :aria-label="t('agents.sessionView.chatStop')" :title="t('agents.sessionView.chatStop')" data-testid="chat-stop" @click="stop"><Square :size="12" fill="currentColor" /></UiButton>
-          <UiButton v-else type="submit" class="send" :disabled="!draft.trim() || sending" :aria-busy="sending" :aria-label="t('agents.sessionView.chatSend')" :title="t('agents.sessionView.chatSend')" data-testid="chat-send"><ArrowUp :size="14" /></UiButton>
+          <VButton v-if="talkBlocked" v-tooltip="t(secure ? 'chat.talkUnavailable' : 'chat.talkNeedsHttps')" class="talk blocked" text severity="secondary" rounded size="small" aria-disabled="true" :aria-label="t('chat.talkMode')" data-testid="chat-talk-blocked" @click="explainBlocked">
+            <template #icon><Mic :size="14" /></template>
+          </VButton>
+          <VButton v-else-if="showTalk && phone" v-tooltip="t('chat.talkMode')" class="talk" text severity="secondary" rounded size="small" :aria-label="t('chat.talkMode')" data-testid="chat-talk-mode" @click="typing = false">
+            <template #icon><Mic :size="14" /></template>
+          </VButton>
+          <VButton
+            v-else-if="showTalk"
+            v-tooltip="t('agents.sessionView.chatTalk')"
+            class="talk"
+            text
+            severity="secondary"
+            rounded
+            size="small"
+            :data-holding="talk.holding.value || undefined"
+            :data-cancelling="talk.cancelling.value || undefined"
+            :aria-label="t('agents.sessionView.chatTalk')"
+            data-testid="chat-talk"
+            @pointerdown="talk.start"
+            @pointermove="talk.move"
+            @pointerup="talk.release"
+            @pointercancel="talk.release"
+            @contextmenu.prevent
+          >
+            <template #icon><Mic :size="14" /></template>
+          </VButton>
+          <VButton v-if="stop && !draft.trim()" v-tooltip="t('agents.sessionView.chatStop')" class="send foot-stop" severity="danger" rounded size="small" :aria-label="t('agents.sessionView.chatStop')" data-testid="chat-stop" @click="stop">
+            <template #icon><Square :size="12" fill="currentColor" /></template>
+          </VButton>
+          <VButton v-else v-tooltip="t('agents.sessionView.chatSend')" class="send" type="submit" rounded size="small" :disabled="!draft.trim() || sending" :aria-busy="sending" :aria-label="t('agents.sessionView.chatSend')" data-testid="chat-send">
+            <template #icon><ArrowUp :size="14" /></template>
+          </VButton>
         </div>
       </div>
     </template>
@@ -380,17 +453,9 @@ function handsFree() {
 }
 
 .unquote {
-  display: inline-flex;
-  align-items: center;
-  padding: 0;
-  color: var(--vr-color-text-subtle);
-  background: none;
-  border: 0;
-  cursor: pointer;
-}
-
-.unquote:hover {
-  color: var(--vr-color-text);
+  flex: none;
+  width: 16px;
+  height: 16px;
 }
 
 .input {
@@ -406,6 +471,8 @@ function handsFree() {
   resize: none;
   background: none;
   border: 0;
+  border-radius: 0;
+  box-shadow: none;
   outline: none;
 }
 
@@ -447,27 +514,14 @@ function handsFree() {
 
 .talk,
 .send {
-  display: inline-flex;
   flex: none;
-  align-items: center;
-  justify-content: center;
   width: 30px;
   height: 30px;
-  padding: 0;
-  color: var(--vr-color-text-muted);
-  cursor: pointer;
-  background: var(--vr-color-surface-muted);
-  border: 0;
-  border-radius: 50%;
 }
 
 :root[data-vr-viewport='phone'] .send {
   width: 44px;
   height: 44px;
-}
-
-:root:not([data-vr-viewport='phone']) .talk {
-  background: transparent;
 }
 
 .talk {
@@ -476,28 +530,11 @@ function handsFree() {
   -webkit-user-select: none;
 }
 
-.talk:hover {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
-}
-
 .talk.blocked {
   opacity: 0.5;
 }
 
-.send {
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-accent);
-}
-
-.send:disabled {
-  cursor: default;
-  background: var(--vr-color-text-subtle);
-}
-
 .talk[data-holding] {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-active);
   transform: scale(1.1);
 }
 
@@ -525,39 +562,16 @@ function handsFree() {
   height: 44px;
 }
 
-.aa {
-  padding: 0;
-  font: inherit;
-  font-size: var(--vr-font-size-label);
-  color: var(--vr-color-text);
-  cursor: pointer;
-  background: var(--vr-color-surface-muted);
-  border: 0;
-  border-radius: 50%;
-}
-
-.stop {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--vr-btn-danger-text);
-  background: var(--vr-btn-danger);
-}
-
-.foot .stop {
+.foot .foot-stop {
   margin-left: var(--vr-space-1);
 }
 
 .talk.big {
   width: 64px;
   height: 64px;
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-accent);
 }
 
 .talk.big[data-holding] {
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-accent);
   box-shadow: 0 0 0 6px var(--vr-color-nav-active);
 }
 
@@ -582,44 +596,10 @@ function handsFree() {
 
 .quick .chip {
   flex: none;
-  height: 32px;
-  padding: 0 12px;
-  font: inherit;
-  font-size: var(--vr-font-size-label);
-  color: var(--vr-color-text);
-  cursor: pointer;
-  background: var(--vr-color-surface-muted);
-  border: 0;
-  border-radius: var(--vr-radius-full);
 }
 
 .modes {
-  display: flex;
-  gap: 2px;
   align-self: center;
-  padding: 2px;
-  background: var(--vr-color-surface-muted);
-  border-radius: var(--vr-radius-md);
-}
-
-.mode {
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  padding: 0 var(--vr-space-3);
-  font: inherit;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-text-muted);
-  cursor: pointer;
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-}
-
-.mode[aria-pressed='true'] {
-  color: var(--vr-color-text);
-  background: var(--vr-color-surface);
-  box-shadow: 0 0 0 1px var(--vr-color-border);
 }
 
 .voice {
@@ -674,35 +654,13 @@ function handsFree() {
 }
 
 .pill {
-  height: 44px;
-  padding: 0 var(--vr-space-4);
-  font: inherit;
-  font-size: var(--vr-font-size-label);
-  color: var(--vr-color-text);
-  cursor: pointer;
-  background: var(--vr-color-surface-muted);
-  border: none;
-  border-radius: var(--vr-radius-full);
-}
-
-.pill.strong {
-  padding: 0 18px;
-  font-weight: 600;
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-accent);
+  min-height: 44px;
+  padding-inline: var(--vr-space-4);
 }
 
 .suggestion {
-  overflow: hidden;
-  padding: var(--vr-space-1) var(--vr-space-3);
-  font: inherit;
-  font-size: var(--vr-font-size-sm);
-  color: var(--vr-color-text-muted);
-  text-align: left;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  cursor: pointer;
-  background: none;
+  justify-content: flex-start;
+  max-width: 100%;
   border: 1px dashed var(--vr-color-border);
   border-radius: var(--vr-radius-md);
 }

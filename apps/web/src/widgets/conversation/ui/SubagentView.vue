@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, shallowRef, useTemplateRef, watch } from 'vue';
 import { ChevronLeft } from '../../../shared/ui/icons';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton, vTooltip } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { describeError, deriveSubagents, modelLabel, readSubagentTranscript, subagentSeconds, type Harness, type Subagent, type TranscriptMessage } from '../../../entities/session';
 import { chatBlocks } from '../model/chatBlocks';
@@ -77,12 +77,11 @@ onBeforeUnmount(() => {
 <template>
   <section class="view" data-testid="subagent-view" :data-call-id="agent.callId" :data-state="agent.state">
     <header class="head">
-      <UiButton type="button" class="back" data-testid="subagent-view-back" @click="emit('close')">
-        <ChevronLeft :size="16" />
-        {{ t('chat.subagents.back') }}
-      </UiButton>
+      <VButton class="back" :label="t('chat.subagents.back')" text severity="secondary" size="small" data-testid="subagent-view-back" @click="emit('close')">
+        <template #icon><ChevronLeft :size="16" /></template>
+      </VButton>
       <div class="title">
-        <span class="name" :title="agent.description" data-testid="subagent-view-title">{{ agent.description }}</span>
+        <span v-tooltip="agent.description" class="name" data-testid="subagent-view-title">{{ agent.description }}</span>
         <span class="meta">
           <span>{{ agent.kind ?? t('chat.subagents.noType') }}</span>
           <span v-if="agent.model">{{ modelLabel(agent.model) }}</span>
@@ -120,27 +119,12 @@ onBeforeUnmount(() => {
 }
 
 .back {
-  display: inline-flex;
   flex: none;
-  align-items: center;
-  gap: var(--vr-space-1);
   min-height: var(--vr-size-row);
-  padding: 0 var(--vr-space-2);
-  font: inherit;
-  font-size: var(--vr-font-size-label);
-  color: var(--vr-color-text);
-  cursor: pointer;
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
 }
 
 :root[data-vr-viewport='phone'] .back {
   min-height: var(--vr-size-touch);
-}
-
-.back:hover {
-  background: var(--vr-color-nav-hover);
 }
 
 .title {

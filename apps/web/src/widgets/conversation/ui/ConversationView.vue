@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 import { Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, TriangleAlert } from '../../../shared/ui/icons';
-import { VButton, VMessage } from '../../../shared/ui/kit';
+import { VButton, VMessage, VTag, vTooltip } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import { AGENT_KIND_LABEL, clearHandoff, clearMessageFocus, messageFocusOf, continueInBerth, handoffOf, externalKey, externalOrigin, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePlan, PlanStrip, deriveSubagents, stripVisible, sendInput, useFeedbackRequest, allowRequest, alwaysAllowRequest, offersAlways, denyRequest, chooseOption, enqueuePrompt, removeQueuedPrompt, sessionKey, stopAgent, submitPrompt, useAcpChat, useQueuedPrompts, useSessionStates, clearPromptQuotes, promptQuotesOf, removePromptQuote, type SessionRef, type SlashSource } from '../../../entities/session';
 import { worktreeOf } from '../../../features/session-view-switch';
-import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { readAcpAgentLog } from '../../../shared/api/providers';
 import { chatBlocks } from '../model/chatBlocks';
@@ -350,18 +349,24 @@ onBeforeUnmount(() => {
         </span>
       </div>
       <div class="meta">
-        <span v-if="harness" class="chip">{{ t(`workbench.external.harness.${harness}`) }}</span>
-        <span v-if="session" class="chip mono" :title="session.cwd"><FolderOpen :size="12" />{{ forwardSlashes(session.cwd) }}</span>
-        <span v-if="session?.branch" class="chip mono"><GitBranch :size="12" />{{ session.branch }}</span>
-        <span v-if="session" class="chip" :title="formatDate(session.updated_at)">{{ formatRelative(session.updated_at) }}</span>
-        <span v-if="session" class="chip" data-testid="conversation-origin"><SquareTerminal :size="12" />{{ externalOrigin(session) }}</span>
+        <VTag v-if="harness" class="chip" severity="secondary" rounded :value="t(`workbench.external.harness.${harness}`)" />
+        <VTag v-if="session" v-tooltip="session.cwd" class="chip mono" severity="secondary" rounded :value="forwardSlashes(session.cwd)">
+          <template #icon><FolderOpen :size="12" /></template>
+        </VTag>
+        <VTag v-if="session?.branch" class="chip mono" severity="secondary" rounded :value="session.branch">
+          <template #icon><GitBranch :size="12" /></template>
+        </VTag>
+        <VTag v-if="session" v-tooltip="formatDate(session.updated_at)" class="chip" severity="secondary" rounded :value="formatRelative(session.updated_at)" />
+        <VTag v-if="session" class="chip" severity="secondary" rounded :value="externalOrigin(session)" data-testid="conversation-origin">
+          <template #icon><SquareTerminal :size="12" /></template>
+        </VTag>
       </div>
       <div class="actions">
         <VButton size="small" :disabled="!canContinue" :loading="action.busy.value" data-testid="conversation-continue" @click="continueHere">
           <Play :size="13" />
           {{ t('workbench.external.continue') }}
         </VButton>
-        <VButton size="small" severity="secondary" outlined :title="command" data-testid="conversation-copy" @click="copyCommand">
+        <VButton v-tooltip="command" size="small" severity="secondary" outlined data-testid="conversation-copy" @click="copyCommand">
           <Check v-if="copied" :size="13" />
           <Copy v-else :size="13" />
           {{ copied ? t('workbench.external.copied') : t('workbench.external.copyResume') }}
@@ -387,21 +392,21 @@ onBeforeUnmount(() => {
         <span class="feedback-text">{{ request.kind === 'Permission' ? t('feedback.permission', { tool: request.title }) : request.title }}</span>
         <code v-if="request.detail" class="feedback-detail mono">{{ request.detail }}</code>
         <template v-if="request.kind === 'Permission' && !request.options.length">
-          <UiButton type="button" class="feedback-action" data-testid="feedback-allow" @click="allowRequest(terminal)">{{ t('feedback.allow') }}</UiButton>
-          <UiButton v-if="offersAlways(request)" type="button" class="feedback-action" :title="t('feedback.alwaysTitle')" data-testid="feedback-always" @click="alwaysAllowRequest(terminal)">{{ t('feedback.always') }}</UiButton>
-          <UiButton type="button" class="feedback-action" data-testid="feedback-deny" @click="denyRequest(terminal)">{{ t('feedback.deny') }}</UiButton>
+          <VButton :label="t('feedback.allow')" severity="secondary" size="small" data-testid="feedback-allow" @click="allowRequest(terminal)" />
+          <VButton v-if="offersAlways(request)" v-tooltip="t('feedback.alwaysTitle')" :label="t('feedback.always')" severity="secondary" size="small" data-testid="feedback-always" @click="alwaysAllowRequest(terminal)" />
+          <VButton :label="t('feedback.deny')" severity="secondary" size="small" data-testid="feedback-deny" @click="denyRequest(terminal)" />
         </template>
-        <UiButton v-for="(option, index) in request.options" v-else :key="index" type="button" class="feedback-action" data-testid="feedback-option" @click="chooseOption(terminal, index)">{{ option }}</UiButton>
+        <VButton v-for="(option, index) in request.options" v-else :key="index" :label="option" severity="secondary" size="small" data-testid="feedback-option" @click="chooseOption(terminal, index)" />
       </div>
       <div v-if="acp" class="column agent-log" data-testid="chat-agent-log">
-        <UiButton type="button" class="agent-log-toggle" :aria-expanded="agentLog !== null" data-testid="chat-agent-log-toggle" @click="toggleAgentLog">{{ t('agents.sessionView.chatAgentLog') }}</UiButton>
+        <VButton :label="t('agents.sessionView.chatAgentLog')" text severity="secondary" size="small" :aria-expanded="agentLog !== null" data-testid="chat-agent-log-toggle" @click="toggleAgentLog" />
         <pre v-if="agentLog !== null" class="agent-log-text mono" data-testid="chat-agent-log-text">{{ agentLog || t('agents.sessionView.chatAgentLogEmpty') }}</pre>
       </div>
       <ul v-if="acp && queued.length" class="column queued" data-testid="chat-queue">
         <li v-for="item in queued" :key="item.id" class="queued-item" data-testid="queue-item">
           <span class="queued-text" data-testid="queue-item-text">{{ item.text }}</span>
           <span class="queued-hint">{{ t('feedback.queue.sendsWhenFinished') }}</span>
-          <UiButton type="button" class="queued-remove" data-testid="queue-remove" @click="removeQueuedPrompt(sessionId, item.id)">{{ t('feedback.queue.remove') }}</UiButton>
+          <VButton class="queued-remove" :label="t('feedback.queue.remove')" text size="small" data-testid="queue-remove" @click="removeQueuedPrompt(sessionId, item.id)" />
         </li>
       </ul>
       <SubagentStrip v-if="stripAgents.length" class="column" :agents="stripAgents" :now="now" @open="openSubagent" />
@@ -410,6 +415,7 @@ onBeforeUnmount(() => {
         <div
           v-for="edge in COLUMN_EDGES"
           :key="edge"
+          v-tooltip="t('chat.column.hint')"
           class="column-handle vr-wide-only"
           role="separator"
           aria-orientation="vertical"
@@ -417,7 +423,6 @@ onBeforeUnmount(() => {
           :data-edge="edge"
           :data-dragging="column.dragging.value === edge || undefined"
           :aria-label="t(`chat.column.${edge}`)"
-          :title="t('chat.column.hint')"
           :aria-valuenow="edgeX(edge)"
           aria-valuemin="0"
           :aria-valuemax="column.track.value ?? 0"
@@ -440,11 +445,6 @@ onBeforeUnmount(() => {
   align-items: flex-start;
   gap: var(--vr-space-1);
   padding: var(--vr-space-1) 0 0;
-}
-
-.agent-log-toggle {
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-text-muted);
 }
 
 .agent-log-text {
@@ -494,12 +494,6 @@ onBeforeUnmount(() => {
 
 .queued-remove {
   flex: none;
-  padding: 0;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-link);
-  cursor: pointer;
-  background: none;
-  border: 0;
 }
 
 .conversation {
@@ -555,19 +549,10 @@ onBeforeUnmount(() => {
 }
 
 .chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--vr-space-1);
   max-width: 100%;
-  padding: 0 var(--vr-space-2);
   overflow: hidden;
-  font-size: var(--vr-font-size-2xs);
-  line-height: 1.8;
-  color: var(--vr-color-text-muted);
-  white-space: nowrap;
   text-overflow: ellipsis;
-  background: var(--vr-color-chip-bg);
-  border-radius: var(--vr-radius-full);
+  white-space: nowrap;
 }
 
 .mono {
@@ -665,18 +650,6 @@ onBeforeUnmount(() => {
   white-space: pre-wrap;
   background: var(--vr-color-surface-muted);
   border-radius: var(--vr-radius-sm);
-}
-
-.feedback-action {
-  height: 26px;
-  padding: 0 var(--vr-space-3);
-  font: inherit;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-text);
-  cursor: pointer;
-  background: var(--vr-color-surface-muted);
-  border: none;
-  border-radius: var(--vr-radius-md);
 }
 
 .state {
