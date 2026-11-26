@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue';
-import { VButton, isMotionEnabled } from '../../../shared/ui/kit';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { VButton, VListbox, VMessage, VTag, isMotionEnabled, vTooltip } from '../../../shared/ui/kit';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { confluencePage, describeError, openUrl, reloadWhenRecovered, type ConfluencePage } from '../../../shared/api/connectors/api';
-import ErrorInline from '../../../shared/ui/ErrorInline.vue';
 import Skeleton from '../../../shared/ui/Skeleton.vue';
 import { rememberPage } from '../../../shared/lib/atlassian';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 type Heading = { index: number; text: string; level: number };
 
 const props = defineProps<{ connector: string; id: string }>();
@@ -72,6 +70,12 @@ function spy() {
   activeIndex.value = active;
 }
 
+const tocOptions = computed(() => headings.value.map((heading) => ({ value: String(heading.index), label: heading.text })));
+
+function jumpTo(value: string | string[] | null | undefined) {
+  if (typeof value === 'string') jump(Number(value));
+}
+
 function jump(index: number) {
   elements[index]?.scrollIntoView({ behavior: isMotionEnabled() ? 'smooth' : 'instant', block: 'start' });
   activeIndex.value = index;
@@ -93,19 +97,22 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="scroller" class="page" data-testid="confluence-page" @scroll.passive="spy">
-    <ErrorInline v-if="error" :message="error" @retry="load" />
+    <VMessage v-if="error" class="error" severity="error" size="small" data-testid="confluence-page-error">
+      <span class="error-text">{{ error }}</span>
+      <VButton :label="t('common.retry')" size="small" severity="secondary" @click="load" />
+    </VMessage>
     <Skeleton v-else-if="loading" :rows="12" />
     <template v-else-if="page">
       <header class="head">
         <nav v-if="page.ancestors.length" class="crumbs" :aria-label="t('confluence.page.path')">
           <template v-for="ancestor in page.ancestors" :key="ancestor.id">
-            <UiButton class="crumb" @click="emit('open', { connector: connector, id: ancestor.id })">{{ ancestor.title }}</UiButton>
+            <VButton :label="ancestor.title" size="small" text severity="secondary" @click="emit('open', { connector: connector, id: ancestor.id })" />
             <span class="sep">/</span>
           </template>
         </nav>
         <h1 class="title">{{ page.title }}</h1>
         <div class="meta">
-          <span class="space">{{ page.space }}</span>
+          <VTag :value="page.space" severity="secondary" />
           <span class="muted">{{ t('confluence.page.version', { version: page.version }) }}</span>
           <span class="spacer" />
           <VButton :label="t('common.openInBrowser')" size="small" severity="secondary" @click="openUrl(page.url)" />
@@ -117,17 +124,11 @@ onBeforeUnmount(() => {
         </div>
         <nav v-if="headings.length" class="toc vr-wide-only" :aria-label="t('confluence.page.contents')">
           <div class="toc-title">{{ t('confluence.page.contents') }}</div>
-          <UiButton
-            v-for="heading in headings"
-            :key="heading.index"
-            class="toc-item"
-            :class="{ active: heading.index === activeIndex }"
-            :style="{ paddingLeft: `${(heading.level - 1) * 12 + 8}px` }"
-            :title="heading.text"
-            @click="jump(heading.index)"
-          >
-            {{ heading.text }}
-          </UiButton>
+          <VListbox flat :model-value="String(activeIndex)" :options="tocOptions" :label="t('confluence.page.contents')" :filter="false" test-id="confluence-toc" @update:model-value="jumpTo">
+            <template #option="{ option }">
+              <span v-tooltip.left="option.label" class="toc-item" :style="{ paddingLeft: `${((headings[Number(option.value)]?.level ?? 1) - 1) * 12}px` }">{{ option.label }}</span>
+            </template>
+          </VListbox>
         </nav>
       </div>
     </template>
@@ -159,19 +160,14 @@ onBeforeUnmount(() => {
   font-size: var(--vr-font-size-xs);
 }
 
-.crumb {
-  padding: 0 var(--vr-space-1);
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-  background: transparent;
-  color: var(--vr-color-text-muted);
-  font: inherit;
-  cursor: pointer;
+.error {
+  margin: var(--vr-space-4);
 }
 
-.crumb:hover {
-  background: var(--vr-color-nav-hover);
-  color: var(--vr-color-text);
+.error-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .sep {
@@ -190,12 +186,6 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: var(--vr-space-3);
   font-size: var(--vr-font-size-xs);
-}
-
-.space {
-  padding: 0 var(--vr-space-2);
-  border-radius: var(--vr-radius-sm);
-  background: var(--vr-color-chip-bg);
 }
 
 .muted {
@@ -238,28 +228,10 @@ onBeforeUnmount(() => {
 }
 
 .toc-item {
+  min-width: 0;
   overflow: hidden;
-  padding-top: var(--vr-space-1);
-  padding-right: var(--vr-space-2);
-  padding-bottom: var(--vr-space-1);
-  border: 0;
-  border-left: 2px solid transparent;
-  background: transparent;
-  color: var(--vr-color-text-muted);
-  font: inherit;
   font-size: var(--vr-font-size-xs);
-  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: pointer;
-}
-
-.toc-item:hover {
-  color: var(--vr-color-text);
-}
-
-.toc-item.active {
-  border-left-color: var(--vr-color-accent);
-  color: var(--vr-color-text);
 }
 </style>
