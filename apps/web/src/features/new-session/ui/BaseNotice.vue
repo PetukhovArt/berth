@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { UiButton } from '../../../shared/ui/UiButton';
+import { X } from '../../../shared/ui/icons';
+import { VButton, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { baseNotice, dismissBaseNotice } from '../model/baseNotice';
 </script>
@@ -7,7 +8,9 @@ import { baseNotice, dismissBaseNotice } from '../model/baseNotice';
 <template>
   <div v-if="baseNotice" class="notice" role="status" data-testid="new-session-base-notice">
     <span class="text">{{ baseNotice }}</span>
-    <UiButton type="button" class="close" :aria-label="t('common.close')" :title="t('common.close')" data-testid="new-session-base-notice-close" @click="dismissBaseNotice">×</UiButton>
+    <VButton v-tooltip="t('common.close')" size="small" text severity="secondary" :aria-label="t('common.close')" data-testid="new-session-base-notice-close" @click="dismissBaseNotice">
+      <template #icon><X :size="14" /></template>
+    </VButton>
   </div>
 </template>
 
@@ -33,14 +36,5 @@ import { baseNotice, dismissBaseNotice } from '../model/baseNotice';
 
 .text {
   overflow-wrap: anywhere;
-}
-
-.close {
-  padding: 0;
-  font: inherit;
-  color: var(--vr-color-text-muted);
-  cursor: pointer;
-  background: none;
-  border: 0;
 }
 </style>
