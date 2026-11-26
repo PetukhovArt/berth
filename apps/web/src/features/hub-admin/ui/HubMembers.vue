@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, useTemplateRef } from 'vue';
-import { VButton, VSelect } from '../../../shared/ui/kit';
+import { VButton, VMessage, VSelect, VTag, vTooltip } from '../../../shared/ui/kit';
 import ConfirmPopover from '../../../shared/ui/ConfirmPopover.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { HubMember, HubRole } from '../../../entities/session';
@@ -46,9 +46,9 @@ async function confirmRevoke() {
     <p v-if="!rows.length" class="muted" data-testid="hub-admin-members-empty">{{ t('hub.members.empty') }}</p>
     <ul v-else class="list" data-testid="hub-admin-members-list">
       <li v-for="member in rows" :key="member.id" class="row" :data-status="member.status" :data-testid="`hub-admin-member-${member.id}`">
-        <span class="name" :title="member.name">{{ member.id === me ? t('hub.members.you', { name: member.name }) : member.name }}</span>
-        <span class="status" :data-testid="`hub-admin-member-status-${member.id}`">{{ t(`hub.members.status.${member.status}`) }}</span>
-        <template v-if="member.status !== 'revoked'">
+        <span v-tooltip="member.name" class="name">{{ member.id === me ? t('hub.members.you', { name: member.name }) : member.name }}</span>
+        <VTag :value="t(`hub.members.status.${member.status}`)" :severity="member.status === 'pending' ? 'warn' : 'secondary'" rounded :data-testid="`hub-admin-member-status-${member.id}`" />
+        <span v-if="member.status !== 'revoked'" v-tooltip="member.id === me ? t('hub.members.self') : undefined" class="controls">
           <VSelect
             :key="`${member.id}:${revision}`"
             :model-value="member.role"
@@ -60,7 +60,6 @@ async function confirmRevoke() {
             :placeholder="t('hub.members.approveAs')"
             :aria-label="t('hub.members.role', { name: member.name })"
             :disabled="busy.has(member.id) || member.id === me"
-            :title="member.id === me ? t('hub.members.self') : undefined"
             :data-testid="`hub-admin-member-role-${member.id}`"
             @update:model-value="setRole(member, $event)"
           />
@@ -70,12 +69,11 @@ async function confirmRevoke() {
             severity="danger"
             text
             :disabled="busy.has(member.id) || member.id === me"
-            :title="member.id === me ? t('hub.members.self') : undefined"
             :data-testid="`hub-admin-member-revoke-${member.id}`"
             @click="askRevoke(member, $event)"
           />
-        </template>
-        <p v-if="errors.get(member.id)" class="error" role="alert" :data-testid="`hub-admin-member-error-${member.id}`">{{ errors.get(member.id) }}</p>
+        </span>
+        <VMessage v-if="errors.get(member.id)" class="error" severity="error" size="small" :data-testid="`hub-admin-member-error-${member.id}`">{{ errors.get(member.id) }}</VMessage>
       </li>
     </ul>
     <ConfirmPopover
@@ -159,17 +157,10 @@ async function confirmRevoke() {
   white-space: nowrap;
 }
 
-.status {
-  flex: none;
-  padding: 0 var(--vr-space-2);
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-text-muted);
-  background: var(--vr-color-chip-bg);
-  border-radius: var(--vr-radius-full);
-}
-
-.row[data-status='pending'] .status {
-  color: var(--vr-status-feedback);
+.controls {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vr-space-2);
 }
 
 .role {
@@ -179,9 +170,5 @@ async function confirmRevoke() {
 
 .error {
   flex: 1 0 100%;
-  margin: 0;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-danger);
-  overflow-wrap: anywhere;
 }
 </style>

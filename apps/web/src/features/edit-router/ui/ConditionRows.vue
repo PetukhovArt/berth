@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Plus, Trash2 } from '../../../shared/ui/icons';
-import { VButton, VInputText, VSelect } from '../../../shared/ui/kit';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton, VInputText, VSelect, VSelectButton, VToggleButton, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { ERROR_KINDS, ROUTE_KINDS, STATUSES, closeOf, conditionRow, depthOf, newCondition, groupRows, insertRows, removeRows, type Condition, type ConditionList, type ConditionType, type GroupOp, type Row } from '../model/conditionRows';
 
@@ -28,9 +27,9 @@ function changeType(index: number, row: Row, type: ConditionType) {
   if (row.type === 'condition' && row.condition.type !== type) patch(index, { id: row.id, type: 'condition', negate: row.negate, condition: newCondition(type) });
 }
 
-function toggle(values: string[], value: string): string[] {
-  return values.includes(value) ? values.filter((v) => v !== value) : [...values, value];
-}
+const errorKindOptions = computed(() => ERROR_KINDS.map((kind) => ({ value: kind, label: t(`agents.route.errorKind.${kind}`), testId: `router-error-${kind}` })));
+const statusOptions = STATUSES.map((value) => ({ value, label: value, testId: `router-value-${value}` }));
+const routeKindOptions = ROUTE_KINDS.map((value) => ({ value, label: value, testId: `router-value-${value}` }));
 
 function addAt(at: number, rows: Row[]) {
   setRows(insertRows(list.value.rows, at, rows));
@@ -66,19 +65,17 @@ const models = (value: string | undefined) =>
         </VButton>
       </template>
       <template v-else>
-        <UiButton type="button" class="not" :aria-pressed="row.negate" data-testid="router-not" @click="patch(index, { ...row, negate: !row.negate })">{{ t('router.not') }}</UiButton>
+        <VToggleButton :model-value="row.negate" :on-label="t('router.not')" :off-label="t('router.not')" size="small" data-testid="router-not" @update:model-value="patch(index, { ...row, negate: $event })" />
         <template v-if="row.type === 'open'">
           <span class="bracket">( {{ t('router.group') }}</span>
         </template>
         <template v-else-if="row.type === 'opaque'">
-          <code class="raw" :title="t('router.kept')" data-testid="router-opaque">{{ JSON.stringify(row.raw) }}</code>
+          <code v-tooltip="t('router.kept')" class="raw" data-testid="router-opaque">{{ JSON.stringify(row.raw) }}</code>
         </template>
         <template v-else>
           <VSelect :model-value="row.condition.type" :options="typeOptions" option-label="label" option-value="value" size="small" class="type" data-testid="router-condition-type" @update:model-value="changeType(index, row, $event)" />
           <template v-if="row.condition.type === 'provider_error'">
-            <span class="chips">
-              <UiButton v-for="kind in ERROR_KINDS" :key="kind" type="button" class="chip" :aria-pressed="row.condition.kinds.includes(kind)" :data-testid="`router-error-${kind}`" @click="setCondition(index, row, { ...row.condition, kinds: toggle(row.condition.kinds, kind) })">{{ t(`agents.route.errorKind.${kind}`) }}</UiButton>
-            </span>
+            <VSelectButton class="chips" :model-value="row.condition.kinds" :options="errorKindOptions" :label="t('router.condition.provider_error')" multiple @update:model-value="setCondition(index, row, { ...row.condition, kinds: $event as string[] })" />
             <VInputText :model-value="String(row.condition.forSecs)" size="small" class="num" :aria-label="t('router.forSecs')" data-testid="router-for-secs" @update:model-value="setCondition(index, row, { ...row.condition, forSecs: num($event, 0) })" />
             <span class="muted">{{ t('router.forSecs') }}</span>
           </template>
@@ -91,11 +88,17 @@ const models = (value: string | undefined) =>
           <template v-else-if="row.condition.type === 'model'">
             <VInputText :model-value="row.condition.values.join(', ')" size="small" :placeholder="t('router.modelsPlaceholder')" :aria-label="t('router.condition.model')" data-testid="router-models" @update:model-value="setCondition(index, row, { ...row.condition, values: models($event) })" />
           </template>
-          <span v-else class="chips">
-            <UiButton v-for="value in row.condition.type === 'status' ? STATUSES : ROUTE_KINDS" :key="value" type="button" class="chip" :aria-pressed="row.condition.values.includes(value)" :data-testid="`router-value-${value}`" @click="setCondition(index, row, { ...row.condition, values: toggle(row.condition.values, value) })">{{ value }}</UiButton>
-          </span>
+          <VSelectButton
+            v-else
+            class="chips"
+            :model-value="row.condition.values"
+            :options="row.condition.type === 'status' ? statusOptions : routeKindOptions"
+            :label="t(`router.condition.${row.condition.type}`)"
+            multiple
+            @update:model-value="setCondition(index, row, { ...row.condition, values: $event as string[] })"
+          />
         </template>
-        <VButton size="small" text severity="secondary" :aria-label="t('router.remove')" :title="t('router.remove')" data-testid="router-row-remove" @click="remove(index)">
+        <VButton v-tooltip="t('router.remove')" size="small" text severity="secondary" :aria-label="t('router.remove')" data-testid="router-row-remove" @click="remove(index)">
           <template #icon><Trash2 :size="14" /></template>
         </VButton>
       </template>
@@ -152,22 +155,5 @@ const models = (value: string | undefined) =>
   display: flex;
   flex-wrap: wrap;
   gap: var(--vr-space-1);
-}
-
-.chip,
-.not {
-  padding: 0 var(--vr-space-2);
-  color: var(--vr-color-text-muted);
-  background: transparent;
-  border: 1px solid var(--vr-color-border);
-  border-radius: var(--vr-radius-lg);
-  cursor: pointer;
-}
-
-.chip[aria-pressed='true'],
-.not[aria-pressed='true'] {
-  color: var(--vr-color-text);
-  background: var(--vr-color-surface-muted);
-  border-color: var(--vr-color-text-muted);
 }
 </style>

@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue';
 import { RotateCcw } from '../../../shared/ui/icons';
-import { VInputText, VSelect, VToggleSwitch } from '../../../shared/ui/kit';
+import { VButton, VInputText, VSelect, VToggleSwitch, vTooltip } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import LanguageSwitch from '../../../shared/ui/LanguageSwitch.vue';
 import { SETTINGS, type SettingKey } from '../../../shared/config/settings/schema';
 import { useSettings } from '../../../shared/config/settings/store';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ settingKey: SettingKey }>();
 
 const { t } = useI18n();
@@ -59,7 +58,7 @@ function commit() {
       <code class="key">{{ settingKey }}</code>
     </div>
     <div class="control">
-      <VToggleSwitch v-if="def.type === 'boolean'" :input-id="testId" :model-value="value === true" :data-testid="testId" @update:model-value="set(settingKey, $event)" />
+      <VToggleSwitch v-if="def.type === 'boolean'" class="toggle" :input-id="testId" :model-value="value === true" :data-testid="testId" @update:model-value="set(settingKey, $event)" />
       <div v-else-if="settingKey === 'ui.language'"><LanguageSwitch /></div>
       <VSelect
         v-else-if="def.type === 'enum'"
@@ -86,9 +85,19 @@ function commit() {
         @change="commit"
       />
       <VInputText v-else v-model="draft" size="small" :placeholder="placeholder" :id="testId" :data-testid="testId" @change="commit" />
-      <UiButton v-if="modified" class="reset" :title="t('settings.resetTitle')" :aria-label="t('settings.resetLabel')" :data-testid="`setting-reset-${settingKey}`" @click="reset(settingKey)">
-        <RotateCcw :size="14" />
-      </UiButton>
+      <VButton
+        v-if="modified"
+        v-tooltip="t('settings.resetTitle')"
+        class="reset"
+        size="small"
+        text
+        severity="secondary"
+        :aria-label="t('settings.resetLabel')"
+        :data-testid="`setting-reset-${settingKey}`"
+        @click="reset(settingKey)"
+      >
+        <template #icon><RotateCcw :size="14" /></template>
+      </VButton>
     </div>
   </div>
 </template>
@@ -135,26 +144,11 @@ function commit() {
   min-width: 0;
 }
 
-.control > .p-toggleswitch {
+.control > .toggle {
   flex: none;
 }
 
 .reset {
-  display: inline-flex;
   flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  color: var(--vr-color-text-muted);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
-}
-
-.reset:hover {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
 }
 </style>

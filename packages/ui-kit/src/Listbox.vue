@@ -5,8 +5,8 @@ import { FILTER_FROM_OPTIONS, highlight, selectFilterTexts } from './optionFilte
 
 type Option = { value: string; label: string; disabled?: boolean };
 
-const props = withDefaults(defineProps<{ options: Option[]; label: string; filter?: boolean; multiple?: boolean; allowEmpty?: boolean }>(), { filter: undefined });
-const model = defineModel<string | string[] | null>();
+const props = withDefaults(defineProps<{ options: Option[]; label: string; filter?: boolean; multiple?: boolean; allowEmpty?: boolean; flat?: boolean; testId?: string }>(), { filter: undefined });
+const model = defineModel<string | string[] | null>({ default: null });
 const query = ref('');
 const remount = ref(0);
 const filtered = computed(() => props.filter ?? props.options.length >= FILTER_FROM_OPTIONS);
@@ -25,6 +25,7 @@ function onUpdate(value: string | string[] | null) {
     :key="remount"
     :model-value="model"
     class="vr-listbox"
+    :class="{ 'vr-listbox-flat': flat }"
     :options="options"
     option-label="label"
     option-value="value"
@@ -39,10 +40,11 @@ function onUpdate(value: string | string[] | null) {
     @filter="query = $event.value"
   >
     <template #option="{ option }">
-      <slot name="option" :option="option">
-        <template v-if="filtered && query"><component :is="() => highlight(option.label, query)" /></template>
-        <template v-else>{{ option.label }}</template>
-      </slot>
+      <span class="vr-listbox-option" :data-testid="testId ? `${testId}-${option.value}` : undefined">
+        <slot name="option" :option="option">
+          <component :is="() => (filtered && query ? highlight(option.label, query) : option.label)" />
+        </slot>
+      </span>
     </template>
   </Listbox>
 </template>

@@ -276,7 +276,7 @@ onMounted(() => void refresh());
           </div>
         </div>
 
-        <p v-if="c.error && c.status !== 'ok'" class="card-error" role="alert" data-testid="connector-error">{{ c.error }}</p>
+        <VMessage v-if="c.error && c.status !== 'ok'" class="card-error" severity="error" size="small" data-testid="connector-error">{{ c.error }}</VMessage>
 
         <form v-if="editingId === c.id" class="edit" @submit.prevent="saveEdit(c)">
           <label class="field">
@@ -497,9 +497,6 @@ h3 {
 
 .card-error {
   margin: var(--vr-space-2) 0 0;
-  color: var(--vr-color-danger);
-  font-size: var(--vr-font-size-xs);
-  word-break: break-word;
 }
 
 .card-actions,

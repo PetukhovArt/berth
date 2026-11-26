@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, shallowRef } from 'vue';
 import { ExternalLink, FileJson, Search } from '../../../shared/ui/icons';
-import { VButton, VInputText, VMessage } from '../../../shared/ui/kit';
+import { VButton, VInputText, VMessage, vTooltip } from '../../../shared/ui/kit';
 import { captureChords } from '../../../shared/lib/commands/dispatcher';
 import { sequenceLabel, type Chord } from '../../../shared/lib/commands/keys';
 import {
@@ -121,23 +121,16 @@ onBeforeUnmount(cancel);
     <div class="toolbar vr-toolbar">
       <label class="search">
         <Search :size="16" />
-        <VInputText v-model="query" size="small" :placeholder="t('settings.keymap.search')" :aria-label="t('settings.keymap.search')" data-testid="keymap-search" />
+        <VInputText v-model="query" class="search-input" size="small" :placeholder="t('settings.keymap.search')" :aria-label="t('settings.keymap.search')" data-testid="keymap-search" />
       </label>
       <VButton :label="jsonMode ? t('settings.keymap.backToList') : t('settings.keymap.openJson')" size="small" severity="secondary" data-testid="keymap-open-json" @click="toggleJson">
         <template #icon><FileJson :size="14" /></template>
       </VButton>
-      <VButton
-        :label="t('settings.openExternal')"
-        size="small"
-        severity="secondary"
-        text
-        :disabled="!canOpenKeymapExternal"
-        :title="canOpenKeymapExternal ? t('settings.openExternalTitle') : t('settings.appOnly')"
-        data-testid="keymap-open-external"
-        @click="openKeymapExternal"
-      >
-        <template #icon><ExternalLink :size="14" /></template>
-      </VButton>
+      <span v-tooltip="canOpenKeymapExternal ? t('settings.openExternalTitle') : t('settings.appOnly')" class="hint-host">
+        <VButton :label="t('settings.openExternal')" size="small" severity="secondary" text :disabled="!canOpenKeymapExternal" data-testid="keymap-open-external" @click="openKeymapExternal">
+          <template #icon><ExternalLink :size="14" /></template>
+        </VButton>
+      </span>
     </div>
 
     <div class="notices">
@@ -233,7 +226,7 @@ onBeforeUnmount(cancel);
   pointer-events: none;
 }
 
-.search :deep(input) {
+.search-input {
   width: 100%;
   padding-left: calc(var(--vr-space-2) * 3.5);
 }
@@ -366,5 +359,9 @@ kbd {
 .empty {
   margin: var(--vr-space-6) 0;
   color: var(--vr-color-text-muted);
+}
+
+.hint-host {
+  display: inline-flex;
 }
 </style>

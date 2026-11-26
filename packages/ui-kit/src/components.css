@@ -73,3 +73,32 @@
   gap: var(--vr-space-2);
   font-size: var(--vr-font-size-label);
 }
+
+:root .vr-listbox-flat {
+  border: 0;
+  background: transparent;
+}
+
+:root .vr-listbox-flat .p-listbox-list {
+  padding: 0;
+  gap: var(--vr-space-1);
+}
+
+:root .vr-listbox-flat .p-listbox-option {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-2);
+  min-height: var(--vr-size-row);
+  padding: 0 var(--vr-space-3);
+  white-space: nowrap;
+}
+
+:root .vr-listbox-flat .p-listbox-option.p-listbox-option-selected {
+  font-weight: 600;
+}
+
+:root .vr-listbox-option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vr-space-2);
+}

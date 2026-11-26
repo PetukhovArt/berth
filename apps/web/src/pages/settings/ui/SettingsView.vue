@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, shallowRef, watch, type Component } from 'vue';
 import { ArrowLeft, Bot, ExternalLink, FileJson, FileText, History, Keyboard, MessageSquare, Palette, Plug, RefreshCw, Search, SlidersHorizontal, Smartphone, SquareTerminal, Users, Waypoints } from '../../../shared/ui/icons';
-import { VButton, VInputText, VMessage } from '../../../shared/ui/kit';
+import { VButton, VInputText, VListbox, VMessage, useIsPhone, vTooltip } from '../../../shared/ui/kit';
 import { ConnectorsPanel } from '../../../features/manage-connectors';
 import { RouterPanel } from '../../../features/edit-router';
 import { ChatBridgePanel } from '../../../features/chat-bridge';
@@ -24,7 +24,6 @@ import { CATEGORIES, SETTINGS, SETTING_KEYS } from '../../../shared/config/setti
 import { useSettings } from '../../../shared/config/settings/store';
 import { describeFailure } from '../../../shared/lib/config-file/parse';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 const { t } = useI18n();
 const { parseError, issues, ioError, text, saveText, openExternal, canOpenExternal } = useSettings();
 
@@ -36,7 +35,10 @@ const picked = shallowRef(false);
 
 const CATEGORY_ICONS: Record<CategoryId, Component> = { appearance: Palette, terminal: SquareTerminal, sessions: History, providers: Bot, router: Waypoints, files: FileText, connectors: Plug, chat: MessageSquare, team: Users, remote: Smartphone, app: RefreshCw, keymap: Keyboard };
 
+const phone = useIsPhone();
+const categoryOptions = computed(() => CATEGORIES.map((entry) => ({ value: entry.id, label: t(entry.label) })));
 const normalizedQuery = computed(() => query.value.trim().toLowerCase());
+const activeCategory = computed(() => (rawMode.value || normalizedQuery.value || (phone.value && !picked.value) ? null : category.value));
 const showDetail = computed(() => picked.value || rawMode.value || Boolean(normalizedQuery.value));
 const headerHidden = computed(() => showDetail.value && !normalizedQuery.value);
 const detailTitle = computed(() => {
@@ -134,22 +136,24 @@ onUnmounted(() => window.removeEventListener('keydown', onEscape));
 <template>
   <section class="page" data-testid="settings-view" :data-detail="headerHidden" :aria-label="t('settings.title')">
     <header class="header vr-toolbar vr-master-only">
-      <UiButton
-        type="button"
+      <VButton
+        v-tooltip="t('settings.backTo', { name: backLabel })"
         class="back"
-        :title="t('settings.backTo', { name: backLabel })"
+        size="small"
+        text
+        severity="secondary"
         :aria-label="t('settings.backTo', { name: backLabel })"
         data-testid="settings-back"
         @click="leaveSettings()"
       >
         <ArrowLeft :size="14" />
         <span class="back-label">{{ backLabel }}</span>
-      </UiButton>
+      </VButton>
       <span class="divider" role="separator" aria-orientation="vertical" />
       <h1><SlidersHorizontal :size="18" />{{ t('settings.title') }}</h1>
       <label class="search">
         <Search :size="16" />
-        <VInputText v-model="query" size="small" :placeholder="t('settings.search')" :aria-label="t('settings.search')" data-testid="settings-search" @keydown="onSearchKey" />
+        <VInputText v-model="query" class="search-input" size="small" :placeholder="t('settings.search')" :aria-label="t('settings.search')" data-testid="settings-search" @keydown="onSearchKey" />
       </label>
       <VButton
         :label="rawMode ? t('settings.backToSettings') : t('settings.openJson')"
@@ -160,18 +164,11 @@ onUnmounted(() => window.removeEventListener('keydown', onEscape));
       >
         <template #icon><FileJson :size="14" /></template>
       </VButton>
-      <VButton
-        :label="t('settings.openExternal')"
-        size="small"
-        severity="secondary"
-        text
-        :disabled="!canOpenExternal"
-        :title="canOpenExternal ? t('settings.openExternalTitle') : t('settings.appOnly')"
-        data-testid="settings-open-external"
-        @click="openExternal"
-      >
-        <template #icon><ExternalLink :size="14" /></template>
-      </VButton>
+      <span v-tooltip="canOpenExternal ? t('settings.openExternalTitle') : t('settings.appOnly')" class="hint-host">
+        <VButton :label="t('settings.openExternal')" size="small" severity="secondary" text :disabled="!canOpenExternal" data-testid="settings-open-external" @click="openExternal">
+          <template #icon><ExternalLink :size="14" /></template>
+        </VButton>
+      </span>
     </header>
 
     <div class="notices">
@@ -184,17 +181,12 @@ onUnmounted(() => window.removeEventListener('keydown', onEscape));
 
     <div class="body vr-master-detail" :data-detail="showDetail">
       <nav class="categories vr-master" :aria-label="t('settings.categoriesLabel')">
-        <UiButton
-          v-for="entry in CATEGORIES"
-          :key="entry.id"
-          class="category"
-          :data-active="!rawMode && !normalizedQuery && entry.id === category"
-          :data-testid="`settings-category-${entry.id}`"
-          @click="pickCategory(entry.id)"
-        >
-          <component :is="CATEGORY_ICONS[entry.id]" :size="14" />
-          {{ t(entry.label) }}
-        </UiButton>
+        <VListbox flat :filter="false" :model-value="activeCategory" :options="categoryOptions" :label="t('settings.categoriesLabel')" test-id="settings-category" @update:model-value="pickCategory($event as CategoryId)">
+          <template #option="{ option }">
+            <component :is="CATEGORY_ICONS[option.value as CategoryId]" :size="14" />
+            {{ option.label }}
+          </template>
+        </VListbox>
       </nav>
 
       <div class="content vr-detail vt-detail">
@@ -254,26 +246,12 @@ onUnmounted(() => window.removeEventListener('keydown', onEscape));
 }
 
 .back {
-  display: inline-flex;
   flex: none;
-  align-items: center;
-  gap: var(--vr-space-1);
   max-width: 14rem;
-  height: var(--vr-size-row);
-  padding: 0 var(--vr-space-2);
-  font: inherit;
-  font-size: var(--vr-font-size-label);
-  color: var(--vr-color-text-muted);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
-  cursor: pointer;
 }
 
-.back:hover,
-.back:focus-visible {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
+.hint-host {
+  display: inline-flex;
 }
 
 .back-label {
@@ -320,7 +298,7 @@ h1 {
   pointer-events: none;
 }
 
-.search :deep(input) {
+.search-input {
   width: 100%;
   padding-left: calc(var(--vr-space-2) * 3.5);
 }
@@ -348,30 +326,6 @@ h1 {
   gap: var(--vr-space-1);
   padding: var(--vr-space-4) var(--vr-space-3);
   border-right: 1px solid var(--vr-color-border);
-}
-
-.category {
-  display: flex;
-  align-items: center;
-  gap: var(--vr-space-2);
-  height: var(--vr-size-row);
-  padding: 0 var(--vr-space-3);
-  font: inherit;
-  text-align: left;
-  white-space: nowrap;
-  color: inherit;
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
-}
-
-.category:hover {
-  background: var(--vr-color-nav-hover);
-}
-
-.category[data-active='true'] {
-  font-weight: 600;
-  background: var(--vr-color-nav-active);
 }
 
 .content {

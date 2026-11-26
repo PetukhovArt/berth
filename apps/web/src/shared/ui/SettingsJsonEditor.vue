@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue';
-import { VButton, VMessage, VTextarea } from './kit';
+import { VButton, VMessage, VTextarea, vTooltip } from './kit';
 import { useI18n } from '../lib/i18n/i18n';
 import { chordText } from '../lib/commands/keys';
 import { primaryPressed } from '../lib/platform';
@@ -49,7 +49,7 @@ function onKey(event: KeyboardEvent) {
       <span class="path">~/.berth/{{ name }}</span>
       <span v-if="dirty" class="status">{{ t('settings.json.unsaved') }}</span>
       <span v-else-if="saved" class="status" :data-testid="`${testPrefix}-json-saved`">{{ t('settings.json.saved') }}</span>
-      <VButton :label="t('common.save')" size="small" :disabled="!dirty" :title="chordText('mod-s')" :data-testid="`${testPrefix}-json-save`" @click="commit" />
+      <VButton v-tooltip="chordText('mod-s')" :label="t('common.save')" size="small" :disabled="!dirty" :data-testid="`${testPrefix}-json-save`" @click="commit" />
     </div>
     <VMessage v-if="error" severity="error" size="small" :data-testid="`${testPrefix}-json-error`">{{ error }}</VMessage>
     <VTextarea :model-value="draft" class="area" spellcheck="false" wrap="off" :aria-label="name" :data-testid="`${testPrefix}-json-editor`" @update:model-value="onInput" />

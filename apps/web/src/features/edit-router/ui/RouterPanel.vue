@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef, type Ref } from 'vue';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from '../../../shared/ui/icons';
-import { VButton, VInputText, VMessage, VSelect, VToggleSwitch } from '../../../shared/ui/kit';
+import { VButton, VInputText, VMessage, VSelect, VToggleSwitch, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { describeError } from '../../../entities/session';
 import ConditionRows from './ConditionRows.vue';
@@ -124,13 +124,13 @@ onMounted(() => void reload());
             <span class="muted">{{ index + 1 }}</span>
             <VSelect v-model="entry.kind" :options="kindOptions" option-label="label" option-value="value" size="small" :aria-label="t('router.chain')" data-testid="router-chain-kind" />
             <VInputText v-model="entry.model" size="small" :placeholder="t('router.modelPlaceholder')" :aria-label="t('router.modelPlaceholder')" data-testid="router-chain-model" />
-            <VButton size="small" text severity="secondary" :aria-label="t('router.moveUp')" :title="t('router.moveUp')" :disabled="index === 0" @click="move(draft.fallback, index, -1)">
+            <VButton v-tooltip="t('router.moveUp')" size="small" text severity="secondary" :aria-label="t('router.moveUp')" :disabled="index === 0" @click="move(draft.fallback, index, -1)">
               <template #icon><ArrowUp :size="14" /></template>
             </VButton>
-            <VButton size="small" text severity="secondary" :aria-label="t('router.moveDown')" :title="t('router.moveDown')" :disabled="index === draft.fallback.length - 1" @click="move(draft.fallback, index, 1)">
+            <VButton v-tooltip="t('router.moveDown')" size="small" text severity="secondary" :aria-label="t('router.moveDown')" :disabled="index === draft.fallback.length - 1" @click="move(draft.fallback, index, 1)">
               <template #icon><ArrowDown :size="14" /></template>
             </VButton>
-            <VButton size="small" text severity="secondary" :aria-label="t('router.remove')" :title="t('router.remove')" @click="draft.fallback.splice(index, 1)">
+            <VButton v-tooltip="t('router.remove')" size="small" text severity="secondary" :aria-label="t('router.remove')" @click="draft.fallback.splice(index, 1)">
               <template #icon><Trash2 :size="14" /></template>
             </VButton>
           </li>
@@ -146,17 +146,17 @@ onMounted(() => void reload());
         <div class="rule-head">
           <VToggleSwitch v-model="rule.enabled" :input-id="`router-rule-enabled-${index}`" :aria-label="t('router.ruleEnabled')" data-testid="router-rule-enabled" />
           <VInputText v-model="rule.name" size="small" :placeholder="routeRuleLabel(rule.id)" :aria-label="t('router.ruleName')" class="grow" data-testid="router-rule-name" />
-          <label class="field inline" :title="t('router.ruleIdHint')">
+          <label v-tooltip="t('router.ruleIdHint')" class="field inline">
             <span class="muted">{{ t('router.ruleId') }}</span>
             <VInputText v-model="rule.id" size="small" :aria-label="t('router.ruleId')" class="id" data-testid="router-rule-id" />
           </label>
-          <VButton size="small" text severity="secondary" :aria-label="t('router.moveUp')" :title="t('router.moveUp')" :disabled="index === 0" @click="move(draft.rules, index, -1)">
+          <VButton v-tooltip="t('router.moveUp')" size="small" text severity="secondary" :aria-label="t('router.moveUp')" :disabled="index === 0" @click="move(draft.rules, index, -1)">
             <template #icon><ArrowUp :size="14" /></template>
           </VButton>
-          <VButton size="small" text severity="secondary" :aria-label="t('router.moveDown')" :title="t('router.moveDown')" :disabled="index === draft.rules.length - 1" @click="move(draft.rules, index, 1)">
+          <VButton v-tooltip="t('router.moveDown')" size="small" text severity="secondary" :aria-label="t('router.moveDown')" :disabled="index === draft.rules.length - 1" @click="move(draft.rules, index, 1)">
             <template #icon><ArrowDown :size="14" /></template>
           </VButton>
-          <VButton size="small" text severity="secondary" :aria-label="t('router.remove')" :title="t('router.remove')" data-testid="router-rule-remove" @click="draft.rules.splice(index, 1)">
+          <VButton v-tooltip="t('router.remove')" size="small" text severity="secondary" :aria-label="t('router.remove')" data-testid="router-rule-remove" @click="draft.rules.splice(index, 1)">
             <template #icon><Trash2 :size="14" /></template>
           </VButton>
         </div>
@@ -169,8 +169,8 @@ onMounted(() => void reload());
             <VSelect v-if="actionKey(action) === 'continue_in'" :model-value="str(actionBody(action).kind)" :options="kindOptions" option-label="label" option-value="value" size="small" data-testid="router-action-kind" @update:model-value="setActionField(rule.actions, at, 'kind', $event)" />
             <VInputText v-if="actionKey(action) !== 'next_in_chain'" :model-value="str(actionBody(action).model)" size="small" :placeholder="t('router.modelPlaceholder')" :aria-label="t('router.modelPlaceholder')" data-testid="router-action-model" @update:model-value="setActionField(rule.actions, at, 'model', $event ?? '')" />
           </template>
-          <code v-else class="raw" :title="t('router.kept')" data-testid="router-action-opaque">{{ JSON.stringify(action) }}</code>
-          <VButton size="small" text severity="secondary" :aria-label="t('router.remove')" :title="t('router.remove')" @click="rule.actions.splice(at, 1)">
+          <code v-else v-tooltip="t('router.kept')" class="raw" data-testid="router-action-opaque">{{ JSON.stringify(action) }}</code>
+          <VButton v-tooltip="t('router.remove')" size="small" text severity="secondary" :aria-label="t('router.remove')" @click="rule.actions.splice(at, 1)">
             <template #icon><Trash2 :size="14" /></template>
           </VButton>
         </div>

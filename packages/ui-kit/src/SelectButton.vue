@@ -11,7 +11,7 @@ interface SegmentOption {
 }
 
 const props = withDefaults(defineProps<{ options: SegmentOption[]; label: string; multiple?: boolean; allowEmpty?: boolean; size?: 'small' | 'large' }>(), { allowEmpty: undefined, size: 'small' });
-const model = defineModel<string | string[] | null>();
+const model = defineModel<string | string[] | null>({ default: null });
 const empty = () => props.allowEmpty ?? props.multiple;
 </script>
 
