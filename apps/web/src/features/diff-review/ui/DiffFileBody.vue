@@ -2,13 +2,12 @@
 import { computed } from 'vue';
 import type { DiffFile, Discussion } from '../../../shared/api/connectors/api';
 import type { PromptQuote } from '../../../entities/session';
-import { VButton } from '../../../shared/ui/kit';
+import { VButton, vTooltip } from '../../../shared/ui/kit';
 import { escapeHtml, highlightLines } from '../../../shared/lib/content/highlight';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { parsePatch, sideTexts, splitRows, type PatchLine, type SplitRow } from '../lib/patch';
 import ThreadView from './ThreadView.vue';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{
   file: DiffFile;
   discussions: Discussion[];
@@ -132,8 +131,8 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
         <div v-if="quoted && endsPick(line)" class="pick-bar" data-testid="diff-pick-bar">
           <span class="pick-label">{{ quoted.label }}</span>
           <span class="spacer" />
-          <VButton size="small" :label="t('forge.diff.addToPrompt')" :title="t('forge.diff.addToPromptTitle')" data-testid="diff-add-to-prompt" @click="addToPrompt" />
-          <VButton size="small" severity="secondary" text :label="t('forge.diff.clearPick')" data-testid="diff-clear-pick" @click="emit('clear')" />
+          <VButton v-tooltip="t('forge.diff.addToPromptTitle')" class="pick-action" size="small" :label="t('forge.diff.addToPrompt')" data-testid="diff-add-to-prompt" @click="addToPrompt" />
+          <VButton class="pick-action" size="small" severity="secondary" text :label="t('forge.diff.clearPick')" data-testid="diff-clear-pick" @click="emit('clear')" />
         </div>
         <div v-for="d in model.threads.get(line.index)" :key="d.id" class="thread-row" :data-flash="flashId === d.id">
           <ThreadView :discussion="d" :connector="connector" :quotable="pickable" @quote="emit('quote', $event)" />
@@ -153,8 +152,8 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
         <div v-if="quoted && (endsPick(row.right) || endsPick(row.left))" class="pick-bar" data-testid="diff-pick-bar">
           <span class="pick-label">{{ quoted.label }}</span>
           <span class="spacer" />
-          <VButton size="small" :label="t('forge.diff.addToPrompt')" :title="t('forge.diff.addToPromptTitle')" data-testid="diff-add-to-prompt" @click="addToPrompt" />
-          <VButton size="small" severity="secondary" text :label="t('forge.diff.clearPick')" data-testid="diff-clear-pick" @click="emit('clear')" />
+          <VButton v-tooltip="t('forge.diff.addToPromptTitle')" class="pick-action" size="small" :label="t('forge.diff.addToPrompt')" data-testid="diff-add-to-prompt" @click="addToPrompt" />
+          <VButton class="pick-action" size="small" severity="secondary" text :label="t('forge.diff.clearPick')" data-testid="diff-clear-pick" @click="emit('clear')" />
         </div>
         <div v-for="d in rowThreads(row)" :key="d.id" class="thread-row" :data-flash="flashId === d.id">
           <ThreadView :discussion="d" :connector="connector" :quotable="pickable" @quote="emit('quote', $event)" />
@@ -162,7 +161,7 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
       </template>
     </div>
 
-    <UiButton v-if="truncated" class="more" data-testid="diff-show-all" @click="emit('expand')">{{ t('forge.diff.showAll') }}</UiButton>
+    <VButton v-if="truncated" class="more" size="small" severity="secondary" text :label="t('forge.diff.showAll')" data-testid="diff-show-all" @click="emit('expand')" />
   </div>
 </template>
 
@@ -310,7 +309,7 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
   border-bottom: 1px solid var(--vr-color-border);
 }
 
-.pick-bar :deep(.p-button) {
+.pick-action {
   flex: none;
   white-space: nowrap;
 }
@@ -348,18 +347,7 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
 }
 
 .more {
-  display: block;
   width: 100%;
-  padding: var(--vr-space-2);
-  color: var(--vr-color-text-muted);
-  font: inherit;
-  background: none;
-  border: none;
   border-top: 1px solid var(--vr-color-border);
-  cursor: pointer;
-}
-
-.more:hover {
-  color: var(--vr-color-text);
 }
 </style>

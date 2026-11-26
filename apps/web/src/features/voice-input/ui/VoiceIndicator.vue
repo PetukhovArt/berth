@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Mic } from '../../../shared/ui/icons';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { voiceDownload } from '../../../shared/lib/nativeVoice';
 import { pushHolding, pushRecognising, stopWakeWord, voiceNotice, voiceTranscript, wakeArmed, wakePhrase, wakeSession } from '../model/voiceInput';
@@ -23,7 +23,7 @@ const status = computed(() => {
       <Mic class="mic" :size="14" />
       <span class="status" data-testid="voice-status">{{ status }}</span>
       <span v-if="voiceTranscript" class="transcript" data-testid="voice-transcript">{{ voiceTranscript }}</span>
-      <UiButton v-if="wakeSession && !pushHolding" type="button" class="off" data-testid="voice-wake-off" @click="stopWakeWord">{{ t('voice.off') }}</UiButton>
+      <VButton v-if="wakeSession && !pushHolding" class="off" :label="t('voice.off')" text severity="secondary" size="small" data-testid="voice-wake-off" @click="stopWakeWord" />
     </template>
     <span v-else class="notice" data-testid="voice-notice">{{ voiceNotice }}</span>
   </div>
@@ -67,15 +67,5 @@ const status = computed(() => {
 
 .off {
   flex: none;
-  padding: 0;
-  font: inherit;
-  color: var(--vr-color-text-muted);
-  cursor: pointer;
-  background: none;
-  border: 0;
-}
-
-.off:hover {
-  color: var(--vr-color-text);
 }
 </style>

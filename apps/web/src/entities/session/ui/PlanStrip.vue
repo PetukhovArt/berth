@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue';
 import { Check, ChevronDown, ChevronRight, ChevronUp, LoaderCircle } from '../../../shared/ui/icons';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton, vTooltip } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import type { PlanItem } from '../model/plan';
 
@@ -19,14 +19,15 @@ const done = computed(() => props.plan.filter((item) => item.state === 'done').l
         <ol v-if="phases.length" class="phases" :aria-label="t('chat.plan.phases')" data-testid="conversation-plan-phases">
           <template v-for="(phase, index) in phases" :key="index">
             <ChevronRight v-if="index" :size="11" class="sep" />
-            <li class="phase" :data-state="phase.state" :title="phase.text">{{ phase.text }}</li>
+            <li v-tooltip="phase.text" class="phase" :data-state="phase.state">{{ phase.text }}</li>
           </template>
         </ol>
-        <UiButton v-if="plan.length" type="button" class="plan-toggle" :aria-expanded="open" data-testid="conversation-plan-toggle" @click="open = !open">
-          {{ t('workbench.external.plan', { done, total: plan.length }) }}
-          <ChevronUp v-if="open" :size="12" />
-          <ChevronDown v-else :size="12" />
-        </UiButton>
+        <VButton v-if="plan.length" class="plan-toggle" :label="t('workbench.external.plan', { done, total: plan.length })" icon-pos="right" text severity="secondary" size="small" :aria-expanded="open" data-testid="conversation-plan-toggle" @click="open = !open">
+          <template #icon>
+            <ChevronUp v-if="open" :size="12" />
+            <ChevronDown v-else :size="12" />
+          </template>
+        </VButton>
       </div>
       <ul v-if="open && plan.length" class="plan-items">
         <li v-for="(item, index) in plan" :key="index" class="plan-item" :data-state="item.state" data-testid="conversation-plan-item">
@@ -105,18 +106,8 @@ const done = computed(() => props.plan.filter((item) => item.state === 'done').l
 }
 
 .plan-toggle {
-  display: inline-flex;
   flex: none;
-  align-items: center;
-  gap: var(--vr-space-1);
   margin-left: auto;
-  padding: 0;
-  font: inherit;
-  font-size: var(--vr-font-size-control);
-  color: var(--vr-color-text-muted);
-  cursor: pointer;
-  background: none;
-  border: none;
 }
 
 .plan-items {

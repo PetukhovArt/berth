@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Eye } from '../../../shared/ui/icons';
-import { VButton } from '../../../shared/ui/kit';
+import { VButton, VTag, vTooltip } from '../../../shared/ui/kit';
 import { useConnectors, type ChangeRequest, type Discussion } from '../../../shared/api/connectors/api';
 import PersonAvatar from '../../../shared/ui/PersonAvatar.vue';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
@@ -17,7 +17,6 @@ import { useChangeRequest } from '../model/change-request-scope';
 import { pipelineTone } from '../model/pipelineTone';
 import PipelineJobs from './PipelineJobs.vue';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ connector: string; request: ChangeRequest; session: SessionNode | null }>();
 const emit = defineEmits<{ goto: [discussion: Discussion]; quote: [quote: PromptQuote] }>();
 
@@ -50,7 +49,7 @@ const pipelineStatus = computed(() => (pipeline.value ? pipeline.value.status : 
 
         <div v-if="conversation.length" class="discussions-head">
           <h3 class="section">{{ t('forge.request.discussions') }} <span class="count">{{ conversation.length }}</span></h3>
-          <span v-if="resolvable" class="pill" data-testid="cr-unresolved-pill">{{ unresolved ? t('forge.request.unresolvedPill', { count: unresolved }) : t('forge.request.allResolved') }}</span>
+          <VTag v-if="resolvable" severity="secondary" :value="unresolved ? t('forge.request.unresolvedPill', { count: unresolved }) : t('forge.request.allResolved')" data-testid="cr-unresolved-pill" />
           <span v-if="anchored" class="hint vr-key-hint">{{ t('forge.request.keysHint') }}</span>
         </div>
         <div class="threads">
@@ -71,10 +70,10 @@ const pipelineStatus = computed(() => (pipeline.value ? pipeline.value.status : 
       <aside class="facts" data-testid="cr-facts">
         <section class="fact" data-testid="cr-fact-pipeline">
           <h3 class="fact-title">{{ pipeline ? t('forge.request.pipelineNumber', { id: pipeline.id }) : t('forge.request.tabPipeline') }}</h3>
-          <UiButton class="status-link" @click="selectTab('pipeline')">
+          <VButton class="status-link" size="small" severity="secondary" text @click="selectTab('pipeline')">
             <StatusIcon v-if="pipelineStatus !== 'none'" :tone="pipelineTone(pipelineStatus)" />
             <span>{{ pipelineLabel(pipelineStatus) }}</span>
-          </UiButton>
+          </VButton>
           <PipelineJobs v-if="pipeline?.jobs.length" compact />
         </section>
 
@@ -88,17 +87,17 @@ const pipelineStatus = computed(() => (pipeline.value ? pipeline.value.status : 
 
         <section v-if="issueKey" class="fact" data-testid="cr-fact-issue">
           <h3 class="fact-title">{{ t('forge.request.issueHeading') }}</h3>
-          <UiButton v-if="jiraConnector" class="status-link issue-key" :title="t('forge.request.openIssue', { key: issueKey })" @click="openIssue(jiraConnector.id, issueKey)">{{ issueKey }}</UiButton>
+          <VButton v-if="jiraConnector" v-tooltip="t('forge.request.openIssue', { key: issueKey })" class="status-link issue-key" size="small" severity="secondary" text :label="issueKey" @click="openIssue(jiraConnector.id, issueKey)" />
           <span v-else class="issue-key">{{ issueKey }}</span>
         </section>
 
         <section class="fact" data-testid="cr-fact-session">
           <h3 class="fact-title">{{ t('forge.request.sessionHeading') }}</h3>
-          <UiButton v-if="session" class="status-link session-link" :title="t('forge.request.openSession')" data-testid="cr-fact-session-open" @click="dock.openWhenListed(session.ref)">
+          <VButton v-if="session" v-tooltip="t('forge.request.openSession')" class="status-link session-link" size="small" severity="secondary" text data-testid="cr-fact-session-open" @click="dock.openWhenListed(session.ref)">
             <StatusIcon :status="statusOf(session)" :unseen="session.unseen" />
             <span class="session-name">{{ session.name }}</span>
             <span class="pipe-id">{{ t(`agents.status.${statusOf(session)}`) }}</span>
-          </UiButton>
+          </VButton>
           <span v-else class="pipe-id" data-testid="cr-fact-no-session">{{ t('forge.request.noSession') }}</span>
           <template v-if="request.state === 'open'">
             <VButton size="small" severity="secondary" :label="watching ? t('attention.watch.stopWatching') : `${t('attention.watch.action')} ${number}`" :aria-pressed="watching" data-testid="cr-fact-watch" @click="toggleWatch(target)">
@@ -170,17 +169,6 @@ const pipelineStatus = computed(() => (pipeline.value ? pipeline.value.status : 
   font-weight: 400;
 }
 
-.pill {
-  display: inline-flex;
-  align-items: center;
-  height: 20px;
-  padding: 0 var(--vr-space-2);
-  color: var(--vr-color-text-muted);
-  font-size: var(--vr-font-size-2xs);
-  border: 1px solid var(--vr-color-border-strong);
-  border-radius: var(--vr-radius-full);
-}
-
 .next-step :deep(.git-step) {
   flex-direction: column;
   align-items: stretch;
@@ -247,17 +235,7 @@ const pipelineStatus = computed(() => (pipeline.value ? pipeline.value.status : 
 }
 
 .status-link {
-  display: flex;
-  align-items: center;
-  gap: var(--vr-space-2);
   align-self: flex-start;
-  padding: 0;
-  color: var(--vr-color-text);
-  font: inherit;
-  font-size: var(--vr-font-size-sm);
-  background: none;
-  border: none;
-  cursor: pointer;
 }
 
 .issue-key {

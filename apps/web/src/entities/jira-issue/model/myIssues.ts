@@ -48,12 +48,14 @@ export function createMyIssues(scope: Scope) {
   const errors = computed(() =>
     jiraConnectors.value.flatMap((c) => {
       const error = jiraResults.value.get(c.id)?.error;
-      return error ? [{ connector: c.label, message: error }] : [];
+      return error ? [{ connector: c.id, message: error }] : [];
     }),
   );
   function refresh() {
     for (const connector of jiraConnectors.value) void loadJira(connector.id, false);
   }
 
-  return { jiraConnectors, issues, errors, refresh };
+  const retry = (id: string) => loadJira(id, true);
+
+  return { jiraConnectors, issues, errors, refresh, retry };
 }

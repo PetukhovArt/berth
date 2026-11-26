@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef, useTemplateRef } from 'vue';
 import { ChevronRight, Ellipsis, MessageSquare } from '../../../shared/ui/icons';
-import { useIsPhone, VContextMenu } from '../../../shared/ui/kit';
+import { useIsPhone, VBadge, VButton, VContextMenu, VMessage, vTooltip } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { allowRequest, alwaysAllowRequest, chooseOption, denyRequest, isYesNoPermission, offersAlways, openChannel, restartAgent, StatusIcon, useAction, useHollow, useBerth, useChannelUnread, useSessionDock, type SessionRef } from '../../../entities/session';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
@@ -100,20 +100,20 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
 <template>
   <section v-if="total || calm" class="inbox" data-testid="inbox">
     <div class="head">
-      <UiButton class="toggle" :aria-expanded="open" :aria-disabled="filtering" data-testid="inbox-toggle" @click="toggle">
+      <VButton class="toggle" text severity="secondary" size="small" :aria-expanded="open" :aria-disabled="filtering" data-testid="inbox-toggle" @click="toggle">
         <ChevronRight :size="14" class="chevron vr-chevron" />
         <span class="title">{{ t('attention.inbox.title') }}</span>
-        <span v-if="total" class="count" data-testid="inbox-count">{{ open ? total : t('attention.inbox.needYou', { count: total }) }}</span>
-      </UiButton>
+        <VBadge v-if="total" class="count" severity="secondary" size="small" :value="open ? total : t('attention.inbox.needYou', { count: total })" :max="999" data-testid="inbox-count" />
+      </VButton>
       <span v-if="asOf" class="as-of" data-testid="inbox-as-of">{{ asOf }}</span>
-      <UiButton v-if="nextShortcut" class="next" :title="t('attention.inbox.next')" :aria-label="t('attention.inbox.next')" data-testid="inbox-next-waiting" @click="openNextNeedingYou">
+      <VButton v-if="nextShortcut" v-tooltip="t('attention.inbox.next')" class="next" outlined severity="secondary" size="small" :aria-label="t('attention.inbox.next')" data-testid="inbox-next-waiting" @click="openNextNeedingYou">
         <kbd>{{ nextShortcut }}</kbd>
-      </UiButton>
+      </VButton>
     </div>
     <p v-if="open && calm" class="calm" data-testid="inbox-empty">{{ t('attention.inbox.nothing') }}</p>
     <div v-if="open && total" class="items" data-testid="inbox-items">
       <div v-for="entry in shown" :key="entry.key" class="item" data-testid="inbox-item" :data-kind="entry.kind" :data-hollow="!!hollow" :data-session-id="entry.node?.id">
-        <UiButton class="row" :title="entry.state.name" @click="dock.openKey(entry.key)" @contextmenu.prevent="showMenu($event, entry)">
+        <UiButton v-tooltip="entry.state.name" class="row" @click="dock.openKey(entry.key)" @contextmenu.prevent="showMenu($event, entry)">
           <StatusIcon :status="entry.state.status" :unseen="entry.state.unseen" />
           <span class="body">
             <span class="line">
@@ -127,25 +127,27 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
           <code v-if="requestOf(entry)?.detail" class="detail">{{ requestOf(entry)?.detail }}</code>
           <div class="actions">
             <template v-if="yesNo(entry)">
-              <UiButton type="button" class="action primary" data-testid="inbox-allow" @click="act(entry, allowRequest)">{{ t('feedback.allow') }}</UiButton>
-              <UiButton v-if="always(entry)" type="button" class="action" :title="t('feedback.alwaysTitle')" data-testid="inbox-always" @click="act(entry, alwaysAllowRequest)">{{ t('feedback.always') }}</UiButton>
-              <UiButton type="button" class="action" data-testid="inbox-deny" @click="act(entry, denyRequest)">{{ t('feedback.deny') }}</UiButton>
+              <VButton class="action" :label="t('feedback.allow')" data-testid="inbox-allow" @click="act(entry, allowRequest)" />
+              <VButton v-if="always(entry)" v-tooltip="t('feedback.alwaysTitle')" class="action" severity="secondary" :label="t('feedback.always')" data-testid="inbox-always" @click="act(entry, alwaysAllowRequest)" />
+              <VButton class="action" severity="secondary" :label="t('feedback.deny')" data-testid="inbox-deny" @click="act(entry, denyRequest)" />
             </template>
-            <UiButton v-for="(option, index) in requestOf(entry)?.options" v-else :key="index" type="button" class="action" :class="{ primary: index === 0 }" data-testid="inbox-option" @click="act(entry, (ref) => chooseOption(ref, index))">{{ option }}</UiButton>
+            <VButton v-for="(option, index) in requestOf(entry)?.options" v-else :key="index" class="action" :severity="index === 0 ? undefined : 'secondary'" :label="option" data-testid="inbox-option" @click="act(entry, (ref) => chooseOption(ref, index))" />
           </div>
         </div>
         <div v-else-if="entry.kind === 'crashed' && agentRef(entry)" class="card vr-phone-only" data-testid="inbox-crashed">
           <code class="detail" data-testid="inbox-crashed-detail">{{ t('attention.inbox.crashedDetail') }}</code>
           <div class="actions">
-            <UiButton type="button" class="action primary" :title="t('attention.inbox.resumeTitle')" :disabled="resuming.busy.value" data-testid="inbox-resume" @click="resume(entry)">{{ t('attention.inbox.resume') }}</UiButton>
-            <UiButton type="button" class="action" data-testid="inbox-open" @click="dock.openKey(entry.key)">{{ t('attention.inbox.open') }}</UiButton>
+            <VButton v-tooltip="t('attention.inbox.resumeTitle')" class="action" :label="t('attention.inbox.resume')" :disabled="resuming.busy.value" data-testid="inbox-resume" @click="resume(entry)" />
+            <VButton class="action" severity="secondary" :label="t('attention.inbox.open')" data-testid="inbox-open" @click="dock.openKey(entry.key)" />
           </div>
-          <p v-if="resumeFailed === entry.key && resuming.error.value" class="error" role="alert" data-testid="inbox-resume-error">{{ resuming.error.value }}</p>
+          <VMessage v-if="resumeFailed === entry.key && resuming.error.value" severity="error" size="small" data-testid="inbox-resume-error">{{ resuming.error.value }}</VMessage>
         </div>
-        <UiButton class="more" :title="t('attention.inbox.actions')" :aria-label="t('attention.inbox.actions')" aria-haspopup="menu" data-testid="inbox-menu" @click="showMenu($event, entry)"><Ellipsis :size="14" /></UiButton>
+        <VButton v-tooltip="t('attention.inbox.actions')" class="more" text severity="secondary" size="small" :aria-label="t('attention.inbox.actions')" aria-haspopup="menu" data-testid="inbox-menu" @click="showMenu($event, entry)">
+          <template #icon><Ellipsis :size="14" /></template>
+        </VButton>
       </div>
       <div v-for="channel in shownChannels" :key="channel.key" class="item" data-testid="inbox-channel" data-kind="channel">
-        <UiButton class="row" :title="channel.key" @click="openChannel(channel.key)">
+        <UiButton v-tooltip="channel.key" class="row" @click="openChannel(channel.key)">
           <MessageSquare :size="14" class="channel-icon" />
           <span class="body">
             <span class="line">
@@ -191,29 +193,17 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
 }
 
 .toggle {
-  display: flex;
   flex: 1;
-  align-items: center;
+  justify-content: flex-start;
   gap: var(--vr-space-2);
   min-width: 0;
   height: 28px;
   padding: 0 4px 0 6px;
-  font: inherit;
   text-align: left;
-  color: inherit;
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
-  cursor: pointer;
-}
-
-.toggle:hover {
-  background: var(--vr-color-nav-hover);
 }
 
 .toggle[aria-disabled='true'] {
   cursor: default;
-  background: none;
 }
 
 .toggle .chevron {
@@ -231,20 +221,9 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
 }
 
 .next {
-  display: inline-flex;
-  align-items: center;
   height: 18px;
   padding: 0 var(--vr-space-1);
   margin-right: var(--vr-space-1);
-  color: var(--vr-color-text-muted);
-  background: none;
-  border: 1px solid var(--vr-color-border-strong);
-  border-radius: var(--vr-radius-sm);
-}
-
-.next:hover {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
 }
 
 .next kbd {
@@ -351,16 +330,8 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
   position: absolute;
   top: 4px;
   right: var(--vr-space-1);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 22px;
   height: 20px;
-  padding: 0;
-  color: var(--vr-color-text-muted);
-  background: var(--vr-color-nav-hover);
-  border: 0;
-  border-radius: var(--vr-radius-sm);
   opacity: 0;
 }
 
@@ -404,19 +375,6 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
   flex: 0 1 auto;
   min-width: 5.5em;
   min-height: var(--vr-size-touch);
-  padding: 0 var(--vr-space-4);
-  font: inherit;
-  font-size: var(--vr-font-size-sm);
-  color: var(--vr-color-text);
-  background: var(--vr-color-surface-muted);
-  border: 0;
-  border-radius: var(--vr-radius-md);
-}
-
-.action.primary {
-  font-weight: 600;
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-accent);
 }
 
 :root[data-vr-viewport='phone'] .item {
@@ -490,14 +448,4 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
   overflow: visible;
 }
 
-.action:disabled {
-  opacity: 0.6;
-}
-
-.error {
-  margin: 0;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-danger);
-  overflow-wrap: anywhere;
-}
 </style>

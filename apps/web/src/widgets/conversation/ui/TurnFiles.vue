@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { worktreeRelative } from '../../../shared/lib/worktreePath';
 import { isAvailable, showChangeIn } from '../../../features/session-view-switch';
@@ -23,10 +23,10 @@ function open(file: ChangedFile) {
     </header>
     <ul class="files">
       <li v-for="file in files" :key="file.path" class="file" data-testid="chat-changed-file">
-        <span class="path mono" :title="file.path">{{ worktreeRelative(file.path, root) }}</span>
+        <span v-tooltip="file.path" class="path mono">{{ worktreeRelative(file.path, root) }}</span>
         <span v-if="file.additions" class="added mono">+{{ file.additions }}</span>
         <span v-if="file.deletions" class="removed mono">-{{ file.deletions }}</span>
-        <UiButton v-if="canOpen" type="button" class="open" data-testid="chat-changed-file-open" @click="open(file)">{{ t('chat.openInChanges') }}</UiButton>
+        <VButton v-if="canOpen" class="open" :label="t('chat.openInChanges')" text size="small" data-testid="chat-changed-file-open" @click="open(file)" />
       </li>
     </ul>
   </section>
@@ -98,14 +98,7 @@ function open(file: ChangedFile) {
 
 .open {
   flex: none;
-  padding: 0;
-  font: inherit;
-  font-size: var(--vr-font-size-label);
   white-space: nowrap;
-  color: var(--vr-color-link);
-  cursor: pointer;
-  background: none;
-  border: 0;
 }
 
 .mono {

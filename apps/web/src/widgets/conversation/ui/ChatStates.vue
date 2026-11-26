@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { TriangleAlert } from '../../../shared/ui/icons';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 
 defineProps<{ state: 'loading' | 'empty' | 'error'; message?: string | null; canShowTerminal?: boolean; canShowAgentLog?: boolean }>();
@@ -22,9 +22,9 @@ const emit = defineEmits<{ retry: []; showTerminal: []; showAgentLog: [] }>();
     <p class="title">{{ t('chat.state.errorTitle') }}</p>
     <p class="detail">{{ message }}</p>
     <div class="actions">
-      <UiButton type="button" class="action primary" data-testid="chat-retry" @click="emit('retry')">{{ t('chat.state.retry') }}</UiButton>
-      <UiButton v-if="canShowTerminal" type="button" class="action" data-testid="chat-show-terminal" @click="emit('showTerminal')">{{ t('chat.state.showTerminal') }}</UiButton>
-      <UiButton v-if="canShowAgentLog" type="button" class="action" data-testid="chat-show-agent-log" @click="emit('showAgentLog')">{{ t('chat.state.showAgentLog') }}</UiButton>
+      <VButton :label="t('chat.state.retry')" size="small" data-testid="chat-retry" @click="emit('retry')" />
+      <VButton v-if="canShowTerminal" :label="t('chat.state.showTerminal')" severity="secondary" size="small" data-testid="chat-show-terminal" @click="emit('showTerminal')" />
+      <VButton v-if="canShowAgentLog" :label="t('chat.state.showAgentLog')" severity="secondary" size="small" data-testid="chat-show-agent-log" @click="emit('showAgentLog')" />
     </div>
   </div>
 </template>
@@ -113,24 +113,6 @@ const emit = defineEmits<{ retry: []; showTerminal: []; showAgentLog: [] }>();
   display: flex;
   gap: var(--vr-space-2);
   margin-top: var(--vr-space-2);
-}
-
-.action {
-  height: 30px;
-  padding: 0 var(--vr-space-3);
-  font: inherit;
-  font-size: var(--vr-font-size-control);
-  font-weight: 500;
-  color: var(--vr-color-text);
-  cursor: pointer;
-  background: var(--vr-color-surface-muted);
-  border: 0;
-  border-radius: var(--vr-radius-md);
-}
-
-.action.primary {
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-accent);
 }
 
 @keyframes pulse {

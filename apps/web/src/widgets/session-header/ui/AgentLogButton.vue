@@ -1,106 +1,82 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { ref, useTemplateRef, watch } from 'vue';
 import { FileText } from '../../../shared/ui/icons';
-import { useSheet } from '../../../shared/lib/useSheet';
+import { VButton, VPopover, useIsPhone, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { readAcpAgentLog } from '../../../shared/api/providers';
-import { agentLogFor, toggleAgentLog } from '../../../shared/model/agentLog';
+import { agentLogFor } from '../../../shared/model/agentLog';
 import { describeError } from '../../../entities/session';
 
 const props = defineProps<{ agentId: string }>();
 
-const open = computed({
-  get: () => agentLogFor.value === props.agentId,
-  set: (value) => {
-    if (!value && agentLogFor.value === props.agentId) agentLogFor.value = null;
-  },
-});
-const sheet = ref<HTMLElement | null>(null);
-useSheet(sheet, open);
+const open = ref(false);
+const phone = useIsPhone();
+const popover = useTemplateRef<InstanceType<typeof VPopover>>('popover');
+const anchor = useTemplateRef<HTMLElement>('anchor');
 const text = ref<string | null>(null);
 
-watch(
-  open,
-  async (value) => {
-    if (!value) return;
-    text.value = null;
-    try {
-      text.value = await readAcpAgentLog(props.agentId);
-    } catch (failure) {
-      text.value = describeError(failure);
-    }
-  },
-  { immediate: true },
-);
+function toggle(event: Event) {
+  popover.value?.toggle(event);
+}
+
+async function opened() {
+  open.value = true;
+  agentLogFor.value = props.agentId;
+  text.value = null;
+  try {
+    text.value = await readAcpAgentLog(props.agentId);
+  } catch (failure) {
+    text.value = describeError(failure);
+  }
+}
+
+function closed() {
+  open.value = false;
+  if (agentLogFor.value === props.agentId) agentLogFor.value = null;
+}
+
+watch(agentLogFor, (value) => {
+  if (value === props.agentId && !open.value && anchor.value) popover.value?.show({ currentTarget: anchor.value } as unknown as Event);
+  else if (value !== props.agentId && open.value) popover.value?.hide();
+});
 </script>
 
 <template>
-  <div class="agent-log">
-    <UiButton type="button" class="chip" :title="t('agents.sessionView.chatAgentLog')" :aria-label="t('agents.sessionView.chatAgentLog')" :aria-expanded="open" data-testid="chat-agent-log-toggle" @click="toggleAgentLog(agentId)">
-      <FileText :size="13" />
-      <span class="chip-label">{{ t('agents.sessionView.chatAgentLog') }}</span>
-    </UiButton>
-    <div v-if="open" ref="sheet" class="sheet vr-sheet" data-testid="chat-agent-log">
-      <span class="heading">{{ t('agents.sessionView.chatAgentLog') }}</span>
-      <pre class="text mono" data-testid="chat-agent-log-text">{{ text === null ? '' : text || t('agents.sessionView.chatAgentLogEmpty') }}</pre>
-    </div>
+  <div ref="anchor" class="agent-log">
+    <VButton
+      v-tooltip="t('agents.sessionView.chatAgentLog')"
+      text
+      severity="secondary"
+      size="small"
+      :label="phone ? t('agents.sessionView.chatAgentLog') : undefined"
+      :aria-label="t('agents.sessionView.chatAgentLog')"
+      :aria-expanded="open"
+      aria-haspopup="dialog"
+      data-testid="chat-agent-log-toggle"
+      @click="toggle"
+    >
+      <template #icon><FileText :size="13" /></template>
+    </VButton>
+    <VPopover ref="popover" @show="opened" @hide="closed">
+      <div class="panel" data-testid="chat-agent-log">
+        <span class="heading">{{ t('agents.sessionView.chatAgentLog') }}</span>
+        <pre class="text mono" data-testid="chat-agent-log-text">{{ text === null ? '' : text || t('agents.sessionView.chatAgentLogEmpty') }}</pre>
+      </div>
+    </VPopover>
   </div>
 </template>
 
 <style scoped>
 .agent-log {
-  position: relative;
   display: flex;
   flex: none;
 }
 
-.chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  color: var(--vr-color-text-subtle);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-full);
-  cursor: pointer;
-}
-
-.chip-label {
-  display: none;
-}
-
-:root[data-vr-viewport='phone'] .chip {
-  gap: var(--vr-space-1);
-  width: auto;
-  height: var(--vr-size-row-touch);
-  padding: 0 var(--vr-space-3);
-  font: inherit;
-  font-size: var(--vr-font-size-label);
-  color: var(--vr-color-text);
-  background: var(--vr-color-surface-muted);
-  border-radius: var(--vr-radius-md);
-}
-
-:root[data-vr-viewport='phone'] .chip-label {
-  display: inline;
-}
-
-.sheet {
-  position: absolute;
-  top: 28px;
-  right: 0;
-  z-index: 6;
+.panel {
   display: flex;
   flex-direction: column;
   gap: var(--vr-space-2);
-  width: min(560px, 90vw);
-  padding: var(--vr-space-3);
-  background: var(--vr-color-surface-raised);
-  border-radius: var(--vr-radius-md);
-  box-shadow: var(--vr-shadow-popover);
+  width: min(560px, 80vw);
 }
 
 .heading {

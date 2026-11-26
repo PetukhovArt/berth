@@ -2,9 +2,10 @@
 import { computed, nextTick, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { ArrowRight, ExternalLink, GitMerge, GitPullRequest, GitPullRequestClosed, GitPullRequestDraft, RefreshCw } from '../../../shared/ui/icons';
-import { VButton } from '../../../shared/ui/kit';
+import { VButton, VMessage, VTabs, VTag, VToggleButton, vTooltip } from '../../../shared/ui/kit';
 import { forgeChangeRequest, openUrl, useConnectors, type ChangeRequest, type Discussion } from '../../../shared/api/connectors/api';
 import PersonAvatar from '../../../shared/ui/PersonAvatar.vue';
+import PersonName from '../../../shared/ui/PersonName.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useScope, visibleInterval } from '../../../shared/lib/scope';
 import { ArchitectureAction } from '../../../features/architecture';
@@ -23,7 +24,6 @@ import { provideChangeRequest } from '../model/change-request-scope';
 import PipelineJobs from './PipelineJobs.vue';
 import ChangeRequestOverview from './ChangeRequestOverview.vue';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ connector: string; project: string; number: number; panel?: DockviewPanelApi }>();
 
 const STATE_KEY = { open: 'forge.request.state.open', merged: 'forge.request.state.merged', closed: 'forge.request.state.closed' } as const;
@@ -46,6 +46,12 @@ const sessionRun = computed(() => mrRuns.value.get(itemId(target.value)));
 const pipelineStatus = computed(() => (pipeline.value ? pipeline.value.status : (cr.value?.pipeline ?? 'none')));
 
 const session = useMrSession(() => target.value);
+
+const tabOptions = computed(() => [
+  { value: 'overview', label: t('forge.request.tabOverview'), count: unresolved.value, title: unresolved.value ? t('forge.unresolvedThreads', { count: unresolved.value }) : undefined },
+  { value: 'diff', label: t('forge.request.tabChanges'), count: diffLoaded.value ? files.value.length : undefined },
+  { value: 'pipeline', label: t('forge.request.tabPipeline') },
+]);
 
 function quote(entry: PromptQuote) {
   if (session.value) quoteToPrompt(session.value.ref, entry, props.panel?.id === itemId(target.value) ? props.panel.id : undefined);
@@ -103,11 +109,10 @@ onMounted(() => {
 
 <template>
   <section class="cr" data-testid="change-request">
-    <p v-if="failure" class="notice failure" role="alert" data-testid="cr-failure">
-      <StatusIcon tone="feedback" />
+    <VMessage v-if="failure" class="failure" severity="warn" data-testid="cr-failure">
       <span class="notice-text">{{ t('forge.request.loadFailed', { number: requestLabel, reason: failure }) }}</span>
-      <UiButton class="link-button" type="button" data-testid="cr-failure-refresh" @click="load">{{ t('common.refresh') }}</UiButton>
-    </p>
+      <VButton link size="small" :label="t('common.refresh')" data-testid="cr-failure-refresh" @click="load" />
+    </VMessage>
     <div v-else-if="!cr" class="skeleton" aria-busy="true" data-testid="cr-loading">
       <span class="loading">{{ t('common.loading') }}</span>
       <i class="bar title-bar" />
@@ -124,10 +129,10 @@ onMounted(() => {
           <component :is="cr.state === 'merged' ? GitMerge : cr.state === 'closed' ? GitPullRequestClosed : cr.draft ? GitPullRequestDraft : GitPullRequest" :size="16" class="state-icon" :data-state="cr.state" />
           <h2 class="title">{{ cr.title }} <span class="num">{{ numberLabel(cr) }}</span></h2>
           <div class="actions">
-            <VButton size="small" severity="secondary" text :loading="loading" :aria-label="t('common.refresh')" :title="t('common.refresh')" data-testid="cr-refresh" @click="load">
+            <VButton v-tooltip="t('common.refresh')" size="small" severity="secondary" text :loading="loading" :aria-label="t('common.refresh')" data-testid="cr-refresh" @click="load">
               <template #icon><RefreshCw :size="14" /></template>
             </VButton>
-            <VButton size="small" severity="secondary" :label="t('common.openInBrowser')" :title="t('forge.request.openInBrowserTitle')" data-testid="cr-open-browser" @click="openUrl(cr.url)">
+            <VButton v-tooltip="t('forge.request.openInBrowserTitle')" size="small" severity="secondary" :label="t('common.openInBrowser')" data-testid="cr-open-browser" @click="openUrl(cr.url)">
               <template #icon><ExternalLink :size="14" /></template>
             </VButton>
             <OpenInSessionAction :item="cr" />
@@ -138,28 +143,28 @@ onMounted(() => {
         </div>
 
         <div class="meta">
-          <span class="chip state" :data-state="cr.state" data-testid="cr-state">{{ t(STATE_KEY[cr.state]) }}</span>
-          <span v-if="cr.draft" class="chip" data-testid="cr-draft">{{ t('forge.draft') }}</span>
-          <span v-if="cr.state === 'open' && cr.mergeable === false" class="chip warn" :title="t('forge.request.conflictsTitle')" data-testid="cr-conflicts">{{ t('forge.request.conflicts') }}</span>
-          <span class="branches" :title="`${cr.source_branch} → ${cr.target_branch}`">
+          <VTag :severity="cr.state === 'open' ? 'info' : 'secondary'" rounded :value="t(STATE_KEY[cr.state])" :data-state="cr.state" data-testid="cr-state" />
+          <VTag v-if="cr.draft" severity="secondary" rounded :value="t('forge.draft')" data-testid="cr-draft" />
+          <VTag v-if="cr.state === 'open' && cr.mergeable === false" v-tooltip="t('forge.request.conflictsTitle')" severity="warn" rounded :value="t('forge.request.conflicts')" data-testid="cr-conflicts" />
+          <span v-tooltip="`${cr.source_branch} → ${cr.target_branch}`" class="branches">
             <code>{{ cr.source_branch }}</code><ArrowRight :size="12" /><code>{{ cr.target_branch }}</code>
           </span>
           <span aria-hidden="true">·</span>
-          <span class="person"><PersonAvatar :person="cr.author" small />{{ cr.author.name || cr.author.username }}</span>
+          <span class="person"><PersonAvatar :person="cr.author" small /><PersonName :person="cr.author" /></span>
           <span aria-hidden="true">·</span>
-          <span :title="fullDate(cr.updated_at)">{{ t('forge.request.updated', { time: relativeTime(cr.updated_at) }) }}</span>
+          <span v-tooltip="fullDate(cr.updated_at)">{{ t('forge.request.updated', { time: relativeTime(cr.updated_at) }) }}</span>
         </div>
 
         <div class="meta">
           <span v-if="cr.reviewers.length" class="person reviewers" data-testid="cr-reviewers">
             <span>{{ t('forge.request.reviewers') }}</span>
-            <span v-for="r in cr.reviewers" :key="r.username" class="person" data-testid="cr-reviewer"><PersonAvatar :person="r" small />{{ r.name || r.username }}</span>
+            <span v-for="r in cr.reviewers" :key="r.username" class="person" data-testid="cr-reviewer"><PersonAvatar :person="r" small /><PersonName :person="r" /></span>
           </span>
-          <span v-for="label in cr.labels" :key="label" class="chip label">{{ label }}</span>
-          <UiButton v-if="pipeline" class="chip pipeline" :aria-expanded="pipelineOpen" data-testid="cr-pipeline-chip" @click="pipelineOpen = !pipelineOpen">
+          <VTag v-for="label in cr.labels" :key="label" severity="secondary" rounded :value="label" />
+          <VToggleButton v-if="pipeline" v-model="pipelineOpen" size="small" :aria-expanded="pipelineOpen" data-testid="cr-pipeline-chip">
             <StatusIcon v-if="pipelineStatus !== 'none'" :tone="pipelineTone(pipelineStatus)" />{{ pipelineLabel(pipelineStatus) }}
-          </UiButton>
-          <span v-else class="chip pipeline" data-testid="cr-pipeline-chip"><StatusIcon v-if="pipelineStatus !== 'none'" :tone="pipelineTone(pipelineStatus)" />{{ pipelineLabel(pipelineStatus) }}</span>
+          </VToggleButton>
+          <VTag v-else severity="secondary" rounded data-testid="cr-pipeline-chip"><StatusIcon v-if="pipelineStatus !== 'none'" :tone="pipelineTone(pipelineStatus)" />{{ pipelineLabel(pipelineStatus) }}</VTag>
         </div>
 
         <div v-if="pipeline && pipelineOpen" class="pipeline-pop" data-testid="cr-pipeline-jobs">
@@ -167,26 +172,16 @@ onMounted(() => {
           <PipelineJobs compact />
         </div>
         <WatchStrip v-if="watching && cr.state === 'open'" :target="target" :url="cr.url" :session-name="session?.name" />
-        <p v-if="discussionsFailure" class="notice" role="alert" :title="discussionsFailure" data-testid="cr-discussions-failure">
-          <StatusIcon tone="feedback" /><span>{{ t('forge.request.discussionsFailed') }}</span>
-        </p>
-        <p v-if="pipelineFailure" class="notice" role="alert" :title="pipelineFailure" data-testid="cr-pipeline-failure">
-          <StatusIcon tone="feedback" /><span>{{ t('forge.request.pipelineFailed') }}</span>
-        </p>
+        <VMessage v-if="discussionsFailure" v-tooltip="discussionsFailure" severity="warn" size="small" data-testid="cr-discussions-failure">{{ t('forge.request.discussionsFailed') }}</VMessage>
+        <VMessage v-if="pipelineFailure" v-tooltip="pipelineFailure" severity="warn" size="small" data-testid="cr-pipeline-failure">{{ t('forge.request.pipelineFailed') }}</VMessage>
         <MrSessionNotice v-if="sessionRun" :run="sessionRun">
           <template #project="{ repo }"><RepoActions :repo="repo" /></template>
         </MrSessionNotice>
       </header>
 
-      <nav class="tabs" role="tablist">
-        <UiButton class="tab" role="tab" :aria-selected="tab === 'overview'" data-testid="cr-tab-overview" @click="selectTab('overview')">
-          {{ t('forge.request.tabOverview') }}<span v-if="unresolved" class="count" :title="t('forge.unresolvedThreads', { count: unresolved })">{{ unresolved }}</span>
-        </UiButton>
-        <UiButton class="tab" role="tab" :aria-selected="tab === 'diff'" data-testid="cr-tab-diff" @click="selectTab('diff')">
-          {{ t('forge.request.tabChanges') }}<span v-if="diffLoaded" class="count">{{ files.length }}</span>
-        </UiButton>
-        <UiButton class="tab" role="tab" :aria-selected="tab === 'pipeline'" data-testid="cr-tab-pipeline" @click="selectTab('pipeline')">{{ t('forge.request.tabPipeline') }}</UiButton>
-      </nav>
+      <div class="tabs">
+        <VTabs :model-value="tab" :options="tabOptions" :label="t('forge.request.tabsLabel')" test-id="cr-tab" @update:model-value="selectTab($event as typeof tab)" />
+      </div>
 
       <ChangeRequestOverview v-show="tab === 'overview'" :connector="connector" :request="cr" :session="session" @goto="gotoThread" @quote="quote" />
 
@@ -233,13 +228,12 @@ onMounted(() => {
   color: var(--vr-color-text-muted);
 }
 
-.loading,
-.failure {
+.loading {
   margin: var(--vr-space-4);
 }
 
 .failure {
-  color: var(--vr-color-danger);
+  margin: var(--vr-space-4) var(--vr-space-5);
 }
 
 .versus {
@@ -248,36 +242,10 @@ onMounted(() => {
   white-space: nowrap;
 }
 
-.notice {
-  display: flex;
-  align-items: center;
-  gap: var(--vr-space-2);
-  margin: 0;
-  font-size: var(--vr-font-size-xs);
-}
-
-.notice.failure {
-  margin: var(--vr-space-4) var(--vr-space-5);
-  padding: var(--vr-space-3);
-  color: var(--vr-color-text);
-  font-size: var(--vr-font-size-sm);
-  background: var(--vr-color-surface-muted);
-  border-radius: var(--vr-radius-lg);
-}
-
 .notice-text {
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
-}
-
-.link-button {
-  padding: 0;
-  color: var(--vr-color-link);
-  font: inherit;
-  background: none;
-  border: none;
-  cursor: pointer;
 }
 
 .skeleton {
@@ -360,10 +328,6 @@ onMounted(() => {
   margin-left: auto;
 }
 
-.actions :deep(button) {
-  white-space: nowrap;
-}
-
 .num {
   color: var(--vr-color-text-muted);
   font-family: var(--vr-font-mono);
@@ -392,47 +356,6 @@ onMounted(() => {
   font-size: var(--vr-font-size-xs);
 }
 
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--vr-space-1);
-  height: 22px;
-  padding: 0 var(--vr-space-2);
-  color: var(--vr-color-text-muted);
-  font: inherit;
-  font-size: var(--vr-font-size-xs);
-  background: var(--vr-color-surface-muted);
-  border: none;
-  border-radius: var(--vr-radius-full);
-}
-
-.chip.state[data-state='open'] {
-  color: var(--vr-status-running);
-  background: var(--vr-tint-running);
-}
-
-.chip.state[data-state='merged'] {
-  color: var(--vr-color-text);
-}
-
-.chip.warn {
-  color: var(--vr-status-feedback);
-  background: var(--vr-tint-feedback);
-}
-
-.chip.label {
-  color: var(--vr-color-text);
-}
-
-button.chip {
-  color: var(--vr-color-text);
-  cursor: pointer;
-}
-
-.chip.pipeline {
-  color: var(--vr-color-text);
-}
-
 .branches {
   display: inline-flex;
   align-items: center;
@@ -450,6 +373,11 @@ code {
   display: inline-flex;
   align-items: center;
   gap: var(--vr-space-2);
+  max-width: 100%;
+}
+
+.reviewers {
+  flex-wrap: wrap;
 }
 
 .pipeline-pop {
@@ -494,35 +422,8 @@ code {
 }
 
 .tabs {
-  display: flex;
   flex: none;
-  gap: 18px;
-  height: 34px;
   padding: 0 var(--vr-space-5);
-  border-bottom: 1px solid var(--vr-color-border);
-}
-
-.tab {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--vr-space-2);
-  padding: 0;
-  color: var(--vr-color-text-muted);
-  font: inherit;
-  background: none;
-  border: none;
-  box-shadow: none;
-  cursor: pointer;
-}
-
-.tab[aria-selected='true'] {
-  color: var(--vr-color-text);
-  box-shadow: inset 0 -1.5px 0 var(--vr-color-text);
-}
-
-.count {
-  color: var(--vr-color-text-subtle);
-  font-size: var(--vr-font-size-2xs);
 }
 
 .pane {

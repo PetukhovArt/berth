@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue';
 import { UserRound } from '../../../shared/ui/icons';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useScope, visibleInterval } from '../../../shared/lib/scope';
 import { openChannelFor, readPresence, type ChannelPresent } from '../../../entities/session';
@@ -41,12 +41,12 @@ visibleInterval(scope, REFRESH_MS, () => void refresh());
 <template>
   <InspectorSection v-if="present" :title="t('inspector.people.title')" :meta="present.length ? String(present.length) : undefined" testid="inspector-people">
     <template #action>
-      <UiButton type="button" class="link" :title="`# ${channel}`" data-testid="inspector-people-channel" @click="openChannelFor(channel)">{{ t('inspector.people.channel') }}</UiButton>
+      <VButton v-tooltip="`# ${channel}`" :label="t('inspector.people.channel')" text size="small" data-testid="inspector-people-channel" @click="openChannelFor(channel)" />
     </template>
     <div v-for="person in present" :key="person.member" class="row" data-testid="inspector-person">
       <UserRound class="icon" :size="13" />
-      <span class="grow" :title="person.name">{{ person.name }}</span>
-      <span v-if="person.agents.length" class="end agents" :title="person.agents.join(', ')">{{ t('inspector.people.agents', { agents: person.agents.join(', ') }) }}</span>
+      <span v-tooltip="person.name" class="grow">{{ person.name }}</span>
+      <span v-if="person.agents.length" v-tooltip="person.agents.join(', ')" class="end agents">{{ t('inspector.people.agents', { agents: person.agents.join(', ') }) }}</span>
     </div>
     <p v-if="!present.length" class="note">{{ t('inspector.people.none') }}</p>
   </InspectorSection>

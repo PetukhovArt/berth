@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue';
-import { VInputText } from '../../../shared/ui/kit';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VInputText, VListbox, VMessage, vTooltip } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { HarnessIcon } from '../../../entities/session';
 import type { ConversationChoice, ProjectConversations } from '../model/conversations';
@@ -21,46 +20,40 @@ const shown = computed(() => {
   });
 });
 
-function pick(choice: ConversationChoice) {
-  if (choice.busy) return;
-  picked.value = picked.value === choice.key ? null : choice.key;
-}
+const options = computed(() => shown.value.map((choice) => ({ value: choice.key, label: choice.title, disabled: !!choice.busy })));
+const byKey = computed(() => new Map(shown.value.map((choice) => [choice.key, choice])));
+const of = (key: string): ConversationChoice => byKey.value.get(key)!;
+
+const pickedKey = computed({
+  get: () => picked.value,
+  set: (value) => {
+    picked.value = typeof value === 'string' ? value : null;
+  },
+});
 </script>
 
 <template>
   <div class="continue" data-testid="new-session-continue-list">
     <VInputText v-model="filter" size="small" class="filter" :placeholder="t('agents.newSession.continueFilter')" :aria-label="t('agents.newSession.continueFilter')" data-testid="new-session-continue-filter" />
-    <p v-if="error" class="state error" role="alert">{{ error }}</p>
+    <VMessage v-if="error" severity="error" size="small">{{ error }}</VMessage>
     <p v-else-if="loading && !choices.length" class="state">{{ t('agents.newSession.continueLoading') }}</p>
     <p v-else-if="!choices.length" class="state">{{ t('agents.newSession.continueEmpty') }}</p>
     <p v-else-if="!shown.length" class="state">{{ t('agents.newSession.continueNoMatch') }}</p>
-    <ul v-else class="list" role="listbox" :aria-label="t('agents.newSession.continueMode')">
-      <li v-for="choice in shown" :key="choice.key" role="presentation">
-        <UiButton
-          type="button"
-          class="item"
-          role="option"
-          :aria-selected="picked === choice.key"
-          :aria-disabled="!!choice.busy"
-          :data-selected="picked === choice.key"
-          :data-busy="!!choice.busy"
-          :title="choice.busy ?? choice.title"
-          data-testid="new-session-continue-item"
-          :data-session-id="choice.id"
-          @click="pick(choice)"
-        >
-          <HarnessIcon :harness="choice.harness" :size="13" />
-          <span class="title">{{ choice.title }}</span>
+    <VListbox v-else v-model="pickedKey" flat allow-empty :filter="false" :options="options" :label="t('agents.newSession.continueMode')">
+      <template #option="{ option }">
+        <span v-tooltip="of(option.value).busy ?? of(option.value).title" class="item" :data-busy="!!of(option.value).busy" data-testid="new-session-continue-item" :data-session-id="of(option.value).id">
+          <HarnessIcon :harness="of(option.value).harness" :size="13" />
+          <span class="title">{{ option.label }}</span>
           <span class="meta">
-            <span v-if="choice.busy" class="busy">{{ choice.busy }}</span>
+            <span v-if="of(option.value).busy" class="busy">{{ of(option.value).busy }}</span>
             <template v-else>
-              <span v-if="choice.checkout" class="checkout mono">{{ choice.checkout }}</span>
-              <span v-if="choice.at" class="age">{{ formatRelative(choice.at) }}</span>
+              <span v-if="of(option.value).checkout" class="checkout mono">{{ of(option.value).checkout }}</span>
+              <span v-if="of(option.value).at" class="age">{{ formatRelative(of(option.value).at) }}</span>
             </template>
           </span>
-        </UiButton>
-      </li>
-    </ul>
+        </span>
+      </template>
+    </VListbox>
   </div>
 </template>
 
@@ -79,48 +72,13 @@ function pick(choice: ConversationChoice) {
   width: 100%;
 }
 
-.list {
-  display: flex;
-  flex-direction: column;
-  max-height: 15rem;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  list-style: none;
-}
-
 .item {
   display: flex;
+  flex: 1;
   align-items: center;
   gap: var(--vr-space-2);
-  width: 100%;
-  min-height: var(--vr-size-row);
-  padding: var(--vr-space-1) var(--vr-space-2);
-  font: inherit;
+  min-width: 0;
   font-size: var(--vr-font-size-label);
-  text-align: left;
-  color: var(--vr-color-text);
-  cursor: pointer;
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
-}
-
-.item:hover {
-  background: var(--vr-color-nav-hover);
-}
-
-.item[data-selected='true'] {
-  background: var(--vr-color-nav-active);
-}
-
-.item[data-busy='true'] {
-  cursor: not-allowed;
-  color: var(--vr-color-text-muted);
-}
-
-.item[data-busy='true']:hover {
-  background: none;
 }
 
 .title {
@@ -160,9 +118,5 @@ function pick(choice: ConversationChoice) {
   padding: var(--vr-space-2);
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
-}
-
-.state.error {
-  color: var(--vr-color-danger);
 }
 </style>

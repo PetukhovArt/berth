@@ -89,6 +89,7 @@ async function remove(provider: Provider) {
           </form>
         </div>
         <VToggleSwitch
+          class="toggle"
           :input-id="`provider-toggle-${provider.acp ? 'acp' : 'native'}-${provider.id}`"
           :model-value="provider.enabled"
           :data-testid="`provider-toggle-${provider.acp ? 'acp' : 'native'}-${provider.id}`"
@@ -151,7 +152,7 @@ async function remove(provider: Provider) {
   min-width: 0;
 }
 
-.row > .p-toggleswitch {
+.row > .toggle {
   flex: none;
 }
 

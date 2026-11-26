@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { allowRequest, alwaysAllowRequest, chooseOption, denyRequest, feedbackText, isYesNoPermission, offersAlways, StatusIcon, useBerth, useFeedbackRequest, type SessionRef } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton, vTooltip } from '../../../shared/ui/kit';
 
 const props = defineProps<{ session: SessionRef }>();
 const request = useFeedbackRequest(props.session);
@@ -27,11 +27,11 @@ const place = computed(() => {
     <span class="hint vr-wide-only">{{ t('feedback.orTerminal') }}</span>
     <div class="actions">
       <template v-if="isYesNoPermission(request)">
-        <UiButton type="button" class="action primary" data-testid="feedback-allow" @click="allowRequest(session)">{{ t('feedback.allow') }}</UiButton>
-        <UiButton v-if="offersAlways(request)" type="button" class="action" :title="t('feedback.alwaysTitle')" data-testid="feedback-always" @click="alwaysAllowRequest(session)">{{ t('feedback.always') }}</UiButton>
-        <UiButton type="button" class="action" data-testid="feedback-deny" @click="denyRequest(session)">{{ t('feedback.deny') }}</UiButton>
+        <VButton class="action" :label="t('feedback.allow')" size="small" data-testid="feedback-allow" @click="allowRequest(session)" />
+        <VButton v-if="offersAlways(request)" v-tooltip="t('feedback.alwaysTitle')" class="action" :label="t('feedback.always')" severity="secondary" size="small" data-testid="feedback-always" @click="alwaysAllowRequest(session)" />
+        <VButton class="action" :label="t('feedback.deny')" severity="secondary" size="small" data-testid="feedback-deny" @click="denyRequest(session)" />
       </template>
-      <UiButton v-for="(option, index) in request.options" v-else :key="index" type="button" class="action" :class="{ primary: index === 0 }" data-testid="feedback-option" @click="chooseOption(session, index)">{{ option }}</UiButton>
+      <VButton v-for="(option, index) in request.options" v-else :key="index" class="action" :label="option" :severity="index === 0 ? undefined : 'secondary'" size="small" data-testid="feedback-option" @click="chooseOption(session, index)" />
     </div>
   </div>
 </template>
@@ -94,20 +94,6 @@ const place = computed(() => {
 
 .action {
   flex: none;
-  height: 28px;
-  padding: 0 12px;
-  font-size: var(--vr-font-size-sm);
-  font-weight: 500;
-  color: var(--vr-color-text);
-  cursor: pointer;
-  background: var(--vr-color-surface-muted);
-  border: 0;
-  border-radius: var(--vr-radius-md);
-}
-
-.action.primary {
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-accent);
 }
 
 :root[data-vr-viewport='phone'] .strip {
@@ -164,7 +150,6 @@ const place = computed(() => {
 
 :root[data-vr-viewport='phone'] .action {
   flex: 1;
-  height: var(--vr-size-touch);
-  font-size: var(--vr-font-size-base);
+  min-height: var(--vr-size-touch);
 }
 </style>

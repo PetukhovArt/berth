@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { UiButton } from '../../../shared/ui/UiButton';
+import { X } from '../../../shared/ui/icons';
+import { VButton, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { attentionToasts, dismissAttention, openAttention } from '../model/attention';
 </script>
@@ -7,8 +8,10 @@ import { attentionToasts, dismissAttention, openAttention } from '../model/atten
 <template>
   <ul v-if="attentionToasts.length" class="toasts" data-testid="attention-toasts">
     <li v-for="toast in attentionToasts" :key="toast.id" class="toast" :data-kind="toast.kind">
-      <UiButton type="button" class="open" data-testid="attention-toast" @click="openAttention(toast)">{{ toast.text }}</UiButton>
-      <UiButton type="button" class="close" :aria-label="t('attention.dismiss')" :title="t('attention.dismiss')" @click="dismissAttention(toast.id)">×</UiButton>
+      <VButton class="open" text severity="secondary" size="small" :label="toast.text" data-testid="attention-toast" @click="openAttention(toast)" />
+      <VButton v-tooltip="t('attention.dismiss')" class="close" text severity="secondary" size="small" :aria-label="t('attention.dismiss')" @click="dismissAttention(toast.id)">
+        <template #icon><X :size="14" /></template>
+      </VButton>
     </li>
   </ul>
 </template>
@@ -40,17 +43,8 @@ import { attentionToasts, dismissAttention, openAttention } from '../model/atten
   box-shadow: var(--vr-shadow-popover);
 }
 
-.open,
-.close {
+.open {
   padding: 0;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-  background: none;
-  border: 0;
-}
-
-.close {
-  color: var(--vr-color-text-muted);
+  font-size: inherit;
 }
 </style>

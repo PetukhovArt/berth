@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { onMounted, useTemplateRef } from 'vue';
 import { ChevronDown, ChevronUp, X } from '../../../shared/ui/icons';
-import { UiButton } from '../../../shared/ui/UiButton';
-import UiInput from '../../../shared/ui/UiInput.vue';
+import { VButton, VInputText, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 
 defineProps<{ index: number; total: number }>();
 const query = defineModel<string>({ required: true });
 const emit = defineEmits<{ step: [delta: number]; close: [] }>();
 
-const input = useTemplateRef<InstanceType<typeof UiInput>>('input');
+const input = useTemplateRef<{ $el: HTMLInputElement }>('input');
 
 function onKey(event: KeyboardEvent) {
   if (event.key === 'Escape') {
@@ -22,19 +21,25 @@ function onKey(event: KeyboardEvent) {
 }
 
 onMounted(() => {
-  input.value?.focus();
+  input.value?.$el.focus();
 });
 
-defineExpose({ focus: () => input.value?.focus() });
+defineExpose({ focus: () => input.value?.$el.focus() });
 </script>
 
 <template>
   <div class="find" role="search" data-testid="chat-find">
-    <UiInput ref="input" v-model="query" class="field" type="search" :placeholder="t('chat.find.placeholder')" :aria-label="t('chat.find.placeholder')" data-testid="chat-find-input" @keydown="onKey" />
+    <VInputText ref="input" v-model="query" class="field" type="search" size="small" :placeholder="t('chat.find.placeholder')" :aria-label="t('chat.find.placeholder')" data-testid="chat-find-input" @keydown="onKey" />
     <span class="count" role="status" data-testid="chat-find-count">{{ !query ? '' : total ? t('chat.find.count', { index: index + 1, total }) : t('chat.find.none') }}</span>
-    <UiButton type="button" class="step" :disabled="!total" :title="t('chat.find.previous')" :aria-label="t('chat.find.previous')" data-testid="chat-find-prev" @click="emit('step', -1)"><ChevronUp :size="14" /></UiButton>
-    <UiButton type="button" class="step" :disabled="!total" :title="t('chat.find.next')" :aria-label="t('chat.find.next')" data-testid="chat-find-next" @click="emit('step', 1)"><ChevronDown :size="14" /></UiButton>
-    <UiButton type="button" class="step" :title="t('chat.find.close')" :aria-label="t('chat.find.close')" data-testid="chat-find-close" @click="emit('close')"><X :size="14" /></UiButton>
+    <VButton v-tooltip="t('chat.find.previous')" class="step" text severity="secondary" size="small" :disabled="!total" :aria-label="t('chat.find.previous')" data-testid="chat-find-prev" @click="emit('step', -1)">
+      <template #icon><ChevronUp :size="14" /></template>
+    </VButton>
+    <VButton v-tooltip="t('chat.find.next')" class="step" text severity="secondary" size="small" :disabled="!total" :aria-label="t('chat.find.next')" data-testid="chat-find-next" @click="emit('step', 1)">
+      <template #icon><ChevronDown :size="14" /></template>
+    </VButton>
+    <VButton v-tooltip="t('chat.find.close')" class="step" text severity="secondary" size="small" :aria-label="t('chat.find.close')" data-testid="chat-find-close" @click="emit('close')">
+      <template #icon><X :size="14" /></template>
+    </VButton>
   </div>
 </template>
 
@@ -63,6 +68,8 @@ defineExpose({ focus: () => input.value?.focus() });
   color: var(--vr-color-text);
   background: none;
   border: 0;
+  border-radius: 0;
+  box-shadow: none;
   outline: none;
 }
 
@@ -75,27 +82,11 @@ defineExpose({ focus: () => input.value?.focus() });
 }
 
 .step {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  flex: none;
   width: 26px;
   height: 26px;
   padding: 0;
-  color: var(--vr-color-text-muted);
-  cursor: pointer;
-  background: none;
-  border: 0;
   border-radius: var(--vr-radius-control);
-}
-
-.step:hover:not(:disabled) {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
-}
-
-.step:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 </style>
 

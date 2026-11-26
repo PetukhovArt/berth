@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
-import { VButton, VInputText } from '../../../shared/ui/kit';
+import { VButton, VInputText, VMessage } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useBerth, useAction, addWorkspace, removeWorkspace, renameWorkspace } from '../../../entities/session';
 import ActionMenu from '../../../shared/ui/ActionMenu.vue';
@@ -71,7 +71,7 @@ function askRemove() {
       <VButton :label="t('common.cancel')" size="small" text severity="secondary" @click="cancel" />
     </form>
     <ConfirmPopover ref="confirm" :question="t('agents.workspace.removeQuestion', { name: current?.name ?? '' })" :busy="busy" testid="workspace-remove-confirm" @confirm="confirmRemove" />
-    <p v-if="error" class="error" role="alert" data-testid="workspace-error">{{ error }}</p>
+    <VMessage v-if="error" class="error" severity="error" size="small" data-testid="workspace-error">{{ error }}</VMessage>
   </div>
 </template>
 
@@ -104,7 +104,5 @@ function askRemove() {
 .error {
   flex: 1 0 100%;
   margin: 0;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-danger);
 }
 </style>

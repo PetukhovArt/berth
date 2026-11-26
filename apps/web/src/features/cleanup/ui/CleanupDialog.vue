@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue';
 import { Minus, RefreshCw } from '../../../shared/ui/icons';
-import { VDialog, VMessage } from '../../../shared/ui/kit';
+import { VButton, VCheckbox, VDialog, VMessage, VTag, vTooltip } from '../../../shared/ui/kit';
 import DialogActions from '../../../shared/ui/DialogActions.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { candidates, cleanupDiff, cleanupOpen, measureSizes, removeCandidates, removeResults as results, removing, scanError, scanned, scanNow, scanning, sizes, type Candidate } from '../model/state';
 
-import { UiButton } from '../../../shared/ui/UiButton';
-import UiInput from '../../../shared/ui/UiInput.vue';
 const { t, formatRelative, formatBytes, formatNumber } = useI18n();
 
 const selected = shallowRef<ReadonlySet<string>>(new Set());
@@ -136,6 +134,8 @@ function lineKind(line: string): string {
   return '';
 }
 
+const chipSeverity = (category: string) => (category === 'safe' ? 'success' : category === 'changes' ? 'warn' : category === 'orphan' ? undefined : 'secondary');
+
 function removeSelected() {
   void removeCandidates(picked.value, deleteBranch.value);
 }
@@ -152,13 +152,17 @@ function removeSelected() {
   >
     <template #header>
       <span class="p-dialog-title">{{ t('cleanup.title') }}</span>
-      <UiButton v-if="busy" class="icon hide" :title="t('cleanup.hide')" :aria-label="t('cleanup.hide')" data-testid="cleanup-hide" @mousedown.stop @click="cleanupOpen = false"><Minus :size="18" /></UiButton>
+      <VButton v-if="busy" v-tooltip="t('cleanup.hide')" class="hide" text rounded severity="secondary" :aria-label="t('cleanup.hide')" data-testid="cleanup-hide" @mousedown.stop @click="cleanupOpen = false">
+        <template #icon><Minus :size="18" /></template>
+      </VButton>
     </template>
     <div class="top">
       <p class="intro">{{ t('cleanup.intro') }}</p>
       <span class="when">
         <span v-if="scanned">{{ t('cleanup.scannedAt', { when: formatRelative(scanned.at) }) }}</span>
-        <UiButton class="icon" :title="t('cleanup.rescan')" :aria-label="t('cleanup.rescan')" :disabled="scanning || busy" data-testid="cleanup-rescan" @click="scanNow"><RefreshCw :size="14" :class="{ spin: scanning }" /></UiButton>
+        <VButton v-tooltip="t('cleanup.rescan')" class="icon" text severity="secondary" size="small" :aria-label="t('cleanup.rescan')" :disabled="scanning || busy" data-testid="cleanup-rescan" @click="scanNow">
+          <template #icon><RefreshCw :size="14" :class="{ spin: scanning }" /></template>
+        </VButton>
       </span>
     </div>
     <VMessage v-if="scanError" severity="error" size="small" data-testid="cleanup-error">{{ scanError }}</VMessage>
@@ -172,22 +176,20 @@ function removeSelected() {
       <ul class="list">
         <li v-for="candidate in group.items" :key="candidate.key" class="row" data-testid="cleanup-row" :data-category="candidate.category" :data-path="candidate.path" :data-name="candidate.name">
           <label class="main">
-            <UiInput
-              type="checkbox"
-              class="check"
-              :checked="selected.has(candidate.key)"
+            <VCheckbox
+              :model-value="selected.has(candidate.key)"
               :disabled="busy"
               :aria-label="candidate.name"
               data-testid="cleanup-check"
-              @change="toggle(candidate.key, ($event.target as HTMLInputElement).checked)"
+              @update:model-value="toggle(candidate.key, $event === true)"
             />
-            <span class="name" :title="candidate.path">{{ candidate.name }}</span>
-            <span class="chip" :data-category="candidate.category">{{ t(`cleanup.category.${candidate.category}`) }}</span>
+            <span v-tooltip="candidate.path" class="name">{{ candidate.name }}</span>
+            <VTag class="chip" :value="t(`cleanup.category.${candidate.category}`)" :severity="chipSeverity(candidate.category)" rounded :data-category="candidate.category" />
             <span class="reason">{{ reasonOf(candidate) }}</span>
             <span v-for="detail in detailsOf(candidate)" :key="detail" class="detail">{{ detail }}</span>
             <span class="size" data-testid="cleanup-size">{{ sizeOf(candidate) }}</span>
           </label>
-          <UiButton v-if="candidate.category === 'changes'" class="link" data-testid="cleanup-diff" @click="toggleDiff(candidate)">{{ diffs.has(candidate.key) ? t('cleanup.hideDiff') : t('cleanup.showDiff') }}</UiButton>
+          <VButton v-if="candidate.category === 'changes'" class="link" text size="small" :label="diffs.has(candidate.key) ? t('cleanup.hideDiff') : t('cleanup.showDiff')" data-testid="cleanup-diff" @click="toggleDiff(candidate)" />
           <pre v-if="diffs.has(candidate.key)" class="diff" data-testid="cleanup-diff-text"><span v-for="(line, index) in (diffs.get(candidate.key) ?? '').split('\n')" :key="index" :data-kind="lineKind(line)">{{ line }}
 </span></pre>
         </li>
@@ -198,10 +200,7 @@ function removeSelected() {
     <template #footer>
       <DialogActions :confirm-label="t('cleanup.removeSelected')" danger focus="cancel" :busy="busy" :disabled="!picked.length || scanning" cancel-testid="cleanup-cancel" confirm-testid="cleanup-remove" @cancel="cleanupOpen = false" @confirm="removeSelected">
         <template #start>
-          <label class="branch">
-            <UiInput v-model="deleteBranch" type="checkbox" class="check" :disabled="busy" data-testid="cleanup-delete-branch" />
-            {{ t('cleanup.deleteBranch') }}
-          </label>
+          <VCheckbox v-model="deleteBranch" class="branch" :label="t('cleanup.deleteBranch')" :disabled="busy" data-testid="cleanup-delete-branch" />
           <span class="progress" role="status">{{ removing ? t('cleanup.removing', { name: removing.name }) : t('cleanup.selected', { count: picked.length }) }}</span>
         </template>
       </DialogActions>
@@ -234,29 +233,14 @@ function removeSelected() {
 }
 
 .icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 22px;
   height: 22px;
-  padding: 0;
-  color: var(--vr-color-text-muted);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-sm);
 }
 
-.icon:hover:not(:disabled) {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
-}
-
-.icon.hide {
+.hide {
   width: 32px;
   height: 32px;
   margin-left: auto;
-  border-radius: var(--vr-radius-full);
-  cursor: pointer;
 }
 
 .spin {
@@ -321,12 +305,6 @@ function removeSelected() {
   cursor: pointer;
 }
 
-.check {
-  flex: none;
-  margin: 0;
-  accent-color: var(--vr-color-accent);
-}
-
 .name {
   min-width: 0;
   overflow: hidden;
@@ -340,21 +318,7 @@ function removeSelected() {
   flex: none;
   padding: 0 var(--vr-space-1);
   font-size: var(--vr-font-size-2xs);
-  color: var(--vr-color-text-muted);
-  background: var(--vr-color-chip-bg);
-  border-radius: var(--vr-radius-full);
-}
-
-.chip[data-category='safe'] {
-  color: var(--vr-color-success);
-}
-
-.chip[data-category='changes'] {
-  color: var(--vr-color-conflict);
-}
-
-.chip[data-category='orphan'] {
-  color: var(--vr-color-accent);
+  font-weight: 400;
 }
 
 .reason,
@@ -377,12 +341,7 @@ function removeSelected() {
 .link {
   margin: 2px 0 0 calc(13px + var(--vr-space-2));
   padding: 0;
-  font: inherit;
   font-size: var(--vr-font-size-2xs);
-  color: var(--vr-color-accent);
-  background: none;
-  border: 0;
-  cursor: pointer;
 }
 
 .diff {
@@ -411,12 +370,8 @@ function removeSelected() {
 }
 
 .branch {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--vr-space-1);
   margin-right: auto;
   font-size: var(--vr-font-size-xs);
-  cursor: pointer;
 }
 
 .progress {

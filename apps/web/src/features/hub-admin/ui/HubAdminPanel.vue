@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import { VButton, VMessage } from '../../../shared/ui/kit';
+import { VButton, VMessage, VTag, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { permissionHint, permissionLabel, refreshHub, useHubAdmin } from '../../../entities/session';
 import HubAudit from './HubAudit.vue';
@@ -29,13 +29,13 @@ onMounted(() => void refreshHub());
     </div>
     <template v-else-if="me">
       <div class="block" data-testid="hub-admin-me">
-        <p class="who" :title="me.name">{{ t('hub.me.who', { name: me.name }) }}</p>
+        <p v-tooltip="me.name" class="who">{{ t('hub.me.who', { name: me.name }) }}</p>
         <p class="muted" data-testid="hub-admin-me-role">{{ t('hub.me.role', { role: me.role.name }) }}</p>
       </div>
       <div v-if="state === 'member'" class="block" data-testid="hub-admin-state-member">
         <p class="muted">{{ t(me.permissions.length ? 'hub.me.grants' : 'hub.me.grantsNone') }}</p>
         <ul v-if="me.permissions.length" class="grants" data-testid="hub-admin-me-permissions">
-          <li v-for="key in me.permissions" :key="key" class="grant" :title="permissionHint(key)" :data-testid="`hub-admin-me-permission-${key}`">{{ permissionLabel(key) }}</li>
+          <li v-for="key in me.permissions" :key="key"><VTag v-tooltip="permissionHint(key)" :value="permissionLabel(key)" severity="secondary" rounded :data-testid="`hub-admin-me-permission-${key}`" /></li>
         </ul>
         <p class="muted">{{ t('hub.me.notAdmin') }}</p>
       </div>
@@ -102,13 +102,6 @@ onMounted(() => void refreshHub());
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-.grant {
-  padding: 0 var(--vr-space-2);
-  font-size: var(--vr-font-size-xs);
-  background: var(--vr-color-chip-bg);
-  border-radius: var(--vr-radius-full);
 }
 
 .sections {

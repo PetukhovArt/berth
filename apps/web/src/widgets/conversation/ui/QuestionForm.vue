@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, shallowRef, useTemplateRef } from 'vue';
-import { UiButton } from '../../../shared/ui/UiButton';
-import UiInput from '../../../shared/ui/UiInput.vue';
+import { VButton, VInputText, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { AcpAnswers, AcpQuestion, AcpQuestionForm } from '../../../entities/session';
 import { useDigitKeys } from '../model/digitKey';
@@ -56,14 +55,14 @@ useDigitKeys(root, () => props.panelId, (index) => {
     <fieldset v-for="question in form.questions" :key="question.id" class="question">
       <legend v-if="!instant" class="text">{{ question.text }}</legend>
       <div class="options">
-        <UiButton v-for="(choice, index) in question.choices" :key="choice.value" type="button" class="option" :class="{ primary: instant ? index === 0 : picked[question.id]?.includes(choice.value) }" :aria-pressed="instant ? undefined : !!picked[question.id]?.includes(choice.value)" :title="choice.description ?? undefined" data-testid="question-option" @click="choose(question, choice.value)">
+        <VButton v-for="(choice, index) in question.choices" :key="choice.value" v-tooltip="choice.description ?? undefined" class="option" size="small" :severity="(instant ? index === 0 : picked[question.id]?.includes(choice.value)) ? undefined : 'secondary'" :aria-pressed="instant ? undefined : !!picked[question.id]?.includes(choice.value)" data-testid="question-option" @click="choose(question, choice.value)">
           {{ choice.name }}
           <kbd v-if="instant && index < 9" class="key">{{ index + 1 }}</kbd>
-        </UiButton>
+        </VButton>
       </div>
-      <UiInput v-if="typed && question.free_text_allowed" class="free" v-model="text[question.id]" :placeholder="t('chat.question.placeholder')" :aria-label="t('chat.question.placeholder')" data-testid="question-text" @keydown.enter.prevent="enter(question)" />
+      <VInputText v-if="typed && question.free_text_allowed" v-model="text[question.id]" class="free" size="small" :placeholder="t('chat.question.placeholder')" :aria-label="t('chat.question.placeholder')" data-testid="question-text" @keydown.enter.prevent="enter(question)" />
     </fieldset>
-    <UiButton v-if="!instant" type="button" class="option primary submit" :disabled="!complete" data-testid="question-submit" @click="emit('submit', answers)">{{ t('chat.question.submit') }}</UiButton>
+    <VButton v-if="!instant" class="submit" :label="t('chat.question.submit')" size="small" :disabled="!complete" data-testid="question-submit" @click="emit('submit', answers)" />
   </div>
 </template>
 
@@ -101,29 +100,7 @@ useDigitKeys(root, () => props.panelId, (index) => {
 }
 
 .option {
-  display: inline-flex;
-  align-items: center;
   gap: var(--vr-space-2);
-  height: 30px;
-  padding: 0 var(--vr-space-3);
-  font: inherit;
-  font-size: var(--vr-font-size-control);
-  font-weight: 500;
-  color: var(--vr-color-text);
-  cursor: pointer;
-  background: var(--vr-color-surface-muted);
-  border: 0;
-  border-radius: var(--vr-radius-md);
-}
-
-.option.primary {
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-accent);
-}
-
-.option:disabled {
-  cursor: default;
-  opacity: 0.5;
 }
 
 .submit {
@@ -137,19 +114,6 @@ useDigitKeys(root, () => props.panelId, (index) => {
 }
 
 .free {
-  box-sizing: border-box;
-  height: 32px;
-  padding: 0 var(--vr-space-3);
-  font: inherit;
-  font-size: var(--vr-font-size-control);
-  color: var(--vr-color-text);
-  background: var(--vr-color-surface-sunken);
-  border: 1px solid var(--vr-color-border-strong);
-  border-radius: var(--vr-radius-md);
-  outline: none;
-}
-
-.free:focus {
-  border-color: var(--vr-color-focus);
+  width: 100%;
 }
 </style>

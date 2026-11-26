@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { nextTick, shallowRef, useTemplateRef } from 'vue';
-import { UiButton } from '../../../shared/ui/UiButton';
-import UiTextarea from '../../../shared/ui/UiTextarea.vue';
+import { VButton, VTextarea } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { AcpQueuedPrompt } from '../../../entities/session';
 import StoredAttachments from './StoredAttachments.vue';
@@ -11,13 +10,13 @@ const emit = defineEmits<{ edit: [id: number, text: string]; remove: [id: number
 
 const editing = shallowRef(false);
 const draft = shallowRef('');
-const input = useTemplateRef<InstanceType<typeof UiTextarea>>('input');
+const input = useTemplateRef<{ $el: HTMLTextAreaElement }>('input');
 
 async function startEdit() {
   draft.value = props.item.prompt.text;
   editing.value = true;
   await nextTick();
-  input.value?.focus();
+  input.value?.$el.focus();
 }
 
 function save() {
@@ -42,18 +41,18 @@ function onKey(event: KeyboardEvent) {
   <div class="queued" data-testid="queue-item">
     <StoredAttachments v-if="item.prompt.attachments.length" :attachments="item.prompt.attachments" />
     <div class="bubble">
-      <UiTextarea v-if="editing" ref="input" v-model="draft" class="edit" rows="2" :aria-label="t('chat.queued.editLabel')" data-testid="queue-item-input" @keydown="onKey" />
+      <VTextarea v-if="editing" ref="input" v-model="draft" class="edit" rows="2" :aria-label="t('chat.queued.editLabel')" data-testid="queue-item-input" @keydown="onKey" />
       <p v-else class="text" data-testid="queue-item-text">{{ item.prompt.text }}</p>
     </div>
     <p class="hint">{{ t('chat.queued.text', { agent: agentLabel }) }}</p>
     <div class="actions">
       <template v-if="editing">
-        <UiButton type="button" class="link" data-testid="queue-save" @click="save">{{ t('chat.queued.save') }}</UiButton>
-        <UiButton type="button" class="link" data-testid="queue-cancel" @click="editing = false">{{ t('chat.queued.cancel') }}</UiButton>
+        <VButton :label="t('chat.queued.save')" link size="small" data-testid="queue-save" @click="save" />
+        <VButton :label="t('chat.queued.cancel')" link size="small" data-testid="queue-cancel" @click="editing = false" />
       </template>
-      <UiButton v-else type="button" class="link" data-testid="queue-edit" @click="startEdit">{{ t('chat.queued.edit') }}</UiButton>
-      <UiButton v-if="canSendNow && !editing" type="button" class="link" data-testid="queue-send-now" @click="emit('sendNow', item.id)">{{ t('chat.queued.sendNow') }}</UiButton>
-      <UiButton type="button" class="link" data-testid="queue-remove" @click="emit('remove', item.id)">{{ t('chat.queued.remove') }}</UiButton>
+      <VButton v-else :label="t('chat.queued.edit')" link size="small" data-testid="queue-edit" @click="startEdit" />
+      <VButton v-if="canSendNow && !editing" :label="t('chat.queued.sendNow')" link size="small" data-testid="queue-send-now" @click="emit('sendNow', item.id)" />
+      <VButton :label="t('chat.queued.remove')" link size="small" data-testid="queue-remove" @click="emit('remove', item.id)" />
     </div>
   </div>
 </template>
@@ -96,6 +95,8 @@ function onKey(event: KeyboardEvent) {
   resize: none;
   background: none;
   border: 0;
+  border-radius: 0;
+  box-shadow: none;
   outline: none;
   field-sizing: content;
 }
@@ -109,15 +110,5 @@ function onKey(event: KeyboardEvent) {
 .actions {
   display: flex;
   gap: var(--vr-space-3);
-}
-
-.link {
-  padding: 0;
-  font: inherit;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-link);
-  cursor: pointer;
-  background: none;
-  border: 0;
 }
 </style>

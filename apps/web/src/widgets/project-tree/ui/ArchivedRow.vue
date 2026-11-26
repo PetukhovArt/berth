@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { shallowRef } from 'vue';
 import { ArchiveRestore, Trash2 } from '../../../shared/ui/icons';
+import { VButton, VMessage, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { deleteAgent, unarchiveAgent, type SessionNode, useAction } from '../../../entities/session';
 import SessionDeleteConfirm from './SessionDeleteConfirm.vue';
@@ -22,14 +23,18 @@ async function confirmDelete() {
 <template>
   <div class="archived" data-testid="archived-row" :data-session-id="session.id" :data-busy="action.busy.value">
     <div class="line">
-      <span class="name" :title="where ? `${session.name} · ${where}` : session.name">{{ session.name }}<span v-if="where" class="where"> · {{ where }}</span></span>
+      <span v-tooltip="where ? `${session.name} · ${where}` : session.name" class="name">{{ session.name }}<span v-if="where" class="where"> · {{ where }}</span></span>
       <template v-if="!confirming">
-        <UiButton class="icon vr-reveal" :title="t('agents.session.restore')" :aria-label="t('agents.session.restore')" :disabled="action.busy.value" data-testid="archived-restore" @click="restore"><ArchiveRestore :size="14" /></UiButton>
-        <UiButton class="icon danger vr-reveal" :title="t('agents.session.deleteForever')" :aria-label="t('agents.session.deleteForever')" :disabled="action.busy.value" data-testid="archived-delete" @click="confirming = true"><Trash2 :size="14" /></UiButton>
+        <VButton v-tooltip="t('agents.session.restore')" class="icon vr-reveal" text severity="secondary" size="small" :aria-label="t('agents.session.restore')" :disabled="action.busy.value" data-testid="archived-restore" @click="restore">
+          <template #icon><ArchiveRestore :size="14" /></template>
+        </VButton>
+        <VButton v-tooltip="t('agents.session.deleteForever')" class="icon danger vr-reveal" text severity="secondary" size="small" :aria-label="t('agents.session.deleteForever')" :disabled="action.busy.value" data-testid="archived-delete" @click="confirming = true">
+          <template #icon><Trash2 :size="14" /></template>
+        </VButton>
       </template>
     </div>
     <SessionDeleteConfirm v-if="confirming" :name="session.name" :busy="action.busy.value" @confirm="confirmDelete" @cancel="confirming = false" />
-    <p v-if="action.error.value" class="row-error" role="alert" data-testid="session-error">{{ action.error.value }}</p>
+    <VMessage v-if="action.error.value" class="row-error" severity="error" size="small" data-testid="session-error">{{ action.error.value }}</VMessage>
   </div>
 </template>
 
@@ -58,17 +63,9 @@ async function confirmDelete() {
 }
 
 .icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  flex: none;
   width: 22px;
   height: 22px;
-  padding: 0;
-  color: var(--vr-color-text-muted);
-  background: none;
-  border: none;
-  border-radius: var(--vr-radius-sm);
-  cursor: pointer;
   opacity: 0;
 }
 
@@ -77,17 +74,11 @@ async function confirmDelete() {
   opacity: 1;
 }
 
-.icon:hover {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
-}
-
-.icon.danger:hover {
+.icon.danger:not(:disabled):hover {
   color: var(--vr-color-danger);
 }
 
 .icon:disabled {
-  cursor: default;
   opacity: 0.4;
 }
 
@@ -96,9 +87,6 @@ async function confirmDelete() {
 }
 
 .row-error {
-  margin: 0;
-  padding: 0 var(--vr-space-2) var(--vr-space-1) var(--vr-space-5);
-  font-size: var(--vr-font-size-2xs);
-  color: var(--vr-color-danger);
+  margin: 0 var(--vr-space-2) var(--vr-space-1) var(--vr-space-5);
 }
 </style>

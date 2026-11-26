@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
 import { Eye } from '../../../shared/ui/icons';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton } from '../../../shared/ui/kit';
 import { itemId, numberLabel } from '../../../entities/merge-request';
 import type { ChangeRequestRef } from '../../../shared/api/connectors/api';
 import { t } from '../../../shared/lib/i18n/i18n';
@@ -30,7 +30,7 @@ const text = computed(() => {
     <Eye :size="14" class="eye" />
     <span class="label">{{ t('attention.watch.strip', { label: numberLabel({ url, number: target.number }) }) }}</span>
     <span class="text">{{ text }}</span>
-    <UiButton class="stop" type="button" data-testid="cr-watch-stop" @click="stopWatching(target)">{{ t('attention.watch.stop') }}</UiButton>
+    <VButton link size="small" :label="t('attention.watch.stop')" data-testid="cr-watch-stop" @click="stopWatching(target)" />
   </div>
 </template>
 
@@ -61,14 +61,5 @@ const text = computed(() => {
   color: var(--vr-color-text-muted);
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-.stop {
-  padding: 0;
-  font: inherit;
-  color: var(--vr-color-link);
-  cursor: pointer;
-  background: none;
-  border: 0;
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { VButton } from './kit';
+import { VButton, VMessage } from './kit';
 import { t } from '../lib/i18n/i18n';
 
 defineProps<{ message: string }>();
@@ -7,24 +7,15 @@ defineEmits<{ retry: [] }>();
 </script>
 
 <template>
-  <div class="error" role="alert">
+  <VMessage class="error" severity="error" size="small">
     <span class="text">{{ message }}</span>
     <VButton :label="t('common.retry')" size="small" severity="secondary" @click="$emit('retry')" />
-  </div>
+  </VMessage>
 </template>
 
 <style scoped>
 .error {
-  display: flex;
-  align-items: center;
-  gap: var(--vr-space-3);
   margin: var(--vr-space-4);
-  padding: var(--vr-space-3) var(--vr-space-4);
-  border: 1px solid var(--vr-color-danger);
-  border-radius: var(--vr-radius-md);
-  background: color-mix(in srgb, var(--vr-color-danger) 10%, transparent);
-  color: var(--vr-color-text);
-  font-size: var(--vr-font-size-sm);
 }
 
 .text {

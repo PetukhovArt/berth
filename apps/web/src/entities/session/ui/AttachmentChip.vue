@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { FileText, X } from '../../../shared/ui/icons';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 
 defineProps<{ label: string; src?: string | null; removable?: boolean }>();
@@ -8,11 +8,13 @@ const emit = defineEmits<{ remove: [] }>();
 </script>
 
 <template>
-  <span class="chip" :title="label" data-testid="chat-attachment">
+  <span v-tooltip="label" class="chip" data-testid="chat-attachment">
     <img v-if="src" class="thumb" :src="src" :alt="label" />
     <FileText v-else :size="14" class="icon" />
     <span class="label">{{ label }}</span>
-    <UiButton v-if="removable" type="button" class="remove" :aria-label="t('chat.attach.remove', { name: label })" data-testid="chat-attachment-remove" @click="emit('remove')"><X :size="12" /></UiButton>
+    <VButton v-if="removable" class="remove" text severity="secondary" size="small" :aria-label="t('chat.attach.remove', { name: label })" data-testid="chat-attachment-remove" @click="emit('remove')">
+      <template #icon><X :size="12" /></template>
+    </VButton>
   </span>
 </template>
 
@@ -51,16 +53,8 @@ const emit = defineEmits<{ remove: [] }>();
 }
 
 .remove {
-  display: inline-flex;
-  align-items: center;
-  padding: 0;
-  color: var(--vr-color-text-subtle);
-  cursor: pointer;
-  background: none;
-  border: 0;
-}
-
-.remove:hover {
-  color: var(--vr-color-text);
+  flex: none;
+  width: 16px;
+  height: 16px;
 }
 </style>

@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { VInputText } from '../../../shared/ui/kit';
+import { VButton, VInputText, VMessage, VTag, vTooltip } from '../../../shared/ui/kit';
 import { confluenceSearch, describeError, reloadWhenRecovered, type ConfluenceHit } from '../../../shared/api/connectors/api';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
-import ErrorInline from '../../../shared/ui/ErrorInline.vue';
 import Skeleton from '../../../shared/ui/Skeleton.vue';
 import { highlightHtml, recentPages, rememberPage, type RecentPage } from '../../../shared/lib/atlassian';
-
 import { UiButton } from '../../../shared/ui/UiButton';
+
 const props = defineProps<{ connector: string }>();
 const emit = defineEmits<{ open: [payload: { connector: string; id: string }] }>();
 
@@ -96,7 +95,12 @@ onBeforeUnmount(() => clearTimeout(timer));
       <VInputText ref="input" v-model="text" class="field" :placeholder="t('confluence.search.placeholder')" :aria-label="t('confluence.search.placeholder')" data-testid="confluence-query" @keydown="onKey" />
     </div>
     <div class="body">
-      <ErrorInline v-if="error" :message="error" @retry="run" />
+      <VMessage v-if="error" class="error" severity="error" size="small" data-testid="confluence-search-error">
+        <span class="error-row">
+          <span class="error-text">{{ error }}</span>
+          <VButton :label="t('common.retry')" size="small" severity="secondary" @click="run" />
+        </span>
+      </VMessage>
       <Skeleton v-else-if="loading && !hits.length" :rows="8" :height="44" />
       <template v-else-if="searched">
         <div v-if="!hits.length" class="empty">{{ t('confluence.search.noHits', { query: searched }) }}</div>
@@ -105,8 +109,8 @@ onBeforeUnmount(() => clearTimeout(timer));
             <UiButton class="hit" data-testid="confluence-hit" @click="openHit(hit)">
               <span class="title">{{ hit.title }}</span>
               <span class="meta">
-                <span class="space">{{ hit.space }}</span>
-                <span :title="formatDate(hit.updated)">{{ formatRelative(hit.updated) }}</span>
+                <VTag :value="hit.space" severity="secondary" />
+                <span v-tooltip="formatDate(hit.updated)">{{ formatRelative(hit.updated) }}</span>
               </span>
               <span v-if="hit.excerpt" class="excerpt" v-html="highlightHtml(hit.excerpt)" />
             </UiButton>
@@ -120,7 +124,7 @@ onBeforeUnmount(() => clearTimeout(timer));
           <li v-for="page in recent" :key="page.id">
             <UiButton class="hit" @click="openPage(page)">
               <span class="title">{{ page.title }}</span>
-              <span class="meta"><span class="space">{{ page.space }}</span></span>
+              <span class="meta"><VTag :value="page.space" severity="secondary" /></span>
             </UiButton>
           </li>
         </ul>
@@ -212,11 +216,21 @@ onBeforeUnmount(() => clearTimeout(timer));
   white-space: nowrap;
 }
 
-.space {
-  padding: 0 var(--vr-space-2);
-  border-radius: var(--vr-radius-sm);
-  background: var(--vr-color-chip-bg);
-  color: var(--vr-color-text);
+.error {
+  margin: var(--vr-space-4);
+}
+
+.error-row {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-3);
+  width: 100%;
+}
+
+.error-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .excerpt {

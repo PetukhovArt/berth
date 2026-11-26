@@ -13,6 +13,7 @@ const PADDING = 16;
 const INLINE_MAX_VH = 0.8;
 const LINE_HEIGHT_PX = 16;
 const CLOSE_FALLBACK_MS = 400;
+const ERROR_DELAY_MS = 600;
 
 const dark = useDarkTheme();
 const svg = ref('');
@@ -36,6 +37,7 @@ const slotHeight = ref(0);
 let run = 0;
 let copyTimer = 0;
 let closeTimer = 0;
+let errorTimer = 0;
 let natural: { w: number; h: number } | null = null;
 let drag: { id: number; x: number; y: number } | null = null;
 
@@ -83,6 +85,7 @@ function clampAxis(position: number, view: number, content: number): number {
 
 async function draw() {
   const token = ++run;
+  window.clearTimeout(errorTimer);
   loading.value = true;
   try {
     const out = await renderDiagram(props.source, dark.value);
@@ -91,8 +94,13 @@ async function draw() {
     error.value = '';
   } catch (cause) {
     if (token !== run) return;
-    svg.value = '';
-    error.value = describe(cause);
+    const message = describe(cause);
+    errorTimer = window.setTimeout(() => {
+      svg.value = '';
+      error.value = message;
+      loading.value = false;
+    }, ERROR_DELAY_MS);
+    return;
   }
   loading.value = false;
   await nextTick();
@@ -222,6 +230,7 @@ onBeforeUnmount(() => {
   run++;
   window.clearTimeout(copyTimer);
   window.clearTimeout(closeTimer);
+  window.clearTimeout(errorTimer);
   window.removeEventListener('keydown', onKeydown, true);
   window.removeEventListener('resize', onResize);
 });
@@ -280,7 +289,7 @@ onBeforeUnmount(() => {
       @pointercancel="onPointerUp"
     >
       <div ref="stage" class="stage" :style="{ transform }" v-html="svg" />
-      <div v-if="loading" class="loading">{{ t('content.mermaid.loading') }}</div>
+      <div v-if="loading && !svg" class="loading">{{ t('content.mermaid.loading') }}</div>
     </div>
   </div>
   </div>

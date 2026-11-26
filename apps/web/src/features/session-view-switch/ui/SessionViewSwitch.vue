@@ -7,10 +7,9 @@ import { numberLabel, knownMr, lookupMr } from '../../../entities/merge-request'
 import { lookupChanges } from '../model/worktreeChanged';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useBerth } from '../../../entities/session';
-import { useIsPhone } from '../../../shared/ui/kit';
+import { VSelectButton, useIsPhone } from '../../../shared/ui/kit';
 import { isAvailable, sessionViewModes, showView, viewOf, worktreeOf, type SessionView, type SessionViewMode } from '../model/sessionView';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ panel: DockviewPanelApi; active: boolean }>();
 
 const berth = useBerth();
@@ -43,28 +42,32 @@ function title(mode: SessionViewMode): string {
   return mr ? `${label(mode)}\n${numberLabel(mr)} ${mr.title}` : label(mode);
 }
 
-function show(view: SessionView) {
-  props.panel.setActive();
-  showView(props.panel.id, view);
-}
+const options = computed(() =>
+  modes.value.map((mode) => ({ value: mode.view, label: t(`agents.sessionView.${mode.view}`), title: title(mode), testId: `tab-view-${mode.view}` })),
+);
+
+const selected = computed({
+  get: () => current.value,
+  set: (view: string | string[] | null | undefined) => {
+    if (typeof view === 'string') showView(props.panel.id, view as SessionView);
+  },
+});
+
+const modeOf = (view: string) => sessionViewModes.find((mode) => mode.view === view);
+const actionOf = (view: string) => modeOf(view)?.action ?? '';
+const letterOf = (view: string) => modeOf(view)?.letter ?? '';
 </script>
 
 <template>
-  <span v-if="modes.length > 1" class="modes" role="group" :aria-label="t('agents.sessionView.switcher')" data-testid="tab-mr" @pointerdown.stop @dblclick.stop>
-    <UiButton
-      v-for="mode in modes"
-      :key="mode.view"
-      class="mode"
-      :aria-pressed="current === mode.view"
-      :aria-label="label(mode)"
-      :title="title(mode)"
-      :data-pending="active && pendingLeadsTo(mode.action)"
-      :data-testid="`tab-view-${mode.view}`"
-      @click.stop="show(mode.view)"
-    >
-      <span class="name">{{ t(`agents.sessionView.${mode.view}`) }}</span>
-      <span class="key">{{ mode.letter }}</span>
-    </UiButton>
+  <span v-if="modes.length > 1" class="modes" data-testid="tab-mr" @pointerdown.stop @dblclick.stop @click.stop="panel.setActive()">
+    <VSelectButton v-model="selected" class="switch" :options="options" :label="t('agents.sessionView.switcher')">
+      <template #option="{ option }">
+        <span class="mode" :data-pending="active && pendingLeadsTo(actionOf(option.value)) || undefined">
+          <span class="name">{{ option.label }}</span>
+          <span class="key">{{ letterOf(option.value) }}</span>
+        </span>
+      </template>
+    </VSelectButton>
   </span>
 </template>
 
@@ -73,28 +76,15 @@ function show(view: SessionView) {
   display: inline-flex;
   flex: none;
   align-items: center;
-  gap: 2px;
-  padding: 2px;
-  overflow: hidden;
-  background: var(--vr-color-surface-muted);
-  border-radius: var(--vr-radius-md);
 }
 
 .mode {
-  position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--vr-space-1);
-  height: 26px;
-  padding: 0 9px;
-  color: var(--vr-color-text-muted);
-  font: inherit;
-  font-size: var(--vr-font-size-xs);
+  padding: 0 var(--vr-space-1);
   white-space: nowrap;
-  background: none;
-  border: none;
   border-radius: var(--vr-radius-sm);
-  cursor: pointer;
 }
 
 .key {
@@ -103,22 +93,27 @@ function show(view: SessionView) {
   color: var(--vr-color-text-subtle);
 }
 
-.mode:hover:not([aria-pressed='true']) {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
-}
-
-.mode[aria-pressed='true'] {
-  color: var(--vr-color-text);
-  background: var(--vr-color-surface);
-}
-
 .mode[data-pending='true'] {
-  color: var(--vr-color-text);
   box-shadow: inset 0 0 0 1px var(--vr-color-accent);
 }
 
-.mode[aria-pressed='true'][data-pending='true'] {
-  color: var(--vr-color-accent-contrast);
+:root[data-vr-viewport='phone'] .modes {
+  display: flex;
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+:root[data-vr-viewport='phone'] .switch {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+:root[data-vr-viewport='phone'] .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:root[data-vr-viewport='phone'] .key {
+  display: none;
 }
 </style>

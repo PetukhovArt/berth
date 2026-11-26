@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, shallowRef } from 'vue';
 import { Copy, Download, Network, Plus, RefreshCw, ShieldAlert, Smartphone, Trash2 } from '../../../shared/ui/icons';
-import { VButton, VInputText, VMessage, VSelect } from '../../../shared/ui/kit';
+import { VButton, VInputText, VMessage, VSelect, vTooltip } from '../../../shared/ui/kit';
 import { invoke, isDesktop, openUrl } from '../../../bridge';
 import { describeError } from '../../../shared/api/connectors/api';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
@@ -12,6 +12,8 @@ type Problem = { kind: 'tailscale_missing' } | { kind: 'serve_failed'; message: 
 type Scope = 'full' | 'read_only';
 type ClientInfo = { id: number; address: string; agent: string; device: string; connected_at: number };
 type DeviceInfo = { id: number; name: string; scope: Scope | { session: string }; created_at: number };
+const qrSource = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+
 type Pairing = { url: string; qr_svg: string | null };
 type RemoteStatus = {
   enabled: boolean;
@@ -131,7 +133,7 @@ onMounted(() => {
       <template v-if="status.running">
         <p class="state" data-testid="remote-running">{{ t('remote.panel.running') }}</p>
         <div class="pairing">
-          <div v-if="status.qr_svg" class="qr" role="img" :aria-label="t('remote.panel.qrLabel')" data-testid="remote-qr" v-html="status.qr_svg" />
+          <img v-if="status.qr_svg" class="qr" :src="qrSource(status.qr_svg)" :alt="t('remote.panel.qrLabel')" data-testid="remote-qr" />
           <div class="details">
             <h3>{{ t('remote.panel.addresses') }}</h3>
             <ul class="urls">
@@ -145,7 +147,7 @@ onMounted(() => {
                 <VButton size="small" severity="secondary" :label="copied ? t('remote.panel.copied') : t('remote.panel.copy')" data-testid="remote-copy" @click="copy(status.pairing_url)">
                   <template #icon><Copy :size="14" /></template>
                 </VButton>
-                <VButton size="small" severity="danger" :label="t('remote.panel.regenerate')" :title="t('remote.panel.regenerateHint')" :disabled="busy" data-testid="remote-regenerate" @click="regenerate">
+                <VButton v-tooltip="t('remote.panel.regenerateHint')" size="small" severity="danger" :label="t('remote.panel.regenerate')" :disabled="busy" data-testid="remote-regenerate" @click="regenerate">
                   <template #icon><RefreshCw :size="14" /></template>
                 </VButton>
               </div>
@@ -180,7 +182,7 @@ onMounted(() => {
           </VButton>
         </div>
         <div v-if="issued" class="pairing" data-testid="remote-issued">
-          <div v-if="issued.qr_svg" class="qr" role="img" :aria-label="t('remote.panel.qrLabel')" v-html="issued.qr_svg" />
+          <img v-if="issued.qr_svg" class="qr" :src="qrSource(issued.qr_svg)" :alt="t('remote.panel.qrLabel')" />
           <div class="details">
             <code class="link" data-testid="remote-issued-url">{{ issued.url }}</code>
             <p class="muted">{{ t('remote.panel.issuedHint') }}</p>
@@ -192,7 +194,7 @@ onMounted(() => {
             <Smartphone :size="14" />
             <span>{{ client.device }}</span>
             <code>{{ client.address }}</code>
-            <span class="muted agent" :title="client.agent">{{ client.agent }}</span>
+            <span v-tooltip="client.agent" class="muted agent">{{ client.agent }}</span>
             <span class="muted">{{ since(client.connected_at) }}</span>
           </li>
         </ul>
@@ -235,16 +237,13 @@ onMounted(() => {
 }
 
 .qr {
+  display: block;
   flex: none;
+  box-sizing: border-box;
   width: 220px;
+  height: auto;
   padding: var(--vr-space-2);
   border-radius: var(--vr-radius-md);
-}
-
-.qr :deep(svg) {
-  display: block;
-  width: 100%;
-  height: auto;
 }
 
 .details {

@@ -13,8 +13,8 @@ import { view } from '../../../shared/model/nav';
 import { firstRunActive } from '../../../shared/model/firstRun';
 import { UpdateChip } from '../../../features/update';
 import { WorkspaceSwitcher } from '../../../features/manage-workspace';
-
-import { UiButton } from '../../../shared/ui/UiButton';
+import { ConnectorErrors } from '../../../features/work-tree';
+import { VButton, VToggleButton, vTooltip } from '../../../shared/ui/kit';
 import BrandMark from '../../../shared/ui/BrandMark.vue';
 const { t } = useI18n();
 const maximized = ref(false);
@@ -49,55 +49,59 @@ onUnmounted(() => stopResize?.());
       <BrandMark size="18px" data-testid="titlebar-mark" />
       <WorkspaceSwitcher v-if="!firstRunActive" />
     </div>
-    <UiButton
+    <VButton
       v-if="!firstRunActive"
-      type="button"
+      v-tooltip="t('common.search')"
       class="search vr-wide-only"
+      severity="secondary"
+      size="small"
       data-testid="titlebar-search"
       :aria-label="t('common.search')"
-      :title="t('common.search')"
       @click="toggleQuickOpen()"
     >
       <Search :size="13" :stroke-width="1.6" />
       <span class="search-label">{{ t('search.placeholder') }}</span>
       <kbd v-if="shortcutLabel('agents.quickOpen')">{{ shortcutLabel('agents.quickOpen') }}</kbd>
-    </UiButton>
+    </VButton>
     <div class="end">
       <div class="update" data-tauri-drag-region><UpdateChip /></div>
       <div v-if="!firstRunActive" class="tools">
-        <UiButton
+        <ConnectorErrors />
+        <VToggleButton
           v-if="view.kind === 'agents'"
-          type="button"
+          v-tooltip="withShortcut(inspectorLabel, 'inspector.toggle')"
           class="tool"
+          size="small"
           data-testid="titlebar-inspector"
+          :model-value="inspectorOpen"
           :aria-label="inspectorLabel"
-          :aria-pressed="inspectorOpen"
-          :data-active="inspectorOpen"
-          :title="withShortcut(inspectorLabel, 'inspector.toggle')"
-          @click="runAction('inspector.toggle')"
+          @update:model-value="runAction('inspector.toggle')"
         >
           <PanelRight :size="15" :stroke-width="1.6" />
-        </UiButton>
+        </VToggleButton>
       </div>
       <div v-if="!nativeControls" class="controls">
-        <UiButton type="button" class="ctl" data-testid="titlebar-minimize" :aria-label="t('shell.window.minimize')" :title="t('shell.window.minimize')" @click="win.minimize()">
-          <Minus :size="16" :stroke-width="1.5" />
-        </UiButton>
-        <UiButton
-          type="button"
+        <VButton v-tooltip="t('shell.window.minimize')" class="ctl" text severity="secondary" data-testid="titlebar-minimize" :aria-label="t('shell.window.minimize')" @click="win.minimize()">
+          <template #icon><Minus :size="16" :stroke-width="1.5" /></template>
+        </VButton>
+        <VButton
+          v-tooltip="maximized ? t('shell.window.restore') : t('shell.window.maximize')"
           class="ctl"
+          text
+          severity="secondary"
           data-testid="titlebar-maximize"
           :data-maximized="maximized"
           :aria-label="maximized ? t('shell.window.restore') : t('shell.window.maximize')"
-          :title="maximized ? t('shell.window.restore') : t('shell.window.maximize')"
           @click="win.toggleMaximize()"
         >
-          <Copy v-if="maximized" :size="13" :stroke-width="1.5" />
-          <Square v-else :size="12" :stroke-width="1.5" />
-        </UiButton>
-        <UiButton type="button" class="ctl close" data-testid="titlebar-close" :aria-label="t('shell.window.close')" :title="t('shell.window.close')" @click="closeWindow">
-          <X :size="16" :stroke-width="1.5" />
-        </UiButton>
+          <template #icon>
+            <Copy v-if="maximized" :size="13" :stroke-width="1.5" />
+            <Square v-else :size="12" :stroke-width="1.5" />
+          </template>
+        </VButton>
+        <VButton v-tooltip="t('shell.window.close')" class="ctl close" text severity="secondary" data-testid="titlebar-close" :aria-label="t('shell.window.close')" @click="closeWindow">
+          <template #icon><X :size="16" :stroke-width="1.5" /></template>
+        </VButton>
       </div>
     </div>
   </header>
@@ -144,56 +148,19 @@ onUnmounted(() => stopResize?.());
 }
 
 .tool {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
   height: 26px;
   min-width: 28px;
-  padding: 0 6px;
-  justify-content: center;
-  color: var(--vr-color-text-subtle);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
-  cursor: pointer;
 }
-
-.tool:hover,
-.tool:focus-visible {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
-}
-
-.tool[data-active='true'] {
-  color: var(--vr-color-text);
-}
-
-.tool kbd {
-  font-family: var(--vr-font-mono);
-  font-size: var(--vr-font-size-2xs);
-  color: var(--vr-color-text-muted);
-}
-
 
 .search {
   container: titlebar-search / inline-size;
-  display: flex;
-  align-items: center;
   gap: 8px;
   width: 100%;
   height: 26px;
   padding: 0 6px 0 10px;
-  font: inherit;
   font-size: var(--vr-font-size-label);
   color: var(--vr-color-text-subtle);
-  background: var(--vr-color-surface-muted);
-  border: 0;
-  border-radius: 7px;
   box-sizing: border-box;
-}
-
-.search:hover {
-  background: var(--vr-color-nav-active);
 }
 
 .search-label {
@@ -242,28 +209,13 @@ onUnmounted(() => stopResize?.());
 }
 
 .ctl {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 44px;
   height: 100%;
   padding: 0;
-  color: var(--vr-color-text-subtle);
-  background: transparent;
-  border: 0;
   border-radius: 0;
 }
 
-.ctl:hover {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
-}
-
-.ctl:active {
-  background: var(--vr-color-nav-active);
-}
-
-.ctl.close:hover {
+:root .ctl.close:hover {
   color: var(--vr-color-accent-contrast);
   background: var(--vr-color-danger);
 }

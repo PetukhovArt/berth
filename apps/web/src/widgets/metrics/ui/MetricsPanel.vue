@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, shallowRef } from 'vue';
+import { VMessage, VProgressBar, vTooltip } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { describeError, sessionId, sessionKey, useBerth, getMetrics, useUsageLimits, isFiveHourWindow, isMonthWindow, type MetricsSnapshot, type SessionMetrics, type UsageWindow } from '../../../entities/session';
 
@@ -123,7 +124,7 @@ onBeforeUnmount(() => {
   <section class="metrics" :aria-label="t('agents.metrics.aria')" data-testid="metrics-panel">
     <p v-if="!berth" class="note">{{ t('agents.metrics.unavailable') }}</p>
     <template v-else>
-      <p v-if="error" class="error" role="alert" data-testid="metrics-error">{{ error }}</p>
+      <VMessage v-if="error" severity="error" size="small" data-testid="metrics-error">{{ error }}</VMessage>
       <p v-if="!snapshot && !error" class="note" role="status">{{ t('common.loading') }}</p>
       <template v-if="snapshot">
         <header class="summary">
@@ -139,7 +140,7 @@ onBeforeUnmount(() => {
               <span>{{ row.kind }} · {{ row.label }}</span>
               <span class="window-meta">{{ row.percent }}% · {{ t('agents.metrics.resets', { time: row.resets }) }}</span>
             </div>
-            <div class="bar"><div class="bar-fill" :data-spent="row.percent >= 100" :style="{ width: `${row.percent}%` }" /></div>
+            <VProgressBar class="bar" :value="row.percent" :label="`${row.kind} · ${row.label}`" :severity="row.percent >= 100 ? 'warn' : undefined" />
           </div>
         </section>
         <p v-if="!rows.length" class="note">{{ t('agents.metrics.none') }}</p>
@@ -155,12 +156,12 @@ onBeforeUnmount(() => {
           </thead>
           <tbody>
             <tr v-for="row in rows" :key="row.id" data-testid="metrics-row" :data-rss-bytes="row.rssBytes">
-              <td class="name" :title="row.name">{{ row.name }}</td>
+              <td v-tooltip="row.name" class="name">{{ row.name }}</td>
               <td class="num">{{ row.procs }}</td>
               <td class="num">{{ formatBytes(row.rssBytes) }}</td>
-              <td class="num" data-testid="metrics-tokens" :title="row.tokens === null ? t('agents.metrics.tokensNone') : undefined">{{ row.tokens === null ? '–' : formatNumber(row.tokens, { notation: 'compact' }) }}</td>
+              <td v-tooltip="row.tokens === null ? t('agents.metrics.tokensNone') : undefined" class="num" data-testid="metrics-tokens">{{ row.tokens === null ? '–' : formatNumber(row.tokens, { notation: 'compact' }) }}</td>
               <td class="bar-cell">
-                <div class="bar"><div class="bar-fill" :style="{ width: `${row.share * 100}%` }" /></div>
+                <VProgressBar class="bar" :value="row.share * 100" :label="t('agents.metrics.share')" />
               </td>
             </tr>
           </tbody>
@@ -187,15 +188,6 @@ onBeforeUnmount(() => {
 .note {
   margin: 0;
   color: var(--vr-color-text-muted);
-}
-
-.error {
-  margin: 0;
-  padding: var(--vr-space-2);
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-danger);
-  border-radius: var(--vr-radius-md);
-  background: var(--vr-color-surface-muted);
 }
 
 .summary {
@@ -241,10 +233,6 @@ onBeforeUnmount(() => {
   font-variant-numeric: tabular-nums;
 }
 
-.bar-fill[data-spent='true'] {
-  background: var(--vr-status-limit);
-}
-
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -283,15 +271,6 @@ onBeforeUnmount(() => {
 
 .bar {
   height: 6px;
-  overflow: hidden;
-  border-radius: var(--vr-radius-full);
-  background: var(--vr-color-surface-muted);
-}
-
-.bar-fill {
-  height: 100%;
-  border-radius: var(--vr-radius-full);
-  background: var(--vr-color-accent);
 }
 
 .visually-hidden {

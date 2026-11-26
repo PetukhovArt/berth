@@ -37,7 +37,5 @@ const { t, formatNumber } = useI18n();
 
 .compact :deep(.error) {
   margin: var(--vr-space-1);
-  padding: var(--vr-space-1) var(--vr-space-3);
-  font-size: var(--vr-font-size-xs);
 }
 </style>

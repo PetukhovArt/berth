@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue';
+import { VProgressBar } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { useScope, visibleInterval } from '../../../shared/lib/scope';
 import { AGENT_KIND_LABEL, getMetrics, isFiveHourWindow, isMonthWindow, sessionKey, useUsageLimits, type AgentKind, type UsageWindow } from '../../../entities/session';
@@ -66,9 +67,7 @@ visibleInterval(scope, REFRESH_MS, () => void refreshTokens());
         <span class="grow">{{ window.label }}</span>
         <span class="end">{{ window.meta }}</span>
       </div>
-      <div class="bar" role="progressbar" :aria-label="window.label" :aria-valuenow="window.percent" aria-valuemin="0" aria-valuemax="100">
-        <div class="fill" :data-spent="window.percent >= 100" :style="{ width: `${window.percent}%` }" />
-      </div>
+      <VProgressBar class="bar" :value="window.percent" :label="window.label" :severity="window.percent >= 100 ? 'warn' : undefined" />
     </div>
     <p v-if="tokens === null && !windows.length" class="note">{{ t('inspector.usage.none') }}</p>
   </InspectorSection>
@@ -83,18 +82,5 @@ visibleInterval(scope, REFRESH_MS, () => void refreshTokens());
 
 .bar {
   height: 4px;
-  overflow: hidden;
-  border-radius: var(--vr-radius-full);
-  background: var(--vr-color-surface-muted);
-}
-
-.fill {
-  height: 100%;
-  border-radius: var(--vr-radius-full);
-  background: var(--vr-color-text-muted);
-}
-
-.fill[data-spent='true'] {
-  background: var(--vr-status-limit);
 }
 </style>

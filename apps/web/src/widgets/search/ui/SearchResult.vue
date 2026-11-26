@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { Archive, ChevronRight, FileText, GitPullRequest, MessageSquare, Ticket, Zap } from '../../../shared/ui/icons';
 import { markedSegments, revealFirstMatch, stripMarks, wholeWordStart, wordSegments } from '../../../shared/lib/segments';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { useIsPhone } from '../../../shared/ui/kit';
+import { useIsPhone, vTooltip } from '../../../shared/ui/kit';
 import { HarnessIcon, StatusIcon, useSessionStates } from '../../../entities/session';
 import { pipelineTone } from '../../../entities/merge-request';
 import type { ConversationRow, SearchRow } from '../model/rows';
@@ -97,7 +97,7 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
     :aria-disabled="blocked !== null"
     :data-current="current"
     :data-blocked="blocked !== null"
-    :title="blocked ?? undefined"
+    v-tooltip="blocked ?? undefined"
     @pointermove="emit('hover')"
     @click="emit('open')"
   >
@@ -110,62 +110,62 @@ const channelText = computed(() => (props.row.kind === 'channels' ? props.row.me
         <HarnessIcon v-if="entity.harness" :harness="entity.harness" />
       </span>
       <span class="line" :class="{ tallied: conversation !== null }">
-        <span class="title" :title="entity.label"><Highlighted :segments="titleSegments(entity.label, query)" /></span>
+        <span class="title" v-tooltip="entity.label"><Highlighted :segments="titleSegments(entity.label, query)" /></span>
         <span v-if="conversation" class="meta count" data-testid="search-matches">{{ conversation.matches }}</span>
       </span>
       <span v-if="entity.crumbs.length" class="sub">
         <span class="place">
           <template v-for="(crumb, at) in entity.crumbs" :key="at">
             <ChevronRight v-if="at > 0" :size="11" class="sep" />
-            <span class="crumb" :style="crumbStyle(crumb)" :title="crumb"><Highlighted :segments="wordSegments(crumb, query)" /></span>
+            <span class="crumb" :style="crumbStyle(crumb)" v-tooltip="crumb"><Highlighted :segments="wordSegments(crumb, query)" /></span>
           </template>
         </span>
       </span>
       <span class="aside">
         <span v-if="entity.agent" class="meta">{{ entity.agent }}</span>
-        <span v-if="entity.age" class="meta age" :title="entity.age.full">{{ entity.age.text }}</span>
+        <span v-if="entity.age" class="meta age" v-tooltip="entity.age.full">{{ entity.age.text }}</span>
         <StatusIcon v-if="entity.pipeline" :tone="entity.pipeline" />
       </span>
     </template>
     <template v-else-if="row.kind === 'files'">
       <span class="icons"><FileText :size="14" /></span>
-      <span class="line" :title="row.file.name"><Highlighted :segments="wordSegments(row.file.name, query)" /></span>
-      <span class="sub mono"><span class="crumb" :title="row.file.rel"><Highlighted :segments="wordSegments(row.file.rel, query)" /></span></span>
+      <span class="line" v-tooltip="row.file.name"><Highlighted :segments="wordSegments(row.file.name, query)" /></span>
+      <span class="sub mono"><span class="crumb" v-tooltip="row.file.rel"><Highlighted :segments="wordSegments(row.file.rel, query)" /></span></span>
     </template>
     <template v-else-if="row.kind === 'actions'">
       <span class="icons"><Zap :size="14" /></span>
-      <span class="line" :title="row.action.label"><Highlighted :segments="wordSegments(row.action.label, query)" /></span>
+      <span class="line" v-tooltip="row.action.label"><Highlighted :segments="wordSegments(row.action.label, query)" /></span>
     </template>
     <template v-else-if="conversation && row.kind === 'messages'">
       <span class="icons"><HarnessIcon :harness="row.conversation.harness" :size="14" /></span>
       <span class="line tallied">
-        <span class="title" :title="heading">{{ heading }}</span>
+        <span class="title" v-tooltip="heading">{{ heading }}</span>
         <span class="meta count" data-testid="search-matches">{{ conversation.matches }}</span>
       </span>
       <span class="sub">
         <span class="place">
           <template v-for="(crumb, at) in conversation.crumbs" :key="at">
             <ChevronRight v-if="at > 0" :size="11" class="sep" />
-            <span class="crumb" :style="crumbStyle(crumb)" :title="crumb">{{ crumb }}</span>
+            <span class="crumb" :style="crumbStyle(crumb)" v-tooltip="crumb">{{ crumb }}</span>
           </template>
         </span>
       </span>
       <span class="aside">
-        <span v-if="conversation.age" class="meta age" :title="conversation.age.full">{{ conversation.age.text }}</span>
+        <span v-if="conversation.age" class="meta age" v-tooltip="conversation.age.full">{{ conversation.age.text }}</span>
       </span>
     </template>
     <template v-else-if="channel && row.kind === 'channels'">
       <span class="icons"><MessageSquare :size="14" /></span>
-      <span class="line" :title="channelText"><Highlighted :segments="titleSegments(channelText, query)" /></span>
-      <span class="sub"><span class="crumb" :title="channel.where">{{ channel.where }}</span></span>
+      <span class="line" v-tooltip="channelText"><Highlighted :segments="titleSegments(channelText, query)" /></span>
+      <span class="sub"><span class="crumb" v-tooltip="channel.where">{{ channel.where }}</span></span>
       <span class="aside">
-        <span v-if="channel.age" class="meta age" :title="channel.age.full">{{ channel.age.text }}</span>
+        <span v-if="channel.age" class="meta age" v-tooltip="channel.age.full">{{ channel.age.text }}</span>
       </span>
     </template>
     <span v-if="conversation?.snippets.length" class="snippets">
       <UiButton v-for="snippet in conversation.snippets" :key="snippet.key" type="button" class="snippet" data-testid="search-snippet" @click.stop="emit('openConversation', snippet.key)">
         <span class="role" :data-user="snippet.user">{{ snippet.role }}</span>
-        <span class="snippet-text" :title="snippet.plain"><Highlighted :segments="snippet.segments" /></span>
+        <span class="snippet-text" v-tooltip="snippet.plain"><Highlighted :segments="snippet.segments" /></span>
       </UiButton>
     </span>
   </li>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue';
-import { VButton, VDialog } from '../../../shared/ui/kit';
+import { VButton, VDialog, VMessage, VProgressBar } from '../../../shared/ui/kit';
 import DialogActions from '../../../shared/ui/DialogActions.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { busy, cancelBuild, closeUpdate, daemonUpdated, dialogMode, failure, info, restart, rollBack, short, startBuild, updateDaemon } from '../model/state';
@@ -100,7 +100,7 @@ function onVisible(visible: boolean) {
 
       <p v-else-if="phase === 'noRepo'">{{ t('update.noRepo') }}</p>
 
-      <p v-else-if="phase === 'headError'" class="danger">{{ t('update.headError', { repo: info?.sourceRepo ?? '', error: info?.headError ?? '' }) }}</p>
+      <VMessage v-else-if="phase === 'headError'" severity="error" size="small">{{ t('update.headError', { repo: info?.sourceRepo ?? '', error: info?.headError ?? '' }) }}</VMessage>
 
       <p v-else-if="phase === 'upToDate'" data-testid="update-up-to-date">{{ t('update.upToDate') }}</p>
 
@@ -110,9 +110,7 @@ function onVisible(visible: boolean) {
       </template>
 
       <div v-else-if="phase === 'building'" class="progress" data-testid="update-building">
-        <div class="bar" role="progressbar" :aria-valuenow="totals.progress" aria-valuemin="0" aria-valuemax="100" :aria-valuetext="runningLabel">
-          <div class="fill" :style="{ width: `${totals.progress}%` }" />
-        </div>
+        <VProgressBar :value="totals.progress" :label="runningLabel" />
         <div class="summary muted">
           <span>{{ t('update.elapsed', { time: clock(totals.elapsed) }) }}</span>
           <span v-if="totals.left > 0">{{ t('update.left', { time: clock(totals.left) }) }}</span>
@@ -143,11 +141,11 @@ function onVisible(visible: boolean) {
 
       <div v-if="daemonNotice" class="daemon" data-testid="update-daemon">
         <p>{{ daemonNotice }}</p>
-        <p v-if="confirmDaemon" class="danger">{{ t('update.daemonConfirm') }}</p>
+        <VMessage v-if="confirmDaemon" severity="warn" size="small">{{ t('update.daemonConfirm') }}</VMessage>
       </div>
       <p v-if="daemonUpdated" data-testid="update-daemon-done">{{ t('update.daemonDone') }}</p>
 
-      <p v-if="failure" class="error" data-testid="update-error">{{ failure }}</p>
+      <VMessage v-if="failure" severity="error" size="small" data-testid="update-error">{{ failure }}</VMessage>
     </div>
 
     <DialogActions
@@ -189,29 +187,10 @@ function onVisible(visible: boolean) {
   font-size: var(--vr-font-size-sm);
 }
 
-.danger,
-.error {
-  color: var(--vr-color-danger);
-}
-
 .progress {
   display: flex;
   flex-direction: column;
   gap: var(--vr-space-2);
-}
-
-.bar {
-  height: 6px;
-  overflow: hidden;
-  background: var(--vr-color-surface-muted);
-  border-radius: var(--vr-radius-md);
-}
-
-.fill {
-  height: 100%;
-  background: var(--vr-color-accent);
-  border-radius: inherit;
-  transition: width var(--vr-motion-slow) var(--vr-motion-ease-standard);
 }
 
 .summary {

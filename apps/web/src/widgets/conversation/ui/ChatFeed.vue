@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Bot, Check, LoaderCircle } from '../../../shared/ui/icons';
+import { vTooltip } from '../../../shared/ui/kit';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { HarnessIcon, modelLabel, type AcpQueuedPrompt, type Checkpoint, type Harness, type Subagent } from '../../../entities/session';
@@ -50,7 +51,7 @@ const working = computed(() => (props.workingSince === null ? null : durationLab
   <ol class="messages" data-testid="conversation-messages">
     <template v-for="block in blocks" :key="block.key">
       <li class="block" :data-block="block.type" :data-key="block.key" :data-found="block.key === found || undefined">
-        <div v-if="block.type === 'prompt'" class="message" data-role="user" :title="block.message.at ? formatDate(block.message.at) : undefined" data-testid="conversation-message">
+        <div v-if="block.type === 'prompt'" v-tooltip="block.message.at ? formatDate(block.message.at) : undefined" class="message" data-role="user" data-testid="conversation-message">
           <StoredAttachments v-if="block.message.attachments" :attachments="block.message.attachments" />
           <RichContent v-if="block.message.shell && block.message.markdown" class="shell" :data-shell="block.message.shell" :markdown="block.message.markdown" />
           <p v-else-if="block.message.text" class="user">{{ block.message.text }}</p>
@@ -58,7 +59,7 @@ const working = computed(() => (props.workingSince === null ? null : durationLab
           <RewindAction v-if="rewind && rewindOf.get(block.message.key)" :seq="rewindOf.get(block.message.key)!.seq" :files="rewindOf.get(block.message.key)!.files" :agent-label="agentLabel" :apply="(seq) => rewind!(seq, block.message.text)" />
           <CheckpointRow v-if="agentId && checkpointOf.get(block.message.key)" :agent-id="agentId" :checkpoint="checkpointOf.get(block.message.key)!" :place="place" :agent-label="agentLabel" @restored="emit('restored')" />
         </div>
-        <div v-else-if="block.type === 'turn'" class="turn" :title="block.model ? modelLabel(block.model) : undefined" data-testid="conversation-turn">
+        <div v-else-if="block.type === 'turn'" v-tooltip="block.model ? modelLabel(block.model) : undefined" class="turn" data-testid="conversation-turn">
           <span class="tile" :data-harness="harness ?? 'other'">
             <HarnessIcon v-if="harness" :harness="harness" :size="11" />
             <Bot v-else :size="11" />
@@ -69,7 +70,7 @@ const working = computed(() => (props.workingSince === null ? null : durationLab
         <ToolGroup v-else-if="block.type === 'tools'" :calls="block.calls" :seconds="block.seconds" :root="root" />
         <SubagentGroup v-else-if="block.type === 'subagents'" :agents="block.callIds.flatMap((callId) => subagentOf.get(callId) ?? [])" :now="now" :openable="subagentsOpenable" @open="emit('openSubagent', $event)" />
         <TurnFiles v-else-if="block.type === 'files'" :files="block.files" :root="root" :panel-id="panelId" />
-        <div v-else class="message" :data-role="block.message.role" :title="block.message.at ? formatDate(block.message.at) : undefined" data-testid="conversation-message">
+        <div v-else v-tooltip="block.message.at ? formatDate(block.message.at) : undefined" class="message" :data-role="block.message.role" data-testid="conversation-message">
           <RichContent v-if="block.message.shell && block.message.markdown" class="shell" :data-shell="block.message.shell" :markdown="block.message.markdown" />
           <p v-else-if="block.message.role === 'user'" class="user">{{ block.message.text }}</p>
           <RichContent v-else class="assistant" :markdown="block.message.text" streaming />

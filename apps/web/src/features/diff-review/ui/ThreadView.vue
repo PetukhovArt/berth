@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue';
 import { Check, ChevronRight, Link, MessageSquare } from '../../../shared/ui/icons';
-import { VButton } from '../../../shared/ui/kit';
+import { VButton, VInputText, VMessage, vTooltip } from '../../../shared/ui/kit';
 import { describeError, forgeReply, forgeResolve, type ChangeRequestRef, type Discussion } from '../../../shared/api/connectors/api';
 import type { PromptQuote } from '../../../entities/session';
 import { copyText } from '../../../shared/lib/atlassian';
 import PersonAvatar from '../../../shared/ui/PersonAvatar.vue';
+import PersonName from '../../../shared/ui/PersonName.vue';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import CommentComposer from './CommentComposer.vue';
 import { fullDate, relativeTime } from '../../../entities/merge-request';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ discussion: Discussion; connector?: string; showPosition?: boolean; target?: ChangeRequestRef; quotable?: boolean }>();
 const emit = defineEmits<{ goto: [discussion: Discussion]; update: [discussion: Discussion]; quote: [quote: PromptQuote] }>();
 
@@ -93,27 +93,27 @@ defineExpose({ expand });
   <article class="thread" :data-resolved="discussion.resolved" :data-folded="folded" :data-thread-id="discussion.id" :data-unresolved="discussion.resolvable && !discussion.resolved" data-testid="thread">
     <template v-if="folded">
       <Check :size="14" class="resolved-icon" />
-      <UiButton class="fold" :aria-expanded="false" data-testid="thread-fold" @click="folded = false">
+      <VButton class="fold" size="small" severity="secondary" text :aria-expanded="false" data-testid="thread-fold" @click="folded = false">
         <span class="fold-text">{{ t('forge.thread.resolved') }}<template v-if="first"> · {{ first.author.name || first.author.username }}: {{ preview }}</template></span>
-      </UiButton>
+      </VButton>
       <VButton v-if="target && discussion.resolvable" size="small" severity="secondary" outlined :label="t('forge.thread.unresolve')" :loading="resolving" data-testid="thread-resolve" @click="toggleResolved" />
-      <p v-if="resolveError" class="error" role="alert">{{ resolveError }}</p>
+      <VMessage v-if="resolveError" severity="error" size="small">{{ resolveError }}</VMessage>
     </template>
     <template v-else>
-      <UiButton v-if="discussion.resolved" class="fold head" :aria-expanded="true" data-testid="thread-fold" @click="folded = true">
+      <VButton v-if="discussion.resolved" class="fold head" size="small" severity="secondary" text :aria-expanded="true" data-testid="thread-fold" @click="folded = true">
         <ChevronRight :size="14" class="vr-chevron" data-open="true" />
         <Check :size="14" class="resolved-icon" />
         <span class="fold-text">{{ t('forge.thread.resolved') }}<template v-if="first"> · {{ first.author.name || first.author.username }}: {{ preview }}</template></span>
-      </UiButton>
-      <UiButton v-if="showPosition && position" class="position" :title="position" data-testid="thread-position" @click="emit('goto', discussion)">
+      </VButton>
+      <VButton v-if="showPosition && position" v-tooltip="position" class="position" size="small" severity="secondary" text data-testid="thread-position" @click="emit('goto', discussion)">
         <MessageSquare :size="12" />{{ position }}
-      </UiButton>
+      </VButton>
       <div v-for="note in notes" :key="note.id" class="note" :data-system="note.system">
         <PersonAvatar v-if="!note.system" :person="note.author" small />
         <div class="body">
           <div class="meta">
-            <b v-if="!note.system">{{ note.author.name || note.author.username }}</b>
-            <span :title="fullDate(note.created_at)">{{ relativeTime(note.created_at) }}</span>
+            <PersonName v-if="!note.system" class="author" :person="note.author" />
+            <span v-tooltip="fullDate(note.created_at)">{{ relativeTime(note.created_at) }}</span>
           </div>
           <p v-if="note.system" class="system">{{ note.body }}</p>
           <RichContent v-else :markdown="note.body" :connector="connector" />
@@ -135,20 +135,19 @@ defineExpose({ expand });
             @cancel="replying = false"
           />
           <div v-else class="idle">
-            <UiButton class="reply-field" data-testid="thread-reply" @click="replying = true">{{ draft.trim() ? `${t('forge.thread.reply')} …` : `${t('forge.thread.reply')}…` }}</UiButton>
+            <VInputText class="reply-field" size="small" readonly :model-value="''" :placeholder="draft.trim() ? `${t('forge.thread.reply')} …` : `${t('forge.thread.reply')}…`" :aria-label="t('forge.thread.reply')" data-testid="thread-reply" @focus="replying = true" @click="replying = true" />
             <VButton v-if="discussion.resolvable" size="small" severity="secondary" outlined :label="discussion.resolved ? t('forge.thread.unresolve') : t('forge.thread.resolve')" :loading="resolving" data-testid="thread-resolve" @click="toggleResolved">
               <template v-if="!discussion.resolved" #icon><Check :size="14" class="resolved-icon" /></template>
             </VButton>
           </div>
-          <p v-if="resolveError" class="error" role="alert">{{ resolveError }}</p>
+          <VMessage v-if="resolveError" severity="error" size="small">{{ resolveError }}</VMessage>
         </template>
         <div v-if="quotable || discussion.url" class="actions">
           <span class="spacer" />
-          <VButton v-if="quotable" size="small" severity="secondary" text :label="t('forge.thread.addToPrompt')" :title="t('forge.thread.addToPromptTitle')" data-testid="thread-add-to-prompt" @click="quoteThread" />
-          <UiButton v-if="discussion.url" class="link" :title="copied ? t('forge.thread.copied') : t('forge.thread.copyLink')" :aria-label="t('forge.thread.copyLink')" data-testid="thread-copy-link" @click="copyLink">
-            <Check v-if="copied" :size="13" />
-            <Link v-else :size="13" />
-          </UiButton>
+          <VButton v-if="quotable" v-tooltip="t('forge.thread.addToPromptTitle')" size="small" severity="secondary" text :label="t('forge.thread.addToPrompt')" data-testid="thread-add-to-prompt" @click="quoteThread" />
+          <VButton v-if="discussion.url" v-tooltip="copied ? t('forge.thread.copied') : t('forge.thread.copyLink')" size="small" severity="secondary" text :aria-label="t('forge.thread.copyLink')" data-testid="thread-copy-link" @click="copyLink">
+            <template #icon><Check v-if="copied" :size="13" /><Link v-else :size="13" /></template>
+          </VButton>
         </div>
       </div>
     </template>
@@ -184,37 +183,12 @@ defineExpose({ expand });
   border-color: var(--vr-color-border);
 }
 
-.link {
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  padding: 0 var(--vr-space-2);
-  color: var(--vr-color-text-muted);
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--vr-radius-sm);
-  cursor: pointer;
-}
-
-.link:hover {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
-}
-
 .fold,
 .position {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--vr-space-1);
+  justify-content: flex-start;
   align-self: flex-start;
   max-width: 100%;
-  padding: 0;
-  color: var(--vr-color-text-muted);
-  font: inherit;
   font-size: var(--vr-font-size-xs);
-  background: none;
-  border: none;
-  cursor: pointer;
 }
 
 .fold {
@@ -236,11 +210,6 @@ defineExpose({ expand });
   font-family: var(--vr-font-mono);
   background: var(--vr-color-surface-sunken);
   border-bottom: 1px solid var(--vr-color-border);
-}
-
-.position:hover,
-.fold:hover {
-  color: var(--vr-color-text);
 }
 
 .fold-text {
@@ -278,8 +247,9 @@ defineExpose({ expand });
   font-size: var(--vr-font-size-xs);
 }
 
-.meta b {
+.meta .author {
   color: var(--vr-color-text);
+  font-weight: 700;
 }
 
 .foot {
@@ -300,15 +270,6 @@ defineExpose({ expand });
 .reply-field {
   flex: 1;
   min-width: 0;
-  height: 32px;
-  padding: 0 10px;
-  color: var(--vr-color-text-muted);
-  font: inherit;
-  text-align: left;
-  background: var(--vr-color-surface);
-  border: 1px solid var(--vr-color-border-strong);
-  border-radius: var(--vr-radius-sm);
-  cursor: text;
 }
 
 .actions {
@@ -320,13 +281,6 @@ defineExpose({ expand });
 
 .spacer {
   flex: 1;
-}
-
-.error {
-  margin: 0;
-  color: var(--vr-color-danger);
-  font-size: var(--vr-font-size-xs);
-  overflow-wrap: anywhere;
 }
 
 .system {

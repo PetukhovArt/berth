@@ -11,9 +11,7 @@ import { withTilde } from '../../../shared/lib/homePath';
 import { openSettings } from '../../../shared/model/nav';
 import { chordJoiner, modifierGlyphs, onlyPrimaryPressed, primaryModifier } from '../../../shared/lib/platform';
 import { Gem, Smartphone, SquareTerminal, Zap } from '../../../shared/ui/icons';
-import { VButton } from '../../../shared/ui/kit';
-import { UiButton } from '../../../shared/ui/UiButton';
-import UiInput from '../../../shared/ui/UiInput.vue';
+import { VButton, VCheckbox, VMessage, vTooltip } from '../../../shared/ui/kit';
 import { activityLabel } from '../model/activity';
 import { dismissFirstRun } from '../../../shared/model/firstRun';
 import { dismissPhoneRow, phoneRowDismissed } from '../model/dismissed';
@@ -204,17 +202,15 @@ onUnmounted(() => {
         <div v-if="projects.length" class="block">
           <div class="title-row">
             <h2 class="title">{{ t('workbench.firstRun.projects') }} <span class="hint">{{ t('workbench.firstRun.projectsHint') }}</span></h2>
-            <UiButton type="button" class="link" :aria-expanded="expanded" data-testid="first-run-review-all" @click="expanded = !expanded">
-              {{ expanded ? t('workbench.firstRun.showFewer') : t('workbench.firstRun.reviewAll') }}
-            </UiButton>
+            <VButton link size="small" class="title-link" :aria-expanded="expanded" :label="expanded ? t('workbench.firstRun.showFewer') : t('workbench.firstRun.reviewAll')" data-testid="first-run-review-all" @click="expanded = !expanded" />
           </div>
           <ul class="agents" data-testid="first-run-projects">
             <li v-for="p in shown" :key="p.path" class="agent" :data-testid="`first-run-project-${p.name}`">
               <label class="pick">
-                <UiInput type="checkbox" class="check" :checked="selected.has(p.path)" :disabled="adding" :aria-label="p.name" data-testid="first-run-project-check" @change="toggle(p.path, ($event.target as HTMLInputElement).checked)" />
+                <VCheckbox :model-value="selected.has(p.path)" :disabled="adding" :aria-label="p.name" data-testid="first-run-project-check" @update:model-value="toggle(p.path, $event === true)" />
                 <span class="info">
                   <span class="name">{{ p.name }}</span>
-                  <span class="path" :title="p.path">{{ withTilde(p.path) }}</span>
+                  <span v-tooltip="p.path" class="path">{{ withTilde(p.path) }}</span>
                 </span>
               </label>
               <span class="state">{{ t('workbench.firstRun.conversations', { count: p.conversations }) }} · {{ activityLabel(p.last_active) }}</span>
@@ -228,19 +224,19 @@ onUnmounted(() => {
         <div v-if="forges.length || hosts.length" class="block">
           <div class="title-row">
             <h2 class="title">{{ t('workbench.firstRun.mergeRequests') }} <span class="hint">{{ t('workbench.firstRun.mergeRequestsHint') }}</span></h2>
-            <UiButton type="button" class="link" data-testid="first-run-connectors" @click="openSettings('connectors')">{{ t('workbench.firstRun.jiraOrConfluence') }}</UiButton>
+            <VButton link size="small" class="title-link" :label="t('workbench.firstRun.jiraOrConfluence')" data-testid="first-run-connectors" @click="openSettings('connectors')" />
           </div>
           <ul class="agents" data-testid="first-run-forges">
-            <li v-for="c in forges" :key="c.id" class="agent" :data-testid="`first-run-forge-${c.id}`">
+            <li v-for="c in forges" :key="c.id" class="agent forge" :data-testid="`first-run-forge-${c.id}`">
               <span class="pick">
-                <UiInput type="checkbox" class="check" checked disabled :aria-label="hostOf(c.base_url)" />
+                <VCheckbox :model-value="true" disabled :aria-label="hostOf(c.base_url)" />
                 <span class="name host">{{ hostOf(c.base_url) }}</span>
               </span>
               <span class="state" data-tone="ok">{{ signedIn(c.account?.username) }}</span>
             </li>
-            <li v-for="d in hosts" :key="hostKey(d)" class="agent" :data-testid="`first-run-host-${hostOf(d.base_url)}`">
+            <li v-for="d in hosts" :key="hostKey(d)" class="agent forge" :data-testid="`first-run-host-${hostOf(d.base_url)}`">
               <label class="pick">
-                <UiInput type="checkbox" class="check" :checked="!skippedHosts.has(hostKey(d))" :disabled="adding" :aria-label="hostOf(d.base_url)" data-testid="first-run-host-check" @change="toggleHost(d, ($event.target as HTMLInputElement).checked)" />
+                <VCheckbox :model-value="!skippedHosts.has(hostKey(d))" :disabled="adding" :aria-label="hostOf(d.base_url)" data-testid="first-run-host-check" @update:model-value="toggleHost(d, $event === true)" />
                 <span class="name host">{{ hostOf(d.base_url) }}</span>
               </label>
               <span class="state">{{ hostVia(d) }}</span>
@@ -248,18 +244,17 @@ onUnmounted(() => {
           </ul>
         </div>
         <div v-if="!phoneRowDismissed" class="phone" data-testid="first-run-phone">
-          <UiButton type="button" class="phone-open" :title="t('workbench.firstRun.phoneOpen')" data-testid="first-run-phone-open" @click="openSettings('remote')">
-            <Smartphone :size="14" :stroke-width="1.6" />
-            <span>{{ t('workbench.firstRun.phone') }}</span>
-          </UiButton>
-          <UiButton type="button" class="link" data-testid="first-run-phone-later" @click="dismissPhoneRow">{{ t('workbench.firstRun.phoneLater') }}</UiButton>
+          <VButton v-tooltip="t('workbench.firstRun.phoneOpen')" class="phone-open" text severity="secondary" size="small" :label="t('workbench.firstRun.phone')" data-testid="first-run-phone-open" @click="openSettings('remote')">
+            <template #icon><Smartphone :size="14" :stroke-width="1.6" /></template>
+          </VButton>
+          <VButton link size="small" :label="t('workbench.firstRun.phoneLater')" data-testid="first-run-phone-later" @click="dismissPhoneRow" />
         </div>
       </div>
     </div>
     <footer class="footer">
-      <UiButton type="button" class="skip" :disabled="adding" data-testid="first-run-start-without-agent" @click="start">{{ t('workbench.firstRun.startWithoutAgent') }}</UiButton>
+      <VButton text severity="secondary" size="small" :disabled="adding" :label="t('workbench.firstRun.startWithoutAgent')" data-testid="first-run-start-without-agent" @click="start" />
       <span class="spacer" />
-      <p v-if="addError" class="error" data-testid="first-run-add-error">{{ addError }}</p>
+      <VMessage v-if="addError" severity="error" size="small" data-testid="first-run-add-error">{{ addError }}</VMessage>
       <p v-if="!hasSignedIn" class="next" data-testid="first-run-next">{{ t('workbench.firstRun.nextStep') }}</p>
       <VButton :disabled="!hasSignedIn || adding || !workspaceId" data-testid="first-run-add-selected" @click="start">
         {{ primaryLabel }}
@@ -380,63 +375,18 @@ onUnmounted(() => {
   gap: var(--vr-space-3);
 }
 
-.link {
-  padding: 0;
-  font: inherit;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-link);
-  cursor: pointer;
-  background: none;
-  border: 0;
-}
-
-.link:hover {
-  text-decoration: underline;
-}
-
 .host {
+  min-width: 0;
+  overflow: hidden;
   font-family: var(--vr-font-mono);
   font-size: var(--vr-font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.check {
-  position: relative;
+.title-link {
   flex: none;
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  cursor: pointer;
-  background: transparent;
-  border: 1px solid var(--vr-color-border-strong);
-  border-radius: 4px;
-  appearance: none;
-}
-
-.check:checked {
-  background: var(--vr-color-accent);
-  border-color: var(--vr-color-accent);
-}
-
-.check:checked::after {
-  position: absolute;
-  top: 1px;
-  left: 4px;
-  width: 4px;
-  height: 8px;
-  content: '';
-  border: solid var(--vr-color-accent-contrast);
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-
-.check:focus-visible {
-  outline: 2px solid var(--vr-color-focus);
-  outline-offset: 2px;
-}
-
-.check:disabled {
-  cursor: default;
-  opacity: 0.5;
+  white-space: nowrap;
 }
 
 .phone {
@@ -450,23 +400,9 @@ onUnmounted(() => {
 }
 
 .phone-open {
-  display: flex;
   flex: 1;
-  align-items: center;
-  gap: var(--vr-space-3);
+  justify-content: flex-start;
   min-width: 0;
-  padding: 0;
-  font: inherit;
-  font-size: var(--vr-font-size-sm);
-  color: var(--vr-color-text-muted);
-  text-align: left;
-  cursor: pointer;
-  background: none;
-  border: 0;
-}
-
-.phone-open:hover {
-  color: var(--vr-color-text);
 }
 
 .tile[data-kind='codex'] {
@@ -524,12 +460,6 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-.error {
-  margin: 0;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-danger);
-}
-
 .add {
   justify-content: flex-start;
 }
@@ -549,23 +479,45 @@ onUnmounted(() => {
   flex: 1;
 }
 
-.skip {
-  padding: 0;
-  font: inherit;
-  color: var(--vr-color-text-muted);
-  cursor: pointer;
-  background: none;
-  border: 0;
-}
-
-.skip:hover:not(:disabled) {
-  color: var(--vr-color-text);
-}
-
 .key {
   margin-left: var(--vr-space-2);
   font-family: var(--vr-font-mono);
   font-size: var(--vr-font-size-2xs);
   opacity: 0.6;
+}
+
+:root[data-vr-viewport='phone'] .content {
+  padding: var(--vr-space-6) var(--vr-space-4);
+}
+
+:root[data-vr-viewport='phone'] .forge {
+  flex-wrap: wrap;
+  row-gap: var(--vr-space-1);
+}
+
+:root[data-vr-viewport='phone'] .forge .state {
+  margin-left: auto;
+}
+
+:root[data-vr-viewport='phone'] .title-row {
+  align-items: flex-start;
+}
+
+:root[data-vr-viewport='phone'] .title-row .hint {
+  display: block;
+  margin-left: 0;
+}
+
+:root[data-vr-viewport='phone'] .footer {
+  flex-direction: column-reverse;
+  align-items: stretch;
+  height: auto;
+  min-height: 64px;
+  padding: var(--vr-space-3) var(--vr-space-4);
+}
+
+:root[data-vr-viewport='phone'] .footer .spacer,
+:root[data-vr-viewport='phone'] .footer .key {
+  display: none;
 }
 </style>

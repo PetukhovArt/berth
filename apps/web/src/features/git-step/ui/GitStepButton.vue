@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { UiButton } from '../../../shared/ui/UiButton';
-import UiInput from '../../../shared/ui/UiInput.vue';
-import UiTextarea from '../../../shared/ui/UiTextarea.vue';
+import { VButton, VInputText, VMessage, VTextarea, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { forgeCreateChangeRequest, worktreeGitState, worktreeGitStep, type GitState } from '../../../shared/api/git';
 import { rememberMr } from '../../../entities/merge-request';
@@ -115,33 +113,33 @@ onBeforeUnmount(() => window.removeEventListener('focus', refresh));
 
 <template>
   <div v-if="step" class="git-step" :data-testid="testid">
-    <span v-if="hint && !quiet" class="hint" :title="hint" :data-testid="`${testid}-hint`">{{ hint }}</span>
-    <UiButton type="button" class="run" :disabled="!runnable || busy" :aria-busy="busy" :aria-label="busy ? t('gitStep.working') : label" :title="[label, hint].filter(Boolean).join('\n')" :data-testid="`${testid}-run`" @click="click">
+    <span v-if="hint && !quiet" v-tooltip="hint" class="hint" :data-testid="`${testid}-hint`">{{ hint }}</span>
+    <VButton v-tooltip="[label, hint].filter(Boolean).join('\n')" type="button" size="small" class="run" :disabled="!runnable || busy" :aria-busy="busy" :aria-label="busy ? t('gitStep.working') : label" :data-testid="`${testid}-run`" @click="click">
       <GitBranch class="glyph" :size="14" aria-hidden="true" />
       <span class="full">{{ busy ? t('gitStep.working') : label }}</span>
       <span class="short">{{ busy ? t('gitStep.working') : shortLabel }}</span>
-    </UiButton>
+    </VButton>
     <form v-if="open && step.kind === 'run'" ref="sheet" class="form vr-sheet" :data-testid="`${testid}-form`" @submit.prevent="valid && perform()">
       <label v-if="step.commit" class="field">
         <span>{{ t('gitStep.commitMessage') }}</span>
-        <UiInput v-model="message" :data-testid="`${testid}-message`" autofocus />
+        <VInputText v-model="message" size="small" :data-testid="`${testid}-message`" autofocus />
       </label>
       <template v-if="step.create">
         <label class="field">
           <span>{{ t('gitStep.requestTitle') }}</span>
-          <UiInput v-model="title" :data-testid="`${testid}-title`" />
+          <VInputText v-model="title" size="small" :data-testid="`${testid}-title`" />
         </label>
         <label class="field">
           <span>{{ t('gitStep.requestDescription') }}</span>
-          <UiTextarea v-model="description" rows="3" :data-testid="`${testid}-description`" />
+          <VTextarea v-model="description" rows="3" :data-testid="`${testid}-description`" />
         </label>
       </template>
       <div class="actions">
-        <UiButton type="button" class="cancel" @click="open = false">{{ t('gitStep.cancel') }}</UiButton>
-        <UiButton type="submit" class="run" :disabled="!valid || busy" :data-testid="`${testid}-submit`">{{ label }}</UiButton>
+        <VButton type="button" size="small" severity="secondary" text :label="t('gitStep.cancel')" @click="open = false" />
+        <VButton type="submit" size="small" :label="label" :disabled="!valid || busy" :data-testid="`${testid}-submit`" />
       </div>
     </form>
-    <span v-if="error" class="error" role="alert" :title="error" :data-testid="`${testid}-error`">{{ error }}</span>
+    <VMessage v-if="error" class="error" severity="error" size="small" :data-testid="`${testid}-error`">{{ error }}</VMessage>
   </div>
 </template>
 
@@ -176,40 +174,19 @@ onBeforeUnmount(() => window.removeEventListener('focus', refresh));
   width: max-content;
   max-width: 360px;
   max-height: 9em;
-  padding: var(--vr-space-2) var(--vr-space-3);
   overflow-y: auto;
-  color: var(--vr-status-crashed);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  background: var(--vr-color-surface-raised);
-  border-radius: 7px;
-  box-shadow: var(--vr-shadow-popover);
 }
 
 .run {
   flex: none;
-  height: 28px;
-  padding: 0 11px;
-  color: var(--vr-color-accent-contrast);
-  font: inherit;
-  font-size: var(--vr-font-size-label);
-  font-weight: 600;
   white-space: nowrap;
-  background: var(--vr-color-accent);
-  border: 0;
-  border-radius: 7px;
-  cursor: pointer;
 }
 
 .glyph,
 .short {
   display: none;
-}
-
-.run:disabled {
-  color: var(--vr-color-text-subtle);
-  background: var(--vr-color-surface-muted);
-  cursor: default;
 }
 
 .form {
@@ -235,32 +212,9 @@ onBeforeUnmount(() => window.removeEventListener('focus', refresh));
   font-size: var(--vr-font-size-xs);
 }
 
-.field :deep(input),
-.field :deep(textarea) {
-  padding: 6px 8px;
-  color: var(--vr-color-text);
-  font: inherit;
-  font-size: var(--vr-font-size-sm);
-  background: var(--vr-color-surface-sunken);
-  border: 1px solid var(--vr-color-border);
-  border-radius: 6px;
-}
-
 .actions {
   display: flex;
   justify-content: flex-end;
   gap: var(--vr-space-2);
-}
-
-.cancel {
-  height: 28px;
-  padding: 0 10px;
-  color: var(--vr-color-text);
-  font: inherit;
-  font-size: var(--vr-font-size-label);
-  background: var(--vr-color-surface-muted);
-  border: 0;
-  border-radius: 7px;
-  cursor: pointer;
 }
 </style>

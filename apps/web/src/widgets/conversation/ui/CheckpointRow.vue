@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { shallowRef } from 'vue';
 import { RotateCcw } from '../../../shared/ui/icons';
-import { VDialog } from '../../../shared/ui/kit';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton, VDialog, vTooltip } from '../../../shared/ui/kit';
 import DialogActions from '../../../shared/ui/DialogActions.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { describeError, restoreCheckpoint, type Checkpoint } from '../../../entities/session';
@@ -38,13 +37,13 @@ async function restore() {
 
 <template>
   <div class="checkpoint" :data-testid="`chat-checkpoint-${checkpoint.number}`">
-    <span class="label" :title="t('chat.checkpointTitle', { number: checkpoint.number })">
+    <span v-tooltip="t('chat.checkpointTitle', { number: checkpoint.number })" class="label">
       <RotateCcw :size="11" />
       {{ t('chat.checkpoint') }}
       <span class="time">{{ formatTime(checkpoint.created_at * 1000) }}</span>
     </span>
     <span class="dot" aria-hidden="true">·</span>
-    <UiButton type="button" class="link" data-testid="chat-checkpoint-restore" @click="open">{{ t('chat.restore') }}</UiButton>
+    <VButton :label="t('chat.restore')" link size="small" data-testid="chat-checkpoint-restore" @click="open" />
     <VDialog v-model:visible="confirming" modal :header="t('chat.restoreTitle', { place: place || t('chat.checkpointWorktree') })" :style="{ width: '480px', maxWidth: '95vw' }" :draggable="false">
       <div class="confirm" data-testid="chat-checkpoint-confirm">
         <p class="text">{{ t('chat.restoreBody', { agent: agentLabel }) }}</p>
@@ -71,15 +70,6 @@ async function restore() {
   display: inline-flex;
   align-items: center;
   gap: var(--vr-space-1);
-}
-
-.link {
-  padding: 0;
-  font: inherit;
-  color: var(--vr-color-link);
-  cursor: pointer;
-  background: none;
-  border: 0;
 }
 
 .confirm {

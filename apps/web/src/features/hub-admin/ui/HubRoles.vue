@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue';
 import { Plus } from '../../../shared/ui/icons';
-import { VButton, VInputText } from '../../../shared/ui/kit';
-import UiInput from '../../../shared/ui/UiInput.vue';
+import { VButton, VCheckbox, VInputText, VMessage, VTag, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { permissionHint, permissionLabel, type HubRole } from '../../../entities/session';
 import { useChanges } from '../model/changes';
@@ -71,15 +70,14 @@ const remove = (role: HubRole) => run(role.id, { DeleteRole: { id: role.id } });
     <ul v-else class="list" data-testid="hub-admin-roles-list">
       <li v-for="role in roles" :key="role.id" class="role" :data-builtin="role.builtin" :data-testid="`hub-admin-role-${role.id}`">
         <div class="line">
-          <span class="name" :title="role.name">{{ role.name }}</span>
-          <span v-if="role.builtin" class="chip">{{ t('hub.roles.builtin') }}</span>
+          <span v-tooltip="role.name" class="name">{{ role.name }}</span>
+          <VTag v-if="role.builtin" :value="t('hub.roles.builtin')" severity="secondary" rounded />
           <span class="muted">{{ t('hub.roles.heldBy', { count: role.members }) }}</span>
           <template v-if="!role.builtin">
             <VButton :label="t('hub.roles.edit')" :aria-label="t('hub.roles.editLabel', { name: role.name })" size="small" severity="secondary" text :disabled="busy.has(role.id)" :data-testid="`hub-admin-role-edit-${role.id}`" @click="startEdit(role)" />
             <VButton
               :label="t('hub.roles.delete')"
               :aria-label="t('hub.roles.deleteLabel', { name: role.name })"
-              :title="role.members > 0 ? t('hub.roles.deleteHeld', { count: role.members }) : undefined"
               size="small"
               severity="danger"
               text
@@ -90,11 +88,11 @@ const remove = (role: HubRole) => run(role.id, { DeleteRole: { id: role.id } });
           </template>
         </div>
         <ul v-if="role.permissions.length" class="perms">
-          <li v-for="key in role.permissions" :key="key" class="chip" :title="permissionHint(key)">{{ permissionLabel(key) }}</li>
+          <li v-for="key in role.permissions" :key="key"><VTag v-tooltip="permissionHint(key)" :value="permissionLabel(key)" severity="secondary" rounded /></li>
         </ul>
         <p v-else class="muted">{{ t('hub.roles.noPermissions') }}</p>
         <p v-if="!role.builtin && role.members > 0" class="muted" :data-testid="`hub-admin-role-delete-reason-${role.id}`">{{ t('hub.roles.deleteHeld', { count: role.members }) }}</p>
-        <p v-if="errors.get(role.id)" class="error" role="alert" :data-testid="`hub-admin-role-error-${role.id}`">{{ errors.get(role.id) }}</p>
+        <VMessage v-if="errors.get(role.id)" severity="error" size="small" :data-testid="`hub-admin-role-error-${role.id}`">{{ errors.get(role.id) }}</VMessage>
       </li>
     </ul>
     <form v-if="form" class="form" data-testid="hub-admin-role-form" @submit.prevent="save">
@@ -106,14 +104,14 @@ const remove = (role: HubRole) => run(role.id, { DeleteRole: { id: role.id } });
       <fieldset v-for="group in groups" :key="group.id" class="group" :disabled="saving" :data-testid="`hub-admin-role-group-${group.id}`">
         <legend>{{ group.label }}</legend>
         <label v-for="key in group.keys" :key="key" class="perm">
-          <UiInput type="checkbox" class="check" :checked="selected.has(key)" :data-testid="`hub-admin-role-perm-${key}`" @change="toggle(key, ($event.target as HTMLInputElement).checked)" />
+          <VCheckbox :model-value="selected.has(key)" :aria-label="permissionLabel(key)" :data-testid="`hub-admin-role-perm-${key}`" @update:model-value="toggle(key, $event === true)" />
           <span class="perm-text">
             <span class="perm-label">{{ permissionLabel(key) }}</span>
             <span class="muted">{{ permissionHint(key) }}</span>
           </span>
         </label>
       </fieldset>
-      <p v-if="errors.get(FORM)" class="error" role="alert" data-testid="hub-admin-role-form-error">{{ errors.get(FORM) }}</p>
+      <VMessage v-if="errors.get(FORM)" severity="error" size="small" data-testid="hub-admin-role-form-error">{{ errors.get(FORM) }}</VMessage>
       <div class="actions">
         <VButton type="submit" :label="t('hub.roles.save')" size="small" :loading="saving" :disabled="!name.trim() || saving" data-testid="hub-admin-role-save" />
         <VButton :label="t('common.cancel')" size="small" severity="secondary" text :disabled="saving" data-testid="hub-admin-role-cancel" @click="form = null" />
@@ -196,14 +194,6 @@ const remove = (role: HubRole) => run(role.id, { DeleteRole: { id: role.id } });
   list-style: none;
 }
 
-.chip {
-  padding: 0 var(--vr-space-2);
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-text-muted);
-  background: var(--vr-color-chip-bg);
-  border-radius: var(--vr-radius-full);
-}
-
 .form {
   display: flex;
   flex-direction: column;
@@ -251,12 +241,6 @@ const remove = (role: HubRole) => run(role.id, { DeleteRole: { id: role.id } });
   gap: var(--vr-space-2);
 }
 
-.check {
-  flex: none;
-  margin: 2px 0 0;
-  accent-color: var(--vr-color-accent);
-}
-
 .perm-text {
   display: flex;
   flex-direction: column;
@@ -266,13 +250,6 @@ const remove = (role: HubRole) => run(role.id, { DeleteRole: { id: role.id } });
 
 .perm-label {
   font-weight: 500;
-}
-
-.error {
-  margin: 0;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-danger);
-  overflow-wrap: anywhere;
 }
 
 .actions {

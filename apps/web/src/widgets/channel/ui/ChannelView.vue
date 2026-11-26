@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue';
-import { UiButton } from '../../../shared/ui/UiButton';
-import UiTextarea from '../../../shared/ui/UiTextarea.vue';
+import { VButton, VMessage, VTag, VTextarea, vTooltip } from '../../../shared/ui/kit';
 import { Bot, UserRound } from '../../../shared/ui/icons';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
 import { agentName, answerInChannel, channelRequestOf, describeError, grantChannelAccess, isAgentMessage, isChannelReply, isNoteMessage, isOwnAgentRequest, onChannelAppended, ownAgentsFor, postNote, postToChannel, promoteChannelMessage, readChannel, readChannelGrants, readPresence, refreshChannels, revokeChannelGrant, settlementOf, useMay, type ChannelGrant, type ChannelMessage, type ChannelPresent, type ChannelRequest, type ChannelSettlement } from '../../../entities/session';
@@ -187,19 +186,19 @@ onBeforeUnmount(() => {
     <p v-if="present.length" class="presence" data-testid="channel-presence">{{ t('attention.channel.present', { who: present.map((p) => (p.agents.length ? `${p.name} (${p.agents.join(', ')})` : p.name)).join('; ') }) }}</p>
     <p v-if="activeNote" class="note" data-testid="channel-note">
       <span class="note-text">{{ t('attention.channel.noteBy', { name: activeNote.authorName, text: activeNote.content }) }}</span>
-      <UiButton type="button" class="note-clear" :disabled="busy || !noting.ok" data-testid="channel-note-clear" @click="clearNote">{{ t('attention.channel.noteClear') }}</UiButton>
+      <VButton class="note-clear" text severity="secondary" size="small" :disabled="busy || !noting.ok" :label="t('attention.channel.noteClear')" data-testid="channel-note-clear" @click="clearNote" />
     </p>
     <p v-if="grants.length" class="grants" data-testid="channel-grants">
       <span>{{ t('attention.channel.grants') }}</span>
       <span v-for="grant in grants" :key="`${grant.agent}:${grant.member}`" class="grant" data-testid="channel-grant">
         {{ t('attention.channel.grant', { member: grant.member_name, agent: agentName(grant.agent) }) }}
-        <UiButton type="button" class="link" :aria-label="t('attention.channel.revokeLabel', { member: grant.member_name, agent: agentName(grant.agent) })" data-testid="channel-grant-revoke" @click="revoke(grant)">{{ t('attention.channel.revoke') }}</UiButton>
+        <VButton link size="small" :label="t('attention.channel.revoke')" :aria-label="t('attention.channel.revokeLabel', { member: grant.member_name, agent: agentName(grant.agent) })" data-testid="channel-grant-revoke" @click="revoke(grant)" />
       </span>
     </p>
     <ol ref="list" class="messages" data-testid="channel-messages">
       <li v-if="!rows.length" class="empty" data-testid="channel-empty">{{ t('attention.channel.empty') }}</li>
       <li v-for="row in rows" :key="row.message.seq" class="message" :data-author-kind="row.message.authorKind" data-testid="channel-message">
-        <span class="marker" :title="isAgentMessage(row.message) ? t('attention.channel.agent') : t('attention.channel.person')" :aria-label="isAgentMessage(row.message) ? t('attention.channel.agent') : t('attention.channel.person')">
+        <span v-tooltip="isAgentMessage(row.message) ? t('attention.channel.agent') : t('attention.channel.person')" class="marker" :aria-label="isAgentMessage(row.message) ? t('attention.channel.agent') : t('attention.channel.person')">
           <Bot v-if="isAgentMessage(row.message)" :size="14" />
           <UserRound v-else :size="14" />
         </span>
@@ -207,10 +206,10 @@ onBeforeUnmount(() => {
           <div class="meta">
             <span class="author" data-testid="channel-author">{{ row.message.authorName }}</span>
             <span class="time">{{ formatDate(row.message.createdAt, { timeStyle: 'short' }) }}</span>
-            <span v-if="isNoteMessage(row.message)" class="tag" data-testid="channel-note-tag">{{ t('attention.channel.noteTag') }}</span>
+            <VTag v-if="isNoteMessage(row.message)" :value="t('attention.channel.noteTag')" severity="secondary" data-testid="channel-note-tag" />
             <span v-if="promoted.has(row.message.seq)" class="time" data-testid="channel-promoted">{{ t('attention.channel.promoted') }}</span>
-            <UiButton v-else-if="row.message.promotable" type="button" class="link" :title="t('attention.channel.promoteHint')" data-testid="channel-promote" @click="promote(row.message)">{{ t('attention.channel.promote') }}</UiButton>
-            <UiButton v-if="row.message.grantable && grantChoices(row.message).length" type="button" class="link" :title="t('attention.channel.grantOfferHint', { name: row.message.authorName })" :aria-expanded="granting === row.message.seq" data-testid="channel-grant-open" @click="toggleGrant(row.message)">{{ t('attention.channel.grantOffer', { name: row.message.authorName }) }}</UiButton>
+            <VButton v-else-if="row.message.promotable" v-tooltip="t('attention.channel.promoteHint')" link size="small" :label="t('attention.channel.promote')" data-testid="channel-promote" @click="promote(row.message)" />
+            <VButton v-if="row.message.grantable && grantChoices(row.message).length" v-tooltip="t('attention.channel.grantOfferHint', { name: row.message.authorName })" link size="small" :label="t('attention.channel.grantOffer', { name: row.message.authorName })" :aria-expanded="granting === row.message.seq" data-testid="channel-grant-open" @click="toggleGrant(row.message)" />
           </div>
           <div v-if="row.request" class="request" data-testid="channel-request" :data-settled="row.settled ? 'true' : 'false'">
             <p class="content">{{ requestText(row.request) }}</p>
@@ -220,26 +219,26 @@ onBeforeUnmount(() => {
             <p v-else-if="sent.has(row.message.seq)" class="request-state" data-testid="channel-request-sent">{{ t('attention.channel.request.sent') }}</p>
             <div v-else class="actions">
               <template v-if="row.request.kind === 'permission' && !row.request.options.length">
-                <UiButton type="button" class="action primary" :disabled="busy || !posting.ok" data-testid="channel-request-allow" @click="answer(row.message.seq, 'allow')">{{ t('feedback.allow') }}</UiButton>
-                <UiButton type="button" class="action" :disabled="busy || !posting.ok" data-testid="channel-request-deny" @click="answer(row.message.seq, 'deny')">{{ t('feedback.deny') }}</UiButton>
+                <VButton size="small" :disabled="busy || !posting.ok" :label="t('feedback.allow')" data-testid="channel-request-allow" @click="answer(row.message.seq, 'allow')" />
+                <VButton size="small" severity="secondary" :disabled="busy || !posting.ok" :label="t('feedback.deny')" data-testid="channel-request-deny" @click="answer(row.message.seq, 'deny')" />
               </template>
-              <UiButton v-for="(option, index) in row.request.options" v-else :key="index" type="button" class="action" :class="{ primary: index === 0 }" :disabled="busy || !posting.ok" data-testid="channel-request-option" @click="answer(row.message.seq, String(index + 1))">{{ option }}</UiButton>
+              <VButton v-for="(option, index) in row.request.options" v-else :key="index" size="small" :severity="index === 0 ? undefined : 'secondary'" :disabled="busy || !posting.ok" :label="option" data-testid="channel-request-option" @click="answer(row.message.seq, String(index + 1))" />
             </div>
           </div>
           <p v-else class="content">{{ isNoteMessage(row.message) && !row.message.content ? t('attention.channel.noteCleared') : row.message.content }}</p>
           <div v-if="granting === row.message.seq" class="actions" data-testid="channel-grant-choice">
-            <UiButton v-for="agent in grantChoices(row.message)" :key="agent.id" type="button" class="action" :aria-label="t('attention.channel.grantAgentLabel', { member: row.message.authorName, agent: agent.name })" data-testid="channel-grant-agent" @click="grantTo(row.message, agent.id)">{{ agent.name }}</UiButton>
+            <VButton v-for="agent in grantChoices(row.message)" :key="agent.id" size="small" severity="secondary" :label="agent.name" :aria-label="t('attention.channel.grantAgentLabel', { member: row.message.authorName, agent: agent.name })" data-testid="channel-grant-agent" @click="grantTo(row.message, agent.id)" />
           </div>
         </div>
       </li>
     </ol>
-    <span v-if="error" class="error" role="alert" data-testid="channel-error">{{ error }}</span>
+    <VMessage v-if="error" class="error" severity="error" size="small" data-testid="channel-error">{{ error }}</VMessage>
     <p v-if="!posting.ok" class="denied" role="status" data-testid="channel-post-denied">{{ posting.reason }}</p>
     <p v-if="!noting.ok" class="denied" role="status" data-testid="channel-note-denied">{{ noting.reason }}</p>
     <form class="post" @submit.prevent="send">
-      <UiTextarea v-model="draft" class="input" rows="2" :placeholder="t('attention.channel.placeholder')" :aria-label="t('attention.channel.placeholder')" :disabled="!posting.ok && !noting.ok" data-testid="channel-input" @keydown="onKeydown" />
-      <UiButton type="button" class="send note-send" :disabled="busy || !noting.ok || !draft.trim()" :title="noting.ok ? t('attention.channel.noteHint') : noting.reason" data-testid="channel-note-send" @click="sendNote">{{ t('attention.channel.note') }}</UiButton>
-      <UiButton type="submit" class="send" :disabled="busy || !posting.ok || !draft.trim()" data-testid="channel-send">{{ t('attention.channel.send') }}</UiButton>
+      <VTextarea v-model="draft" class="input" rows="2" :placeholder="t('attention.channel.placeholder')" :aria-label="t('attention.channel.placeholder')" :disabled="!posting.ok && !noting.ok" data-testid="channel-input" @keydown="onKeydown" />
+      <VButton v-tooltip="noting.ok ? t('attention.channel.noteHint') : noting.reason" severity="secondary" size="small" :disabled="busy || !noting.ok || !draft.trim()" :label="t('attention.channel.note')" data-testid="channel-note-send" @click="sendNote" />
+      <VButton type="submit" size="small" :disabled="busy || !posting.ok || !draft.trim()" :label="t('attention.channel.send')" data-testid="channel-send" />
     </form>
   </section>
 </template>
@@ -278,20 +277,6 @@ onBeforeUnmount(() => {
   white-space: pre-wrap;
 }
 
-.note-clear {
-  flex: none;
-  padding: 0;
-  font: inherit;
-  color: var(--vr-color-text-muted);
-  cursor: pointer;
-  background: none;
-  border: 0;
-}
-
-.tag {
-  color: var(--vr-color-text-muted);
-}
-
 .presence {
   padding: 6px var(--vr-space-4);
   margin: 0;
@@ -313,16 +298,6 @@ onBeforeUnmount(() => {
 
 .grant {
   color: var(--vr-color-text);
-}
-
-.link {
-  padding: 0;
-  font: inherit;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-accent);
-  cursor: pointer;
-  background: none;
-  border: 0;
 }
 
 .messages {
@@ -429,29 +404,6 @@ onBeforeUnmount(() => {
   gap: var(--vr-space-2);
 }
 
-.action {
-  height: 28px;
-  padding: 0 12px;
-  font-size: var(--vr-font-size-sm);
-  font-weight: 500;
-  color: var(--vr-color-text);
-  cursor: pointer;
-  background: var(--vr-color-surface-muted);
-  border: 0;
-  border-radius: var(--vr-radius-md);
-}
-
-.action.primary {
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-accent);
-}
-
-.error {
-  padding: 0 var(--vr-space-4);
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-status-crashed);
-}
-
 .denied {
   padding: var(--vr-space-1) var(--vr-space-4) 0;
   margin: 0;
@@ -468,43 +420,12 @@ onBeforeUnmount(() => {
   border-top: 1px solid var(--vr-color-border);
 }
 
+.error {
+  margin: 0 var(--vr-space-4);
+}
+
 .input {
   flex: 1;
-  padding: var(--vr-space-2);
-  font: inherit;
-  font-size: var(--vr-font-size-sm);
-  color: var(--vr-color-text);
   resize: none;
-  background: var(--vr-color-surface-sunken);
-  border: 1px solid var(--vr-color-border);
-  border-radius: var(--vr-radius-md);
-}
-
-.send {
-  min-height: 32px;
-  padding: 0 var(--vr-space-3);
-  font: inherit;
-  font-size: var(--vr-font-size-sm);
-  font-weight: 600;
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-accent);
-  border: 0;
-  border-radius: var(--vr-radius-md);
-}
-
-.note-send {
-  color: var(--vr-color-text);
-  background: var(--vr-color-surface-muted);
-}
-
-.send:disabled,
-.action:disabled,
-.note-clear:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.input:disabled {
-  opacity: 0.6;
 }
 </style>

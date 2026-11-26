@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { shallowRef, watch } from 'vue';
-import { UiButton } from '../../../shared/ui/UiButton';
-import UiTextarea from '../../../shared/ui/UiTextarea.vue';
+import { VButton, VMessage, VTextarea } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { describeError, saveTaskNote, useTaskNote } from '../../../entities/session';
 import InspectorSection from './InspectorSection.vue';
@@ -45,15 +44,15 @@ watch(
 <template>
   <InspectorSection :title="t('inspector.taskNote.title')" testid="inspector-task-note">
     <template v-if="!editing" #action>
-      <UiButton type="button" class="link" data-testid="inspector-task-note-edit" @click="edit">{{ note ? t('inspector.taskNote.edit') : t('inspector.taskNote.add') }}</UiButton>
+      <VButton :label="note ? t('inspector.taskNote.edit') : t('inspector.taskNote.add')" link size="small" data-testid="inspector-task-note-edit" @click="edit" />
     </template>
     <form v-if="editing" class="form" data-testid="inspector-task-note-form" @submit.prevent="save(draft)" @keydown.esc.stop="editing = false">
-      <UiTextarea v-model="draft" rows="4" :placeholder="t('taskNote.placeholder')" :aria-label="t('inspector.taskNote.title')" data-testid="inspector-task-note-text" autofocus />
-      <p v-if="error" class="error" role="alert" data-testid="inspector-task-note-error">{{ error }}</p>
+      <VTextarea v-model="draft" rows="4" auto-resize :placeholder="t('taskNote.placeholder')" :aria-label="t('inspector.taskNote.title')" data-testid="inspector-task-note-text" autofocus />
+      <VMessage v-if="error" severity="error" size="small" data-testid="inspector-task-note-error">{{ error }}</VMessage>
       <div class="actions">
-        <UiButton type="button" class="secondary" :disabled="busy || !note" data-testid="inspector-task-note-clear" @click="save('')">{{ t('taskNote.clear') }}</UiButton>
-        <UiButton type="button" class="secondary" @click="editing = false">{{ t('taskNote.cancel') }}</UiButton>
-        <UiButton type="submit" class="primary" :disabled="busy" data-testid="inspector-task-note-save">{{ t('taskNote.save') }}</UiButton>
+        <VButton :label="t('taskNote.clear')" text severity="secondary" size="small" :disabled="busy || !note" data-testid="inspector-task-note-clear" @click="save('')" />
+        <VButton :label="t('taskNote.cancel')" text severity="secondary" size="small" @click="editing = false" />
+        <VButton type="submit" :label="t('taskNote.save')" size="small" :disabled="busy" data-testid="inspector-task-note-save" />
       </div>
     </form>
     <p v-else-if="note" class="text" data-testid="inspector-task-note-text-view">{{ note }}</p>
@@ -80,48 +79,10 @@ watch(
   gap: var(--vr-space-2);
 }
 
-.form :deep(textarea) {
-  padding: 6px 8px;
-  color: var(--vr-color-text);
-  font: inherit;
-  font-size: var(--vr-font-size-sm);
-  resize: vertical;
-  background: var(--vr-color-surface-sunken);
-  border: 1px solid var(--vr-color-border);
-  border-radius: 6px;
-}
-
 .actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--vr-space-2);
-}
-
-.primary,
-.secondary {
-  height: 26px;
-  padding: 0 10px;
-  font: inherit;
-  font-size: var(--vr-font-size-label);
-  border: 0;
-  border-radius: 7px;
-  cursor: pointer;
-}
-
-.primary {
-  color: var(--vr-color-accent-contrast);
-  font-weight: 600;
-  background: var(--vr-color-accent);
-}
-
-.secondary {
-  color: var(--vr-color-text);
-  background: var(--vr-color-surface-muted);
-}
-
-.secondary:disabled {
-  color: var(--vr-color-text-subtle);
-  cursor: default;
 }
 </style>

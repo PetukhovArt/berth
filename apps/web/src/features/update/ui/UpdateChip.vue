@@ -5,8 +5,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { busy, info, openUpdate, restart } from '../model/state';
 import { totals } from '../model/stages';
 import { installRelease, releaseStatus } from '../model/release';
-
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton, VProgressBar, vTooltip } from '../../../shared/ui/kit';
 const releaseState = computed(() => releaseStatus.value.state);
 const mode = computed(() => {
   if (releaseState.value === 'ready' || releaseState.value === 'installing') return 'release';
@@ -19,64 +18,26 @@ const mode = computed(() => {
 </script>
 
 <template>
-  <UiButton v-if="mode === 'building'" type="button" class="chip" data-testid="update-chip-building" :title="t('update.chip.buildingHint')" @click="openUpdate('update')">
-    <span class="track" aria-hidden="true"><span class="fill" :style="{ width: `${totals.progress}%` }" /></span>
+  <VButton v-if="mode === 'building'" v-tooltip="t('update.chip.buildingHint')" size="small" severity="secondary" outlined class="chip" data-testid="update-chip-building" @click="openUpdate('update')">
+    <VProgressBar class="track" :value="totals.progress" :label="t('update.chip.building')" />
     {{ t('update.chip.building') }}
-  </UiButton>
-  <UiButton v-else-if="mode === 'release'" type="button" class="chip ready" data-testid="release-chip-restart" :title="t('update.release.restartHint')" :disabled="releaseState === 'installing'" @click="installRelease">
-    <RotateCw :size="12" :stroke-width="2" aria-hidden="true" />
-    {{ t('update.chip.restart') }}
-  </UiButton>
-  <UiButton v-else-if="mode === 'ready'" type="button" class="chip ready" data-testid="update-chip-restart" :title="t('update.restartHint')" :disabled="busy" @click="restart">
-    <RotateCw :size="12" :stroke-width="2" aria-hidden="true" />
-    {{ t('update.chip.restart') }}
-  </UiButton>
+  </VButton>
+  <VButton v-else-if="mode === 'release'" v-tooltip="t('update.release.restartHint')" size="small" outlined class="chip" :label="t('update.chip.restart')" :disabled="releaseState === 'installing'" data-testid="release-chip-restart" @click="installRelease">
+    <template #icon><RotateCw :size="12" :stroke-width="2" aria-hidden="true" /></template>
+  </VButton>
+  <VButton v-else-if="mode === 'ready'" v-tooltip="t('update.restartHint')" size="small" outlined class="chip" :label="t('update.chip.restart')" :disabled="busy" data-testid="update-chip-restart" @click="restart">
+    <template #icon><RotateCw :size="12" :stroke-width="2" aria-hidden="true" /></template>
+  </VButton>
 </template>
 
 <style scoped>
 .chip {
-  display: inline-flex;
   flex: none;
-  align-items: center;
-  gap: var(--vr-space-2);
   height: 22px;
   white-space: nowrap;
-  padding: 0 var(--vr-space-2);
-  font: inherit;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-text-muted);
-  background: transparent;
-  border: 1px solid var(--vr-color-border);
-  border-radius: var(--vr-radius-md);
-  cursor: pointer;
-}
-
-.chip:hover {
-  color: var(--vr-color-text);
-}
-
-.chip:focus-visible {
-  outline: 2px solid var(--vr-color-accent);
-  outline-offset: 1px;
-}
-
-.ready {
-  color: var(--vr-color-accent);
-  border-color: var(--vr-color-accent);
 }
 
 .track {
   width: 40px;
-  height: 4px;
-  overflow: hidden;
-  background: var(--vr-color-surface-muted);
-  border-radius: var(--vr-radius-md);
-}
-
-.fill {
-  display: block;
-  height: 100%;
-  background: var(--vr-color-accent);
-  transition: width var(--vr-motion-slow) var(--vr-motion-ease-standard);
 }
 </style>

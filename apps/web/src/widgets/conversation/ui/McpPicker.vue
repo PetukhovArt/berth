@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { shallowRef, useTemplateRef } from 'vue';
 import { Plug, RefreshCw } from '../../../shared/ui/icons';
-import { VPopover } from '../../../shared/ui/kit';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton, VPopover, vTooltip } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { openUrl } from '../../../bridge';
 import type { AcpMcpAction, AcpMcpServer } from '../../../entities/session';
@@ -74,47 +73,30 @@ function tone(status: string | null): string {
 </script>
 
 <template>
-  <UiButton type="button" class="picker" :title="t('chat.mcp.title')" aria-haspopup="dialog" data-testid="chat-mcp" @click="popover?.toggle($event)">
-    <Plug :size="12" />
-    <span class="count">{{ servers.length }}</span>
-  </UiButton>
+  <VButton v-tooltip="t('chat.mcp.title')" class="picker" :label="String(servers.length)" text severity="secondary" size="small" aria-haspopup="dialog" data-testid="chat-mcp" @click="popover?.toggle($event)">
+    <template #icon><Plug :size="12" /></template>
+  </VButton>
   <VPopover ref="popover">
     <div class="list" role="dialog" :aria-label="t('chat.mcp.title')" data-testid="chat-mcp-list">
       <div v-for="server in servers" :key="server.name" class="item" data-testid="chat-mcp-server" :data-status="server.status ?? 'configured'">
         <span class="dot" :data-tone="tone(server.status)" />
         <span class="name">{{ server.name }}</span>
-        <span class="state" :title="server.error ?? undefined">{{ label(server.status) }}</span>
-        <UiButton v-for="action in actionsOf(server.status)" :key="action" type="button" class="act" :disabled="busy === server.name" :data-testid="`chat-mcp-${action}`" @click="run(server, action)">
-          {{ t(action === 'authenticate' ? 'chat.mcp.signIn' : `chat.mcp.${action}`) }}
-        </UiButton>
+        <span v-tooltip="server.error ?? undefined" class="state">{{ label(server.status) }}</span>
+        <VButton v-for="action in actionsOf(server.status)" :key="action" class="act" :label="t(action === 'authenticate' ? 'chat.mcp.signIn' : `chat.mcp.${action}`)" severity="secondary" size="small" :disabled="busy === server.name" :data-testid="`chat-mcp-${action}`" @click="run(server, action)" />
       </div>
-      <UiButton type="button" class="refresh" :disabled="refreshing" :aria-busy="refreshing" data-testid="chat-mcp-refresh" @click="reload">
-        <RefreshCw :size="13" />
-        {{ t('chat.mcp.refresh') }}
-      </UiButton>
+      <VButton class="refresh" :label="t('chat.mcp.refresh')" text severity="secondary" size="small" :disabled="refreshing" :aria-busy="refreshing" data-testid="chat-mcp-refresh" @click="reload">
+        <template #icon><RefreshCw :size="13" /></template>
+      </VButton>
     </div>
   </VPopover>
 </template>
 
 <style scoped>
 .picker {
-  display: inline-flex;
   flex: none;
-  gap: var(--vr-space-1);
-  align-items: center;
   height: 26px;
   padding: 0 var(--vr-space-2);
-  font: inherit;
-  font-size: var(--vr-font-size-control);
-  color: var(--vr-color-text-muted);
-  cursor: pointer;
-  background: var(--vr-color-surface-muted);
-  border: 0;
   border-radius: var(--vr-radius-control);
-}
-
-.picker:hover {
-  color: var(--vr-color-text);
 }
 
 .list {
@@ -125,34 +107,18 @@ function tone(status: string | null): string {
   overflow-y: auto;
 }
 
-.item,
-.refresh {
+.item {
   display: flex;
   gap: var(--vr-space-2);
   align-items: center;
   min-height: var(--vr-size-row);
   padding: var(--vr-space-1) var(--vr-space-2);
-  font: inherit;
   font-size: var(--vr-font-size-control);
   color: var(--vr-color-text);
 }
 
 .refresh {
-  text-align: left;
-  cursor: pointer;
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-}
-
-.refresh:hover:not(:disabled),
-.refresh:focus-visible {
-  background: var(--vr-color-nav-hover);
-}
-
-.refresh:disabled {
-  color: var(--vr-color-text-subtle);
-  cursor: default;
+  justify-content: flex-start;
 }
 
 .dot {
@@ -177,18 +143,6 @@ function tone(status: string | null): string {
 
 .act {
   flex: none;
-  padding: 0 var(--vr-space-2);
-  font: inherit;
-  font-size: var(--vr-font-size-control);
-  color: var(--vr-color-text-muted);
-  cursor: pointer;
-  background: var(--vr-color-surface-muted);
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-}
-
-.act:hover:not(:disabled) {
-  color: var(--vr-color-text);
 }
 
 .name {

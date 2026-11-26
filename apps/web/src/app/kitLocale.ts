@@ -5,6 +5,8 @@ export const kitLocale = (): KitLocale => ({
   emptyMessage: t('common.kit.emptyMessage'),
   emptyFilterMessage: t('common.kit.emptySearchMessage'),
   emptySearchMessage: t('common.kit.emptySearchMessage'),
+  filterPlaceholder: t('common.kit.filterPlaceholder'),
+  filterCount: t('common.kit.filterCount'),
   searchMessage: t('common.kit.searchMessage'),
   selectionMessage: t('common.kit.selectionMessage'),
   emptySelectionMessage: t('common.kit.emptySelectionMessage'),

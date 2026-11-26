@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, useTemplateRef } from 'vue';
 import { TriangleAlert } from '../../../shared/ui/icons';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { allowRequest, alwaysAllowRequest, answerFeedbackForm, chooseOption, denyRequest, feedbackText, isYesNoPermission, offersAlways, type AcpAnswers, type FeedbackRequest, type SessionRef } from '../../../entities/session';
 import type { FeedNote } from '../model/feedNotes';
@@ -57,10 +57,10 @@ useDigitKeys(card, () => props.panelId, (index) => {
     <p v-if="place || request.kind === 'Question'" class="sub">{{ [place ? t('feedback.place', { place }) : '', request.kind === 'Question' ? t('feedback.asks', { agent: agentLabel }) : ''].filter(Boolean).join(' · ') }}</p>
     <QuestionForm v-if="form" :form="form" :typed="questions === 'typed'" :panel-id="panelId" @submit="submitForm" />
     <div v-else class="actions">
-      <UiButton v-for="(choice, index) in choices" :key="index" type="button" class="action" :class="{ primary: choice.primary }" :title="choice.title" :data-testid="choice.testid" @click="pick(choice)">
+      <VButton v-for="(choice, index) in choices" :key="index" v-tooltip="choice.title" class="action" size="small" :severity="choice.primary ? undefined : 'secondary'" :data-testid="choice.testid" @click="pick(choice)">
         {{ choice.label }}
         <kbd v-if="index < 9" class="key">{{ index + 1 }}</kbd>
-      </UiButton>
+      </VButton>
     </div>
   </section>
 </template>
@@ -121,24 +121,7 @@ useDigitKeys(card, () => props.panelId, (index) => {
 }
 
 .action {
-  display: inline-flex;
-  align-items: center;
   gap: var(--vr-space-2);
-  height: 30px;
-  padding: 0 var(--vr-space-3);
-  font: inherit;
-  font-size: var(--vr-font-size-control);
-  font-weight: 500;
-  color: var(--vr-color-text);
-  cursor: pointer;
-  background: var(--vr-color-surface-muted);
-  border: 0;
-  border-radius: var(--vr-radius-md);
-}
-
-.action.primary {
-  color: var(--vr-color-accent-contrast);
-  background: var(--vr-color-accent);
 }
 
 .key {

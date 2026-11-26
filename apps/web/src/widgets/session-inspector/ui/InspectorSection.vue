@@ -83,25 +83,4 @@ defineProps<{ title: string; meta?: string; testid: string }>();
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-subtle);
 }
-
-.section :deep(.error) {
-  margin: 0;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-status-crashed);
-}
-
-.section :deep(.link) {
-  padding: 0;
-  font: inherit;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-link);
-  background: none;
-  border: 0;
-  cursor: pointer;
-}
-
-.section :deep(.link:hover),
-.section :deep(.link:focus-visible) {
-  text-decoration: underline;
-}
 </style>

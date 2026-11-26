@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
 import { RefreshCw } from '../../../shared/ui/icons';
-import { VButton } from '../../../shared/ui/kit';
+import { VButton, vTooltip } from '../../../shared/ui/kit';
 import { useBerth, type PromptQuote, type SessionRef, type SessionStatus } from '../../../entities/session';
 import { knownMr } from '../../../entities/merge-request';
 import { GitStepButton } from '../../../features/git-step';
@@ -13,7 +13,6 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { DiffView } from '../../../features/diff-review';
 import ChangesScopePicker from './ChangesScopePicker.vue';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ path: string; status?: SessionStatus; session?: SessionRef }>();
 
 type Changes = { kind: 'loading' } | { kind: 'failed'; message: string } | { kind: 'ready'; files: DiffFile[]; signature: string };
@@ -109,9 +108,9 @@ watch(
         <VButton v-if="changes.kind === 'failed' || (changes.kind === 'ready' && !changes.files.length)" size="small" severity="secondary" :label="t('agents.changes.refresh')" :loading="refreshing" data-testid="worktree-changes-refresh" @click="load" />
       </template>
       <template #actions>
-        <UiButton class="refresh" :disabled="refreshing" :aria-busy="refreshing" :title="t('agents.changes.refresh')" :aria-label="t('agents.changes.refresh')" data-testid="worktree-changes-refresh" @click="load">
-          <RefreshCw :size="14" :class="{ spin: refreshing }" />
-        </UiButton>
+        <VButton v-tooltip="t('agents.changes.refresh')" size="small" severity="secondary" text :loading="refreshing" :aria-label="t('agents.changes.refresh')" data-testid="worktree-changes-refresh" @click="load">
+          <template #icon><RefreshCw :size="14" /></template>
+        </VButton>
         <GitStepButton v-if="worktree?.branch" quiet testid="changes-git-step" :path="worktree.path" :branch="worktree.branch" :has-request="!!request" :refresh-key="status" />
       </template>
     </DiffView>
@@ -124,44 +123,5 @@ watch(
   flex-direction: column;
   height: 100%;
   min-height: 0;
-}
-
-.refresh {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px var(--vr-space-2);
-  color: var(--vr-color-text-muted);
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--vr-radius-sm);
-  cursor: pointer;
-}
-
-.refresh:hover:not(:disabled) {
-  color: var(--vr-color-text);
-}
-
-.refresh:disabled {
-  cursor: default;
-}
-
-.spin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .spin {
-    animation: none;
-  }
-}
-
-:root.vr-reduce-motion .spin {
-  animation: none;
 }
 </style>

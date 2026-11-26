@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { UiButton } from '../../../shared/ui/UiButton';
-import UiInput from '../../../shared/ui/UiInput.vue';
+import { computed, ref, useTemplateRef, watch } from 'vue';
+import { VButton, VCheckbox, VMessage, VPopover, vTooltip } from '../../../shared/ui/kit';
 import { Radio } from '../../../shared/ui/icons';
-import { useSheet } from '../../../shared/lib/useSheet';
 import { copyText } from '../../../shared/lib/atlassian';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { describeError } from '../../../shared/api/connectors/api';
@@ -14,8 +12,7 @@ const COPIED_MS = 1500;
 const props = defineProps<{ agentId: string; name: string }>();
 
 const open = ref(false);
-const sheet = ref<HTMLElement | null>(null);
-useSheet(sheet, open);
+const popover = useTemplateRef<InstanceType<typeof VPopover>>('popover');
 const shared = ref(false);
 const diffs = ref(false);
 const busy = ref(false);
@@ -36,12 +33,14 @@ async function refresh() {
   }
 }
 
-function toggle() {
-  open.value = !open.value;
-  if (open.value) {
-    error.value = null;
-    void refresh();
-  }
+function toggle(event: Event) {
+  popover.value?.toggle(event);
+}
+
+function opened() {
+  open.value = true;
+  error.value = null;
+  void refresh();
 }
 
 async function run(work: () => Promise<void>) {
@@ -90,7 +89,7 @@ async function changeDiffs() {
 watch(
   () => props.agentId,
   () => {
-    open.value = false;
+    popover.value?.hide();
     void refresh();
   },
   { immediate: true },
@@ -99,66 +98,55 @@ watch(
 
 <template>
   <div class="share">
-    <UiButton type="button" class="chip" :class="{ filled: shared }" :title="label" :aria-label="label" :aria-expanded="open" data-testid="share-session-button" @click="toggle">
-      <Radio :size="13" />
-    </UiButton>
-    <div v-if="open" ref="sheet" class="form vr-sheet" data-testid="share-session-form">
-      <span class="heading">{{ t('remote.share.title') }}</span>
-      <span class="hint">{{ t('remote.share.hint') }}</span>
-      <label class="option">
-        <UiInput v-model="diffs" type="checkbox" class="check" :disabled="busy" data-testid="share-session-diffs" @change="changeDiffs" />
-        <span class="option-text">
-          <span>{{ t('remote.share.diffs') }}</span>
-          <span class="hint">{{ t('remote.share.diffsHint') }}</span>
-        </span>
-      </label>
-      <span v-if="error" class="error" role="alert" data-testid="share-session-error">{{ error }}</span>
-      <div class="actions">
-        <UiButton v-if="shared" type="button" class="secondary" :disabled="busy" data-testid="share-session-stop" @click="stop">{{ t('remote.share.stop') }}</UiButton>
-        <UiButton type="button" class="primary" :disabled="busy" data-testid="share-session-copy" @click="copy">{{ copied ? t('remote.share.copied') : shared ? t('remote.share.copy') : t('remote.share.start') }}</UiButton>
+    <VButton
+      v-tooltip="label"
+      :class="{ filled: shared }"
+      text
+      severity="secondary"
+      size="small"
+      :aria-label="label"
+      :aria-expanded="open"
+      aria-haspopup="dialog"
+      data-testid="share-session-button"
+      @click="toggle"
+    >
+      <template #icon><Radio :size="13" /></template>
+    </VButton>
+    <VPopover ref="popover" @show="opened" @hide="open = false">
+      <div class="form" data-testid="share-session-form">
+        <span class="heading">{{ t('remote.share.title') }}</span>
+        <span class="hint">{{ t('remote.share.hint') }}</span>
+        <VCheckbox v-model="diffs" :disabled="busy" data-testid="share-session-diffs" @change="changeDiffs">
+          <span class="option-text">
+            <span>{{ t('remote.share.diffs') }}</span>
+            <span class="hint">{{ t('remote.share.diffsHint') }}</span>
+          </span>
+        </VCheckbox>
+        <VMessage v-if="error" severity="error" size="small" data-testid="share-session-error">{{ error }}</VMessage>
+        <div class="actions">
+          <VButton v-if="shared" :label="t('remote.share.stop')" severity="secondary" size="small" :disabled="busy" data-testid="share-session-stop" @click="stop" />
+          <VButton :label="copied ? t('remote.share.copied') : shared ? t('remote.share.copy') : t('remote.share.start')" size="small" :disabled="busy" data-testid="share-session-copy" @click="copy" />
+        </div>
       </div>
-    </div>
+    </VPopover>
   </div>
 </template>
 
 <style scoped>
 .share {
-  position: relative;
   display: flex;
   flex: none;
 }
 
-.chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  color: var(--vr-color-text-subtle);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-full);
-  cursor: pointer;
-}
-
-.chip.filled {
+.filled {
   color: var(--vr-color-accent);
-  background: var(--vr-color-surface-muted);
 }
 
 .form {
-  position: absolute;
-  top: 28px;
-  right: 0;
-  z-index: 6;
   display: flex;
   flex-direction: column;
   gap: var(--vr-space-2);
-  width: 340px;
-  padding: var(--vr-space-3);
-  background: var(--vr-color-surface-raised);
-  border-radius: 9px;
-  box-shadow: var(--vr-shadow-popover);
+  width: min(340px, 80vw);
 }
 
 .heading {
@@ -171,56 +159,16 @@ watch(
   font-size: var(--vr-font-size-xs);
 }
 
-.option {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--vr-space-2);
-  font-size: var(--vr-font-size-label);
-  cursor: pointer;
-}
-
 .option-text {
   display: flex;
   flex-direction: column;
   gap: 2px;
-}
-
-.check {
-  flex: none;
-  margin: 2px 0 0;
-  accent-color: var(--vr-color-accent);
-}
-
-.error {
-  color: var(--vr-status-crashed);
-  font-size: var(--vr-font-size-xs);
+  font-size: var(--vr-font-size-label);
 }
 
 .actions {
   display: flex;
   justify-content: flex-end;
   gap: var(--vr-space-2);
-}
-
-.primary,
-.secondary {
-  height: 28px;
-  padding: 0 11px;
-  font: inherit;
-  font-size: var(--vr-font-size-label);
-  border: 0;
-  border-radius: 7px;
-  cursor: pointer;
-}
-
-.primary {
-  color: var(--vr-color-accent-contrast);
-  font-weight: 600;
-  background: var(--vr-color-accent);
-}
-
-.secondary {
-  color: var(--vr-color-text);
-  background: var(--vr-color-surface-muted);
 }
 </style>

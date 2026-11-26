@@ -22,7 +22,9 @@ export const common = {
   },
   kit: {
     emptyMessage: 'No available options',
-    emptySearchMessage: 'No results found',
+    emptySearchMessage: 'No results',
+    filterPlaceholder: 'Type to filter',
+    filterCount: '{0} of {1}',
     searchMessage: '{0} results are available',
     selectionMessage: '{0} items selected',
     emptySelectionMessage: 'No selected item',

@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { shallowRef } from 'vue';
 import { History } from '../../../shared/ui/icons';
-import { VDialog } from '../../../shared/ui/kit';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton, VDialog } from '../../../shared/ui/kit';
 import DialogActions from '../../../shared/ui/DialogActions.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { describeError } from '../../../entities/session';
@@ -35,10 +34,9 @@ async function rewind() {
 
 <template>
   <div class="rewind">
-    <UiButton type="button" class="link" data-testid="chat-rewind" @click="open">
-      <History :size="11" />
-      {{ t('chat.rewind') }}
-    </UiButton>
+    <VButton :label="t('chat.rewind')" link size="small" data-testid="chat-rewind" @click="open">
+      <template #icon><History :size="11" /></template>
+    </VButton>
     <VDialog v-model:visible="confirming" modal :header="t('chat.rewindTitle')" :style="{ width: '480px', maxWidth: '95vw' }" :draggable="false">
       <div class="confirm" data-testid="chat-rewind-confirm">
         <p class="text">{{ t(files ? 'chat.rewindBodyFiles' : 'chat.rewindBody', { agent: agentLabel }) }}</p>
@@ -68,18 +66,6 @@ async function rewind() {
   .rewind {
     opacity: 1;
   }
-}
-
-.link {
-  display: inline-flex;
-  gap: var(--vr-space-1);
-  align-items: center;
-  padding: 0;
-  font: inherit;
-  color: var(--vr-color-link);
-  cursor: pointer;
-  background: none;
-  border: 0;
 }
 
 .confirm {

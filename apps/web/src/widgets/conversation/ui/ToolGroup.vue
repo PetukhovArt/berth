@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue';
 import { ChevronDown, ChevronRight } from '../../../shared/ui/icons';
+import { vTooltip } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t } from '../../../shared/lib/i18n/i18n';
@@ -22,7 +23,7 @@ const summary = computed(() => {
 
 <template>
   <div class="group" :data-open="open" data-testid="chat-tool-group">
-    <UiButton type="button" class="head" :aria-expanded="open" :title="t('chat.tools.expand')" data-testid="chat-tool-group-toggle" @click="open = !open">
+    <UiButton v-tooltip="t('chat.tools.expand')" type="button" class="head" :aria-expanded="open" data-testid="chat-tool-group-toggle" @click="open = !open">
       <ChevronDown v-if="open" :size="10" />
       <ChevronRight v-else :size="10" />
       <span class="summary" data-testid="chat-tool-group-summary">{{ summary }}</span>
@@ -32,7 +33,7 @@ const summary = computed(() => {
       <li v-for="call in calls" :key="call.message.key" class="call" :data-category="call.category" data-testid="chat-tool-call">
         <div class="row">
           <span class="name">{{ call.message.tool }}</span>
-          <span class="arg mono" :title="call.message.text">{{ withinWorktree(call.message.text, root) }}</span>
+          <span v-tooltip="call.message.text" class="arg mono">{{ withinWorktree(call.message.text, root) }}</span>
           <span v-if="call.category === 'run' && call.message.exit !== undefined" class="exit mono" :data-failed="call.message.exit !== 0 || undefined" data-testid="chat-tool-exit">{{ t('chat.tools.exit', { code: call.message.exit }) }}</span>
         </div>
         <RichContent v-for="detail in call.details" :key="detail.key" class="detail" :markdown="detail.markdown ?? detail.text" />

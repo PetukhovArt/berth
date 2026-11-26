@@ -39,6 +39,7 @@ export const forge = {
     noSession: 'No session works on this request',
     openIssue: 'Open {key}',
     pipelineNumber: 'Pipeline #{id}',
+    tabsLabel: 'Sections',
     tabOverview: 'Overview',
     tabChanges: 'Changes',
     tabPipeline: 'Pipeline',

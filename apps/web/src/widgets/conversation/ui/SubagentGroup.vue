@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue';
 import { Bot, ChevronDown, ChevronRight } from '../../../shared/ui/icons';
+import { vTooltip } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { subagentCounts, subagentsSeconds, type Subagent, type SubagentState } from '../../../entities/session';
@@ -28,7 +29,7 @@ const seconds = computed(() => subagentsSeconds(props.agents, props.now));
 
 <template>
   <div class="group" :data-open="open" data-testid="subagent-group">
-    <UiButton type="button" class="head" :aria-expanded="open" :title="t('chat.subagents.expand')" data-testid="subagent-group-toggle" @click="open = !open">
+    <UiButton v-tooltip="t('chat.subagents.expand')" type="button" class="head" :aria-expanded="open" data-testid="subagent-group-toggle" @click="open = !open">
       <ChevronDown v-if="open" :size="10" />
       <ChevronRight v-else :size="10" />
       <Bot :size="13" />

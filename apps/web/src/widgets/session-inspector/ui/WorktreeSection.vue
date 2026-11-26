@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue';
 import { ArrowDown, ArrowUp, Folder, GitBranch } from '../../../shared/ui/icons';
+import { vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { worktreeGitState, type GitState } from '../../../shared/api/git';
 import { worktreeChanges } from '../../../shared/api/fs';
@@ -53,7 +54,7 @@ visibleInterval(scope, REFRESH_MS, () => void refresh());
   <InspectorSection :title="t('inspector.worktree.title')" testid="inspector-worktree">
     <div class="row">
       <GitBranch class="icon" :size="13" />
-      <span class="grow branch" :title="branch" data-testid="inspector-worktree-branch">{{ branch }}</span>
+      <span v-tooltip="branch" class="grow branch" data-testid="inspector-worktree-branch">{{ branch }}</span>
       <span v-if="base" class="end" data-testid="inspector-worktree-base">{{ t('inspector.worktree.from', { base }) }}</span>
     </div>
     <div v-if="changes && base" class="row">
@@ -72,7 +73,7 @@ visibleInterval(scope, REFRESH_MS, () => void refresh());
     </div>
     <div class="row">
       <Folder class="icon" :size="13" />
-      <span class="grow path" :title="path" :aria-label="`${t('inspector.worktree.path')}: ${path}`" data-testid="inspector-worktree-path"><bdi>{{ path }}</bdi></span>
+      <span v-tooltip="path" class="grow path" :aria-label="`${t('inspector.worktree.path')}: ${path}`" data-testid="inspector-worktree-path"><bdi>{{ path }}</bdi></span>
     </div>
   </InspectorSection>
 </template>

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { VButton } from '../../../shared/ui/kit';
+import { VBadge, VButton, VMessage, VTag, vTooltip } from '../../../shared/ui/kit';
 import RichContent from '../../../shared/ui/rich-content/RichContent.vue';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
 import { describeError, jiraIssue, openUrl, reloadWhenRecovered, type JiraIssue } from '../../../shared/api/connectors/api';
-import ErrorInline from '../../../shared/ui/ErrorInline.vue';
+import PersonName from '../../../shared/ui/PersonName.vue';
 import { PersonAvatar, PriorityMark, StatusChip, TypeIcon } from '../../../entities/jira-issue';
 import Skeleton from '../../../shared/ui/Skeleton.vue';
 import { copyText } from '../../../shared/lib/atlassian';
@@ -61,7 +61,12 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
 
 <template>
   <div class="issue" data-testid="jira-issue">
-    <ErrorInline v-if="error" :message="error" @retry="load" />
+    <VMessage v-if="error" class="error" severity="error" size="small" data-testid="jira-issue-error">
+      <span class="error-row">
+        <span class="error-text">{{ error }}</span>
+        <VButton :label="t('common.retry')" size="small" severity="secondary" @click="load" />
+      </span>
+    </VMessage>
     <Skeleton v-else-if="loading && !issue" :rows="12" />
     <template v-else-if="issue">
       <header class="head">
@@ -82,7 +87,7 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
           <dd><PriorityMark :priority="issue.priority" /></dd>
           <dt>{{ t('jira.issue.assignee') }}</dt>
           <dd>
-            <span v-if="issue.assignee" class="person"><PersonAvatar :connector="issue.connector" :person="issue.assignee" small />{{ issue.assignee.name }}</span>
+            <span v-if="issue.assignee" class="person"><PersonAvatar :connector="issue.connector" :person="issue.assignee" small /><PersonName :person="issue.assignee" /></span>
             <span v-else class="muted">{{ t('jira.issue.unassigned') }}</span>
           </dd>
           <dt>{{ t('jira.issue.reporter') }}</dt>
@@ -91,20 +96,20 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
             <span v-else class="muted">-</span>
           </dd>
           <dt>{{ t('jira.issue.updated') }}</dt>
-          <dd :title="formatDate(issue.updated)">{{ formatRelative(issue.updated) }}</dd>
+          <dd v-tooltip="formatDate(issue.updated)">{{ formatRelative(issue.updated) }}</dd>
           <dt>{{ t('jira.issue.versions') }}</dt>
           <dd>
-            <span v-for="version in issue.fix_versions" :key="version" class="tag">{{ version }}</span>
+            <VTag v-for="version in issue.fix_versions" :key="version" :value="version" severity="secondary" rounded />
             <span v-if="!issue.fix_versions.length" class="muted">-</span>
           </dd>
           <dt>{{ t('jira.issue.components') }}</dt>
           <dd>
-            <span v-for="component in issue.components" :key="component" class="tag">{{ component }}</span>
+            <VTag v-for="component in issue.components" :key="component" :value="component" severity="secondary" rounded />
             <span v-if="!issue.components.length" class="muted">-</span>
           </dd>
           <dt>{{ t('jira.issue.labels') }}</dt>
           <dd>
-            <span v-for="label in issue.labels" :key="label" class="tag">{{ label }}</span>
+            <VTag v-for="label in issue.labels" :key="label" :value="label" severity="secondary" rounded />
             <span v-if="!issue.labels.length" class="muted">-</span>
           </dd>
         </dl>
@@ -117,7 +122,7 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
       </section>
 
       <section v-if="issue.subtasks.length" class="section">
-        <h2>{{ t('jira.issue.subtasks') }} <span class="count">{{ issue.subtasks.length }}</span></h2>
+        <h2>{{ t('jira.issue.subtasks') }} <VBadge :value="issue.subtasks.length" severity="secondary" size="small" /></h2>
         <UiButton v-for="sub in issue.subtasks" :key="sub.key" class="row" @click="openKey(sub.key)">
           <TypeIcon :type="sub.issue_type" />
           <span class="row-key">{{ sub.key }}</span>
@@ -127,7 +132,7 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
       </section>
 
       <section v-if="issue.links.length" class="section">
-        <h2>{{ t('jira.issue.links') }} <span class="count">{{ issue.links.length }}</span></h2>
+        <h2>{{ t('jira.issue.links') }} <VBadge :value="issue.links.length" severity="secondary" size="small" /></h2>
         <UiButton v-for="link in issue.links" :key="`${link.relation}-${link.key}`" class="row" @click="openKey(link.key)">
           <span class="relation">{{ link.relation }}</span>
           <span class="row-key">{{ link.key }}</span>
@@ -144,14 +149,14 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
       </section>
 
       <section class="section">
-        <h2>{{ t('jira.issue.comments') }} <span class="count">{{ issue.comments.length }}</span></h2>
+        <h2>{{ t('jira.issue.comments') }} <VBadge :value="issue.comments.length" severity="secondary" size="small" /></h2>
         <p v-if="!issue.comments.length" class="muted">{{ t('jira.issue.noComments') }}</p>
         <article v-for="comment in issue.comments" :key="comment.id" class="comment">
           <PersonAvatar :connector="issue.connector" :person="comment.author" />
           <div class="comment-main">
             <div class="comment-head">
-              <strong>{{ comment.author.name }}</strong>
-              <span class="muted" :title="formatDate(comment.created)">{{ formatRelative(comment.created) }}</span>
+              <PersonName class="comment-author" :person="comment.author" />
+              <span v-tooltip="formatDate(comment.created)" class="muted">{{ formatRelative(comment.created) }}</span>
             </div>
             <RichContent :html="comment.body_html" :connector="issue.connector" />
           </div>
@@ -192,9 +197,25 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
 }
 
 .type,
-.muted,
-.count {
+.muted {
   color: var(--vr-color-text-muted);
+}
+
+.error {
+  margin: var(--vr-space-4);
+}
+
+.error-row {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-3);
+  width: 100%;
+}
+
+.error-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .spacer {
@@ -241,13 +262,7 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
   display: inline-flex;
   align-items: center;
   gap: var(--vr-space-2);
-}
-
-.tag {
-  padding: 1px var(--vr-space-2);
-  border-radius: var(--vr-radius-sm);
-  background: var(--vr-color-chip-bg);
-  font-size: var(--vr-font-size-xs);
+  max-width: 100%;
 }
 
 .section h2 {
@@ -310,6 +325,10 @@ watch(() => [props.connector, props.issueKey], load, { immediate: true });
 .comment-main {
   flex: 1;
   min-width: 0;
+}
+
+.comment-author {
+  font-weight: 700;
 }
 
 .comment-head {

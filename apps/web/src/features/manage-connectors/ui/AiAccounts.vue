@@ -137,8 +137,8 @@ onMounted(() => void refresh());
           <div v-if="identity(a)" class="account" data-testid="ai-account">{{ identity(a) }}</div>
         </div>
 
-        <p v-if="a.detail && a.status !== 'signed_in'" class="card-error" role="alert" data-testid="ai-detail">{{ a.detail }}</p>
-        <p v-if="problems[a.kind]" class="card-error" role="alert" data-testid="ai-problem">{{ problems[a.kind] }}</p>
+        <VMessage v-if="a.detail && a.status !== 'signed_in'" class="card-error" severity="error" size="small" data-testid="ai-detail">{{ a.detail }}</VMessage>
+        <VMessage v-if="problems[a.kind]" class="card-error" severity="error" size="small" data-testid="ai-problem">{{ problems[a.kind] }}</VMessage>
         <p v-if="a.status === 'not_installed'" class="hint">{{ t('connectors.ai.installBefore') }} <code>{{ BINARIES[a.kind] }}</code>{{ t('connectors.ai.installAfter') }}</p>
 
         <div v-if="pending[a.kind]" class="confirm" role="status" data-testid="ai-waiting">
@@ -280,9 +280,6 @@ h3 {
 
 .card-error {
   margin: var(--vr-space-2) 0 0;
-  color: var(--vr-color-danger);
-  font-size: var(--vr-font-size-xs);
-  word-break: break-word;
 }
 
 .hint {

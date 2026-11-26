@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ChevronLeft } from './icons';
+import { VButton } from './kit';
 import { useI18n } from '../lib/i18n/i18n';
 
 defineProps<{ title?: string }>();
@@ -10,7 +11,9 @@ const { t } = useI18n();
 
 <template>
   <div class="bar">
-    <button class="back" data-testid="mobile-back" @click="emit('back')"><ChevronLeft :size="18" />{{ t('mobile.back') }}</button>
+    <VButton class="back" text severity="secondary" :label="t('mobile.back')" data-testid="mobile-back" @click="emit('back')">
+      <template #icon><ChevronLeft :size="18" /></template>
+    </VButton>
     <span v-if="title" class="title">{{ title }}</span>
   </div>
 </template>
@@ -27,17 +30,8 @@ const { t } = useI18n();
 }
 
 .back {
-  display: inline-flex;
   flex: none;
-  align-items: center;
-  gap: var(--vr-space-1);
-  height: var(--vr-size-row-touch);
-  padding: 0 var(--vr-space-2);
-  font: inherit;
-  color: var(--vr-color-text);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
+  min-height: var(--vr-size-row-touch);
 }
 
 .title {

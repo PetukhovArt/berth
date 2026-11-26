@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, useTemplateRef } from 'vue';
-import { VContextMenu } from '../../../shared/ui/kit';
+import { VContextMenu, VMessage, vTooltip } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
@@ -28,6 +28,7 @@ const menuItems = computed(() => [
 <template>
   <div class="external">
     <UiButton
+      v-tooltip="tooltip"
       class="row status-host"
       data-testid="external-session-row"
       :data-session-id="session.id"
@@ -35,7 +36,6 @@ const menuItems = computed(() => [
       :data-status="session.status"
       :data-running="session.running"
       :data-active="active"
-      :title="tooltip"
       @click="emit('open', primaryPressed($event))"
       @contextmenu.prevent="menu?.show($event)"
     >
@@ -48,7 +48,7 @@ const menuItems = computed(() => [
         <a v-bind="itemProps.action" :data-testid="`external-menu-${item.key}`">{{ item.label }}</a>
       </template>
     </VContextMenu>
-    <p v-if="action.error.value" class="row-error" role="alert" data-testid="external-error">{{ action.error.value }}</p>
+    <VMessage v-if="action.error.value" class="row-error" severity="error" size="small" data-testid="external-error">{{ action.error.value }}</VMessage>
   </div>
 </template>
 
@@ -101,9 +101,6 @@ const menuItems = computed(() => [
 }
 
 .row-error {
-  margin: 0;
-  padding: 0 var(--vr-space-2) var(--vr-space-1) var(--vr-space-5);
-  font-size: var(--vr-font-size-2xs);
-  color: var(--vr-color-danger);
+  margin: 0 var(--vr-space-2) var(--vr-space-1) var(--vr-space-5);
 }
 </style>

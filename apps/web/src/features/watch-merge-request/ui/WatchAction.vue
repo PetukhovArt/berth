@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Eye } from '../../../shared/ui/icons';
-import { VButton } from '../../../shared/ui/kit';
+import { VButton, vTooltip } from '../../../shared/ui/kit';
 import { useBerth } from '../../../entities/session';
 import type { ChangeRequestRef } from '../../../shared/api/connectors/api';
 import { t } from '../../../shared/lib/i18n/i18n';
@@ -15,10 +15,10 @@ const on = computed(() => isWatching(props.target));
 <template>
   <VButton
     v-if="berth"
+    v-tooltip="t('attention.watch.title')"
     size="small"
     severity="secondary"
     :label="on ? t('attention.watch.actionOn') : t('attention.watch.action')"
-    :title="t('attention.watch.title')"
     :aria-pressed="on"
     data-testid="cr-watch"
     @click="toggleWatch(target)"

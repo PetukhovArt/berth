@@ -13,7 +13,7 @@ import CompareView from './CompareView.vue';
 import { createExtensions, darkSlot, languageSlot, phrases, scrollTopOfLine, topLineOf } from '../lib/editor';
 import { useEditableDoc } from '../model/useEditableDoc';
 
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton, VListbox, VMessage, VPopover, VSelectButton, VToggleButton, vTooltip } from '../../../shared/ui/kit';
 type Mode = 'code' | 'split' | 'preview';
 type Heading = { id: string; level: number; text: string; line: number };
 type Anchor = { line: number; top: number };
@@ -36,13 +36,12 @@ function storedMode(): Mode {
 const mode = shallowRef<Mode>(storedMode());
 const externalFailure = shallowRef<string | null>(null);
 const headings = shallowRef<Heading[]>([]);
-const tocOpen = shallowRef(false);
 const comparing = shallowRef(false);
 const mineSnapshot = shallowRef('');
 
 const sourcePane = useTemplateRef<HTMLElement>('source');
 const previewPane = useTemplateRef<HTMLElement>('preview');
-const toc = useTemplateRef<HTMLElement>('toc');
+const toc = useTemplateRef<InstanceType<typeof VPopover>>('toc');
 
 const { locale } = useI18n();
 const dark = useDarkTheme();
@@ -74,6 +73,19 @@ let topLine = 0;
 let ignore: { el: HTMLElement; top: number } | null = null;
 let pendingHash = props.hash ?? '';
 let resizer: ResizeObserver | undefined;
+
+const modeOptions = computed(() => [
+  { value: 'code', label: t('files.markdown.code'), testId: 'markdown-mode-code' },
+  { value: 'split', label: t('files.markdown.split'), testId: 'markdown-mode-split' },
+  { value: 'preview', label: t('files.markdown.preview'), testId: 'markdown-mode-preview' },
+]);
+const modeIcons = { code: FileCode, split: Columns2, preview: Eye };
+const headingOptions = computed(() => headings.value.map((heading, index) => ({ value: String(index), label: heading.text })));
+
+function pickHeading(value: string | string[] | null | undefined) {
+  const heading = typeof value === 'string' ? headings.value[Number(value)] : undefined;
+  if (heading) gotoHeading(heading);
+}
 
 function setMode(next: Mode) {
   mode.value = next;
@@ -203,7 +215,7 @@ function onRendered() {
 }
 
 function gotoHeading(heading: Heading) {
-  tocOpen.value = false;
+  toc.value?.hide();
   if (mode.value === 'code' && view) {
     topLine = heading.line;
     setTop(view.scrollDOM, scrollTopOfLine(view, heading.line));
@@ -224,10 +236,6 @@ function scrollPreviewTo(id: string): boolean {
 function applyHash() {
   if (!pendingHash || mode.value === 'code') return;
   if (scrollPreviewTo(pendingHash)) pendingHash = '';
-}
-
-function onPointerDown(event: PointerEvent) {
-  if (tocOpen.value && event.target instanceof Node && !toc.value?.contains(event.target)) tocOpen.value = false;
 }
 
 function onKeydown(event: KeyboardEvent) {
@@ -294,7 +302,6 @@ onMounted(() => {
     view.scrollDOM.addEventListener('scroll', onSourceScroll, { passive: true });
   }
   openFile();
-  document.addEventListener('pointerdown', onPointerDown, true);
   resizer = new ResizeObserver(() => {
     anchorsDirty = true;
   });
@@ -308,47 +315,52 @@ onBeforeUnmount(() => {
   view?.destroy();
   view = undefined;
   resizer?.disconnect();
-  document.removeEventListener('pointerdown', onPointerDown, true);
 });
 </script>
 
 <template>
   <section class="md" data-testid="markdown-file" @keydown="onKeydown">
     <header class="toolbar">
-      <span class="name" :title="path" data-testid="markdown-name">{{ fileName }}</span>
-      <span v-if="dirty" class="dirty" :title="t('files.editor.dirty')" :aria-label="t('files.editor.dirty')" data-testid="markdown-dirty" />
-      <span class="group" role="group" :aria-label="t('files.markdown.viewMode')">
-        <UiButton class="mode" :data-active="mode === 'code'" :aria-pressed="mode === 'code'" data-testid="markdown-mode-code" @click="setMode('code')"><FileCode :size="14" />{{ t('files.markdown.code') }}</UiButton>
-        <UiButton class="mode" :data-active="mode === 'split'" :aria-pressed="mode === 'split'" data-testid="markdown-mode-split" @click="setMode('split')"><Columns2 :size="14" />{{ t('files.markdown.split') }}</UiButton>
-        <UiButton class="mode" :data-active="mode === 'preview'" :aria-pressed="mode === 'preview'" data-testid="markdown-mode-preview" @click="setMode('preview')"><Eye :size="14" />{{ t('files.markdown.preview') }}</UiButton>
-      </span>
-      <UiButton class="mode" :disabled="!dirty || saving" :title="t('files.editor.saveTitle')" data-testid="markdown-save" @click="doc.save()"><Save :size="14" />{{ t('common.save') }}</UiButton>
+      <span v-tooltip="path" class="name" data-testid="markdown-name">{{ fileName }}</span>
+      <span v-if="dirty" v-tooltip="t('files.editor.dirty')" class="dirty" :aria-label="t('files.editor.dirty')" data-testid="markdown-dirty" />
+      <VSelectButton :model-value="mode" :options="modeOptions" :label="t('files.markdown.viewMode')" @update:model-value="setMode($event as Mode)">
+        <template #option="{ option }"><component :is="modeIcons[option.value as Mode]" :size="14" />{{ option.label }}</template>
+      </VSelectButton>
+      <VButton v-tooltip="t('files.editor.saveTitle')" size="small" severity="secondary" text :label="t('common.save')" :disabled="!dirty || saving" data-testid="markdown-save" @click="doc.save()">
+        <template #icon><Save :size="14" /></template>
+      </VButton>
       <span class="spacer" />
-      <span ref="toc" class="toc-wrap">
-        <UiButton class="mode" :data-active="tocOpen" :disabled="!headings.length" aria-haspopup="menu" :aria-expanded="tocOpen" data-testid="markdown-toc" @click="tocOpen = !tocOpen">
-          <ListTree :size="14" />{{ t('files.markdown.toc') }}<ChevronDown :size="12" />
-        </UiButton>
-        <div v-if="tocOpen" class="toc" role="menu" data-testid="markdown-toc-list">
-          <UiButton v-for="heading in headings" :key="heading.id" class="toc-item" role="menuitem" :style="{ paddingLeft: `${8 + (heading.level - 1) * 12}px` }" :title="heading.text" @click="gotoHeading(heading)">
-            {{ heading.text }}
-          </UiButton>
+      <VButton size="small" severity="secondary" text :disabled="!headings.length" aria-haspopup="menu" data-testid="markdown-toc" @click="toc?.toggle($event)">
+        <ListTree :size="14" />{{ t('files.markdown.toc') }}<ChevronDown :size="12" />
+      </VButton>
+      <VPopover ref="toc">
+        <div class="toc" data-testid="markdown-toc-list">
+          <VListbox flat :model-value="null" :options="headingOptions" :label="t('files.markdown.toc')" @update:model-value="pickHeading">
+            <template #option="{ option }">
+              <span v-tooltip="option.label" class="toc-item" :style="{ paddingLeft: `${(headings[Number(option.value)]?.level ?? 1) * 12 - 12}px` }">{{ option.label }}</span>
+            </template>
+          </VListbox>
         </div>
-      </span>
-      <UiButton v-if="canOpenExternal" class="mode" :title="t('files.markdown.openExternalTitle')" data-testid="markdown-open-external" @click="openExternal"><ExternalLink :size="14" />{{ t('files.markdown.openExternal') }}</UiButton>
+      </VPopover>
+      <VButton v-if="canOpenExternal" v-tooltip="t('files.markdown.openExternalTitle')" size="small" severity="secondary" text :label="t('files.markdown.openExternal')" data-testid="markdown-open-external" @click="openExternal">
+        <template #icon><ExternalLink :size="14" /></template>
+      </VButton>
     </header>
 
-    <div v-if="conflict" class="bar" role="alert" data-testid="markdown-conflict">
-      <strong>{{ t('files.editor.changed.title') }}</strong>
-      <span class="hint">{{ t('files.editor.changed.hint') }}</span>
-      <span class="spacer" />
-      <UiButton class="mode" data-testid="markdown-conflict-reload" @click="onReload">{{ t('files.editor.changed.reload') }}</UiButton>
-      <UiButton class="mode" data-testid="markdown-conflict-keep" @click="onKeepMine">{{ t('files.editor.changed.keep') }}</UiButton>
-      <UiButton class="mode" :data-active="comparing" :aria-pressed="comparing" data-testid="markdown-conflict-compare" @click="toggleCompare">{{ t('files.editor.changed.compare') }}</UiButton>
-    </div>
+    <VMessage v-if="conflict" class="bar" severity="warn" size="small" data-testid="markdown-conflict">
+      <span class="bar-body">
+        <strong>{{ t('files.editor.changed.title') }}</strong>
+        <span class="hint">{{ t('files.editor.changed.hint') }}</span>
+        <span class="spacer" />
+        <VButton size="small" severity="secondary" :label="t('files.editor.changed.reload')" data-testid="markdown-conflict-reload" @click="onReload" />
+        <VButton size="small" severity="secondary" :label="t('files.editor.changed.keep')" data-testid="markdown-conflict-keep" @click="onKeepMine" />
+        <VToggleButton :model-value="comparing" size="small" :on-label="t('files.editor.changed.compare')" :off-label="t('files.editor.changed.compare')" data-testid="markdown-conflict-compare" @update:model-value="toggleCompare" />
+      </span>
+    </VMessage>
 
-    <p v-if="failure" class="status failure" role="alert" data-testid="markdown-failure">{{ failure }}</p>
+    <VMessage v-if="failure" class="note" severity="error" size="small" data-testid="markdown-failure">{{ failure }}</VMessage>
     <p v-else-if="!loaded" class="status">{{ t('common.loading') }}</p>
-    <p v-if="saveError" class="status failure" role="alert" data-testid="markdown-save-error">{{ saveError }}</p>
+    <VMessage v-if="saveError" class="note" severity="error" size="small" data-testid="markdown-save-error">{{ saveError }}</VMessage>
 
     <CompareView v-if="comparing && conflict" class="compare" :disk="conflict.text" :mine="mineSnapshot" />
 
@@ -401,19 +413,15 @@ onBeforeUnmount(() => {
 }
 
 .bar {
-  display: flex;
   flex: none;
-  align-items: center;
-  gap: var(--vr-space-3);
-  padding: var(--vr-space-1) var(--vr-space-3);
-  font-size: var(--vr-font-size-xs);
-  background: var(--vr-color-surface-raised);
-  border-bottom: 1px solid var(--vr-color-border);
+  margin: var(--vr-space-1) var(--vr-space-3);
 }
 
-.bar .mode {
-  color: var(--vr-color-text);
-  border-color: var(--vr-color-border);
+.bar-body {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--vr-space-3);
 }
 
 .hint {
@@ -432,76 +440,18 @@ onBeforeUnmount(() => {
   flex: 1;
 }
 
-.group {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--vr-space-1);
-}
-
-.mode {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--vr-space-1);
-  padding: 2px var(--vr-space-2);
-  color: var(--vr-color-text-muted);
-  font: inherit;
-  white-space: nowrap;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--vr-radius-sm);
-  cursor: pointer;
-}
-
-.mode:hover:not(:disabled) {
-  color: var(--vr-color-text);
-}
-
-.mode:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.mode[data-active='true'] {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-active);
-}
-
-.toc-wrap {
-  position: relative;
-}
-
 .toc {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
   width: 320px;
   max-height: 60vh;
-  padding: var(--vr-space-1) 0;
   overflow: auto;
-  background: var(--vr-color-surface-raised);
-  border: 1px solid var(--vr-color-border);
-  border-radius: var(--vr-radius-md);
-  box-shadow: var(--vr-shadow-popover);
 }
 
 .toc-item {
-  padding: 3px var(--vr-space-2);
+  display: block;
+  min-width: 0;
   overflow: hidden;
-  color: inherit;
-  font: inherit;
-  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-
-.toc-item:hover {
-  background: var(--vr-color-nav-hover);
 }
 
 .status {
@@ -509,8 +459,8 @@ onBeforeUnmount(() => {
   color: var(--vr-color-text-muted);
 }
 
-.failure {
-  color: var(--vr-color-danger);
+.note {
+  margin: var(--vr-space-4);
 }
 
 .panes {

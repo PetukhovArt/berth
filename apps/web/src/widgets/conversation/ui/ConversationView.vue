@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 import { Check, Copy, FolderOpen, GitBranch, Play, SquareTerminal, TriangleAlert } from '../../../shared/ui/icons';
-import { VButton, VMessage } from '../../../shared/ui/kit';
+import { VButton, VMessage, VTag, vTooltip } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import { acpRewind, AGENT_KIND_LABEL, clearHandoff, clearMessageFocus, messageFocusOf, continueInBerth, handoffOf, externalKey, externalOrigin, isChat, externalTarget, checkpointsByPrompt, listCheckpoints, modelLabel, readTranscript, resumeCommand, useExternalSessions, type AcpMcpAction, type Checkpoint, type Harness, type TranscriptMessage, HarnessIcon, describeError, useBerth, StatusIcon, useAction, useSessionDock, derivePhases, derivePlan, PlanStrip, deriveSubagents, stripVisible, sendInput, useFeedbackRequest, sessionKey, stopAgent, useChat, holdRestored, restoredCount, takeRestored, useSessionStates, clearPromptQuotes, promptQuotesOf, removePromptQuote, type AcpAttachmentUpload, type SessionRef, type SlashSource } from '../../../entities/session';
 import { showViewInActivePanel, worktreeOf } from '../../../features/session-view-switch';
-import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { agentLogFor } from '../../../shared/model/agentLog';
 import { chatBlocks } from '../model/chatBlocks';
@@ -395,18 +394,24 @@ onBeforeUnmount(() => {
         </span>
       </div>
       <div class="meta">
-        <span v-if="harness" class="chip">{{ t(`workbench.external.harness.${harness}`) }}</span>
-        <span v-if="session" class="chip mono" :title="session.cwd"><FolderOpen :size="12" />{{ forwardSlashes(session.cwd) }}</span>
-        <span v-if="session?.branch" class="chip mono"><GitBranch :size="12" />{{ session.branch }}</span>
-        <span v-if="session" class="chip" :title="formatDate(session.updated_at)">{{ formatRelative(session.updated_at) }}</span>
-        <span v-if="session" class="chip" data-testid="conversation-origin"><SquareTerminal :size="12" />{{ externalOrigin(session) }}</span>
+        <VTag v-if="harness" class="chip" severity="secondary" rounded :value="t(`workbench.external.harness.${harness}`)" />
+        <VTag v-if="session" v-tooltip="session.cwd" class="chip mono" severity="secondary" rounded :value="forwardSlashes(session.cwd)">
+          <template #icon><FolderOpen :size="12" /></template>
+        </VTag>
+        <VTag v-if="session?.branch" class="chip mono" severity="secondary" rounded :value="session.branch">
+          <template #icon><GitBranch :size="12" /></template>
+        </VTag>
+        <VTag v-if="session" v-tooltip="formatDate(session.updated_at)" class="chip" severity="secondary" rounded :value="formatRelative(session.updated_at)" />
+        <VTag v-if="session" class="chip" severity="secondary" rounded :value="externalOrigin(session)" data-testid="conversation-origin">
+          <template #icon><SquareTerminal :size="12" /></template>
+        </VTag>
       </div>
       <div class="actions">
         <VButton size="small" :disabled="!canContinue" :loading="action.busy.value" data-testid="conversation-continue" @click="continueHere">
           <Play :size="13" />
           {{ t('workbench.external.continue') }}
         </VButton>
-        <VButton size="small" severity="secondary" outlined :title="command" data-testid="conversation-copy" @click="copyCommand">
+        <VButton v-tooltip="command" size="small" severity="secondary" outlined data-testid="conversation-copy" @click="copyCommand">
           <Check v-if="copied" :size="13" />
           <Copy v-else :size="13" />
           {{ copied ? t('workbench.external.copied') : t('workbench.external.copyResume') }}
@@ -436,6 +441,7 @@ onBeforeUnmount(() => {
         <div
           v-for="edge in COLUMN_EDGES"
           :key="edge"
+          v-tooltip="t('chat.column.hint')"
           class="column-handle vr-wide-only"
           role="separator"
           aria-orientation="vertical"
@@ -443,7 +449,6 @@ onBeforeUnmount(() => {
           :data-edge="edge"
           :data-dragging="column.dragging.value === edge || undefined"
           :aria-label="t(`chat.column.${edge}`)"
-          :title="t('chat.column.hint')"
           :aria-valuenow="edgeX(edge)"
           aria-valuemin="0"
           :aria-valuemax="column.track.value ?? 0"
@@ -513,19 +518,10 @@ onBeforeUnmount(() => {
 }
 
 .chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--vr-space-1);
   max-width: 100%;
-  padding: 0 var(--vr-space-2);
   overflow: hidden;
-  font-size: var(--vr-font-size-2xs);
-  line-height: 1.8;
-  color: var(--vr-color-text-muted);
-  white-space: nowrap;
   text-overflow: ellipsis;
-  background: var(--vr-color-chip-bg);
-  border-radius: var(--vr-radius-full);
+  white-space: nowrap;
 }
 
 .mono {

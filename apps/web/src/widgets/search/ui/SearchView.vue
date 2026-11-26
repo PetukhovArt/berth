@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, useTemplateRef, watch } from 'vue';
 import { Search } from '../../../shared/ui/icons';
-import { UiButton } from '../../../shared/ui/UiButton';
 import UiInput from '../../../shared/ui/UiInput.vue';
-import { VChipGroup } from '../../../shared/ui/kit';
+import { VButton, VChipGroup } from '../../../shared/ui/kit';
 import { usePickerList } from '../../../shared/lib/usePickerList';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { searchFocus, searchQuery, searchScope } from '../model/panel';
@@ -82,7 +81,7 @@ onMounted(() => input.value?.focus());
           @open-conversation="search.choose(search.foldedInto(row) ?? row, $event)"
         />
         <li v-if="group.hidden > 0" role="presentation" class="more-row">
-          <UiButton type="button" class="more" :data-testid="`search-show-all-${group.kind}`" @click="search.showAll(group.kind)">{{ t('search.showAll', { count: formatNumber(group.total) }) }}</UiButton>
+          <VButton class="more" text severity="secondary" size="small" :label="t('search.showAll', { count: formatNumber(group.total) })" :data-testid="`search-show-all-${group.kind}`" @click="search.showAll(group.kind)" />
         </li>
       </template>
     </ul>
@@ -135,16 +134,12 @@ onMounted(() => input.value?.focus());
   flex: 1;
   min-width: 0;
   box-sizing: border-box;
+  padding: 0;
   font: inherit;
   color: var(--vr-color-text);
   background: none;
   border: 0;
-  outline: none;
-}
-
-.more:focus-visible {
-  outline: 2px solid var(--vr-color-accent);
-  outline-offset: 1px;
+  box-shadow: none;
 }
 
 .empty {
@@ -183,13 +178,6 @@ onMounted(() => input.value?.focus());
 }
 
 .more {
-  padding: var(--vr-space-1) var(--vr-space-2);
-  color: var(--vr-color-text-muted);
-  font: inherit;
   font-size: var(--vr-font-size-xs);
-  cursor: pointer;
-  background: none;
-  border: 1px solid var(--vr-color-border);
-  border-radius: var(--vr-radius-sm);
 }
 </style>

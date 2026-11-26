@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue';
 import { RotateCcw } from '../../../shared/ui/icons';
+import { VButton, VMessage, vTooltip } from '../../../shared/ui/kit';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { promptOfCheckpoint, useAgentMessages, useCheckpoints, type AgentKind, type Checkpoint } from '../../../entities/session';
@@ -50,15 +51,15 @@ watch(
         <div v-if="pending === item.number" class="confirm" role="alertdialog" data-testid="inspector-checkpoint-confirm">
           <p class="note">{{ t('checkpoints.confirm', { number: item.number }) }}</p>
           <div class="actions">
-            <UiButton type="button" class="secondary" @click="pending = null">{{ t('checkpoints.cancel') }}</UiButton>
-            <UiButton type="button" class="primary" :disabled="busy" data-testid="inspector-checkpoint-confirm-restore" @click="confirm(item.number)">{{ t('checkpoints.confirmRestore') }}</UiButton>
+            <VButton :label="t('checkpoints.cancel')" text severity="secondary" size="small" @click="pending = null" />
+            <VButton :label="t('checkpoints.confirmRestore')" size="small" :disabled="busy" data-testid="inspector-checkpoint-confirm-restore" @click="confirm(item.number)" />
           </div>
         </div>
         <UiButton
           v-else
+          v-tooltip="`${label(item)}\n${t('checkpoints.restore')}`"
           type="button"
           class="row entry"
-          :title="`${label(item)}\n${t('checkpoints.restore')}`"
           :data-testid="`inspector-checkpoint-restore-${item.number}`"
           @click="pending = item.number"
         >
@@ -68,7 +69,7 @@ watch(
         </UiButton>
       </li>
     </ul>
-    <p v-if="error" class="error" role="alert" data-testid="inspector-checkpoints-error">{{ error }}</p>
+    <VMessage v-if="error" severity="error" size="small" data-testid="inspector-checkpoints-error">{{ error }}</VMessage>
   </InspectorSection>
 </template>
 
@@ -111,27 +112,5 @@ watch(
   display: flex;
   justify-content: flex-end;
   gap: var(--vr-space-2);
-}
-
-.primary,
-.secondary {
-  height: 26px;
-  padding: 0 10px;
-  font: inherit;
-  font-size: var(--vr-font-size-label);
-  border: 0;
-  border-radius: 7px;
-  cursor: pointer;
-}
-
-.primary {
-  color: var(--vr-color-accent-contrast);
-  font-weight: 600;
-  background: var(--vr-color-accent);
-}
-
-.secondary {
-  color: var(--vr-color-text);
-  background: var(--vr-color-surface-muted);
 }
 </style>
