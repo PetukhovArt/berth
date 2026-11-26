@@ -117,7 +117,7 @@ const stripAgents = computed(() => (stripVisible(roster.value.current, now.value
 const openedCall = shallowRef<string | null>(null);
 const opened = computed(() => (openedCall.value ? subagentOf.value.get(openedCall.value) : undefined));
 let savedScroll = 0;
-const checkpointOf = computed(() => checkpointsByPrompt(messages.value, checkpoints.value));
+const checkpointOf = computed(() => new Map([...checkpointsByPrompt(messages.value, checkpoints.value)].filter(([, checkpoint]) => checkpoint.changed)));
 const composer = useTemplateRef<InstanceType<typeof ChatComposer>>('composer');
 async function rewindTo(seq: number, text: string) {
   await acpRewind(props.sessionId, seq);
@@ -156,7 +156,7 @@ async function loadCheckpoints() {
   }
 }
 
-watch([agentId, promptCount], () => void loadCheckpoints(), { immediate: true });
+watch([agentId, promptCount, turnRunning], () => void loadCheckpoints(), { immediate: true });
 
 async function load() {
   const own = harness.value;

@@ -1155,4 +1155,10 @@ pub struct Checkpoint {
     pub number: u32,
     pub created_at: i64,
     pub before_restore: bool,
+    #[serde(default = "changed_by_default")]
+    pub changed: bool,
+}
+
+fn changed_by_default() -> bool {
+    true
 }

@@ -3,7 +3,7 @@ import { computed, shallowRef, toValue, watch, type MaybeRefOrGetter } from 'vue
 import { useSettings } from '../../../shared/config/settings/store';
 import { acknowledged, BerthCallError, call, describeError, type AgentKind } from './berth';
 
-export type Checkpoint = { number: number; created_at: number; before_restore: boolean };
+export type Checkpoint = { number: number; created_at: number; before_restore: boolean; changed: boolean };
 
 export async function listCheckpoints(agent: string): Promise<Checkpoint[]> {
   const reply = await call({ ListCheckpoints: { agent } });

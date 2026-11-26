@@ -88,6 +88,15 @@ fn ref_name(agent: &AgentId, number: u32) -> String {
     format!("{REF_ROOT}/{}/{number}", agent.as_str())
 }
 
+async fn worktree_tree(repo: &Path) -> Result<String> {
+    let temp = TempIndex::seeded_from_worktree(repo).await?;
+    git(repo, Some(&temp.0), &["add", "-A"]).await?;
+    Ok(git(repo, Some(&temp.0), &["write-tree"])
+        .await?
+        .trim()
+        .to_string())
+}
+
 async fn listed(repo: &Path, agent: &AgentId) -> Result<Vec<Checkpoint>> {
     let prefix = format!("{REF_ROOT}/{}/", agent.as_str());
     let out = git(
@@ -95,22 +104,25 @@ async fn listed(repo: &Path, agent: &AgentId) -> Result<Vec<Checkpoint>> {
         None,
         &[
             "for-each-ref",
-            "--format=%(refname)%09%(committerdate:unix)%09%(contents:subject)",
+            "--format=%(refname)%09%(committerdate:unix)%09%(tree)%09%(contents:subject)",
             &prefix,
         ],
     )
     .await?;
+    let now = worktree_tree(repo).await.ok();
     let mut all: Vec<Checkpoint> = out
         .lines()
         .filter_map(|line| {
-            let mut parts = line.splitn(3, '\t');
+            let mut parts = line.splitn(4, '\t');
             let number = parts.next()?.strip_prefix(&prefix)?.parse().ok()?;
             let created_at = parts.next()?.parse().ok()?;
+            let tree = parts.next()?;
             let before_restore = parts.next()? == SUBJECT_BEFORE_RESTORE;
             Some(Checkpoint {
                 number,
                 created_at,
                 before_restore,
+                changed: now.as_deref() != Some(tree),
             })
         })
         .collect();
@@ -334,6 +346,21 @@ mod tests {
             vec![2, 1]
         );
         assert!(list.iter().all(|c| !c.before_restore));
+    }
+
+    #[tokio::test]
+    async fn a_checkpoint_is_changed_only_when_the_files_differ_from_it() {
+        let tmp = repo();
+        let dir = tmp.path();
+        let agent = AgentId("ag1".into());
+        take(dir, &agent, false).await.unwrap();
+        assert!(!listed(dir, &agent).await.unwrap()[0].changed);
+
+        std::fs::write(dir.join("a.txt"), "two\n").unwrap();
+        assert!(listed(dir, &agent).await.unwrap()[0].changed);
+
+        std::fs::write(dir.join("a.txt"), "one\n").unwrap();
+        assert!(!listed(dir, &agent).await.unwrap()[0].changed);
     }
 
     #[tokio::test]
