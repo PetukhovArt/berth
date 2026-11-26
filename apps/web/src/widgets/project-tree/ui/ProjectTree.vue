@@ -36,7 +36,7 @@ const phone = useIsPhone();
 
 const dock = useDock();
 const sessions = useSessionDock();
-const { berth, nodes, tabs, activeTab, errors } = useWorkTree();
+const { berth, nodes, tabs, activeTab } = useWorkTree();
 const shownTabs = computed(() => (props.tabsShown ? tabs.value.filter((tab) => props.tabsShown?.includes(tab.id)) : tabs.value));
 
 const filtering = computed(() => treeQuery.value.trim().length > 0);
@@ -153,7 +153,6 @@ const moreItems = computed(() => {
       <MrSessionNotice v-for="run in mrSession.runs.value.values()" :key="run.id" :run="run">
         <template #project="{ repo }"><RepoActions :repo="repo" /></template>
       </MrSessionNotice>
-      <p v-for="error in errors" :key="`${error.connector}:${error.message}`" class="strip" role="alert" data-testid="tree-error" :title="error.message">{{ error.connector }}: {{ error.message }}</p>
       <ChannelsSection v-if="activeTab === 'sessions' && !filtering" />
       <div v-if="activeTab === 'sessions'" class="section-head" data-testid="project-tree-head">
         <UiButton class="section-toggle" :aria-expanded="projectsOpen" :disabled="filtering" data-testid="project-tree-toggle" @click="treeProjectsCollapsed = !treeProjectsCollapsed">
@@ -458,17 +457,6 @@ const moreItems = computed(() => {
   padding: 0 var(--vr-space-1) var(--vr-space-2);
 }
 
-.strip {
-  margin: 0 0 var(--vr-space-1);
-  padding: var(--vr-space-1) var(--vr-space-2);
-  overflow: hidden;
-  font-size: var(--vr-font-size-2xs);
-  color: var(--vr-color-danger);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  background: var(--vr-color-chip-bg);
-  border-radius: var(--vr-radius-sm);
-}
 
 .kind-icon {
   flex: none;

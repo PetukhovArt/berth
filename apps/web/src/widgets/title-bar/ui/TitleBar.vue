@@ -13,6 +13,7 @@ import { view } from '../../../shared/model/nav';
 import { firstRunActive } from '../../../shared/model/firstRun';
 import { UpdateChip } from '../../../features/update';
 import { WorkspaceSwitcher } from '../../../features/manage-workspace';
+import ConnectorErrors from './ConnectorErrors.vue';
 
 import { UiButton } from '../../../shared/ui/UiButton';
 import BrandMark from '../../../shared/ui/BrandMark.vue';
@@ -65,6 +66,7 @@ onUnmounted(() => stopResize?.());
     <div class="end">
       <div class="update" data-tauri-drag-region><UpdateChip /></div>
       <div v-if="!firstRunActive" class="tools">
+        <ConnectorErrors />
         <UiButton
           v-if="view.kind === 'agents'"
           type="button"

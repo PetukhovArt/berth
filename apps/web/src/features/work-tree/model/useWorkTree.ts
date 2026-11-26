@@ -57,6 +57,8 @@ const PROJECTS_KEY = 'berth.tree.projectsCollapsed';
 export const treeProjectsCollapsed = shallowRef(localStorage.getItem(PROJECTS_KEY) === '1');
 watch(treeProjectsCollapsed, (on) => localStorage.setItem(PROJECTS_KEY, on ? '1' : '0'));
 
+type ConnectorFailure = { id: string; name: string; message: string; since: number; unreachable: boolean };
+
 type TabInfo = { id: TreeTab; label: string; count: number | undefined; tone: 'alert' | 'accent' | 'muted'; title: string };
 
 function createWorkTree(scope: Scope) {
@@ -215,7 +217,30 @@ function createWorkTree(scope: Scope) {
   const nodes = computed(() => buildTree(sources.value, activeTab.value, treeQuery.value, treeLiveOnly.value));
   const all = computed(() => buildTree(sources.value, 'all', ''));
 
-  return { berth, nodes, all, tabs, activeTab, errors: computed(() => [...inbox.errors.value.map((e) => ({ connector: e.connector, message: e.message })), ...jira.errors.value]) };
+  const failureSince = new Map<string, number>();
+  const failures = shallowRef<ConnectorFailure[]>([]);
+  watch(
+    () => [inbox.errors.value, jira.errors.value, connectors.value] as const,
+    ([forgeErrors, jiraErrors, known]) => {
+      const now = Date.now();
+      const list = [...forgeErrors, ...jiraErrors];
+      const since = new Map(list.map((error) => [error.connector, failureSince.get(error.connector) ?? now]));
+      failureSince.clear();
+      for (const [id, time] of since) failureSince.set(id, time);
+      failures.value = list.map((error) => {
+        const view = known.find((c) => c.id === error.connector);
+        return { id: error.connector, name: view?.label ?? error.connector, message: error.message, since: since.get(error.connector) ?? now, unreachable: view?.status === 'unreachable' };
+      });
+    },
+    { immediate: true },
+  );
+
+  async function retryConnector(id: string) {
+    if (connectors.value.find((c) => c.id === id)?.kind === 'jira') await jira.retry(id);
+    else await inbox.load();
+  }
+
+  return { berth, nodes, all, tabs, activeTab, failures, retryConnector };
 }
 
 type WorkTree = ReturnType<typeof createWorkTree>;
