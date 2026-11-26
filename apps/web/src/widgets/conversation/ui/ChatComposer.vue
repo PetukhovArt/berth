@@ -89,10 +89,10 @@ const talk = useHoldToTalk({
 });
 
 const secure = isDesktop || window.isSecureContext;
-const showTalk = talk.supported && secure;
-const talkBlocked = !isDesktop && !showTalk;
-const showVoice = computed(() => phone.value && showTalk && voice.supported);
-const talkPanel = computed(() => phone.value && showTalk && !typing.value);
+const showTalk = computed(() => talk.supported && secure);
+const talkBlocked = computed(() => !isDesktop && !showTalk.value);
+const showVoice = computed(() => phone.value && showTalk.value && voice.supported);
+const talkPanel = computed(() => phone.value && showTalk.value && !typing.value);
 const { activeKey } = useDock();
 const diffAvailable = computed(() => !!activeKey.value && isAvailable(activeKey.value, 'diff'));
 const quickSending = shallowRef(false);

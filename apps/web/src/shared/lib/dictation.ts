@@ -1,5 +1,7 @@
 import { onBeforeUnmount, shallowRef } from 'vue';
+import { isDesktop } from '../../bridge';
 import { nativeEngine } from './nativeVoice';
+import { hostPlatform } from './platform';
 import type { DictationEngine, HoldToTalkIssue, Take } from './speechEngine';
 
 interface RecognitionResult {
@@ -48,7 +50,9 @@ export function speechLang(): string {
 }
 
 const browserEngine: DictationEngine = {
-  supported: recognitionCtor() !== null,
+  get supported() {
+    return recognitionCtor() !== null && !(isDesktop && hostPlatform.value.os === 'windows');
+  },
   open(options, events) {
     const Ctor = recognitionCtor();
     if (!Ctor) {
@@ -120,7 +124,7 @@ export function useHoldToTalk(options: DictationOptions) {
 }
 
 export function createDictation(options: DictationOptions) {
-  const supported = nativeEngine !== null || browserEngine.supported;
+  const isSupported = () => nativeEngine?.supported === true || browserEngine.supported;
   const holding = shallowRef(false);
   const recognising = shallowRef(false);
   const cancelling = shallowRef(false);
@@ -152,7 +156,7 @@ export function createDictation(options: DictationOptions) {
   }
 
   function begin(free: boolean) {
-    if (!supported || owner) return;
+    if (!isSupported() || owner) return;
     handsFree = free;
     startedAt = Date.now();
     transcript.value = '';
@@ -193,7 +197,7 @@ export function createDictation(options: DictationOptions) {
   }
 
   function start(event: PointerEvent) {
-    if (!supported || owner) return;
+    if (!isSupported() || owner) return;
     event.preventDefault();
     (event.currentTarget as HTMLElement | null)?.setPointerCapture(event.pointerId);
     origin = { x: event.clientX, y: event.clientY };
@@ -228,5 +232,5 @@ export function createDictation(options: DictationOptions) {
     settle();
   }
 
-  return { supported, holding, recognising, cancelling, transcript, start, move, release, hold, letGo, listen, stopListening };
+  return { get supported() { return isSupported(); }, holding, recognising, cancelling, transcript, start, move, release, hold, letGo, listen, stopListening };
 }
