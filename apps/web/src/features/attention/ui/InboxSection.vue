@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef, useTemplateRef } from 'vue';
 import { ChevronRight, Ellipsis, MessageSquare } from '../../../shared/ui/icons';
-import { useIsPhone, VBadge, VButton, VContextMenu, VMessage, vTooltip } from '../../../shared/ui/kit';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { useIsPhone, VBadge, VButton, VContextMenu, VMessage, VRowButton, vTooltip } from '../../../shared/ui/kit';
 import { allowRequest, alwaysAllowRequest, chooseOption, denyRequest, isYesNoPermission, offersAlways, openChannel, restartAgent, StatusIcon, useAction, useHollow, useBerth, useChannelUnread, useSessionDock, type SessionRef } from '../../../entities/session';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { shortcutLabel } from '../../../shared/lib/commands/keymap';
@@ -113,8 +112,8 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
     <p v-if="open && calm" class="calm" data-testid="inbox-empty">{{ t('attention.inbox.nothing') }}</p>
     <div v-if="open && total" class="items" data-testid="inbox-items">
       <div v-for="entry in shown" :key="entry.key" class="item" data-testid="inbox-item" :data-kind="entry.kind" :data-hollow="!!hollow" :data-session-id="entry.node?.id">
-        <UiButton v-tooltip="entry.state.name" class="row" @click="dock.openKey(entry.key)" @contextmenu.prevent="showMenu($event, entry)">
-          <StatusIcon :status="entry.state.status" :unseen="entry.state.unseen" />
+        <VRowButton v-tooltip="entry.state.name" class="row" align="start" @click="dock.openKey(entry.key)" @contextmenu.prevent="showMenu($event, entry)">
+          <template #leading><StatusIcon class="status-lead" :status="entry.state.status" :unseen="entry.state.unseen" /></template>
           <span class="body">
             <span class="line">
               <span class="name">{{ entry.state.name }}</span>
@@ -122,7 +121,7 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
             </span>
             <span class="reason"><span class="kind">{{ reason(entry) }}</span><template v-if="entry.place"> · {{ entry.place }}</template></span>
           </span>
-        </UiButton>
+        </VRowButton>
         <div v-if="requestOf(entry)" class="card vr-phone-only" data-testid="inbox-request">
           <code v-if="requestOf(entry)?.detail" class="detail">{{ requestOf(entry)?.detail }}</code>
           <div class="actions">
@@ -147,15 +146,15 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
         </VButton>
       </div>
       <div v-for="channel in shownChannels" :key="channel.key" class="item" data-testid="inbox-channel" data-kind="channel">
-        <UiButton v-tooltip="channel.key" class="row" @click="openChannel(channel.key)">
-          <MessageSquare :size="14" class="channel-icon" />
+        <VRowButton v-tooltip="channel.key" class="row" align="start" @click="openChannel(channel.key)">
+          <template #leading><MessageSquare :size="14" class="channel-icon" /></template>
           <span class="body">
             <span class="line">
               <span class="name"># {{ channel.key }}</span>
             </span>
             <span class="reason">{{ t('attention.inbox.channelUnread', { count: channel.unread }) }}</span>
           </span>
-        </UiButton>
+        </VRowButton>
       </div>
     </div>
     <VContextMenu ref="menu" :model="menuItems">
@@ -235,38 +234,18 @@ function showMenu(event: MouseEvent, entry: InboxEntry) {
   position: relative;
 }
 
-.row {
-  display: flex;
-  align-items: flex-start;
-  gap: 7px;
-  width: 100%;
-  padding: 4px var(--vr-space-2);
-  font: inherit;
-  font-size: var(--vr-font-size-label);
-  text-align: left;
-  color: inherit;
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
-}
-
-.row:hover {
-  background: var(--vr-color-nav-hover);
-}
-
 .channel-icon {
   flex: none;
   margin-top: 3px;
   color: var(--vr-color-text-muted);
 }
 
-.row :deep(.status-icon) {
+.status-lead {
   margin-top: 2px;
 }
 
 .body {
   display: flex;
-  flex: 1;
   flex-direction: column;
   min-width: 0;
 }
