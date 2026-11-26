@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import { ChevronRight, Ellipsis, MessageSquare, Plus, Users } from '../../../shared/ui/icons';
-import { VButton, VContextMenu, VInputText } from '../../../shared/ui/kit';
+import { VBadge, VButton, VCheckbox, VContextMenu, VInputText, VMessage, vTooltip } from '../../../shared/ui/kit';
 import ConfirmPopover from '../../../shared/ui/ConfirmPopover.vue';
 import { UiButton } from '../../../shared/ui/UiButton';
-import UiInput from '../../../shared/ui/UiInput.vue';
 import { createChannel, deleteChannel, describeError, leaveChannel, openChannel, useChannels, useHubAdmin, useMay, type ChannelSummary } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 
@@ -99,35 +98,36 @@ async function create() {
 <template>
   <section v-if="onHub" class="channels" data-testid="channels-section">
     <div class="head">
-      <UiButton class="toggle" :aria-expanded="open" :title="t('attention.channels.toggle')" data-testid="channels-toggle" @click="open = !open">
+      <VButton v-tooltip="t('attention.channels.toggle')" class="toggle" size="small" text severity="secondary" :aria-expanded="open" :aria-label="t('attention.channels.toggle')" data-testid="channels-toggle" @click="open = !open">
         <ChevronRight :size="14" class="chevron vr-chevron" />
         <span class="title">{{ t('attention.channels.title') }}</span>
-        <span v-if="channels.length" class="count">{{ channels.length }}</span>
-      </UiButton>
-      <UiButton class="icon" :title="t('attention.channels.add')" :aria-label="t('attention.channels.add')" data-testid="channels-add" @click="startForm"><Plus :size="14" /></UiButton>
+        <VBadge v-if="channels.length" :value="channels.length" severity="secondary" size="small" />
+      </VButton>
+      <VButton v-tooltip="t('attention.channels.add')" size="small" text severity="secondary" :aria-label="t('attention.channels.add')" data-testid="channels-add" @click="startForm">
+        <template #icon><Plus :size="14" /></template>
+      </VButton>
     </div>
     <template v-if="open">
       <form v-if="form" class="form" data-testid="channels-form" @submit.prevent="create">
         <VInputText ref="nameInput" v-model="name" size="small" autocomplete="off" :aria-label="t('attention.channels.name')" :placeholder="t('attention.channels.namePlaceholder')" :disabled="saving" data-testid="channels-name" @keydown.esc="form = false" />
-        <label v-if="isAdmin" class="shared" :title="t('attention.channels.sharedHint')">
-          <UiInput v-model="shared" type="checkbox" class="check" :disabled="saving" data-testid="channels-shared" />
-          <span>{{ t('attention.channels.shared') }}</span>
-        </label>
-        <p v-if="error" class="error" role="alert" data-testid="channels-error">{{ error }}</p>
+        <VCheckbox v-if="isAdmin" v-model="shared" v-tooltip="t('attention.channels.sharedHint')" :label="t('attention.channels.shared')" :disabled="saving" data-testid="channels-shared" />
+        <VMessage v-if="error" severity="error" size="small" data-testid="channels-error">{{ error }}</VMessage>
         <div class="actions">
           <VButton type="submit" :label="t('attention.channels.create')" size="small" :loading="saving" :disabled="!name.trim() || saving" data-testid="channels-create" />
           <VButton :label="t('common.cancel')" size="small" severity="secondary" text :disabled="saving" data-testid="channels-cancel" @click="form = false" />
         </div>
       </form>
-      <p v-if="rowError" class="error row-error" role="alert" data-testid="channels-row-error">{{ rowError }}</p>
+      <VMessage v-if="rowError" class="row-error" severity="error" size="small" data-testid="channels-row-error">{{ rowError }}</VMessage>
       <div v-for="channel in channels" :key="channel.key" class="item">
-        <UiButton class="row" :title="channel.shared ? `${channel.key} · ${t('attention.channels.sharedHint')}` : channel.key" :data-testid="`channel-row-${channel.key}`" @click="openChannel(channel.key)">
+        <UiButton v-tooltip="channel.shared ? `${channel.key} · ${t('attention.channels.sharedHint')}` : channel.key" class="row" :data-testid="`channel-row-${channel.key}`" @click="openChannel(channel.key)">
           <Users v-if="channel.shared" :size="14" class="row-icon" />
           <MessageSquare v-else :size="14" class="row-icon" />
           <span class="name" :class="{ unread: channel.unread > 0 }"># {{ channel.key }}</span>
-          <span v-if="channel.unread > 0" class="badge">{{ channel.unread }}</span>
+          <VBadge v-if="channel.unread > 0" class="badge" :value="channel.unread" severity="secondary" size="small" />
         </UiButton>
-        <UiButton v-if="hasActions(channel)" class="more" :title="t('attention.channels.actions')" :aria-label="t('attention.channels.actions')" aria-haspopup="menu" :data-testid="`channel-menu-${channel.key}`" @click="showMenu($event, channel)"><Ellipsis :size="14" /></UiButton>
+        <VButton v-if="hasActions(channel)" v-tooltip="t('attention.channels.actions')" class="more" size="small" text severity="secondary" :aria-label="t('attention.channels.actions')" aria-haspopup="menu" :data-testid="`channel-menu-${channel.key}`" @click="showMenu($event, channel)">
+          <template #icon><Ellipsis :size="14" /></template>
+        </VButton>
       </div>
     </template>
     <VContextMenu ref="menu" :model="menuItems">
@@ -152,23 +152,10 @@ async function create() {
 }
 
 .toggle {
-  display: flex;
   flex: 1;
-  align-items: center;
   gap: 7px;
   min-width: 0;
-  height: 28px;
-  padding: 0 4px 0 6px;
-  font: inherit;
-  text-align: left;
-  color: inherit;
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
-}
-
-.toggle:hover {
-  background: var(--vr-color-nav-hover);
+  justify-content: flex-start;
 }
 
 .chevron {
@@ -183,30 +170,10 @@ async function create() {
   transform: rotate(90deg);
 }
 
-.title,
-.count {
+.title {
   font-size: var(--vr-font-size-xs);
   font-weight: 500;
   color: var(--vr-color-text-muted);
-}
-
-.icon {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  color: var(--vr-color-text-muted);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-}
-
-.icon:hover {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
 }
 
 .form {
@@ -219,23 +186,9 @@ async function create() {
   border-radius: var(--vr-radius-md);
 }
 
-.shared {
-  display: flex;
-  align-items: center;
-  gap: var(--vr-space-2);
-  font-size: var(--vr-font-size-label);
-}
-
 .actions {
   display: flex;
   gap: var(--vr-space-1);
-}
-
-.error {
-  margin: 0;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-danger);
-  overflow-wrap: anywhere;
 }
 
 .item {
@@ -246,16 +199,6 @@ async function create() {
   position: absolute;
   top: 3px;
   right: var(--vr-space-1);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 20px;
-  padding: 0;
-  color: var(--vr-color-text-muted);
-  background: var(--vr-color-nav-hover);
-  border: 0;
-  border-radius: var(--vr-radius-sm);
   opacity: 0;
 }
 
@@ -310,13 +253,5 @@ async function create() {
 
 .badge {
   flex: none;
-  min-width: 1.6em;
-  padding: 0 0.4em;
-  font-size: var(--vr-font-size-2xs);
-  line-height: 1.6;
-  text-align: center;
-  color: var(--vr-color-text);
-  background: var(--vr-color-surface-sunken);
-  border-radius: 999px;
 }
 </style>
