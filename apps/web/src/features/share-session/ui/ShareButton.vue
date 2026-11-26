@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiInput from '../../../shared/ui/UiInput.vue';
 import { Radio } from '../../../shared/ui/icons';
-import { useSheetClamp } from '../../../shared/lib/useSheetClamp';
+import { useSheet } from '../../../shared/lib/useSheet';
 import { copyText } from '../../../shared/lib/atlassian';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { describeError } from '../../../shared/api/connectors/api';
@@ -15,7 +15,7 @@ const props = defineProps<{ agentId: string; name: string }>();
 
 const open = ref(false);
 const sheet = ref<HTMLElement | null>(null);
-useSheetClamp(sheet, open);
+useSheet(sheet, open);
 const shared = ref(false);
 const diffs = ref(false);
 const busy = ref(false);

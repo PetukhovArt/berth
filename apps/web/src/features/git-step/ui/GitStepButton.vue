@@ -7,6 +7,7 @@ import { t } from '../../../shared/lib/i18n/i18n';
 import { forgeCreateChangeRequest, worktreeGitState, worktreeGitStep, type GitState } from '../../../shared/api/git';
 import { rememberMr } from '../../../entities/merge-request';
 import { GitBranch } from '../../../shared/ui/icons';
+import { useSheet } from '../../../shared/lib/useSheet';
 import { createRequested } from '../model/createRequest';
 import { idleHintKey, nextStep, stepLabelKey, stepShortLabelKey } from '../model/nextStep';
 
@@ -16,6 +17,8 @@ const state = ref<GitState | null>(null);
 const busy = ref(false);
 const error = ref<string | null>(null);
 const open = ref(false);
+const sheet = ref<HTMLElement | null>(null);
+useSheet(sheet, open);
 const message = ref('');
 const title = ref('');
 const description = ref('');
@@ -118,7 +121,7 @@ onBeforeUnmount(() => window.removeEventListener('focus', refresh));
       <span class="full">{{ busy ? t('gitStep.working') : label }}</span>
       <span class="short">{{ busy ? t('gitStep.working') : shortLabel }}</span>
     </UiButton>
-    <form v-if="open && step.kind === 'run'" class="form vr-sheet" :data-testid="`${testid}-form`" @submit.prevent="valid && perform()">
+    <form v-if="open && step.kind === 'run'" ref="sheet" class="form vr-sheet" :data-testid="`${testid}-form`" @submit.prevent="valid && perform()">
       <label v-if="step.commit" class="field">
         <span>{{ t('gitStep.commitMessage') }}</span>
         <UiInput v-model="message" :data-testid="`${testid}-message`" autofocus />

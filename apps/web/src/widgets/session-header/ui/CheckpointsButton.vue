@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { History } from '../../../shared/ui/icons';
-import { useSheetClamp } from '../../../shared/lib/useSheetClamp';
+import { useSheet } from '../../../shared/lib/useSheet';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
 import { useCheckpoints, type AgentKind, type Checkpoint } from '../../../entities/session';
 
@@ -16,7 +16,7 @@ const { items, busy, error, available: visible, load, restore: restoreAt } = use
 );
 const open = ref(false);
 const sheet = ref<HTMLElement | null>(null);
-useSheetClamp(sheet, open);
+useSheet(sheet, open);
 const pending = ref<number | null>(null);
 
 function toggle() {

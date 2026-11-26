@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { UiButton } from '../../../shared/ui/UiButton';
 import UiTextarea from '../../../shared/ui/UiTextarea.vue';
 import { FileText } from '../../../shared/ui/icons';
-import { useSheetClamp } from '../../../shared/lib/useSheetClamp';
+import { useSheet } from '../../../shared/lib/useSheet';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { describeError, saveTaskNote, useTaskNote } from '../../../entities/session';
 
@@ -12,7 +12,7 @@ const props = defineProps<{ worktreeId: string; branch: string }>();
 const note = useTaskNote(() => props.worktreeId);
 const open = ref(false);
 const sheet = ref<HTMLElement | null>(null);
-useSheetClamp(sheet, open);
+useSheet(sheet, open);
 const draft = ref('');
 const busy = ref(false);
 const error = ref<string | null>(null);

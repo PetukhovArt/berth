@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { UiButton } from '../../../shared/ui/UiButton';
 import { VInputText, VSelect } from '../../../shared/ui/kit';
 import { Waypoints } from '../../../shared/ui/icons';
-import { useSheetClamp } from '../../../shared/lib/useSheetClamp';
+import { useSheet } from '../../../shared/lib/useSheet';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { continueAgentIn, describeError, entitySessionRef, switchAgentModel, useSessionDock, type AgentKind, type ProviderError } from '../../../entities/session';
 
@@ -23,7 +23,7 @@ const targetModel = ref('');
 const busy = ref(false);
 const failure = ref<string | null>(null);
 const sheet = ref<HTMLElement | null>(null);
-useSheetClamp(sheet, open);
+useSheet(sheet, open);
 
 const errorText = computed(() => (props.error ? `${t(`agents.route.errorKind.${props.error.kind}`)}: ${props.error.message}` : null));
 const targetLabel = computed(() => KINDS.find((entry) => entry.value === target.value)?.label ?? target.value);
