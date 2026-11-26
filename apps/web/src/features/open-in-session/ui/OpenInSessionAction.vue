@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { LoaderCircle, SquareTerminal } from '../../../shared/ui/icons';
-import { VButton } from '../../../shared/ui/kit';
+import { VButton, vTooltip } from '../../../shared/ui/kit';
 import { useBerth } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { itemId } from '../../../entities/merge-request';
 import { useOpenInSession, type MrItem } from '../model/openInSession';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 const props = withDefaults(defineProps<{ item: MrItem; refs?: readonly string[]; variant?: 'button' | 'icon' }>(), { refs: () => [], variant: 'button' });
 
 const berth = useBerth();
@@ -17,34 +16,23 @@ const busy = computed(() => runs.value.get(itemId(props.item))?.busy ?? false);
 
 <template>
   <template v-if="berth">
-    <VButton v-if="variant === 'button'" size="small" severity="secondary" :label="t('forge.openSession.action')" :title="t('forge.openSession.title')" :loading="busy" data-testid="cr-open-session" @click="open(item, refs)">
+    <VButton v-if="variant === 'button'" size="small" severity="secondary" v-tooltip="t('forge.openSession.title')" :label="t('forge.openSession.action')" :loading="busy" data-testid="cr-open-session" @click="open(item, refs)">
       <template #icon><SquareTerminal :size="14" /></template>
     </VButton>
-    <UiButton v-else class="icon" type="button" :title="t('forge.openSession.title')" :aria-label="t('forge.openSession.action')" :disabled="busy" data-testid="mr-open-session" @click.stop="open(item, refs)">
-      <LoaderCircle v-if="busy" :size="14" class="spin" />
-      <SquareTerminal v-else :size="14" />
-    </UiButton>
+    <VButton v-else v-tooltip="t('forge.openSession.title')" class="icon" text severity="secondary" size="small" :aria-label="t('forge.openSession.action')" :disabled="busy" data-testid="mr-open-session" @click.stop="open(item, refs)">
+      <template #icon>
+        <LoaderCircle v-if="busy" :size="14" class="spin" />
+        <SquareTerminal v-else :size="14" />
+      </template>
+    </VButton>
   </template>
 </template>
 
 <style scoped>
 .icon {
-  display: inline-flex;
   flex: none;
-  align-items: center;
-  justify-content: center;
   width: 22px;
   height: 22px;
-  padding: 0;
-  color: var(--vr-color-text-muted);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-}
-
-.icon:hover {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
 }
 
 .spin {
