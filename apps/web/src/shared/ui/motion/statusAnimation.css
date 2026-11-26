@@ -46,13 +46,13 @@
     position: relative;
   }
 
-  :root[data-status-animation='row'] .status-host > .status-dot[data-status='running'] ~ .name {
+  :root[data-status-animation='row'] .status-host:has(.status-dot[data-status='running']) .name {
     mask-image: linear-gradient(90deg, var(--vr-color-text) 35%, transparent 50%, var(--vr-color-text) 65%);
     mask-size: 250% 100%;
     animation: status-shimmer 2s linear infinite;
   }
 
-  :root[data-status-animation='row'] .status-host:has(> .status-dot[data-unseen='true'])::before {
+  :root[data-status-animation='row'] .status-host:has(.status-dot[data-unseen='true'])::before {
     content: '';
     position: absolute;
     top: 4px;
@@ -64,11 +64,11 @@
     animation: status-blink 1.6s steps(1) infinite;
   }
 
-  :root[data-status-animation='row'] .status-host:has(> .status-dot[data-status='needs_feedback']) {
+  :root[data-status-animation='row'] .status-host:has(.status-dot[data-status='needs_feedback']) {
     isolation: isolate;
   }
 
-  :root[data-status-animation='row'] .status-host:has(> .status-dot[data-status='needs_feedback'])::after {
+  :root[data-status-animation='row'] .status-host:has(.status-dot[data-status='needs_feedback'])::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -80,7 +80,7 @@
     animation: status-alarm 1s ease-in-out infinite;
   }
 
-  :root[data-status-animation='row'] .status-host:has(> .status-dot[data-status='needs_feedback']) > .name {
+  :root[data-status-animation='row'] .status-host:has(.status-dot[data-status='needs_feedback']) .name {
     font-weight: 600;
     color: var(--vr-status-feedback);
   }

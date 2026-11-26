@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { computed, useTemplateRef } from 'vue';
-import { VContextMenu, VMessage, vTooltip } from '../../../shared/ui/kit';
+import { VContextMenu, VMessage, VRowButton, vTooltip } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
 import { archiveExternal, externalOrigin, resumeCommand, type ExternalSession, StatusDot, useAction } from '../../../entities/session';
-
-import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ session: ExternalSession; active: boolean; when?: string }>();
 const emit = defineEmits<{ open: [split: boolean] }>();
 
@@ -27,7 +25,7 @@ const menuItems = computed(() => [
 
 <template>
   <div class="external">
-    <UiButton
+    <VRowButton
       v-tooltip="tooltip"
       class="row status-host"
       data-testid="external-session-row"
@@ -35,14 +33,14 @@ const menuItems = computed(() => [
       :data-harness="session.harness"
       :data-status="session.status"
       :data-running="session.running"
-      :data-active="active"
+      :data-current="active || undefined"
       @click="emit('open', primaryPressed($event))"
       @contextmenu.prevent="menu?.show($event)"
     >
-      <StatusDot :status="session.status" :unseen="false" />
+      <template #leading><StatusDot :status="session.status" :unseen="false" /></template>
       <span class="name">{{ session.title }}</span>
-      <span class="label">{{ session.running ? t(`agents.status.${session.status}`) : (when ?? formatRelative(session.updated_at)) }}</span>
-    </UiButton>
+      <template #trailing><span class="label">{{ session.running ? t(`agents.status.${session.status}`) : (when ?? formatRelative(session.updated_at)) }}</span></template>
+    </VRowButton>
     <VContextMenu ref="menu" :model="menuItems">
       <template #item="{ item, props: itemProps }">
         <a v-bind="itemProps.action" :data-testid="`external-menu-${item.key}`">{{ item.label }}</a>
@@ -53,45 +51,16 @@ const menuItems = computed(() => [
 </template>
 
 <style scoped>
-.row {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  width: 100%;
-  height: 28px;
-  padding: 0 4px 0 var(--vr-space-5);
-  font: inherit;
-  font-size: var(--vr-font-size-label);
-  text-align: left;
-  color: inherit;
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
-}
-
-.row:hover {
-  background: var(--vr-color-nav-hover);
-}
-
 .row[data-running='false'] .name {
   color: var(--vr-color-text-muted);
 }
 
-.row[data-active='true'],
-.row[data-active='true'] .name {
+.row[data-current],
+.row[data-current] .name {
   color: var(--vr-color-text);
 }
 
-.name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
 .label {
-  flex: none;
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
 }

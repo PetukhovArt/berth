@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { shallowRef } from 'vue';
 import { Archive, Trash2 } from '../../../shared/ui/icons';
-import { VButton, VMessage, vTooltip } from '../../../shared/ui/kit';
+import { VButton, VMessage, VRowButton, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { archiveAgent, deleteAgent, unarchiveAgent, type SessionNode, StatusIcon, useAction, useSessionDock } from '../../../entities/session';
 import SessionDeleteConfirm from './SessionDeleteConfirm.vue';
-import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ session: SessionNode; where?: string | undefined }>();
 
 const dock = useSessionDock();
@@ -28,10 +27,10 @@ async function confirmDelete() {
 <template>
   <div class="ended" data-testid="ended-row" :data-session-id="session.id" :data-busy="action.busy.value">
     <div class="line">
-      <UiButton v-tooltip="where ? `${session.name} · ${where}` : session.name" class="open" :disabled="action.busy.value" data-testid="ended-open" @click="open">
-        <StatusIcon tone="ended" />
-        <span class="name">{{ session.name }}<span v-if="where" class="where"> · {{ where }}</span></span>
-      </UiButton>
+      <VRowButton v-tooltip="where ? `${session.name} · ${where}` : session.name" class="open" :disabled="action.busy.value" data-testid="ended-open" @click="open">
+        <template #leading><StatusIcon tone="ended" /></template>
+        {{ session.name }}<span v-if="where" class="where"> · {{ where }}</span>
+      </VRowButton>
       <template v-if="!confirming">
         <VButton v-tooltip="t('agents.session.archive')" class="icon vr-reveal" text severity="secondary" size="small" :aria-label="t('agents.session.archive')" :disabled="action.busy.value" data-testid="ended-archive" @click="archive">
           <template #icon><Archive :size="14" /></template>
@@ -57,33 +56,16 @@ async function confirmDelete() {
 }
 
 .open {
-  display: flex;
   flex: 1;
-  gap: 7px;
-  align-items: center;
-  min-width: 0;
-  height: var(--vr-size-row);
-  padding: 0 var(--vr-space-1);
-  font: inherit;
-  text-align: left;
   color: var(--vr-color-text-muted);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
-  cursor: pointer;
 }
 
 .open:hover {
   color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
 }
 
-.name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+:root[data-vr-viewport='phone'] .open {
+  min-height: var(--vr-size-row);
 }
 
 .where {
@@ -109,10 +91,6 @@ async function confirmDelete() {
 
 .icon:disabled {
   opacity: 0.4;
-}
-
-.ended[data-busy='true'] .name {
-  opacity: 0.6;
 }
 
 .row-error {

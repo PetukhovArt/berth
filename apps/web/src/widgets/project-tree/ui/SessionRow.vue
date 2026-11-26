@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
-import { VButton, VContextMenu, VInputText, VMessage, vTooltip } from '../../../shared/ui/kit';
+import { VButton, VContextMenu, VInputText, VMessage, VRowButton, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
 import { canContinueAsAgent, continueTerminalInDock, sessionStateOf, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, setAgentBackend, otherBackend, useBerth, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, isStopped, useAction, useHollow, StatusDot } from '../../../entities/session';
@@ -9,8 +9,6 @@ import { useProviders } from '../../../shared/api/providers';
 import { MoveAgentDialog } from '../../../features/move-agent';
 import { routeRuleLabel } from '../../../features/edit-router';
 import SessionDeleteConfirm from './SessionDeleteConfirm.vue';
-
-import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ session: SessionNode; active: boolean; linked?: ExternalSession }>();
 const emit = defineEmits<{ open: [split: boolean]; 'open-conversation': [] }>();
 
@@ -132,7 +130,7 @@ async function confirmDelete() {
       @keydown.esc.prevent="cancel"
     />
     <template v-else>
-      <UiButton
+      <VRowButton
         v-tooltip="`${session.name} — ${label}`"
         class="row status-host"
         data-testid="session-row"
@@ -141,17 +139,17 @@ async function confirmDelete() {
         :data-unseen="!hollow && unseen"
         :data-alive="alive"
         :data-stopped="!hollow && stopped"
-        :data-active="active"
+        :data-current="active || undefined"
         :data-linked-harness="linked?.harness"
         :data-linked-session-id="linked?.id"
         :data-linked-status="linked?.status"
         @click="emit('open', primaryPressed($event))"
         @contextmenu.prevent="showMenu"
       >
-        <StatusDot :status="status" :unseen="unseen" :alive="alive" />
+        <template #leading><StatusDot :status="status" :unseen="unseen" :alive="alive" /></template>
         <span class="name">{{ session.name }}</span>
-        <span class="label" data-testid="session-row-label">{{ label }}</span>
-      </UiButton>
+        <template #trailing><span class="label" data-testid="session-row-label">{{ label }}</span></template>
+      </VRowButton>
       <VButton v-if="linked" v-tooltip="t('workbench.external.open')" class="more conversation" text severity="secondary" size="small" :aria-label="t('workbench.external.open')" data-testid="session-open-conversation" @click="emit('open-conversation')">
         <template #icon><MessageSquare :size="14" /></template>
       </VButton>
@@ -191,40 +189,11 @@ async function confirmDelete() {
   opacity: 0.6;
 }
 
-.row {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  width: 100%;
-  height: 28px;
-  padding: 0 4px 0 var(--vr-space-5);
-  font: inherit;
-  font-size: var(--vr-font-size-label);
-  text-align: left;
-  color: inherit;
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
-}
-
-.row:hover {
-  background: var(--vr-color-nav-hover);
-}
-
-.row[data-active='true'] {
+.row[data-current] {
   color: var(--vr-color-text);
 }
 
-.name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
 .label {
-  flex: none;
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
 }
@@ -234,7 +203,7 @@ async function confirmDelete() {
   visibility: hidden;
 }
 
-.row[data-stopped='true']:not([data-active='true']) .name {
+.row[data-stopped='true']:not([data-current]) .name {
   color: var(--vr-color-text-subtle);
 }
 
@@ -301,7 +270,6 @@ async function confirmDelete() {
   grid-template-columns: auto minmax(0, 1fr);
   gap: 0 var(--vr-space-3);
   align-items: center;
-  height: auto;
   min-height: 56px;
   line-height: 1.3;
   padding: var(--vr-space-2) var(--vr-space-3);
@@ -310,26 +278,26 @@ async function confirmDelete() {
   border-radius: var(--vr-radius-lg);
 }
 
-:root[data-vr-viewport='phone'] .row > :first-child {
+:root[data-vr-viewport='phone'] .row > :deep(.leading) {
   grid-row: 1 / span 2;
   align-self: center;
 }
 
-:root[data-vr-viewport='phone'] .row .name {
+:root[data-vr-viewport='phone'] .row > :deep(.main),
+:root[data-vr-viewport='phone'] .row > :deep(.trailing) {
   grid-column: 2;
-  font-size: var(--vr-font-size-title);
-  font-weight: 500;
 }
 
-:root[data-vr-viewport='phone'] .row .label {
-  grid-column: 2;
+:root[data-vr-viewport='phone'] .row .name {
+  font-size: var(--vr-font-size-title);
+  font-weight: 500;
 }
 
 :root[data-vr-viewport='phone'] .row[data-stopped='true'] {
   opacity: 0.72;
 }
 
-:root[data-vr-viewport='phone'] .row[data-active='true'] {
+:root[data-vr-viewport='phone'] .row[data-current] {
   background: var(--vr-color-nav-active);
 }
 
