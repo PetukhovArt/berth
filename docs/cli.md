@@ -97,9 +97,6 @@ when its process died mid-run, else `null`.
 `{"ok": true, "session": {"id", "name"}, "submitted": true, "bytes": N}`. It refuses a session
 that is not running, and it does not wait for the agent's answer.
 
-An [OpenClaw](https://github.com/openclaw/openclaw) skill built on these is in
-`integrations/openclaw/berth/SKILL.md`; copy the `berth` folder into `~/.openclaw/workspace/skills/`.
-
 ## Team channels
 
 With `hub_url` and `hub_token` set (see [configuration](configuration.md)), `berth channel` talks to the team hub and prints JSON:
