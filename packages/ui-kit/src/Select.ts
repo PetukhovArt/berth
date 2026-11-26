@@ -28,12 +28,25 @@ const Wrapped = defineComponent({
       });
     };
 
+    const optionAttr = (camel: string) => attrs[camel] ?? attrs[camel.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)];
+
+    const selectedLabel = (value: unknown): string | undefined => {
+      const groupChildren = optionAttr('optionGroupChildren') as string | undefined;
+      const flat = (props.options ?? []).flatMap((option) => (groupChildren && option && typeof option === 'object' ? (((option as Record<string, unknown>)[groupChildren] as unknown[] | undefined) ?? []) : [option]));
+      const valueKey = optionAttr('optionValue') as string | undefined;
+      const found = flat.find((option) => (valueKey && option && typeof option === 'object' ? (option as Record<string, unknown>)[valueKey] : option) === value);
+      return found === undefined ? undefined : labelOf(found, optionAttr('optionLabel') as LabelSource);
+    };
+
     return () => {
       const filter = !props.editable && (props.filter ?? (props.options?.length ?? 0) >= FILTER_FROM_OPTIONS);
       const extra: Record<string, (slot: any) => unknown> = {};
       if (filter) {
         if (!slots.option) {
-          extra.option = (slot: { option: unknown }) => highlight(labelOf(slot.option, (attrs.optionLabel ?? attrs['option-label']) as LabelSource), query.value);
+          extra.option = (slot: { option: unknown }) => highlight(labelOf(slot.option, optionAttr('optionLabel') as LabelSource), query.value);
+        }
+        if (!slots.value) {
+          extra.value = (slot: { value: unknown; placeholder?: string }) => selectedLabel(slot.value) ?? slot.placeholder ?? ' ';
         }
         if (!slots.footer) {
           extra.footer = (slot: { options: unknown[] }) =>
