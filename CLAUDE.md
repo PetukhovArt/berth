@@ -29,8 +29,13 @@ for reading the file.
   `humanizer` skill applies these rules when it is installed; the rules hold either way.
 - `README.md` is the pitch: why, install, quickstart, key features. Detail lives in `docs/`
   (`getting-started.md`, `cli.md`, `configuration.md`, `windows.md`, `development.md`,
-  `releasing.md`, `remote-access-tailscale.md`). Put new user-facing writing in the right one instead
-  of growing the README.
+  `releasing.md`, `remote-access-tailscale.md`, `team-hub.md`, `macos.md`). Put new user-facing writing
+  in the right one instead of growing the README.
+- `VISION.md` is the direction: category, users, layers in Now / Next / Later, non-goals, and the
+  platform terms the code does not have yet. Hard-to-reverse decisions are ADRs in `docs/adr/`.
+  A term moves from `VISION.md` to `GLOSSARY.md` when its code lands.
+- `scripts/docs-drift.mjs` runs in CI: a new `berth` command or settings key needs its line in
+  `docs/cli.md` or `docs/configuration.md` in the same commit.
 
 ## Dev workflow
 **Never run freshly built code against your real daemon.** A dev instance needs its own runtime dir

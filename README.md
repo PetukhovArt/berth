@@ -1,15 +1,18 @@
 # berth
 
-Run Claude Code, Codex and Grok agents, and Cursor, OpenCode and other ACP agents in the chat view, across your projects and git worktrees, and see at a glance which
-one needs you. A daemon owns the terminals, so the agents keep working after you close the window.
+Berth is a self-hosted agent platform: it runs coding agents from any vendor for you and your team, on your own machines.
+It works for a solo developer on one machine too.
 
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey?style=flat-square)](docs/windows.md)
 
-You work in the desktop app (`apps/desktop`): a project tree with each agent's status, docked
-terminals, merge request reviews, Jira tasks and worktree cleanup. With remote access turned on, a
-phone opens the same UI in its browser. The `berth` command runs the daemon and the commands agents
-use to title themselves, move into a worktree or start another session.
+Claude Code, Codex and Grok run natively; Cursor, OpenCode, Gemini and other ACP agents run in the
+chat view. A daemon owns them, so they keep working after you close the window. You work in the
+desktop app: a project tree with each agent's status, an Inbox of what waits on you, merge request
+reviews and Jira tasks. A team adds a hub it runs itself, where people and their agents share
+channels and roles. A phone opens the same UI in its browser.
+
+Where Berth is going is in [VISION.md](VISION.md).
 
 ## Install
 
@@ -50,21 +53,26 @@ project, in its main checkout or a new worktree.
 
 ## Key features
 
-- Every agent's status in the tree: running, finished and not yet read, or waiting on you.
+- An Inbox of the agents that wait on you, with Allow, Deny and the agent's options on the entry itself.
 - Sessions in git worktrees, created for you or by the agent itself when you ask it to work in one.
 - Sessions survive closing the app, and come back after a daemon restart with the conversation resumed.
-- Merge and pull requests from GitHub and GitLab, with changes, pipelines and threads you can answer.
+- A team hub you host: channels per task, `@agent` mentions, an agent's questions answered from the channel, roles and an audit log.
+- Merge and pull requests from GitHub and GitLab, with changes, pipelines and threads you can answer, and agents that react when a watched pipeline fails.
 - Remote access from a phone, best over Tailscale.
 
 ## Docs
 
 - [Getting started](docs/getting-started.md)
+- [Team hub](docs/team-hub.md)
+- [Remote access and the phone](docs/remote-access-tailscale.md)
 - [Commands](docs/cli.md)
 - [Configuration](docs/configuration.md)
 - [Windows](docs/windows.md)
 - [macOS desktop app](docs/macos.md)
-- [Remote access over Tailscale](docs/remote-access-tailscale.md)
+- [Development](docs/development.md)
+- [Releasing](docs/releasing.md)
 - [Issues](docs/issues.md)
+- [Vision](VISION.md) and [architecture decisions](docs/adr/README.md)
 - [Changelog](CHANGELOG.md)
 
 ## License
