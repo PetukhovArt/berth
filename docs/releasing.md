@@ -96,7 +96,6 @@ Upgrading while a daemon is running is safe: sessions keep running on the old bi
 `--force`. It installs the version `latest.json` names, so the CLI and the desktop app stay on one
 version.
 
-The desktop app installed from a release finds the new version within 10 minutes while
-`app.autoUpdate` is on, downloads it in the background and shows `Restart to update` in the title bar.
-Its daemon keeps running across the restart; only a release that changes the daemon protocol makes the
-app restart the daemon onto the bundled `berth`.
+The desktop app installed from a release updates itself as [getting started](getting-started.md#updates)
+describes. Its daemon keeps running across the restart; only a release that changes the daemon protocol
+makes the app restart the daemon onto the bundled `berth`.

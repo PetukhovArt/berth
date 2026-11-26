@@ -120,10 +120,19 @@ other app, and updated only when you ask.
 powershell -ExecutionPolicy Bypass -File scripts\install-app.ps1 -Launch
 ```
 
+The script reads `main` from the checkout it sits in, never the files in the working tree, and builds it
+in `%LOCALAPPDATA%\Berth\build` (`src` for the exported tree, `target` for an incremental cargo cache,
+`logs` for one log per build). The result goes to `app\<build-id>`, `app\current` points at it, `app\previous`
+at the build before, and the Start Menu gets a `Berth` shortcut to `app\current\berth-desktop.exe`. The
+working copy uses `~\.berth`, the OS keychain and your real daemon.
+
+### Speech engine
+
 The app builds without anything beyond what the `berth` command needs. The local speech engine (the
-`voice` cargo feature, off by default in a working copy; the release installers have it) is optional: without it, voice input uses the speech recognition
-of the app's webview. The engine compiles whisper.cpp and generates its bindings with bindgen, so it
-needs two more tools:
+`voice` cargo feature, off by default in a working copy; the release installers have it) is optional:
+without it, voice input uses the speech recognition of the app's webview ([Voice](configuration.md#voice)
+describes what the engine does). The engine compiles whisper.cpp and generates its bindings with
+bindgen, so on Windows it needs two more tools:
 
 - CMake on `PATH` (`winget install Kitware.CMake`). The copy inside Visual Studio works too when it is on
   `PATH`, but a CMake older than 3.21 does not know the Visual Studio 2022 generator: with such a CMake
@@ -154,28 +163,27 @@ both into the working copy. The wake word needs them there, while dictation and 
 start without them. `berth-desktop.exe` then also needs `MSVCP140.dll` from the Visual C++ runtime, which
 Visual Studio Build Tools installs.
 
-The script reads `main` from the checkout it sits in, never the files in the working tree, and builds it
-in `%LOCALAPPDATA%\Berth\build` (`src` for the exported tree, `target` for an incremental cargo cache,
-`logs` for one log per build). The result goes to `app\<build-id>`, `app\current` points at it, `app\previous`
-at the build before, and the Start Menu gets a `Berth` shortcut to `app\current\berth-desktop.exe`. The
-working copy uses `~\.berth`, the OS keychain and your real daemon. When no daemon is running, the app
-starts `berth daemon` in the background.
+### Update and rollback
 
-Inside the app, `Update Berth…` (tray menu and command palette) does the same thing in the background: it
-shows the commit it builds, the current step and the last log lines, and `Cancel build` stops it. A failed
-build changes nothing and shows its log path. A finished one offers `Restart now` or `Later`; sessions live
-in the daemon, so a restart keeps them. `Roll back to previous build` swaps `current` and `previous`.
+This is how a working copy updates, on Windows and on macOS. Inside the app, `Update Berth…` (the tray
+or menu bar icon, the command palette, and the `Berth` menu on macOS) rebuilds `main` in the background
+the way the install script does: it shows the
+commit it builds, the current step and the last log lines, and `Cancel` stops it. A failed build changes
+nothing and shows its log path. A finished one offers `Restart now` or `Later`; sessions live in the
+daemon, so a restart keeps them. `Roll back to previous build` swaps `current` and `previous`.
 `app.sourceRepo` in settings points the update at another checkout.
 
 The update never touches the daemon. When the daemon runs another build than the installed one, the
-dialog says so and offers `Update daemon`: it installs that build's `berth.exe` into `~\.cargo\bin` the
-way `scripts\update.ps1` does and restarts the daemon, which ends every live terminal. The daemon's build
-is recorded in `daemon\build.json` under the install root, so a daemon started any other way (from
-`scripts\update.ps1` or by a `berth` call) counts as not from this build. When the protocols differ, the
-app cannot talk to the daemon until it is updated. `install-app.ps1 -UpdateDaemon` and `-Rollback` do the
-same from a terminal.
+dialog says so and offers `Update daemon`: it installs that build's `berth` into `~/.cargo/bin`
+(`berth.exe` into `~\.cargo\bin` on Windows, the way `scripts\update.ps1` does) and restarts the daemon,
+which ends every live terminal. The daemon's build is recorded in `daemon/build.json` under the install
+root, so a daemon started any other way (from `scripts\update.ps1` or by a `berth` call) counts as not
+from this build. When the protocols differ, the app cannot talk to the daemon until it is updated.
+`-UpdateDaemon` and `-Rollback` of the install script do the same from a terminal.
 
-Every location can be moved for a test: `BERTH_APP_ROOT` (install root), `BERTH_START_MENU` (shortcut
+### Test locations
+
+Every location of the Windows working copy can be moved for a test: `BERTH_APP_ROOT` (install root), `BERTH_START_MENU` (shortcut
 folder), `BERTH_BIN_DIR` (where `-UpdateDaemon` puts `berth.exe`), `BERTH_HOME`,
 `BERTH_RUNTIME_DIR`, `BERTH_DATA_DIR`, and `WEBVIEW2_USER_DATA_FOLDER` for the webview profile.
 

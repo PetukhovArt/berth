@@ -10,10 +10,9 @@ release build of the committed `main` under `~/Library/Application Support/Berth
 other app and updated only when you ask.
 
 You need Xcode Command Line Tools (`xcode-select --install`), Node 22, pnpm and a Rust toolchain. With
-CMake (`brew install cmake`) as well, the script builds the local speech engine in: whisper.cpp, and the
-sherpa-onnx libraries it downloads from their GitHub releases. Without CMake it builds the app without
-the engine, voice input uses the webview's speech recognition, and the script prints one line saying so.
-From the checkout:
+CMake (`brew install cmake`) as well, the script builds the local speech engine in
+([Voice](configuration.md#voice)); the Command Line Tools carry the libclang it needs. Without CMake it
+builds the app without the engine and prints one line saying so. From the checkout:
 
 ```sh
 bash scripts/install-app.sh -Launch
@@ -25,9 +24,8 @@ cargo cache, `logs` for one log per build). It builds the web UI and `Berth.app`
 puts it with the matching `berth` binary in `app/<build-id>`. `app/current` points at it, `app/previous` at
 the build before, and `~/Applications/Berth.app` is a link to `app/current/Berth.app`, so opening it from
 Finder starts the current build. The working copy uses `~/.berth`, the macOS keychain and your real daemon.
-
-The app needs `berth` on your `PATH`: when no daemon is running, it starts `berth daemon` from there in
-the background.
+It has no bundled `berth`, so it starts the daemon from the `berth` on your `PATH`
+([details](getting-started.md#install-the-desktop-app)).
 
 ## Window
 
@@ -38,18 +36,9 @@ on the Dock icon brings it back.
 
 ## Update and rollback
 
-`Update Berth…` (menu bar icon, the `Berth` menu and the command palette) rebuilds in the background: it
-shows the commit it builds, the current step and the last log lines, and `Cancel build` stops it. A
-failed build changes nothing and shows its log path. A finished one offers `Restart now` or `Later`;
-sessions live in the daemon, so a restart keeps them. `Roll back to previous build` swaps `current` and
-`previous`. `app.sourceRepo` in settings points the update at another checkout.
-
-The update never touches the daemon. When the daemon runs another build than the installed one, the
-dialog offers `Update daemon`: it puts that build's `berth` into `~/.cargo/bin`, stops the daemon and
-starts the new one, which ends every live terminal. The daemon's build is recorded in `daemon/build.json`
-under the install root.
-
-The same from a terminal:
+`Update Berth…` and `Roll back to previous build` work the same way as on Windows, see
+[update and rollback](windows.md#update-and-rollback). `Update daemon` puts the build's `berth` into
+`~/.cargo/bin`. The same from a terminal:
 
 ```sh
 bash ~/Library/Application\ Support/Berth/app/current/install-app.sh -Rollback -Launch

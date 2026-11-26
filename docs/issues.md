@@ -40,9 +40,9 @@ An issue moves through four states: filed, triaged, fixed on `main`, released. L
 
 - An idea not yet built is an issue labelled `backlog` with its `area:` label: what is built, what is missing with `file:line`, where the idea comes from, and acceptance criteria. There is no backlog file in the repository.
 - `factory` marks an open issue that can be taken into work now: it is checked against the vision, nothing blocks it, and no settled direction will redo it. An issue that waits on another or on a platform layer carries a comment saying what it waits on, not `factory`.
-- The next version has a milestone named after it (`0.21.0`). An issue planned for it, or fixed on `main` since the last release, goes into that milestone; the milestone is the release's status.
+- The next version has a milestone named after it (`<version>`). An issue planned for it, or fixed on `main` since the last release, goes into that milestone; the milestone is the release's status.
 
 ## Release
 
-- The push to `main` closes every issue named by `Fixes #<n>`. Nothing is released until a `version` bump lands; the `Weekly release` workflow makes it on Monday when `## Unreleased` has entries, as `docs/releasing.md` describes.
+- The push to `main` closes every issue named by `Fixes #<n>`. Nothing is released until a `version` bump lands, as [releasing.md](releasing.md) describes.
 - When the `Release` workflow publishes a version, it comments `Released in berth <version>` on every closed `fixed-on-main` issue and removes the label.

@@ -7,6 +7,7 @@
 - { name: needs-info, color: "fef2c0", description: "Waits on the reporter" }
 - { name: confirmed, color: "0e8a16", description: "Reproduced or accepted; ready to work" }
 - { name: factory, color: "1d76db", description: "Checked against the vision; can be taken into work now" }
+- { name: parked, color: "7a4fbf", description: "Code present; needs hardware, an external service or a human to verify" }
 - { name: fixed-on-main, color: "c2e0c6", description: "Fixed in a commit on main, not released yet" }
 - { name: duplicate, color: "cfd3d7", description: "Already reported" }
 - { name: wontfix, color: "ffffff", description: "Out of scope" }

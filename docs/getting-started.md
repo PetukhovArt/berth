@@ -1,5 +1,9 @@
 # Getting started
 
+This walk-through takes you from the installer to an agent working in a worktree of its own, with its
+questions waiting for you in the Inbox. Every command is in the [command reference](cli.md) and every
+setting in [configuration](configuration.md).
+
 berth has two parts: the `berth` command, which runs the daemon that owns every agent's terminal, and
 the desktop app you work in. The desktop installer brings both.
 
@@ -28,8 +32,10 @@ not of your own shell; link it there if you want it in a terminal:
 ln -s /Applications/Berth.app/Contents/MacOS/berth ~/.local/bin/berth
 ```
 
-The app starts the daemon from its own `berth` when none is running, and puts that `berth` first on the
-`PATH` of every session, so agents call the same version.
+When no daemon is running, the app starts one in the background. An app installed from a release
+starts its own bundled `berth` and puts it first on the `PATH` of every session, so agents call the
+same version. An app built from source or installed as a working copy has no bundled `berth` and
+starts the one on your `PATH`.
 
 ### Updates
 
@@ -83,10 +89,15 @@ To run your own `main` every day, install a working copy that rebuilds itself fr
 `scripts\install-app.ps1` on Windows ([details](windows.md#desktop-working-copy)) and
 `scripts/install-app.sh` on macOS ([details](macos.md)). A working copy does not read releases.
 
-An app built from source talks to the daemon through `berth` on your `PATH`: it starts `berth daemon`
-from there when none is running.
+## 1. Check the Welcome page
 
-## 1. Add a project
+The first start opens the Welcome page. It looks at this machine and lists what it found: projects from
+your Claude Code and Codex history, the agent CLIs that are installed and signed in, the GitHub and
+GitLab hosts you are signed in to, Jira and Confluence, and remote access for a phone. Tick what you
+want and press `Start`. If you skip it, the empty Projects tree has `Open the Welcome page` to bring it
+back.
+
+## 2. Add a project
 
 berth is project-first, and a project is just a git checkout. Use `Add Project` in the app, or the
 command line:
@@ -98,11 +109,19 @@ berth add ~/code/my-app       # or, from inside the repo: berth add .
 Projects sit in workspaces, named groups of projects shown in the tree. Every install has a
 `default` workspace.
 
-## 2. Start a session
+## 3. Start a session in a worktree
 
 `Ctrl+Shift+N` (`Cmd+Shift+N` on macOS) opens `New Session`. Pick the project, then where to run: the
-main checkout, an existing worktree, or `New worktree…` with a new branch. Pick the type (Claude and Grok open in the chat view, `Claude (terminal)` and
-`Grok (terminal)` in a terminal, then Codex, an ACP agent turned on in Settings → Providers, or a plain terminal), and for an agent the model, the effort and an optional first prompt.
+main checkout, an existing worktree, or `New worktree…` with a new branch. Pick the type, and for an
+agent the model, the effort and an optional first prompt:
+
+- Claude and Grok open in the Chat view. `Claude (terminal)` and `Grok (terminal)` open in a terminal.
+- Codex opens in a terminal.
+- An ACP agent such as Cursor, OpenCode, Gemini or Kiro runs in the Chat view once you turn it on in
+  Settings → Providers. It has no terminal.
+- A plain terminal runs a shell in the worktree.
+
+`Ctrl+Space` then `C` or `T` switches a session between its Chat view and its terminal.
 
 A new worktree is a real `git worktree`, created under `<repo>/../<repo-name>-worktrees/<branch>`.
 That is the point of it: two agents in two worktrees edit two directories and never collide.
@@ -117,55 +136,82 @@ shared config) are recreated pointing where they pointed. Ignored directories ar
 `target` and the like are yours to build, and a link into one is followed only if you linked it
 yourself. A file the branch tracks is never overwritten by the main checkout's ignored copy.
 
-## 3. Leave, and it keeps running
+## 4. Answer from the Inbox
+
+Give the agent a task that needs a permission, then switch to something else. The Inbox at the top of
+the sidebar lists every session that needs you:
+
+- waiting for you: a permission prompt or a question, with `Allow` and `Deny` (and `Always` when the
+  agent offers it) on the entry itself;
+- finished and not seen yet;
+- crashed, with `Resume` to start the agent again and continue its conversation;
+- stopped at a usage limit, with the time it resets when the agent reports one.
+
+`Alt+J` opens the next session that needs you. An entry's menu snoozes it for an hour or until
+tomorrow, or settles it: a settled entry stays hidden until the session changes state again. The Inbox
+also lists the team channels with unread messages when you use a [team hub](team-hub.md).
+
+Outside the Inbox, each agent's row in the tree shows its status (the statuses are defined in the
+[glossary](../GLOSSARY.md#statuses)), and worktree and project rows roll up their children, so a
+project shows when something under it needs you. `ui.statusAnimation` picks how the tree and the tabs
+animate a status.
+
+Status comes from agent CLI hooks, not MCP: berth merges managed hooks into each agent's config and they
+report to the daemon's loopback endpoint. Codex hooks live in `~/.codex/hooks.json`; approve them once
+at codex's "Hooks need review" prompt.
+
+## 5. Leave, and it keeps running
 
 The daemon owns every terminal, so closing the app stops nothing. Open it again and each session is
 where you left it, scrollback replayed. When the daemon itself restarts, it starts the sessions that
 were running again (`restore_sessions` in [configuration](configuration.md)) and agents resume their
 conversation.
 
-Idle terminals nobody is looking at are released after `session_idle_timeout` (5m by default) and
-reconnect when you open the tab again.
+Idle terminals nobody is looking at are released after `session_idle_timeout` and reconnect when you
+open the tab again.
 
-## 4. Read the status instead of the screens
-
-Once you run more than one agent you stop reading terminals and start reading the tree. Each agent has
-a status:
-
-| Status | Meaning |
-|---|---|
-| Fresh | the agent has not run a turn yet |
-| Running | a turn is in progress (a turn with live subagents still counts as running) |
-| Finished | the turn is complete; until you look at it, it is also marked unseen |
-| Needs Feedback | a permission prompt or a question is waiting on you |
-| Terminated | the process died mid-run |
-| Disconnected | the daemon restarted while the agent was live |
-
-Worktree and project rows roll up their children, so a project shows when something under it needs
-you. `ui.statusAnimation` picks how the tree and the tabs animate a status.
-
-Status comes from agent CLI hooks, not MCP: berth merges managed hooks into each agent's config and they
-report to the daemon's loopback endpoint. Codex hooks live in `~/.codex/hooks.json`; approve them once
-at codex's "Hooks need review" prompt.
-
-## 5. Let them name themselves
+## 6. Let them name themselves
 
 Leave a new session on its default name and the agent retitles it after your first prompt. A name you
 type yourself is never touched. `/rename` inside Claude Code or Codex renames the row too.
+
+## 7. Go back with a checkpoint
+
+berth saves the files of an agent's worktree at each prompt, on hidden git refs that never touch the
+branch. The `Checkpoints` button of a session lists them by prompt, and `Restore files` puts the
+worktree back as it was at that prompt after asking; what is there now is saved as a new checkpoint
+first. Every agent takes checkpoints except Claude in a terminal, which does not by default
+because Claude Code has its own `/rewind`; `daemon.checkpointsClaude` turns them on for it.
+
+## Find things
+
+`Ctrl+P` opens Quick Open: it searches sessions, merge requests, tasks, Markdown files of the current
+worktree, actions, channel messages and the text of conversations, and `Ctrl+Enter` on its
+`All results` row opens the Search view on the same query. `Ctrl+Shift+F` opens the Search view
+directly: it also finds archived sessions and the full text of Claude, Codex and Grok conversations,
+and opening a match scrolls the Chat view to that message. `Ctrl+K` focuses the filter above the
+sidebar, which filters the Inbox and the tree.
 
 ## Moving around
 
 | Key | Action |
 |---|---|
-| `Ctrl+P` | quick open: jump to a row of the tree or a Markdown file of the current worktree |
+| `Ctrl+P` | Quick Open, outside a terminal; `Ctrl+Alt+P` works everywhere |
+| `Ctrl+Shift+F` | Search view |
 | `Ctrl+Shift+P` or `F1` | command palette |
+| `Alt+J` | next session that needs you |
 | `Alt+1` to `Alt+9` | open the Nth live session |
 | `Ctrl+Tab` | switch between recent live sessions |
-| `Ctrl+Space` then `T`, `M` or `D` | switch a session tab between its terminal, merge request and diff |
+| `Ctrl+Space` then `C`, `T`, `M` or `D` | switch a session between its Chat view, terminal, merge request and diff |
+| `Ctrl+K` | focus the sidebar filter |
 | `Ctrl+B` | show or hide the sidebar |
 | `Ctrl+,` | settings |
 
-On macOS `Cmd` takes the place of `Ctrl`. Every key is listed and can be changed in Settings > Keys.
+`Alt+1` to `Alt+9` and `Ctrl+Tab` work while `workbench.hot` is not `off`.
+
+On macOS `Cmd` takes the place of `Ctrl` in the bindings Settings > Keys writes as `mod`, such as
+`Cmd+P` and `Cmd+Shift+N`. `Ctrl+Tab`, the `Ctrl+Space` chord and `Alt+1` to `Alt+9` (`Option` on a Mac
+keyboard) keep their keys. Every key is listed and can be changed in Settings > Keys.
 
 ## Merge requests, Jira and Confluence
 
@@ -185,6 +231,11 @@ still exists.
 
 `Clean up worktrees` lists worktrees whose request was merged or closed, whose branch is gone on the
 remote or that went stale, and removes the ones you tick.
+
+## With a team
+
+A team hub lets people and their agents share channels, mention each other's agents and answer an
+agent's request from the channel. See [team hub](team-hub.md).
 
 ## On a phone
 

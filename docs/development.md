@@ -23,21 +23,18 @@ checkout's instance.
 |---|---|
 | `berth-core` | shared protocol, entities, paths, transport |
 | `berth-daemon` | PTYs, SQLite, hook receiver, status engine |
+| `berth-hub` | the team hub: members, roles, channels, events |
+| `berth-transcripts` | reading Claude, Codex and Grok transcripts, and the conversation search index |
 | `berth` | the binary: the daemon and its subcommands |
 
 The desktop app is `apps/desktop` (the Tauri shell) and `apps/web` (its Vue UI), with shared UI in
-`packages/`.
+`packages/`. `apps/model-router` is a small Node proxy that speaks the Anthropic API and forwards each
+request along a chain of providers.
 
-On macOS and Windows the desktop app can build a local speech engine in, the `voice` cargo feature. It is
-off by default, so `cargo build -p berth-desktop` and `make dev` need no extra tools, and without it
-voice input uses the webview's speech recognition. The engine compiles whisper.cpp through CMake, its
-bindings through bindgen and libclang, and downloads the sherpa-onnx libraries from their GitHub
-releases at build time. On macOS that means CMake (`brew install cmake`) next to the Xcode Command Line
-Tools, which carry libclang; Windows needs CMake and LLVM, see
-[windows.md](windows.md#desktop-working-copy). `scripts/install-app.sh` and `install-app.ps1` turn the
-feature on when they find both and print what is missing when they do not; `-CheckVoice` prints only
-that. By hand, pass `--features voice` to cargo or `tauri dev`. The release workflow builds it into the
-Windows and macOS installers. Linux never builds the engine.
+The desktop app's local speech engine is the `voice` cargo feature, off by default, so
+`cargo build -p berth-desktop` and `make dev` need no extra tools. Pass `--features voice` to cargo or
+`tauri dev` to build it in; what it needs is in [windows.md](windows.md#speech-engine) and
+[macos.md](macos.md#desktop-working-copy), and what it does in [configuration](configuration.md#voice).
 
 `vendor/vt100` is a patched copy of the terminal parser, wired in through `[patch.crates-io]`; the
 daemon's ConPTY unicode probe test rebuilds captured output with it. Don't bump or replace it.
@@ -47,10 +44,6 @@ the domain vocabulary. Read both before touching IPC, hooks or the daemon.
 
 ## Releases
 
-Every Monday the `Weekly release` workflow bumps `version` in the root `Cargo.toml` when `CHANGELOG.md`
-has entries under `## Unreleased` and lands it on `main`. CI builds macOS (arm/intel) and Windows
-(x64) binaries, tags the commit and attaches them to a GitHub release, which is what `install.sh`
-downloads. The version bump is the release, so leave `version` alone in every other change.
-[releasing.md](releasing.md) has the details.
-
-The whole runbook is in [releasing.md](releasing.md).
+A `version` bump in the root `Cargo.toml` is the release, so leave `version` alone in every other
+change. The bump, the `berth` archives, the desktop installers for Windows, macOS and Debian, and the
+updater feed are described in [releasing.md](releasing.md).
