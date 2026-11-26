@@ -39,6 +39,7 @@ An issue moves through four states: filed, triaged, fixed on `main`, released. L
 ## Backlog
 
 - An idea not yet built is an issue labelled `backlog` with its `area:` label: what is built, what is missing with `file:line`, where the idea comes from, and acceptance criteria. There is no backlog file in the repository.
+- `factory` marks an open issue that can be taken into work now: it is checked against the vision, nothing blocks it, and no settled direction will redo it. An issue that waits on another or on a platform layer carries a comment saying what it waits on, not `factory`.
 - The next version has a milestone named after it (`0.21.0`). An issue planned for it, or fixed on `main` since the last release, goes into that milestone; the milestone is the release's status.
 
 ## Release
