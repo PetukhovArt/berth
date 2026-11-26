@@ -9,6 +9,7 @@
 - Fixed the running sessions line on the phone inbox being cut off at the screen edge: a long list of names now ends with an ellipsis
 - Fixed unchecked checkboxes being almost invisible in the dark theme and faint in the light one: the box border is now clearly visible
 - Fixed the first-run screen on a phone: the merge requests list is no longer covered by the footer, its heading fits on two lines and long host names no longer overlap their status
+- Fixed wide Markdown tables in chat and previews running off the right edge: cell text now wraps to the available width, and only a table with unbreakable content scrolls sideways
 - Fixed box-drawing diagrams in chat and Markdown code blocks: lines and arrows now line up with the text instead of falling short
 - Fixed Chinese and Japanese names of authors and reviewers breaking between characters on a phone: a name stays on one line and ends with an ellipsis when it does not fit
 - Fixed the Settings category list showing only the first 7 sections: it now uses the full height of the window and scrolls only when the window is too short

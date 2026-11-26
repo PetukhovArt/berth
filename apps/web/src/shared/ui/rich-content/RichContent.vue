@@ -536,8 +536,8 @@ onBeforeUnmount(() => clearTimeout(copyTimer));
 }
 
 .body :deep(table) {
-  width: max-content;
-  max-width: none;
+  width: auto;
+  max-width: 100%;
   border-collapse: collapse;
   font-size: inherit;
 }
