@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import { FolderPlus, LoaderCircle } from '../../../shared/ui/icons';
-import { VButton, VPopover } from '../../../shared/ui/kit';
+import { VButton, VMenu, VMessage, VTag, vTooltip } from '../../../shared/ui/kit';
 import ProjectActions from './ProjectActions.vue';
 import { addProject, useBerth, useAction } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
@@ -15,7 +15,7 @@ type Mode = 'idle' | 'searching' | 'picking' | 'manual';
 const berth = useBerth();
 const mode = shallowRef<Mode>('idle');
 const clones = shallowRef<Clone[]>([]);
-const popover = useTemplateRef<InstanceType<typeof VPopover>>('popover');
+const menu = useTemplateRef<InstanceType<typeof VMenu>>('menu');
 const manual = useTemplateRef<{ openAdd: () => Promise<void> }>('manual');
 const { error, busy, run, clear } = useAction();
 
@@ -28,7 +28,6 @@ async function add(clone: Clone) {
 }
 
 async function start() {
-  popover.value?.hide();
   if (!berth || searching.value) return;
   clear();
   mode.value = 'searching';
@@ -54,30 +53,29 @@ function cancel() {
 }
 
 const folder = (path: string) => path.slice(0, path.lastIndexOf('/'));
+const menuItems = computed(() => [{ label: t('workbench.addToBerth'), testid: 'repo-menu-add', command: () => void start() }]);
 </script>
 
 <template>
   <div v-if="berth" class="repo-actions">
-    <UiButton class="icon" type="button" :title="t('workbench.addToBerth')" :aria-label="t('workbench.addToBerth')" :disabled="searching" data-testid="repo-add" @click="start">
-      <LoaderCircle v-if="searching" :size="14" class="spin" />
-      <FolderPlus v-else :size="14" />
-    </UiButton>
-    <VButton label="⋯" size="small" text severity="secondary" :aria-label="t('workbench.repoActions')" aria-haspopup="menu" data-testid="repo-menu" @click="popover?.toggle($event)" />
-    <VPopover ref="popover">
-      <div class="menu" role="menu">
-        <UiButton class="item" type="button" role="menuitem" data-testid="repo-menu-add" @click="start">{{ t('workbench.addToBerth') }}</UiButton>
-      </div>
-    </VPopover>
+    <VButton v-tooltip="t('workbench.addToBerth')" size="small" text severity="secondary" :aria-label="t('workbench.addToBerth')" :disabled="searching" data-testid="repo-add" @click="start">
+      <template #icon>
+        <LoaderCircle v-if="searching" :size="14" class="spin" />
+        <FolderPlus v-else :size="14" />
+      </template>
+    </VButton>
+    <VButton label="⋯" size="small" text severity="secondary" :aria-label="t('workbench.repoActions')" aria-haspopup="menu" data-testid="repo-menu" @click="menu?.toggle($event)" />
+    <VMenu ref="menu" :model="menuItems" :label="t('workbench.repoActions')" />
     <div v-if="mode === 'picking'" class="inline" role="group" :aria-label="t('workbench.pickClone')" data-testid="repo-clones">
       <span class="hint">{{ t('workbench.pickClone') }}</span>
-      <UiButton v-for="clone in clones" :key="clone.path" class="pick" type="button" :disabled="busy" :title="clone.path" data-testid="repo-clone" @click="add(clone)">
+      <UiButton v-for="clone in clones" :key="clone.path" v-tooltip="clone.path" class="pick" type="button" :disabled="busy" data-testid="repo-clone" @click="add(clone)">
         <b>{{ clone.name }}</b>
         <span class="muted">{{ folder(clone.path) }}</span>
-        <span v-if="clone.main" class="chip">{{ t('workbench.mainCheckout') }}</span>
+        <VTag v-if="clone.main" :value="t('workbench.mainCheckout')" severity="secondary" rounded />
       </UiButton>
       <VButton :label="t('common.cancel')" size="small" text severity="secondary" @click="cancel" />
     </div>
-    <p v-if="error" class="error" role="alert" data-testid="repo-error">{{ error }}</p>
+    <VMessage v-if="error" class="error" severity="error" size="small" data-testid="repo-error">{{ error }}</VMessage>
     <ProjectActions ref="manual" bare :workspace-id="fallbackWorkspace" :hint="t('workbench.cloneNotFound')" />
   </div>
 </template>
@@ -95,25 +93,6 @@ const folder = (path: string) => path.slice(0, path.lastIndexOf('/'));
   flex: 1 0 100%;
 }
 
-.icon {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  color: var(--vr-color-text-muted);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-}
-
-.icon:hover:not(:disabled) {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
-}
-
 .spin {
   animation: spin 1s linear infinite;
 }
@@ -122,27 +101,6 @@ const folder = (path: string) => path.slice(0, path.lastIndexOf('/'));
   to {
     transform: rotate(360deg);
   }
-}
-
-.menu {
-  display: flex;
-  flex-direction: column;
-  min-width: 160px;
-}
-
-.item {
-  padding: var(--vr-space-2) var(--vr-space-3);
-  font: inherit;
-  text-align: left;
-  color: var(--vr-color-text);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-}
-
-.item:hover,
-.item:focus-visible {
-  background: var(--vr-color-nav-hover);
 }
 
 .inline {
@@ -186,19 +144,8 @@ const folder = (path: string) => path.slice(0, path.lastIndexOf('/'));
   text-overflow: ellipsis;
 }
 
-.chip {
-  flex: none;
-  padding: 0 var(--vr-space-1);
-  font-size: var(--vr-font-size-2xs);
-  color: var(--vr-color-text-muted);
-  background: var(--vr-color-chip-bg);
-  border-radius: var(--vr-radius-full);
-}
-
 .error {
   flex: 1 0 100%;
   margin: 0;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-danger);
 }
 </style>

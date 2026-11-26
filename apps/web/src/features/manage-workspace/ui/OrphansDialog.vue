@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { shallowRef, watch } from 'vue';
-import { VButton, VDialog, VMessage, VSelect } from '../../../shared/ui/kit';
+import { VButton, VDialog, VMessage, VSelect, vTooltip } from '../../../shared/ui/kit';
 import DialogActions from '../../../shared/ui/DialogActions.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { describeError, useBerth, useAction, listOrphans, resumeOrphan, type OrphanedSession, useWorktreeOptions } from '../../../entities/session';
@@ -73,10 +73,10 @@ async function resumeSession(session: string) {
     <ul v-else class="list">
       <li v-for="orphan in orphans" :key="orphan.session_id" class="row" data-testid="orphan-row" :data-session-id="orphan.session_id">
         <div class="info">
-          <span class="name" :title="orphan.name">{{ orphan.name }}</span>
+          <span v-tooltip="orphan.name" class="name">{{ orphan.name }}</span>
           <span class="meta">
             <span class="kind">{{ orphan.kind }}</span>
-            <span class="branch" :title="orphan.branch">{{ orphan.branch }}</span>
+            <span v-tooltip="orphan.branch" class="branch">{{ orphan.branch }}</span>
             <time v-if="startedAt(orphan)">{{ startedAt(orphan) }}</time>
           </span>
         </div>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
-import { VButton, VInputText } from '../../../shared/ui/kit';
+import { VButton, VInputText, VMessage } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { useBerth, worktreesOfProject, useAction, canMove, moved, pinned, unpinned, addProject, removeProject, renameProject, setProjectPins } from '../../../entities/session';
 import { openUrl } from '../../../bridge';
@@ -175,7 +175,7 @@ async function confirmRemove() {
       <VButton :label="t('common.remove')" size="small" severity="danger" :loading="busy" data-testid="confirm-remove" @click="confirmRemove" />
       <VButton :label="t('common.cancel')" size="small" text severity="secondary" @click="cancel" />
     </div>
-    <p v-if="error" class="error" role="alert" data-testid="project-error">{{ error }}</p>
+    <VMessage v-if="error" class="error" severity="error" size="small" data-testid="project-error">{{ error }}</VMessage>
     <OrphansDialog v-if="orphansOpen && projectId" :project="projectId" @resumed="emit('resumed', $event)" @close="orphansOpen = false" />
   </div>
 </template>
@@ -215,7 +215,5 @@ async function confirmRemove() {
 .error {
   flex: 1 0 100%;
   margin: 0;
-  font-size: var(--vr-font-size-xs);
-  color: var(--vr-color-danger);
 }
 </style>
