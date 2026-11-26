@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Eye, Inbox, Settings, SquareTerminal } from '../../../shared/ui/icons';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VRowButton } from '../../../shared/ui/kit';
 import { openPhoneSection, phoneSection, type PhoneSection } from '../model/section';
 
 const { t } = useI18n();
@@ -16,18 +16,19 @@ const ITEMS = [
 
 <template>
   <nav class="nav" :aria-label="t('mobile.navLabel')" data-testid="mobile-nav">
-    <UiButton
+    <VRowButton
       v-for="item in ITEMS"
       :key="item.section"
+      stacked
       class="item"
-      :data-active="phoneSection === item.section"
+      :active="phoneSection === item.section"
       :aria-current="phoneSection === item.section ? 'page' : undefined"
       :data-testid="`mobile-nav-${item.section}`"
       @click="openPhoneSection(item.section)"
     >
-      <component :is="item.icon" :size="20" />
-      <span>{{ t(`mobile.section.${item.section}`) }}</span>
-    </UiButton>
+      <template #leading><component :is="item.icon" :size="20" /></template>
+      {{ t(`mobile.section.${item.section}`) }}
+    </VRowButton>
   </nav>
 </template>
 
@@ -41,18 +42,7 @@ const ITEMS = [
 }
 
 .item {
-  display: flex;
   flex: 1;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: var(--vr-space-1) 0;
-  font: inherit;
-  font-size: var(--vr-font-size-2xs);
-  color: var(--vr-color-text-muted);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
 }
 
 @media (orientation: landscape) {
@@ -70,9 +60,5 @@ const ITEMS = [
     flex: none;
     min-height: var(--vr-size-touch);
   }
-}
-
-.item[data-active='true'] {
-  color: var(--vr-color-text);
 }
 </style>
