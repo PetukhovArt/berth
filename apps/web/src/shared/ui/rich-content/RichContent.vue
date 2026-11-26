@@ -48,7 +48,7 @@ function sync() {
   const isCurrent = () => current === generation;
   const sources = rendered.value.diagrams;
   diagrams.value = [...el.querySelectorAll<HTMLElement>('[data-rc-mermaid]')].map((target, index) => ({
-    key: `${current}-${index}`,
+    key: String(index),
     el: target,
     source: sources[Number(target.dataset.rcMermaid)] ?? '',
   }));
