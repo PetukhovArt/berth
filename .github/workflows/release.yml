@@ -145,6 +145,9 @@ jobs:
         shell: bash
     env:
       VERSION: ${{ needs.gate.outputs.version }}
+      # whisper.cpp tunes itself to the CPU it is built on by default; an installer built on
+      # the runner's CPU would crash with an illegal instruction on an older one.
+      GGML_NATIVE: "OFF"
     steps:
       - uses: actions/checkout@v4
 
@@ -188,18 +191,61 @@ jobs:
 
       - run: pnpm build:tokens
 
+      # The `voice` feature (the local speech engine, Windows and macOS) compiles
+      # whisper.cpp with CMake and its bindings with bindgen, which needs libclang.
+      # The runner images carry both; this step only makes sure of it and tells
+      # bindgen where LLVM is, as `Get-VoiceSetup` in scripts/install-app.ps1 does.
+      - name: Speech engine tools
+        if: runner.os != 'Linux'
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            if [ ! -f "/c/Program Files/LLVM/bin/libclang.dll" ]; then choco install llvm -y --no-progress; fi
+            if ! command -v cmake >/dev/null; then
+              choco install cmake -y --no-progress --installargs 'ADD_CMAKE_TO_PATH=System'
+              echo 'C:\Program Files\CMake\bin' >> "$GITHUB_PATH"
+            fi
+            # bindgen asks clang.exe for its include folders: libclang.dll alone does not find them.
+            echo 'LIBCLANG_PATH=C:\Program Files\LLVM\bin' >> "$GITHUB_ENV"
+            echo 'CLANG_PATH=C:\Program Files\LLVM\bin\clang.exe' >> "$GITHUB_ENV"
+          else
+            # libclang comes with the Xcode Command Line Tools.
+            command -v cmake >/dev/null || brew install cmake
+            xcode-select -p
+          fi
+
+      # The Windows build links sherpa-onnx as DLLs, which the installer has to
+      # carry beside `berth-desktop.exe`: the wake word needs them. The build puts
+      # them next to the executable, but tauri-build wants every resource to exist
+      # before it compiles, so a first cargo build produces them and the release
+      # config below lists them. (macOS links sherpa-onnx statically.)
+      - name: Speech engine libraries
+        if: runner.os == 'Windows'
+        run: |
+          pnpm --filter @berth/web build
+          cargo build --release --locked -p berth-desktop --lib --features updater,voice --target ${{ matrix.target }}
+          for dll in sherpa-onnx-c-api onnxruntime; do
+            cp "target/${{ matrix.target }}/release/$dll.dll" apps/desktop/src-tauri/binaries/
+          done
+
       - name: Build
         working-directory: apps/desktop
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: >-
-          pnpm exec tauri build
-          --target ${{ matrix.target }}
-          --bundles ${{ matrix.bundles }}
-          --features updater
-          --config src-tauri/tauri.release.conf.json
-          --config src-tauri/tauri.version.conf.json
+        run: |
+          features=updater
+          extra=()
+          case "$RUNNER_OS" in
+            Windows) features=updater,voice; extra=(--config src-tauri/tauri.release.voice-windows.conf.json) ;;
+            macOS) features=updater,voice ;;
+          esac
+          pnpm exec tauri build \
+            --target ${{ matrix.target }} \
+            --bundles ${{ matrix.bundles }} \
+            --features "$features" \
+            --config src-tauri/tauri.release.conf.json \
+            --config src-tauri/tauri.version.conf.json \
+            "${extra[@]}"
 
       - name: Name the files
         run: |

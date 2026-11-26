@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added the local speech engine to the Windows and macOS installers: dictation and the wake word run on your computer, and the microphone button shows without the webview's speech recognition
 - Added a fallback for Claude chats: a `claude` version that refuses the chat handshake moves the agent to its terminal and sends your message there
 - Added `Open in terminal` and `Back to chat` to the session menu: a Claude, Codex or Grok agent moves between its chat and its terminal and resumes the same conversation
 - Added a `Launch Berth at login` setting to the desktop app on Windows, macOS and Linux: Berth starts when you sign in, hidden in the tray or menu bar

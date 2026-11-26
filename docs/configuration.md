@@ -339,8 +339,8 @@ macOS it starts the working copy's `app/current` launcher, so an update does not
 
 ### Voice
 
-The desktop app on Windows and macOS, when it was built with the local speech engine (the install script
-does that when it finds LLVM and CMake, see [windows.md](windows.md#desktop-working-copy) and
+The desktop app on Windows and macOS, when it was built with the local speech engine (the installers from
+the GitHub releases have it; the install script builds it in when it finds LLVM and CMake, see [windows.md](windows.md#desktop-working-copy) and
 [macos.md](macos.md)), recognises speech on your computer: dictation runs
 [whisper.cpp](https://github.com/ggml-org/whisper.cpp) with the multilingual `base` model and detects
 the language on its own, and the wake word runs a

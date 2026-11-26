@@ -121,7 +121,7 @@ powershell -ExecutionPolicy Bypass -File scripts\install-app.ps1 -Launch
 ```
 
 The app builds without anything beyond what the `berth` command needs. The local speech engine (the
-`voice` cargo feature, off by default) is optional: without it, voice input uses the speech recognition
+`voice` cargo feature, off by default in a working copy; the release installers have it) is optional: without it, voice input uses the speech recognition
 of the app's webview. The engine compiles whisper.cpp and generates its bindings with bindgen, so it
 needs two more tools:
 

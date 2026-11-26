@@ -45,9 +45,13 @@ The `Release` workflow does the rest in one run:
    `main` it is, and the run stops there: a push that changes no version costs one 30-second job.
 2. `build` compiles three targets, macOS arm64/x64 and Windows x64, and uploads the archive
    `install.sh` and `berth upgrade` download for each.
-3. `desktop` builds the desktop app on each platform with `--features updater` and
+3. `desktop` builds the desktop app on each platform with `--features updater` (`updater,voice` on Windows
+   and macOS, the local speech engine) and
    `apps/desktop/src-tauri/tauri.release.conf.json`, which bundles `berth` beside the app and turns on the
-   updater. It uploads the installer a person runs and the package the updater installs, each with its
+   updater. The engine needs CMake and libclang, which the runner images carry; the job sets `LIBCLANG_PATH`
+   and `CLANG_PATH` for LLVM on Windows and installs what is missing. On Windows
+   `tauri.release.voice-windows.conf.json` also packs `sherpa-onnx-c-api.dll` and `onnxruntime.dll` into the
+   installer next to the app. It uploads the installer a person runs and the package the updater installs, each with its
    signature:
 
    | Platform | Installer | Updater package |

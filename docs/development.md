@@ -36,7 +36,8 @@ releases at build time. On macOS that means CMake (`brew install cmake`) next to
 Tools, which carry libclang; Windows needs CMake and LLVM, see
 [windows.md](windows.md#desktop-working-copy). `scripts/install-app.sh` and `install-app.ps1` turn the
 feature on when they find both and print what is missing when they do not; `-CheckVoice` prints only
-that. By hand, pass `--features voice` to cargo or `tauri dev`. Linux never builds the engine.
+that. By hand, pass `--features voice` to cargo or `tauri dev`. The release workflow builds it into the
+Windows and macOS installers. Linux never builds the engine.
 
 `vendor/vt100` is a patched copy of the terminal parser, wired in through `[patch.crates-io]`; the
 daemon's ConPTY unicode probe test rebuilds captured output with it. Don't bump or replace it.
