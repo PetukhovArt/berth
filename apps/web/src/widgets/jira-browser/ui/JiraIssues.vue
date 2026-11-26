@@ -250,7 +250,7 @@ onMounted(() => void load(false));
       <div class="group-title">{{ t('jira.list.filters') }}</div>
       <VListbox flat :model-value="presetValue" :options="presetOptions" :label="t('jira.list.filters')" :filter="false" test-id="jira-filter" @update:model-value="pickFilter">
         <template #option="{ option }">
-          <span v-tooltip.right="jqlOf(option.value)">{{ option.label }}</span>
+          <span v-tooltip="jqlOf(option.value)">{{ option.label }}</span>
         </template>
       </VListbox>
       <div class="group-title">{{ t('jira.list.myFilters') }}</div>
@@ -271,7 +271,7 @@ onMounted(() => void load(false));
             @blur="commitEdit"
           />
           <span v-else class="filter-row">
-            <span v-tooltip.right="jqlOf(option.value)" class="filter-name" @dblclick="startRename(filterOf(option.value))">{{ option.label }}</span>
+            <span v-tooltip="jqlOf(option.value)" class="filter-name" @dblclick="startRename(filterOf(option.value))">{{ option.label }}</span>
             <VButton v-tooltip="t('common.rename')" class="reveal vr-reveal" size="small" text severity="secondary" label="✎" :aria-label="t('jira.list.renameFilter')" @click.stop="startRename(filterOf(option.value))" />
             <VButton v-tooltip="t('common.delete')" class="reveal vr-reveal" size="small" text severity="secondary" :aria-label="t('jira.list.deleteFilter')" @click.stop="removeFilter(filterOf(option.value))">
               <template #icon><X :size="14" /></template>
@@ -330,8 +330,10 @@ onMounted(() => void load(false));
 
       <div class="body">
         <VMessage v-if="error" class="error" severity="error" size="small" data-testid="jira-error">
-          <span class="error-text">{{ error }}</span>
-          <VButton :label="t('common.retry')" size="small" severity="secondary" @click="load(issues.length > 0)" />
+          <span class="error-row">
+            <span class="error-text">{{ error }}</span>
+            <VButton :label="t('common.retry')" size="small" severity="secondary" @click="load(issues.length > 0)" />
+          </span>
         </VMessage>
         <Skeleton v-if="loading" :rows="10" />
         <div v-else-if="!issues.length && !error" class="empty">{{ t('jira.list.empty') }}</div>
@@ -436,6 +438,13 @@ onMounted(() => void load(false));
 
 .error {
   margin: var(--vr-space-4);
+}
+
+.error-row {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-3);
+  width: 100%;
 }
 
 .error-text {

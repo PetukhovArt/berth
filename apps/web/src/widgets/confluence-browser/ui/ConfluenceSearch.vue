@@ -96,8 +96,10 @@ onBeforeUnmount(() => clearTimeout(timer));
     </div>
     <div class="body">
       <VMessage v-if="error" class="error" severity="error" size="small" data-testid="confluence-search-error">
-        <span class="error-text">{{ error }}</span>
-        <VButton :label="t('common.retry')" size="small" severity="secondary" @click="run" />
+        <span class="error-row">
+          <span class="error-text">{{ error }}</span>
+          <VButton :label="t('common.retry')" size="small" severity="secondary" @click="run" />
+        </span>
       </VMessage>
       <Skeleton v-else-if="loading && !hits.length" :rows="8" :height="44" />
       <template v-else-if="searched">
@@ -216,6 +218,13 @@ onBeforeUnmount(() => clearTimeout(timer));
 
 .error {
   margin: var(--vr-space-4);
+}
+
+.error-row {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-3);
+  width: 100%;
 }
 
 .error-text {

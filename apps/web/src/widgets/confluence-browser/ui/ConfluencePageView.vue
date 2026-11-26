@@ -98,8 +98,10 @@ onBeforeUnmount(() => {
 <template>
   <div ref="scroller" class="page" data-testid="confluence-page" @scroll.passive="spy">
     <VMessage v-if="error" class="error" severity="error" size="small" data-testid="confluence-page-error">
-      <span class="error-text">{{ error }}</span>
-      <VButton :label="t('common.retry')" size="small" severity="secondary" @click="load" />
+      <span class="error-row">
+        <span class="error-text">{{ error }}</span>
+        <VButton :label="t('common.retry')" size="small" severity="secondary" @click="load" />
+      </span>
     </VMessage>
     <Skeleton v-else-if="loading" :rows="12" />
     <template v-else-if="page">
@@ -162,6 +164,13 @@ onBeforeUnmount(() => {
 
 .error {
   margin: var(--vr-space-4);
+}
+
+.error-row {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-3);
+  width: 100%;
 }
 
 .error-text {
