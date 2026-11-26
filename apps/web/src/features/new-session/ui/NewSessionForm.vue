@@ -679,6 +679,7 @@ function onVisible(visible: boolean) {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  padding-bottom: var(--vr-space-4);
   scroll-padding-block: var(--vr-space-8);
 }
 
