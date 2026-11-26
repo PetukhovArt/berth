@@ -5,6 +5,7 @@ import { definePreset } from '@primeuix/themes';
 import { inkScale } from '@ui/tokens';
 import '@fontsource-variable/wix-madefor-text';
 import '@fontsource/jetbrains-mono/400.css';
+import './fonts.css';
 import '@ui/tokens/light.css';
 import '@ui/tokens/dark.css';
 import '@ui/tokens/motion.css';

@@ -5,6 +5,7 @@
 - Added a `Back` button to the Settings header that returns to the session or view you came from: `Esc` does the same, and the gear in the sidebar now switches Settings off again
 - Added search to dropdown lists with more than 7 options, such as projects and branches: type to filter, matches are highlighted, Enter picks the first one
 - Changed connector errors from red strips above the tree to a plug icon in the title bar: its list shows each failing connector's full message and since when, with `Retry` and `Configure` buttons
+- Fixed box-drawing diagrams in chat and Markdown code blocks: lines and arrows now line up with the text instead of falling short
 - Removed the OpenClaw skill: `berth sessions`, `berth attention` and `berth send` stay
 
 ## 0.24.0 (2026-11-25)
