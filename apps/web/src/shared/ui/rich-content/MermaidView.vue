@@ -377,6 +377,14 @@ onBeforeUnmount(() => {
   margin-left: var(--vr-space-2);
 }
 
+:root[data-vr-viewport='phone'] .hint {
+  display: none;
+}
+
+:root[data-vr-viewport='phone'] .bar {
+  flex-wrap: wrap;
+}
+
 .percent {
   min-width: 40px;
   text-align: center;
@@ -386,9 +394,11 @@ onBeforeUnmount(() => {
 .btn {
   display: inline-flex;
   align-items: center;
+  flex: none;
   gap: var(--vr-space-1);
   height: 24px;
   padding: 0 var(--vr-space-2);
+  white-space: nowrap;
   border: 0;
   border-radius: var(--vr-radius-sm);
   background: transparent;

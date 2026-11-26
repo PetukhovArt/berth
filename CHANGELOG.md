@@ -45,6 +45,7 @@
 - Fixed the Settings category list showing only the first 7 sections: it now uses the full height of the window and scrolls only when the window is too short
 - Fixed a button's tooltip staying on screen over the popover the button opens, such as the route and share buttons in the session header
 - Fixed the New Session form on a phone: the last row, such as "More options", now has space below it instead of ending flush against the Name field
+- Fixed the toolbar of a Mermaid diagram on a phone: the mouse hint no longer wraps one letter per line and the buttons keep their labels on one line
 - Fixed a Mermaid diagram flickering in chat while the answer is still streaming: the last drawn diagram stays on screen and a parse error shows only when the text stops changing
 - Removed the terminal mode of Cursor and OpenCode: they run only in the chat view, turned on in Settings → Providers, and their older terminal sessions stay in the list and the archive but cannot be resumed
 - Removed the OpenClaw skill: `berth sessions`, `berth attention` and `berth send` stay
