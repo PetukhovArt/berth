@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Network } from '../../../shared/ui/icons';
-import { VButton } from '../../../shared/ui/kit';
+import { VButton, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { numberLabel } from '../../../entities/merge-request';
 import { openArchitecture, useArchitecture } from '../model/stratum';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 type Item = { connector: string; project: string; number: number; target_branch: string; url: string };
 
 const props = withDefaults(defineProps<{ item: Item; variant?: 'button' | 'icon' }>(), { variant: 'button' });
@@ -28,29 +27,17 @@ function open() {
 
 <template>
   <template v-if="shown && variant === 'button'">
-    <VButton size="small" severity="secondary" :label="t('forge.stratum.action')" :disabled="availability.status !== 'ready'" :title="reason" data-testid="cr-architecture" @click="open">
+    <VButton v-tooltip="reason" size="small" severity="secondary" :label="t('forge.stratum.action')" :disabled="availability.status !== 'ready'" data-testid="cr-architecture" @click="open">
       <template #icon><Network :size="14" /></template>
     </VButton>
-    <span v-if="availability.status === 'disabled'" class="why" :title="reason" data-testid="cr-architecture-why">{{ reason }}</span>
+    <span v-if="availability.status === 'disabled'" v-tooltip="reason" class="why" data-testid="cr-architecture-why">{{ reason }}</span>
   </template>
-  <UiButton v-else-if="shown" class="icon" type="button" :title="t('forge.stratum.title')" :aria-label="t('forge.stratum.action')" data-testid="mr-architecture" @click.stop="open"><Network :size="14" /></UiButton>
+  <VButton v-else-if="shown" v-tooltip="t('forge.stratum.title')" size="small" severity="secondary" text :aria-label="t('forge.stratum.action')" data-testid="mr-architecture" @click.stop="open">
+    <template #icon><Network :size="14" /></template>
+  </VButton>
 </template>
 
 <style scoped>
-.icon {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  color: var(--vr-color-text-muted);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-sm);
-}
-
 .why {
   flex: 0 1 auto;
   min-width: 0;
@@ -60,10 +47,5 @@ function open() {
   text-overflow: ellipsis;
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-muted);
-}
-
-.icon:hover {
-  color: var(--vr-color-text);
-  background: var(--vr-color-nav-hover);
 }
 </style>

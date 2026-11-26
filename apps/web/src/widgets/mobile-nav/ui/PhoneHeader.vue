@@ -10,7 +10,7 @@ import { StatusDot, isRunning, isStopped, useBerth, useSessionDock, useSessionSt
 import { useInbox } from '../../../features/attention';
 import { startNewSession } from '../../../features/new-session';
 import { ConnectorErrors, useWorkTree } from '../../../features/work-tree';
-import { UiButton } from '../../../shared/ui/UiButton';
+import { VButton, vTooltip } from '../../../shared/ui/kit';
 import BrandMark from '../../../shared/ui/BrandMark.vue';
 import { phoneSection } from '../model/section';
 
@@ -83,7 +83,9 @@ const canCreate = computed(() => !inDetail.value && (phoneSection.value === 'inb
 
 <template>
   <header class="phone-header" data-testid="phone-header">
-    <UiButton v-if="inDetail" type="button" class="icon back" :aria-label="t('mobile.back')" :title="t('mobile.back')" data-testid="mobile-back" @click="detail = false"><ChevronLeft :size="22" /></UiButton>
+    <VButton v-if="inDetail" v-tooltip="t('mobile.back')" class="icon back" text severity="secondary" :aria-label="t('mobile.back')" data-testid="mobile-back" @click="detail = false">
+      <template #icon><ChevronLeft :size="22" /></template>
+    </VButton>
     <BrandMark v-else size="1.75rem" data-testid="phone-header-mark" />
     <div class="identity">
       <h1 class="title" data-testid="phone-header-title">{{ title }}</h1>
@@ -96,8 +98,12 @@ const canCreate = computed(() => !inDetail.value && (phoneSection.value === 'inb
       <p v-else-if="summary" class="sub" data-testid="phone-header-summary">{{ summary }}</p>
     </div>
     <ConnectorErrors />
-    <UiButton type="button" class="icon" :aria-pressed="paletteOpen" :aria-label="t('mobile.commands')" :title="t('mobile.commands')" data-testid="phone-header-commands" @click="paletteOpen = !paletteOpen"><Command :size="18" /></UiButton>
-    <UiButton v-if="canCreate" type="button" class="icon round" :aria-label="t('agents.newSession.action')" :title="t('agents.newSession.action')" data-testid="phone-header-new" @click="startNewSession()"><Plus :size="20" /></UiButton>
+    <VButton v-tooltip="t('mobile.commands')" class="icon" text severity="secondary" :aria-pressed="paletteOpen" :aria-label="t('mobile.commands')" data-testid="phone-header-commands" @click="paletteOpen = !paletteOpen">
+      <template #icon><Command :size="18" /></template>
+    </VButton>
+    <VButton v-if="canCreate" v-tooltip="t('agents.newSession.action')" class="icon round" severity="secondary" rounded :aria-label="t('agents.newSession.action')" data-testid="phone-header-new" @click="startNewSession()">
+      <template #icon><Plus :size="20" /></template>
+    </VButton>
   </header>
 </template>
 
@@ -173,10 +179,6 @@ const canCreate = computed(() => !inDetail.value && (phoneSection.value === 'inb
   width: var(--vr-size-touch);
   height: var(--vr-size-touch);
   padding: 0;
-  color: var(--vr-color-text-muted);
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
 }
 
 .icon[aria-pressed='true'] {
@@ -190,8 +192,6 @@ const canCreate = computed(() => !inDetail.value && (phoneSection.value === 'inb
 }
 
 .round {
-  color: var(--vr-color-text);
-  background: var(--vr-color-surface-muted);
   border-radius: var(--vr-radius-full);
 }
 </style>

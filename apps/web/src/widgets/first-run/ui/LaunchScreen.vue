@@ -2,7 +2,7 @@
 import { t } from '../../../shared/lib/i18n/i18n';
 import { copyText } from '../../../shared/lib/atlassian';
 import BrandMark from '../../../shared/ui/BrandMark.vue';
-import { VButton } from '../../../shared/ui/kit';
+import { VButton, VProgressBar } from '../../../shared/ui/kit';
 import type { Launch } from '../model/launch';
 
 const props = defineProps<{ launch: Exclude<Launch, { kind: 'ready' }> }>();
@@ -15,7 +15,7 @@ const copy = () => (props.launch.kind === 'starting' || !props.launch.detail ? P
     <div v-if="launch.kind === 'starting'" class="starting" role="status">
       <BrandMark size="44px" class="mark" />
       <p class="label" data-testid="launch-starting">{{ t('workbench.launch.starting') }}</p>
-      <span class="track" aria-hidden="true"><span class="fill" /></span>
+      <VProgressBar class="track" :label="t('workbench.launch.starting')" />
     </div>
     <div v-else class="card" role="alert">
       <BrandMark size="36px" class="mark" />
@@ -54,17 +54,6 @@ const copy = () => (props.launch.kind === 'starting' || !props.launch.detail ? P
 
 .track {
   width: 160px;
-  height: 2px;
-  overflow: hidden;
-  background: var(--vr-color-border);
-  border-radius: 1px;
-}
-
-.fill {
-  display: block;
-  width: 45%;
-  height: 100%;
-  background: var(--vr-color-text-muted);
 }
 
 .card {

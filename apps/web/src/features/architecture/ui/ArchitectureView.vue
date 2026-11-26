@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue';
 import { ExternalLink, LoaderCircle, RefreshCw, TriangleAlert } from '../../../shared/ui/icons';
-import { VButton } from '../../../shared/ui/kit';
+import { VButton, vTooltip } from '../../../shared/ui/kit';
 import { describeError, openUrl } from '../../../shared/api/connectors/api';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { architectureProgress, architectureRelease, architectureStart, type ArchitectureParams, type Progress, type Visualizer } from '../model/stratum';
@@ -86,7 +86,7 @@ onBeforeUnmount(() => {
   <section class="arch" data-testid="architecture-view">
     <header class="bar">
       <span class="hint" data-testid="architecture-hint">{{ t('forge.stratum.hint') }}</span>
-      <VButton size="small" severity="secondary" text :loading="loading" :aria-label="t('forge.stratum.retry')" :title="t('forge.stratum.retry')" data-testid="architecture-reload" @click="start">
+      <VButton v-tooltip="t('forge.stratum.retry')" size="small" severity="secondary" text :loading="loading" :aria-label="t('forge.stratum.retry')" data-testid="architecture-reload" @click="start">
         <template #icon><RefreshCw :size="14" /></template>
       </VButton>
       <VButton v-if="running" size="small" severity="secondary" :label="t('common.openInBrowser')" data-testid="architecture-open-browser" @click="openUrl(running.url)">
