@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { useTemplateRef } from 'vue';
+import { VTextarea } from './kit';
 
 const model = defineModel<string>();
-const el = useTemplateRef<HTMLTextAreaElement>('el');
+const el = useTemplateRef<{ $el: HTMLTextAreaElement }>('el');
 
-defineExpose({ focus: () => el.value?.focus() });
+defineExpose({ focus: () => el.value?.$el.focus() });
 </script>
 
 <template>
-  <textarea ref="el" v-model="model" />
+  <VTextarea ref="el" v-model="model" />
 </template>
