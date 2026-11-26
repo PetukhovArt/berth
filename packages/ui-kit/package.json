@@ -8,7 +8,14 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "gallery:dev": "vite --config gallery/vite.config.ts",
+    "gallery:build": "pnpm --filter @ui/tokens build && vite build --config gallery/vite.config.ts"
+  },
+  "devDependencies": {
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "vite": "^8.3.5"
   },
   "dependencies": {
     "@fontsource-variable/wix-madefor-text": "^5.3.0",
