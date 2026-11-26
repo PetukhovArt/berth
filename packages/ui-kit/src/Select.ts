@@ -1,25 +1,8 @@
-import { defineComponent, h, mergeProps, nextTick, reactive, ref, type PropType, type Slots, type VNode } from 'vue';
+import { defineComponent, h, mergeProps, nextTick, ref, type PropType, type Slots } from 'vue';
 import Select from 'primevue/select';
-
-export const selectFilterTexts = reactive({ placeholder: '', count: '' });
-
-const FILTER_FROM_OPTIONS = 8;
+import { FILTER_FROM_OPTIONS, highlight, labelOf, selectFilterTexts, type LabelSource } from './optionFilter';
 
 type SelectInstance = { focusedOptionIndex: number; findFirstOptionIndex: () => number; scrollInView: () => void };
-type LabelSource = string | ((option: unknown) => unknown) | undefined;
-
-function labelOf(option: unknown, source: LabelSource): string {
-  if (typeof source === 'function') return String(source(option) ?? '');
-  if (source && option && typeof option === 'object') return String((option as Record<string, unknown>)[source] ?? '');
-  return String(option ?? '');
-}
-
-function highlight(label: string, query: string): (string | VNode)[] {
-  const at = query ? label.toLocaleLowerCase().indexOf(query.toLocaleLowerCase()) : -1;
-  if (at < 0) return [label];
-  const end = at + query.length;
-  return [label.slice(0, at), h('span', { class: 'vr-select-match' }, label.slice(at, end)), label.slice(end)];
-}
 
 const Wrapped = defineComponent({
   name: 'VSelect',

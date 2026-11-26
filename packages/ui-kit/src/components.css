@@ -1,0 +1,75 @@
+:root .vr-progress-success {
+  --p-progressbar-value-background: var(--vr-color-success);
+}
+
+:root .vr-progress-warn {
+  --p-progressbar-value-background: var(--vr-status-feedback);
+}
+
+:root .vr-progress-danger {
+  --p-progressbar-value-background: var(--vr-color-danger);
+}
+
+:root .vr-progress-info {
+  --p-progressbar-value-background: var(--vr-status-running);
+}
+
+:root .vr-menu-danger .p-menu-item-label,
+:root .vr-menu-danger .p-menu-item-icon {
+  color: var(--vr-color-danger);
+}
+
+:root .vr-menu .p-menu-item-link {
+  text-decoration: none;
+}
+
+:root .vr-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vr-space-2);
+}
+
+:root .vr-checkbox-label {
+  cursor: pointer;
+}
+
+:root .vr-segmented .p-togglebutton-content {
+  padding: 0;
+}
+
+:root .vr-segmented-option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vr-space-1);
+  padding: 0.25rem 0.75rem;
+}
+
+:root .vr-tabs .p-tablist-tab-list {
+  gap: var(--vr-space-4);
+}
+
+:root .vr-tabs .p-tab {
+  flex: none;
+  cursor: pointer;
+}
+
+:root .vr-listbox .p-listbox-option {
+  cursor: pointer;
+}
+
+:root .vr-badge {
+  flex: none;
+}
+
+:root .p-tooltip {
+  border: 1px solid var(--vr-color-border);
+  font-size: var(--vr-font-size-xs);
+  line-height: 1.4;
+}
+
+:root .vr-tabs .p-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vr-space-2);
+  font-size: var(--vr-font-size-label);
+}

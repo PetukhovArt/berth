@@ -11,9 +11,10 @@ import '@ui/tokens/motion.css';
 import './overlays.css';
 import './responsive.css';
 import './button.css';
+import './components.css';
 import { installMotion } from './motion';
 import { installViewport } from './viewport';
-import { selectFilterTexts } from './Select';
+import { selectFilterTexts } from './optionFilter';
 
 export const DARK_CLASS = 'vr-dark';
 
@@ -58,8 +59,42 @@ const dangerButton = {
   focusRing: { color: v('btn-danger'), shadow: 'none' },
 };
 
-const BerthPreset =definePreset(Aura, {
-  primitive: { borderRadius: { none: '0', xs: '4px', sm: v('radius-sm'), md: v('radius-md'), lg: v('radius-lg'), xl: v('radius-xl') } },
+const tint = (token: string, share: number) => `color-mix(in srgb, ${v(token)} ${share}%, white)`;
+const shade = (token: string, share: number) => `color-mix(in srgb, ${v(token)} ${share}%, black)`;
+
+const palette = (token: string) => ({
+  50: tint(token, 8),
+  100: tint(token, 16),
+  200: tint(token, 30),
+  300: tint(token, 55),
+  400: v(token),
+  500: v(token),
+  600: shade(token, 85),
+  700: shade(token, 70),
+  800: shade(token, 55),
+  900: shade(token, 40),
+  950: shade(token, 25),
+});
+
+const success = palette('color-success');
+const danger = palette('color-danger');
+const warn = palette('status-feedback');
+const info = palette('status-running');
+const help = palette('status-unseen');
+
+const BerthPreset = definePreset(Aura, {
+  primitive: {
+    borderRadius: { none: '0', xs: '4px', sm: v('radius-sm'), md: v('radius-md'), lg: v('radius-lg'), xl: v('radius-xl') },
+    green: success,
+    emerald: success,
+    red: danger,
+    orange: warn,
+    yellow: warn,
+    amber: warn,
+    sky: info,
+    blue: info,
+    purple: help,
+  },
   semantic: {
     transitionDuration: v('motion-base'),
     primary: inkScale,
@@ -68,6 +103,32 @@ const BerthPreset =definePreset(Aura, {
   },
   components: {
     toggleswitch: { root: { slideDuration: v('motion-base') } },
+    tooltip: {
+      root: { maxWidth: '20rem', padding: '4px 8px', borderRadius: v('radius-md'), shadow: v('shadow-popover') },
+      colorScheme: { light: { root: { background: v('color-surface-raised'), color: v('color-text') } }, dark: { root: { background: v('color-surface-raised'), color: v('color-text') } } },
+    },
+    tabs: {
+      tablist: { background: 'transparent', borderColor: v('color-border') },
+      tab: {
+        background: 'transparent',
+        hoverBackground: 'transparent',
+        activeBackground: 'transparent',
+        borderColor: 'transparent',
+        hoverBorderColor: 'transparent',
+        activeBorderColor: v('color-text'),
+        color: v('color-text-muted'),
+        hoverColor: v('color-text'),
+        activeColor: v('color-text'),
+        padding: '0 0 6px 0',
+        fontWeight: '400',
+        gap: v('space-2'),
+      },
+      tabpanel: { background: 'transparent', color: v('color-text'), padding: '0' },
+      activeBar: { height: '1.5px', bottom: '-1px', background: v('color-text') },
+    },
+    progressbar: { root: { height: '6px', background: v('color-surface-muted') }, value: { background: v('color-text') } },
+    badge: { root: { fontSize: v('font-size-2xs'), fontWeight: '600', minWidth: '1.5em', height: '1.5em', padding: '0 0.4em' } },
+    checkbox: { root: { checkedHoverBackground: v('color-accent'), checkedHoverBorderColor: v('color-accent') } },
     button: {
       root: { borderRadius: v('radius-md'), gap: '6px', sm: { fontSize: v('font-size-label'), paddingX: '11px', paddingY: '3px', iconOnlyWidth: '28px' } },
       colorScheme: {
@@ -110,3 +171,12 @@ export { default as VDialog } from 'primevue/dialog';
 export { default as VContextMenu } from 'primevue/contextmenu';
 export { default as VPopover } from 'primevue/popover';
 export { default as VChipGroup } from './ChipGroup.vue';
+export { default as VToggleButton } from 'primevue/togglebutton';
+export { default as VBadge } from './Badge.vue';
+export { default as VCheckbox } from './Checkbox.vue';
+export { default as VProgressBar } from './ProgressBar.vue';
+export { default as VTabs } from './Tabs.vue';
+export { default as VSelectButton } from './SelectButton.vue';
+export { default as VMenu } from './Menu.vue';
+export { default as VListbox } from './Listbox.vue';
+export { vTooltip } from './Tooltip';

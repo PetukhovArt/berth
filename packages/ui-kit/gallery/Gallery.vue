@@ -1,23 +1,10 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref } from 'vue';
-import Badge from 'primevue/badge';
-import Checkbox from 'primevue/checkbox';
-import ProgressBar from 'primevue/progressbar';
-import SelectButton from 'primevue/selectbutton';
-import Tab from 'primevue/tab';
-import TabList from 'primevue/tablist';
-import TabPanel from 'primevue/tabpanel';
-import TabPanels from 'primevue/tabpanels';
-import Tabs from 'primevue/tabs';
-import ToggleButton from 'primevue/togglebutton';
-import Tooltip from 'primevue/tooltip';
-import { DARK_CLASS, VButton, VChipGroup, VContextMenu, VDialog, VInputText, VMessage, VMultiSelect, VPopover, VSelect, VTag, VTextarea, VToggleSwitch } from '../src';
+import { DARK_CLASS, VBadge, VButton, VCheckbox, VChipGroup, VContextMenu, VDialog, VInputText, VListbox, VMenu, VMessage, VMultiSelect, VPopover, VProgressBar, VSelect, VSelectButton, VTabs, VTag, VTextarea, VToggleButton, VToggleSwitch, vTooltip } from '../src';
 import DialogActions from '../../../apps/web/src/shared/ui/DialogActions.vue';
 import ConfirmPopover from '../../../apps/web/src/shared/ui/ConfirmPopover.vue';
 import Section from './Section.vue';
 import Cell from './Cell.vue';
-
-const vTooltip = Tooltip;
 
 type Severity = 'secondary' | 'success' | 'info' | 'warn' | 'danger' | 'help' | 'contrast' | undefined;
 const SEVERITIES: { label: string; value: Severity }[] = [
@@ -80,12 +67,29 @@ const chipOptions = [
   { value: 'draft', label: 'Draft' },
 ];
 const tab = ref('overview');
+const tabOptions = [
+  { value: 'overview', label: 'Overview' },
+  { value: 'changes', label: 'Changes', count: 12, tone: 'info' as const, title: 'Changed files' },
+  { value: 'pipeline', label: 'Pipeline', count: 2, tone: 'danger' as const },
+];
+const tabOptionsDisabled = [
+  { value: 'overview', label: 'Overview' },
+  { value: 'changes', label: 'Changes' },
+  { value: 'pipeline', label: 'Pipeline', disabled: true },
+];
 const segmented = ref('split');
 const segmentedOptions = [
-  { label: 'Code', value: 'code' },
+  { label: 'Code', value: 'code', title: 'Source only' },
   { label: 'Split', value: 'split' },
   { label: 'Preview', value: 'preview' },
 ];
+const segmentedDisabled = [...segmentedOptions, { label: 'Diff', value: 'diff', disabled: true }];
+const multiSegment = ref(['code']);
+const unchecked = ref(false);
+const BADGE_SEVERITIES = ['secondary', 'success', 'info', 'warn', 'danger', 'contrast'] as const;
+const vmenu = ref<InstanceType<typeof VMenu>>();
+const vmenuAnchor = ref<InstanceType<typeof VButton>>();
+const vmenuItems = [{ label: 'Rename', testid: 'gallery-menu-rename' }, { label: 'Move to worktree' }, { separator: true }, { label: 'Delete', danger: true }];
 const pressed = ref(true);
 const checked = ref(true);
 const dialogOpen = ref(false);
@@ -98,7 +102,6 @@ const confirm = ref<InstanceType<typeof ConfirmPopover>>();
 const confirmAnchor = ref<InstanceType<typeof VButton>>();
 const menu = ref<InstanceType<typeof VContextMenu>>();
 const menuAnchor = ref<HTMLElement>();
-const tooltipAnchor = ref<HTMLElement>();
 
 function press(root: Element, selector: string, key: string) {
   root.querySelector(selector)?.dispatchEvent(new KeyboardEvent('keydown', { key, code: key, bubbles: true, cancelable: true }));
@@ -124,18 +127,28 @@ function openOverlays() {
     const rect = menuAnchor.value.getBoundingClientRect();
     menu.value?.show(new MouseEvent('contextmenu', { clientX: rect.left, clientY: rect.bottom }));
   }
-  tooltipAnchor.value?.dispatchEvent(new MouseEvent('mouseenter'));
+  if (vmenuAnchor.value) vmenu.value?.show({ currentTarget: vmenuAnchor.value.$el } as unknown as Event);
+}
+
+function pinTooltip() {
+  document.querySelector('[data-pin="tooltip"]')?.dispatchEvent(new MouseEvent('mouseenter'));
 }
 
 function reopen() {
-  setTimeout(openOverlays, 80);
+  setTimeout(() => {
+    openOverlays();
+    pinTooltip();
+  }, 80);
 }
 
 onMounted(async () => {
   await nextTick();
   setTimeout(() => {
     openOverlays();
-    setTimeout(() => window.scrollTo(0, 0), 700);
+    setTimeout(() => {
+      window.scrollTo(0, 0);
+      setTimeout(pinTooltip, 100);
+    }, 700);
   }, 400);
 });
 </script>
@@ -164,7 +177,14 @@ onMounted(async () => {
       <a href="#dialog">VDialog / DialogActions</a>
       <a href="#popover">VPopover / ConfirmPopover</a>
       <a href="#menu">VContextMenu</a>
-      <a href="#candidates">Not in kit</a>
+      <a href="#tooltip">vTooltip</a>
+      <a href="#tabs">VTabs</a>
+      <a href="#segmented">VSelectButton / VToggleButton</a>
+      <a href="#checkbox">VCheckbox</a>
+      <a href="#progress">VProgressBar</a>
+      <a href="#badge">VBadge</a>
+      <a href="#vmenu">VMenu</a>
+      <a href="#listbox">VListbox</a>
     </nav>
 
     <Section id="button" title="VButton" base="PrimeVue Button" adds="Re-export. The preset sets radius, gap, the small size and a danger severity built from the btn-danger tokens; button.css fixes icon-only padding.">
@@ -359,49 +379,88 @@ onMounted(async () => {
       </div>
     </Section>
 
-    <Section id="candidates" title="Not in the kit" base="PrimeVue, used directly here" adds="Candidates the app now hand-rolls or does without. They render with the same preset and have no kit wrapper yet." candidate>
-      <p class="row-title">Tooltip (directive). The app uses native title attributes</p>
+    <Section id="tooltip" title="vTooltip" base="PrimeVue Tooltip" adds="Directive wrapper (Tooltip.ts). Shows after 400 ms, opens below unless a position modifier is given, and names an icon-only element with aria-label when it has no accessible name. Replaces the native title attribute.">
       <div class="row">
-        <Cell label="hover to show">
-          <span ref="tooltipAnchor"><VButton v-tooltip.bottom="'Archive this session'" label="Archive" severity="secondary" size="small" /></span>
+        <Cell label="hover to show (pinned open)">
+          <VButton data-pin="tooltip" v-tooltip="'Archive this session'" label="Archive" severity="secondary" size="small" />
+        </Cell>
+        <Cell label="icon-only, named by the tooltip"><VButton v-tooltip="'More actions'" label="⋯" size="small" text severity="secondary" /></Cell>
+        <Cell label="top"><VButton v-tooltip.top="'Opens above'" label="Top" size="small" severity="secondary" /></Cell>
+        <Cell label="right"><VButton v-tooltip.right="'Opens on the right'" label="Right" size="small" severity="secondary" /></Cell>
+        <Cell label="disabled (empty value)"><VButton v-tooltip="''" label="No tooltip" size="small" severity="secondary" /></Cell>
+      </div>
+    </Section>
+
+    <Section id="tabs" title="VTabs" base="PrimeVue Tabs" adds="Wrapper (Tabs.vue). Takes an options array, adds a tablist label, a test id per tab, a count badge with a tone, a tooltip per tab and lazy panels from the panel slot. The preset draws the active tab with an underline.">
+      <div class="row">
+        <Cell label="header only, with counts and tones">
+          <VTabs v-model="tab" :options="tabOptions" label="Request" test-id="gallery-tab" />
+        </Cell>
+        <Cell label="with panels, one disabled">
+          <VTabs v-model="tab" :options="tabOptionsDisabled" label="Request panels" test-id="gallery-tab-panels">
+            <template #panel="{ option }"><p class="frame-body">{{ option.label }} panel</p></template>
+          </VTabs>
         </Cell>
       </div>
-      <p class="row-title">Tabs. The app hand-rolls role=tab buttons in ProjectTree and ChangeRequestView</p>
+    </Section>
+
+    <Section id="segmented" title="VSelectButton · VToggleButton" base="PrimeVue SelectButton · ToggleButton" adds="VSelectButton is a wrapper (SelectButton.vue). It takes an options array, a group label, a per-option test id and tooltip, and keeps one option selected unless allow-empty is set. VToggleButton is a re-export.">
       <div class="row">
-        <Tabs v-model:value="tab">
-          <TabList>
-            <Tab value="overview">Overview</Tab>
-            <Tab value="changes">Changes</Tab>
-            <Tab value="pipeline">Pipeline</Tab>
-          </TabList>
-          <TabPanels>
-            <TabPanel value="overview"><p class="frame-body">Overview panel</p></TabPanel>
-            <TabPanel value="changes"><p class="frame-body">Changes panel</p></TabPanel>
-            <TabPanel value="pipeline"><p class="frame-body">Pipeline panel</p></TabPanel>
-          </TabPanels>
-        </Tabs>
+        <Cell label="single"><VSelectButton v-model="segmented" :options="segmentedOptions" label="View" /></Cell>
+        <Cell label="multiple (chips)"><VSelectButton v-model="multiSegment" :options="segmentedOptions" label="Layers" multiple /></Cell>
+        <Cell label="with disabled option"><VSelectButton v-model="segmented" :options="segmentedDisabled" label="View with disabled" /></Cell>
+        <Cell label="toggle on"><VToggleButton v-model="pressed" on-label="Wrap" off-label="Wrap" size="small" /></Cell>
+        <Cell label="toggle off"><VToggleButton :model-value="false" on-label="Wrap" off-label="Wrap" size="small" /></Cell>
+        <Cell label="toggle disabled"><VToggleButton :model-value="false" on-label="Wrap" off-label="Wrap" size="small" disabled /></Cell>
       </div>
-      <p class="row-title">SelectButton and ToggleButton. The app hand-rolls aria-pressed buttons</p>
+    </Section>
+
+    <Section id="checkbox" title="VCheckbox" base="PrimeVue Checkbox" adds="Wrapper (Checkbox.vue). Binary and small by default, links a label to the box so a click on the text toggles it.">
       <div class="row">
-        <Cell label="segmented"><SelectButton v-model="segmented" :options="segmentedOptions" option-label="label" option-value="value" size="small" /></Cell>
-        <Cell label="toggle on"><ToggleButton v-model="pressed" on-label="Wrap" off-label="Wrap" size="small" /></Cell>
-        <Cell label="toggle off"><ToggleButton :model-value="false" on-label="Wrap" off-label="Wrap" size="small" /></Cell>
-        <Cell label="toggle disabled"><ToggleButton :model-value="false" on-label="Wrap" off-label="Wrap" size="small" disabled /></Cell>
+        <Cell label="checked"><VCheckbox v-model="checked" label="Include diffs" /></Cell>
+        <Cell label="unchecked"><VCheckbox v-model="unchecked" label="Delete branch" /></Cell>
+        <Cell label="no label"><VCheckbox v-model="checked" aria-label="Select row" /></Cell>
+        <Cell label="hover"><VCheckbox :model-value="false" label="Hover" class="pseudo-hover" /></Cell>
+        <Cell label="disabled"><VCheckbox :model-value="true" label="Disabled" disabled /></Cell>
+        <Cell label="invalid"><VCheckbox :model-value="false" label="Invalid" invalid /></Cell>
       </div>
-      <p class="row-title">Checkbox. The app uses a native checkbox in UiInput</p>
+    </Section>
+
+    <Section id="progress" title="VProgressBar" base="PrimeVue ProgressBar" adds="Wrapper (ProgressBar.vue). Requires an accessible label, hides the percentage by default, turns indeterminate when the value is null and takes a severity colour from the status tokens.">
       <div class="row">
-        <Cell label="checked"><Checkbox v-model="checked" binary /></Cell>
-        <Cell label="unchecked"><Checkbox :model-value="false" binary /></Cell>
-        <Cell label="hover"><Checkbox :model-value="false" binary class="pseudo-hover" /></Cell>
-        <Cell label="disabled"><Checkbox :model-value="true" binary disabled /></Cell>
-        <Cell label="invalid"><Checkbox :model-value="false" binary invalid /></Cell>
+        <Cell label="40"><VProgressBar :value="40" label="Progress" style="width: 220px" /></Cell>
+        <Cell label="success 100"><VProgressBar :value="100" severity="success" label="Done" style="width: 220px" /></Cell>
+        <Cell label="warn 70"><VProgressBar :value="70" severity="warn" label="Usage" style="width: 220px" /></Cell>
+        <Cell label="danger 95"><VProgressBar :value="95" severity="danger" label="Limit" style="width: 220px" /></Cell>
+        <Cell label="indeterminate"><VProgressBar label="Loading" style="width: 220px" /></Cell>
       </div>
-      <p class="row-title">ProgressBar and Badge. The app hand-rolls both</p>
+    </Section>
+
+    <Section id="badge" title="VBadge" base="PrimeVue Badge" adds="Wrapper (Badge.vue). Caps a number at max (99+), and renders a dot when dot is set or the value is empty.">
       <div class="row">
-        <Cell label="progress 40"><ProgressBar :value="40" style="width: 240px" /></Cell>
-        <Cell label="badge"><Badge value="4" /></Cell>
-        <Cell label="badge danger"><Badge value="2" severity="danger" /></Cell>
-        <Cell label="badge success"><Badge value="9" severity="success" /></Cell>
+        <Cell v-for="severity in BADGE_SEVERITIES" :key="severity" :label="severity"><VBadge :value="4" :severity="severity" /></Cell>
+        <Cell label="capped"><VBadge :value="340" /></Cell>
+        <Cell label="small"><VBadge :value="7" size="small" /></Cell>
+        <Cell label="large"><VBadge :value="7" size="large" /></Cell>
+        <Cell label="dot"><VBadge dot severity="danger" /></Cell>
+      </div>
+    </Section>
+
+    <Section id="vmenu" title="VMenu" base="PrimeVue Menu" adds="Wrapper (Menu.vue). Popup by default, items take a test id and a danger flag, and toggle, show and hide are forwarded.">
+      <div class="row">
+        <Cell class="open" label="popup menu, pinned open">
+          <VButton ref="vmenuAnchor" label="Actions" size="small" severity="secondary" aria-haspopup="menu" @click="vmenu?.toggle($event)" />
+          <VMenu ref="vmenu" :model="vmenuItems" label="Actions" />
+        </Cell>
+      </div>
+    </Section>
+
+    <Section id="listbox" title="VListbox" base="PrimeVue Listbox" adds="Wrapper (Listbox.vue). Takes label and value options, turns the filter on from 8 options and highlights the match like VSelect, and keeps one option selected.">
+      <div class="row">
+        <Cell class="field" label="short, single"><VListbox v-model="shortValue" :options="SHORT" label="Agent" /></Cell>
+        <Cell class="field" label="long, filter"><VListbox v-model="longValue" :options="LONG" label="City" /></Cell>
+        <Cell class="field" label="multiple"><VListbox v-model="multi" :options="LONG.slice(0, 5)" multiple label="Cities" /></Cell>
+        <Cell class="field" label="disabled"><VListbox :model-value="shortValue" :options="SHORT" label="Agent disabled" disabled /></Cell>
       </div>
     </Section>
   </main>
