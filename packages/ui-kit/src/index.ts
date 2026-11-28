@@ -36,7 +36,7 @@ const scheme = {
     disabledBackground: v('color-surface-muted'),
     filledBackground: v('color-surface-muted'),
     filledFocusBackground: v('color-surface'),
-    borderColor: v('color-border'),
+    borderColor: v('color-border-control'),
     hoverBorderColor: v('color-text-muted'),
     focusBorderColor: v('color-accent'),
     color: v('color-text'),
@@ -141,7 +141,7 @@ const BerthPreset = definePreset(Aura, {
     button: {
       root: { borderRadius: v('radius-md'), gap: '6px', sm: { fontSize: v('font-size-label'), paddingX: '11px', paddingY: '3px', iconOnlyWidth: '28px' } },
       colorScheme: {
-        light: { root: { danger: dangerButton }, outlined: { danger: { color: '{red.600}' } }, text: { danger: { color: '{red.600}' } }, link: linkButton },
+        light: { root: { danger: dangerButton, secondary: { borderColor: '{surface.300}', hoverBorderColor: '{surface.300}', activeBorderColor: '{surface.400}' } }, outlined: { danger: { color: '{red.600}' } }, text: { danger: { color: '{red.600}' } }, link: linkButton },
         dark: { root: { danger: dangerButton }, link: linkButton },
       },
     },

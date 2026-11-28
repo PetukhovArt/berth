@@ -100,6 +100,9 @@
     "border-strong": {
       "$value": "rgba(0, 0, 0, 0.15)"
     },
+    "border-control": {
+      "$value": "#7d838a"
+    },
     "text-subtle": {
       "$value": "#656d76"
     },
