@@ -245,140 +245,142 @@ onMounted(() => void load(false));
 </script>
 
 <template>
-  <div ref="root" class="jira-issues vr-split" tabindex="0" data-testid="jira-issues" @keydown="onKey">
-    <aside class="filters vr-split-aside" :aria-label="t('jira.list.filters')">
-      <div class="group-title">{{ t('jira.list.filters') }}</div>
-      <VListbox flat :model-value="presetValue" :options="presetOptions" :label="t('jira.list.filters')" :filter="false" test-id="jira-filter" @update:model-value="pickFilter">
-        <template #option="{ option }">
-          <span v-tooltip="jqlOf(option.value)">{{ option.label }}</span>
-        </template>
-      </VListbox>
-      <div class="group-title">{{ t('jira.list.myFilters') }}</div>
-      <VListbox v-if="custom.length" flat :model-value="customValue" :options="customOptions" :label="t('jira.list.myFilters')" :filter="false" test-id="jira-my-filter" @update:model-value="pickFilter">
-        <template #option="{ option }">
-          <VInputText
-            v-if="editing?.id === option.value"
-            :model-value="editing?.name"
-            @update:model-value="setEditName"
-            v-focus
-            size="small"
-            class="rename"
-            :aria-label="t('jira.list.filterName')"
-            @click.stop
-            @keydown.stop
-            @keydown.enter.prevent="commitEdit"
-            @keydown.esc.prevent="editing = null"
-            @blur="commitEdit"
-          />
-          <span v-else class="filter-row">
-            <span v-tooltip="jqlOf(option.value)" class="filter-name" @dblclick="startRename(filterOf(option.value))">{{ option.label }}</span>
-            <VButton v-tooltip="t('common.rename')" class="reveal vr-reveal" size="small" text severity="secondary" label="✎" :aria-label="t('jira.list.renameFilter')" @click.stop="startRename(filterOf(option.value))" />
-            <VButton v-tooltip="t('common.delete')" class="reveal vr-reveal" size="small" text severity="secondary" :aria-label="t('jira.list.deleteFilter')" @click.stop="removeFilter(filterOf(option.value))">
-              <template #icon><X :size="14" /></template>
-            </VButton>
-          </span>
-        </template>
-      </VListbox>
-      <VInputText
-        v-if="editing?.id === ''"
-        v-model="editing.name"
-        v-focus
-        size="small"
-        class="rename"
-        :placeholder="t('jira.list.filterName')"
-        :aria-label="t('jira.list.newFilterName')"
-        @keydown.enter.prevent="commitEdit"
-        @keydown.esc.prevent="editing = null"
-        @blur="commitEdit"
-      />
-      <div v-if="!custom.length && editing?.id !== ''" class="hint">{{ t('jira.list.hint') }}</div>
-    </aside>
+  <div ref="root" class="jira-issues" tabindex="0" data-testid="jira-issues" @keydown="onKey">
+    <div class="layout vr-split">
+      <aside class="filters vr-split-aside" :aria-label="t('jira.list.filters')">
+        <div class="group-title">{{ t('jira.list.filters') }}</div>
+        <VListbox flat :model-value="presetValue" :options="presetOptions" :label="t('jira.list.filters')" :filter="false" test-id="jira-filter" @update:model-value="pickFilter">
+          <template #option="{ option }">
+            <span v-tooltip="jqlOf(option.value)">{{ option.label }}</span>
+          </template>
+        </VListbox>
+        <div class="group-title">{{ t('jira.list.myFilters') }}</div>
+        <VListbox v-if="custom.length" flat :model-value="customValue" :options="customOptions" :label="t('jira.list.myFilters')" :filter="false" test-id="jira-my-filter" @update:model-value="pickFilter">
+          <template #option="{ option }">
+            <VInputText
+              v-if="editing?.id === option.value"
+              :model-value="editing?.name"
+              @update:model-value="setEditName"
+              v-focus
+              size="small"
+              class="rename"
+              :aria-label="t('jira.list.filterName')"
+              @click.stop
+              @keydown.stop
+              @keydown.enter.prevent="commitEdit"
+              @keydown.esc.prevent="editing = null"
+              @blur="commitEdit"
+            />
+            <span v-else class="filter-row">
+              <span v-tooltip="jqlOf(option.value)" class="filter-name" @dblclick="startRename(filterOf(option.value))">{{ option.label }}</span>
+              <VButton v-tooltip="t('common.rename')" class="reveal vr-reveal" size="small" text severity="secondary" label="✎" :aria-label="t('jira.list.renameFilter')" @click.stop="startRename(filterOf(option.value))" />
+              <VButton v-tooltip="t('common.delete')" class="reveal vr-reveal" size="small" text severity="secondary" :aria-label="t('jira.list.deleteFilter')" @click.stop="removeFilter(filterOf(option.value))">
+                <template #icon><X :size="14" /></template>
+              </VButton>
+            </span>
+          </template>
+        </VListbox>
+        <VInputText
+          v-if="editing?.id === ''"
+          v-model="editing.name"
+          v-focus
+          size="small"
+          class="rename"
+          :placeholder="t('jira.list.filterName')"
+          :aria-label="t('jira.list.newFilterName')"
+          @keydown.enter.prevent="commitEdit"
+          @keydown.esc.prevent="editing = null"
+          @blur="commitEdit"
+        />
+        <div v-if="!custom.length && editing?.id !== ''" class="hint">{{ t('jira.list.hint') }}</div>
+      </aside>
 
-    <section class="main">
-      <div class="toolbar vr-toolbar">
-        <div class="search">
-          <VInputText
-            ref="search"
-            v-model="draft"
-            class="jql"
-            :placeholder="t('jira.list.jqlPlaceholder')"
-            aria-label="JQL"
-            data-testid="jira-jql"
-            spellcheck="false"
-            @focus="searchFocused = true; typed = false; suggestionCursor = -1"
-            @blur="searchFocused = false"
-            @input="typed = true; suggestionCursor = -1"
-            @keydown="onSearchKey"
-          />
-          <ul v-if="suggestions.length" class="suggestions" role="listbox">
-            <li
-              v-for="(jql, index) in suggestions"
-              :key="jql"
-              role="option"
-              :aria-selected="index === suggestionCursor"
-              :class="{ active: index === suggestionCursor }"
-              @mousedown.prevent
-              @click="pickSuggestion(jql)"
-            >
-              {{ jql }}
-            </li>
-          </ul>
+      <section class="main">
+        <div class="toolbar vr-toolbar">
+          <div class="search">
+            <VInputText
+              ref="search"
+              v-model="draft"
+              class="jql"
+              :placeholder="t('jira.list.jqlPlaceholder')"
+              aria-label="JQL"
+              data-testid="jira-jql"
+              spellcheck="false"
+              @focus="searchFocused = true; typed = false; suggestionCursor = -1"
+              @blur="searchFocused = false"
+              @input="typed = true; suggestionCursor = -1"
+              @keydown="onSearchKey"
+            />
+            <ul v-if="suggestions.length" class="suggestions" role="listbox">
+              <li
+                v-for="(jql, index) in suggestions"
+                :key="jql"
+                role="option"
+                :aria-selected="index === suggestionCursor"
+                :class="{ active: index === suggestionCursor }"
+                @mousedown.prevent
+                @click="pickSuggestion(jql)"
+              >
+                {{ jql }}
+              </li>
+            </ul>
+          </div>
+          <VButton :label="t('jira.list.find')" size="small" :disabled="!draft.trim()" @click="submit" />
+          <VButton :label="t('jira.list.saveFilter')" size="small" severity="secondary" :disabled="!draft.trim()" @click="startAdd" />
         </div>
-        <VButton :label="t('jira.list.find')" size="small" :disabled="!draft.trim()" @click="submit" />
-        <VButton :label="t('jira.list.saveFilter')" size="small" severity="secondary" :disabled="!draft.trim()" @click="startAdd" />
-      </div>
 
-      <div class="body">
-        <VMessage v-if="error" class="error" severity="error" size="small" data-testid="jira-error">
-          <span class="error-row">
-            <span class="error-text">{{ error }}</span>
-            <VButton :label="t('common.retry')" size="small" severity="secondary" @click="load(issues.length > 0)" />
-          </span>
-        </VMessage>
-        <Skeleton v-if="loading" :rows="10" />
-        <div v-else-if="!issues.length && !error" class="empty">{{ t('jira.list.empty') }}</div>
-        <table v-else-if="issues.length" class="table">
-          <colgroup>
-            <col class="c-type" />
-            <col class="c-key" />
-            <col />
-            <col class="c-status" />
-            <col class="c-priority" />
-            <col class="c-assignee" />
-            <col class="c-updated" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th :aria-label="t('jira.list.columns.type')" />
-              <th>{{ t('jira.list.columns.key') }}</th>
-              <th>{{ t('jira.list.columns.summary') }}</th>
-              <th>{{ t('jira.list.columns.status') }}</th>
-              <th>{{ t('jira.list.columns.priority') }}</th>
-              <th>{{ t('jira.list.columns.assignee') }}</th>
-              <th>{{ t('jira.list.columns.updated') }}</th>
-            </tr>
-          </thead>
-          <tbody v-auto-animate>
-            <tr v-for="(issue, index) in issues" :key="issue.key" :data-row="index" :class="{ cursor: index === cursor }" data-testid="jira-row" @click="clickRow(index)">
-              <td><TypeIcon :type="issue.issue_type" /></td>
-              <td class="key">{{ issue.key }}</td>
-              <td v-tooltip="issue.summary" class="summary">{{ issue.summary }}</td>
-              <td><StatusChip :status="issue.status" :category="issue.status_category" /></td>
-              <td><PriorityMark :priority="issue.priority" /></td>
-              <td>
-                <PersonAvatar v-if="issue.assignee" :connector="issue.connector" :person="issue.assignee" small />
-                <span v-else class="muted">-</span>
-              </td>
-              <td v-tooltip="formatDate(issue.updated)" class="muted">{{ formatRelative(issue.updated) }}</td>
-            </tr>
-          </tbody>
-        </table>
-        <div v-if="issues.length && !loading" class="more">
-          <span class="muted">{{ t('jira.list.shown', { shown: issues.length, total }) }}</span>
-          <VButton v-if="issues.length < total" :label="t('jira.list.loadMore')" size="small" severity="secondary" :loading="loadingMore" @click="load(true)" />
+        <div class="body">
+          <VMessage v-if="error" class="error" severity="error" size="small" data-testid="jira-error">
+            <span class="error-row">
+              <span class="error-text">{{ error }}</span>
+              <VButton :label="t('common.retry')" size="small" severity="secondary" @click="load(issues.length > 0)" />
+            </span>
+          </VMessage>
+          <Skeleton v-if="loading" :rows="10" />
+          <div v-else-if="!issues.length && !error" class="empty">{{ t('jira.list.empty') }}</div>
+          <table v-else-if="issues.length" class="table">
+            <colgroup>
+              <col class="c-type" />
+              <col class="c-key" />
+              <col />
+              <col class="c-status" />
+              <col class="c-priority" />
+              <col class="c-assignee" />
+              <col class="c-updated" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th :aria-label="t('jira.list.columns.type')" />
+                <th>{{ t('jira.list.columns.key') }}</th>
+                <th>{{ t('jira.list.columns.summary') }}</th>
+                <th>{{ t('jira.list.columns.status') }}</th>
+                <th class="c-priority">{{ t('jira.list.columns.priority') }}</th>
+                <th class="c-assignee">{{ t('jira.list.columns.assignee') }}</th>
+                <th class="c-updated">{{ t('jira.list.columns.updated') }}</th>
+              </tr>
+            </thead>
+            <tbody v-auto-animate>
+              <tr v-for="(issue, index) in issues" :key="issue.key" :data-row="index" :class="{ cursor: index === cursor }" data-testid="jira-row" @click="clickRow(index)">
+                <td><TypeIcon :type="issue.issue_type" /></td>
+                <td class="key">{{ issue.key }}</td>
+                <td v-tooltip="issue.summary" class="summary">{{ issue.summary }}</td>
+                <td><StatusChip :status="issue.status" :category="issue.status_category" /></td>
+                <td class="c-priority"><PriorityMark :priority="issue.priority" /></td>
+                <td class="c-assignee">
+                  <PersonAvatar v-if="issue.assignee" :connector="issue.connector" :person="issue.assignee" small />
+                  <span v-else class="muted">-</span>
+                </td>
+                <td v-tooltip="formatDate(issue.updated)" class="c-updated muted">{{ formatRelative(issue.updated) }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="issues.length && !loading" class="more">
+            <span class="muted">{{ t('jira.list.shown', { shown: issues.length, total }) }}</span>
+            <VButton v-if="issues.length < total" :label="t('jira.list.loadMore')" size="small" severity="secondary" :loading="loadingMore" @click="load(true)" />
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   </div>
 </template>
 
@@ -392,6 +394,26 @@ onMounted(() => void load(false));
   color: var(--vr-color-text);
   font-size: var(--vr-font-size-sm);
   outline: none;
+  container-type: inline-size;
+}
+
+.layout {
+  width: 100%;
+  height: 100%;
+}
+
+@container (max-width: 56rem) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .layout > .filters {
+    flex: 0 1 auto;
+    width: auto;
+    max-height: var(--vr-split-aside-max);
+    border-right: 0;
+    border-bottom: 1px solid var(--vr-color-border);
+  }
 }
 
 .filters {
@@ -523,6 +545,7 @@ onMounted(() => void load(false));
   flex: 1;
   min-height: 0;
   overflow: auto;
+  container-type: inline-size;
 }
 
 .empty {
@@ -533,17 +556,16 @@ onMounted(() => void load(false));
 
 .table {
   width: 100%;
-  min-width: 40rem;
   border-collapse: collapse;
   table-layout: fixed;
 }
 
-.c-type { width: 36px; }
-.c-key { width: 100px; }
-.c-status { width: 140px; }
-.c-priority { width: 110px; }
-.c-assignee { width: 56px; }
-.c-updated { width: 120px; }
+col.c-type { width: 36px; }
+col.c-key { width: 100px; }
+col.c-status { width: 140px; }
+col.c-priority { width: 110px; }
+col.c-assignee { width: 76px; }
+col.c-updated { width: 120px; }
 
 .table th {
   position: sticky;
@@ -557,6 +579,9 @@ onMounted(() => void load(false));
   font-weight: 600;
   text-align: left;
   text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .table td {
@@ -567,6 +592,19 @@ onMounted(() => void load(false));
   font-size: var(--vr-font-size-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+@container (max-width: 56rem) {
+  .table .c-priority,
+  .table .c-updated {
+    display: none;
+  }
+}
+
+@container (max-width: 32rem) {
+  .table .c-assignee {
+    display: none;
+  }
 }
 
 .table tbody tr {

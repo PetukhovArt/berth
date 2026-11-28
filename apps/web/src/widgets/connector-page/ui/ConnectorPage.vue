@@ -18,6 +18,8 @@ const props = defineProps<{
   picker?: boolean;
   selected?: { connector: string };
   placeholder: string;
+  listWidth?: number;
+  fillList?: boolean;
 }>();
 
 defineSlots<{
@@ -99,10 +101,10 @@ const selectedId = computed({
       <VButton :label="t('reviews.connectorPage.connect')" size="small" data-testid="connector-required-connect" @click="openSettings('connectors')" />
     </div>
     <div v-else class="split vr-master-detail" :data-detail="Boolean(selected)">
-      <SidePane class="vr-master" :storage-key="`${storageKey}.width`" :default-width="380" :label="t('reviews.connectorPage.listWidth')" :handle-testid="`${testId}-resize-handle`">
+      <SidePane class="vr-master" :storage-key="`${storageKey}.width`" :default-width="listWidth ?? 380" :fill="fillList && !selected" :label="t('reviews.connectorPage.listWidth')" :handle-testid="`${testId}-resize-handle`">
         <slot name="list" :connector="current.id" />
       </SidePane>
-      <div class="detail vr-detail vt-detail">
+      <div v-if="selected || !fillList" class="detail vr-detail vt-detail">
         <BackBar v-if="selected" class="vr-phone-only" @back="back" />
         <slot v-if="selected && (!picker || selected.connector === current.id)" name="detail" :connector="current.id" />
         <p v-else class="placeholder" data-testid="connector-page-placeholder">{{ placeholder }}</p>

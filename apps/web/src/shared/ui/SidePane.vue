@@ -2,8 +2,9 @@
 import { shallowRef, useTemplateRef } from 'vue';
 import { t } from '../lib/i18n/i18n';
 
-const props = withDefaults(defineProps<{ storageKey: string; defaultWidth: number; label?: string; handleTestid?: string }>(), {
+const props = withDefaults(defineProps<{ storageKey: string; defaultWidth: number; label?: string; handleTestid?: string; fill?: boolean }>(), {
   handleTestid: 'tree-resize-handle',
+  fill: false,
 });
 
 const MIN_WIDTH = 180;
@@ -56,9 +57,10 @@ function resizeByKey(event: KeyboardEvent) {
 </script>
 
 <template>
-  <div ref="pane" class="pane" :style="{ width: `${width}px` }">
+  <div ref="pane" class="pane" :class="{ fill }" :style="fill ? undefined : { width: `${width}px` }">
     <slot />
     <div
+      v-if="!fill"
       class="resize-handle vr-wide-only"
       role="separator"
       aria-orientation="vertical"
@@ -84,6 +86,12 @@ function resizeByKey(event: KeyboardEvent) {
   max-width: 50%;
   min-height: 0;
   border-right: 1px solid var(--vr-color-border);
+}
+
+.pane.fill {
+  flex: 1;
+  max-width: none;
+  border-right: 0;
 }
 
 .resize-handle {

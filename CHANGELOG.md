@@ -34,6 +34,7 @@
 - Changed `Restore files` on a checkpoint to ask in a dialog instead of two links under the prompt
 - Changed the Chat view to the new look: a 780 px centered column, rounded prompt bubbles, a colored tile by the agent name, and phase chips in the plan strip
 - Changed connector errors from red strips above the tree to a plug icon with the number of failures beside it in the title bar: its list shows each failing connector's full message and since when, with `Retry` and `Configure` buttons
+- Fixed the Jira page list: with no issue open it uses the full width, and next to an open issue it is wider and drops the priority, updated and assignee columns instead of scrolling sideways with the summary cut off
 - Fixed the session header on a phone: the action buttons wrap onto a second line instead of scrolling sideways and cutting the last label
 - Fixed the language button in the sidebar footer: it shows `EN` and `RU` in full instead of a cut letter
 - Fixed a Claude chat that opens at its first message when you reopen a session with a long conversation, and a sent message that stays out of view when you had scrolled up: the chat now goes to the end

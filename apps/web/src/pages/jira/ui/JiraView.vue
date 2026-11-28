@@ -30,6 +30,8 @@ function select(target: { connector: string; key: string }) {
     picker
     :preferred="open?.connector"
     :selected="open"
+    :list-width="560"
+    fill-list
   >
     <template #list="{ connector }">
       <JiraIssues :key="connector" :connector="connector" @open="select" />
