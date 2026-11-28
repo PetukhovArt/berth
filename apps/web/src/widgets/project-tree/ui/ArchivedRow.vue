@@ -42,7 +42,7 @@ async function confirmDelete() {
   display: flex;
   align-items: center;
   gap: var(--vr-space-1);
-  height: 28px;
+  height: max(28px, var(--vr-row-min));
   padding: 0 4px 0 var(--vr-space-6);
   font-size: var(--vr-font-size-label);
 }

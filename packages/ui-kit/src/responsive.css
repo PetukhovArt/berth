@@ -4,12 +4,14 @@
   --vr-safe-bottom: env(safe-area-inset-bottom, 0px);
   --vr-safe-left: env(safe-area-inset-left, 0px);
   --vr-page-gutter: var(--vr-space-6);
+  --vr-row-min: 0px;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
 
 :root[data-vr-viewport='phone'] {
   --vr-page-gutter: var(--vr-space-3);
+  --vr-row-min: var(--vr-size-row-touch);
   --vr-size-row: var(--vr-size-row-touch);
   --vr-size-control: var(--vr-size-row-touch);
 }

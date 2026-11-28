@@ -369,8 +369,8 @@ function onKey(event: KeyboardEvent) {
   align-items: center;
   gap: 7px;
   min-width: 0;
-  height: 28px;
-  min-height: 28px;
+  height: max(28px, var(--vr-row-min));
+  min-height: max(28px, var(--vr-row-min));
   padding: 0 4px 0 calc(var(--depth) * var(--indent) + 6px);
   font: inherit;
   font-size: var(--vr-font-size-label);

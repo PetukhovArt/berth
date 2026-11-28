@@ -34,6 +34,7 @@
 - Changed `Restore files` on a checkpoint to ask in a dialog instead of two links under the prompt
 - Changed the Chat view to the new look: a 780 px centered column, rounded prompt bubbles, a colored tile by the agent name, and phase chips in the plan strip
 - Changed connector errors from red strips above the tree to a plug icon with the number of failures beside it in the title bar: its list shows each failing connector's full message and since when, with `Retry` and `Configure` buttons
+- Fixed the sessions tree on a phone: project, worktree, group, external session, ended and archived rows are 40px tall again, so they are easy to tap
 - Fixed the session header on a phone: the action buttons wrap onto a second line instead of scrolling sideways and cutting the last label
 - Fixed the sidebar tab switch: with four tabs the labels and count badges were cut off, so the tabs now show icons with their badges when the labels do not fit
 - Fixed the language button in the sidebar footer: it shows `EN` and `RU` in full instead of a cut letter

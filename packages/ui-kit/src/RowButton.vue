@@ -36,6 +36,7 @@ defineExpose({ focus: (options?: FocusOptions) => button.value?.focus(options), 
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
+  min-height: var(--vr-row-min);
   padding: var(--vr-space-1) var(--vr-space-2) var(--vr-space-1) calc(var(--vr-space-2) + var(--row-depth) * var(--vr-space-3));
   color: inherit;
   font: inherit;
@@ -52,7 +53,7 @@ defineExpose({ focus: (options?: FocusOptions) => button.value?.focus(options), 
 }
 
 .row-button[data-density='compact'] {
-  min-height: 28px;
+  min-height: max(28px, var(--vr-row-min));
   padding-block: 0;
   font-size: var(--vr-font-size-xs);
   border-radius: var(--vr-radius-sm);
@@ -109,9 +110,5 @@ defineExpose({ focus: (options?: FocusOptions) => button.value?.focus(options), 
 
 .row-button[data-stacked] .main {
   flex: none;
-}
-
-:root[data-vr-viewport='phone'] .row-button[data-density='compact'] {
-  min-height: var(--vr-size-row);
 }
 </style>
