@@ -261,6 +261,10 @@ body {
     min-width: var(--vr-size-row-touch);
   }
 
+  :root[data-vr-viewport='phone'] :where(.p-menu-item-link, .p-tieredmenu-item-link, .p-contextmenu-item-link) {
+    min-height: var(--vr-size-row-touch);
+  }
+
   :root[data-vr-viewport='phone'] :where(input:is([type='checkbox'], [type='radio'])) {
     width: 1.125rem;
     height: 1.125rem;

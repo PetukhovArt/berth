@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Fixed the mouse wheel over the tab strip stopping between tabs: it now moves one whole tab per step and can scroll past the active tab
+- Fixed menu items on the phone being smaller than the other touch targets
+
 ## 0.26.0 (2026-11-28)
 
 - Changed the phone session header to one 48px title row with the status and a menu for model, share, task note, agent log and the git step, and the Todo list to a single line that opens on tap
