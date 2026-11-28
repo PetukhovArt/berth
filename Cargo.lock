@@ -512,7 +512,7 @@ checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
 name = "berth"
-version = "0.25.1"
+version = "0.25.2"
 dependencies = [
  "anyhow",
  "berth-core",
@@ -528,7 +528,7 @@ dependencies = [
 
 [[package]]
 name = "berth-core"
-version = "0.25.1"
+version = "0.25.2"
 dependencies = [
  "directories",
  "libc",
@@ -547,7 +547,7 @@ dependencies = [
 
 [[package]]
 name = "berth-daemon"
-version = "0.25.1"
+version = "0.25.2"
 dependencies = [
  "anyhow",
  "axum",
@@ -611,7 +611,7 @@ dependencies = [
 
 [[package]]
 name = "berth-hub"
-version = "0.25.1"
+version = "0.25.2"
 dependencies = [
  "anyhow",
  "axum",
@@ -632,7 +632,7 @@ dependencies = [
 
 [[package]]
 name = "berth-transcripts"
-version = "0.25.1"
+version = "0.25.2"
 dependencies = [
  "berth-core",
  "rusqlite",

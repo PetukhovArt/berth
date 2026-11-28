@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.25.2 (2026-11-28)
+
 - Fixed outlined buttons such as "Copy resume command" still blending into the background: the stronger border listed in 0.25.1 was not applied
 
 ## 0.25.1 (2026-11-28)
