@@ -14,6 +14,8 @@ function scoreOf(words: readonly string[], text: string): number | null {
   return total;
 }
 
+export const titleMatches = (words: readonly string[], title: string): boolean => words.length > 0 && scoreOf(words, title.toLowerCase()) !== null;
+
 export type Rankable = { text: string; title: string; at: number };
 
 export function rank<T>(words: readonly string[], items: readonly T[], describe: (item: T) => Rankable): T[] {
@@ -22,7 +24,7 @@ export function rank<T>(words: readonly string[], items: readonly T[], describe:
     const { text, title, at } = describe(item);
     const total = scoreOf(words, text.toLowerCase());
     if (total === null) continue;
-    const titled = scoreOf(words, title.toLowerCase()) !== null;
+    const titled = titleMatches(words, title);
     scored.push({ item, score: total + (titled ? TITLE_BOOST * words.length : 0), at });
   }
   return scored.sort((a, b) => b.score - a.score || b.at - a.at).map((entry) => entry.item);

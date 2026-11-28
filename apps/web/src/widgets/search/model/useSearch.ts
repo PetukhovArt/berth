@@ -3,7 +3,7 @@ import { isSearchableMessageQuery, useLoadedChannelMessages, type ConversationHi
 import { quickItems, useWorkTree, type QuickItem } from '../../../features/work-tree';
 import { t } from '../../../shared/lib/i18n/i18n';
 import type { MarkdownEntry } from '../../../shared/lib/markdownFiles';
-import { rank, wordsOf } from './rank';
+import { rank, titleMatches, wordsOf } from './rank';
 import { KINDS, SCOPE_KINDS, entityKindOf, type ConversationRow, type SearchAction, type SearchGroup, type SearchKind, type SearchRow, type SearchScope } from './rows';
 import { useOpener } from './useOpener';
 import { useTranscriptSearch } from './useTranscriptSearch';
@@ -76,16 +76,19 @@ export function useSearch(options: SearchOptions) {
 
   const channelRows = computed<SearchRow[]>(() => {
     if (!hasText.value) return [];
-    return rank(words.value, loadedChannels.value, (message) => ({ text: `${message.content} ${message.authorName} ${message.channel}`, title: message.content, at: message.createdAt })).map((message) => ({
+    return rank(words.value, loadedChannels.value, (message) => ({ text: `${message.content} ${message.authorName} ${message.channel}`, title: message.channel, at: message.createdAt })).map((message) => ({
       id: `channel:${message.channel}:${message.seq}`,
       kind: 'channels',
       message,
     }));
   });
 
-  const messageRows = computed<ConversationRow[]>(() =>
-    (transcripts.result.value?.conversations ?? []).map((conversation) => ({ id: `message:${conversationKeyOf(conversation)}`, kind: 'messages', conversation })),
-  );
+  const messageRows = computed<ConversationRow[]>(() => {
+    const conversations = transcripts.result.value?.conversations ?? [];
+    const named = conversations.filter((conversation) => titleMatches(words.value, opener.hitTitle(conversation)));
+    const rest = conversations.filter((conversation) => !named.includes(conversation));
+    return [...named, ...rest].map((conversation) => ({ id: `message:${conversationKeyOf(conversation)}`, kind: 'messages', conversation }));
+  });
 
   const allRows = computed<Record<SearchKind, readonly SearchRow[]>>(() => ({ ...entityRows.value, files: fileRows.value, actions: actionRows.value, messages: messageRows.value, channels: channelRows.value }));
 
