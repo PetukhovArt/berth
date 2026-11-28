@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Fixed tabs in the tab strip being cut at the edge again after the window was resized, with the active tab sometimes scrolled out of view
+- Fixed the side-by-side diff showing columns narrower than 360px just above the switch to the unified view
+
 ## 0.25.3 (2026-11-28)
 
 - Fixed the last tab in the tab strip showing as a cut-off fragment at the edge: a tab that does not fit now moves whole into the overflow menu, and the overflow button goes away once the remaining tabs fit; the session header title and archived conversation rows show the full title on hover

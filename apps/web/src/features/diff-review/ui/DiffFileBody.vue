@@ -24,7 +24,7 @@ const emit = defineEmits<{ expand: []; pick: [index: number, extend: boolean]; q
 type Model = { lines: PatchLine[]; rows: SplitRow[]; html: string[]; threads: Map<number, Discussion[]>; orphans: Discussion[] };
 
 const ROW_LIMIT = 2500;
-const MIN_SPLIT_WIDTH = 720;
+const MIN_SPLIT_WIDTH = 808;
 const EMPTY: Discussion[] = [];
 
 function safeHighlight(code: string, path: string): string[] {

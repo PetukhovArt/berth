@@ -42,9 +42,22 @@ function fit(tabs: HTMLElement, bar: HTMLElement, clip: boolean): boolean {
     width = Math.max(FLOOR_WIDTH, Math.min(MAX_WIDTH, Math.floor(usable / shown)));
   }
   tabs.style.setProperty(WIDTH_VAR, `${width}px`);
-  if (clip) tabs.style.maxWidth = `${shown * width}px`;
-  else tabs.style.removeProperty('max-width');
+  if (clip) {
+    tabs.style.maxWidth = `${shown * width}px`;
+    snapScroll(tabs, width, shown, count);
+  } else tabs.style.removeProperty('max-width');
   return stale;
+}
+
+function snapScroll(tabs: HTMLElement, width: number, shown: number, count: number) {
+  const all = Array.from(tabs.querySelectorAll<HTMLElement>(':scope > .dv-tab'));
+  const active = all.findIndex((tab) => tab.classList.contains('dv-active-tab'));
+  let first = Math.round(tabs.scrollLeft / width);
+  if (active >= 0 && active < first) first = active;
+  if (active >= first + shown) first = active - shown + 1;
+  first = Math.max(0, Math.min(first, count - shown));
+  const target = first * width;
+  if (Math.abs(tabs.scrollLeft - target) > 0.5) tabs.scrollLeft = target;
 }
 
 export function trackTabFit(root: HTMLElement, api: DockviewApi): { dispose(): void }[] {
