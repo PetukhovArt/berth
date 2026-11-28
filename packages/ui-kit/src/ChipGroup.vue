@@ -158,7 +158,9 @@ function onWheel(event: WheelEvent) {
   gap: var(--vr-space-1);
   scroll-snap-align: start;
   white-space: nowrap;
-  padding: var(--vr-space-1) var(--vr-space-2);
+  box-sizing: border-box;
+  height: var(--vr-size-control);
+  padding: 0 var(--vr-space-2);
   border: 1px solid var(--vr-color-border);
   border-radius: var(--vr-radius-sm);
   background: none;
@@ -200,9 +202,5 @@ function onWheel(event: WheelEvent) {
   font-size: var(--vr-font-size-2xs);
   font-variant-numeric: tabular-nums;
   color: var(--vr-color-text-muted);
-}
-
-:root[data-vr-viewport='phone'] .chip {
-  min-height: var(--vr-size-row);
 }
 </style>
