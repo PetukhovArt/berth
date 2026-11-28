@@ -66,8 +66,6 @@ const dangerButton = {
 
 const linkButton = { color: v('color-link'), hoverColor: v('color-link'), activeColor: v('color-link') };
 
-const outlinedBorder = { primary: { borderColor: v('color-border-control') }, secondary: { borderColor: v('color-border-control') } };
-
 const tint = (token: string, share: number) => `color-mix(in srgb, ${v(token)} ${share}%, white)`;
 const shade = (token: string, share: number) => `color-mix(in srgb, ${v(token)} ${share}%, black)`;
 
@@ -141,6 +139,7 @@ const BerthPreset = definePreset(Aura, {
     badge: {
       root: { fontSize: v('font-size-2xs'), fontWeight: '600', minWidth: '1.5em', height: '1.5em', padding: '0 0.4em' },
       sm: { fontSize: v('font-size-2xs'), minWidth: '1.45em', height: '1.45em' },
+      colorScheme: { light: { secondary: { background: v('color-text-muted'), color: v('color-surface') } } },
     },
     checkbox: { root: { borderColor: v('color-text-subtle'), checkedHoverBackground: v('color-accent'), checkedHoverBorderColor: v('color-accent') } },
     button: {
