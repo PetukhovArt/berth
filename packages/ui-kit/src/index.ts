@@ -147,8 +147,8 @@ const BerthPreset = definePreset(Aura, {
     button: {
       root: { borderRadius: v('radius-md'), gap: '6px', sm: { fontSize: v('font-size-label'), paddingX: '11px', paddingY: '3px', iconOnlyWidth: '28px' } },
       colorScheme: {
-        light: { root: { danger: dangerButton, secondary: { borderColor: '{surface.300}', hoverBorderColor: '{surface.300}', activeBorderColor: '{surface.400}' } }, outlined: { danger: { color: '{red.600}' } }, text: { danger: { color: '{red.600}' } }, link: linkButton },
-        dark: { root: { danger: dangerButton }, link: linkButton },
+        light: { root: { danger: dangerButton, secondary: { borderColor: '{surface.300}', hoverBorderColor: '{surface.300}', activeBorderColor: '{surface.400}' } }, outlined: { ...outlinedBorder, danger: { color: '{red.600}' } }, text: { danger: { color: '{red.600}' } }, link: linkButton },
+        dark: { root: { danger: dangerButton }, outlined: outlinedBorder, link: linkButton },
       },
     },
   },
