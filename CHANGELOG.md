@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed outlined buttons such as "Copy resume command" still blending into the background: the stronger border listed in 0.25.1 was not applied
+
 ## 0.25.1 (2026-11-28)
 
 - Fixed the Tasks tab count in the light theme sidebar blending into the background: secondary badges now have a dark fill with light text
