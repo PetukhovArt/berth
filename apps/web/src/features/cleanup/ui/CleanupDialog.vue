@@ -152,7 +152,7 @@ function removeSelected() {
   >
     <template #header>
       <span class="p-dialog-title">{{ t('cleanup.title') }}</span>
-      <VButton v-if="busy" v-tooltip="t('cleanup.hide')" class="hide" text rounded severity="secondary" :aria-label="t('cleanup.hide')" data-testid="cleanup-hide" @mousedown.stop @click="cleanupOpen = false">
+      <VButton v-if="busy" v-tooltip="t('cleanup.hide')" class="hide" text size="small" severity="secondary" :aria-label="t('cleanup.hide')" data-testid="cleanup-hide" @mousedown.stop @click="cleanupOpen = false">
         <template #icon><Minus :size="18" /></template>
       </VButton>
     </template>
@@ -238,8 +238,6 @@ function removeSelected() {
 }
 
 .hide {
-  width: 32px;
-  height: 32px;
   margin-left: auto;
 }
 

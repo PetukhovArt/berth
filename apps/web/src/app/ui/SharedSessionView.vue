@@ -164,7 +164,7 @@ onBeforeUnmount(() => {
       <header class="diff-head">
         <FileText :size="14" />
         <span v-tooltip="opened.path" class="diff-path mono">{{ opened.path }}</span>
-        <VButton v-tooltip="t('remote.share.diffClose')" size="small" severity="secondary" text rounded :aria-label="t('remote.share.diffClose')" data-testid="shared-session-diff-close" @click="opened = null">
+        <VButton v-tooltip="t('remote.share.diffClose')" size="small" severity="secondary" text :aria-label="t('remote.share.diffClose')" data-testid="shared-session-diff-close" @click="opened = null">
           <template #icon><X :size="16" /></template>
         </VButton>
       </header>
