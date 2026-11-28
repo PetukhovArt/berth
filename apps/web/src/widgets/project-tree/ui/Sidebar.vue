@@ -410,6 +410,9 @@ onUnmounted(() => {
 }
 
 .icon.lang {
+  width: auto;
+  min-width: 28px;
+  padding-inline: var(--vr-space-2);
   font-size: var(--vr-font-size-2xs);
   font-weight: 600;
 }

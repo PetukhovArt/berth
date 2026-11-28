@@ -34,6 +34,7 @@
 - Changed `Restore files` on a checkpoint to ask in a dialog instead of two links under the prompt
 - Changed the Chat view to the new look: a 780 px centered column, rounded prompt bubbles, a colored tile by the agent name, and phase chips in the plan strip
 - Changed connector errors from red strips above the tree to a plug icon with the number of failures beside it in the title bar: its list shows each failing connector's full message and since when, with `Retry` and `Configure` buttons
+- Fixed the language button in the sidebar footer: it shows `EN` and `RU` in full instead of a cut letter
 - Fixed a Claude chat that opens at its first message when you reopen a session with a long conversation, and a sent message that stays out of view when you had scrolled up: the chat now goes to the end
 - Fixed starting the desktop app a second time: it now brings the running window to the front and exits, instead of opening a second copy
 - Fixed the app freezing on a code block without a language that starts with a long line of dashes, such as an ASCII table rule, in the Chat view, the markdown preview and diffs
