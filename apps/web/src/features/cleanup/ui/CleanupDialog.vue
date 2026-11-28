@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue';
-import { Minus, RefreshCw } from '../../../shared/ui/icons';
+import { CheckCircle2, Minus, RefreshCw } from '../../../shared/ui/icons';
 import { VButton, VCheckbox, VDialog, VMessage, VTag, vTooltip } from '../../../shared/ui/kit';
 import DialogActions from '../../../shared/ui/DialogActions.vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
@@ -12,6 +12,7 @@ const selected = shallowRef<ReadonlySet<string>>(new Set());
 const decided = new Set<string>();
 const deleteBranch = shallowRef(false);
 const busy = computed(() => removing.value !== null);
+const hasList = computed(() => candidates.value.length > 0);
 const diffs = shallowRef<ReadonlyMap<string, string>>(new Map());
 
 const groups = computed(() => {
@@ -157,7 +158,7 @@ function removeSelected() {
       </VButton>
     </template>
     <div class="top">
-      <p class="intro">{{ t('cleanup.intro') }}</p>
+      <p v-if="hasList" class="intro">{{ t('cleanup.intro') }}</p>
       <span class="when">
         <span v-if="scanned">{{ t('cleanup.scannedAt', { when: formatRelative(scanned.at) }) }}</span>
         <VButton v-tooltip="t('cleanup.rescan')" class="icon" text severity="secondary" size="small" :aria-label="t('cleanup.rescan')" :disabled="scanning || busy" data-testid="cleanup-rescan" @click="scanNow">
@@ -167,7 +168,11 @@ function removeSelected() {
     </div>
     <VMessage v-if="scanError" severity="error" size="small" data-testid="cleanup-error">{{ scanError }}</VMessage>
     <p v-if="scanning && !candidates.length" class="state" role="status">{{ t('cleanup.scanning') }}</p>
-    <p v-else-if="!candidates.length" class="state" role="status" data-testid="cleanup-empty">{{ t('cleanup.empty') }}</p>
+    <div v-else-if="!hasList && !scanError" class="empty" role="status" data-testid="cleanup-empty">
+      <CheckCircle2 :size="28" />
+      <strong class="empty-title">{{ t('cleanup.empty') }}</strong>
+      <span>{{ t('cleanup.emptyHint') }}</span>
+    </div>
     <section v-for="group in groups" :key="group.id" class="group" data-testid="cleanup-group" :data-project="group.name">
       <h3 class="project">
         {{ group.name }}
@@ -198,8 +203,8 @@ function removeSelected() {
     <VMessage v-if="removedCount && !busy" severity="success" size="small" data-testid="cleanup-removed">{{ t('cleanup.removed', { count: removedCount }) }}</VMessage>
     <VMessage v-for="failure in failures" :key="failure.key" severity="error" size="small" data-testid="cleanup-failure">{{ t('cleanup.failed', { name: failure.name, message: failure.error ?? '' }) }}</VMessage>
     <template #footer>
-      <DialogActions :confirm-label="t('cleanup.removeSelected')" danger focus="cancel" :busy="busy" :disabled="!picked.length || scanning" cancel-testid="cleanup-cancel" confirm-testid="cleanup-remove" @cancel="cleanupOpen = false" @confirm="removeSelected">
-        <template #start>
+      <DialogActions :confirm-label="hasList ? t('cleanup.removeSelected') : undefined" danger focus="cancel" :busy="busy" :disabled="!picked.length || scanning" cancel-testid="cleanup-cancel" confirm-testid="cleanup-remove" @cancel="cleanupOpen = false" @confirm="removeSelected">
+        <template v-if="hasList" #start>
           <VCheckbox v-model="deleteBranch" class="branch" :label="t('cleanup.deleteBranch')" :disabled="busy" data-testid="cleanup-delete-branch" />
           <span class="progress" role="status">{{ removing ? t('cleanup.removing', { name: removing.name }) : t('cleanup.selected', { count: picked.length }) }}</span>
         </template>
@@ -254,6 +259,22 @@ function removeSelected() {
 .state {
   margin: 0;
   color: var(--vr-color-text-muted);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--vr-space-1);
+  padding: var(--vr-space-6) 0;
+  font-size: var(--vr-font-size-sm);
+  color: var(--vr-color-text-muted);
+  text-align: center;
+}
+
+.empty-title {
+  font-weight: 600;
+  color: var(--vr-color-text);
 }
 
 .group + .group {

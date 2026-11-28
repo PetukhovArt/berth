@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Fixed the worktree cleanup dialog with nothing to clean looking like a form: it now shows a short empty message with only a Close button instead of a disabled Remove selected button and the branches checkbox
 
 ## 0.25.2 (2026-11-28)
 

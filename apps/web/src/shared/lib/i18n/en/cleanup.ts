@@ -6,6 +6,7 @@ export const cleanup = {
   intro: 'Finished worktrees, grouped by project. Nothing is deleted until you press Remove selected. Conversations stay in Earlier.',
   scanning: 'Checking worktrees…',
   empty: 'Nothing to clean up',
+  emptyHint: 'Finished worktrees appear here.',
   rescan: 'Check again',
   scannedAt: 'Checked {when}',
   noBase: 'no base branch found, merge state from the forge only',
