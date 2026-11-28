@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { VButton, VInputText, VMessage, VTextarea, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
+import type { MenuAction } from '../../../shared/lib/menuAction';
 import { forgeCreateChangeRequest, worktreeGitState, worktreeGitStep, type GitState } from '../../../shared/api/git';
 import { rememberMr } from '../../../entities/merge-request';
 import { GitBranch } from '../../../shared/ui/icons';
@@ -86,6 +87,9 @@ function click() {
   }
   void perform();
 }
+
+const item = computed<MenuAction | null>(() => (step.value ? { label: busy.value ? t('gitStep.working') : label.value, testid: 'session-menu-git-step', disabled: !runnable.value || busy.value, run: click } : null));
+defineExpose({ item });
 
 watch(
   () => [props.path, props.refreshKey] as const,
@@ -202,6 +206,10 @@ onBeforeUnmount(() => window.removeEventListener('focus', refresh));
   background: var(--vr-color-surface-raised);
   border-radius: 9px;
   box-shadow: var(--vr-shadow-popover);
+}
+
+:root[data-vr-viewport='phone'] .form.vr-sheet {
+  padding: calc(var(--vr-safe-top) + var(--vr-space-4)) calc(var(--vr-safe-right) + var(--vr-space-4)) calc(var(--vr-safe-bottom) + var(--vr-space-4)) calc(var(--vr-safe-left) + var(--vr-space-4));
 }
 
 .field {

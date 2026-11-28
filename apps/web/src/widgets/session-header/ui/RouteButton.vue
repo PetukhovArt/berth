@@ -3,6 +3,7 @@ import { computed, ref, useTemplateRef, watch } from 'vue';
 import { VButton, VInputText, VMessage, VPopover, VSelect, useIsPhone, vTooltip } from '../../../shared/ui/kit';
 import { Waypoints } from '../../../shared/ui/icons';
 import { t } from '../../../shared/lib/i18n/i18n';
+import { toggleAt, type MenuAction } from '../../../shared/lib/menuAction';
 import { continueAgentIn, describeError, entitySessionRef, switchAgentModel, useSessionDock, type AgentKind, type ProviderError } from '../../../entities/session';
 
 const props = defineProps<{ agentId: string; kind: AgentKind; model: string | null; resumable: boolean; error: ProviderError | null }>();
@@ -68,6 +69,9 @@ function continueIn() {
     if (session) dock.openWhenListed(session);
   });
 }
+
+const item = computed<MenuAction>(() => ({ label: t('agents.route.openShort'), testid: 'session-menu-route', run: (target) => toggleAt(popover.value, target) }));
+defineExpose({ item });
 
 watch(
   () => props.agentId,

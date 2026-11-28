@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { VButton, useIsPhone, vTooltip } from '../../../shared/ui/kit';
 import { MessageSquare, SquareTerminal } from '../../../shared/ui/icons';
 import { t } from '../../../shared/lib/i18n/i18n';
+import type { MenuAction } from '../../../shared/lib/menuAction';
 import { useProviders } from '../../../shared/api/providers';
 import { otherBackend, setAgentBackend, useAction, useBerth } from '../../../entities/session';
 
@@ -16,6 +17,14 @@ const target = computed(() => {
   return agent ? otherBackend(agent, providers.value) : null;
 });
 const label = computed(() => action.error.value ?? t(target.value === 'terminal' ? 'agents.session.openInTerminal' : 'agents.session.backToChat'));
+
+function run() {
+  const next = target.value;
+  if (next) void action.run(() => setAgentBackend(props.agentId, next));
+}
+
+const item = computed<MenuAction | null>(() => (target.value ? { label: label.value, testid: 'session-menu-switch-backend', disabled: action.busy.value, run } : null));
+defineExpose({ item });
 </script>
 
 <template>
@@ -30,7 +39,7 @@ const label = computed(() => action.error.value ?? t(target.value === 'terminal'
     :aria-label="label"
     :disabled="action.busy.value"
     data-testid="session-header-switch-backend"
-    @click="action.run(() => setAgentBackend(agentId, target!))"
+    @click="run"
   >
     <template #icon>
       <SquareTerminal v-if="target === 'terminal'" :size="13" />

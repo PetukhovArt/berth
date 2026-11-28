@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Changed the phone session header to one 48px title row with the status and a menu for model, share, task note, agent log and the git step, and the Todo list to a single line that opens on tap
+
 ## 0.25.4 (2026-11-28)
 
 - Fixed tabs in the tab strip being cut at the edge again after the window was resized, with the active tab sometimes scrolled out of view

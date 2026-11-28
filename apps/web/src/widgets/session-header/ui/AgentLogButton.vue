@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, useTemplateRef, watch } from 'vue';
+import { computed, ref, useTemplateRef, watch } from 'vue';
 import { FileText } from '../../../shared/ui/icons';
 import { VButton, VPopover, useIsPhone, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
+import { toggleAt, type MenuAction } from '../../../shared/lib/menuAction';
 import { readAcpAgentLog } from '../../../shared/api/providers';
 import { agentLogFor } from '../../../shared/model/agentLog';
 import { describeError } from '../../../entities/session';
@@ -34,6 +35,9 @@ function closed() {
   open.value = false;
   if (agentLogFor.value === props.agentId) agentLogFor.value = null;
 }
+
+const item = computed<MenuAction>(() => ({ label: t('agents.sessionView.chatAgentLog'), testid: 'session-menu-agent-log', run: (target) => toggleAt(popover.value, target) }));
+defineExpose({ item });
 
 watch(agentLogFor, (value) => {
   if (value === props.agentId && !open.value && anchor.value) popover.value?.show({ currentTarget: anchor.value } as unknown as Event);

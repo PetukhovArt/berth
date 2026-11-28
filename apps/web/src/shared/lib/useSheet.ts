@@ -5,6 +5,7 @@ const OWN_OVERLAYS = '.p-select-overlay';
 
 function clamp(el: HTMLElement) {
   el.style.translate = '';
+  if (getComputedStyle(el).position === 'fixed') return;
   const rect = el.getBoundingClientRect();
   const bounds = el.closest('main')?.getBoundingClientRect() ?? { left: 0, right: window.innerWidth };
   const left = bounds.left + MARGIN;

@@ -6,7 +6,7 @@ import { hostText } from '../../../shared/lib/i18n/hostText';
 import { paletteOpen } from '../../../shared/lib/commands/context';
 import { useDock } from '../../../shared/model/dock';
 import { view } from '../../../shared/model/nav';
-import { StatusDot, isRunning, isStopped, useBerth, useSessionDock, useSessionStates, type SessionStatus } from '../../../entities/session';
+import { isRunning, useBerth, useSessionDock, useSessionStates } from '../../../entities/session';
 import { useInbox } from '../../../features/attention';
 import { startNewSession } from '../../../features/new-session';
 import { ConnectorErrors, useWorkTree } from '../../../features/work-tree';
@@ -14,19 +14,16 @@ import { VButton, vTooltip } from '../../../shared/ui/kit';
 import BrandMark from '../../../shared/ui/BrandMark.vue';
 import { phoneSection } from '../model/section';
 
-const { t, formatTime } = useI18n();
+const { t } = useI18n();
 const berth = useBerth();
 const { detail, activeTitle } = useDock();
 const { activeSession } = useSessionDock();
 const { items } = useInbox();
 const { tabs } = useWorkTree();
 
-const TONES: Partial<Record<SessionStatus, string>> = { running: 'running', needs_feedback: 'feedback', terminated: 'crashed', limit: 'limit' };
-
 const inDetail = computed(() => view.value.kind === 'agents' && detail.value);
 const session = computed(() => (inDetail.value ? activeSession.value : undefined));
 const states = useSessionStates();
-const state = computed(() => (session.value ? states.value.get(session.value.key) : undefined));
 const running = computed(() => [...states.value.values()].filter(isRunning).length);
 const reviews = computed(() => tabs.value.find((tab) => tab.id === 'reviews')?.count ?? 0);
 
@@ -41,25 +38,6 @@ const title = computed(() => {
   if (inDetail.value) return session.value?.name ?? activeTitle.value;
   if (phoneSection.value) return t(`mobile.section.${phoneSection.value}`);
   return view.value.kind === 'jira' ? t('shell.nav.jira') : view.value.kind === 'confluence' ? t('shell.nav.confluence') : '';
-});
-
-const place = computed(() => {
-  const ref = session.value?.ref;
-  const entities = berth?.entities.value;
-  if (!ref || !entities) return '';
-  const worktreeId = 'Agent' in ref ? entities.agents.get(ref.Agent)?.worktree_id : entities.terminals.get(ref.Terminal)?.worktree_id;
-  const worktree = worktreeId ? entities.worktrees.get(worktreeId) : undefined;
-  const project = worktree ? entities.projects.get(worktree.project_id) : undefined;
-  return [project?.name, worktree?.branch].filter(Boolean).join(' › ');
-});
-
-const statusText = computed(() => {
-  const node = session.value;
-  if (!node) return '';
-  const status = state.value?.status ?? node.status;
-  const until = state.value?.limitUntil;
-  const label = t(isStopped(status, state.value?.unseen ?? node.unseen, state.value?.alive ?? node.alive) ? 'agents.status.stopped' : `agents.status.${status}`);
-  return until ? `${label} · ${t('agents.metrics.resets', { time: formatTime(until) })}` : label;
 });
 
 const summary = computed(() => {
@@ -82,7 +60,7 @@ const canCreate = computed(() => !inDetail.value && (phoneSection.value === 'inb
 </script>
 
 <template>
-  <header class="phone-header" data-testid="phone-header">
+  <header v-if="!session" class="phone-header" data-testid="phone-header">
     <VButton v-if="inDetail" v-tooltip="t('mobile.back')" class="icon back" text severity="secondary" :aria-label="t('mobile.back')" data-testid="mobile-back" @click="detail = false">
       <template #icon><ChevronLeft :size="22" /></template>
     </VButton>
@@ -90,11 +68,6 @@ const canCreate = computed(() => !inDetail.value && (phoneSection.value === 'inb
     <div class="identity">
       <h1 class="title" data-testid="phone-header-title">{{ title }}</h1>
       <p v-if="offline" class="sub" data-tone="offline" role="status" data-testid="phone-header-connection">{{ offline }}</p>
-      <p v-else-if="session" class="sub" data-testid="phone-header-status">
-        <StatusDot class="status-icon" :status="state?.status ?? session.status" :unseen="session.unseen" :alive="state?.alive ?? session.alive" />
-        <span class="status" :data-tone="TONES[state?.status ?? session.status] ?? 'neutral'">{{ statusText }}</span>
-        <template v-if="place"> · {{ place }}</template>
-      </p>
       <p v-else-if="summary" class="sub" data-testid="phone-header-summary">{{ summary }}</p>
     </div>
     <ConnectorErrors />
@@ -147,27 +120,6 @@ const canCreate = computed(() => !inDetail.value && (phoneSection.value === 'inb
 }
 
 .sub[data-tone='offline'] {
-  color: var(--vr-status-limit);
-}
-
-.status-icon {
-  margin-right: 0.35em;
-  vertical-align: -0.15em;
-}
-
-.status[data-tone='running'] {
-  color: var(--vr-status-running);
-}
-
-.status[data-tone='feedback'] {
-  color: var(--vr-status-feedback);
-}
-
-.status[data-tone='crashed'] {
-  color: var(--vr-status-crashed);
-}
-
-.status[data-tone='limit'] {
   color: var(--vr-status-limit);
 }
 

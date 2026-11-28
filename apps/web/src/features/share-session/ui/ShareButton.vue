@@ -4,6 +4,7 @@ import { VButton, VCheckbox, VMessage, VPopover, vTooltip } from '../../../share
 import { Radio } from '../../../shared/ui/icons';
 import { copyText } from '../../../shared/lib/atlassian';
 import { t } from '../../../shared/lib/i18n/i18n';
+import { toggleAt, type MenuAction } from '../../../shared/lib/menuAction';
 import { describeError } from '../../../shared/api/connectors/api';
 import { shareLink, shareState, stopSharing } from '../model/share';
 
@@ -85,6 +86,9 @@ async function changeDiffs() {
     }
   });
 }
+
+const item = computed<MenuAction>(() => ({ label: label.value, testid: 'session-menu-share', run: (target) => toggleAt(popover.value, target) }));
+defineExpose({ item });
 
 watch(
   () => props.agentId,

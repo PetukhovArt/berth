@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed, useTemplateRef, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { isChat, latestModel, modelLabel, sessionStateOf, StatusIcon, useAgentMessages, useBerth, useExternalSessions, type AgentKind, type SessionStatus } from '../../../entities/session';
@@ -14,7 +14,10 @@ import ContinueAsAgentButton from './ContinueAsAgentButton.vue';
 import AgentLogButton from './AgentLogButton.vue';
 import { OverlapChip } from '../../../features/overlaps';
 import { ShareButton } from '../../../features/share-session';
-import { vTooltip } from '../../../shared/ui/kit';
+import { VButton, VMenu, VMiddleTruncate, useIsPhone, vTooltip } from '../../../shared/ui/kit';
+import { ChevronLeft, Ellipsis } from '../../../shared/ui/icons';
+import { useDock } from '../../../shared/model/dock';
+import type { MenuAction } from '../../../shared/lib/menuAction';
 import { isDesktop } from '../../../bridge';
 import { inspectorShown } from '../../../shared/model/inspector';
 
@@ -58,12 +61,14 @@ const tone = computed(() => {
   return 'neutral';
 });
 
-const statusText = computed(() => {
+const statusLabel = computed(() => {
   if (!status.value) return '';
   const failure = state.value?.providerError;
-  const label = failure ? t(`agents.route.errorKind.${failure.kind}`) : t(`agents.status.${status.value}`);
+  return failure ? t(`agents.route.errorKind.${failure.kind}`) : t(`agents.status.${status.value}`);
+});
+const statusText = computed(() => {
   const until = state.value?.limitUntil;
-  return until ? `${label} · ${t('agents.metrics.resets', { time: formatTime(until) })}` : label;
+  return until && statusLabel.value ? `${statusLabel.value} · ${t('agents.metrics.resets', { time: formatTime(until) })}` : statusLabel.value;
 });
 
 const place = computed(() => [project.value, worktree.value?.branch].filter(Boolean).join(' › '));
@@ -89,6 +94,42 @@ const meta = computed(() =>
   [agent.value ? KIND_LABEL[agent.value.kind] : undefined, modelName.value, place.value, mr.value ? numberLabel(mr.value) : undefined, routedFrom.value].filter(Boolean).join(' · '),
 );
 
+const phone = useIsPhone();
+const { detail } = useDock();
+const menu = useTemplateRef<InstanceType<typeof VMenu>>('menu');
+const continueAs = useTemplateRef<InstanceType<typeof ContinueAsAgentButton>>('continueAs');
+const backend = useTemplateRef<InstanceType<typeof BackendSwitchButton>>('backend');
+const route = useTemplateRef<InstanceType<typeof RouteButton>>('route');
+const checkpoints = useTemplateRef<InstanceType<typeof CheckpointsButton>>('checkpoints');
+const share = useTemplateRef<InstanceType<typeof ShareButton>>('share');
+const taskNote = useTemplateRef<InstanceType<typeof TaskNoteButton>>('taskNote');
+const agentLog = useTemplateRef<InstanceType<typeof AgentLogButton>>('agentLog');
+const gitStep = useTemplateRef<InstanceType<typeof GitStepButton>>('gitStep');
+let menuAnchor: HTMLElement | null = null;
+
+function defer(entry: MenuAction, anchor: HTMLElement | null) {
+  if (anchor) window.setTimeout(() => entry.run(anchor));
+}
+
+const menuGroups = computed<MenuAction[][]>(() =>
+  [
+    [continueAs.value?.item, backend.value?.item],
+    [route.value?.item, checkpoints.value?.item, share.value?.item, taskNote.value?.item, agentLog.value?.item],
+    [gitStep.value?.item],
+  ].map((group) => group.filter((entry): entry is MenuAction => !!entry)).filter((group) => group.length),
+);
+const menuModel = computed(() =>
+  menuGroups.value.flatMap((group, index) => [
+    ...(index ? [{ separator: true }] : []),
+    ...group.map((entry) => ({ label: entry.label, testid: entry.testid, disabled: entry.disabled, command: () => defer(entry, menuAnchor) })),
+  ]),
+);
+
+function openMenu(event: Event) {
+  if (event.currentTarget instanceof HTMLElement) menuAnchor = event.currentTarget;
+  menu.value?.toggle(event);
+}
+
 watch(
   () => [worktree.value?.path, worktree.value?.branch] as const,
   ([path, branch]) => {
@@ -100,7 +141,21 @@ watch(
 
 <template>
   <header v-if="node" class="session-header" data-testid="session-header">
-    <div class="identity">
+    <div v-if="phone" class="phone-bar" data-testid="session-header-bar">
+      <VButton class="bar-button" text severity="secondary" :aria-label="t('mobile.back')" data-testid="mobile-back" @click="detail = false">
+        <template #icon><ChevronLeft :size="22" /></template>
+      </VButton>
+      <VMiddleTruncate class="title" :text="node.name" data-testid="session-header-title" />
+      <span v-if="status" class="pill" :data-tone="tone" data-testid="session-header-status">
+        <StatusIcon class="icon-status" :status="status" :unseen="state?.unseen ?? node.unseen" />
+        {{ statusLabel }}
+      </span>
+      <VButton v-if="menuModel.length" class="bar-button" text severity="secondary" :aria-label="t('agents.session.actions')" aria-haspopup="menu" data-testid="session-header-menu" @click="openMenu">
+        <template #icon><Ellipsis :size="20" /></template>
+      </VButton>
+      <VMenu ref="menu" :model="menuModel" :label="t('agents.session.actions')" />
+    </div>
+    <div v-else class="identity">
       <div class="title-row">
         <span v-tooltip="node.name" class="title" data-testid="session-header-title">{{ node.name }}</span>
         <span v-if="status" class="pill" :data-tone="tone" data-testid="session-header-status">
@@ -112,15 +167,15 @@ watch(
       <div v-if="meta" class="meta" data-testid="session-header-meta">{{ meta }}</div>
     </div>
     <div class="actions">
-      <BackendSwitchButton v-if="agent" :agent-id="agent.id" />
-      <RouteButton v-if="agent" :agent-id="agent.id" :kind="agent.kind" :model="agent.model" :resumable="!!agent.session_id" :error="agent.provider_error ?? null" />
-      <CheckpointsButton v-if="agent && !inspectorShown" :agent-id="agent.id" :name="agent.name" :kind="agent.kind" :refresh-key="status" />
-      <AgentLogButton v-if="agent && isChat(agent)" :agent-id="agent.id" />
-      <ShareButton v-if="agent && isDesktop" :agent-id="agent.id" :name="node.name" />
-      <ContinueAsAgentButton v-if="terminalId && lapsed" :terminal="terminalId" :terminal-key="panel.id" :conversation="lapsed" />
-      <TaskNoteButton v-if="worktree && !inspectorShown" :worktree-id="worktree.id" :branch="worktree.branch" />
+      <BackendSwitchButton v-if="agent" ref="backend" :agent-id="agent.id" />
+      <RouteButton v-if="agent" ref="route" :agent-id="agent.id" :kind="agent.kind" :model="agent.model" :resumable="!!agent.session_id" :error="agent.provider_error ?? null" />
+      <CheckpointsButton v-if="agent && !inspectorShown" ref="checkpoints" :agent-id="agent.id" :name="agent.name" :kind="agent.kind" :refresh-key="status" />
+      <AgentLogButton v-if="agent && isChat(agent)" ref="agentLog" :agent-id="agent.id" />
+      <ShareButton v-if="agent && isDesktop" ref="share" :agent-id="agent.id" :name="node.name" />
+      <ContinueAsAgentButton v-if="terminalId && lapsed" ref="continueAs" :terminal="terminalId" :terminal-key="panel.id" :conversation="lapsed" />
+      <TaskNoteButton v-if="worktree && !inspectorShown" ref="taskNote" :worktree-id="worktree.id" :branch="worktree.branch" />
     </div>
-    <GitStepButton v-if="worktree && worktree.branch" :path="worktree.path" :branch="worktree.branch" :has-request="!!mr" :refresh-key="status" />
+    <GitStepButton v-if="worktree && worktree.branch" ref="gitStep" :path="worktree.path" :branch="worktree.branch" :has-request="!!mr" :refresh-key="status" />
     <SessionViewSwitch :panel="panel" :active="active" />
   </header>
 </template>
@@ -163,60 +218,71 @@ watch(
 }
 
 :root[data-vr-viewport='phone'] .session-header {
+  position: relative;
+  container-type: normal;
   flex-wrap: wrap;
   gap: var(--vr-space-1);
-  padding: var(--vr-space-2) var(--vr-space-3);
-}
-
-:root[data-vr-viewport='phone'] .session-header .title {
-  display: none;
-}
-
-:root[data-vr-viewport='phone'] .session-header .identity,
-:root[data-vr-viewport='phone'] .session-header :deep(.git-step) {
-  display: none;
-}
-
-:root[data-vr-viewport='phone'] .session-header .title-row {
-  flex-wrap: wrap;
-  row-gap: 4px;
+  min-height: 0;
+  padding: 0 var(--vr-space-3) var(--vr-space-2);
 }
 
 :root[data-vr-viewport='phone'] .session-header :deep(.git-step) {
-  flex: 1 1 100%;
-  flex-wrap: wrap;
-  row-gap: 6px;
-  min-width: 0;
+  display: contents;
 }
 
-:root[data-vr-viewport='phone'] .session-header :deep(.git-step > .hint),
-:root[data-vr-viewport='phone'] .session-header :deep(.git-step > .error) {
-  flex-basis: 100%;
-  white-space: normal;
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step > .run),
+:root[data-vr-viewport='phone'] .session-header :deep(.git-step > .hint) {
+  display: none;
 }
 
 :root[data-vr-viewport='phone'] .session-header :deep(.git-step > .error) {
   position: static;
+  flex-basis: 100%;
   max-width: none;
-}
-
-:root[data-vr-viewport='phone'] .session-header :deep(.git-step > .run) {
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
 }
 
 :root[data-vr-viewport='phone'] .session-header .actions {
+  position: absolute;
+  top: 3rem;
+  left: var(--vr-space-3);
   display: flex;
-  flex: 1 1 100%;
-  flex-wrap: wrap;
-  gap: var(--vr-space-1) var(--vr-space-2);
-  min-width: 0;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
 }
 
-:root[data-vr-viewport='phone'] .session-header .actions:empty {
-  display: none;
+.phone-bar {
+  display: flex;
+  flex: 1 1 100%;
+  align-items: center;
+  gap: var(--vr-space-2);
+  min-width: 0;
+  min-height: 3rem;
+}
+
+.phone-bar .title {
+  flex: 1;
+}
+
+.phone-bar .bar-button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--vr-size-touch);
+  height: var(--vr-size-touch);
+  padding: 0;
+}
+
+.phone-bar .bar-button:first-child {
+  margin-left: calc(var(--vr-space-2) * -1);
+  color: var(--vr-color-text);
+}
+
+.phone-bar .icon-status {
+  width: 14px;
+  height: 14px;
 }
 
 .actions {

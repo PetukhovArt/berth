@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, useTemplateRef, watch } from 'vue';
+import { computed, ref, useTemplateRef, watch } from 'vue';
 import { History } from '../../../shared/ui/icons';
 import { VButton, VMessage, VPopover, useIsPhone, vTooltip } from '../../../shared/ui/kit';
 import { t, useI18n } from '../../../shared/lib/i18n/i18n';
+import { toggleAt, type MenuAction } from '../../../shared/lib/menuAction';
 import { useCheckpoints, type AgentKind, type Checkpoint } from '../../../entities/session';
 
 const props = defineProps<{ agentId: string; name: string; kind: AgentKind; refreshKey?: unknown }>();
@@ -40,6 +41,15 @@ function label(item: Checkpoint): string {
 function time(item: Checkpoint): string {
   return formatDate(item.created_at * 1000, { timeStyle: 'short' });
 }
+
+function openAt(target: HTMLElement) {
+  pending.value = null;
+  error.value = null;
+  toggleAt(popover.value, target);
+}
+
+const item = computed<MenuAction | null>(() => (visible.value ? { label: t('checkpoints.open'), testid: 'session-menu-checkpoints', run: openAt } : null));
+defineExpose({ item });
 
 watch(
   () => props.agentId,

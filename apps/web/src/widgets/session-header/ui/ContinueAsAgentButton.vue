@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { MessageSquare } from '../../../shared/ui/icons';
 import { VButton, VMessage, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
+import type { MenuAction } from '../../../shared/lib/menuAction';
 import { canContinueAsAgent, continueTerminalInDock, useAction, type ExternalSession } from '../../../entities/session';
 
 const props = defineProps<{ terminal: string; terminalKey: string; conversation: ExternalSession }>();
@@ -13,6 +14,8 @@ const label = computed(() => action.error.value ?? t('workbench.external.continu
 function run() {
   void action.run(() => continueTerminalInDock(props.terminal, props.terminalKey, props.conversation));
 }
+const item = computed<MenuAction>(() => ({ label: label.value, testid: 'session-menu-continue-as-agent', disabled: action.busy.value || !canContinueAsAgent(props.conversation), run }));
+defineExpose({ item });
 </script>
 
 <template>

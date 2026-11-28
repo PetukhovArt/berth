@@ -1,19 +1,25 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue';
 import { Check, ChevronDown, ChevronRight, ChevronUp, LoaderCircle } from '../../../shared/ui/icons';
-import { VButton, vTooltip } from '../../../shared/ui/kit';
+import { VButton, useIsPhone, vTooltip } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import type { PlanItem } from '../model/plan';
 
 const props = withDefaults(defineProps<{ plan: readonly PlanItem[]; phases?: readonly PlanItem[]; startOpen?: boolean }>(), { phases: () => [], startOpen: true });
 
 const { t } = useI18n();
-const open = shallowRef(props.startOpen);
+const phone = useIsPhone();
+const open = shallowRef(props.startOpen && !phone.value);
 const done = computed(() => props.plan.filter((item) => item.state === 'done').length);
+const current = computed(() => (props.plan.find((item) => item.state === 'doing') ?? props.plan.find((item) => item.state === 'todo'))?.text);
+const toggleLabel = computed(() => {
+  const count = t('workbench.external.plan', { done: done.value, total: props.plan.length });
+  return phone.value && !open.value && current.value ? `${count} · ${current.value}` : count;
+});
 </script>
 
 <template>
-  <div v-if="plan.length || phases.length" class="plan" data-testid="conversation-plan">
+  <div v-if="plan.length || phases.length" class="plan" :data-open="open" data-testid="conversation-plan">
     <div class="inner">
       <div class="head">
         <ol v-if="phases.length" class="phases" :aria-label="t('chat.plan.phases')" data-testid="conversation-plan-phases">
@@ -22,7 +28,7 @@ const done = computed(() => props.plan.filter((item) => item.state === 'done').l
             <li v-tooltip="phase.text" class="phase" :data-state="phase.state">{{ phase.text }}</li>
           </template>
         </ol>
-        <VButton v-if="plan.length" class="plan-toggle" :label="t('workbench.external.plan', { done, total: plan.length })" icon-pos="right" text severity="secondary" size="small" :aria-expanded="open" data-testid="conversation-plan-toggle" @click="open = !open">
+        <VButton v-if="plan.length" class="plan-toggle" :label="toggleLabel" :icon-pos="phone ? 'left' : 'right'" text severity="secondary" size="small" :aria-expanded="open" data-testid="conversation-plan-toggle" @click="open = !open">
           <template #icon>
             <ChevronUp v-if="open" :size="12" />
             <ChevronDown v-else :size="12" />
@@ -108,6 +114,26 @@ const done = computed(() => props.plan.filter((item) => item.state === 'done').l
 .plan-toggle {
   flex: none;
   margin-left: auto;
+}
+
+:root[data-vr-viewport='phone'] .plan {
+  padding: var(--vr-space-1) var(--vr-space-3);
+}
+
+:root[data-vr-viewport='phone'] .head {
+  flex-wrap: wrap;
+}
+
+:root[data-vr-viewport='phone'] .plan-toggle {
+  flex: 1 1 100%;
+  order: -1;
+  min-width: 0;
+  margin-left: 0;
+  justify-content: flex-start;
+}
+
+:root[data-vr-viewport='phone'] .plan[data-open='false'] .phases {
+  display: none;
 }
 
 .plan-items {

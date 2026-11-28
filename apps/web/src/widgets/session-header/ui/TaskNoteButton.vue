@@ -3,6 +3,7 @@ import { computed, ref, useTemplateRef, watch } from 'vue';
 import { FileText } from '../../../shared/ui/icons';
 import { VButton, VMessage, VPopover, VTextarea, useIsPhone, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
+import { toggleAt, type MenuAction } from '../../../shared/lib/menuAction';
 import { describeError, saveTaskNote, useTaskNote } from '../../../entities/session';
 
 const props = defineProps<{ worktreeId: string; branch: string }>();
@@ -40,6 +41,9 @@ async function save(text: string) {
     busy.value = false;
   }
 }
+
+const item = computed<MenuAction>(() => ({ label: t('taskNote.open'), testid: 'session-menu-task-note', run: (target) => toggleAt(popover.value, target) }));
+defineExpose({ item });
 
 watch(
   () => props.worktreeId,
