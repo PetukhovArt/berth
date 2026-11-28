@@ -136,7 +136,10 @@ const BerthPreset = definePreset(Aura, {
       activeBar: { height: '1.5px', bottom: '-1px', background: v('color-text') },
     },
     progressbar: { root: { height: '6px', background: v('color-surface-muted') }, value: { background: v('color-text') } },
-    badge: { root: { fontSize: v('font-size-2xs'), fontWeight: '600', minWidth: '1.5em', height: '1.5em', padding: '0 0.4em' } },
+    badge: {
+      root: { fontSize: v('font-size-2xs'), fontWeight: '600', minWidth: '1.5em', height: '1.5em', padding: '0 0.4em' },
+      sm: { fontSize: v('font-size-2xs'), minWidth: '1.45em', height: '1.45em' },
+    },
     checkbox: { root: { borderColor: v('color-text-subtle'), checkedHoverBackground: v('color-accent'), checkedHoverBorderColor: v('color-accent') } },
     button: {
       root: { borderRadius: v('radius-md'), gap: '6px', sm: { fontSize: v('font-size-label'), paddingX: '11px', paddingY: '3px', iconOnlyWidth: '28px' } },
