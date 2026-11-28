@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import { ChevronRight, Ellipsis, MessageSquare, Plus, Users } from '../../../shared/ui/icons';
-import { VBadge, VButton, VCheckbox, VContextMenu, VInputText, VMessage, vTooltip } from '../../../shared/ui/kit';
+import { VBadge, VButton, VCheckbox, VContextMenu, VInputText, VMessage, VRowButton, vTooltip } from '../../../shared/ui/kit';
 import ConfirmPopover from '../../../shared/ui/ConfirmPopover.vue';
-import { UiButton } from '../../../shared/ui/UiButton';
 import { createChannel, deleteChannel, describeError, leaveChannel, openChannel, useChannels, useHubAdmin, useMay, type ChannelSummary } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 
@@ -119,12 +118,14 @@ async function create() {
       </form>
       <VMessage v-if="rowError" class="row-error" severity="error" size="small" data-testid="channels-row-error">{{ rowError }}</VMessage>
       <div v-for="channel in channels" :key="channel.key" class="item">
-        <UiButton v-tooltip="channel.shared ? `${channel.key} · ${t('attention.channels.sharedHint')}` : channel.key" class="row" :data-testid="`channel-row-${channel.key}`" @click="openChannel(channel.key)">
-          <Users v-if="channel.shared" :size="14" class="row-icon" />
-          <MessageSquare v-else :size="14" class="row-icon" />
-          <span class="name" :class="{ unread: channel.unread > 0 }"># {{ channel.key }}</span>
-          <VBadge v-if="channel.unread > 0" class="badge" :value="channel.unread" severity="secondary" size="small" />
-        </UiButton>
+        <VRowButton v-tooltip="channel.shared ? `${channel.key} · ${t('attention.channels.sharedHint')}` : channel.key" :data-testid="`channel-row-${channel.key}`" @click="openChannel(channel.key)">
+          <template #leading>
+            <Users v-if="channel.shared" :size="14" class="row-icon" />
+            <MessageSquare v-else :size="14" class="row-icon" />
+          </template>
+          <span :class="{ unread: channel.unread > 0 }"># {{ channel.key }}</span>
+          <template v-if="channel.unread > 0" #trailing><VBadge class="badge" :value="channel.unread" severity="secondary" size="small" /></template>
+        </VRowButton>
         <VButton v-if="hasActions(channel)" v-tooltip="t('attention.channels.actions')" class="more" size="small" text severity="secondary" :aria-label="t('attention.channels.actions')" aria-haspopup="menu" :data-testid="`channel-menu-${channel.key}`" @click="showMenu($event, channel)">
           <template #icon><Ellipsis :size="14" /></template>
         </VButton>
@@ -215,43 +216,11 @@ async function create() {
   padding: 0 var(--vr-space-2) var(--vr-space-1);
 }
 
-.row {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  width: 100%;
-  padding: 4px var(--vr-space-2);
-  font: inherit;
-  font-size: var(--vr-font-size-label);
-  text-align: left;
-  color: inherit;
-  background: none;
-  border: 0;
-  border-radius: var(--vr-radius-md);
-}
-
-.row:hover {
-  background: var(--vr-color-nav-hover);
-}
-
 .row-icon {
-  flex: none;
   color: var(--vr-color-text-muted);
 }
 
-.name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.name.unread {
+.unread {
   font-weight: 600;
-}
-
-.badge {
-  flex: none;
 }
 </style>

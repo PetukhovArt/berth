@@ -5,7 +5,6 @@ import { VButton, VMessage, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { deleteAgent, unarchiveAgent, type SessionNode, useAction } from '../../../entities/session';
 import SessionDeleteConfirm from './SessionDeleteConfirm.vue';
-import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ session: SessionNode; where?: string | undefined }>();
 
 const confirming = shallowRef(false);

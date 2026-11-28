@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import { FolderPlus, LoaderCircle } from '../../../shared/ui/icons';
-import { VButton, VMenu, VMessage, VTag, vTooltip } from '../../../shared/ui/kit';
+import { VButton, VMenu, VMessage, VRowButton, VTag, vTooltip } from '../../../shared/ui/kit';
 import ProjectActions from './ProjectActions.vue';
 import { addProject, useBerth, useAction } from '../../../entities/session';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { findClones, type Clone, type RepoRef } from '../../../entities/repo';
 
-import { UiButton } from '../../../shared/ui/UiButton';
 const props = defineProps<{ repo: RepoRef }>();
 
 type Mode = 'idle' | 'searching' | 'picking' | 'manual';
@@ -68,11 +67,13 @@ const menuItems = computed(() => [{ label: t('workbench.addToBerth'), testid: 'r
     <VMenu ref="menu" :model="menuItems" :label="t('workbench.repoActions')" />
     <div v-if="mode === 'picking'" class="inline" role="group" :aria-label="t('workbench.pickClone')" data-testid="repo-clones">
       <span class="hint">{{ t('workbench.pickClone') }}</span>
-      <UiButton v-for="clone in clones" :key="clone.path" v-tooltip="clone.path" class="pick" type="button" :disabled="busy" data-testid="repo-clone" @click="add(clone)">
-        <b>{{ clone.name }}</b>
-        <span class="muted">{{ folder(clone.path) }}</span>
-        <VTag v-if="clone.main" :value="t('workbench.mainCheckout')" severity="secondary" rounded />
-      </UiButton>
+      <VRowButton v-for="clone in clones" :key="clone.path" v-tooltip="clone.path" class="pick" density="compact" :disabled="busy" data-testid="repo-clone" @click="add(clone)">
+        <span class="clone">
+          <b>{{ clone.name }}</b>
+          <span class="muted">{{ folder(clone.path) }}</span>
+          <VTag v-if="clone.main" :value="t('workbench.mainCheckout')" severity="secondary" rounded />
+        </span>
+      </VRowButton>
       <VButton :label="t('common.cancel')" size="small" text severity="secondary" @click="cancel" />
     </div>
     <VMessage v-if="error" class="error" severity="error" size="small" data-testid="repo-error">{{ error }}</VMessage>
@@ -117,22 +118,19 @@ const menuItems = computed(() => [{ label: t('workbench.addToBerth'), testid: 'r
 }
 
 .pick {
-  display: flex;
-  align-items: center;
-  gap: var(--vr-space-1);
-  min-width: 0;
-  padding: var(--vr-space-1) var(--vr-space-2);
-  font: inherit;
-  font-size: var(--vr-font-size-xs);
-  text-align: left;
   color: var(--vr-color-text);
   background: var(--vr-color-nav-hover);
-  border: 0;
-  border-radius: var(--vr-radius-sm);
 }
 
 .pick:hover:not(:disabled) {
   background: var(--vr-color-nav-active);
+}
+
+.clone {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-1);
+  min-width: 0;
 }
 
 .muted {
