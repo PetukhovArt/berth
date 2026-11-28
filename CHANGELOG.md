@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.25.4 (2026-11-28)
+
 - Fixed tabs in the tab strip being cut at the edge again after the window was resized, with the active tab sometimes scrolled out of view
 - Fixed the side-by-side diff showing columns narrower than 360px just above the switch to the unified view
 
