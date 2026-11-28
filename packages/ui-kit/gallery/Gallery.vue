@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref } from 'vue';
-import { DARK_CLASS, VBadge, VButton, VCheckbox, VChipGroup, VContextMenu, VDialog, VInputText, VListbox, VMenu, VMessage, VMultiSelect, VPopover, VProgressBar, VRowButton, VSelect, VSelectButton, VTabs, VTag, VTextarea, VToggleButton, VToggleSwitch, vTooltip } from '../src';
+import { DARK_CLASS, VBadge, VButton, VCheckbox, VChipGroup, VContextMenu, VDialog, VInputText, VListbox, VMenu, VMessage, VMiddleTruncate, VMultiSelect, VPopover, VProgressBar, VRowButton, VSelect, VSelectButton, VTabs, VTag, VTextarea, VToggleButton, VToggleSwitch, vTooltip } from '../src';
 import { Folder, FolderOpen, GitBranch, Inbox, MessageSquare, SquareTerminal } from '../../../apps/web/src/shared/ui/icons';
 import DialogActions from '../../../apps/web/src/shared/ui/DialogActions.vue';
 import ConfirmPopover from '../../../apps/web/src/shared/ui/ConfirmPopover.vue';
@@ -206,6 +206,7 @@ onMounted(async () => {
       <a href="#vmenu">VMenu</a>
       <a href="#listbox">VListbox</a>
       <a href="#rowbutton">VRowButton</a>
+      <a href="#middletruncate">VMiddleTruncate</a>
     </nav>
 
     <Section id="button" title="VButton" base="PrimeVue Button" adds="Re-export. The preset sets radius, gap, the small size and a danger severity built from the btn-danger tokens; button.css fixes icon-only padding.">
@@ -539,6 +540,23 @@ onMounted(async () => {
               <template #leading><component :is="item.icon" :size="20" /></template>{{ item.label }}
             </VRowButton>
           </div>
+        </Cell>
+      </div>
+    </Section>
+
+    <Section id="middletruncate" title="VMiddleTruncate" base="native span (custom, no PrimeVue base)" adds="Wrapper (MiddleTruncate.vue). Cuts a long name in the middle with an ellipsis so the tail stays visible. A shared ResizeObserver measures each name once per resize with canvas text metrics, so there is no per-frame layout work. A name that fits is plain text with a CSS end ellipsis and a short one never splits. The full text stays in the DOM for screen readers, text search and the tooltip of the row that holds it.">
+      <p class="row-title">Widths</p>
+      <div class="row">
+        <Cell class="field" label="fits"><VMiddleTruncate text="feat/search-filter" /></Cell>
+        <Cell class="field" label="branch, 200px"><VMiddleTruncate text="feat/very-long-branch-name" data-testid="gallery-mt-branch" /></Cell>
+        <Cell class="field" label="same prefix"><VMiddleTruncate text="feat/very-long-branch-name-v2" /></Cell>
+        <Cell class="field" label="CJK"><VMiddleTruncate text="修复登录重定向问题并补充会话列表的长名称显示测试" /></Cell>
+        <Cell class="field" label="short, end ellipsis"><VMiddleTruncate text="release-notes" /></Cell>
+      </div>
+      <p class="row-title">In a row</p>
+      <div class="row">
+        <Cell class="field" label="leading and trailing stay">
+          <VRowButton><template #leading><GitBranch :size="14" /></template><VMiddleTruncate text="feat/very-long-branch-name-for-the-tree" /><template #trailing><span class="rb-meta">3m</span></template></VRowButton>
         </Cell>
       </div>
     </Section>

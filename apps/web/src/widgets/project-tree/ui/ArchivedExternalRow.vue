@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ArchiveRestore } from '../../../shared/ui/icons';
-import { VButton, VMessage, VRowButton, vTooltip } from '../../../shared/ui/kit';
+import { VButton, VMessage, VMiddleTruncate, VRowButton, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
 import { unarchiveExternal, type ExternalSession, HarnessIcon, useAction } from '../../../entities/session';
@@ -19,7 +19,7 @@ function restore() {
     <div class="line">
       <VRowButton v-tooltip="session.cwd" class="open" data-testid="archived-external-open" @click="emit('open', primaryPressed($event))">
         <template #leading><HarnessIcon :harness="session.harness" /></template>
-        {{ session.title }}
+        <VMiddleTruncate :text="session.title" />
       </VRowButton>
       <VButton v-tooltip="t('agents.session.restore')" class="icon vr-reveal" text severity="secondary" size="small" :aria-label="t('agents.session.restore')" :disabled="action.busy.value" data-testid="archived-external-restore" @click="restore">
         <template #icon><ArchiveRestore :size="14" /></template>

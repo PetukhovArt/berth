@@ -25,6 +25,7 @@
 - Added a `Back` button to the Settings header that returns to the session or view you came from: `Esc` does the same, and the gear in the sidebar now switches Settings off again
 - Added search to dropdown lists with more than 7 options, such as projects and branches: type to filter, matches are highlighted, Enter picks the first one
 - Added date groups to a worktree with more than 5 earlier conversations in the Sessions tree: Today, Yesterday, Last 7 days, Last 30 days and Earlier, with the newest groups open and the older ones collapsed to a count
+- Changed long session and branch names in the session tree and on dock tabs to be cut in the middle, so the end of the name stays visible
 - Changed `Stop` and `Esc` in the Chat view to put the queued prompts back into the prompt box, in order, instead of dropping them
 - Changed new Grok sessions to open in the Chat view over ACP (`grok agent stdio`), with the terminal Grok still in the type list and its limits shown on both
 - Changed new Claude sessions to open in the Chat view, with `Claude (terminal)` in New Session and `Open in terminal` in the session menu for the terminal; sessions that already exist and Resume or Continue keep the way they ran

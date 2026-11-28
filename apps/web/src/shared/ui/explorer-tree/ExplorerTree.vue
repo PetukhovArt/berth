@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T">
-import { vTooltip } from '../kit';
+import { VMiddleTruncate, vTooltip } from '../kit';
 import { computed, nextTick, onMounted, shallowRef, useId, useTemplateRef, watch, type Component } from 'vue';
 import { ChevronRight } from '../icons';
 import { primaryPressed } from '../../lib/platform';
@@ -279,6 +279,7 @@ function onKey(event: KeyboardEvent) {
                 <b class="name">{{ row.node.label }}</b>
                 <span class="detail">{{ row.node.detail }}</span>
               </template>
+              <VMiddleTruncate v-else-if="row.node.kind === 'worktree'" :text="row.node.label" />
               <template v-else>{{ row.node.label }}</template>
             </span>
           </slot>

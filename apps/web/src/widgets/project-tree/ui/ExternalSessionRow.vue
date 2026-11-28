@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, useTemplateRef } from 'vue';
-import { VContextMenu, VMessage, VRowButton, vTooltip } from '../../../shared/ui/kit';
+import { VContextMenu, VMessage, VMiddleTruncate, VRowButton, vTooltip } from '../../../shared/ui/kit';
 import { copyText } from '../../../shared/lib/atlassian';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
@@ -38,7 +38,7 @@ const menuItems = computed(() => [
       @contextmenu.prevent="menu?.show($event)"
     >
       <template #leading><StatusDot :status="session.status" :unseen="false" /></template>
-      <span class="name">{{ session.title }}</span>
+      <VMiddleTruncate class="name" :text="session.title" />
       <template #trailing><span class="label">{{ session.running ? t(`agents.status.${session.status}`) : (when ?? formatRelative(session.updated_at)) }}</span></template>
     </VRowButton>
     <VContextMenu ref="menu" :model="menuItems">

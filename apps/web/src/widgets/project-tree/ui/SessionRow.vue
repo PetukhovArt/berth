@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef } from 'vue';
 import { Ellipsis, MessageSquare } from '../../../shared/ui/icons';
-import { VButton, VContextMenu, VInputText, VMessage, VRowButton, vTooltip } from '../../../shared/ui/kit';
+import { VButton, VContextMenu, VInputText, VMessage, VMiddleTruncate, VRowButton, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { primaryPressed } from '../../../shared/lib/platform';
 import { canContinueAsAgent, continueTerminalInDock, sessionStateOf, type ExternalSession, archiveAgent, closeTerminal, deleteAgent, renameSession, restartAgent, setAgentBackend, otherBackend, useBerth, applyRouteSuggestion, entitySessionRef, useSessionDock, type SessionNode, isStopped, useAction, useHollow, StatusDot } from '../../../entities/session';
@@ -147,7 +147,7 @@ async function confirmDelete() {
         @contextmenu.prevent="showMenu"
       >
         <template #leading><StatusDot :status="status" :unseen="unseen" :alive="alive" /></template>
-        <span class="name">{{ session.name }}</span>
+        <VMiddleTruncate class="name" :text="session.name" />
         <template #trailing><span class="label" data-testid="session-row-label">{{ label }}</span></template>
       </VRowButton>
       <VButton v-if="linked" v-tooltip="t('workbench.external.open')" class="more conversation" text severity="secondary" size="small" :aria-label="t('workbench.external.open')" data-testid="session-open-conversation" @click="emit('open-conversation')">

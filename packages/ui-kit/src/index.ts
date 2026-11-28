@@ -185,4 +185,5 @@ export { default as VSelectButton } from './SelectButton.vue';
 export { default as VMenu } from './Menu.vue';
 export { default as VListbox } from './Listbox.vue';
 export { default as VRowButton } from './RowButton.vue';
+export { default as VMiddleTruncate } from './MiddleTruncate.vue';
 export { vTooltip } from './Tooltip';

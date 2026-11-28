@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { shallowRef } from 'vue';
 import { Archive, Trash2 } from '../../../shared/ui/icons';
-import { VButton, VMessage, VRowButton, vTooltip } from '../../../shared/ui/kit';
+import { VButton, VMessage, VMiddleTruncate, VRowButton, vTooltip } from '../../../shared/ui/kit';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { archiveAgent, deleteAgent, unarchiveAgent, type SessionNode, StatusIcon, useAction, useSessionDock } from '../../../entities/session';
 import SessionDeleteConfirm from './SessionDeleteConfirm.vue';
@@ -29,7 +29,7 @@ async function confirmDelete() {
     <div class="line">
       <VRowButton v-tooltip="where ? `${session.name} · ${where}` : session.name" class="open" :disabled="action.busy.value" data-testid="ended-open" @click="open">
         <template #leading><StatusIcon tone="ended" /></template>
-        {{ session.name }}<span v-if="where" class="where"> · {{ where }}</span>
+        <span class="title"><VMiddleTruncate :text="session.name" /><span v-if="where" class="where"> · {{ where }}</span></span>
       </VRowButton>
       <template v-if="!confirming">
         <VButton v-tooltip="t('agents.session.archive')" class="icon vr-reveal" text severity="secondary" size="small" :aria-label="t('agents.session.archive')" :disabled="action.busy.value" data-testid="ended-archive" @click="archive">
@@ -68,7 +68,17 @@ async function confirmDelete() {
   min-height: var(--vr-size-row);
 }
 
+.title {
+  display: flex;
+  min-width: 0;
+}
+
 .where {
+  flex: 0 6 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: pre;
+  text-overflow: ellipsis;
   font-size: var(--vr-font-size-xs);
   color: var(--vr-color-text-subtle);
 }

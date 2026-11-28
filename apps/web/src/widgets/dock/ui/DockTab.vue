@@ -5,7 +5,7 @@ import { FileText, GitPullRequest, Network, Search, Ticket, X } from '../../../s
 import { isDirtyPath, settleDirty } from '../../../entities/document';
 import { t } from '../../../shared/lib/i18n/i18n';
 import { METRICS_PANEL, archiveAgent, archiveExternal, deleteAgent, endAgent, useAction, useBerth, isExternalPanel, stopAgent, useExternalSessions, useSessionStates, StatusDot } from '../../../entities/session';
-import { VButton, VContextMenu, VDialog, VMessage, vTooltip } from '../../../shared/ui/kit';
+import { VButton, VContextMenu, VDialog, VMessage, VMiddleTruncate, vTooltip } from '../../../shared/ui/kit';
 import DialogActions from '../../../shared/ui/DialogActions.vue';
 import { useSettings } from '../../../shared/config/settings/store';
 import { FILE_PANEL_PREFIX, isFilePanel } from '../../../shared/lib/markdownFiles';
@@ -123,7 +123,7 @@ function onClose() {
     <template v-else-if="session(panel.id)">
       <StatusDot :status="states.get(panel.id)?.status ?? session(panel.id)?.status" :unseen="states.get(panel.id)?.unseen ?? session(panel.id)?.unseen" :alive="states.get(panel.id)?.alive ?? session(panel.id)?.alive" data-testid="session-tab-status" />
     </template>
-    <span class="name">{{ tabName() }}</span>
+    <VMiddleTruncate class="name" :text="tabName()" />
     <SessionViewSwitch v-if="kindOf(panel) === 'conversation'" :panel="panel" :active="active" />
     <span v-if="isFilePanel(panel.id) && isDirtyPath(panel.id.slice(FILE_PANEL_PREFIX.length))" v-tooltip="t('files.editor.dirty')" class="dirty" data-testid="file-tab-dirty" />
     <VButton v-tooltip="t('common.close')" class="close" text severity="secondary" size="small" :aria-label="t('common.close')" data-testid="session-tab-close" @pointerdown.stop @click.stop="onClose">
