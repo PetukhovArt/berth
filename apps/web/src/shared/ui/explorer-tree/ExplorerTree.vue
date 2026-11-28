@@ -1,4 +1,5 @@
 <script setup lang="ts" generic="T">
+import { vTooltip } from '../kit';
 import { computed, nextTick, onMounted, shallowRef, useId, useTemplateRef, watch, type Component } from 'vue';
 import { ChevronRight } from '../icons';
 import { primaryPressed } from '../../lib/platform';
@@ -266,7 +267,7 @@ function onKey(event: KeyboardEvent) {
     >
       <i v-for="level in row.depth" :key="level" class="guide" :style="{ '--level': level - 1 }" />
       <slot v-if="row.node.custom" name="row" :node="row.node" :row="row" />
-      <button v-else class="toggle" tabindex="-1" :title="row.node.title ?? row.node.label" :data-testid="`tree-${row.node.kind}`" @click="onRowClick(row, $event)">
+      <button v-else class="toggle" tabindex="-1" v-tooltip="row.node.title ?? row.node.label" :data-testid="`tree-${row.node.kind}`" @click="onRowClick(row, $event)">
         <ChevronRight v-if="row.group" :size="14" class="chevron vr-chevron" :data-open="row.expanded" />
         <slot name="lead" :node="row.node" :expanded="row.expanded" :icon="row.expanded && row.node.iconOpen ? row.node.iconOpen : row.node.icon">
           <component :is="row.expanded && row.node.iconOpen ? row.node.iconOpen : row.node.icon" v-if="row.node.icon" :size="14" class="kind-icon" />
@@ -281,7 +282,7 @@ function onKey(event: KeyboardEvent) {
               <template v-else>{{ row.node.label }}</template>
             </span>
           </slot>
-          <span v-if="row.node.count !== undefined && (!row.expanded || row.node.countAlways)" class="count" :title="row.node.countTitle" data-testid="tree-count">{{ row.node.count }}</span>
+          <span v-if="row.node.count !== undefined && (!row.expanded || row.node.countAlways)" class="count" v-tooltip="row.node.countTitle" data-testid="tree-count">{{ row.node.count }}</span>
           <slot v-if="!row.expanded" name="rollup" :node="row.node" />
         </template>
         <slot v-else name="leaf" :node="row.node" :data="row.node.data" :selected="row.id === selected">

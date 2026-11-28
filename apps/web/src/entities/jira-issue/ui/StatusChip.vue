@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { vTooltip } from '../../../shared/ui/kit';
+
 defineProps<{ status: string; category?: 'todo' | 'in_progress' | 'done' }>();
 </script>
 
 <template>
-  <span class="chip" :data-category="category ?? 'todo'" :title="status">{{ status }}</span>
+  <span class="chip" :data-category="category ?? 'todo'" v-tooltip="status">{{ status }}</span>
 </template>
 
 <style scoped>

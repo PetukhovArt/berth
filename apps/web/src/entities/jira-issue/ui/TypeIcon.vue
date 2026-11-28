@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vTooltip } from '../../../shared/ui/kit';
 import { computed } from 'vue';
 
 const props = defineProps<{ type: string }>();
@@ -16,7 +17,7 @@ const glyph = computed(() => ({ bug: 'B', epic: 'E', subtask: 'S', story: 'U', t
 </script>
 
 <template>
-  <span class="type" :data-kind="kind" :title="type">{{ glyph }}</span>
+  <span class="type" :data-kind="kind" v-tooltip="type">{{ glyph }}</span>
 </template>
 
 <style scoped>

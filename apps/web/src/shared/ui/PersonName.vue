@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vTooltip } from './kit';
 import { computed } from 'vue';
 import type { Person } from '../api/connectors/api';
 
@@ -8,7 +9,7 @@ const label = computed(() => props.person.name || props.person.username);
 </script>
 
 <template>
-  <span class="person-name" :title="label">{{ label }}</span>
+  <span class="person-name" v-tooltip="label">{{ label }}</span>
 </template>
 
 <style scoped>

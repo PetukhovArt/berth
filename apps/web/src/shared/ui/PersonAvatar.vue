@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vTooltip } from './kit';
 import { computed, shallowRef, watch } from 'vue';
 import Avatar from './Avatar.vue';
 import type { Person } from '../api/connectors/api';
@@ -16,7 +17,7 @@ const label = computed(() => props.person.name || props.person.username);
 </script>
 
 <template>
-  <span class="person" :title="label">
+  <span class="person" v-tooltip="label">
     <Avatar :id="person.username || label" :name="label" :small="small" :picture="picture" @error="failed = true" />
   </span>
 </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vTooltip } from '../../../shared/ui/kit';
 import { computed } from 'vue';
 import { priorityLevel } from '../lib/priority';
 
@@ -7,7 +8,7 @@ const level = computed(() => priorityLevel(props.priority));
 </script>
 
 <template>
-  <span v-if="priority" class="priority" :data-level="level" :title="priority"><i class="dot" />{{ priority }}</span>
+  <span v-if="priority" class="priority" :data-level="level" v-tooltip="priority"><i class="dot" />{{ priority }}</span>
   <span v-else class="none">-</span>
 </template>
 

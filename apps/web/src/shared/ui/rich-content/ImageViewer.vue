@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vTooltip } from '../kit';
 import { nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue';
 import { ExternalLink, X } from '../icons';
 import { t } from '../../lib/i18n/i18n';
@@ -40,7 +41,7 @@ onBeforeUnmount(() => {
             <ExternalLink :size="14" />
             {{ t('content.image.openInBrowser') }}
           </button>
-          <button ref="closeButton" type="button" class="btn icon" :title="t('content.mermaid.close')" :aria-label="t('content.mermaid.close')" data-testid="image-viewer-close" @click="emit('close')">
+          <button ref="closeButton" type="button" class="btn icon" v-tooltip="t('content.mermaid.close')" :aria-label="t('content.mermaid.close')" data-testid="image-viewer-close" @click="emit('close')">
             <X :size="14" />
           </button>
         </div>

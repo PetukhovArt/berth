@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vTooltip } from '../../../shared/ui/kit';
 import { ref, watch } from 'vue';
 import Avatar from '../../../shared/ui/Avatar.vue';
 import type { Person } from '../../../shared/api/connectors/api';
@@ -20,5 +21,5 @@ watch(
 </script>
 
 <template>
-  <Avatar :id="person.username || person.name" :name="person.name" :picture="picture" :small="small" :title="person.name" />
+  <Avatar :id="person.username || person.name" :name="person.name" :picture="picture" :small="small" v-tooltip="person.name" />
 </template>

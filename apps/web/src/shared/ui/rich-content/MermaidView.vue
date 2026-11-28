@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vTooltip } from '../kit';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { Check, Code, Copy, Maximize2, MoveHorizontal, X, ZoomIn, ZoomOut } from '../icons';
 import { t } from '../../lib/i18n/i18n';
@@ -243,14 +244,14 @@ onBeforeUnmount(() => {
   <div class="mermaid-view" :class="{ full }" data-testid="mermaid-view" :role="full ? 'dialog' : undefined" :aria-modal="full ? 'true' : undefined">
     <div class="bar">
       <template v-if="svg && !showSource">
-        <button type="button" class="btn icon" :title="t('content.mermaid.zoomOut')" :aria-label="t('content.mermaid.zoomOut')" data-testid="mermaid-zoom-out" @click="zoomCenter(1 / 1.25)">
+        <button type="button" class="btn icon" v-tooltip="t('content.mermaid.zoomOut')" :aria-label="t('content.mermaid.zoomOut')" data-testid="mermaid-zoom-out" @click="zoomCenter(1 / 1.25)">
           <ZoomOut :size="14" />
         </button>
         <span class="percent" data-testid="mermaid-zoom-level">{{ percent }}%</span>
-        <button type="button" class="btn icon" :title="t('content.mermaid.zoomIn')" :aria-label="t('content.mermaid.zoomIn')" data-testid="mermaid-zoom-in" @click="zoomCenter(1.25)">
+        <button type="button" class="btn icon" v-tooltip="t('content.mermaid.zoomIn')" :aria-label="t('content.mermaid.zoomIn')" data-testid="mermaid-zoom-in" @click="zoomCenter(1.25)">
           <ZoomIn :size="14" />
         </button>
-        <button type="button" class="btn icon" :title="t('content.mermaid.fit')" :aria-label="t('content.mermaid.fit')" data-testid="mermaid-fit" @click="fit">
+        <button type="button" class="btn icon" v-tooltip="t('content.mermaid.fit')" :aria-label="t('content.mermaid.fit')" data-testid="mermaid-fit" @click="fit">
           <MoveHorizontal :size="14" />
         </button>
       </template>
@@ -264,10 +265,10 @@ onBeforeUnmount(() => {
         <Code :size="14" />
         {{ t('content.mermaid.source') }}
       </button>
-      <button v-if="svg && !full" ref="expandButton" type="button" class="btn icon" :title="t('content.mermaid.fullscreen')" :aria-label="t('content.mermaid.fullscreen')" data-testid="mermaid-fullscreen" @click="openFull">
+      <button v-if="svg && !full" ref="expandButton" type="button" class="btn icon" v-tooltip="t('content.mermaid.fullscreen')" :aria-label="t('content.mermaid.fullscreen')" data-testid="mermaid-fullscreen" @click="openFull">
         <Maximize2 :size="14" />
       </button>
-      <button v-if="full" ref="closeButton" type="button" class="btn icon" :title="t('content.mermaid.close')" :aria-label="t('content.mermaid.close')" data-testid="mermaid-close" @click="closeFull">
+      <button v-if="full" ref="closeButton" type="button" class="btn icon" v-tooltip="t('content.mermaid.close')" :aria-label="t('content.mermaid.close')" data-testid="mermaid-close" @click="closeFull">
         <X :size="14" />
       </button>
     </div>
