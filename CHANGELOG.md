@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed outlined buttons such as "Copy resume command" blending into the background: their border now has the same contrast as text fields in both themes
+
 ## 0.25.0 (2026-11-28)
 
 - Added the local speech engine to the Windows and macOS installers: dictation and the wake word run on your computer, and the microphone button shows without the webview's speech recognition
