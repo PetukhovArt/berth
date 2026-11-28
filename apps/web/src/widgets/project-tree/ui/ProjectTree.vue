@@ -338,6 +338,7 @@ const moreItems = computed(() => {
 }
 
 .tabs-select {
+  --vr-segmented-pad: var(--vr-space-1);
   width: 100%;
 }
 
@@ -352,20 +353,7 @@ const moreItems = computed(() => {
   text-overflow: ellipsis;
 }
 
-@container tabs (max-width: 196px) {
-  .tab-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    clip-path: inset(50%);
-  }
-
-  .tab-icon {
-    display: block;
-  }
-}
-
-@container tabs (max-width: 248px) {
+@container tabs (max-width: 27em) {
   .tabs[data-n='4'] .tab-label {
     position: absolute;
     width: 1px;
@@ -374,6 +362,19 @@ const moreItems = computed(() => {
   }
 
   .tabs[data-n='4'] .tab-icon {
+    display: block;
+  }
+}
+
+@container tabs (max-width: 21em) {
+  .tabs:not([data-n='4']) .tab-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+  }
+
+  .tabs:not([data-n='4']) .tab-icon {
     display: block;
   }
 }

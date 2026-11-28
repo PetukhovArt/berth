@@ -37,11 +37,21 @@
   padding: 0;
 }
 
+:root .vr-segmented .p-togglebutton {
+  min-width: 0;
+  height: var(--vr-size-control);
+}
+
+:root .vr-segmented .p-togglebutton-content {
+  min-width: 0;
+}
+
 :root .vr-segmented-option {
   display: inline-flex;
   align-items: center;
   gap: var(--vr-space-1);
-  padding: 2px 0.75rem;
+  min-width: 0;
+  padding: 2px var(--vr-segmented-pad, 0.75rem);
 }
 
 :root .p-togglebutton {
