@@ -66,6 +66,8 @@ const dangerButton = {
 
 const linkButton = { color: v('color-link'), hoverColor: v('color-link'), activeColor: v('color-link') };
 
+const outlinedBorder = { primary: { borderColor: v('color-border-control') }, secondary: { borderColor: v('color-border-control') } };
+
 const tint = (token: string, share: number) => `color-mix(in srgb, ${v(token)} ${share}%, white)`;
 const shade = (token: string, share: number) => `color-mix(in srgb, ${v(token)} ${share}%, black)`;
 
