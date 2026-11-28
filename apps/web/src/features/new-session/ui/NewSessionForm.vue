@@ -607,7 +607,7 @@ function onVisible(visible: boolean) {
 .prompt {
   min-height: 64px;
   padding: 8px 10px;
-  border: 1px solid var(--vr-color-border);
+  border: 1px solid var(--vr-color-border-control);
   border-radius: var(--vr-radius-md);
   background: var(--vr-color-surface-sunken);
   box-shadow: none;
