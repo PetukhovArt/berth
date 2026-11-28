@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.26.0 (2026-11-28)
+
 - Changed the phone session header to one 48px title row with the status and a menu for model, share, task note, agent log and the git step, and the Todo list to a single line that opens on tap
 
 ## 0.25.4 (2026-11-28)
