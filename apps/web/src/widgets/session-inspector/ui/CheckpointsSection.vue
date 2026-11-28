@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef, watch } from 'vue';
+import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
 import { RotateCcw } from '../../../shared/ui/icons';
 import { VButton, VMessage, VRowButton, vTooltip } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
@@ -34,18 +34,26 @@ async function confirm(number: number) {
   if (await restore(number)) pending.value = null;
 }
 
+const list = useTemplateRef<HTMLElement>('list');
+
 watch(
   () => props.agentId,
   () => {
     pending.value = null;
   },
 );
+
+watch(pending, async (number) => {
+  if (number === null) return;
+  await nextTick();
+  list.value?.querySelector('[data-testid="inspector-checkpoint-confirm"]')?.scrollIntoView({ block: 'nearest' });
+});
 </script>
 
 <template>
   <InspectorSection v-if="available" :title="t('inspector.checkpoints.title')" :meta="items.length ? String(items.length) : undefined" testid="inspector-checkpoints">
     <p v-if="!items.length" class="note" data-testid="inspector-checkpoints-empty">{{ t('checkpoints.empty') }}</p>
-    <ul v-else class="list">
+    <ul v-else ref="list" class="list">
       <li v-for="item in chronological" :key="item.number" :data-testid="`inspector-checkpoint-${item.number}`">
         <div v-if="pending === item.number" class="confirm" role="alertdialog" data-testid="inspector-checkpoint-confirm">
           <p class="note">{{ t('checkpoints.confirm', { number: item.number }) }}</p>
