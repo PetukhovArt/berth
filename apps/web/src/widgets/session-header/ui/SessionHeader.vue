@@ -209,10 +209,9 @@ watch(
 :root[data-vr-viewport='phone'] .session-header .actions {
   display: flex;
   flex: 1 1 100%;
-  gap: var(--vr-space-2);
+  flex-wrap: wrap;
+  gap: var(--vr-space-1) var(--vr-space-2);
   min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
 
 :root[data-vr-viewport='phone'] .session-header .actions:empty {
