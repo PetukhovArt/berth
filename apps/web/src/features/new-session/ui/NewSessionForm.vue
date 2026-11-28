@@ -331,7 +331,6 @@ function onVisible(visible: boolean) {
                   option-label="label"
                   option-value="value"
                   option-disabled="disabled"
-                  size="small"
                   class="chip"
                   :label-id="controlId"
                   :aria-labelledby="labelId"
@@ -364,7 +363,6 @@ function onVisible(visible: boolean) {
                   v-model="model"
                   :options="modelOptions"
                   editable
-                  size="small"
                   class="chip chip-input"
                   :placeholder="t('agents.newSession.defaultModel')"
                   :label-id="controlId"
@@ -379,7 +377,6 @@ function onVisible(visible: boolean) {
                   v-model="effort"
                   :options="EFFORT_SUGGESTIONS"
                   editable
-                  size="small"
                   class="chip chip-input"
                   :placeholder="t('agents.newSession.defaultEffort')"
                   :label-id="controlId"
@@ -399,7 +396,7 @@ function onVisible(visible: boolean) {
         </div>
         <label v-if="expanded && location.plan.value.kind === 'create'" class="row">
           <span class="row-label">{{ t('agents.newSession.setupCommand') }}</span>
-          <VInputText v-model="location.setup.value" size="small" :placeholder="t('agents.newSession.setupPlaceholder')" class="row-input mono" data-testid="new-session-setup" />
+          <VInputText v-model="location.setup.value" :placeholder="t('agents.newSession.setupPlaceholder')" class="row-input mono" data-testid="new-session-setup" />
         </label>
         <div v-if="expanded && kind !== 'terminal' && !continuing" class="extras" data-testid="new-session-extras">
           <span class="extras-label">{{ t('agents.newSession.alsoStart') }}</span>
@@ -438,15 +435,15 @@ function onVisible(visible: boolean) {
         <div v-if="expanded && kind !== 'terminal' && !continuing" class="pair">
           <label class="field">
             <span>{{ t('agents.newSession.before') }}</span>
-            <VInputText v-model="before" size="small" data-testid="new-session-before" />
+            <VInputText v-model="before" data-testid="new-session-before" />
           </label>
           <label class="field">
             <span>{{ t('agents.newSession.after') }}</span>
-            <VInputText v-model="after" size="small" data-testid="new-session-after" />
+            <VInputText v-model="after" data-testid="new-session-after" />
           </label>
         </div>
         <div v-if="expanded && kind !== 'terminal' && !continuing" class="extras">
-          <VInputText v-model="presetName" size="small" :placeholder="t('agents.newSession.presetName')" data-testid="new-session-preset-name" @keydown.enter.prevent="saveCurrent" />
+          <VInputText v-model="presetName" :placeholder="t('agents.newSession.presetName')" data-testid="new-session-preset-name" @keydown.enter.prevent="saveCurrent" />
           <VButton :label="t('agents.newSession.savePreset')" size="small" outlined :disabled="!presetName.trim()" data-testid="new-session-preset-save" @click="saveCurrent" />
         </div>
       </div>
@@ -459,7 +456,7 @@ function onVisible(visible: boolean) {
       <div class="footer">
         <label v-if="!many && !continuing" class="name">
           <span>{{ t('agents.newSession.name') }}</span>
-          <VInputText v-model="name" size="small" :placeholder="defaultName" data-testid="new-session-name" />
+          <VInputText v-model="name" :placeholder="defaultName" data-testid="new-session-name" />
         </label>
         <span class="spacer" />
         <span v-if="!phone" class="hint" data-testid="new-session-background-hint">{{ t('agents.newSession.backgroundHint', { key: backgroundKey }) }}</span>

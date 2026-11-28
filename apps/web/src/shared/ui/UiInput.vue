@@ -28,5 +28,5 @@ defineExpose({ focus });
 <template>
   <VCheckbox v-if="props.checked !== undefined" ref="el" v-bind="boxAttrs" :model-value="boxValue" />
   <VCheckbox v-else-if="isCheckbox" ref="el" v-bind="boxAttrs" v-model="model" />
-  <VInputText v-else ref="el" v-bind="attrs" :model-value="text" size="small" @update:model-value="model = $event" />
+  <VInputText v-else ref="el" v-bind="attrs" :model-value="text" @update:model-value="model = $event" />
 </template>

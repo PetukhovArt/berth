@@ -16,6 +16,10 @@ import './components.css';
 import { installMotion } from './motion';
 import { installViewport } from './viewport';
 import { selectFilterTexts } from './optionFilter';
+import InputText from 'primevue/inputtext';
+import MultiSelect from 'primevue/multiselect';
+import Textarea from 'primevue/textarea';
+import { withControlSize } from './sized';
 
 export const DARK_CLASS = 'vr-dark';
 
@@ -165,12 +169,12 @@ export { setMotionEnabled, isMotionEnabled } from './motion';
 export { useIsPhone } from './viewport';
 
 export { VButton } from './Button';
-export { default as VInputText } from 'primevue/inputtext';
-export { default as VTextarea } from 'primevue/textarea';
+export const VInputText = withControlSize(InputText, 'VInputText');
+export const VTextarea = withControlSize(Textarea, 'VTextarea');
+export const VMultiSelect = withControlSize(MultiSelect, 'VMultiSelect');
 export { VSelect } from './Select';
 export { default as VTag } from 'primevue/tag';
 export { default as VMessage } from 'primevue/message';
-export { default as VMultiSelect } from 'primevue/multiselect';
 export { default as VToggleSwitch } from 'primevue/toggleswitch';
 export { VDialog } from './Dialog';
 export { default as VContextMenu } from 'primevue/contextmenu';

@@ -55,7 +55,6 @@ async function confirmRevoke() {
             :options="roles"
             option-label="name"
             option-value="id"
-            size="small"
             class="role"
             :placeholder="t('hub.members.approveAs')"
             :aria-label="t('hub.members.role', { name: member.name })"

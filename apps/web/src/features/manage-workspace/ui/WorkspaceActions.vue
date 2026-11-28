@@ -66,7 +66,7 @@ function askRemove() {
     />
     <VButton v-else :label="t('agents.workspace.new')" size="small" text severity="secondary" data-testid="workspace-new" @click="open('creating', '')" />
     <form v-if="editing" class="inline" @submit.prevent="submit">
-      <VInputText ref="input" v-model="draft" size="small" :placeholder="t('agents.workspace.name')" :aria-label="t('agents.workspace.nameAria')" data-testid="workspace-name-input" @keydown.esc="cancel" />
+      <VInputText ref="input" v-model="draft" :placeholder="t('agents.workspace.name')" :aria-label="t('agents.workspace.nameAria')" data-testid="workspace-name-input" @keydown.esc="cancel" />
       <VButton type="submit" :label="t('common.save')" size="small" :disabled="!name" :loading="busy" data-testid="workspace-submit" />
       <VButton :label="t('common.cancel')" size="small" text severity="secondary" @click="cancel" />
     </form>

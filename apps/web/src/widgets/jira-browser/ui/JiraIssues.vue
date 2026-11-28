@@ -262,7 +262,6 @@ onMounted(() => void load(false));
               :model-value="editing?.name"
               @update:model-value="setEditName"
               v-focus
-              size="small"
               class="rename"
               :aria-label="t('jira.list.filterName')"
               @click.stop
@@ -284,7 +283,6 @@ onMounted(() => void load(false));
           v-if="editing?.id === ''"
           v-model="editing.name"
           v-focus
-          size="small"
           class="rename"
           :placeholder="t('jira.list.filterName')"
           :aria-label="t('jira.list.newFilterName')"

@@ -112,7 +112,7 @@ onMounted(() => void reload());
     <template v-if="draft">
       <label class="field">
         <span>{{ t('router.mode') }}</span>
-        <VSelect v-model="draft.mode" :options="modeOptions" option-label="label" option-value="value" size="small" data-testid="router-mode" />
+        <VSelect v-model="draft.mode" :options="modeOptions" option-label="label" option-value="value" data-testid="router-mode" />
       </label>
 
       <div class="block" data-testid="router-chain">
@@ -122,8 +122,8 @@ onMounted(() => void reload());
         <ol v-else class="chain">
           <li v-for="(entry, index) in draft.fallback" :key="index" class="chain-row" :data-testid="`router-chain-${index}`">
             <span class="muted">{{ index + 1 }}</span>
-            <VSelect v-model="entry.kind" :options="kindOptions" option-label="label" option-value="value" size="small" :aria-label="t('router.chain')" data-testid="router-chain-kind" />
-            <VInputText v-model="entry.model" size="small" :placeholder="t('router.modelPlaceholder')" :aria-label="t('router.modelPlaceholder')" data-testid="router-chain-model" />
+            <VSelect v-model="entry.kind" :options="kindOptions" option-label="label" option-value="value" :aria-label="t('router.chain')" data-testid="router-chain-kind" />
+            <VInputText v-model="entry.model" :placeholder="t('router.modelPlaceholder')" :aria-label="t('router.modelPlaceholder')" data-testid="router-chain-model" />
             <VButton v-tooltip="t('router.moveUp')" size="small" text severity="secondary" :aria-label="t('router.moveUp')" :disabled="index === 0" @click="move(draft.fallback, index, -1)">
               <template #icon><ArrowUp :size="14" /></template>
             </VButton>
@@ -145,10 +145,10 @@ onMounted(() => void reload());
       <div v-for="(rule, index) in draft.rules" :key="index" class="block rule" :data-testid="`router-rule-${rule.id}`">
         <div class="rule-head">
           <VToggleSwitch v-model="rule.enabled" :input-id="`router-rule-enabled-${index}`" :aria-label="t('router.ruleEnabled')" data-testid="router-rule-enabled" />
-          <VInputText v-model="rule.name" size="small" :placeholder="routeRuleLabel(rule.id)" :aria-label="t('router.ruleName')" class="grow" data-testid="router-rule-name" />
+          <VInputText v-model="rule.name" :placeholder="routeRuleLabel(rule.id)" :aria-label="t('router.ruleName')" class="grow" data-testid="router-rule-name" />
           <label v-tooltip="t('router.ruleIdHint')" class="field inline">
             <span class="muted">{{ t('router.ruleId') }}</span>
-            <VInputText v-model="rule.id" size="small" :aria-label="t('router.ruleId')" class="id" data-testid="router-rule-id" />
+            <VInputText v-model="rule.id" :aria-label="t('router.ruleId')" class="id" data-testid="router-rule-id" />
           </label>
           <VButton v-tooltip="t('router.moveUp')" size="small" text severity="secondary" :aria-label="t('router.moveUp')" :disabled="index === 0" @click="move(draft.rules, index, -1)">
             <template #icon><ArrowUp :size="14" /></template>
@@ -165,9 +165,9 @@ onMounted(() => void reload());
         <h4>{{ t('router.actions') }}</h4>
         <div v-for="(action, at) in rule.actions" :key="at" class="action" data-testid="router-action">
           <template v-if="actionKey(action)">
-            <VSelect :model-value="actionKey(action)" :options="actionOptions" option-label="label" option-value="value" size="small" data-testid="router-action-type" @update:model-value="setActionKey(rule.actions, at, $event)" />
-            <VSelect v-if="actionKey(action) === 'continue_in'" :model-value="str(actionBody(action).kind)" :options="kindOptions" option-label="label" option-value="value" size="small" data-testid="router-action-kind" @update:model-value="setActionField(rule.actions, at, 'kind', $event)" />
-            <VInputText v-if="actionKey(action) !== 'next_in_chain'" :model-value="str(actionBody(action).model)" size="small" :placeholder="t('router.modelPlaceholder')" :aria-label="t('router.modelPlaceholder')" data-testid="router-action-model" @update:model-value="setActionField(rule.actions, at, 'model', $event ?? '')" />
+            <VSelect :model-value="actionKey(action)" :options="actionOptions" option-label="label" option-value="value" data-testid="router-action-type" @update:model-value="setActionKey(rule.actions, at, $event)" />
+            <VSelect v-if="actionKey(action) === 'continue_in'" :model-value="str(actionBody(action).kind)" :options="kindOptions" option-label="label" option-value="value" data-testid="router-action-kind" @update:model-value="setActionField(rule.actions, at, 'kind', $event)" />
+            <VInputText v-if="actionKey(action) !== 'next_in_chain'" :model-value="str(actionBody(action).model)" :placeholder="t('router.modelPlaceholder')" :aria-label="t('router.modelPlaceholder')" data-testid="router-action-model" @update:model-value="setActionField(rule.actions, at, 'model', $event ?? '')" />
           </template>
           <code v-else v-tooltip="t('router.kept')" class="raw" data-testid="router-action-opaque">{{ JSON.stringify(action) }}</code>
           <VButton v-tooltip="t('router.remove')" size="small" text severity="secondary" :aria-label="t('router.remove')" @click="rule.actions.splice(at, 1)">
@@ -180,7 +180,7 @@ onMounted(() => void reload());
           </VButton>
           <label class="field inline">
             <span class="muted">{{ t('router.cooldown') }}</span>
-            <VInputText :model-value="rule.cooldownSecs === null ? '' : String(rule.cooldownSecs)" size="small" class="num" placeholder="600" data-testid="router-rule-cooldown" @update:model-value="rule.cooldownSecs = cooldownOf($event)" />
+            <VInputText :model-value="rule.cooldownSecs === null ? '' : String(rule.cooldownSecs)" class="num" placeholder="600" data-testid="router-rule-cooldown" @update:model-value="rule.cooldownSecs = cooldownOf($event)" />
           </label>
         </div>
       </div>

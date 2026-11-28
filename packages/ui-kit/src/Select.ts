@@ -57,7 +57,7 @@ const Wrapped = defineComponent({
       }
       return h(
         Select,
-        mergeProps(attrs, {
+        mergeProps({ size: 'small' }, attrs, {
           ref: select,
           options: props.options,
           editable: props.editable,

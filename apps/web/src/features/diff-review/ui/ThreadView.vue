@@ -135,7 +135,7 @@ defineExpose({ expand });
             @cancel="replying = false"
           />
           <div v-else class="idle">
-            <VInputText class="reply-field" size="small" readonly :model-value="''" :placeholder="draft.trim() ? `${t('forge.thread.reply')} …` : `${t('forge.thread.reply')}…`" :aria-label="t('forge.thread.reply')" data-testid="thread-reply" @focus="replying = true" @click="replying = true" />
+            <VInputText class="reply-field" readonly :model-value="''" :placeholder="draft.trim() ? `${t('forge.thread.reply')} …` : `${t('forge.thread.reply')}…`" :aria-label="t('forge.thread.reply')" data-testid="thread-reply" @focus="replying = true" @click="replying = true" />
             <VButton v-if="discussion.resolvable" size="small" severity="secondary" outlined :label="discussion.resolved ? t('forge.thread.unresolve') : t('forge.thread.resolve')" :loading="resolving" data-testid="thread-resolve" @click="toggleResolved">
               <template v-if="!discussion.resolved" #icon><Check :size="14" class="resolved-icon" /></template>
             </VButton>

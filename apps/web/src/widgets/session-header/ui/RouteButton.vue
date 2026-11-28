@@ -99,7 +99,7 @@ watch(
           <span class="heading">{{ t('agents.route.switchTitle') }}</span>
           <span class="hint">{{ resumable ? t('agents.route.switchHint') : t('agents.route.noSession') }}</span>
           <div class="row">
-            <VInputText v-model="model" size="small" class="grow" :aria-label="t('agents.route.model')" :placeholder="t('agents.route.byDefault')" data-testid="route-model" />
+            <VInputText v-model="model" class="grow" :aria-label="t('agents.route.model')" :placeholder="t('agents.route.byDefault')" data-testid="route-model" />
             <VButton type="submit" :label="t('agents.route.switchModel')" size="small" :disabled="busy || !resumable" data-testid="route-switch" />
           </div>
         </form>
@@ -107,8 +107,8 @@ watch(
           <span class="heading">{{ t('agents.route.continueTitle') }}</span>
           <span class="hint">{{ t('agents.route.continueHint') }}</span>
           <div class="row">
-            <VSelect v-model="target" :options="KINDS" option-label="label" option-value="value" size="small" append-to="self" data-testid="route-kind" />
-            <VInputText v-model="targetModel" size="small" class="grow" :aria-label="t('agents.route.model')" :placeholder="t('agents.route.byDefault')" data-testid="route-target-model" />
+            <VSelect v-model="target" :options="KINDS" option-label="label" option-value="value" append-to="self" data-testid="route-kind" />
+            <VInputText v-model="targetModel" class="grow" :aria-label="t('agents.route.model')" :placeholder="t('agents.route.byDefault')" data-testid="route-target-model" />
           </div>
           <div class="actions">
             <VButton :label="t('agents.route.cancel')" text severity="secondary" size="small" @click="popover?.hide()" />

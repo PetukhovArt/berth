@@ -122,12 +122,12 @@ onBeforeUnmount(() => window.removeEventListener('focus', refresh));
     <form v-if="open && step.kind === 'run'" ref="sheet" class="form vr-sheet" :data-testid="`${testid}-form`" @submit.prevent="valid && perform()">
       <label v-if="step.commit" class="field">
         <span>{{ t('gitStep.commitMessage') }}</span>
-        <VInputText v-model="message" size="small" :data-testid="`${testid}-message`" autofocus />
+        <VInputText v-model="message" :data-testid="`${testid}-message`" autofocus />
       </label>
       <template v-if="step.create">
         <label class="field">
           <span>{{ t('gitStep.requestTitle') }}</span>
-          <VInputText v-model="title" size="small" :data-testid="`${testid}-title`" />
+          <VInputText v-model="title" :data-testid="`${testid}-title`" />
         </label>
         <label class="field">
           <span>{{ t('gitStep.requestDescription') }}</span>

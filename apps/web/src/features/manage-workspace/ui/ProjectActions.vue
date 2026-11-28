@@ -158,14 +158,14 @@ async function confirmRemove() {
     <VButton v-else-if="!bare" :label="t('agents.project.add')" size="small" :text="!primary" :severity="primary ? undefined : 'secondary'" data-testid="project-add" @click="openAdd" />
     <form v-if="mode === 'adding'" class="inline" @submit.prevent="submitAdd(false)">
       <span v-if="hint" class="hint" data-testid="project-add-hint">{{ hint }}</span>
-      <VInputText ref="pathInput" v-model="path" size="small" :placeholder="t('agents.project.path')" :aria-label="t('agents.project.pathAria')" data-testid="project-path-input" @keydown.esc="cancel" />
-      <VInputText v-model="name" size="small" :placeholder="t('agents.project.namePlaceholder')" :aria-label="t('agents.project.nameAria')" data-testid="project-name-input" @keydown.esc="cancel" />
+      <VInputText ref="pathInput" v-model="path" :placeholder="t('agents.project.path')" :aria-label="t('agents.project.pathAria')" data-testid="project-path-input" @keydown.esc="cancel" />
+      <VInputText v-model="name" :placeholder="t('agents.project.namePlaceholder')" :aria-label="t('agents.project.nameAria')" data-testid="project-name-input" @keydown.esc="cancel" />
       <VButton type="submit" :label="t('agents.project.addSubmit')" size="small" :disabled="!trimmedPath" :loading="busy" data-testid="project-add-submit" />
       <VButton v-if="canCreateMissing" :label="t('agents.project.createFolder')" size="small" severity="secondary" :disabled="busy" data-testid="project-create-missing" @click="submitAdd(true)" />
       <VButton :label="t('common.cancel')" size="small" text severity="secondary" @click="cancel" />
     </form>
     <form v-else-if="mode === 'renaming'" class="inline" @submit.prevent="submitRename">
-      <VInputText ref="nameInput" v-model="name" size="small" :placeholder="t('agents.project.folderName')" :aria-label="t('agents.project.nameAria')" data-testid="project-name-input" @keydown.esc="cancel" />
+      <VInputText ref="nameInput" v-model="name" :placeholder="t('agents.project.folderName')" :aria-label="t('agents.project.nameAria')" data-testid="project-name-input" @keydown.esc="cancel" />
       <span class="hint">{{ t('agents.project.renameHint') }}</span>
       <VButton type="submit" :label="t('common.save')" size="small" :loading="busy" data-testid="project-rename-submit" />
       <VButton :label="t('common.cancel')" size="small" text severity="secondary" @click="cancel" />

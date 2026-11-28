@@ -122,7 +122,6 @@ async function confirmDelete() {
       v-if="mode === 'renaming'"
       v-model="draft"
       class="rename"
-      size="small"
       :aria-label="t('agents.session.newName')"
       data-testid="session-rename-input"
       :readonly="action.busy.value"

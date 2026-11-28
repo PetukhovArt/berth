@@ -121,7 +121,7 @@ onBeforeUnmount(cancel);
     <div class="toolbar vr-toolbar">
       <label class="search">
         <Search :size="16" />
-        <VInputText v-model="query" class="search-input" size="small" :placeholder="t('settings.keymap.search')" :aria-label="t('settings.keymap.search')" data-testid="keymap-search" />
+        <VInputText v-model="query" class="search-input" :placeholder="t('settings.keymap.search')" :aria-label="t('settings.keymap.search')" data-testid="keymap-search" />
       </label>
       <VButton :label="jsonMode ? t('settings.keymap.backToList') : t('settings.keymap.openJson')" size="small" severity="secondary" data-testid="keymap-open-json" @click="toggleJson">
         <template #icon><FileJson :size="14" /></template>

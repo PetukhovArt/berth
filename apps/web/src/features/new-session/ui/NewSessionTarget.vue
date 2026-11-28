@@ -71,7 +71,7 @@ const summary = computed(() => {
     <div class="chips">
       <ChipField v-if="!projectLocked" :label="t('agents.newSession.project')" data-testid="new-session-project-field">
         <template #default="{ labelId, controlId }">
-          <VSelect v-model="project" :options="projects" option-label="label" option-value="id" size="small" class="chip" :label-id="controlId" :aria-labelledby="labelId" data-testid="new-session-project" />
+          <VSelect v-model="project" :options="projects" option-label="label" option-value="id" class="chip" :label-id="controlId" :aria-labelledby="labelId" data-testid="new-session-project" />
         </template>
       </ChipField>
       <ChipField v-else fixed :label="t('agents.newSession.project')" data-testid="new-session-project-field">
@@ -81,7 +81,7 @@ const summary = computed(() => {
       </ChipField>
       <ChipField :label="t('agents.newSession.target')" data-testid="new-session-worktree-field">
         <template #default="{ labelId, controlId }">
-          <VSelect v-model="target" :options="targets" option-label="label" option-value="id" size="small" class="chip" :label-id="controlId" :aria-labelledby="labelId" data-testid="new-session-worktree" />
+          <VSelect v-model="target" :options="targets" option-label="label" option-value="id" class="chip" :label-id="controlId" :aria-labelledby="labelId" data-testid="new-session-worktree" />
         </template>
       </ChipField>
       <ChipField v-if="creating && baseOptions.length" :label="t('agents.newSession.base')" data-testid="new-session-base-field">
@@ -92,7 +92,6 @@ const summary = computed(() => {
             option-label="label"
             option-value="id"
             filter
-            size="small"
             class="chip"
             :label-id="controlId"
             :aria-labelledby="labelId"
@@ -104,7 +103,7 @@ const summary = computed(() => {
       </ChipField>
       <ChipField v-if="!creating" :label="t('agents.newSession.branch')" data-testid="new-session-branch-field">
         <template #default="{ labelId, controlId }">
-          <VSelect v-model="mode" :options="MODES" option-label="label" option-value="value" option-disabled="disabled" size="small" class="chip" :label-id="controlId" :aria-labelledby="labelId" data-testid="new-session-branch-mode" />
+          <VSelect v-model="mode" :options="MODES" option-label="label" option-value="value" option-disabled="disabled" class="chip" :label-id="controlId" :aria-labelledby="labelId" data-testid="new-session-branch-mode" />
         </template>
       </ChipField>
       <slot name="type" />
@@ -117,7 +116,6 @@ const summary = computed(() => {
         option-label="label"
         option-value="value"
         filter
-        size="small"
         :loading="loading"
         :placeholder="t('agents.newSession.pickBranch')"
         :aria-label="t('agents.newSession.existingBranch')"
@@ -127,7 +125,7 @@ const summary = computed(() => {
     </label>
     <label v-if="creating || mode === 'new'" class="row">
       <span class="row-label">{{ t('agents.newSession.newBranch') }}</span>
-      <VTextarea v-model="fresh" rows="1" auto-resize size="small" :placeholder="t('agents.newSession.typeBranch')" class="row-input mono branch" data-testid="new-session-new-branch" @keydown.enter="onBranchEnter" @paste="onBranchPaste" />
+      <VTextarea v-model="fresh" rows="1" auto-resize :placeholder="t('agents.newSession.typeBranch')" class="row-input mono branch" data-testid="new-session-new-branch" @keydown.enter="onBranchEnter" @paste="onBranchPaste" />
     </label>
     <VMessage v-if="branchesError" severity="warn" size="small" data-testid="new-session-branches-error">{{ t('agents.newSession.branchesFailed', { error: branchesError }) }}</VMessage>
     <div class="summary" :data-plan="plan.kind" data-testid="new-session-plan">

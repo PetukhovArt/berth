@@ -108,7 +108,7 @@ async function create() {
     </div>
     <template v-if="open">
       <form v-if="form" class="form" data-testid="channels-form" @submit.prevent="create">
-        <VInputText ref="nameInput" v-model="name" size="small" autocomplete="off" :aria-label="t('attention.channels.name')" :placeholder="t('attention.channels.namePlaceholder')" :disabled="saving" data-testid="channels-name" @keydown.esc="form = false" />
+        <VInputText ref="nameInput" v-model="name" autocomplete="off" :aria-label="t('attention.channels.name')" :placeholder="t('attention.channels.namePlaceholder')" :disabled="saving" data-testid="channels-name" @keydown.esc="form = false" />
         <VCheckbox v-if="isAdmin" v-model="shared" v-tooltip="t('attention.channels.sharedHint')" :label="t('attention.channels.shared')" :disabled="saving" data-testid="channels-shared" />
         <VMessage v-if="error" severity="error" size="small" data-testid="channels-error">{{ error }}</VMessage>
         <div class="actions">

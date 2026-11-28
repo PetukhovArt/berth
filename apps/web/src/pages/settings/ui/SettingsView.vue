@@ -153,7 +153,7 @@ onUnmounted(() => window.removeEventListener('keydown', onEscape));
       <h1><SlidersHorizontal :size="18" />{{ t('settings.title') }}</h1>
       <label class="search">
         <Search :size="16" />
-        <VInputText v-model="query" class="search-input" size="small" :placeholder="t('settings.search')" :aria-label="t('settings.search')" data-testid="settings-search" @keydown="onSearchKey" />
+        <VInputText v-model="query" class="search-input" :placeholder="t('settings.search')" :aria-label="t('settings.search')" data-testid="settings-search" @keydown="onSearchKey" />
       </label>
       <VButton
         :label="rawMode ? t('settings.backToSettings') : t('settings.openJson')"

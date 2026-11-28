@@ -99,7 +99,7 @@ const remove = (role: HubRole) => run(role.id, { DeleteRole: { id: role.id } });
       <h4 class="form-title">{{ formTitle }}</h4>
       <label class="field">
         <span>{{ t('hub.roles.name') }}</span>
-        <VInputText v-model="name" size="small" autocomplete="off" :placeholder="t('hub.roles.namePlaceholder')" :disabled="saving" data-testid="hub-admin-role-name" />
+        <VInputText v-model="name" autocomplete="off" :placeholder="t('hub.roles.namePlaceholder')" :disabled="saving" data-testid="hub-admin-role-name" />
       </label>
       <fieldset v-for="group in groups" :key="group.id" class="group" :disabled="saving" :data-testid="`hub-admin-role-group-${group.id}`">
         <legend>{{ group.label }}</legend>

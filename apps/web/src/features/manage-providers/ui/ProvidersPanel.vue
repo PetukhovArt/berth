@@ -77,9 +77,9 @@ async function remove(provider: Provider) {
             <VButton :label="t('settings.providers.edit')" size="small" text :data-testid="`provider-edit-${provider.id}`" @click="startEdit(provider)" />
           </div>
           <form v-if="provider.acp && editing === provider.id" class="editor" :data-testid="`provider-editor-${provider.id}`" @submit.prevent="saveEdit">
-            <label v-if="!provider.built_in" class="field"><span>{{ t('settings.providers.name') }}</span><VInputText v-model="draftName" size="small" data-testid="provider-draft-name" /></label>
-            <label class="field"><span>{{ t('settings.providers.command') }}</span><VInputText v-model="draftCommand" size="small" data-testid="provider-draft-command" /></label>
-            <label class="field"><span>{{ t('settings.providers.args') }}</span><VInputText v-model="draftArgs" size="small" data-testid="provider-draft-args" /></label>
+            <label v-if="!provider.built_in" class="field"><span>{{ t('settings.providers.name') }}</span><VInputText v-model="draftName" data-testid="provider-draft-name" /></label>
+            <label class="field"><span>{{ t('settings.providers.command') }}</span><VInputText v-model="draftCommand" data-testid="provider-draft-command" /></label>
+            <label class="field"><span>{{ t('settings.providers.args') }}</span><VInputText v-model="draftArgs" data-testid="provider-draft-args" /></label>
             <p class="hint">{{ t('settings.providers.argsHint') }}</p>
             <div class="row-actions">
               <VButton type="submit" :label="t('settings.providers.save')" size="small" :disabled="!draftCommand.trim()" data-testid="provider-draft-save" />
@@ -98,10 +98,10 @@ async function remove(provider: Provider) {
       </div>
       <template v-if="section.id === 'acp'">
         <form v-if="editing === NEW" class="editor" data-testid="provider-editor-new" @submit.prevent="saveEdit">
-          <label class="field"><span>{{ t('settings.providers.id') }}</span><VInputText v-model="draftId" size="small" data-testid="provider-draft-id" /></label>
-          <label class="field"><span>{{ t('settings.providers.name') }}</span><VInputText v-model="draftName" size="small" data-testid="provider-draft-name" /></label>
-          <label class="field"><span>{{ t('settings.providers.command') }}</span><VInputText v-model="draftCommand" size="small" data-testid="provider-draft-command" /></label>
-          <label class="field"><span>{{ t('settings.providers.args') }}</span><VInputText v-model="draftArgs" size="small" data-testid="provider-draft-args" /></label>
+          <label class="field"><span>{{ t('settings.providers.id') }}</span><VInputText v-model="draftId" data-testid="provider-draft-id" /></label>
+          <label class="field"><span>{{ t('settings.providers.name') }}</span><VInputText v-model="draftName" data-testid="provider-draft-name" /></label>
+          <label class="field"><span>{{ t('settings.providers.command') }}</span><VInputText v-model="draftCommand" data-testid="provider-draft-command" /></label>
+          <label class="field"><span>{{ t('settings.providers.args') }}</span><VInputText v-model="draftArgs" data-testid="provider-draft-args" /></label>
           <p class="hint">{{ t('settings.providers.argsHint') }} {{ t('settings.providers.secretsHint') }}</p>
           <div class="row-actions">
             <VButton type="submit" :label="t('settings.providers.save')" size="small" :disabled="!draftId.trim() || !draftCommand.trim()" data-testid="provider-draft-save" />

@@ -82,7 +82,6 @@ async function resumeSession(session: string) {
         </div>
         <VSelect
           class="picker"
-          size="small"
           :model-value="targetOf(orphan.session_id)"
           :options="options"
           option-label="label"

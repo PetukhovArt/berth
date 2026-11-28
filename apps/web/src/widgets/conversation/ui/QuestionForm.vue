@@ -60,7 +60,7 @@ useDigitKeys(root, () => props.panelId, (index) => {
           <kbd v-if="instant && index < 9" class="key">{{ index + 1 }}</kbd>
         </VButton>
       </div>
-      <VInputText v-if="typed && question.free_text_allowed" v-model="text[question.id]" class="free" size="small" :placeholder="t('chat.question.placeholder')" :aria-label="t('chat.question.placeholder')" data-testid="question-text" @keydown.enter.prevent="enter(question)" />
+      <VInputText v-if="typed && question.free_text_allowed" v-model="text[question.id]" class="free" :placeholder="t('chat.question.placeholder')" :aria-label="t('chat.question.placeholder')" data-testid="question-text" @keydown.enter.prevent="enter(question)" />
     </fieldset>
     <VButton v-if="!instant" class="submit" :label="t('chat.question.submit')" size="small" :disabled="!complete" data-testid="question-submit" @click="emit('submit', answers)" />
   </div>

@@ -29,7 +29,7 @@ defineExpose({ focus: () => input.value?.$el.focus() });
 
 <template>
   <div class="find" role="search" data-testid="chat-find">
-    <VInputText ref="input" v-model="query" class="field" type="search" size="small" :placeholder="t('chat.find.placeholder')" :aria-label="t('chat.find.placeholder')" data-testid="chat-find-input" @keydown="onKey" />
+    <VInputText ref="input" v-model="query" class="field" type="search" :placeholder="t('chat.find.placeholder')" :aria-label="t('chat.find.placeholder')" data-testid="chat-find-input" @keydown="onKey" />
     <span class="count" role="status" data-testid="chat-find-count">{{ !query ? '' : total ? t('chat.find.count', { index: index + 1, total }) : t('chat.find.none') }}</span>
     <VButton v-tooltip="t('chat.find.previous')" class="step" text severity="secondary" size="small" :disabled="!total" :aria-label="t('chat.find.previous')" data-testid="chat-find-prev" @click="emit('step', -1)">
       <template #icon><ChevronUp :size="14" /></template>

@@ -79,22 +79,22 @@ onMounted(load);
     <form class="editor" @submit.prevent="save">
       <label class="field">
         <span>{{ t('settings.chatBridge.telegramToken') }}</span>
-        <VInputText v-model="token" size="small" type="password" autocomplete="off" :disabled="!loaded" data-testid="chat-bridge-token" />
+        <VInputText v-model="token" type="password" autocomplete="off" :disabled="!loaded" data-testid="chat-bridge-token" />
       </label>
       <label class="field">
         <span>{{ t('settings.chatBridge.telegramChat') }}</span>
-        <VInputText v-model="chat" size="small" autocomplete="off" :disabled="!loaded" data-testid="chat-bridge-chat" />
+        <VInputText v-model="chat" autocomplete="off" :disabled="!loaded" data-testid="chat-bridge-chat" />
       </label>
       <p class="hint">{{ t('settings.chatBridge.telegramHint') }}</p>
       <label class="field">
         <span>{{ t('settings.chatBridge.telegramOwner') }}</span>
-        <VInputText v-model="owner" size="small" inputmode="numeric" autocomplete="off" :invalid="ownerInvalid" :disabled="!loaded" data-testid="chat-bridge-owner" />
+        <VInputText v-model="owner" inputmode="numeric" autocomplete="off" :invalid="ownerInvalid" :disabled="!loaded" data-testid="chat-bridge-owner" />
       </label>
       <p class="hint">{{ t('settings.chatBridge.ownerHint') }}</p>
       <VMessage v-if="ownerInvalid" severity="warn" size="small" data-testid="chat-bridge-owner-invalid">{{ t('settings.chatBridge.ownerInvalid') }}</VMessage>
       <label class="field">
         <span>{{ t('settings.chatBridge.webhookUrl') }}</span>
-        <VInputText v-model="url" size="small" type="url" autocomplete="off" placeholder="https://" :disabled="!loaded" data-testid="chat-bridge-webhook" />
+        <VInputText v-model="url" type="url" autocomplete="off" placeholder="https://" :disabled="!loaded" data-testid="chat-bridge-webhook" />
       </label>
       <p class="hint">{{ t('settings.chatBridge.webhookHint') }}</p>
       <VMessage v-if="telegramHalf" severity="warn" size="small" data-testid="chat-bridge-half">{{ t('settings.chatBridge.half') }}</VMessage>

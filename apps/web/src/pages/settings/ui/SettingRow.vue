@@ -66,7 +66,6 @@ function commit() {
         :options="options"
         option-label="label"
         option-value="value"
-        size="small"
         :input-id="testId"
         :aria-label="t(def.label)"
         :data-testid="testId"
@@ -76,7 +75,6 @@ function commit() {
         v-else-if="def.type === 'number'"
         v-model="draft"
         type="number"
-        size="small"
         :min="def.min"
         :max="def.max"
         :step="def.step"
@@ -84,7 +82,7 @@ function commit() {
         :data-testid="testId"
         @change="commit"
       />
-      <VInputText v-else v-model="draft" size="small" :placeholder="placeholder" :id="testId" :data-testid="testId" @change="commit" />
+      <VInputText v-else v-model="draft" :placeholder="placeholder" :id="testId" :data-testid="testId" @change="commit" />
       <VButton
         v-if="modified"
         v-tooltip="t('settings.resetTitle')"

@@ -34,7 +34,7 @@ const pickedKey = computed({
 
 <template>
   <div class="continue" data-testid="new-session-continue-list">
-    <VInputText v-model="filter" size="small" class="filter" :placeholder="t('agents.newSession.continueFilter')" :aria-label="t('agents.newSession.continueFilter')" data-testid="new-session-continue-filter" />
+    <VInputText v-model="filter" class="filter" :placeholder="t('agents.newSession.continueFilter')" :aria-label="t('agents.newSession.continueFilter')" data-testid="new-session-continue-filter" />
     <VMessage v-if="error" severity="error" size="small">{{ error }}</VMessage>
     <p v-else-if="loading && !choices.length" class="state">{{ t('agents.newSession.continueLoading') }}</p>
     <p v-else-if="!choices.length" class="state">{{ t('agents.newSession.continueEmpty') }}</p>

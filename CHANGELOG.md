@@ -53,6 +53,7 @@
 - Fixed the toolbar of a Mermaid diagram on a phone: the mouse hint no longer wraps one letter per line and the buttons keep their labels on one line
 - Fixed a Mermaid diagram flickering in chat while the answer is still streaming: the last drawn diagram stays on screen and a parse error shows only when the text stops changing
 - Fixed the close button of dialogs: it is now the same small square icon button as the other controls instead of a larger round one
+- Fixed text fields and selects that were taller than the rest of the app with larger text: the connector form, the Confluence search, the file filter in Changes, the Jira query and the task note now match the other controls
 - Removed the terminal mode of Cursor and OpenCode: they run only in the chat view, turned on in Settings → Providers, and their older terminal sessions stay in the list and the archive but cannot be resumed
 - Removed the OpenClaw skill: `berth sessions`, `berth attention` and `berth send` stay
 

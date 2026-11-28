@@ -56,7 +56,7 @@ const models = (value: string | undefined) =>
     <p v-if="!list.rows.length" class="muted">{{ t('router.empty') }}</p>
     <div v-for="(row, index) in list.rows" :key="row.id" class="row" :style="{ paddingInlineStart: `calc(${depthOf(list.rows, index)} * var(--vr-space-4))` }" :data-row="row.type">
       <template v-if="row.type === 'join'">
-        <VSelect :model-value="row.op" :options="joinOptions" option-label="label" option-value="value" size="small" class="join" :aria-label="t('router.join.all')" data-testid="router-join" @update:model-value="patch(index, { ...row, op: $event })" />
+        <VSelect :model-value="row.op" :options="joinOptions" option-label="label" option-value="value" class="join" :aria-label="t('router.join.all')" data-testid="router-join" @update:model-value="patch(index, { ...row, op: $event })" />
       </template>
       <template v-else-if="row.type === 'close'">
         <span class="bracket">)</span>
@@ -73,20 +73,20 @@ const models = (value: string | undefined) =>
           <code v-tooltip="t('router.kept')" class="raw" data-testid="router-opaque">{{ JSON.stringify(row.raw) }}</code>
         </template>
         <template v-else>
-          <VSelect :model-value="row.condition.type" :options="typeOptions" option-label="label" option-value="value" size="small" class="type" data-testid="router-condition-type" @update:model-value="changeType(index, row, $event)" />
+          <VSelect :model-value="row.condition.type" :options="typeOptions" option-label="label" option-value="value" class="type" data-testid="router-condition-type" @update:model-value="changeType(index, row, $event)" />
           <template v-if="row.condition.type === 'provider_error'">
             <VSelectButton class="chips" :model-value="row.condition.kinds" :options="errorKindOptions" :label="t('router.condition.provider_error')" multiple @update:model-value="setCondition(index, row, { ...row.condition, kinds: $event as string[] })" />
-            <VInputText :model-value="String(row.condition.forSecs)" size="small" class="num" :aria-label="t('router.forSecs')" data-testid="router-for-secs" @update:model-value="setCondition(index, row, { ...row.condition, forSecs: num($event, 0) })" />
+            <VInputText :model-value="String(row.condition.forSecs)" class="num" :aria-label="t('router.forSecs')" data-testid="router-for-secs" @update:model-value="setCondition(index, row, { ...row.condition, forSecs: num($event, 0) })" />
             <span class="muted">{{ t('router.forSecs') }}</span>
           </template>
           <template v-else-if="row.condition.type === 'limit_used'">
-            <VInputText :model-value="String(row.condition.pct)" size="small" class="num" :aria-label="t('router.pct')" data-testid="router-pct" @update:model-value="setCondition(index, row, { ...row.condition, pct: num($event, 95) })" />
+            <VInputText :model-value="String(row.condition.pct)" class="num" :aria-label="t('router.pct')" data-testid="router-pct" @update:model-value="setCondition(index, row, { ...row.condition, pct: num($event, 95) })" />
             <span class="muted">{{ t('router.pct') }}</span>
-            <VInputText :model-value="row.condition.windowMinutes === null ? '' : String(row.condition.windowMinutes)" size="small" class="num" :placeholder="t('router.anyWindow')" :aria-label="t('router.windowMinutes')" data-testid="router-window" @update:model-value="setCondition(index, row, { ...row.condition, windowMinutes: $event?.trim() ? num($event, 0) : null })" />
+            <VInputText :model-value="row.condition.windowMinutes === null ? '' : String(row.condition.windowMinutes)" class="num" :placeholder="t('router.anyWindow')" :aria-label="t('router.windowMinutes')" data-testid="router-window" @update:model-value="setCondition(index, row, { ...row.condition, windowMinutes: $event?.trim() ? num($event, 0) : null })" />
             <span class="muted">{{ t('router.windowMinutes') }}</span>
           </template>
           <template v-else-if="row.condition.type === 'model'">
-            <VInputText :model-value="row.condition.values.join(', ')" size="small" :placeholder="t('router.modelsPlaceholder')" :aria-label="t('router.condition.model')" data-testid="router-models" @update:model-value="setCondition(index, row, { ...row.condition, values: models($event) })" />
+            <VInputText :model-value="row.condition.values.join(', ')" :placeholder="t('router.modelsPlaceholder')" :aria-label="t('router.condition.model')" data-testid="router-models" @update:model-value="setCondition(index, row, { ...row.condition, values: models($event) })" />
           </template>
           <VSelectButton
             v-else
