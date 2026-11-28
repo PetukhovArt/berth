@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::io;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
@@ -21,6 +21,7 @@ use tokio::task::AbortHandle;
 use crate::sink::BoxSink;
 
 const OFFLINE_RETRY: Duration = Duration::from_secs(1);
+const FLAPPING_WINDOW: Duration = Duration::from_secs(1);
 const INCOMPATIBLE_RETRY: Duration = Duration::from_secs(5);
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
 const CALL_TIMEOUT: Duration = Duration::from_secs(30);
@@ -395,6 +396,7 @@ struct Actor {
     autostart: bool,
     started_daemon: bool,
     updating_daemon: bool,
+    up_since: Option<Instant>,
 }
 
 impl Actor {
@@ -403,6 +405,7 @@ impl Actor {
             autostart,
             started_daemon: false,
             updating_daemon: false,
+            up_since: None,
             inbox,
             watcher: None,
             shown: None,
@@ -555,7 +558,23 @@ impl Actor {
             LinkEvent::Frame(event) => self.frame(*event),
             LinkEvent::Down => {
                 self.show(ConnectionState::Connecting, None);
-                self.connect();
+                if self
+                    .up_since
+                    .is_some_and(|since| since.elapsed() < FLAPPING_WINDOW)
+                {
+                    self.drop_link();
+                    let inbox = self.inbox.clone();
+                    let epoch = self.epoch;
+                    self.spawn(async move {
+                        tokio::time::sleep(OFFLINE_RETRY).await;
+                        let _ = inbox.send(Msg::Link {
+                            epoch,
+                            event: LinkEvent::RetryDue,
+                        });
+                    });
+                } else {
+                    self.connect();
+                }
             }
         }
     }
@@ -602,6 +621,7 @@ impl Actor {
             let _ = writer_tx.send(attachment.attach_request(session.clone()));
         }
         self.writer = Some(writer_tx);
+        self.up_since = Some(Instant::now());
         self.started_daemon = false;
         self.show(ConnectionState::Connected, None);
     }
