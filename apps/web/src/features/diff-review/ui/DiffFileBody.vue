@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue';
 import type { DiffFile, Discussion } from '../../../shared/api/connectors/api';
 import type { PromptQuote } from '../../../entities/session';
 import { VButton, vTooltip } from '../../../shared/ui/kit';
@@ -24,6 +24,7 @@ const emit = defineEmits<{ expand: []; pick: [index: number, extend: boolean]; q
 type Model = { lines: PatchLine[]; rows: SplitRow[]; html: string[]; threads: Map<number, Discussion[]>; orphans: Discussion[] };
 
 const ROW_LIMIT = 2500;
+const MIN_SPLIT_WIDTH = 720;
 const EMPTY: Discussion[] = [];
 
 function safeHighlight(code: string, path: string): string[] {
@@ -68,9 +69,41 @@ const model = computed<Model>(() => {
   return { lines, rows: splitRows(lines), html, threads, orphans };
 });
 
+const bodyEl = useTemplateRef<HTMLElement>('body');
+const bodyWidth = shallowRef(0);
+let resizes: ResizeObserver | undefined;
+
+onMounted(() => {
+  const el = bodyEl.value;
+  if (!el) return;
+  bodyWidth.value = el.clientWidth;
+  resizes = new ResizeObserver(([entry]) => {
+    if (entry) bodyWidth.value = entry.contentRect.width;
+  });
+  resizes.observe(el);
+});
+
+onBeforeUnmount(() => resizes?.disconnect());
+
+const shownMode = computed(() => (props.mode === 'split' && bodyWidth.value > 0 && bodyWidth.value < MIN_SPLIT_WIDTH ? 'unified' : props.mode));
+
+const syncedLeft: Record<string, number> = {};
+
+function syncSide(event: Event) {
+  const cell = event.target as HTMLElement;
+  const side = cell.dataset.side;
+  if (!side) return;
+  const left = cell.scrollLeft;
+  if (Math.abs(left - (syncedLeft[side] ?? 0)) < 1) return;
+  syncedLeft[side] = left;
+  for (const other of (event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>(`.code[data-side="${side}"]`)) {
+    if (other !== cell) other.scrollLeft = left;
+  }
+}
+
 const shownLines = computed(() => (props.expanded ? model.value.lines : model.value.lines.slice(0, ROW_LIMIT)));
 const shownRows = computed(() => (props.expanded ? model.value.rows : model.value.rows.slice(0, ROW_LIMIT)));
-const truncated = computed(() => !props.expanded && (props.mode === 'unified' ? model.value.lines.length : model.value.rows.length) > ROW_LIMIT);
+const truncated = computed(() => !props.expanded && (shownMode.value === 'unified' ? model.value.lines.length : model.value.rows.length) > ROW_LIMIT);
 
 function rowThreads(row: SplitRow): Discussion[] {
   const threads = model.value.threads;
@@ -113,12 +146,12 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
 </script>
 
 <template>
-  <div class="body" :data-mode="mode" :data-wrap="wrap">
+  <div ref="body" class="body" :data-mode="shownMode" :data-wrap="wrap">
     <div v-for="d in model.orphans" :key="d.id" class="thread-row" :data-flash="flashId === d.id">
       <ThreadView :discussion="d" :connector="connector" :quotable="pickable" show-position @quote="emit('quote', $event)" />
     </div>
 
-    <div v-if="mode === 'unified'" class="lines">
+    <div v-if="shownMode === 'unified'" class="lines">
       <template v-for="line in shownLines" :key="line.index">
         <div v-if="line.kind === 'hunk'" class="hunk">{{ line.text }}</div>
         <div v-else-if="line.kind === 'meta'" class="hunk meta">{{ line.text }}</div>
@@ -140,14 +173,14 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
       </template>
     </div>
 
-    <div v-else class="lines split">
+    <div v-else class="lines split" @scroll.capture="syncSide">
       <template v-for="(row, r) in shownRows" :key="r">
         <div v-if="row.full" class="hunk" :class="{ meta: row.full.kind === 'meta' }">{{ row.full.text }}</div>
         <div v-else class="line split-line">
           <span class="num" :data-kind="row.left?.kind" :data-picked="isPicked(row.left)" :data-pickable="pickable" @click="pick(row.left, $event)">{{ row.left?.oldLine ?? '' }}</span>
-          <span class="code" :data-kind="row.left?.kind" :data-picked="isPicked(row.left)" v-html="codeOf(row.left)" />
+          <span class="code" data-side="old" :data-kind="row.left?.kind" :data-picked="isPicked(row.left)" v-html="codeOf(row.left)" />
           <span class="num" :data-kind="row.right?.kind" :data-picked="isPicked(row.right)" :data-pickable="pickable" @click="pick(row.right, $event)">{{ row.right?.newLine ?? '' }}</span>
-          <span class="code" :data-kind="row.right?.kind" :data-picked="isPicked(row.right)" v-html="codeOf(row.right)" />
+          <span class="code" data-side="new" :data-kind="row.right?.kind" :data-picked="isPicked(row.right)" v-html="codeOf(row.right)" />
         </div>
         <div v-if="quoted && (endsPick(row.right) || endsPick(row.left))" class="pick-bar" data-testid="diff-pick-bar">
           <span class="pick-label">{{ quoted.label }}</span>
@@ -181,14 +214,23 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
 
 .lines.split {
   display: grid;
-  grid-template-columns: 44px minmax(calc(50cqw - 44px), max-content) 44px minmax(calc(50cqw - 44px), max-content);
-  width: max-content;
+  grid-template-columns: 44px minmax(0, 1fr) 44px minmax(0, 1fr);
   min-width: 0;
 }
 
 .lines.split > .hunk,
 .lines.split > .thread-row {
   grid-column: 1 / -1;
+}
+
+.lines.split > .hunk {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lines.split .code {
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
 .hunk {
@@ -274,11 +316,6 @@ const codeOf = (line: PatchLine | null) => (line ? model.value.html[line.index] 
 
 .body[data-wrap='true'] .lines {
   min-width: 0;
-}
-
-.body[data-wrap='true'] .lines.split {
-  grid-template-columns: 44px minmax(0, 1fr) 44px minmax(0, 1fr);
-  width: auto;
 }
 
 .body[data-wrap='true'] .lines:not(.split) .line {

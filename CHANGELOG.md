@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed the side-by-side diff in a narrow window squeezing the new column to a few pixels behind a horizontal scroll: both columns are now equal, long lines scroll inside each half, and a diff too narrow for two readable columns shows the unified view
 - Fixed the worktree cleanup dialog with nothing to clean looking like a form: it now shows a short empty message with only a Close button instead of a disabled Remove selected button and the branches checkbox
 
 ## 0.25.2 (2026-11-28)
