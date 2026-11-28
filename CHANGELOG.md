@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.26.1 (2026-11-28)
+
 - Fixed the mouse wheel over the tab strip stopping between tabs: it now moves one whole tab per step and can scroll past the active tab
 - Fixed menu items on the phone being smaller than the other touch targets
 
