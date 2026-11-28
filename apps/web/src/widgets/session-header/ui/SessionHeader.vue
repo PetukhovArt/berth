@@ -14,6 +14,7 @@ import ContinueAsAgentButton from './ContinueAsAgentButton.vue';
 import AgentLogButton from './AgentLogButton.vue';
 import { OverlapChip } from '../../../features/overlaps';
 import { ShareButton } from '../../../features/share-session';
+import { vTooltip } from '../../../shared/ui/kit';
 import { isDesktop } from '../../../bridge';
 import { inspectorShown } from '../../../shared/model/inspector';
 
@@ -101,7 +102,7 @@ watch(
   <header v-if="node" class="session-header" data-testid="session-header">
     <div class="identity">
       <div class="title-row">
-        <span class="title" data-testid="session-header-title">{{ node.name }}</span>
+        <span v-tooltip="node.name" class="title" data-testid="session-header-title">{{ node.name }}</span>
         <span v-if="status" class="pill" :data-tone="tone" data-testid="session-header-status">
           <StatusIcon class="icon" :status="status" :unseen="state?.unseen ?? node.unseen" />
           {{ statusText }}

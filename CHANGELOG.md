@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed the last tab in the tab strip showing as a cut-off fragment at the edge: a tab that does not fit now moves whole into the overflow menu, and the overflow button goes away once the remaining tabs fit; the session header title and archived conversation rows show the full title on hover
 - Fixed the side-by-side diff in a narrow window squeezing the new column to a few pixels behind a horizontal scroll: both columns are now equal, long lines scroll inside each half, and a diff too narrow for two readable columns shows the unified view
 - Fixed the worktree cleanup dialog with nothing to clean looking like a form: it now shows a short empty message with only a Close button instead of a disabled Remove selected button and the branches checkbox
 

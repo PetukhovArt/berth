@@ -3,6 +3,8 @@ import type { DockviewApi } from 'dockview-vue';
 const MIN_WIDTH = 168;
 const MAX_WIDTH = 240;
 const MENU_RESERVE = 56;
+const SLACK = 2;
+const FLOOR_WIDTH = 120;
 const WIDTH_VAR = '--dock-tab-width';
 
 const MENU = '.dv-tabs-overflow-dropdown-root';
@@ -23,20 +25,26 @@ function measureBar(bar: HTMLElement, tabs: HTMLElement): { other: number; menu:
   return { other, menu: menu || MENU_RESERVE };
 }
 
-function fit(tabs: HTMLElement, bar: HTMLElement) {
+function fit(tabs: HTMLElement, bar: HTMLElement, clip: boolean): boolean {
   const count = tabs.querySelectorAll(':scope > .dv-tab').length;
-  if (!count) return;
+  if (!count) return false;
   const { other, menu } = measureBar(bar, tabs);
-  const room = bar.clientWidth - other;
+  const room = bar.clientWidth - other - SLACK;
   let width: number;
+  let shown = count;
+  let stale = false;
   if (count * MIN_WIDTH <= room) {
-    width = Math.min(MAX_WIDTH, Math.floor(room / count));
+    stale = clip && bar.querySelector(MENU) !== null;
+    width = stale ? Math.floor((room - menu) / count) : Math.min(MAX_WIDTH, Math.floor(room / count));
   } else {
-    const usable = Math.max(MIN_WIDTH, room - menu);
-    const visible = Math.max(1, Math.floor(usable / MIN_WIDTH));
-    width = Math.min(MAX_WIDTH, Math.floor(usable / visible));
+    const usable = room - menu;
+    shown = Math.max(1, Math.floor(usable / MIN_WIDTH));
+    width = Math.max(FLOOR_WIDTH, Math.min(MAX_WIDTH, Math.floor(usable / shown)));
   }
   tabs.style.setProperty(WIDTH_VAR, `${width}px`);
+  if (clip) tabs.style.maxWidth = `${shown * width}px`;
+  else tabs.style.removeProperty('max-width');
+  return stale;
 }
 
 export function trackTabFit(root: HTMLElement, api: DockviewApi): { dispose(): void }[] {
@@ -45,15 +53,17 @@ export function trackTabFit(root: HTMLElement, api: DockviewApi): { dispose(): v
 
   function run() {
     frame = 0;
+    let stale = false;
     for (const tabs of root.querySelectorAll<HTMLElement>('.dv-tabs-container')) {
       const bar = tabs.closest<HTMLElement>('.dv-tabs-and-actions-container');
       if (!bar) continue;
-      fit(tabs, bar);
+      if (fit(tabs, bar, root.dataset.tabs === 'scroll')) stale = true;
       resizes.observe(bar);
       for (const child of Array.from(bar.children)) {
         if (!child.contains(tabs) && !child.classList.contains('dv-void-container')) resizes.observe(child);
       }
     }
+    if (stale) for (const group of api.groups) group.header.refreshOverflow();
   }
 
   function schedule() {

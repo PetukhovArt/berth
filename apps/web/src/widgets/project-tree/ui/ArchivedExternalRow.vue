@@ -17,7 +17,7 @@ function restore() {
 <template>
   <div class="archived" data-testid="archived-external-row" :data-session-id="session.id" :data-harness="session.harness" :data-busy="action.busy.value">
     <div class="line">
-      <VRowButton v-tooltip="session.cwd" class="open" data-testid="archived-external-open" @click="emit('open', primaryPressed($event))">
+      <VRowButton v-tooltip="`${session.title}\n${session.cwd}`" class="open" data-testid="archived-external-open" @click="emit('open', primaryPressed($event))">
         <template #leading><HarnessIcon :harness="session.harness" /></template>
         <VMiddleTruncate :text="session.title" />
       </VRowButton>
