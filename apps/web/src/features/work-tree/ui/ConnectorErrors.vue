@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef, useTemplateRef } from 'vue';
 import { Unplug } from '../../../shared/ui/icons';
-import { VButton, VPopover } from '../../../shared/ui/kit';
+import { VButton, VPopover, vTooltip } from '../../../shared/ui/kit';
 import { useI18n } from '../../../shared/lib/i18n/i18n';
 import { openSettings } from '../../../shared/model/nav';
 import { useWorkTree } from '../model/useWorkTree';
