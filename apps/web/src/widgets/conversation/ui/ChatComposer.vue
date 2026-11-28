@@ -409,10 +409,10 @@ function handsFree() {
           >
             <template #icon><Mic :size="14" /></template>
           </VButton>
-          <VButton v-if="stop && !canSend" v-tooltip="t('agents.sessionView.chatStop')" class="send foot-stop" severity="danger" rounded size="small" :aria-label="t('agents.sessionView.chatStop')" data-testid="chat-stop" @click="stop">
+          <VButton v-if="stop && !canSend" v-tooltip="t('agents.sessionView.chatStop')" class="send foot-stop" severity="danger" size="small" :aria-label="t('agents.sessionView.chatStop')" data-testid="chat-stop" @click="stop">
             <template #icon><Square :size="12" fill="currentColor" /></template>
           </VButton>
-          <VButton v-else v-tooltip="t('agents.sessionView.chatSend')" class="send" type="submit" rounded size="small" :disabled="!canSend || sending" :aria-busy="sending" :aria-label="t('agents.sessionView.chatSend')" data-testid="chat-send">
+          <VButton v-else v-tooltip="t('agents.sessionView.chatSend')" class="send" type="submit" size="small" :disabled="!canSend || sending" :aria-busy="sending" :aria-label="t('agents.sessionView.chatSend')" data-testid="chat-send">
             <template #icon><ArrowUp :size="14" /></template>
           </VButton>
         </div>
@@ -650,16 +650,14 @@ function handsFree() {
   border-radius: var(--vr-radius-control);
 }
 
-.talk,
-.send {
+.talk {
   flex: none;
   width: 30px;
   height: 30px;
 }
 
-:root[data-vr-viewport='phone'] .send {
-  width: 44px;
-  height: 44px;
+.send {
+  flex: none;
 }
 
 .talk {

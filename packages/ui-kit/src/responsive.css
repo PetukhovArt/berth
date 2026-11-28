@@ -257,6 +257,10 @@ body {
     min-height: var(--vr-size-row-touch);
   }
 
+  :root[data-vr-viewport='phone'] .p-button-icon-only {
+    min-width: var(--vr-size-row-touch);
+  }
+
   :root[data-vr-viewport='phone'] :where(input:is([type='checkbox'], [type='radio'])) {
     width: 1.125rem;
     height: 1.125rem;

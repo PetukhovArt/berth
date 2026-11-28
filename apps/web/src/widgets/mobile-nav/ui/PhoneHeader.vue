@@ -101,7 +101,7 @@ const canCreate = computed(() => !inDetail.value && (phoneSection.value === 'inb
     <VButton v-tooltip="t('mobile.commands')" class="icon" text severity="secondary" :aria-pressed="paletteOpen" :aria-label="t('mobile.commands')" data-testid="phone-header-commands" @click="paletteOpen = !paletteOpen">
       <template #icon><Command :size="18" /></template>
     </VButton>
-    <VButton v-if="canCreate" v-tooltip="t('agents.newSession.action')" class="icon round" severity="secondary" rounded :aria-label="t('agents.newSession.action')" data-testid="phone-header-new" @click="startNewSession()">
+    <VButton v-if="canCreate" v-tooltip="t('agents.newSession.action')" class="icon" severity="secondary" :aria-label="t('agents.newSession.action')" data-testid="phone-header-new" @click="startNewSession()">
       <template #icon><Plus :size="20" /></template>
     </VButton>
   </header>
@@ -189,9 +189,5 @@ const canCreate = computed(() => !inDetail.value && (phoneSection.value === 'inb
 .back {
   margin-left: calc(var(--vr-space-2) * -1);
   color: var(--vr-color-text);
-}
-
-.round {
-  border-radius: var(--vr-radius-full);
 }
 </style>
