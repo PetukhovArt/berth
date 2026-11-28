@@ -384,6 +384,13 @@ watch(messages, async () => {
   if (!found.value && !seeking.value) el.scrollTop = el.scrollHeight;
 });
 
+watch(
+  () => acp?.session.value?.queue.length ?? 0,
+  (now, before) => {
+    if (now > before) void toBottom();
+  },
+);
+
 onBeforeUnmount(() => {
   clearTimeout(copiedTimer);
   clearTimeout(foundTimer);
