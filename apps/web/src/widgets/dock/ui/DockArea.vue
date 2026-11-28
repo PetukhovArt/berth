@@ -102,6 +102,15 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid var(--vr-color-border);
 }
 
+.dock :deep(.dv-right-actions-container) {
+  height: calc(var(--dv-tabs-and-actions-container-height) - 1px);
+}
+
+.dock :deep(.dv-right-actions-container .dv-vue-part) {
+  display: flex;
+  align-items: center;
+}
+
 .dock :deep(.dockview-theme-light) {
   color-scheme: inherit;
   --dv-group-view-background-color: var(--vr-color-surface);

@@ -14,8 +14,7 @@ import { startNewSession } from '../../../features/new-session';
 <style scoped>
 .new-tab {
   flex: none;
-  width: 28px;
-  height: 100%;
-  border-radius: 0;
+  width: var(--vr-size-control);
+  height: var(--vr-size-control);
 }
 </style>
